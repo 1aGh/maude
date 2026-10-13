@@ -5,9 +5,9 @@
 // carries, and the per-window WebKit data-store id. V2-3.2 (part a) adds the
 // window model itself (§5.2): the `WindowBook` of live windows and their roles,
 // focus tracking, open-once, per-window close with a grace period, and the
-// caller resolution every project command goes through (§5.4). The running cap,
-// resting tabs and the AI-running close confirm are part b; their seams are
-// marked `SEAM (V2-3.2 part b)`.
+// caller resolution every project command goes through (§5.4). Part b adds the
+// running cap's resting tabs (wake on focus), the AI-running close confirm and
+// the tab session (save on open/close/focus, restore on relaunch).
 //
 // PARITY IS LOAD-BEARING. The same `pid` is derived in TS
 // (`apps/studio/index/snapshot.ts` `pidOf`, and `apps/studio/home/pid.ts`): the
@@ -26,6 +26,7 @@ use sha2::{Digest, Sha256};
 #[cfg(target_os = "macos")]
 use tauri::WebviewWindow;
 use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::sidecar::SidecarState;
 
@@ -114,6 +115,13 @@ pub struct WindowEntry {
     /// rewrite (decision 8's concern, without waiting for part b's info file).
     /// `None` until the first navigate, and again after an in-tab switch.
     pub origin: Option<String>,
+    /// The tab is RESTING (§5.2 "Rest (cap)"): its server was stopped to keep
+    /// the running count at the cap; it shows the splash until focus wakes it.
+    /// Live only, never on disk (decision 5).
+    pub resting: bool,
+    /// A close is waiting on the status probe or the "Stop AI in …?" confirm;
+    /// a second ⌘W meanwhile must not stack a second dialog.
+    pub closing: bool,
 }
 
 /// Every live window the shell created, keyed by label, plus which one has
@@ -125,19 +133,38 @@ pub struct WindowBook {
     entries: HashMap<String, WindowEntry>,
     /// Open order, oldest first — a stable fallback when nothing is focused.
     order: Vec<String>,
+    /// Tab order as the person sees it: a new window is attached right after
+    /// the window that opened it (`addTabbedWindow:ordered:NSWindowAbove`), so
+    /// this mirrors that placement. What the session saves (§5.5).
+    tabs: Vec<String>,
     focused: Option<String>,
 }
 
 impl WindowBook {
+    #[cfg(test)]
     pub fn insert(&mut self, label: &str, role: Role, tick: u64) {
+        self.insert_after(label, role, tick, None);
+    }
+
+    /// `insert`, placing the tab right after `after` (the window that opened
+    /// it) — at the end when `after` is absent or unknown.
+    pub fn insert_after(&mut self, label: &str, role: Role, tick: u64, after: Option<&str>) {
         self.order.retain(|l| l != label);
         self.order.push(label.to_string());
+        self.tabs.retain(|l| l != label);
+        let at = after
+            .and_then(|a| self.tabs.iter().position(|l| l == a))
+            .map(|i| i + 1)
+            .unwrap_or(self.tabs.len());
+        self.tabs.insert(at, label.to_string());
         self.entries.insert(
             label.to_string(),
             WindowEntry {
                 role,
                 last_focused: tick,
                 origin: None,
+                resting: false,
+                closing: false,
             },
         );
     }
@@ -151,6 +178,7 @@ impl WindowBook {
 
     pub fn remove(&mut self, label: &str) -> Option<WindowEntry> {
         self.order.retain(|l| l != label);
+        self.tabs.retain(|l| l != label);
         if self.focused.as_deref() == Some(label) {
             self.focused = None;
         }
@@ -238,9 +266,69 @@ impl WindowBook {
         self.front_label().and_then(|l| self.root_of(&l))
     }
 
-    /// Every root some window currently shows.
-    pub fn project_roots(&self) -> Vec<String> {
-        self.order.iter().filter_map(|l| self.root_of(l)).collect()
+    /// `last_focused` of a window — the rest policy's LRU key.
+    pub fn last_focused(&self, label: &str) -> Option<u64> {
+        self.entries.get(label).map(|e| e.last_focused)
+    }
+
+    pub fn is_resting(&self, label: &str) -> bool {
+        self.entries.get(label).is_some_and(|e| e.resting)
+    }
+
+    /// Mark a project tab resting or awake. A resting tab is on the splash, so
+    /// the server origin it was sent to no longer vouches for it.
+    pub fn set_resting(&mut self, label: &str, resting: bool) -> bool {
+        match self.entries.get_mut(label) {
+            Some(e) if matches!(e.role, Role::Project { .. }) => {
+                e.resting = resting;
+                if resting {
+                    e.origin = None;
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Claim the close of `label`; false if a close is already in flight.
+    pub fn begin_close(&mut self, label: &str) -> bool {
+        match self.entries.get_mut(label) {
+            Some(e) if !e.closing => {
+                e.closing = true;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn end_close(&mut self, label: &str) {
+        if let Some(e) = self.entries.get_mut(label) {
+            e.closing = false;
+        }
+    }
+
+    /// May the shell navigate `label` to `root`'s server now? Only while the
+    /// window still shows `root` (an in-tab switch or a close since the wait
+    /// began makes the navigate stale) and is not resting — a respawn's
+    /// re-navigate must never wake a resting tab (§5.2 "Respawn after a crash").
+    pub fn may_navigate(&self, label: &str, root: &str) -> bool {
+        self.project_of(label)
+            .is_some_and(|(pid, _)| pid == pid_for_root(root))
+            && !self.is_resting(label)
+    }
+
+    /// The session to save (§5.5 `session`): every tab in tab order, a project
+    /// tab with its pid, and the focused (else front) label.
+    pub fn session_tabs(&self) -> (Vec<crate::app_state::SessionTab>, Option<String>) {
+        let tabs = self
+            .tabs
+            .iter()
+            .map(|l| crate::app_state::SessionTab {
+                label: l.clone(),
+                pid: self.project_of(l).map(|(pid, _)| pid),
+            })
+            .collect();
+        (tabs, self.front_label())
     }
 
     /// The label a NEW window for `pid` gets: `p-<pid>`, unless that label is
@@ -351,13 +439,14 @@ pub fn open_in(
             None => {}
         }
         let label = b.free_label_for(&pid, |l| host.exists(l));
-        b.insert(
+        b.insert_after(
             &label,
             Role::Project {
                 pid,
                 root: root.to_string(),
             },
             tick,
+            caller,
         );
         label
     };
@@ -545,12 +634,9 @@ pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, o
             {
                 let state = app.state::<SidecarState>();
                 let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-                let still_this_project = book
-                    .project_of(label)
-                    .is_some_and(|(pid, _)| pid == pid_for_root(root));
-                if !still_this_project {
+                if !book.may_navigate(label, root) {
                     crate::sidecar::log_line(&format!(
-                        "[maude] {label} no longer shows {root} — not navigating"
+                        "[maude] {label} no longer shows {root}, or is resting — not navigating"
                     ));
                     return;
                 }
@@ -570,14 +656,16 @@ pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, o
     }
 }
 
-/// Wait for `root`'s `_server.json`, then `navigate_to_server`. Async task;
-/// every print goes through `log_line` (issue #115 — a panic here is silent and
-/// would leave the window on the splash).
+/// Wait for `root`'s server to write its APP-OWNED info file (decision 8 —
+/// never the in-project `_server.json`, which a planted file could point at a
+/// loopback impostor that would then hold this window's IPC), then
+/// `navigate_to_server`. Async task; every print goes through `log_line`
+/// (issue #115 — a panic here is silent and would leave the window on the
+/// splash).
 pub fn navigate_when_up(app: &AppHandle, label: String, root: String, open: Option<String>) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let design_root = Path::new(&root).join(".design");
-        match crate::server_json::wait_for_server(design_root, SERVER_WAIT_MS).await {
+        match crate::sidecar::wait_for_shell_url(&app, &root, SERVER_WAIT_MS).await {
             Ok(url) => {
                 crate::sidecar::log_line(&format!("[maude] {label}: dev-server up at {url}"));
                 navigate_to_server(&app, &label, &root, &url, open.as_deref());
@@ -621,8 +709,9 @@ pub fn open_window_for_root(
         // is still running for this root (closed < CLOSE_GRACE ago, or kept by
         // the pool) is attached to instead of spawned.
         crate::sidecar::attach_or_spawn(app, root);
-        crate::sidecar::reap_instances(app);
+        crate::sidecar::spawn_enforce_cap(app);
         navigate_when_up(app, label.clone(), root.to_string(), None);
+        schedule_session_save(app);
     }
     Ok(opened)
 }
@@ -643,41 +732,202 @@ pub fn open_project_window(
 
 // ── Window events ───────────────────────────────────────────────────────────
 
-/// `Focused(true)`: the front window, and (for the pool's least-recently-shown
-/// eviction) its project's `last_shown`.
+/// `Focused(true)`: the front window, its project's `last_shown`, a session
+/// save, and — for a resting tab — the wake (§5.2 "Window Focused(true)").
 pub fn on_focused(app: &AppHandle, label: &str) {
     let Some(state) = app.try_state::<SidecarState>() else {
         return;
     };
     let tick = state.tick.fetch_add(1, Ordering::SeqCst);
-    let root = {
+    let (root, resting) = {
         let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
         if !book.focus(label, tick) {
             return;
         }
-        book.root_of(label)
+        (book.root_of(label), book.is_resting(label))
     };
-    if let Some(root) = root {
-        crate::sidecar::mark_shown(app, &root, tick);
+    if let Some(root) = &root {
+        crate::sidecar::mark_shown(app, root, tick);
     }
-    // SEAM (V2-3.2 part b): a resting window wakes here (spawn + navigate).
+    schedule_session_save(app);
+    if let (Some(root), true) = (root, resting) {
+        wake_when_settled(app, label.to_string(), root);
+    }
+}
+
+/// How long a resting tab must stay focused before it wakes. Restoring a
+/// session builds every tab, and each build passes focus through it on the way
+/// to the saved front tab; a person cycling tabs with ⌃Tab does the same. Only
+/// a tab that is still the focused one after this wakes — a tab merely passed
+/// through stays resting (and costs no server).
+const WAKE_SETTLE: Duration = Duration::from_millis(250);
+
+/// Wake `label` (spawn its server, navigate when up — DDR-109 guard unchanged)
+/// if it is still the focused, resting window after `WAKE_SETTLE`.
+fn wake_when_settled(app: &AppHandle, label: String, root: String) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(WAKE_SETTLE).await;
+        let state = app.state::<SidecarState>();
+        if state.shutting_down.load(Ordering::SeqCst) {
+            return;
+        }
+        let wake = {
+            let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+            let still = book.front_label().as_deref() == Some(label.as_str())
+                && book.is_resting(&label)
+                && book.root_of(&label).as_deref() == Some(root.as_str());
+            // Cleared under the same lock as the check, so two focus events
+            // cannot both wake the tab.
+            still && book.set_resting(&label, false)
+        };
+        if !wake {
+            return;
+        }
+        crate::sidecar::log_line(&format!("[maude] {label} was resting — waking {root}"));
+        crate::sidecar::attach_or_spawn(&app, &root);
+        crate::sidecar::spawn_enforce_cap(&app);
+        navigate_when_up(&app, label, root, None);
+    });
+}
+
+/// The app-local splash document (`index.html`) — where a resting tab goes.
+fn splash_url() -> tauri::Url {
+    #[cfg(windows)]
+    const SPLASH: &str = "http://tauri.localhost/index.html";
+    #[cfg(not(windows))]
+    const SPLASH: &str = "tauri://localhost/index.html";
+    SPLASH.parse().expect("the splash url parses")
+}
+
+/// Rest `label` (§5.2 "Rest (cap)"): mark it resting FIRST (so no in-flight
+/// navigate or respawn re-navigate can put it back on a server), stop its
+/// server, and send the tab to the splash in its resting state. The title is
+/// kept — the tab still says which project it is.
+pub fn rest_window(app: &AppHandle, label: &str, root: &str) {
+    let state = app.state::<SidecarState>();
+    let marked = state
+        .windows
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .set_resting(label, true);
+    crate::sidecar::shutdown_instance(app, root);
+    if !marked {
+        return;
+    }
+    if let Some(w) = app.get_webview_window(label) {
+        let title = project_display_name(root);
+        if let Err(e) = w.navigate(splash_url()) {
+            crate::sidecar::log_line(&format!("[maude] could not rest {label}: {e}"));
+        }
+        let _ = w.set_title(&crate::notify::sanitize_notify_field(&title));
+    }
+}
+
+/// For `resolve_dev_server_url`: the project name a RESTING calling window
+/// shows on its splash, or `None` when the window is awake.
+pub fn resting_name(app: &AppHandle, label: &str) -> Option<String> {
+    let state = app.try_state::<SidecarState>()?;
+    let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+    if !book.is_resting(label) {
+        return None;
+    }
+    book.root_of(label).map(|r| project_display_name(&r))
 }
 
 /// What a window close should do before the window goes away.
 #[derive(Debug, PartialEq)]
 pub enum CloseGuard {
     Proceed,
-    /// Keep the window open (part b: the person cancelled "Stop AI in …?").
-    #[allow(dead_code)] // first constructed by part b's AI-running confirm
+    /// Keep the window open for now: the status probe (and maybe the "Stop AI
+    /// in …?" confirm) decides, then closes it itself.
     Hold,
 }
 
-/// SEAM (V2-3.2 part b): the AI-running close confirm. Part b probes the
-/// project's `/_api/shell/status` (authenticated, decision 8) and, when AI is
-/// running or waiting, shows "Stop AI in <name>?" and returns `Hold` unless
-/// the person picks Stop and close. Until then every close proceeds.
-pub fn close_guard(_app: &AppHandle, _label: &str) -> CloseGuard {
-    CloseGuard::Proceed
+/// Does this status call for the close confirm? Only when the project's own
+/// server SAYS AI is running or waiting (§5.2 "Window close"). No answer is no
+/// confirm: the shell cannot claim AI is running when it does not know.
+pub fn needs_close_confirm(status: Option<&crate::sidecar::ShellStatus>) -> bool {
+    status.is_some_and(|s| s.ai_active())
+}
+
+/// `CloseRequested` (⌘W, the tab's ×). Home, a resting tab and a project with
+/// no running server close at once. A running project's close is held while
+/// its `/_api/shell/status` is read (authenticated, decision 8); when AI is
+/// running or waiting the person is asked "Stop AI in <name>?" — **Stop and
+/// close** destroys the window and stops the server now (no 10 s grace: the
+/// person just said stop), **Cancel** keeps the window open.
+pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
+    let Some(state) = app.try_state::<SidecarState>() else {
+        return CloseGuard::Proceed;
+    };
+    let root = {
+        let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(root) = book.root_of(label) else {
+            return CloseGuard::Proceed;
+        };
+        if book.is_resting(label) {
+            return CloseGuard::Proceed;
+        }
+        if !book.begin_close(label) {
+            // A confirm for this window is already up.
+            return CloseGuard::Hold;
+        }
+        root
+    };
+    if crate::sidecar::shell_origin(app, &root).is_none() {
+        // Not running (or never came up): nothing to stop.
+        state
+            .windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .end_close(label);
+        return CloseGuard::Proceed;
+    }
+    let app = app.clone();
+    let label = label.to_string();
+    tauri::async_runtime::spawn(async move {
+        let status = crate::sidecar::shell_status(&app, &root).await;
+        let Some(window) = app.get_webview_window(&label) else {
+            return;
+        };
+        if !needs_close_confirm(status.as_ref()) {
+            let _ = window.destroy();
+            return;
+        }
+        let name = project_display_name(&root);
+        let app2 = app.clone();
+        let label2 = label.clone();
+        app.dialog()
+            .message(format!(
+                "AI is still working in {name}. Closing the tab stops it."
+            ))
+            .title(format!("Stop AI in {name}?"))
+            .parent(&window)
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Stop and close".to_string(),
+                "Cancel".to_string(),
+            ))
+            .show(move |stop| {
+                let state = app2.state::<SidecarState>();
+                state
+                    .windows
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .end_close(&label2);
+                if !stop {
+                    return;
+                }
+                if let Some(w) = app2.get_webview_window(&label2) {
+                    let _ = w.destroy();
+                }
+                crate::sidecar::log_line(&format!(
+                    "[maude] {label2} closed with AI running — stopping {root} now"
+                ));
+                crate::sidecar::shutdown_instance(&app2, &root);
+            });
+    });
+    CloseGuard::Hold
 }
 
 /// `Destroyed` (⌘W, the tab's ×, WebDriver's DELETE /window): forget the
@@ -692,6 +942,7 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
         &mut state.windows.lock().unwrap_or_else(|e| e.into_inner()),
         label,
     );
+    schedule_session_save(app);
     let Some(root) = root else { return };
     crate::sidecar::log_line(&format!(
         "[maude] {label} closed — {root}'s server stops in {}s unless it is reopened",
@@ -709,6 +960,204 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
         })
         .await;
     });
+}
+
+// ── Session save + relaunch restore (§5.2 "Relaunch", §5.5 `session`) ───────
+
+/// Saves coalesce: a burst of opens/focuses (a restore builds every tab) writes
+/// the app state once, with the final tab set.
+const SESSION_SAVE_DEBOUNCE: Duration = Duration::from_millis(400);
+
+static SESSION_SAVE_PENDING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Save the tab session soon (debounced), through app-state v2.
+pub fn schedule_session_save(app: &AppHandle) {
+    if SESSION_SAVE_PENDING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(SESSION_SAVE_DEBOUNCE).await;
+        SESSION_SAVE_PENDING.store(false, Ordering::SeqCst);
+        // Quitting destroys every window; `kill_server` already saved the
+        // session as it was before the teardown began.
+        if app
+            .try_state::<SidecarState>()
+            .is_some_and(|s| s.shutting_down.load(Ordering::SeqCst))
+        {
+            return;
+        }
+        save_session_now(&app);
+    });
+}
+
+/// Save the tab session now (the quit path calls this before teardown).
+pub fn save_session_now(app: &AppHandle) {
+    let Some(state) = app.try_state::<SidecarState>() else {
+        return;
+    };
+    let (tabs, focused) = state
+        .windows
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .session_tabs();
+    crate::app_state::save_session(app, tabs, focused);
+}
+
+/// One tab a relaunch reopens.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RestoreTab {
+    pub pid: String,
+    pub root: String,
+}
+
+/// What a relaunch reopens: project tabs in saved order and which one runs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RestorePlan {
+    pub tabs: Vec<RestoreTab>,
+    /// Index into `tabs` of the tab that spawns; every other tab starts resting.
+    pub front: usize,
+}
+
+/// Pure half of the relaunch: the saved session resolved against the registry.
+/// A tab whose pid is unknown or whose root is gone is skipped (Home's "isn't
+/// where it was" card handles those, not a dead tab), as is a repeated pid
+/// (open once). The front tab is `session.focused` when it survived, else the
+/// first tab. `None` when nothing is left to restore.
+///
+/// SEAM (Home restore): a `home` entry is skipped here for now; the Home window
+/// (V2-3.3) hooks in to reopen it in its saved place.
+pub fn plan_restore(
+    session: &crate::app_state::Session,
+    projects: &std::collections::BTreeMap<String, crate::app_state::ProjectEntry>,
+    exists: impl Fn(&str) -> bool,
+) -> Option<RestorePlan> {
+    let mut tabs: Vec<RestoreTab> = Vec::new();
+    let mut front = None;
+    for t in &session.tabs {
+        let Some(pid) = t.pid.as_deref() else {
+            continue; // SEAM (Home restore): `home` and other non-project tabs
+        };
+        let Some(entry) = projects.get(pid) else {
+            continue;
+        };
+        if !exists(&entry.root) || tabs.iter().any(|r| r.pid == pid) {
+            continue;
+        }
+        if session.focused.as_deref() == Some(t.label.as_str()) {
+            front = Some(tabs.len());
+        }
+        tabs.push(RestoreTab {
+            pid: pid.to_string(),
+            root: entry.root.clone(),
+        });
+    }
+    if tabs.is_empty() {
+        return None;
+    }
+    Some(RestorePlan {
+        front: front.unwrap_or(0),
+        tabs,
+    })
+}
+
+/// Does this launch restore the saved session? Not when `MAUDE_PROJECT_ROOT`
+/// names the project to open (e2e, tests, a power-user launch): that launch
+/// was told what to show. A debug build can force it (`MAUDE_E2E_RESTORE=1`).
+fn restore_enabled() -> bool {
+    #[cfg(debug_assertions)]
+    if std::env::var("MAUDE_E2E_RESTORE").as_deref() == Ok("1") {
+        return true;
+    }
+    std::env::var("MAUDE_PROJECT_ROOT").map_or(true, |v| v.is_empty())
+}
+
+/// The boot window(s). With a saved session: every saved project tab, in
+/// order, as one tab group; only the front tab spawns, the others start
+/// resting, and the front window hears `shell://tabs-restored {count}`. Without
+/// one: `fallback_root` alone, as before.
+pub fn boot_windows(app: &AppHandle, fallback_root: &str) {
+    let plan = if restore_enabled() {
+        let st = crate::app_state::load(app);
+        st.session
+            .as_ref()
+            .and_then(|s| plan_restore(s, &st.projects, |r| Path::new(r).join(".design").is_dir()))
+    } else {
+        None
+    };
+    let Some(plan) = plan.filter(|p| p.tabs.len() > 1) else {
+        // Zero or one tab: today's boot. (A one-tab session's root is what
+        // `resolve_project_root` already resolved to.)
+        if let Err(e) = open_window_for_root(app, fallback_root, None) {
+            crate::sidecar::log_line(&format!("[maude] FATAL: could not open the project window: {e}"));
+        }
+        return;
+    };
+    restore_session(app, &plan);
+}
+
+fn restore_session(app: &AppHandle, plan: &RestorePlan) {
+    let state = app.state::<SidecarState>();
+    let mut prev: Option<String> = None;
+    let mut front_label = None;
+    for (i, tab) in plan.tabs.iter().enumerate() {
+        let tick = state.tick.fetch_add(1, Ordering::SeqCst);
+        let name = project_display_name(&tab.root);
+        // Each tab is attached after the previous one, so the group keeps the
+        // saved order (attaching all to the first would reverse it).
+        let opened = open_in(
+            &TauriHost { app },
+            &state.windows,
+            &tab.root,
+            &name,
+            prev.as_deref(),
+            tick,
+        );
+        let label = match opened {
+            Ok(o) => o.label().to_string(),
+            Err(e) => {
+                crate::sidecar::log_line(&format!("[maude] could not restore {}: {e}", tab.root));
+                continue;
+            }
+        };
+        if i == plan.front {
+            front_label = Some(label.clone());
+        } else {
+            state
+                .windows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .set_resting(&label, true);
+        }
+        prev = Some(label);
+    }
+    let Some(front) = front_label else { return };
+    let front_root = plan.tabs[plan.front].root.clone();
+    // Focus the front tab LAST, on the main thread: each `attach_as_tab` above
+    // queued a closure that focuses its child, and those run first (FIFO), so a
+    // plain `set_focus` here would be undone by the last attach. The resting
+    // tabs that focus passes through on the way stay resting (`WAKE_SETTLE`).
+    if let Some(w) = app.get_webview_window(&front) {
+        if app.run_on_main_thread(move || {
+            let _ = w.set_focus();
+        })
+        .is_err()
+        {
+            crate::sidecar::log_line("[maude] could not focus the restored front tab");
+        }
+    }
+    crate::sidecar::attach_or_spawn(app, &front_root);
+    crate::sidecar::spawn_enforce_cap(app);
+    navigate_when_up(app, front.clone(), front_root, None);
+    let count = plan.tabs.len();
+    crate::sidecar::log_line(&format!("[maude] {count} tabs reopened — only {front} runs"));
+    let _ = app.emit_to(
+        EventTarget::AnyLabel { label: front },
+        "shell://tabs-restored",
+        serde_json::json!({ "count": count }),
+    );
+    schedule_session_save(app);
 }
 
 /// The front window, unminimized and focused (single-instance relaunch).
@@ -794,10 +1243,9 @@ pub fn check_caller(
 }
 
 /// Resolve the calling project window from the `Webview` a command was
-/// invoked on — label AND current URL origin, never an argument (§5.4).
-/// SEAM (V2-3.2 part b): the shell learns each server's port from the
-/// app-owned `MAUDE_SHELL_INFO_FILE` (decision 8); the recorded origin then
-/// comes from there instead of the in-project `_server.json` read at navigate.
+/// invoked on — label AND current URL origin, never an argument (§5.4). The
+/// recorded origin is the one `navigate_when_up` read from the app-owned
+/// `MAUDE_SHELL_INFO_FILE` (decision 8), never the in-project `_server.json`.
 pub fn caller_project<R: Runtime>(
     webview: &tauri::Webview<R>,
     allow_app_local: bool,
@@ -1299,5 +1747,121 @@ mod tests {
         assert!(data_store_supported_for("26.5.1\n"));
         assert!(!data_store_supported_for("13.6.1"));
         assert!(!data_store_supported_for(""));
+    }
+
+    // ── V2-3.2 part b: resting, close confirm, session ─────────────────────
+
+    #[test]
+    fn rest_policy_a_resting_tab_is_never_navigated_until_it_wakes() {
+        // §5.2 "Respawn after a crash": a re-navigate must not wake a resting
+        // tab; only the wake (which clears `resting` first) may navigate it.
+        let mut b = WindowBook::default();
+        b.insert(&label_of(A), Role::Project { pid: pid_for_root(A), root: A.into() }, 1);
+        assert!(b.may_navigate(&label_of(A), A));
+        assert!(b.set_resting(&label_of(A), true));
+        b.set_origin(&label_of(A), "http://localhost:4399");
+        assert!(!b.may_navigate(&label_of(A), A));
+        assert!(b.set_resting(&label_of(A), false));
+        assert!(b.may_navigate(&label_of(A), A));
+        // Resting drops the origin: the tab is on the splash, not its server.
+        b.set_origin(&label_of(A), "http://localhost:4399");
+        b.set_resting(&label_of(A), true);
+        assert_eq!(b.entries[&label_of(A)].origin, None);
+        // Only project windows rest.
+        b.insert("home", Role::Home, 2);
+        assert!(!b.set_resting("home", true));
+    }
+
+    #[test]
+    fn close_confirm_only_when_the_server_says_ai_is_running_or_waiting() {
+        use crate::sidecar::{AiCounts, ShellStatus};
+        assert!(!needs_close_confirm(None));
+        assert!(!needs_close_confirm(Some(&ShellStatus {
+            unsent: 3,
+            jobs: 1,
+            ..ShellStatus::default()
+        })));
+        assert!(needs_close_confirm(Some(&ShellStatus {
+            ai: AiCounts { running: 0, awaiting: 1 },
+            ..ShellStatus::default()
+        })));
+        let mut b = WindowBook::default();
+        b.insert(&label_of(A), Role::Project { pid: pid_for_root(A), root: A.into() }, 1);
+        assert!(b.begin_close(&label_of(A)));
+        assert!(!b.begin_close(&label_of(A)), "a second ⌘W does not stack a dialog");
+        b.end_close(&label_of(A));
+        assert!(b.begin_close(&label_of(A)));
+    }
+
+    const C: &str = "/nonexistent/maude-v2-3-2/gamma";
+
+    #[test]
+    fn session_saves_tabs_in_the_order_the_person_sees_them() {
+        // A opens; B opens from A; C opens from A too — C lands right after A,
+        // before B (addTabbedWindow:ordered:NSWindowAbove), so the saved order
+        // is A, C, B, not the open order A, B, C.
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        open_in(&host, &book, A, "Alpha", None, 1).unwrap();
+        open_in(&host, &book, B, "Beta", Some(&label_of(A)), 2).unwrap();
+        open_in(&host, &book, C, "Gamma", Some(&label_of(A)), 3).unwrap();
+        book.lock().unwrap().insert_after("home", Role::Home, 4, None);
+        book.lock().unwrap().focus(&label_of(B), 5);
+
+        let (tabs, focused) = book.lock().unwrap().session_tabs();
+        let labels: Vec<&str> = tabs.iter().map(|t| t.label.as_str()).collect();
+        assert_eq!(labels, [label_of(A), label_of(C), label_of(B), "home".into()]);
+        assert_eq!(tabs[1].pid.as_deref(), Some(pid_for_root(C).as_str()));
+        assert_eq!(tabs[3].pid, None, "Home carries no pid");
+        assert_eq!(focused, Some(label_of(B)));
+
+        // A closed tab leaves the session.
+        forget_window(&mut book.lock().unwrap(), &label_of(C));
+        let (tabs, _) = book.lock().unwrap().session_tabs();
+        assert_eq!(tabs.len(), 3);
+    }
+
+    #[test]
+    fn session_restore_keeps_saved_order_and_only_the_focused_tab_runs() {
+        use crate::app_state::{ProjectEntry, Session, SessionTab};
+        let entry = |root: &str| ProjectEntry {
+            root: root.to_string(),
+            ..ProjectEntry::default()
+        };
+        let mut projects = std::collections::BTreeMap::new();
+        for r in [A, B, C] {
+            projects.insert(pid_for_root(r), entry(r));
+        }
+        let tab = |r: &str| SessionTab {
+            label: label_of(r),
+            pid: Some(pid_for_root(r)),
+        };
+        let session = Session {
+            tabs: vec![
+                tab(C),
+                SessionTab { label: "home".into(), pid: None },
+                tab(A),
+                // A pid the registry forgot, and a repeat: both skipped.
+                SessionTab { label: "p-lffffffffffffffff".into(), pid: Some("lffffffffffffffff".into()) },
+                tab(A),
+                tab(B),
+            ],
+            focused: Some(label_of(A)),
+            saved_at: 1,
+        };
+        let plan = plan_restore(&session, &projects, |_| true).unwrap();
+        let roots: Vec<&str> = plan.tabs.iter().map(|t| t.root.as_str()).collect();
+        assert_eq!(roots, [C, A, B]);
+        assert_eq!(plan.front, 1, "only session.focused spawns");
+
+        // A vanished root is skipped; a focused tab that vanished falls back to
+        // the first surviving tab.
+        let plan = plan_restore(&session, &projects, |r| r != A).unwrap();
+        let roots: Vec<&str> = plan.tabs.iter().map(|t| t.root.as_str()).collect();
+        assert_eq!(roots, [C, B]);
+        assert_eq!(plan.front, 0);
+
+        // Nothing left → no restore (the boot opens its fallback project).
+        assert_eq!(plan_restore(&session, &projects, |_| false), None);
     }
 }

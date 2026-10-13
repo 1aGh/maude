@@ -444,6 +444,19 @@ pub fn set_last_project(app: &tauri::AppHandle, path: &Path) {
     }
 }
 
+/// Save the live tab session (V2-3.2, §5.5 `session`): every tab in order and
+/// the focused label. Through `update`, so it serializes with every other v2
+/// write and refreshes the v1 `last_project` mirror from the new focus.
+pub fn save_session(app: &tauri::AppHandle, tabs: Vec<SessionTab>, focused: Option<String>) {
+    update(app, |st, now| {
+        st.session = Some(Session {
+            tabs,
+            focused,
+            saved_at: now,
+        });
+    });
+}
+
 /// The MRU project list, filtered to ones that still exist (max 10).
 pub fn recent_projects(app: &tauri::AppHandle) -> Vec<String> {
     load(app)
