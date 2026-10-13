@@ -152,7 +152,20 @@ export function createCanvasListWatch(
     return out;
   }
 
+  // True while this watcher is emitting, so its own events are not mistaken for
+  // a change announced by someone else (the bus is synchronous).
+  let emitting = false;
+
   function emit(action: 'added' | 'removed', rel: string) {
+    emitting = true;
+    try {
+      emitUpdate(action, rel);
+    } finally {
+      emitting = false;
+    }
+  }
+
+  function emitUpdate(action: 'added' | 'removed', rel: string) {
     // `rel` from findHtmlFiles is designRel-prefixed (`.design/ui/X.tsx`); strip
     // the prefix so the wire shape matches api.ts's group-relative emit
     // (`ui/X.tsx`). The client IGNORES the payload entirely — it just re-reads
@@ -208,8 +221,35 @@ export function createCanvasListWatch(
     schedule();
   });
 
+  // A structural change somebody ELSE announced — the API's create / delete /
+  // move, a sync peer's move — already told every client the new list. Move the
+  // baseline with it, so `known` stays "what the clients were last told". Without
+  // this, an outside revert that lands before this watcher's own debounced
+  // snapshot (a `git checkout`, the e2e harness restoring a moved fixture ~120 ms
+  // later) diffs to nothing against the PRE-change baseline: nothing is emitted,
+  // and every open view keeps a row that no longer exists. It also stops the
+  // watcher re-announcing the API's own change as a second added/removed pair.
+  // Shapes without a canvas `rel` (folder ops, config) just get a recompute.
+  const offAnnounced = ctx.bus.on('canvas-list-update', (change: unknown) => {
+    if (emitting) return;
+    const c = (change ?? {}) as { action?: unknown; rel?: unknown; fromRel?: unknown };
+    const prefixed = (rel: unknown) =>
+      typeof rel === 'string' && rel ? path.posix.join(ctx.paths.designRel, rel) : null;
+    const to = prefixed(c.rel);
+    const from = prefixed(c.fromRel);
+    if (known && to) {
+      if (c.action === 'removed') known.delete(to);
+      else if (c.action === 'added' || c.action === 'moved') {
+        if (from && c.action === 'moved') known.delete(from);
+        if (isCanvasCandidate(c.rel as string, groupPaths())) known.add(to);
+      }
+    }
+    schedule(); // the disk stays authoritative — reconcile against it
+  });
+
   function stop() {
     off();
+    offAnnounced();
     if (pending) clearTimeout(pending);
     pending = null;
   }
