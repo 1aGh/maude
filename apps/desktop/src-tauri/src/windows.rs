@@ -638,6 +638,13 @@ pub fn navigation_allowed(
     if origin == Some(o.as_str()) {
         return true;
     }
+    // A `blob:` is admitted only when the window's own origin minted it. The
+    // canvas origin's blob is never a page the shell loads, and the native
+    // check is the only one it meets: a link dropped on the canvas iframe
+    // would otherwise land in the main frame before the post-commit bounce.
+    if url.scheme() == "blob" {
+        return false;
+    }
     match role {
         NavRole::Home => false,
         NavRole::Project if loopbackish(&target) => canvas == Some(o.as_str()),
@@ -2699,6 +2706,8 @@ mod tests {
         assert!(!nav(Project, "https://localhost:4399/"));
         assert!(!nav(Project, "http://[::1]:4399/"));
         assert!(!nav(Project, "blob:http://localhost:5555/0f1e"));
+        assert!(!nav(Project, "blob:http://localhost:4400/0f1e"), "the canvas origin's blob");
+        assert!(!nav(Project, "blob:https://www.youtube.com/0f1e"), "a remote page's blob");
         assert!(!nav(Project, "file:///etc/passwd"));
         assert!(!nav(Project, "maude://open/x"));
         assert!(!nav(Project, "http://evil.example/"));
