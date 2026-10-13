@@ -53,6 +53,9 @@ tiny_http = "0.12"
 open = "5"
 # Random shared-secret key for the loopback token bridge (already in the tree via rustls).
 getrandom = "0.2"
+# Project ids + window data-store ids (V2-3.1, windows.rs): sha256, byte-for-byte
+# the derivation TS uses (index/snapshot.ts pidOf). Already in the tree via Tauri.
+sha2 = "0.10"
 # feature-acp-turn-notifications — a REAL OS notification, regardless of which
 # project's page is loaded or whether any page is loaded at all. The Web
 # `Notification` API inside the webview (app.jsx) can only ever cover the
