@@ -80,7 +80,11 @@ async function waitAnyResting(
       }
       return false;
     },
-    { timeout: 30_000, interval: 500, timeoutMsg: `none of ${candidates} showed the resting splash` }
+    {
+      timeout: 30_000,
+      interval: 500,
+      timeoutMsg: `none of ${candidates} showed the resting splash`,
+    }
   );
   console.log(`[tabs] resting: ${JSON.stringify(hit)}`);
   return hit as unknown as { label: string; name: string; url: string };
