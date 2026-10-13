@@ -5,7 +5,7 @@
 //     key that does not exist — no "is X cached" oracle, even for a key B really has
 
 import { beforeAll, describe, expect, test } from 'bun:test';
-
+import { writeThumb } from '../thumbs/store.ts';
 import {
   addCover,
   freshIndexDir,
@@ -13,11 +13,14 @@ import {
   homeReq,
   makeProject,
   rustReq,
+  tinyJpeg,
 } from './_home-fixtures.ts';
 
 const KEY_A = 'a'.repeat(64);
 const KEY_B = 'b'.repeat(64);
 const KEY_NONE = 'c'.repeat(64);
+/** a picture IN A's cache that A's snapshot does not reference (an old render, a planted file) */
+const KEY_ORPHAN = 'd'.repeat(64);
 let A: ReturnType<typeof makeProject>;
 let B: ReturnType<typeof makeProject>;
 
@@ -27,6 +30,7 @@ beforeAll(() => {
   B = makeProject('beta', { 'ui/Pricing secret.tsx': 'Pricing secret' });
   addCover(A, 'ui/Pricing.tsx', KEY_A);
   addCover(B, 'ui/Pricing secret.tsx', KEY_B);
+  writeThumb(A.pid, KEY_ORPHAN, tinyJpeg());
 });
 
 const f = () => homeFetch();
@@ -83,17 +87,25 @@ describe('picture keys (no existence oracle)', () => {
   test('B’s real key under A, a key nobody has, and a bad pid all answer the same 404', async () => {
     const forbidden = await shape(await thumb(A.pid, KEY_B));
     const missing = await shape(await thumb(A.pid, KEY_NONE));
+    const orphan = await shape(await thumb(A.pid, KEY_ORPHAN));
     const badPid = await shape(await thumb('l0000000000000000', KEY_A));
+    const notAPid = await shape(await thumb('nope', KEY_A));
     const junk = await shape(await thumb(A.pid, 'not-a-key'));
     expect(forbidden.status).toBe(404);
     expect(forbidden).toEqual(missing);
+    expect(orphan).toEqual(missing);
     expect(badPid).toEqual(missing);
+    expect(notAPid).toEqual(missing);
     expect(junk).toEqual(missing);
   });
 
   test('internal/thumbs: a key outside the pid’s snapshot is simply absent', async () => {
     const body = (await (
-      await f()(rustReq(`/_home/internal/thumbs?pid=${A.pid}&keys=${KEY_A},${KEY_B},${KEY_NONE}`))
+      await f()(
+        rustReq(
+          `/_home/internal/thumbs?pid=${A.pid}&keys=${KEY_A},${KEY_B},${KEY_NONE},${KEY_ORPHAN}`
+        )
+      )
     ).json()) as {
       thumbs: Record<string, string>;
     };
