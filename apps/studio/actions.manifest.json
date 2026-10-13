@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "0d7b2b433d20",
+  "manifestVersion": "ec2af13544a1",
   "actions": [
     {
       "id": "search.open",
@@ -1346,6 +1346,17 @@
       "id": "project.new",
       "label": "New project…",
       "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "project.open",
+      "label": "Open project…",
+      "kind": "command",
       "exec": "native",
       "effect": "none",
       "agent": {
@@ -1354,8 +1365,8 @@
       }
     },
     {
-      "id": "project.open",
-      "label": "Open project…",
+      "id": "home.open",
+      "label": "New Home tab",
       "kind": "command",
       "exec": "native",
       "effect": "none",

@@ -15,7 +15,7 @@ import {
   isNativeApp,
   isSignedIn,
   onDeviceCode,
-  onMenuNewProject,
+  onMenuAction,
   onSignedIn,
   openVerification,
   signIn,
@@ -171,13 +171,14 @@ export default function IdentityBar() {
     };
   }, [native]);
 
-  // Native File ▸ New Project… (menu.rs emits `menu://new-project`). Open the create
-  // dialog once the GitHub check settled — even when signed out, since it offers a
-  // local-only project (no GitHub needed); the dialog gates the GitHub option itself.
+  // Native File ▸ New Project… ⇧⌘N (menu.rs sends `menu://action {id:'project.new'}` to
+  // the focused window). Open the create dialog once the GitHub check settled — even
+  // when signed out, since it offers a local-only project (no GitHub needed); the dialog
+  // gates the GitHub option itself.
   useEffect(() => {
     if (!native) return undefined;
-    const p = onMenuNewProject(() => {
-      if (stateRef.current !== 'loading') setView('new');
+    const p = onMenuAction((id) => {
+      if (id === 'project.new' && stateRef.current !== 'loading') setView('new');
     });
     return () => {
       p?.then?.((fn) => fn?.());

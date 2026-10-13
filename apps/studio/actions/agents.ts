@@ -184,7 +184,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'annotation.nudge': BOARD('Change the elements’ x / y'),
   'annotation.remove': BOARD('Remove the elements from the board file'),
   // ── native ──
-  'project.new': { effect: 'none', agent: human('native-window') },
+  // V2-1.1 §5.9
+  'project.new': { effect: 'project', agent: human('onboarding') },
   'project.open': { effect: 'none', agent: human('native-window') },
+  'home.open': { effect: 'none', agent: human('native-window') },
   'app.check-updates': { effect: 'none', agent: human('native-window') },
 };

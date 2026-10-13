@@ -123,8 +123,8 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'help',
     exec: 'shell',
-    // Also the desktop app's Help ▸ Report a Bug… (native-menu.ts; the webview opens the dialog
-    // on `menu://report-bug`).
+    // Also the desktop app's Help ▸ Report a Bug… (native-menu.ts; the menu sends
+    // `menu://action {id:'help.report-bug'}` and the webview runs the palette's row — V2-3.4).
     native: { menu: 'Help', order: 1 },
     legacy: { palette: 'Report a bug…', menu: 'Report a bug…' },
   },

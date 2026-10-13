@@ -98,6 +98,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = ${JSON.stringify(rows)};
 function nativeMenu() {
   const menus = NATIVE_MENU.map((m) => ({
     title: m.title,
+    ...(m.windowsMenu ? { windows_menu: true } : {}),
     items: m.items.map((n) => {
       if ('predefined' in n)
         return { kind: 'predefined', name: n.predefined, ...(n.macos ? { macos: true } : {}) };
