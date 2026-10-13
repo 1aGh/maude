@@ -2353,6 +2353,65 @@ mod tests {
             );
         }
         assert!(perms(&default).iter().any(|p| p == "allow-open-project"));
+        // V2-3.6: the "Opened <name> from a link." toast needs its grant in release.
+        assert!(perms(&default).iter().any(|p| p == "allow-take-link-opened"));
+    }
+
+    /// V2-3.6 N-M2 (c): every command a shipped page may call re-checks its
+    /// caller in Rust — the calling window's label AND its current URL origin
+    /// (`caller_project` / `caller_any` / `caller_home`, or `resolve_profile`,
+    /// which is `caller_project`). The capability ACL alone admits any frame on
+    /// `http://localhost:*`, the canvas iframe included, so a command without
+    /// its own check is one leaked invoke key away from the canvas. A source
+    /// ratchet: a new grant without a check is a red test.
+    #[test]
+    fn every_granted_command_checks_its_caller() {
+        let read = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
+        let default = read(include_str!("../capabilities/default.json"));
+        let mut granted: Vec<String> = default["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|p| p.as_str().map(str::to_string))
+            .collect();
+        granted.extend(crate::home::HOME_PERMISSIONS.iter().map(|p| p.to_string()));
+        let src_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let sources: Vec<String> = std::fs::read_dir(&src_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+            .map(|p| std::fs::read_to_string(p).unwrap())
+            .collect();
+        let checks = [
+            "caller_project(",
+            "caller_any(",
+            "caller_home(",
+            "check_home(",
+            "resolve_profile(",
+            "session_for(", // home_session: label + exact Home origin, pure
+        ];
+        let mut unchecked = Vec::new();
+        for p in granted.iter().filter(|p| p.starts_with("allow-")) {
+            let cmd = p.trim_start_matches("allow-").replace('-', "_");
+            let body = sources.iter().find_map(|s| {
+                [format!("pub fn {cmd}("), format!("pub async fn {cmd}("), format!("\nfn {cmd}("), format!("async fn {cmd}(")]
+                    .iter()
+                    .find_map(|sig| s.find(sig.as_str()).map(|i| &s[i..]))
+                    .map(|rest| {
+                        // The command's own body: up to the next command.
+                        let end = rest[1..].find("#[tauri::command").map_or(rest.len(), |e| e + 1);
+                        rest[..end].to_string()
+                    })
+            });
+            let Some(body) = body else {
+                panic!("{p}: no `fn {cmd}` found under src/");
+            };
+            if !checks.iter().any(|c| body.contains(c)) {
+                unchecked.push(cmd);
+            }
+        }
+        assert!(unchecked.is_empty(), "granted commands with no Rust caller check: {unchecked:?}");
     }
 
     /// V2-3.6 M3: a project page switches its tab only to a registered

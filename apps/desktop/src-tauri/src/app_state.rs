@@ -580,8 +580,9 @@ pub fn welcome_project(app: &tauri::AppHandle) -> PathBuf {
 
 // ── Tauri commands (webview → shell) ────────────────────────────────────────────
 #[tauri::command]
-pub fn app_is_first_run(app: tauri::AppHandle) -> bool {
-    is_first_run(&app)
+pub fn app_is_first_run(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
+    windows::caller_project(&webview, false)?;
+    Ok(is_first_run(&app))
 }
 
 /// V2-3.6 N-M1: the calling project window's own profile only — a page never
