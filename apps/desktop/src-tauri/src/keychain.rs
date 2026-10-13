@@ -229,31 +229,21 @@ fn handle_request(req: tiny_http::Request) {
 
 // ── webview commands (NO token ever crosses to the webview) ──────────────────
 
-/// `Some(id)` → that profile (validated); `None` → the profile bound to the
-/// project currently displayed (`SidecarState.project_root` — V2-3.2 changes this
-/// to the CALLING window's project). The `None` arm is what keeps today's
-/// parameterless client calls (`github.js` `isSignedIn()` / `signOut()`) working.
-pub fn resolve_profile(app: &tauri::AppHandle, profile: Option<String>) -> Result<String, String> {
-    use tauri::Manager;
-    match profile {
-        Some(id) => {
-            profiles::validate_id(&id)?;
-            Ok(id)
-        }
-        None => {
-            let root = app
-                .state::<crate::sidecar::SidecarState>()
-                .project_root
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .clone();
-            Ok(crate::app_state::profile_for(app, &root))
-        }
-    }
+/// The profile a webview command acts on: the binding of the CALLING window's
+/// project (V2-3.2, contract §5.4 — resolved from the `Webview`, label and
+/// origin, never from an argument). The old `Some(profile)` arm is gone: a page
+/// could name any profile and read or sign out an account its project is not
+/// bound to. Signing in "as another account" is a rebinding (`bind_profile`),
+/// not a parameter.
+pub fn resolve_profile<R: tauri::Runtime>(
+    app: &tauri::AppHandle,
+    webview: &tauri::Webview<R>,
+) -> Result<String, String> {
+    let caller = crate::windows::caller_project(webview, false)?;
+    Ok(crate::app_state::profile_for(app, &caller.root))
 }
 
-/// Whether `profile` (default: the displayed project's) has a GitHub token
-/// stored. Drives the IdentityBar's signed-in state. Returns only a boolean —
+/// Whether the calling window's project profile has a GitHub token stored. Drives the IdentityBar's signed-in state. Returns only a boolean —
 /// never the token.
 ///
 /// `async` on purpose: Tauri runs a sync command on the MAIN thread, and a
@@ -261,7 +251,7 @@ pub fn resolve_profile(app: &tauri::AppHandle, profile: Option<String>) -> Resul
 /// window (and every main-thread callback, e.g. web_process.rs crash recovery)
 /// until the user answered it. Async commands run on the async runtime instead.
 #[tauri::command]
-pub async fn github_is_signed_in(app: tauri::AppHandle, profile: Option<String>) -> bool {
+pub async fn github_is_signed_in(app: tauri::AppHandle, webview: tauri::Webview) -> bool {
     // E2E (debug builds only): reading the keychain here makes macOS raise a
     // "Maude wants to use your confidential information" prompt, and because a
     // debug build is re-signed on every `tauri build --debug`, "Always Allow"
@@ -274,17 +264,17 @@ pub async fn github_is_signed_in(app: tauri::AppHandle, profile: Option<String>)
     if std::env::var_os("MAUDE_E2E_NO_KEYCHAIN").is_some() {
         return false;
     }
-    match resolve_profile(&app, profile) {
+    match resolve_profile(&app, &webview) {
         Ok(p) => get_token(&p).is_some(),
         Err(_) => false,
     }
 }
 
-/// Sign `profile` (default: the displayed project's) out — delete its keychain
-/// token only. Idempotent.
+/// Sign the calling window's project profile out — delete its keychain token
+/// only. Idempotent.
 #[tauri::command]
-pub async fn github_sign_out(app: tauri::AppHandle, profile: Option<String>) -> Result<(), String> {
-    delete_token(&resolve_profile(&app, profile)?)
+pub async fn github_sign_out(app: tauri::AppHandle, webview: tauri::Webview) -> Result<(), String> {
+    delete_token(&resolve_profile(&app, &webview)?)
 }
 
 #[cfg(test)]

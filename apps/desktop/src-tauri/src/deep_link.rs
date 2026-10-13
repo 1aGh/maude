@@ -16,7 +16,7 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 #[derive(Default)]
 pub struct PendingDeepLink(pub Mutex<Option<String>>);
@@ -31,7 +31,9 @@ pub fn accept(app: &AppHandle, url: &str) {
     if let Some(state) = app.try_state::<PendingDeepLink>() {
         *state.0.lock().unwrap() = Some(url.to_string());
     }
-    let _ = app.emit("maude://deep-link", url.to_string());
+    // To the front window (V2-3.2, contract §5.2 "Deep link"): the person is
+    // looking at it, and a link must not raise its question in every tab.
+    crate::windows::emit_to_front(app, "maude://deep-link", url.to_string());
 }
 
 /// One-shot consume — the client takes the link exactly once, so a re-mounted

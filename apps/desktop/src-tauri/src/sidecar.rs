@@ -154,10 +154,11 @@ pub struct SidecarState {
     pub instances: Mutex<std::collections::HashMap<String, SidecarInstance>>,
     /// Set true on app quit so the supervisor does not respawn during shutdown.
     pub shutting_down: AtomicBool,
-    /// The project the webview is CURRENTLY showing. Every consumer that asks
-    /// "where are we" (export download URLs, the deep-link handler) means this
-    /// one — not "the only one", which it no longer is.
-    pub project_root: Mutex<String>,
+    /// Every live window and which one is focused (V2-3.2, contract §5.2).
+    /// Replaces `project_root`: "the displayed project" is now the project of
+    /// the focused window, and a command answers for the window that called it
+    /// (`windows::caller_project`), never for "the current project".
+    pub windows: Mutex<crate::windows::WindowBook>,
     /// Source for `last_shown`. A counter, not a clock: `Instant`/`SystemTime`
     /// would drag time handling into a comparison that only needs an ordering.
     pub tick: AtomicU64,
@@ -286,20 +287,10 @@ fn stage_bundled_cli_link(app: &AppHandle) -> Option<PathBuf> {
     Some(link)
 }
 
-/// Spawn the dev-server sidecar and store the child in managed state. Drains the
-/// command's event stream; on unexpected termination (not a quit), respawns with
-/// linear backoff up to `MAX_RESTARTS`. Re-entrant: the respawn path calls back in.
-pub fn spawn_server(app: &AppHandle) -> Result<(), String> {
-    let root = app
-        .state::<SidecarState>()
-        .project_root
-        .lock()
-        .expect("sidecar mutex poisoned")
-        .clone();
-    spawn_for(app, &root)
-}
-
-/// Spawn a dev-server for ONE project root and register it in the pool.
+/// Spawn a dev-server for ONE project root and register it in the pool. Drains
+/// the command's event stream; on unexpected termination (not a quit), respawns
+/// with linear backoff up to `MAX_RESTARTS`. Re-entrant: the respawn path calls
+/// back in.
 ///
 /// Takes the root EXPLICITLY rather than reading `project_root` (Task 10): with
 /// a pool, "the current project" and "the project this child serves" are no
@@ -708,10 +699,11 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                         // hangs against a connection nothing is listening on
                         // anymore. Re-navigate once the fresh child is up, so
                         // the page reloads and reopens its sockets against the
-                        // new process — but only if the crashed root is still
-                        // what's on screen; the user may have switched projects
-                        // while this one was down, and we must not yank them
-                        // back to it.
+                        // new process — in THE WINDOW FOR THAT ROOT (V2-3.2,
+                        // §5.2 "Respawn after a crash"; was "main" + "is it
+                        // still the displayed project"). A window that was
+                        // closed or switched to another project meanwhile gets
+                        // no navigate: we must not yank it back.
                         let app2 = app.clone();
                         let root2 = supervised_root.clone();
                         tauri::async_runtime::spawn(async move {
@@ -724,39 +716,17 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                             .await
                             {
                                 Ok(url) => {
-                                    let still_shown = app2
-                                        .state::<SidecarState>()
-                                        .project_root
-                                        .lock()
-                                        .expect("sidecar mutex poisoned")
-                                        .clone()
-                                        == root2;
-                                    if !still_shown {
+                                    let Some(label) =
+                                        crate::windows::label_for_root(&app2, &root2)
+                                    else {
                                         return;
-                                    }
-                                    match url.parse::<tauri::Url>() {
-                                        Ok(parsed)
-                                            if crate::server_json::is_loopback_url(&parsed) =>
-                                        {
-                                            if let Some(window) = app2.get_webview_window("main")
-                                            {
-                                                log_line(&format!(
-                                                    "[maude] dev-server recovered — reloading webview for {root2}"
-                                                ));
-                                                if let Err(e) = window.navigate(parsed) {
-                                                    log_line(&format!(
-                                                        "[maude] post-respawn navigate failed: {e}"
-                                                    ));
-                                                }
-                                            }
-                                        }
-                                        Ok(parsed) => log_line(&format!(
-                                            "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
-                                        )),
-                                        Err(e) => {
-                                            log_line(&format!("[maude] invalid server url {url}: {e}"))
-                                        }
-                                    }
+                                    };
+                                    log_line(&format!(
+                                        "[maude] dev-server recovered — reloading {label} for {root2}"
+                                    ));
+                                    crate::windows::navigate_to_server(
+                                        &app2, &label, &root2, &url, None,
+                                    );
                                 }
                                 Err(e) => log_line(&format!(
                                     "[maude] post-respawn: dev-server did not come back up: {e}"
@@ -846,40 +816,76 @@ fn report_sidecar_gave_up(app: &AppHandle, project_root: &str) {
         });
 }
 
-/// Switch the open project IN-PROCESS (File ▸ Open Project…): point the dev-server
-/// at a new root and reload the webview — WITHOUT `app.restart()`.
+/// Switch the CALLING window to another project in-tab (the repo switcher, the
+/// onboarding doors, a managed cloud copy): point it at the new root's server
+/// and reload it — WITHOUT `app.restart()`.
 ///
 /// Why not restart: `app.restart()` relaunches the binary, and on a non-bundled
 /// `tauri dev` binary macOS delivers an "open" Apple Event that aborts `tao` in
 /// `did_finish_launching` (SIGABRT). Switching in-process avoids that entirely and
-/// is better UX (no window flash). The supervisor's respawn (Terminated → spawn)
-/// reads the updated `project_root`, so killing the child re-spawns it with the new
-/// root; we then re-navigate once the new `_server.json` lands.
-pub fn switch_project(app: &AppHandle, new_root: PathBuf, open: Option<String>) {
+/// is better UX (no window flash).
+///
+/// V2-3.2: the switch belongs to ONE window (`label`), not to "the app". The
+/// window keeps its label (labels never change, §5.2) while its role moves to
+/// the new project; every root lookup goes through the role. Open once
+/// (decision 3): if another window already shows the target, that window is
+/// focused instead and this one stays where it is.
+pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Option<String>) {
     let state = app.state::<SidecarState>();
     let root = new_root.to_string_lossy().to_string();
-    *state.project_root.lock().expect("sidecar mutex poisoned") = root.clone();
-    eprintln!("[maude] switching project → {}", new_root.display());
+    let other = {
+        let mut book = state.windows.lock().expect("windows mutex poisoned");
+        match book.label_for_root(&root) {
+            Some(other) if other != label => Some(other),
+            _ => {
+                if !book.set_project(label, &root) {
+                    log_line(&format!("[maude] switch: no window {label} — ignoring"));
+                    return;
+                }
+                None
+            }
+        }
+    };
+    if let Some(other) = other {
+        log_line(&format!("[maude] {root} is already open in {other} — focusing it"));
+        let name = crate::windows::project_display_name(&root);
+        crate::windows::WindowHost::reveal(&crate::windows::TauriHost { app }, &other, &name);
+        return;
+    }
+    log_line(&format!("[maude] {label}: switching project → {root}"));
+    attach_or_spawn(app, &root);
 
-    let design_root = new_root.join(".design");
+    // Trim the pool AFTER the switch, so the project we just moved to (now the
+    // most-recently-shown) can never be the one evicted.
+    reap_instances(app);
 
-    // SPAWN-OR-ATTACH (Task 10). This used to unconditionally kill the child and
-    // delete `_server.json` so the supervisor would respawn at the new root.
-    // Both halves are now wrong in the pool world:
-    //
-    //  • Killing tore down the WHOLE server process, so every chat in the
-    //    project we're leaving died — not just the visible one. Keeping it
-    //    alive is the entire point of this task.
-    //  • Deleting `_server.json` was safe when it could only ever be a stale
-    //    file from a previous app session. With a pool it may be a LIVE
-    //    instance's state for a project that is already running, and removing
-    //    it would orphan a healthy server (`wait_for_server` would then block
-    //    on a write that never comes, because that server already wrote it).
-    //    So it is deleted ONLY when we are actually about to spawn.
+    // Re-navigate once the target project's dev-server is up. Unchanged for the
+    // spawn path; instant for the attach path, since `_server.json` is already
+    // there from the live instance. The DDR-109 loopback guard applies per
+    // instance exactly as before — a pool does not relax it.
+    crate::windows::navigate_when_up(app, label.to_string(), root, open);
+}
+
+/// SPAWN-OR-ATTACH (Task 10) the server for `root`: attach to a live instance
+/// (stamping it most-recently-shown and giving it its restart budget back), or
+/// spawn one. Returns whether it spawned.
+///
+/// The old switch unconditionally killed the child and deleted `_server.json`.
+/// Both halves are wrong in the pool world:
+///
+///  • Killing tore down the WHOLE server process, so every chat in the project
+///    we're leaving died — not just the visible one.
+///  • Deleting `_server.json` was safe when it could only ever be a stale file
+///    from a previous app session. With a pool it may be a LIVE instance's
+///    state, and removing it would orphan a healthy server (`wait_for_server`
+///    would then block on a write that never comes). So it is deleted ONLY when
+///    we are actually about to spawn.
+pub(crate) fn attach_or_spawn(app: &AppHandle, root: &str) -> bool {
+    let state = app.state::<SidecarState>();
     let already_running = {
         let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
         let tick = state.tick.fetch_add(1, Ordering::SeqCst);
-        match pool.get_mut(&root) {
+        match pool.get_mut(root) {
             Some(inst) if inst.child.is_some() => {
                 inst.last_shown = tick;
                 // A deliberate return to this project is not evidence of a
@@ -890,53 +896,25 @@ pub fn switch_project(app: &AppHandle, new_root: PathBuf, open: Option<String>) 
             _ => false,
         }
     };
-
     if already_running {
-        eprintln!("[maude] project already running — attaching to its live server");
-    } else {
-        let _ = std::fs::remove_file(design_root.join("_server.json"));
-        if let Err(e) = spawn_for(app, &root) {
-            eprintln!("[maude] switch: could not spawn dev-server: {e}");
-        }
+        log_line(&format!("[maude] {root} already running — attaching to its live server"));
+        return false;
     }
+    let _ = std::fs::remove_file(std::path::Path::new(root).join(".design").join("_server.json"));
+    if let Err(e) = spawn_for(app, root) {
+        log_line(&format!("[maude] could not spawn dev-server for {root}: {e}"));
+    }
+    true
+}
 
-    // Trim the pool AFTER the switch, so the project we just moved to (now the
-    // most-recently-shown) can never be the one evicted.
-    reap_instances(app);
-
-    // Re-navigate once the target project's dev-server is up. Unchanged for the
-    // spawn path; instant for the attach path, since `_server.json` is already
-    // there from the live instance. The DDR-109 loopback guard applies per
-    // instance exactly as before — a pool does not relax it.
-    //
-    // Every print in the task below goes through `log_line` (issue #115): a
-    // panic here is silent and would take `window.navigate` with it, so the
-    // user switches project and the webview simply never follows.
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        match crate::server_json::wait_for_server(design_root, 120_000).await {
-            Ok(url) => {
-                log_line(&format!("[maude] project switched — navigating to {url}"));
-                if let Some(window) = app.get_webview_window("main") {
-                    match url.parse::<tauri::Url>() {
-                        Ok(mut parsed) if crate::server_json::is_loopback_url(&parsed) => {
-                            if let Some(ref rel) = open {
-                                parsed.query_pairs_mut().append_pair("open", rel);
-                            }
-                            if let Err(e) = window.navigate(parsed) {
-                                log_line(&format!("[maude] navigate failed: {e}"));
-                            }
-                        }
-                        Ok(parsed) => log_line(&format!(
-                            "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
-                        )),
-                        Err(e) => log_line(&format!("[maude] invalid server url {url}: {e}")),
-                    }
-                }
-            }
-            Err(e) => log_line(&format!("[maude] switch: dev-server did not come up: {e}")),
-        }
-    });
+/// A window showing `root` was focused: stamp its instance most-recently-shown
+/// (drives least-recently-shown eviction in `reap_instances`).
+pub(crate) fn mark_shown(app: &AppHandle, root: &str, tick: u64) {
+    let state = app.state::<SidecarState>();
+    let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
+    if let Some(inst) = pool.get_mut(root) {
+        inst.last_shown = tick;
+    }
 }
 
 /// Is a chat mid-turn in the project served at `design_root`?
@@ -1022,13 +1000,19 @@ fn has_running_chat(design_root: &std::path::Path) -> bool {
 /// a running turn: the ceiling exists to stop unbounded accumulation, and a user
 /// who has three projects genuinely working at once has made that choice
 /// explicitly. It re-trims on the next switch, once something goes idle.
-fn reap_instances(app: &AppHandle) {
+///
+/// V2-3.2: a project some WINDOW still shows is never a candidate either —
+/// stopping it would leave that tab on a dead server. Only window-less
+/// instances (an in-tab switch left them behind) are evicted here; a closed
+/// window's server goes through `windows::on_destroyed`'s grace instead.
+/// SEAM (V2-3.2 part b): the running cap 5 + resting tabs replace this.
+pub(crate) fn reap_instances(app: &AppHandle) {
     let state = app.state::<SidecarState>();
-    let current = state
-        .project_root
+    let shown: Vec<String> = state
+        .windows
         .lock()
-        .expect("sidecar mutex poisoned")
-        .clone();
+        .expect("windows mutex poisoned")
+        .project_roots();
     loop {
         let candidates: Vec<String> = {
             let pool = state.instances.lock().expect("sidecar mutex poisoned");
@@ -1037,7 +1021,7 @@ fn reap_instances(app: &AppHandle) {
             }
             let mut sorted: Vec<(String, u64)> = pool
                 .iter()
-                .filter(|(root, _)| **root != current)
+                .filter(|(root, _)| !shown.contains(root))
                 .map(|(root, inst)| (root.clone(), inst.last_shown))
                 .collect();
             sorted.sort_by_key(|(_, tick)| *tick);
@@ -1076,7 +1060,7 @@ fn reap_instances(app: &AppHandle) {
 /// Remove ONE instance from the pool and terminate its child. Removing it from
 /// the map first is what tells the supervisor task (which checks membership on
 /// `Terminated`) that this death was deliberate and must not be respawned.
-fn shutdown_instance(app: &AppHandle, root: &str) {
+pub(crate) fn shutdown_instance(app: &AppHandle, root: &str) {
     let state = app.state::<SidecarState>();
     let child = {
         let mut pool = state.instances.lock().expect("sidecar mutex poisoned");

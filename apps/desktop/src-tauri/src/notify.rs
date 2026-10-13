@@ -440,14 +440,21 @@ pub fn spawn_activity_poller(app: &AppHandle) {
             if sidecar_state.shutting_down.load(Ordering::SeqCst) {
                 break;
             }
+            // "Current" = the project of the FOCUSED window (V2-3.2; was
+            // `project_root`). Every other running instance — in a background
+            // tab or with no window — is this poller's. SEAM (V2-3.2 part b):
+            // poll through the authenticated `/_api/shell/status`.
             let current = sidecar_state
-                .project_root
+                .windows
                 .lock()
-                .expect("sidecar mutex poisoned")
-                .clone();
+                .expect("windows mutex poisoned")
+                .displayed_root();
             let roots: Vec<String> = {
                 let pool = sidecar_state.instances.lock().expect("sidecar mutex poisoned");
-                pool.keys().filter(|root| **root != current).cloned().collect()
+                pool.keys()
+                    .filter(|root| current.as_deref() != Some(root.as_str()))
+                    .cloned()
+                    .collect()
             };
             // Probed OUTSIDE the pool lock — same reasoning as reap_instances:
             // the curl is bounded but still slow enough that holding the lock

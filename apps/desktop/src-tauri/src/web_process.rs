@@ -135,15 +135,17 @@ fn recover<R: Runtime>(webview: &Webview<R>) {
     }
 }
 
-/// The current project's server url — only when `_server.json` names the pid of
-/// the sidecar child WE spawned for that project and the url is loopback.
+/// The crashed window's OWN project's server url (V2-3.2: the root of this
+/// webview's window role, not "the displayed project" — a background tab can
+/// crash too) — only when `_server.json` names the pid of the sidecar child WE
+/// spawned for that project and the url is loopback.
 fn live_server_url<R: Runtime>(webview: &Webview<R>) -> Option<Url> {
     let state = webview.app_handle().try_state::<SidecarState>()?;
     let root = state
-        .project_root
+        .windows
         .lock()
         .unwrap_or_else(|p| p.into_inner())
-        .clone();
+        .root_of(webview.label())?;
     let child_pid = {
         let instances = state.instances.lock().unwrap_or_else(|p| p.into_inner());
         instances.get(&root)?.child.as_ref()?.pid()

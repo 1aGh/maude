@@ -4,10 +4,14 @@
 // the port → navigate the webview to it → kill the sidecar on quit. Single-instance
 // focuses the existing window instead of opening a second one.
 //
-// Quit is caught on three paths so the sidecar is never orphaned (DDR-106 lifecycle):
-//   1. Window `CloseRequested` — the window's X button.
-//   2. `RunEvent::ExitRequested` / `Exit` — Cmd+Q / app termination.
-//   3. SIGTERM / SIGINT — `kill`, Ctrl+C, crash-via-signal.
+// Windows (V2-3.2, contract V2-1.1 §5.2): Rust creates every window — one per
+// open project, label `p-<pid>`, all in one macOS tab group (windows.rs). There
+// is no `"main"` window. Closing a window stops ONLY its project's server, after
+// a 10 s grace; closing the last one leaves the app running on macOS.
+//
+// Quit is caught on two paths so no sidecar is orphaned (DDR-106 lifecycle):
+//   1. `RunEvent::ExitRequested` / `Exit` — Cmd+Q / app termination.
+//   2. SIGTERM / SIGINT — `kill`, Ctrl+C, crash-via-signal.
 // (SIGKILL is uncatchable and will orphan — unavoidable for any process; a relaunch
 // detects the stale `_server.json` server.)
 
@@ -40,14 +44,10 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 
-use tauri::{Emitter, Manager, RunEvent, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 use sidecar::SidecarState;
-
-/// Cold-start timeout: first launch runs boot-self-heal (bun install + build), up
-/// to ~90 s; give it headroom. Warm launches resolve in well under 2 s.
-const SERVER_WAIT_MS: u64 = 120_000;
 
 /// Resolve the project root to open. `MAUDE_PROJECT_ROOT` env override → last-used
 /// project (if it still exists) → the minimal welcome project (first run). Phase-29
@@ -97,14 +97,15 @@ fn install_signal_handler(handle: tauri::AppHandle) {
 }
 
 /// Recovery poll budget for `resolve_dev_server_url`, deliberately far shorter
-/// than `SERVER_WAIT_MS`: that constant is sized for a COLD start (first-run
+/// than `windows::SERVER_WAIT_MS`: that constant is sized for a COLD start (first-run
 /// `bun install` + build). A recovering splash is asking about a server that is
 /// normally already up, so a long single wait would just delay the retry loop
 /// on the page. The page retries, so a miss here is cheap.
 const RECOVERY_WAIT_MS: u64 = 5_000;
 
-/// Resolve the CURRENT project's dev-server URL for the boot splash to navigate
-/// itself back to (#92).
+/// Resolve the CALLING window's project dev-server URL for its splash to
+/// navigate itself back to (#92; per window since V2-3.2, contract §5.2
+/// "Splash states").
 ///
 /// `apps/desktop/src/index.html` is the webview's ENTRY document. WKWebView
 /// returns to it on a content-process crash reload (WebKit reloads the window's
@@ -112,19 +113,19 @@ const RECOVERY_WAIT_MS: u64 = 5_000;
 /// `setup()` is a one-shot — so before this command the app parked on
 /// "Starting…" until the user force-quit.
 ///
-/// SECURITY (DDR-109 §1): takes NO input from the page. The root comes from
-/// `SidecarState` (so a project switch is respected) and the URL from that
-/// project's own `_server.json`, validated loopback-only right here. The page
+/// SECURITY (DDR-109 §1): takes NO input from the page. The root comes from the
+/// calling window's role in `SidecarState.windows` (so an in-tab switch is
+/// respected) and the URL from that project's own `_server.json`, validated
+/// loopback-only right here. The page
 /// receives an already-validated `http://localhost:*` / `http://127.0.0.1:*`
 /// string and can never steer the navigate — this is not an open-navigate
 /// primitive, and must not become one.
 #[tauri::command]
-async fn resolve_dev_server_url(app: tauri::AppHandle) -> Result<String, String> {
-    let project_root = {
-        let state = app.state::<SidecarState>();
-        let root = state.project_root.lock().expect("sidecar mutex poisoned").clone();
-        PathBuf::from(root)
-    };
+async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<String, String> {
+    // The splash runs on the app-local origin; a page already on its server
+    // may ask too (a reload). SEAM (V2-3.2 part b): a resting window answers
+    // `{ resting: true, name }` here.
+    let project_root = PathBuf::from(windows::caller_project(&webview, true)?.root);
     let url = server_json::wait_for_server(project_root.join(".design"), RECOVERY_WAIT_MS).await?;
     match url.parse::<tauri::Url>() {
         Ok(parsed) if server_json::is_loopback_url(&parsed) => Ok(parsed.to_string()),
@@ -136,7 +137,11 @@ async fn resolve_dev_server_url(app: tauri::AppHandle) -> Result<String, String>
 /// Native folder picker for "pull a local copy" — returns the chosen parent dir,
 /// or `None` if the user cancelled. The clone lands in `<dir>/<repo-name>`.
 #[tauri::command]
-async fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
+async fn pick_directory(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    windows::caller_project(&webview, false)?;
     // E2E (debug builds only): a native folder picker can't be DOM-driven, so the
     // harness injects the chosen path via MAUDE_E2E_PICK_DIR instead of opening the OS
     // dialog. Gated on `debug_assertions`, so it is NEVER compiled into the release
@@ -148,7 +153,8 @@ async fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, String>
         }
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
-    app.dialog().file().pick_folder(move |folder| {
+    // Parented to the calling window, so the sheet lands on the tab that asked.
+    app.dialog().file().set_parent(&webview.window()).pick_folder(move |folder| {
         let path = folder
             .and_then(|f| f.into_path().ok())
             .map(|p| p.to_string_lossy().to_string());
@@ -178,10 +184,14 @@ async fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, String>
 #[tauri::command]
 async fn save_export(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     job_id: String,
     filename: String,
 ) -> Result<Option<String>, String> {
-    let download_url = export_download_url(&app, &job_id)?;
+    // The CALLING window's project (V2-3.2): with two tabs, an export from tab
+    // B must download from B's server, not from whichever tab is in front.
+    let caller = windows::caller_project(&webview, false)?;
+    let download_url = export_download_url(&caller.root, &job_id)?;
 
     // E2E (debug builds only): a native save dialog can't be DOM-driven, so the
     // harness injects the destination via MAUDE_E2E_SAVE_PATH. Gated on
@@ -196,9 +206,13 @@ async fn save_export(
         }
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
-    app.dialog().file().set_file_name(&filename).save_file(move |dest| {
-        let _ = tx.send(dest.and_then(|f| f.into_path().ok()));
-    });
+    app.dialog()
+        .file()
+        .set_parent(&webview.window())
+        .set_file_name(&filename)
+        .save_file(move |dest| {
+            let _ = tx.send(dest.and_then(|f| f.into_path().ok()));
+        });
     let dest = rx.await.map_err(|_| "Save dialog closed unexpectedly.".to_string())?;
     match dest {
         Some(path) => {
@@ -209,22 +223,20 @@ async fn save_export(
     }
 }
 
-/// Resolve the `/_api/export-jobs/download` URL for `job_id` against the
-/// currently-running dev-server sidecar (via `_server.json`). Validates the id
+/// Resolve the `/_api/export-jobs/download` URL for `job_id` against `root`'s
+/// running dev-server sidecar (via `_server.json`). Validates the id
 /// looks like the `crypto.randomUUID()` the server actually generates
 /// (`exporters/jobs.ts`) before it's interpolated into a URL — defense in depth,
 /// since this string arrives from the (trusted, main-origin-only) studio client
 /// rather than the untrusted canvas iframe, but a Rust command has no other gate
 /// of its own on what it's handed.
-fn export_download_url(app: &tauri::AppHandle, job_id: &str) -> Result<String, String> {
+fn export_download_url(project_root: &str, job_id: &str) -> Result<String, String> {
     let looks_like_id = !job_id.is_empty()
         && job_id.len() <= 64
         && job_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
     if !looks_like_id {
         return Err("Invalid export job id.".to_string());
     }
-    let state = app.state::<SidecarState>();
-    let project_root = state.project_root.lock().expect("sidecar mutex poisoned").clone();
     let design_root = PathBuf::from(project_root).join(".design");
     let base_url = server_json::read_server_url(&design_root)
         .ok_or_else(|| "Couldn't reach the local Maude server to fetch the export.".to_string())?;
@@ -269,8 +281,10 @@ async fn stream_download_to_file(url: &str, dest: &std::path::Path) -> Result<()
 #[tauri::command]
 async fn pick_media_file(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     registry: tauri::State<'_, picked_media::PickedMediaRegistry>,
 ) -> Result<Option<picked_media::PickedMediaRef>, String> {
+    windows::caller_project(&webview, false)?;
     // E2E (debug builds only): a native open dialog can't be DOM-driven, so the
     // harness injects the source path via MAUDE_E2E_OPEN_PATH. Never in release.
     #[cfg(debug_assertions)]
@@ -282,6 +296,7 @@ async fn pick_media_file(
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
+        .set_parent(&webview.window())
         .add_filter(
             "Media",
             &[
@@ -306,8 +321,10 @@ async fn pick_media_file(
 #[tauri::command]
 async fn pick_media_files(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     registry: tauri::State<'_, picked_media::PickedMediaRegistry>,
 ) -> Result<Vec<picked_media::PickedMediaRef>, String> {
+    windows::caller_project(&webview, false)?;
     // E2E (debug builds only): mirrors MAUDE_E2E_OPEN_PATH but plural —
     // comma-separated source paths, never read in a release build.
     #[cfg(debug_assertions)]
@@ -324,6 +341,7 @@ async fn pick_media_files(
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
+        .set_parent(&webview.window())
         .add_filter(
             "Media",
             &[
@@ -346,10 +364,18 @@ async fn pick_media_files(
     }
 }
 
-/// Switch the app to a local project folder (the freshly cloned copy) — same
-/// in-process switch as File ▸ Open Project (NOT app.restart()).
+/// Switch the CALLING window to a local project folder (the freshly cloned
+/// copy, a repo-switcher row, an onboarding door) — in-tab, in-process (NOT
+/// app.restart()). If another tab already shows it, that tab is focused instead
+/// (open once, V2-1.1 decision 3).
 #[tauri::command]
-fn open_local_project(app: tauri::AppHandle, path: String, open: Option<String>) -> Result<(), String> {
+fn open_local_project(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    path: String,
+    open: Option<String>,
+) -> Result<(), String> {
+    let caller = windows::caller_project(&webview, false)?;
     let open = open.map(|value| project_resolve::validate_open_param(&value)
         .ok_or_else(|| "Invalid file address.".to_string())).transpose()?;
     let p = PathBuf::from(&path);
@@ -365,14 +391,22 @@ fn open_local_project(app: tauri::AppHandle, path: String, open: Option<String>)
     }
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
     app_state::set_last_project(&app, &p);
-    sidecar::switch_project(&app, p, open);
+    sidecar::switch_project(&app, &caller.label, p, open);
     Ok(())
 }
 
-/// Remember `path` as the last project (so a relaunch reopens it) + switch in-process.
-fn remember_and_switch(app: &tauri::AppHandle, path: PathBuf) {
+/// File ▸ Open Project… (⌘O): remember `path` as the last project and open it
+/// as a new tab after the front window — or focus its tab if it is already
+/// open (V2-1.1 decision 3). Off the main thread: the menu callback runs there,
+/// and building a window waits on it.
+fn remember_and_open(app: &tauri::AppHandle, path: PathBuf) {
     app_state::set_last_project(app, &path);
-    sidecar::switch_project(app, path, None);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = windows::open_project_window(&app, &path, None) {
+            sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display()));
+        }
+    });
 }
 
 /// Write a minimal bootable `.design/` into `dir` (mirrors apps/studio/scaffold-design.ts)
@@ -419,10 +453,7 @@ pub fn run() {
                     deep_link::accept(app, arg);
                 }
             }
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            windows::reveal_front(app);
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
@@ -450,6 +481,10 @@ pub fn run() {
             picked_media::read_picked_media,
             picked_media::release_picked_media,
             open_local_project,
+            windows::open_project,
+            windows::window_labels,
+            windows::e2e_focus_window,
+            windows::e2e_close_window,
             app_state::app_is_first_run,
             app_state::app_get_last_project,
             app_state::app_set_last_project,
@@ -476,13 +511,13 @@ pub fn run() {
                 // File ▸ New Project… — hand off to the webview, which owns the
                 // create-project dialog (name + visibility → POST create-project →
                 // git init + design scaffold → open). IdentityBar listens for this.
-                let _ = app.emit("menu://new-project", ());
+                windows::emit_to_front(app, "menu://new-project", ());
                 return;
             }
             if event.id().as_ref() == menu::MENU_REPORT_BUG {
                 // Help ▸ Report a Bug… — hand off to the webview's dialog, which
                 // owns capture + consent (feature-bug-report-button).
-                let _ = app.emit("menu://report-bug", ());
+                windows::emit_to_front(app, "menu://report-bug", ());
                 return;
             }
             if event.id().as_ref() == menu::MENU_CHECK_UPDATES {
@@ -501,7 +536,7 @@ pub fn run() {
                     // Switch in-process — NOT app.restart() (relaunch aborts tao's
                     // did_finish_launching on the non-bundled dev binary).
                     if path.join(".design").is_dir() {
-                        remember_and_switch(&app, path);
+                        remember_and_open(&app, path);
                         return;
                     }
                     // Not a Maude project yet — ASK before setting one up (the user's
@@ -522,7 +557,7 @@ pub fn run() {
                         ))
                         .show(move |ok| {
                             if ok && write_minimal_design(&path).is_ok() {
-                                remember_and_switch(&app2, path);
+                                remember_and_open(&app2, path);
                             }
                         });
                 });
@@ -559,7 +594,7 @@ pub fn run() {
             }
 
             let project_root = resolve_project_root(&handle);
-            eprintln!("[maude] project root: {}", project_root.display());
+            sidecar::log_line(&format!("[maude] project root: {}", project_root.display()));
 
             app.manage(SidecarState {
                 // Task 10 — a POOL, not a single child: switching projects now
@@ -567,61 +602,39 @@ pub fn run() {
                 // alive instead of killing it. See sidecar.rs's SidecarInstance.
                 instances: Mutex::new(std::collections::HashMap::new()),
                 shutting_down: AtomicBool::new(false),
-                project_root: Mutex::new(project_root.to_string_lossy().to_string()),
+                windows: Mutex::new(windows::WindowBook::default()),
                 tick: AtomicU64::new(0),
             });
 
             // Clear any stale `_server.json` from a previous session BEFORE spawning,
             // so `wait_for_server` blocks on THIS run's fresh (post-bind) write. Without
             // this the webview navigates to the old port before the new server binds →
-            // connection refused → intermittent white screen.
-            let design_root = project_root.join(".design");
-            let _ = std::fs::remove_file(design_root.join("_server.json"));
+            // connection refused → intermittent white screen. (`attach_or_spawn`
+            // removes it again on its spawn path; this keeps the boot ordering explicit.)
+            let _ = std::fs::remove_file(project_root.join(".design").join("_server.json"));
 
             // 0. Start the loopback GitHub-token bridge BEFORE spawning the sidecar,
             // so its endpoint+key are available to pass to the child (DDR-108).
             if let Err(e) = keychain::start_token_bridge() {
-                eprintln!("[maude] WARN: token bridge did not start (GitHub features disabled): {e}");
+                sidecar::log_line(&format!(
+                    "[maude] WARN: token bridge did not start (GitHub features disabled): {e}"
+                ));
             }
 
-            // 1. Spawn the dev-server sidecar.
-            if let Err(e) = sidecar::spawn_server(&handle) {
-                eprintln!("[maude] FATAL: could not spawn dev-server: {e}");
+            // 1+2. The boot window (V2-3.2): `tauri.conf.json` declares NO window,
+            // so the first one is `p-<pid>` for the project resolved above, built by
+            // the same path every later tab takes — splash, spawn-or-attach its
+            // server, navigate when up (DDR-109 guard). Until V2-3.3 adds Home this
+            // is also the first-run path: the welcome project opens here and the
+            // client renders the OnboardingWizard over it. Not registered in
+            // app-state (`open_window_for_root`, not `open_project_window`): boot
+            // never wrote the registry, and the welcome project must not count as
+            // a remembered project.
+            if let Err(e) = windows::open_window_for_root(&handle, &project_root.to_string_lossy(), None)
+            {
+                sidecar::log_line(&format!("[maude] FATAL: could not open the project window: {e}"));
             }
 
-            // 2. Poll `_server.json`, then navigate the webview to the server URL.
-            let nav_handle = handle.clone();
-            // Panic-free prints (issue #115). This task is the ONLY thing that
-            // points the webview at the dev-server on boot, and a `.app` opened
-            // from Finder or the Dock normally has an unwritable stderr — an
-            // `eprintln!` here would panic the task and leave a blank window.
-            tauri::async_runtime::spawn(async move {
-                match server_json::wait_for_server(design_root, SERVER_WAIT_MS).await {
-                    Ok(url) => {
-                        sidecar::log_line(&format!(
-                            "[maude] dev-server ready at {url} — navigating webview"
-                        ));
-                        if let Some(window) = nav_handle.get_webview_window("main") {
-                            match url.parse::<tauri::Url>() {
-                                Ok(parsed) if server_json::is_loopback_url(&parsed) => {
-                                    if let Err(e) = window.navigate(parsed) {
-                                        sidecar::log_line(&format!("[maude] navigate failed: {e}"));
-                                    }
-                                }
-                                Ok(parsed) => sidecar::log_line(&format!(
-                                    "[maude] refusing non-loopback navigate (DDR-109): {parsed}"
-                                )),
-                                Err(e) => sidecar::log_line(&format!(
-                                    "[maude] invalid server url {url}: {e}"
-                                )),
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        sidecar::log_line(&format!("[maude] dev-server did not come up: {e}"))
-                    }
-                }
-            });
 
             // 3. SIGTERM/SIGINT → kill sidecar + exit.
             #[cfg(unix)]
@@ -642,13 +655,25 @@ pub fn run() {
 
             Ok(())
         })
-        // Kill the sidecar when the main window is closed (X button); check for
-        // updates whenever the window regains focus (Phase 32 / Task 1).
+        // Per-window lifecycle (V2-3.2, contract §5.2). A close stops ONLY that
+        // window's project, after the grace (`windows::on_destroyed`) — it used
+        // to `kill_server` the whole pool (e2e spike finding 1). `Destroyed`, not
+        // `CloseRequested`, does the bookkeeping: WebDriver's DELETE /window
+        // destroys without asking, and both paths must converge. Focus stamps
+        // the front window and checks for updates (Phase 32 / Task 1).
         .on_window_event(|window, event| match event {
-            WindowEvent::CloseRequested { .. } => {
-                sidecar::kill_server(window.app_handle());
+            WindowEvent::CloseRequested { api, .. } => {
+                if windows::close_guard(window.app_handle(), window.label())
+                    == windows::CloseGuard::Hold
+                {
+                    api.prevent_close();
+                }
+            }
+            WindowEvent::Destroyed => {
+                windows::on_destroyed(window.app_handle(), window.label());
             }
             WindowEvent::Focused(true) => {
+                windows::on_focused(window.app_handle(), window.label());
                 updater::check_now(window.app_handle().clone());
             }
             _ => {}
@@ -688,10 +713,40 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    // Kill the sidecar on Cmd+Q / app termination.
-    app.run(|app_handle, event| {
-        if let RunEvent::ExitRequested { .. } | RunEvent::Exit = event {
+    app.run(|app_handle, event| match event {
+        // The last window was closed (`code: None` comes only from that — ⌘Q
+        // and `app.exit` arrive as `Exit` / `Some(code)`). On macOS the app keeps
+        // running, as Mac apps do; the closed window's server still stops after
+        // its grace (contract §5.2 "Last window closed").
+        #[cfg(target_os = "macos")]
+        RunEvent::ExitRequested {
+            code: None, api, ..
+        } => {
+            api.prevent_exit();
+        }
+        // Kill every sidecar on Cmd+Q / app termination.
+        RunEvent::ExitRequested { .. } | RunEvent::Exit => {
             sidecar::kill_server(app_handle);
         }
+        // Dock click with no window open: reopen the last project (V2-3.3 makes
+        // this Home).
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen { .. } => {
+            let none_open = app_handle
+                .try_state::<SidecarState>()
+                .is_some_and(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).is_empty());
+            if none_open {
+                let root = resolve_project_root(app_handle);
+                let handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) =
+                        windows::open_window_for_root(&handle, &root.to_string_lossy(), None)
+                    {
+                        sidecar::log_line(&format!("[maude] reopen failed: {e}"));
+                    }
+                });
+            }
+        }
+        _ => {}
     });
 }
