@@ -102,9 +102,11 @@ if (process.env.MAUDE_CANVAS_ORIGIN_SPLIT === undefined) {
 // project. A fixture project therefore gets the SAME origin and the SAME store
 // on every run, and UI state an earlier run left behind (a collapsed file panel)
 // silently changes the next one — the "repo-branch switcher never renders" reds.
-// The product keeps that per-project state on purpose; the HARNESS starts clean.
-// Launcher only (a worker re-evaluates this module while the app is running),
-// and only ever inside the `com.maude.app.e2e` bundle-id dirs.
+// The product keeps that per-project state on purpose; the HARNESS starts clean:
+// once in the launcher (below) and again before each session's app launch
+// (`beforeSession`) — never at module load in a worker, which re-evaluates this
+// file while an app may be running — and only ever inside the
+// `com.maude.app.e2e` bundle-id dirs. MAUDE_E2E_KEEP_STATE=1 opts out.
 export const E2E_BUNDLE_ID = 'com.maude.app.e2e';
 export function resetE2eAppState(): void {
   const home = homedir();
@@ -162,6 +164,11 @@ function resolveAppPath(): string {
 export const config: WebdriverIO.Config = {
   runner: 'local',
   beforeSession() {
+    // Every spec file gets its own app launch (a new session) — and, since the
+    // stores outlive the app, its own clean e2e identity: the default lane runs a
+    // dozen specs against the SAME fixture project, so a panel one spec collapsed
+    // was still collapsed in the next. Runs before this session's app starts.
+    if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
     // The runner can install a newer Undici global dispatcher before WebDriver
     // loads its own copy. Mixing their header representations fails POST /session
     // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.
