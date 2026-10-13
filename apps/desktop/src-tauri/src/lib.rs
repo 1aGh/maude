@@ -783,6 +783,15 @@ pub fn run() {
                     "[maude] WARN: token bridge did not start (GitHub features disabled): {e}"
                 ));
             }
+            // V2-3.6 M4: name the bridge port for curl-local to refuse.
+            if let Some(Err(e)) = handle
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|d| keychain::write_bridge_port_file(&d.join("run")))
+            {
+                sidecar::log_line(&format!("[maude] WARN: {e}"));
+            }
 
             // 1. The Home server, before any project (V2-1.1 decision 1). Its
             // window navigates once its app-owned info file names it.

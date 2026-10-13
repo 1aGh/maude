@@ -163,6 +163,30 @@ pub fn start_token_bridge() -> Result<(), String> {
     Ok(())
 }
 
+/// V2-3.6 M4 — the bridge's port record, `<app data>/run/token-bridge.json`
+/// (0600, beside `home-server.json`). The port is not a secret; this only lets
+/// the auto-allowed `maude design curl-local` refuse the bridge port
+/// (apps/studio/bin/_curl-local.mjs), so an agent that read `MAUDE_TOKEN_KEY`
+/// from the sidecar's env (`ps -Eww`) cannot fetch the GitHub token through an
+/// auto-approved verb. An approved ARBITRARY Bash command as the same OS user
+/// can still do both halves (read the env, call the bridge with plain curl):
+/// that residual is accepted under P3 — the AI chat keeps Claude Code's default
+/// permission behaviour, so a raw command needs the person's approval.
+pub fn bridge_port_record(port: u16, pid: u32) -> String {
+    serde_json::json!({ "mode": "token-bridge", "port": port, "pid": pid }).to_string()
+}
+
+/// Write the bridge port record into `run_dir` (created 0700). No-op while the
+/// bridge is down.
+pub fn write_bridge_port_file(run_dir: &std::path::Path) -> Result<(), String> {
+    let Some(port) = BRIDGE_PORT.get() else {
+        return Ok(());
+    };
+    let path = run_dir.join("token-bridge.json");
+    crate::profiles::atomic_write(&path, bridge_port_record(*port, std::process::id()).as_bytes())
+        .map_err(|e| format!("could not write {}: {e}", path.display()))
+}
+
 /// The bridge endpoint URL, or `None` if the bridge isn't up.
 fn bridge_endpoint() -> Option<String> {
     BRIDGE_PORT
@@ -498,6 +522,30 @@ mod tests {
             None,
             "a prefix is not a key"
         );
+    }
+
+    /// V2-3.6 M4: the bridge port lands in an app-owned 0600 record that
+    /// curl-local reads to refuse that port.
+    #[test]
+    fn the_bridge_port_record_is_written_private() {
+        start_token_bridge().unwrap();
+        let port = *BRIDGE_PORT.get().unwrap();
+        let dir = std::env::temp_dir().join(format!("maude-bridge-rec-{}", std::process::id()));
+        let run = dir.join("run");
+        write_bridge_port_file(&run).unwrap();
+        let path = run.join("token-bridge.json");
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(v["mode"], "token-bridge");
+        assert_eq!(v["port"], port);
+        assert_eq!(v["pid"], std::process::id());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
