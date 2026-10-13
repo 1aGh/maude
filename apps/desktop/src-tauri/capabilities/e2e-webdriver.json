@@ -11,6 +11,7 @@
     "wdio-webdriver:default",
     "allow-window-labels",
     "allow-e2e-focus-window",
-    "allow-e2e-close-window"
+    "allow-e2e-close-window",
+    "allow-e2e-open-root"
   ]
 }

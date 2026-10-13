@@ -78,8 +78,7 @@ pub fn data_store_id_for_label(label: &str) -> [u8; 16] {
 
 // ── Window model (contract §5.2) ────────────────────────────────────────────
 
-/// The Home window's label (V2-3.3 builds Home; part a only reserves the name).
-#[allow(dead_code)] // first caller: V2-3.3 (Home window)
+/// The Home window's label (V2-3.3, home.rs). At most one Home window.
 pub const HOME_LABEL: &str = "home";
 
 /// How long a closed project window's server keeps running (§5.2 "Window
@@ -94,7 +93,7 @@ pub const SERVER_WAIT_MS: u64 = 120_000;
 /// What a window is for. `Home` and `Cell` are reserved here so the book has
 /// one shape; V2-3.3 opens `home`, and `c-*` cell tabs come later.
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)] // Home / Cell: first constructed in V2-3.3
+#[allow(dead_code)] // Cell: first constructed with the cell tabs
 pub enum Role {
     Home,
     Project { pid: String, root: String },
@@ -214,6 +213,11 @@ impl WindowBook {
             }
             None => false,
         }
+    }
+
+    /// The window that has focus right now (no fallback).
+    pub fn focused(&self) -> Option<&str> {
+        self.focused.as_deref()
     }
 
     /// The window a shell-level action without a caller acts on (single-
@@ -597,6 +601,7 @@ pub fn open_window_for_root(
     app: &AppHandle,
     root: &str,
     caller: Option<&str>,
+    open: Option<&str>,
 ) -> Result<Opened, String> {
     let state = app.state::<SidecarState>();
     let caller = caller.map(str::to_string).or_else(|| {
@@ -622,23 +627,26 @@ pub fn open_window_for_root(
         // the pool) is attached to instead of spawned.
         crate::sidecar::attach_or_spawn(app, root);
         crate::sidecar::reap_instances(app);
-        navigate_when_up(app, label.clone(), root.to_string(), None);
+        navigate_when_up(app, label.clone(), root.to_string(), open.map(str::to_string));
+        crate::home::state_changed(app);
     }
     Ok(opened)
 }
 
-/// `open_window_for_root` + the registry upsert (`lastOpenedAt`) — every open a
-/// person asked for (the `open_project` command, File › Open Project…).
+/// `open_window_for_root` + the registry upsert (`lastOpenedAt`, MRU) — every
+/// open a person asked for (the `open_project` command, File › Open Project…).
+/// `open` = a designRoot-relative canvas for a NEW window's first navigate.
 pub fn open_project_window(
     app: &AppHandle,
     root: &Path,
     caller: Option<&str>,
+    open: Option<&str>,
 ) -> Result<Opened, String> {
     if !root.join(".design").is_dir() {
         return Err("That folder isn’t a Maude project yet (no design system). Open it and run “Set up a design system” first.".to_string());
     }
     crate::app_state::upsert_project(app, root);
-    open_window_for_root(app, &root.to_string_lossy(), caller)
+    open_window_for_root(app, &root.to_string_lossy(), caller, open)
 }
 
 // ── Window events ───────────────────────────────────────────────────────────
@@ -661,6 +669,7 @@ pub fn on_focused(app: &AppHandle, label: &str) {
         crate::sidecar::mark_shown(app, &root, tick);
     }
     // SEAM (V2-3.2 part b): a resting window wakes here (spawn + navigate).
+    crate::home::state_changed(app);
 }
 
 /// What a window close should do before the window goes away.
@@ -692,6 +701,10 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
         &mut state.windows.lock().unwrap_or_else(|e| e.into_inner()),
         label,
     );
+    // An intent parked for this window dies with it (a later window with the
+    // same label must not inherit it), and Home's tab list changed.
+    crate::home::take_intent(label);
+    crate::home::state_changed(app);
     let Some(root) = root else { return };
     crate::sidecar::log_line(&format!(
         "[maude] {label} closed — {root}'s server stops in {}s unless it is reopened",
@@ -752,7 +765,7 @@ pub struct CallerProject {
 
 /// The app-local origin the splash (`index.html`) runs on: `tauri://localhost`
 /// on macOS/Linux, `http(s)://tauri.localhost` on Windows.
-fn is_app_local(url: &tauri::Url) -> bool {
+pub(crate) fn is_app_local(url: &tauri::Url) -> bool {
     url.scheme() == "tauri"
         || (matches!(url.scheme(), "http" | "https") && url.host_str() == Some("tauri.localhost"))
 }
@@ -829,30 +842,179 @@ pub struct OpenedProject {
     opened: &'static str,
 }
 
-/// `open_project({root})` — open a project as a new tab after the calling
-/// window, or focus its tab if it is already open (§5.4; Home's `{pid}` form
-/// comes in V2-3.3). The caller must be a project window on its own server.
+impl From<&Opened> for OpenedProject {
+    fn from(o: &Opened) -> Self {
+        OpenedProject {
+            label: o.label().to_string(),
+            opened: match o {
+                Opened::Existing(_) => "existing",
+                Opened::New(_) => "new",
+            },
+        }
+    }
+}
+
+/// Who invoked a command that both roles may call (§5.4).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Caller {
+    Home,
+    Project(CallerProject),
+}
+
+/// Resolve the caller as Home (label `home` AND the Home origin, re-checked in
+/// `home::check_home`) or as a project window (`caller_project`). A `p-*`
+/// window that navigated to the Home URL is a project window on the wrong
+/// origin — refused, never promoted to Home (§5.8 item 3).
+pub fn caller_any<R: Runtime>(
+    webview: &tauri::Webview<R>,
+    allow_app_local: bool,
+) -> Result<Caller, String> {
+    if webview.label() == HOME_LABEL {
+        crate::home::caller_home(webview, allow_app_local).map(|()| Caller::Home)
+    } else {
+        caller_project(webview, allow_app_local).map(Caller::Project)
+    }
+}
+
+/// `target` of `open_project`: a canvas (designRoot-relative) and an artboard.
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, Serialize)]
+pub struct OpenTarget {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canvas: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artboard: Option<String>,
+}
+
+/// Validate a page-supplied target: the canvas through the same check as a
+/// deep link's `open` (relative, no `..`), the artboard as a short plain id.
+pub fn validate_target(t: OpenTarget) -> Result<OpenTarget, String> {
+    let bad = || "Invalid canvas address.".to_string();
+    let canvas = t
+        .canvas
+        .map(|c| crate::project_resolve::validate_open_param(&c).ok_or_else(bad))
+        .transpose()?;
+    let artboard = t
+        .artboard
+        .map(|a| {
+            if a.is_empty() || a.chars().count() > 128 || a.chars().any(char::is_control) {
+                Err(bad())
+            } else {
+                Ok(a)
+            }
+        })
+        .transpose()?;
+    Ok(OpenTarget { canvas, artboard })
+}
+
+/// Which folder an `open_project` call names, and whether this caller may name
+/// it (§5.4 Check, §5.8 item 3). Pure, so the gate is testable.
+///   - `{root}` is Home-only (a project window passes a pid).
+///   - `{pid}` from Home: any registered project.
+///   - `{pid}` from a project: its own, or one bound to the same account profile
+///     (the `index_search` scope).
+pub fn resolve_open_root(
+    caller: &Caller,
+    st: &crate::app_state::AppState,
+    pid: Option<&str>,
+    root: Option<&str>,
+) -> Result<PathBuf, String> {
+    match (pid, root) {
+        (Some(_), Some(_)) | (None, None) => Err("Name one project to open.".to_string()),
+        (None, Some(root)) => match caller {
+            Caller::Home => Ok(PathBuf::from(root)),
+            Caller::Project(_) => Err("Only Home can open a project by its folder.".to_string()),
+        },
+        (Some(pid), None) => {
+            if let Caller::Project(c) = caller {
+                if c.pid == pid {
+                    return Ok(PathBuf::from(&c.root));
+                }
+            }
+            let entry = st
+                .projects
+                .get(pid)
+                .ok_or_else(|| "That project isn't in your list.".to_string())?;
+            match caller {
+                Caller::Home => Ok(PathBuf::from(&entry.root)),
+                Caller::Project(c) if entry.profile == st.profile_for(&c.root) => {
+                    Ok(PathBuf::from(&entry.root))
+                }
+                Caller::Project(_) => Err("That project belongs to another account.".to_string()),
+            }
+        }
+    }
+}
+
+/// `open_project({pid} | {root}, target?, intent?)` — open a project as a new
+/// tab after the calling window, or focus its tab if it is already open (open
+/// once, §5.2). From Home, the Home tab closes once the project tab is key
+/// (decision 3). `target` reaches an existing window as `shell://navigate` and
+/// a new one as its first navigate's `?open=`; `intent` is parked for the
+/// target window (`take_pending_intent`) — prompt text never in a URL.
 /// `async`: building a window from a sync command runs on the main thread and
 /// deadlocks on Windows (Tauri docs).
 #[tauri::command]
 pub async fn open_project(
     app: AppHandle,
     webview: tauri::Webview,
-    root: String,
+    pid: Option<String>,
+    root: Option<String>,
+    target: Option<OpenTarget>,
+    intent: Option<crate::home::OpenIntent>,
 ) -> Result<OpenedProject, String> {
-    let caller = caller_project(&webview, false)?;
-    let path = PathBuf::from(&root);
+    let caller = caller_any(&webview, false)?;
+    let st = crate::app_state::load(&app);
+    let path = resolve_open_root(&caller, &st, pid.as_deref(), root.as_deref())?;
+    let target = target.map(validate_target).transpose()?;
+    let intent = intent.map(crate::home::validate_intent).transpose()?;
     if !path.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
     }
-    let opened = open_project_window(&app, &path, Some(&caller.label))?;
-    Ok(OpenedProject {
-        label: opened.label().to_string(),
-        opened: match opened {
-            Opened::Existing(_) => "existing",
-            Opened::New(_) => "new",
-        },
-    })
+    let canvas = target.as_ref().and_then(|t| t.canvas.clone());
+    let opened = open_project_window(&app, &path, Some(webview.label()), canvas.as_deref())?;
+    let label = opened.label().to_string();
+    if let Some(intent) = intent {
+        crate::home::park_intent(&app, &label, intent);
+    }
+    if let (Opened::Existing(_), Some(t)) = (&opened, &target) {
+        let _ = app.emit_to(
+            EventTarget::AnyLabel {
+                label: label.clone(),
+            },
+            "shell://navigate",
+            t.clone(),
+        );
+    }
+    if caller == Caller::Home {
+        crate::home::close_home_when_key(&app, &label);
+    }
+    Ok(OpenedProject::from(&opened))
+}
+
+/// Debug-only e2e helper: `open_project` by folder from a PROJECT window (the
+/// `{root}` form is Home-only in the real command). The same open path —
+/// registry upsert, open once, tab after the caller. Granted only by
+/// capabilities/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub async fn e2e_open_root(
+    app: AppHandle,
+    webview: tauri::Webview,
+    root: String,
+) -> Result<OpenedProject, String> {
+    #[cfg(debug_assertions)]
+    {
+        let caller = caller_any(&webview, false)?;
+        let opened = open_project_window(&app, Path::new(&root), Some(webview.label()), None)?;
+        if caller == Caller::Home {
+            crate::home::close_home_when_key(&app, opened.label());
+        }
+        Ok(OpenedProject::from(&opened))
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, webview, root);
+        Err("debug builds only".into())
+    }
 }
 
 // Debug-only e2e helpers (lifted from the V2-3.2 e2e spike). Bodies are
@@ -1029,6 +1191,80 @@ mod tests {
         assert_eq!(
             book.lock().unwrap().root_of(&label_of(B)).as_deref(),
             Some(B)
+        );
+    }
+
+    #[test]
+    fn open_once_from_home_and_from_a_project() {
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        book.lock().unwrap().insert(HOME_LABEL, Role::Home, 0);
+        host.live.borrow_mut().push(HOME_LABEL.to_string());
+
+        // From Home: a new tab right after Home (Home then closes — home.rs).
+        let a = open_in(&host, &book, A, "Alpha", Some(HOME_LABEL), 1).unwrap();
+        assert_eq!(a, Opened::New(label_of(A)));
+        assert_eq!(host.created.borrow()[0].caller.as_deref(), Some(HOME_LABEL));
+
+        // From a project (B's tab): A is open — focused, never created again.
+        let b = open_in(&host, &book, B, "Beta", Some(&label_of(A)), 2).unwrap();
+        assert_eq!(b, Opened::New(label_of(B)));
+        let again = open_in(&host, &book, A, "Alpha", Some(&label_of(B)), 3).unwrap();
+        assert_eq!(again, Opened::Existing(label_of(A)));
+        // …and from Home again: still the same window.
+        let from_home = open_in(&host, &book, A, "Alpha", Some(HOME_LABEL), 4).unwrap();
+        assert_eq!(from_home, Opened::Existing(label_of(A)));
+        assert_eq!(host.created.borrow().len(), 2);
+        // Home is never mistaken for a project window.
+        let b_ = book.lock().unwrap();
+        assert_eq!(b_.project_of(HOME_LABEL), None);
+        assert_eq!(b_.label_for_pid(&pid_for_root(A)), Some(label_of(A)));
+    }
+
+    fn st_with(entries: &[(&str, &str, &str)]) -> crate::app_state::AppState {
+        let mut st = crate::app_state::AppState::default();
+        for (pid, root, profile) in entries {
+            st.projects.insert(
+                pid.to_string(),
+                serde_json::from_value(serde_json::json!({ "root": root, "profile": profile }))
+                    .unwrap(),
+            );
+        }
+        st
+    }
+
+    #[test]
+    fn home_gate_open_project_by_folder_is_home_only() {
+        let st = st_with(&[("lself", A, "default"), ("lsame", B, "default"), ("lwork", "/w", "work")]);
+        let project = Caller::Project(CallerProject {
+            label: "p-lself".into(),
+            pid: "lself".into(),
+            root: A.into(),
+        });
+        // {root} — Home only (§5.8 item 3).
+        assert!(resolve_open_root(&project, &st, None, Some("/x")).is_err());
+        assert_eq!(
+            resolve_open_root(&Caller::Home, &st, None, Some("/x")).unwrap(),
+            PathBuf::from("/x")
+        );
+        // {pid} from a project: its own, or the same account profile.
+        assert_eq!(resolve_open_root(&project, &st, Some("lself"), None).unwrap(), PathBuf::from(A));
+        assert_eq!(resolve_open_root(&project, &st, Some("lsame"), None).unwrap(), PathBuf::from(B));
+        assert!(resolve_open_root(&project, &st, Some("lwork"), None).is_err());
+        // {pid} from Home: any registered project, never an unknown one.
+        assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), None).is_ok());
+        assert!(resolve_open_root(&Caller::Home, &st, Some("lnope"), None).is_err());
+        // Exactly one of the two.
+        assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), Some("/x")).is_err());
+        assert!(resolve_open_root(&Caller::Home, &st, None, None).is_err());
+        // A target canvas goes through the deep-link path check.
+        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None }).is_err());
+        assert_eq!(
+            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()) })
+                .unwrap()
+                .canvas
+                .as_deref(),
+            Some("ui/a.tsx")
         );
     }
 
@@ -1279,6 +1515,7 @@ mod tests {
             "allow-window-labels",
             "allow-e2e-focus-window",
             "allow-e2e-close-window",
+            "allow-e2e-open-root",
         ];
         for p in debug_only {
             assert!(

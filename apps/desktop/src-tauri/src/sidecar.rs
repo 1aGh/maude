@@ -162,9 +162,13 @@ pub struct SidecarState {
     /// Source for `last_shown`. A counter, not a clock: `Instant`/`SystemTime`
     /// would drag time handling into a comparison that only needs an ordering.
     pub tick: AtomicU64,
+    /// The one Home server (V2-3.3, contract V2-1.1 decision 1): never in
+    /// `instances`, never counted in the pool, never reaped. `None` until the
+    /// first spawn (home.rs).
+    pub home: Mutex<Option<crate::home::HomeInstance>>,
 }
 
-const MAX_RESTARTS: u32 = 3;
+pub(crate) const MAX_RESTARTS: u32 = 3;
 
 /// How long a child must stay up before its death counts as an ISOLATED crash
 /// rather than another turn of a loop. A crash loop is a server that cannot get
@@ -478,20 +482,8 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     // apps/studio/ up-tree, so paths.ts walk-up can't find the runtime. Point it at
     // the runtime we ship as a bundle resource (Resources/apps/studio). In dev this
     // dir doesn't exist → left unset → walk-up resolves the source tree (DDR-106).
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        // Tauri's resource-path mapping varies by version/config; probe the likely
-        // landing spots for the staged `apps/studio` runtime (anchor: it has `dist/`).
-        let candidates = [
-            resource_dir.join("apps").join("studio"),
-            resource_dir.join("resources").join("apps").join("studio"),
-            resource_dir.join("_up_").join("apps").join("studio"),
-            resource_dir.join("studio"),
-        ];
-        if let Some(studio) = candidates.into_iter().find(|p| p.join("dist").exists()) {
-            // #141 — resource_dir is a verbatim `\\?\C:\…` path on Windows, and
-            // `node \\?\C:\…\index.js` (the ACP adapter) dies on it. Export
-            // the ordinary form; the walk-up probes above don't care.
-            let studio = crate::win_process::strip_verbatim(&studio);
+    {
+        if let Some(studio) = bundled_studio_root(app) {
             command = command.env(
                 "MAUDE_DEV_SERVER_ROOT",
                 studio.to_string_lossy().to_string(),
@@ -744,6 +736,26 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// The staged `apps/studio` runtime inside a packaged app (`MAUDE_DEV_SERVER_ROOT`
+/// for every server this shell spawns — projects and Home), or `None` in dev,
+/// where `paths.ts` walk-up resolves the source tree (DDR-106).
+pub(crate) fn bundled_studio_root(app: &AppHandle) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+    // Tauri's resource-path mapping varies by version/config; probe the likely
+    // landing spots for the staged `apps/studio` runtime (anchor: it has `dist/`).
+    let candidates = [
+        resource_dir.join("apps").join("studio"),
+        resource_dir.join("resources").join("apps").join("studio"),
+        resource_dir.join("_up_").join("apps").join("studio"),
+        resource_dir.join("studio"),
+    ];
+    let studio = candidates.into_iter().find(|p| p.join("dist").exists())?;
+    // #141 — resource_dir is a verbatim `\\?\C:\…` path on Windows, and
+    // `node \\?\C:\…\index.js` (the ACP adapter) dies on it. Export the
+    // ordinary form; the walk-up probes above don't care.
+    Some(crate::win_process::strip_verbatim(&studio))
+}
+
 /// Restart-budget accounting: what this death costs the instance.
 ///
 /// Extracted from the supervisor so the loop-vs-isolated distinction is unit-
@@ -753,7 +765,7 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
 /// A death after `HEALTHY_UPTIME` opens a fresh budget at 1 rather than spending
 /// the previous one. Returning 1 and not 0 is deliberate: this WAS a crash, and
 /// three more in quick succession from here must still reach the cap.
-fn next_restart_count(previous: u32, uptime: Duration) -> u32 {
+pub(crate) fn next_restart_count(previous: u32, uptime: Duration) -> u32 {
     if uptime >= HEALTHY_UPTIME {
         1
     } else {
@@ -1097,7 +1109,7 @@ pub(crate) fn shutdown_instance(app: &AppHandle, root: &str) {
 /// is what stops the detached ACP bridges (Task 8) from outliving the server.
 /// A bare SIGKILL here would orphan every `claude` subprocess this instance had
 /// spawned. Security-review finding, extended.
-fn terminate(child: CommandChild) {
+pub(crate) fn terminate(child: CommandChild) {
     let pid = child.pid();
     #[cfg(unix)]
     {
@@ -1149,7 +1161,7 @@ pub(crate) fn log_line(line: &str) {
 
 /// `log_line` without the trailing newline — for mirroring sidecar output that
 /// already carries its own.
-fn log_raw(chunk: &str) {
+pub(crate) fn log_raw(chunk: &str) {
     use std::io::Write;
     let _ = write!(std::io::stderr(), "{chunk}");
 }

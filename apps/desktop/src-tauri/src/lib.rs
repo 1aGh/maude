@@ -18,6 +18,7 @@
 mod app_state;
 mod crash_reporter;
 mod deep_link;
+mod home;
 mod keychain;
 // issue #105 — WebKitGTK's GStreamer media path is the one part of the shell that
 // can kill the renderer before the user sees a single pixel of their canvas.
@@ -49,20 +50,49 @@ use tauri_plugin_dialog::DialogExt;
 
 use sidecar::SidecarState;
 
-/// Resolve the project root to open. `MAUDE_PROJECT_ROOT` env override → last-used
-/// project (if it still exists) → the minimal welcome project (first run). Phase-29
-/// (E4): on first run we boot the welcome project so the webview can render the
-/// OnboardingWizard over it (the client checks `app_is_first_run`).
-fn resolve_project_root(app: &tauri::AppHandle) -> PathBuf {
-    if let Ok(p) = std::env::var("MAUDE_PROJECT_ROOT") {
-        if !p.is_empty() {
-            return PathBuf::from(p);
-        }
+/// What a launch opens (V2-3.3, contract V2-1.1 §5.3 "Boot" / decision 2).
+#[derive(Debug, PartialEq)]
+enum BootPlan {
+    /// Only this project's window (no Home window at boot; ⌘T still opens it).
+    Project(PathBuf),
+    /// The Home window first; then, as a tab after it, the last project.
+    /// SEAM (Home restore): V2-3.2 part b replaces `reopen` with the full
+    /// `session.tabs` restore.
+    Home { reopen: Option<PathBuf> },
+}
+
+/// Pure half of the boot decision:
+///   - `MAUDE_PROJECT_ROOT` (e2e lanes, a power user launching at a known
+///     project): the app was told what to open — that project, first window.
+///   - `MAUDE_FORCE_ONBOARDING` (debug builds only): the welcome project, so
+///     the onboarding lane can still drive the OnboardingWizard.
+///   - otherwise Home — first launch included (no welcome-project sidecar).
+fn boot_plan(
+    env_root: Option<PathBuf>,
+    force_onboarding: bool,
+    last: Option<PathBuf>,
+    welcome: impl FnOnce() -> PathBuf,
+) -> BootPlan {
+    if let Some(root) = env_root {
+        return BootPlan::Project(root);
     }
-    if let Some(p) = app_state::last_project(app) {
-        return p;
+    if force_onboarding {
+        return BootPlan::Project(welcome());
     }
-    app_state::welcome_project(app)
+    BootPlan::Home { reopen: last }
+}
+
+fn resolve_boot_plan(app: &tauri::AppHandle) -> BootPlan {
+    let env_root = std::env::var("MAUDE_PROJECT_ROOT")
+        .ok()
+        .filter(|p| !p.is_empty())
+        .map(PathBuf::from);
+    #[cfg(debug_assertions)]
+    let force_onboarding = std::env::var("MAUDE_FORCE_ONBOARDING").is_ok_and(|v| !v.is_empty());
+    #[cfg(not(debug_assertions))]
+    let force_onboarding = false;
+    let last = app_state::last_project(app).filter(|p| p.join(".design").is_dir());
+    boot_plan(env_root, force_onboarding, last, || app_state::welcome_project(app))
 }
 
 /// Catch SIGTERM/SIGINT so an abrupt `kill`/Ctrl+C still tears the sidecar down.
@@ -84,6 +114,7 @@ fn install_signal_handler(handle: tauri::AppHandle) {
                     // to kill. See `sidecar::log_shutdown`.
                     sidecar::log_shutdown("[maude] termination signal received — killing sidecar");
                     sidecar::kill_server(&handle);
+                    home::kill(&handle);
                     std::process::exit(0);
                 }
                 Err(e) => {
@@ -122,6 +153,12 @@ const RECOVERY_WAIT_MS: u64 = 5_000;
 /// primitive, and must not become one.
 #[tauri::command]
 async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<String, String> {
+    // The Home window's splash answers the Home origin (V2-3.3, §5.2 "Splash
+    // states"): from the app-local splash or Home itself, never a `p-*` label.
+    if webview.label() == windows::HOME_LABEL {
+        home::caller_home(&webview, true)?;
+        return home::wait_home_url(webview.app_handle(), std::time::Duration::from_millis(RECOVERY_WAIT_MS)).await;
+    }
     // The splash runs on the app-local origin; a page already on its server
     // may ask too (a reload). SEAM (V2-3.2 part b): a resting window answers
     // `{ resting: true, name }` here.
@@ -399,14 +436,66 @@ fn open_local_project(
 /// as a new tab after the front window — or focus its tab if it is already
 /// open (V2-1.1 decision 3). Off the main thread: the menu callback runs there,
 /// and building a window waits on it.
-fn remember_and_open(app: &tauri::AppHandle, path: PathBuf) {
+fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<String>) {
     app_state::set_last_project(app, &path);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = windows::open_project_window(&app, &path, None) {
-            sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display()));
+        match windows::open_project_window(&app, &path, caller.as_deref(), None) {
+            // A pick made from Home replaces the Home tab (V2-1.1 decision 3).
+            Ok(opened) if caller.as_deref() == Some(windows::HOME_LABEL) => {
+                home::close_home_when_key(&app, opened.label());
+            }
+            Ok(_) => {}
+            Err(e) => sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display())),
         }
     });
+}
+
+/// Open project… (⌘O, Home's "Open a folder"): the folder picker, then open it
+/// as a tab after `caller` (`None` ⇒ the front window); a folder without
+/// `.design/` asks "Set it up?" first instead of crash-looping its server.
+fn pick_and_open_folder(app: &tauri::AppHandle, caller: Option<String>) {
+    let app = app.clone();
+    app.dialog().file().pick_folder(move |folder| {
+        let Some(folder) = folder else { return };
+        let Some(path) = folder.as_path().map(|p| p.to_path_buf()) else { return };
+        // Switch in-process — NOT app.restart() (relaunch aborts tao's
+        // did_finish_launching on the non-bundled dev binary).
+        if path.join(".design").is_dir() {
+            remember_and_open(&app, path, caller);
+            return;
+        }
+        // Not a Maude project yet — ASK before setting one up (the user's
+        // requested fallback), instead of crash-looping on a no-.design root.
+        let app2 = app.clone();
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        app.dialog()
+            .message(format!(
+                "“{name}” isn’t a Maude project yet. Set up a Maude project here so you can start designing?"
+            ))
+            .title("Set up Maude")
+            .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                "Set it up".to_string(),
+                "Cancel".to_string(),
+            ))
+            .show(move |ok| {
+                if ok && write_minimal_design(&path).is_ok() {
+                    remember_and_open(&app2, path, caller);
+                }
+            });
+    });
+}
+
+/// `open_project_folder()` (§5.4) — the File-menu flow, for Home or a project
+/// window; the new tab goes after the caller.
+#[tauri::command]
+async fn open_project_folder(app: tauri::AppHandle, webview: tauri::Webview) -> Result<(), String> {
+    windows::caller_any(&webview, false)?;
+    pick_and_open_folder(&app, Some(webview.label().to_string()));
+    Ok(())
 }
 
 /// Write a minimal bootable `.design/` into `dir` (mirrors apps/studio/scaffold-design.ts)
@@ -482,6 +571,13 @@ pub fn run() {
             picked_media::release_picked_media,
             open_local_project,
             windows::open_project,
+            windows::e2e_open_root,
+            open_project_folder,
+            home::shell_state,
+            home::new_home_tab,
+            home::take_pending_intent,
+            home::index_search,
+            home::relink_project,
             windows::window_labels,
             windows::e2e_focus_window,
             windows::e2e_close_window,
@@ -527,40 +623,7 @@ pub fn run() {
                 return;
             }
             if event.id().as_ref() == menu::MENU_OPEN_PROJECT {
-                let app = app.clone();
-                // Pick a project folder, remember it, and relaunch pointed at it.
-                // (The richer in-window project switcher is phase-29.)
-                app.dialog().file().pick_folder(move |folder| {
-                    let Some(folder) = folder else { return };
-                    let Some(path) = folder.as_path().map(|p| p.to_path_buf()) else { return };
-                    // Switch in-process — NOT app.restart() (relaunch aborts tao's
-                    // did_finish_launching on the non-bundled dev binary).
-                    if path.join(".design").is_dir() {
-                        remember_and_open(&app, path);
-                        return;
-                    }
-                    // Not a Maude project yet — ASK before setting one up (the user's
-                    // requested fallback), instead of crash-looping on a no-.design root.
-                    let app2 = app.clone();
-                    let name = path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_default();
-                    app.dialog()
-                        .message(format!(
-                            "“{name}” isn’t a Maude project yet. Set up a Maude project here so you can start designing?"
-                        ))
-                        .title("Set up Maude")
-                        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
-                            "Set it up".to_string(),
-                            "Cancel".to_string(),
-                        ))
-                        .show(move |ok| {
-                            if ok && write_minimal_design(&path).is_ok() {
-                                remember_and_open(&app2, path);
-                            }
-                        });
-                });
+                pick_and_open_folder(app, None);
             }
         })
         .setup(|app| {
@@ -593,8 +656,8 @@ pub fn run() {
                 });
             }
 
-            let project_root = resolve_project_root(&handle);
-            sidecar::log_line(&format!("[maude] project root: {}", project_root.display()));
+            let plan = resolve_boot_plan(&handle);
+            sidecar::log_line(&format!("[maude] boot: {plan:?}"));
 
             app.manage(SidecarState {
                 // Task 10 — a POOL, not a single child: switching projects now
@@ -604,6 +667,7 @@ pub fn run() {
                 shutting_down: AtomicBool::new(false),
                 windows: Mutex::new(windows::WindowBook::default()),
                 tick: AtomicU64::new(0),
+                home: Mutex::new(None),
             });
 
             // Clear any stale `_server.json` from a previous session BEFORE spawning,
@@ -611,7 +675,13 @@ pub fn run() {
             // this the webview navigates to the old port before the new server binds →
             // connection refused → intermittent white screen. (`attach_or_spawn`
             // removes it again on its spawn path; this keeps the boot ordering explicit.)
-            let _ = std::fs::remove_file(project_root.join(".design").join("_server.json"));
+            let boot_root = match &plan {
+                BootPlan::Project(root) => Some(root.clone()),
+                BootPlan::Home { reopen } => reopen.clone(),
+            };
+            if let Some(root) = &boot_root {
+                let _ = std::fs::remove_file(root.join(".design").join("_server.json"));
+            }
 
             // 0. Start the loopback GitHub-token bridge BEFORE spawning the sidecar,
             // so its endpoint+key are available to pass to the child (DDR-108).
@@ -621,18 +691,40 @@ pub fn run() {
                 ));
             }
 
-            // 1+2. The boot window (V2-3.2): `tauri.conf.json` declares NO window,
-            // so the first one is `p-<pid>` for the project resolved above, built by
-            // the same path every later tab takes — splash, spawn-or-attach its
-            // server, navigate when up (DDR-109 guard). Until V2-3.3 adds Home this
-            // is also the first-run path: the welcome project opens here and the
-            // client renders the OnboardingWizard over it. Not registered in
-            // app-state (`open_window_for_root`, not `open_project_window`): boot
-            // never wrote the registry, and the welcome project must not count as
-            // a remembered project.
-            if let Err(e) = windows::open_window_for_root(&handle, &project_root.to_string_lossy(), None)
-            {
-                sidecar::log_line(&format!("[maude] FATAL: could not open the project window: {e}"));
+            // 1. The Home server, before any project (V2-1.1 decision 1). Its
+            // window navigates once its app-owned info file names it.
+            if let Err(e) = home::spawn_home(&handle) {
+                sidecar::log_line(&format!("[maude] could not start Home: {e}"));
+            }
+
+            // 2. The boot windows. `tauri.conf.json` declares NO window; every
+            // one is built by the path later tabs take (splash, then the
+            // server's origin through the DDR-109 guard). Home first — a first
+            // launch IS Home (no welcome-project sidecar) — then the last project
+            // as a tab after it. Boot projects go through `open_window_for_root`,
+            // not `open_project_window`: the welcome project and an
+            // `MAUDE_PROJECT_ROOT` override must not enter the registry.
+            match &plan {
+                BootPlan::Project(root) => {
+                    if let Err(e) = windows::open_window_for_root(&handle, &root.to_string_lossy(), None, None) {
+                        sidecar::log_line(&format!("[maude] FATAL: could not open the project window: {e}"));
+                    }
+                }
+                BootPlan::Home { reopen } => {
+                    if let Err(e) = home::ensure_home_window(&handle, None) {
+                        sidecar::log_line(&format!("[maude] FATAL: could not open the Home window: {e}"));
+                    }
+                    if let Some(root) = reopen {
+                        if let Err(e) = windows::open_window_for_root(
+                            &handle,
+                            &root.to_string_lossy(),
+                            Some(windows::HOME_LABEL),
+                            None,
+                        ) {
+                            sidecar::log_line(&format!("[maude] could not reopen {}: {e}", root.display()));
+                        }
+                    }
+                }
             }
 
 
@@ -727,21 +819,19 @@ pub fn run() {
         // Kill every sidecar on Cmd+Q / app termination.
         RunEvent::ExitRequested { .. } | RunEvent::Exit => {
             sidecar::kill_server(app_handle);
+            home::kill(app_handle);
         }
-        // Dock click with no window open: reopen the last project (V2-3.3 makes
-        // this Home).
+        // Dock click with no window open: Home (contract §5.2 "Last window
+        // closed").
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => {
             let none_open = app_handle
                 .try_state::<SidecarState>()
                 .is_some_and(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).is_empty());
             if none_open {
-                let root = resolve_project_root(app_handle);
                 let handle = app_handle.clone();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) =
-                        windows::open_window_for_root(&handle, &root.to_string_lossy(), None)
-                    {
+                    if let Err(e) = home::ensure_home_window(&handle, None) {
                         sidecar::log_line(&format!("[maude] reopen failed: {e}"));
                     }
                 });
@@ -749,4 +839,29 @@ pub fn run() {
         }
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn boot_opens_home_first_unless_told_what_to_open() {
+        let p = |s: &str| PathBuf::from(s);
+        let welcome = || p("/welcome");
+        // First launch: Home only — no welcome-project sidecar.
+        assert_eq!(boot_plan(None, false, None, welcome), BootPlan::Home { reopen: None });
+        // A last project: Home, then that project as a tab after it.
+        assert_eq!(
+            boot_plan(None, false, Some(p("/last")), welcome),
+            BootPlan::Home { reopen: Some(p("/last")) }
+        );
+        // MAUDE_PROJECT_ROOT (every e2e lane): that project's window first.
+        assert_eq!(
+            boot_plan(Some(p("/e2e")), false, Some(p("/last")), welcome),
+            BootPlan::Project(p("/e2e"))
+        );
+        // MAUDE_FORCE_ONBOARDING (debug, the onboarding lane): the welcome project.
+        assert_eq!(boot_plan(None, true, None, welcome), BootPlan::Project(p("/welcome")));
+    }
 }
