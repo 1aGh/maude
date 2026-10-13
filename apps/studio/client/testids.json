@@ -7323,6 +7323,80 @@
     "v2": "new"
   },
   {
+    "hook": "home-project-ai-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "AI state on a local project row, from `shell_state` `projects[].ai`: \"Needs you\" (`data-ai=\"awaiting\"`, wins) or \"AI working\" with a spark (`data-ai=\"running\"`). Absent when the tab has no AI turn.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "RowLive"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-project-resting-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Resting\" (ring) on a local project row whose tab is resting (`place: 'resting'`: its server is stopped; opening the tab wakes it).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "RowLive"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-link-dialog",
+    "kind": "testid",
+    "meaning": "The decision for a connect link (`maude://open/<project>?code=…`) Rust routed to Home: \"Open <project>?\" (its own copy on this Mac).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-link-open",
+    "kind": "testid",
+    "meaning": "\"Open <project>\" in the link decision → `/_home/cloud/prepare {profile, projectId, code}` → `managed_project_open` → `open_project({root})`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-link-dismiss",
+    "kind": "testid",
+    "meaning": "Cancel in the link decision (Escape and the scrim answer the same).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-link-note",
+    "kind": "testid",
+    "meaning": "The calm note for a file link to a project this Mac doesn't have: \"That link is for a project that isn't on this Mac.\" (`role=\"status\"`).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
     "hook": "home-cloud-row-<projectId>",
     "kind": "testid",
     "pattern": true,

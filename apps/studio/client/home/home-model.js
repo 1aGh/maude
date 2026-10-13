@@ -11,6 +11,7 @@
 // No I/O, no React, no Date.now() unless `now` is omitted — the S6 Home extends this, so it stays a
 // plain module with fixtures in test/home-page-model.test.ts.
 
+import { localIdentityMatches } from '../share-link.js';
 import { pathTestIdSlug } from '../shell/util.js';
 
 /** `canvas-row-<slug>`'s rule, so Home rows and tree rows name a canvas the same way. */
@@ -236,4 +237,37 @@ export function indexQuery(shell) {
     pids: projects.map((p) => p.pid).filter((p) => typeof p === 'string'),
     running: projects.filter((p) => p.place === 'tab').map((p) => p.pid),
   };
+}
+
+// ── a maude:// link Home was handed (V2-3.5) ───────────────────────────────────────────────────
+// Rust sends Home only the links it could not route to a project tab (deep_link.rs): a project
+// this Mac does not know, or one whose tab failed to open.
+
+const baseName = (root) =>
+  String(root ?? '')
+    .replace(/\/+$/, '')
+    .split('/')
+    .pop();
+
+/** The local project a link's `<project>` names — the rule a project window's CloudBar uses
+ *  (`localIdentityMatches`: the linked hub's id wins, else the name's slug). null = none. */
+export function localPidForLink(shell, project) {
+  for (const p of shell?.projects ?? []) {
+    if (!p || typeof p.pid !== 'string') continue;
+    const linkedHub = p.linkedHub ?? null;
+    if (
+      localIdentityMatches({ project: p.name, linkedHub }, project) ||
+      localIdentityMatches({ project: baseName(p.root), linkedHub }, project)
+    )
+      return p.pid;
+  }
+  return null;
+}
+
+/** The profile a connect link opens under: the signed-in one whose cloud lists the project, else
+ *  the first signed in, else the first profile (the server then says to sign in). */
+export function linkProfile(shell, clouds, project) {
+  const signed = (clouds ?? []).filter((c) => c?.signedIn && typeof c.profile === 'string');
+  const owner = signed.find((c) => (c.projects ?? []).some((cp) => cp?.id === project));
+  return (owner ?? signed[0])?.profile ?? shell?.profiles?.[0]?.id ?? 'default';
 }

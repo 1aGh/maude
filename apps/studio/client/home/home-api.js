@@ -46,6 +46,10 @@ export const saveRecentSearch = (q, results) => post('/_home/recent-searches', {
 export const setPin = (pid, canvas, pinned) => post('/_home/pins', { pid, canvas, pinned });
 export const prepareCloud = (profile, server, projectId) =>
   post('/_home/cloud/prepare', { profile, server, projectId });
+/** A connect link's project (`maude://open/<project>?code=…`): the same prepare, with the link's
+ *  one-shot handoff code beside the project it claims (V2-3.5). */
+export const prepareCloudLink = (profile, link) =>
+  post('/_home/cloud/prepare', { profile, projectId: link.project, code: link.code });
 
 // Pictures: `/_home/thumb/<pid>/<key>.jpg` is guarded like every other route, and an <img src>
 // cannot send a header — so the page fetches the bytes (with the header) and shows a blob: URL.
@@ -97,12 +101,20 @@ export function shellInvoke(cmd, args) {
   return t.core.invoke(cmd, args);
 }
 
-/** Listen to a shell event; resolves to an unlisten fn (a no-op outside the app). */
+/**
+ * Listen to a shell event addressed to THIS window; resolves to an unlisten fn (a no-op outside
+ * the app). Rust sends every shell event with `emit_to(label)` (§5.4), and a global
+ * `event.listen` also hears one aimed at another window — Home would then read a link that was
+ * routed to a project tab as its own (V2-3.5). The global listener is only the fallback for a
+ * shell without the webviewWindow API.
+ */
 export async function shellListen(event, handler) {
   const t = tauri();
-  if (!t?.event?.listen) return () => {};
+  const here = t?.webviewWindow?.getCurrentWebviewWindow?.();
+  const listen = here?.listen ? here.listen.bind(here) : t?.event?.listen;
+  if (!listen) return () => {};
   try {
-    return await t.event.listen(event, (e) => handler(e?.payload));
+    return await listen(event, (e) => handler(e?.payload));
   } catch {
     return () => {};
   }
@@ -124,3 +136,5 @@ export const managedProjectOpen = (p) =>
     canvasGroups: p.canvasGroups || [],
   });
 export const openCloudUrl = (url) => shellInvoke('open_cloud_url', { url });
+/** The `maude://` link parked for THIS window (deep_link.rs), once; null when none. */
+export const takePendingDeepLink = () => shellInvoke('take_pending_deep_link');

@@ -31,7 +31,7 @@ export function listen(event, handler) {
  *  project). A global `event.listen` also receives an `emit_to` aimed at another
  *  window, so with two tabs signing in, each would show the other's code. Falls
  *  back to the global listener on a shell without the webviewWindow API. */
-function listenHere(event, handler) {
+export function listenHere(event, handler) {
   const t = tauri();
   const current = t.webviewWindow?.getCurrentWebviewWindow?.();
   if (!current) return listen(event, handler);
