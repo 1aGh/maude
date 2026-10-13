@@ -495,6 +495,9 @@ export function useShellCore({}) {
           formatVersion: data.formatVersion ?? 1,
           formatGate: data.formatGate ?? null,
           readOnlyReason: data.readOnlyReason ?? null,
+          // V2-3.4 — the account profile this tab's server runs as ({ id, label? }); the
+          // profile chip (V2-3.x) reads it. Older servers send none ⇒ the default profile.
+          profile: data.profile ?? { id: 'default' },
           // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
           // canvas origin. `canvasUrl()` appends it to every iframe URL. Absent
           // on a desktop, where the canvas origin is loopback and needs none.

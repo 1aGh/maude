@@ -68,6 +68,10 @@ export function scrubAgentEnv(
     // The cell materializer's loopback credential is the studio's alone — an
     // agent it spawns has no business filling the cache (Phase 1 review L3).
     if (key === 'MAUDE_MATERIALIZE_TOKEN') continue;
+    // V2-3.4 — the desktop shell's per-spawn probe token + its info-file path (V2-1.1
+    // decision 8) belong to this server alone. The profile env (MAUDE_PROFILE_ID,
+    // MAUDE_CLOUD_CONFIG, HUBS_CONFIG_PATH) deliberately passes: a tab's agent runs as the tab.
+    if (key === 'MAUDE_SHELL_TOKEN' || key === 'MAUDE_SHELL_INFO_FILE') continue;
     out[key] = value;
   }
   return out;

@@ -169,7 +169,12 @@ export function createAgentRuns(bracket: RunBracket = {}, now: () => number = Da
     return only;
   }
 
-  return { begin, ensure, conflict, claim, touch, end, get: open, soleOpen };
+  /** Every open run — V2-3.4: `GET /_api/shell/status` counts them (routes/shell.ts). */
+  function openRuns(): AgentRun[] {
+    return [...bySession.values()].filter((r) => r.state === 'open');
+  }
+
+  return { begin, ensure, conflict, claim, touch, end, get: open, soleOpen, openRuns };
 }
 
 // ── which artboards an edit reaches ──────────────────────────────────────────────────────────

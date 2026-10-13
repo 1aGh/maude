@@ -159,6 +159,8 @@ maude design status [--json]
 
 The `linkedHub` pointer lands in committed `.design/config.json`; the token is stored per-machine in `~/.config/maude/hubs.json` (mode 0600, never committed). The first link to a non-loopback hub asks for confirmation — a linked hub gets write access to your `.design/`. See [Linking peers](/docs/hub/linking).
 
+In Maude Desktop, a project tab's AI session inherits that tab's account-profile environment (`HUBS_CONFIG_PATH`, `MAUDE_CLOUD_CONFIG`), so a `maude design link` run from that chat stores its token in the tab's profile, not in your default `~/.config/maude/hubs.json`.
+
 ## `maude hub`
 
 Run or deploy the self-hostable Yjs sync hub that backs linked mode.
