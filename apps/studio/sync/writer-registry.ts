@@ -277,6 +277,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/outbox/:id': { class: 'read' },
   '/_api/outbox/:id/cancel': { class: 'local' }, // this machine's queue (_state/outbox)
   '/_api/outbox/:id/retry': { class: 'local' },
+  '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/project/migrate': {
     class: 'migration',

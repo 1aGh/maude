@@ -299,6 +299,7 @@ export const STUDIO_ROUTES = Object.freeze({
   // matches no exact route or prefix here, so it is refused default-closed as well.
   '/_api/thumbs/want': REFUSED,
   '/_api/ui/open': REFUSED, // V2-2.4b: desktop shells only (a cell answers "no window")
+  '/_api/shell/status': REFUSED, // V2-3.4: the desktop shell's token-gated probe; a cell has no shell
   // V2-2.4b: the hook routes serve a LOCAL Claude Code's hooks against the person's own studio
   '/_api/agent/run/begin': REFUSED,
   '/_api/agent/edit/check': REFUSED,
