@@ -107,6 +107,13 @@ pub struct WindowEntry {
     /// `SidecarState.tick` at the last `Focused(true)`. Part b's rest policy
     /// sorts on it (least-recently-focused idle project rests first).
     pub last_focused: u64,
+    /// The server origin the SHELL last navigated this window to (scheme +
+    /// host + port, loopback-validated). A command's caller check compares the
+    /// page's origin with this — app-owned memory, not the in-project
+    /// `_server.json` an agent, a `git clean` or a planted file can delete or
+    /// rewrite (decision 8's concern, without waiting for part b's info file).
+    /// `None` until the first navigate, and again after an in-tab switch.
+    pub origin: Option<String>,
 }
 
 /// Every live window the shell created, keyed by label, plus which one has
@@ -130,8 +137,16 @@ impl WindowBook {
             WindowEntry {
                 role,
                 last_focused: tick,
+                origin: None,
             },
         );
+    }
+
+    /// Record the origin the shell just navigated `label` to.
+    pub fn set_origin(&mut self, label: &str, origin: &str) {
+        if let Some(e) = self.entries.get_mut(label) {
+            e.origin = Some(origin.to_string());
+        }
     }
 
     pub fn remove(&mut self, label: &str) -> Option<WindowEntry> {
@@ -180,6 +195,8 @@ impl WindowBook {
                     pid: pid_for_root(root),
                     root: root.to_string(),
                 };
+                // The old project's origin no longer vouches for this window.
+                e.origin = None;
                 true
             }
             None => false,
@@ -517,24 +534,28 @@ fn attach_as_tab(app: &AppHandle, parent: WebviewWindow, child: WebviewWindow) {
 /// it — but only while that window still shows `root`: an in-tab switch or a
 /// close since the wait began makes this navigate stale.
 pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, open: Option<&str>) {
-    let still_this_project = app
-        .state::<SidecarState>()
-        .windows
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .project_of(label)
-        .is_some_and(|(pid, _)| pid == pid_for_root(root));
-    if !still_this_project {
-        crate::sidecar::log_line(&format!(
-            "[maude] {label} no longer shows {root} — not navigating"
-        ));
-        return;
-    }
     let Some(window) = app.get_webview_window(label) else {
         return;
     };
     match url.parse::<tauri::Url>() {
         Ok(mut parsed) if crate::server_json::is_loopback_url(&parsed) => {
+            // Check-and-stamp under one lock: the window must still show
+            // `root`, and the origin it is sent to becomes the one its
+            // commands are answered for (`check_caller`).
+            {
+                let state = app.state::<SidecarState>();
+                let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+                let still_this_project = book
+                    .project_of(label)
+                    .is_some_and(|(pid, _)| pid == pid_for_root(root));
+                if !still_this_project {
+                    crate::sidecar::log_line(&format!(
+                        "[maude] {label} no longer shows {root} — not navigating"
+                    ));
+                    return;
+                }
+                book.set_origin(label, &parsed.origin().ascii_serialization());
+            }
             if let Some(rel) = open {
                 parsed.query_pairs_mut().append_pair("open", rel);
             }
@@ -737,45 +758,46 @@ fn is_app_local(url: &tauri::Url) -> bool {
 }
 
 /// Pure half of `caller_project`. A caller is a project window when its label
-/// is in the book with a `Project` role AND its current URL is on that
-/// project's live server origin — or, only where the command allows it, the
-/// app-local splash. A `p-*` window that ended up on another origin (another
-/// project's server, the canvas origin) answers for nobody.
+/// is in the book with a `Project` role AND its current URL is on the origin
+/// the shell itself navigated that window to (`WindowEntry.origin`) — or, only
+/// where the command allows it, the app-local splash. A `p-*` window that
+/// ended up on another origin (another project's server, the canvas origin)
+/// answers for nobody.
 pub fn check_caller(
     book: &WindowBook,
     label: &str,
     url: Option<&tauri::Url>,
-    live_origin: Option<&str>,
     allow_app_local: bool,
 ) -> Result<CallerProject, String> {
-    let (pid, root) = book
-        .project_of(label)
+    let entry = book
+        .entries
+        .get(label)
         .ok_or_else(|| "This window isn't showing a project.".to_string())?;
+    let Role::Project { pid, root } = &entry.role else {
+        return Err("This window isn't showing a project.".to_string());
+    };
     let url = url.ok_or_else(|| "This window has no address.".to_string())?;
     let on_server = crate::server_json::is_loopback_url(url)
-        && live_origin.is_some_and(|o| url.origin().ascii_serialization() == o);
+        && entry
+            .origin
+            .as_deref()
+            .is_some_and(|o| url.origin().ascii_serialization() == o);
     if on_server || (allow_app_local && is_app_local(url)) {
         Ok(CallerProject {
             label: label.to_string(),
-            pid,
-            root,
+            pid: pid.clone(),
+            root: root.clone(),
         })
     } else {
         Err("This window isn't showing its project.".to_string())
     }
 }
 
-/// The live server origin of `root` (scheme+host+port), loopback only.
-/// SEAM (V2-3.2 part b): read the app-owned `MAUDE_SHELL_INFO_FILE` instead of
-/// the in-project `_server.json` (decision 8, §5.8 item 6).
-pub fn live_origin(root: &str) -> Option<String> {
-    let url = crate::server_json::read_server_url(&Path::new(root).join(".design"))?;
-    let parsed = url.parse::<tauri::Url>().ok()?;
-    crate::server_json::is_loopback_url(&parsed).then(|| parsed.origin().ascii_serialization())
-}
-
 /// Resolve the calling project window from the `Webview` a command was
 /// invoked on — label AND current URL origin, never an argument (§5.4).
+/// SEAM (V2-3.2 part b): the shell learns each server's port from the
+/// app-owned `MAUDE_SHELL_INFO_FILE` (decision 8); the recorded origin then
+/// comes from there instead of the in-project `_server.json` read at navigate.
 pub fn caller_project<R: Runtime>(
     webview: &tauri::Webview<R>,
     allow_app_local: bool,
@@ -784,23 +806,9 @@ pub fn caller_project<R: Runtime>(
         .app_handle()
         .try_state::<SidecarState>()
         .ok_or_else(|| "Maude is still starting.".to_string())?;
-    let label = webview.label().to_string();
-    let root = state
-        .windows
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .root_of(&label);
-    // Read outside the lock: it touches the disk.
-    let origin = root.as_deref().and_then(live_origin);
     let url = webview.url().ok();
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-    check_caller(
-        &book,
-        &label,
-        url.as_ref(),
-        origin.as_deref(),
-        allow_app_local,
-    )
+    check_caller(&book, webview.label(), url.as_ref(), allow_app_local)
 }
 
 /// The window currently showing `root`.
@@ -1087,7 +1095,7 @@ mod tests {
     }
 
     #[test]
-    fn caller_resolution_needs_the_label_and_its_servers_origin() {
+    fn caller_resolution_needs_the_label_and_the_origin_the_shell_sent_it_to() {
         let mut book = WindowBook::default();
         let label = label_of(A);
         book.insert(
@@ -1099,71 +1107,40 @@ mod tests {
             0,
         );
         let url = |s: &str| s.parse::<tauri::Url>().unwrap();
-        let live = Some("http://localhost:4401");
+        let page = url("http://localhost:4401/?x=1");
 
-        let ok = check_caller(
-            &book,
-            &label,
-            Some(&url("http://localhost:4401/?x=1")),
-            live,
-            false,
-        )
-        .unwrap();
+        // Not navigated by the shell yet: no origin vouches for the window.
+        assert!(check_caller(&book, &label, Some(&page), false).is_err());
+
+        book.set_origin(&label, "http://localhost:4401");
+        let ok = check_caller(&book, &label, Some(&page), false).unwrap();
         assert_eq!(ok.root, A);
         assert_eq!(ok.pid, pid_for_root(A));
 
         // Another server's origin (another project, the canvas origin): refused.
-        assert!(check_caller(
-            &book,
-            &label,
-            Some(&url("http://localhost:4402/")),
-            live,
-            false
-        )
-        .is_err());
-        // Not loopback, even if a planted _server.json named it.
-        assert!(check_caller(
-            &book,
-            &label,
-            Some(&url("https://evil.example/")),
-            Some("https://evil.example"),
-            false
-        )
-        .is_err());
-        // A label the shell did not create, or no live server: refused.
-        assert!(check_caller(
-            &book,
-            "p-l0000000000000000",
-            Some(&url("http://localhost:4401/")),
-            live,
-            false
-        )
-        .is_err());
-        assert!(check_caller(
-            &book,
-            &label,
-            Some(&url("http://localhost:4401/")),
-            None,
-            false
-        )
-        .is_err());
+        let other = url("http://localhost:4402/");
+        assert!(check_caller(&book, &label, Some(&other), false).is_err());
+        // Not loopback, even if the recorded origin somehow said so.
+        book.set_origin(&label, "https://evil.example");
+        let evil = url("https://evil.example/");
+        assert!(check_caller(&book, &label, Some(&evil), false).is_err());
+        book.set_origin(&label, "http://localhost:4401");
+        // A label the shell did not create: refused.
+        assert!(check_caller(&book, "p-l0000000000000000", Some(&page), false).is_err());
+        // An in-tab switch drops the old project's origin until the new navigate.
+        assert!(book.set_project(&label, B));
+        assert!(check_caller(&book, &label, Some(&page), false).is_err());
         // The app-local splash: only where the command allows it.
         let splash = url("tauri://localhost/index.html");
-        assert!(check_caller(&book, &label, Some(&splash), None, false).is_err());
+        assert!(check_caller(&book, &label, Some(&splash), false).is_err());
         assert_eq!(
-            check_caller(&book, &label, Some(&splash), None, true)
+            check_caller(&book, &label, Some(&splash), true)
                 .unwrap()
-                .label,
-            label
+                .root,
+            B
         );
-        assert!(check_caller(
-            &book,
-            &label,
-            Some(&url("http://tauri.localhost/")),
-            None,
-            true
-        )
-        .is_ok());
+        let windows_splash = url("http://tauri.localhost/");
+        assert!(check_caller(&book, &label, Some(&windows_splash), true).is_ok());
     }
 
     #[test]

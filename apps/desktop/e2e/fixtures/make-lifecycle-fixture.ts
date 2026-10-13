@@ -55,3 +55,19 @@ export function makeLifecycleFixture(): { primary: string; secondary: string } {
   const secondary = makeGitFixture();
   return { primary, secondary };
 }
+
+/**
+ * `makeLifecycleFixture` once per RUN. A wdio config is evaluated by the launcher
+ * AND again by every worker, and @wdio/tauri-service starts the app in the
+ * launcher's `onPrepare` — so a worker that re-made the fixture would `rm -rf`
+ * the primary (and its `.design/_server.json`) under the app's running server,
+ * then re-clone over the network. Workers inherit the launcher's env, so the
+ * first evaluation hands its paths down and later ones reuse them.
+ */
+export function lifecycleFixtureOnce(): { primary: string; secondary: string } {
+  const made = process.env.MAUDE_E2E_LIFECYCLE_FIXTURE;
+  if (made) return JSON.parse(made) as { primary: string; secondary: string };
+  const fixture = makeLifecycleFixture();
+  process.env.MAUDE_E2E_LIFECYCLE_FIXTURE = JSON.stringify(fixture);
+  return fixture;
+}

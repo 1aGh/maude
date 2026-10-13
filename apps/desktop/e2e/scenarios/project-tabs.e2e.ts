@@ -36,6 +36,29 @@ async function triggerText(): Promise<string> {
 }
 
 async function waitBranch(branch: string): Promise<void> {
+  try {
+    await waitBranchOnce(branch);
+  } catch (error) {
+    // Say what the window WAS showing — a bare "never showed" can't tell a
+    // wrong page from a hidden tab from a dangling handle.
+    const state = await browser
+      .execute(() => ({
+        url: location.href,
+        title: document.title,
+        hidden: document.hidden,
+        testids: document.querySelectorAll('[data-testid]').length,
+        text: document.body?.innerText.slice(0, 200) ?? '',
+      }))
+      .catch((e: unknown) => ({ error: String(e) }));
+    console.log(
+      `[tabs] waitBranch(${branch}) failed in ${await browser.getWindowHandle()}: ${JSON.stringify(state)}`
+    );
+    await capture(`fail-wait-${branch.replace(/\W+/g, '-')}`).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function waitBranchOnce(branch: string): Promise<void> {
   await browser.waitUntil(
     async () => {
       try {
