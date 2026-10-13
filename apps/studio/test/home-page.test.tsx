@@ -148,6 +148,7 @@ function answer(url: string): unknown {
       projectId: 'alligators',
       name: 'alligators',
       canvasGroups: [],
+      profile: 'default',
     };
   return { error: 'nope' };
 }
@@ -465,6 +466,7 @@ describe('Home reads maude:// links', () => {
       projectId: 'alligators',
       name: 'alligators',
       canvasGroups: [],
+      profile: 'default',
     });
     expect(invokes.find((i) => i.cmd === 'open_project')?.args).toEqual({
       root: '/Users/me/Maude/alligators',

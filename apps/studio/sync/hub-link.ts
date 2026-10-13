@@ -132,9 +132,10 @@ export function saveHubCredential(
   normUrl: string,
   token: string,
   role?: string,
-  expiresAt?: number
+  expiresAt?: number,
+  /** The profile's hubs.json (Home prepares per profile, N-H1); absent = this process's file. */
+  path: string = hubsConfigPath()
 ): void {
-  const path = hubsConfigPath();
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   let cfg: HubsFile = { hubs: {} };

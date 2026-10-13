@@ -97,8 +97,7 @@ export function normalizeUrl(url: string): string {
   return str;
 }
 
-export function loadHubsConfig(): HubsConfig {
-  const path = hubsConfigPath();
+export function loadHubsConfig(path: string = hubsConfigPath()): HubsConfig {
   if (!existsSync(path)) return { hubs: {} };
   warnIfWorldOrGroupReadable(path);
   try {
@@ -162,10 +161,10 @@ export function getHubToken(url: string): string | null {
 }
 
 /** The whole stored record for `url` (token + role + expiresAt), or null. */
-export function getHubRecord(url: string): HubRecord | null {
+export function getHubRecord(url: string, path?: string): HubRecord | null {
   try {
     const norm = normalizeUrl(url);
-    const record = loadHubsConfig().hubs[norm];
+    const record = loadHubsConfig(path).hubs[norm];
     return record && typeof record.token === 'string' ? record : null;
   } catch {
     return null;

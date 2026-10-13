@@ -46,6 +46,8 @@ function fixtures() {
         place: 'tab',
         focused: false,
         linkedHub: { url: 'https://alligators.cloud.maude.sh/' },
+        // the shell's own binding (a managed copy it made) — what dedupes the cloud row
+        hub: 'https://alligators.cloud.maude.sh/',
       },
       {
         pid: P2,
@@ -130,7 +132,7 @@ function fixtures() {
           url: 'HTTPS://Alligators.cloud.maude.sh',
           updatedAt: 1,
         },
-        // a managed copy on this Mac, matched by its managed key (folder name)
+        // a managed copy on this Mac, matched by the shell's binding (`hub`)
         {
           id: 'sponzori',
           name: 'Sponzoři 2027',
@@ -160,11 +162,33 @@ function fixtures() {
     profile: 'work',
     place: 'resting',
     focused: false,
+    hub: 'https://sponzori.cloud.maude.sh',
   });
   return { shell, index, clouds };
 }
 
 describe('buildHomeModel', () => {
+  // V2-3.6 N-M4: a project's committed linkedHub is a display hint, never proof that a cloud
+  // project is on this Mac — only the shell's binding (`hub`, same profile) hides the cloud row.
+  test('a self-claimed linkedHub does not hide the cloud row; the shell binding does', () => {
+    const f = fixtures();
+    const claimer = f.shell.projects.find((p) => p.pid === P2);
+    if (claimer) claimer.linkedHub = { url: 'https://nabor.cloud.maude.sh' };
+    const nabor = f.index.projects.find((p) => p.pid === P2)?.project;
+    if (nabor) nabor.linkedHub = { url: 'https://nabor.cloud.maude.sh' };
+    const cloudIds = (m: ReturnType<typeof buildHomeModel>) =>
+      m.groups
+        .flatMap((g) => g.rows)
+        .filter((r) => r.kind === 'cloud')
+        .map((r) => r.projectId);
+    expect(cloudIds(buildHomeModel(f))).toContain('nabor-2027');
+    // bound in ANOTHER profile (P2 is default; the listing is work's) — still shown
+    if (claimer) claimer.hub = 'https://nabor.cloud.maude.sh';
+    expect(cloudIds(buildHomeModel(f))).toContain('nabor-2027');
+    if (claimer) claimer.profile = 'work';
+    expect(cloudIds(buildHomeModel(f))).not.toContain('nabor-2027');
+  });
+
   test('Pinned is every pinned row, most recently pinned first', () => {
     const m = buildHomeModel(fixtures());
     expect(m.pinned.map((r) => r.rel)).toEqual([

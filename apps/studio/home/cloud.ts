@@ -16,7 +16,12 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 
 import { cloudConfigPath, cloudUrl } from '../cloud/endpoints.ts';
-import { type PrepareResult, prepareManagedProject } from '../managed-projects.ts';
+import {
+  type PreparedProject,
+  type PrepareResult,
+  prepareManagedProject,
+} from '../managed-projects.ts';
+import { hubsConfigPath } from '../sync/hubs-config.ts';
 
 export const PROFILE_RE = /^[a-z0-9-]{1,32}$/;
 /** A maude:// handoff code — the same grammar `cloud/endpoints.ts` `openManagedCode` checks. */
@@ -30,6 +35,19 @@ export function profileCloudPath(profile: string): string | null {
   if (profile === 'default') return cloudConfigPath();
   const base = process.env.XDG_CONFIG_HOME || path.join(homedir(), '.config');
   return path.join(base, 'maude', 'profiles', profile, 'cloud.json');
+}
+
+/**
+ * The profile's `hubs.json` — where a hub credential it obtains is stored (N-H1). The same rule as
+ * `profiles.rs` `paths_in`: default → `hubsConfigPath()` (the 1.x file), any other profile →
+ * `<XDG_CONFIG_HOME|~/.config>/maude/profiles/<id>/hubs.json`. The Home process serves every
+ * profile, so it never reads its own process-global path for one that is not default.
+ */
+export function profileHubsPath(profile: string): string | null {
+  if (!PROFILE_RE.test(profile)) return null;
+  if (profile === 'default') return hubsConfigPath();
+  const base = process.env.XDG_CONFIG_HOME || path.join(homedir(), '.config');
+  return path.join(base, 'maude', 'profiles', profile, 'hubs.json');
 }
 
 function profileToken(profile: string): string | null {
@@ -202,24 +220,33 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
    * ever sent to the configured control plane, which names the project's server itself. The code
    * rides in that POST body only — never a URL, never a log line.
    */
-  async function prepare(body: Record<string, unknown>): Promise<PrepareResult> {
+  async function prepare(
+    body: Record<string, unknown>
+  ): Promise<PrepareResult | (PreparedProject & { profile: string })> {
     const profile = typeof body.profile === 'string' ? body.profile : '';
     const projectId = typeof body.projectId === 'string' ? body.projectId : '';
     const cfgPath = profileCloudPath(profile);
-    if (!cfgPath) return { ok: false, error: 'unknown profile', status: 400 };
+    const hubsPath = profileHubsPath(profile);
+    if (!cfgPath || !hubsPath) return { ok: false, error: 'unknown profile', status: 400 };
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(projectId))
       return { ok: false, error: 'unknown project', status: 400 };
+    // N-H1: the hub credential the exchange obtains goes to THIS profile's hubs.json, and the
+    // answer names the profile, so the shell binds the local copy to it before it spawns.
+    const opts = { cloudConfigPath: cfgPath, hubsConfigPath: hubsPath };
+    let r: PrepareResult;
     if (body.code !== undefined) {
       const code = body.code;
       if (typeof code !== 'string' || !HANDOFF_CODE_RE.test(code))
         return { ok: false, error: 'That link is not valid.', status: 400 };
-      return prepareManagedProject(
+      r = await prepareManagedProject(
         {},
         { kind: 'handoff', code, claimedProject: projectId },
-        { cloudConfigPath: cfgPath }
+        opts
       );
+    } else {
+      r = await prepareManagedProject({}, { kind: 'cloud', projectId }, opts);
     }
-    return prepareManagedProject({}, { kind: 'cloud', projectId }, { cloudConfigPath: cfgPath });
+    return r.ok ? { ...r, profile } : r;
   }
 
   return { listing, prepare };

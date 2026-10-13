@@ -183,6 +183,8 @@ export const managedProjectOpen = (p) =>
     projectId: p.projectId,
     name: p.name || p.projectId,
     canvasGroups: p.canvasGroups || [],
+    // N-H1: the profile the prepare ran for — Rust binds the copy to it before it spawns
+    ...(typeof p.profile === 'string' ? { profile: p.profile } : {}),
   });
 export const openCloudUrl = (url) => shellInvoke('open_cloud_url', { url });
 /** The `maude://` link parked for THIS window (deep_link.rs), once; null when none. */

@@ -3,11 +3,11 @@
 // 60 s cache, one `cloud.json` per profile. Never talks to the real cloud.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createHomeCloud, profileCloudPath } from '../home/cloud.ts';
+import { createHomeCloud, profileCloudPath, profileHubsPath } from '../home/cloud.ts';
 import { homeFetch, homeReq } from './_home-fixtures.ts';
 
 let plane: ReturnType<typeof Bun.serve>;
@@ -20,6 +20,7 @@ const saved = {
   url: process.env.MAUDE_CLOUD_URL,
   cfg: process.env.MAUDE_CLOUD_CONFIG,
   xdg: process.env.XDG_CONFIG_HOME,
+  hubs: process.env.HUBS_CONFIG_PATH,
 };
 
 beforeAll(() => {
@@ -29,7 +30,8 @@ beforeAll(() => {
     async fetch(req) {
       const path = new URL(req.url).pathname;
       seen.push({ path, auth: req.headers.get('authorization') });
-      raw.push({ url: req.url, method: req.method, body: await req.text() });
+      const text = await req.text();
+      raw.push({ url: req.url, method: req.method, body: text });
       if (down) return new Response('boom', { status: 503 });
       if (req.headers.get('authorization') === 'Bearer mpt_revoked')
         return new Response('no', { status: 401 });
@@ -57,6 +59,13 @@ beforeAll(() => {
         });
       if (path === '/api/projects')
         return Response.json({ projects: [{ id: 'alligators', name: 'Alligators brand' }] });
+      // N-H1: one project this stub can open — the plane names itself as the project's cell
+      if (path === '/projects/open' && text.includes('"cellproj"'))
+        return Response.json({ token: 'mpt_cell', url: `http://127.0.0.1:${plane.port}` });
+      if (path === '/auth/login')
+        return Response.json({ token: 'hub_tok_work', user: { role: 'member' } });
+      if (path === '/api/projects/current/v1/bootstrap')
+        return Response.json({ projectId: 'cellproj', canvasGroups: ['ui'] });
       return new Response('not found', { status: 404 });
     },
   });
@@ -64,6 +73,7 @@ beforeAll(() => {
   const cfgHome = mkdtempSync(join(tmpdir(), 'maude-home-cloud-'));
   process.env.MAUDE_CLOUD_CONFIG = join(cfgHome, 'cloud.json');
   process.env.XDG_CONFIG_HOME = cfgHome;
+  delete process.env.HUBS_CONFIG_PATH;
   writeFileSync(process.env.MAUDE_CLOUD_CONFIG, JSON.stringify({ url: 'x', token: 'mpt_default' }));
   mkdirSync(join(cfgHome, 'maude', 'profiles', 'work'), { recursive: true });
   writeFileSync(
@@ -83,6 +93,7 @@ afterAll(() => {
     ['MAUDE_CLOUD_URL', saved.url],
     ['MAUDE_CLOUD_CONFIG', saved.cfg],
     ['XDG_CONFIG_HOME', saved.xdg],
+    ['HUBS_CONFIG_PATH', saved.hubs],
   ] as const)
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;
@@ -96,6 +107,14 @@ describe('profile → cloud.json', () => {
     );
     for (const bad of ['', '../x', 'Work', 'a/b', 'x'.repeat(33)])
       expect(profileCloudPath(bad)).toBeNull();
+  });
+
+  test('hubs.json follows the same rule as profiles.rs paths_in', () => {
+    const xdg = process.env.XDG_CONFIG_HOME as string;
+    expect(profileHubsPath('default')).toBe(join(xdg, 'maude', 'hubs.json'));
+    expect(profileHubsPath('work')).toBe(join(xdg, 'maude', 'profiles', 'work', 'hubs.json'));
+    for (const bad of ['', '../x', 'Work', 'a/b', 'x'.repeat(33)])
+      expect(profileHubsPath(bad)).toBeNull();
   });
 });
 
@@ -223,6 +242,37 @@ describe('/_home/cloud', () => {
     for (const q of raw) expect(q.url).not.toContain(CODE);
     expect(logged.join('\n')).not.toContain(CODE);
     expect(await r.text()).not.toContain(CODE);
+  });
+
+  // N-H1 (audit 2): the cell credential prepare stores is the PROFILE's, in the profile's own
+  // hubs.json — never the default profile's file, where it would replace default's record.
+  test('prepare for a profile writes only that profile’s hubs.json and names the profile', async () => {
+    down = false;
+    const xdg = process.env.XDG_CONFIG_HOME as string;
+    const defaultHubs = join(xdg, 'maude', 'hubs.json');
+    const cell = `http://127.0.0.1:${plane.port}`;
+    writeFileSync(
+      defaultHubs,
+      JSON.stringify({ hubs: { [cell]: { token: 'hub_tok_default', linkedAt: 1 } } })
+    );
+    const r = await homeFetch()(
+      homeReq('/_home/cloud/prepare', {
+        method: 'POST',
+        body: JSON.stringify({ profile: 'work', projectId: 'cellproj' }),
+      })
+    );
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as { ok: boolean; serverUrl: string; profile: string };
+    expect(j.ok).toBe(true);
+    expect(j.serverUrl).toBe(cell);
+    expect(j.profile).toBe('work');
+    const work = JSON.parse(
+      readFileSync(join(xdg, 'maude', 'profiles', 'work', 'hubs.json'), 'utf8')
+    );
+    expect(work.hubs[cell].token).toBe('hub_tok_work');
+    const def = JSON.parse(readFileSync(defaultHubs, 'utf8'));
+    expect(def.hubs[cell].token).toBe('hub_tok_default');
+    expect(existsSync(join(xdg, 'maude', 'profiles', 'default'))).toBe(false);
   });
 
   test('prepare refuses a malformed handoff code with 400 before any network call', async () => {

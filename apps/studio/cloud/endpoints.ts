@@ -140,6 +140,11 @@ interface Ctx {
    */
   cloudConfigPath?: string;
   /**
+   * Where a hub credential this endpoint set obtains is stored (N-H1): the same profile's
+   * `hubs.json` as `cloudConfigPath`. Absent = `hubsConfigPath()`.
+   */
+  hubsConfigPath?: string;
+  /**
    * The live sync runtime's owner (server.ts → sync/supervisor.ts). Optional:
    * unit tests and any non-serving embedder construct a Ctx without one, and a
    * missing supervisor degrades to exactly the old behaviour — linked on disk,
@@ -798,7 +803,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     }
     if (!hubToken) return null;
     const norm = normalizeUrl(workspaceUrl);
-    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt);
+    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt, ctx.hubsConfigPath);
     return { url: norm, role: vouchedRole };
   }
 
@@ -851,7 +856,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     }
 
     const norm = normalizeUrl(workspaceUrl);
-    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt);
+    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt, ctx.hubsConfigPath);
 
     // Project side — linkedHub in .design/config.json (committed; no token).
     const cfgPath = join(ctx.paths.designRoot, 'config.json');
