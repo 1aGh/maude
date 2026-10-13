@@ -69,9 +69,42 @@
 
 import { spawnSync } from 'node:child_process';
 import { lookup } from 'node:dns/promises';
+import { readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseIPv4, parseIPv6 } from './_fetch-asset.mjs';
+
+// V2-3.6 H1 (defence in depth) — the Home server (`maude-server --home`) writes its
+// `{pid, port, url, mode:'home'}` to an APP-OWNED info file: `<app data>/run/home-server.json`
+// (apps/desktop/src-tauri/src/home.rs `spawn_home`; app data = Tauri's `app_data_dir`, keyed by
+// the bundle identifier). The port is not a secret — this only keeps the loopback helper off the
+// Home server. The real gate is the Home page secret the server requires on every page route.
+const APP_IDENTIFIERS = Object.freeze(['com.maude.app', 'com.maude.app.e2e']);
+
+/** The info files a running Home server may have written (prod + e2e identifiers). */
+export function homeInfoFiles(env = process.env, platform = process.platform) {
+  const home = env.HOME || homedir();
+  let base;
+  if (platform === 'darwin') base = join(home, 'Library', 'Application Support');
+  else if (platform === 'win32') base = env.APPDATA || join(home, 'AppData', 'Roaming');
+  else base = env.XDG_DATA_HOME || join(home, '.local', 'share');
+  return APP_IDENTIFIERS.map((id) => join(base, id, 'run', 'home-server.json'));
+}
+
+/** True iff one of `files` is a Home record naming `port`. A missing/garbled file says no. */
+export function isHomePort(port, files = homeInfoFiles()) {
+  for (const f of files) {
+    try {
+      const rec = JSON.parse(readFileSync(f, 'utf8'));
+      if (rec && rec.mode === 'home' && Number(rec.port) === port) return true;
+    } catch {
+      /* not there / not ours */
+    }
+  }
+  return false;
+}
 
 /** True iff this parsed 4-byte IPv4 is in the loopback range 127.0.0.0/8. */
 function isLoopbackIPv4(bytes) {
@@ -215,6 +248,11 @@ export function parseRequestArgv(argv) {
         }
         out.method = m;
       } else if (a === '--header') {
+        // V2-3.6 H1 (defence in depth): `x-maude-home` carries the Home server's page capability.
+        // Only the Home window holds it; this helper never speaks for Home, in any spelling.
+        if (/^\s*x-maude-home\s*[:;]/i.test(value)) {
+          throw new CurlLocalArgvError('--header x-maude-home is the Home window’s alone; refused');
+        }
         if (!/^[\w-]+:.*/.test(value)) {
           throw new CurlLocalArgvError(`--header must look like "Name: value" (got "${value}")`);
         }
@@ -340,6 +378,10 @@ async function main() {
     : req.parsedUrl.protocol === 'https:'
       ? 443
       : 80;
+  if (isHomePort(port)) {
+    process.stderr.write('curl-local: that port is Maude Home; refused\n');
+    process.exit(3);
+  }
   const curlArgs = buildCurlArgs(req, pinIp, port);
   const result = spawnSync('curl', curlArgs, { stdio: 'inherit' });
   if (result.error) {
