@@ -583,6 +583,8 @@ pub fn run() {
             windows::window_labels,
             windows::e2e_focus_window,
             windows::e2e_close_window,
+            windows::e2e_bind_profile,
+            notify::e2e_notification_click,
             app_state::app_is_first_run,
             app_state::app_get_last_project,
             app_state::app_set_last_project,

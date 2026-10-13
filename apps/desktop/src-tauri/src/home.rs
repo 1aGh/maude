@@ -61,6 +61,8 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-open-cloud-url",
     "allow-resolve-dev-server-url",
     "allow-send-notification",
+    // V2-3.5: a link for a project this machine doesn't know is parked for Home.
+    "allow-take-pending-deep-link",
 ];
 
 // ── The Home server record ──────────────────────────────────────────────────
@@ -579,13 +581,33 @@ pub struct ShellProject {
     pub root: String,
     pub name: String,
     pub profile: String,
-    /// `tab` | `closed`. SEAM (V2-3.2 part b): `resting`.
+    /// `tab` | `resting` | `closed`.
     pub place: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     pub focused: bool,
-    // SEAM (probe): `ai: {running, awaiting}` from part b's authenticated
-    // `/_api/shell/status` probe. Omitted until it lands.
+    /// Live AI counts of a RUNNING tab, from the poller's cache of the
+    /// authenticated `/_api/shell/status` probe (V2-3.5) — never probed on the
+    /// `shell_state` path. Omitted for resting / closed projects and before the
+    /// first probe answers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai: Option<ShellAi>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ShellAi {
+    pub running: u32,
+    pub awaiting: u32,
+}
+
+/// A project's place against the live windows (§5.4): a tab, a resting tab,
+/// or closed.
+pub fn place_of(book: &WindowBook, pid: &str) -> (&'static str, Option<String>) {
+    match book.label_for_pid(pid) {
+        Some(l) if book.is_resting(&l) => ("resting", Some(l)),
+        Some(l) => ("tab", Some(l)),
+        None => ("closed", None),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -609,6 +631,7 @@ pub fn build_shell_state(
     book: &WindowBook,
     profiles: Vec<ShellProfile>,
     name_of: impl Fn(&str, &str) -> String,
+    ai_of: impl Fn(&str) -> Option<ShellAi>,
 ) -> ShellState {
     let mut entries: Vec<_> = st.projects.iter().collect();
     entries.sort_by(|a, b| {
@@ -619,14 +642,16 @@ pub fn build_shell_state(
     let projects = entries
         .into_iter()
         .map(|(pid, e)| {
-            let label = book.label_for_pid(pid);
+            let (place, label) = place_of(book, pid);
             ShellProject {
                 pid: pid.clone(),
                 root: e.root.clone(),
                 name: name_of(&e.root, &e.name),
                 profile: e.profile.clone(),
-                place: if label.is_some() { "tab" } else { "closed" },
+                place,
                 focused: label.is_some() && book.focused() == label.as_deref(),
+                // Running tabs only: a resting or closed project has no server.
+                ai: if place == "tab" { ai_of(&e.root) } else { None },
                 label,
             }
         })
@@ -657,13 +682,24 @@ fn current_shell_state(app: &AppHandle) -> ShellState {
         .collect();
     let state = app.state::<SidecarState>();
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-    build_shell_state(&st, &book, profiles, |root, name| {
-        if Path::new(root).is_dir() {
-            windows::project_display_name(root)
-        } else {
-            crate::notify::sanitize_notify_field(name)
-        }
-    })
+    build_shell_state(
+        &st,
+        &book,
+        profiles,
+        |root, name| {
+            if Path::new(root).is_dir() {
+                windows::project_display_name(root)
+            } else {
+                crate::notify::sanitize_notify_field(name)
+            }
+        },
+        |root| {
+            crate::notify::cached_ai(app, root).map(|a| ShellAi {
+                running: a.running,
+                awaiting: a.awaiting,
+            })
+        },
+    )
 }
 
 static STATE_GEN: AtomicU64 = AtomicU64::new(0);
@@ -943,13 +979,7 @@ pub async fn index_search(
     let mut groups = {
         let state = app.state::<SidecarState>();
         let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-        shape_search(&resp, &scope, |pid| {
-            if book.label_for_pid(pid).is_some() {
-                "tab"
-            } else {
-                "closed" // SEAM (V2-3.2 part b): `resting`
-            }
-        })
+        shape_search(&resp, &scope, |pid| place_of(&book, pid).0)
     };
     attach_thumbs(&client, &base, &token, &mut groups).await;
     Ok(json!({ "groups": groups }))
@@ -1171,7 +1201,7 @@ mod tests {
             2,
         );
         book.focus("p-lb", 3);
-        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string());
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), |_| None);
         let pids: Vec<_> = s.projects.iter().map(|p| p.pid.as_str()).collect();
         assert_eq!(pids, vec!["la", "lb", "lw"], "newest first");
         let b = &s.projects[1];
@@ -1190,6 +1220,49 @@ mod tests {
         );
         let v = serde_json::to_value(&s.projects[0]).unwrap();
         assert!(v.get("label").is_none() && v.get("ai").is_none());
+    }
+
+    #[test]
+    fn shell_state_reports_resting_and_ai_from_the_cached_status() {
+        let st = registry();
+        let mut book = WindowBook::default();
+        book.insert(HOME_LABEL, Role::Home, 1);
+        for (label, pid) in [("p-la", "la"), ("p-lb", "lb")] {
+            let root = st.projects[pid].root.clone();
+            book.insert(
+                label,
+                Role::Project {
+                    pid: pid.into(),
+                    root,
+                },
+                2,
+            );
+        }
+        book.set_resting("p-la", true);
+        // A stubbed probe cache that answers for EVERY root, resting ones too.
+        let ai = |_: &str| {
+            Some(ShellAi {
+                running: 1,
+                awaiting: 2,
+            })
+        };
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), ai);
+        let by = |pid: &str| s.projects.iter().find(|p| p.pid == pid).unwrap().clone();
+        let (a, b, w) = (by("la"), by("lb"), by("lw"));
+        assert_eq!((a.place, a.label.as_deref()), ("resting", Some("p-la")));
+        assert_eq!(a.ai, None, "a resting tab has no server to report");
+        assert_eq!(b.place, "tab");
+        assert_eq!(
+            b.ai,
+            Some(ShellAi {
+                running: 1,
+                awaiting: 2
+            })
+        );
+        assert_eq!((w.place, w.ai), ("closed", None));
+        let v = serde_json::to_value(&b).unwrap();
+        assert_eq!(v["ai"], serde_json::json!({"running": 1, "awaiting": 2}));
+        assert_eq!(place_of(&book, "la").0, "resting", "index_search agrees");
     }
 
     #[test]

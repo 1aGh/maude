@@ -55,6 +55,9 @@ fn main() {
                 "e2e_focus_window",
                 "e2e_close_window",
                 "e2e_open_root",
+                // V2-3.5 (windows.rs, notify.rs), same rule.
+                "e2e_bind_profile",
+                "e2e_notification_click",
             ]),
         ),
     )

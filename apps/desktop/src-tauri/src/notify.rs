@@ -193,6 +193,143 @@ pub struct NotifyPollState {
     /// ONE project is ever visible at a time (this command exists only for
     /// that one), unlike the poller's genuinely per-project maps above.
     command_notify: Mutex<(Option<Instant>, u32)>,
+    /// project_root → the last `ai` counts its authenticated `shell_status`
+    /// probe answered (V2-3.5). Home's `ShellState.projects[].ai` reads this
+    /// cache, so `shell_state` never waits on a probe. Running instances only:
+    /// a root that left the pool is pruned on the next tick.
+    ai: Mutex<HashMap<String, crate::sidecar::AiCounts>>,
+    /// The Dock badge (V2-3.5): projects that need the person.
+    badge: Mutex<Badge>,
+}
+
+/// The Dock badge's set (V2-3.5): projects that started waiting on the person
+/// while their window was not focused, and that the person has not looked at
+/// since. A project leaves it when its window gains focus or when its own
+/// server no longer reports anything awaiting. "Unseen mentions" would join
+/// this set — no mention source reaches the shell yet.
+#[derive(Debug, Default)]
+pub struct Badge {
+    pending: std::collections::BTreeSet<String>,
+}
+
+impl Badge {
+    /// A project now needs the person. True when the count changed.
+    pub fn mark(&mut self, root: &str) -> bool {
+        self.pending.insert(root.to_string())
+    }
+
+    /// Its window gained focus, or it stopped waiting. True when changed.
+    pub fn clear(&mut self, root: &str) -> bool {
+        self.pending.remove(root)
+    }
+
+    /// Drop projects that are no longer running (closed, resting, crashed).
+    pub fn retain_running(&mut self, running: &[String]) -> bool {
+        let before = self.pending.len();
+        self.pending.retain(|r| running.iter().any(|x| x == r));
+        before != self.pending.len()
+    }
+
+    pub fn count(&self) -> usize {
+        self.pending.len()
+    }
+}
+
+/// The poller's targets (§5.2 "Notifications"): every running instance whose
+/// window is NOT the focused one. A project with no window at all (kept by the
+/// pool) is polled too. Home is never a target — its server is not in the
+/// pool, and a Home label is refused here as a second guard.
+pub fn poll_targets(book: &crate::windows::WindowBook, running: &[String]) -> Vec<String> {
+    let focused = book.focused();
+    running
+        .iter()
+        .filter(|root| {
+            let label = book.label_for_root(root);
+            label.as_deref() != Some(crate::windows::HOME_LABEL)
+                && (label.is_none() || label.as_deref() != focused)
+        })
+        .cloned()
+        .collect()
+}
+
+/// What a click on a project's notification does.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ClickAction {
+    /// Unminimize + focus this window (which selects its tab; a resting tab
+    /// then wakes through `windows::on_focused`).
+    Focus(String),
+    /// The project has no window (its server is kept by the pool): open one.
+    Open,
+}
+
+pub fn click_action(book: &crate::windows::WindowBook, root: &str) -> ClickAction {
+    match book.label_for_root(root) {
+        Some(label) => ClickAction::Focus(label),
+        None => ClickAction::Open,
+    }
+}
+
+/// A click on the notification for `root` — the OS callback (macOS) and the
+/// debug-only `e2e_notification_click` both land here.
+pub fn on_click(app: &AppHandle, root: &str) {
+    let Some(state) = app.try_state::<SidecarState>() else { return };
+    let action = click_action(&state.windows.lock().unwrap_or_else(|e| e.into_inner()), root);
+    if let ClickAction::Focus(label) = action {
+        if let Some(w) = app.get_webview_window(&label) {
+            let _ = w.unminimize();
+            let _ = w.set_focus();
+            return;
+        }
+    }
+    if let Err(e) = crate::windows::open_window_for_root(app, root, None, None) {
+        crate::sidecar::log_line(&format!("[maude] notify: could not open {root}: {e}"));
+    }
+}
+
+/// A project's window gained focus: the person is looking at it, so it leaves
+/// the Dock badge (V2-3.5).
+pub fn project_focused(app: &AppHandle, root: &str) {
+    let Some(state) = app.try_state::<NotifyPollState>() else { return };
+    let changed = state.badge.lock().expect("notify mutex poisoned").clear(root);
+    if changed {
+        apply_badge(app);
+    }
+}
+
+/// The cached `ai` counts of `root`'s running instance, if probed.
+pub fn cached_ai(app: &AppHandle, root: &str) -> Option<crate::sidecar::AiCounts> {
+    let state = app.try_state::<NotifyPollState>()?;
+    let ai = state.ai.lock().expect("notify mutex poisoned");
+    ai.get(root).cloned()
+}
+
+/// Push the badge count to the Dock. On macOS the badge is the app's (any
+/// window sets it); `None` clears it.
+fn apply_badge(app: &AppHandle) {
+    let Some(state) = app.try_state::<NotifyPollState>() else { return };
+    let count = state.badge.lock().expect("notify mutex poisoned").count();
+    let Some(w) = app.webview_windows().into_values().next() else { return };
+    let value = (count > 0).then_some(count as i64);
+    if let Err(e) = w.set_badge_count(value) {
+        crate::sidecar::log_line(&format!("[maude] notify: could not set the Dock badge: {e}"));
+    }
+}
+
+/// Debug-only e2e helper: the click handler of `root`'s notification (native
+/// notifications are not DOM-reachable). Granted only by
+/// capabilities/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub fn e2e_notification_click(app: AppHandle, root: String) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    {
+        on_click(&app, &root);
+        Ok(())
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, root);
+        Err("debug builds only".into())
+    }
 }
 
 /// Send a real OS notification. Internal callers (the poller) call this
@@ -205,6 +342,56 @@ fn send(app: &AppHandle, title: &str, body: &str) {
     if let Err(e) = app.notification().builder().title(title).body(body).show() {
         eprintln!("[maude] notify: failed to show notification: {e}");
     }
+}
+
+/// How many notifications may wait for a click at once (each holds a thread
+/// until it is clicked or dismissed). Past it a notification is still shown,
+/// just without click routing.
+#[cfg(target_os = "macos")]
+const MAX_CLICK_WAITERS: usize = 8;
+#[cfg(target_os = "macos")]
+static CLICK_WAITERS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// A project's notification whose click focuses THAT project's window (V2-3.5).
+/// `tauri-plugin-notification` reports no click on desktop, so on macOS the
+/// same `notify-rust` backend it wraps is driven directly, waiting for the
+/// response on a thread of its own (NSUserNotificationCenter answers on the
+/// main run loop, which Tauri pumps). Elsewhere: the plain path, no routing.
+fn send_for_project(app: &AppHandle, title: &str, body: &str, root: &str) {
+    #[cfg(target_os = "macos")]
+    {
+        if CLICK_WAITERS.fetch_add(1, Ordering::SeqCst) < MAX_CLICK_WAITERS {
+            let title = sanitize_notify_field(title);
+            let body = sanitize_notify_field(body);
+            let identifier = app.config().identifier.clone();
+            let app2 = app.clone();
+            let root2 = root.to_string();
+            let spawned = std::thread::Builder::new()
+                .name("maude-notify-click".into())
+                .spawn(move || {
+                    let _ = notify_rust::set_application(if tauri::is_dev() {
+                        "com.apple.Terminal"
+                    } else {
+                        &identifier
+                    });
+                    match notify_rust::Notification::new().summary(&title).body(&body).show() {
+                        Ok(handle) => handle.wait_for_action(|action| {
+                            if action == "default" {
+                                on_click(&app2, &root2);
+                            }
+                        }),
+                        Err(e) => eprintln!("[maude] notify: failed to show notification: {e}"),
+                    }
+                    CLICK_WAITERS.fetch_sub(1, Ordering::SeqCst);
+                });
+            if spawned.is_ok() {
+                return;
+            }
+        }
+        CLICK_WAITERS.fetch_sub(1, Ordering::SeqCst);
+    }
+    let _ = root;
+    send(app, title, body);
 }
 
 /// One-shot system notice from the native core — something about the MACHINE the
@@ -367,6 +554,13 @@ async fn poll_one(app: &AppHandle, project_root: &str) {
     if fired.is_empty() {
         return;
     }
+    // The badge counts every project that started waiting while unfocused —
+    // before the cooldown/cap below, which only throttle the OS ping.
+    if fired.contains(&Transition::AwaitingInput)
+        && state.badge.lock().expect("notify mutex poisoned").mark(project_root)
+    {
+        apply_badge(app);
+    }
 
     // Cooldown per project (Design Decisions table). Awaiting-input is the
     // more actionable of the two if both fired in the same tick.
@@ -404,18 +598,24 @@ async fn poll_one(app: &AppHandle, project_root: &str) {
     } else {
         Transition::Finished
     };
-    let name = project_display_name(project_root);
-    let (title, body) = match kind {
+    let (title, body) = notification_text(kind, &project_display_name(project_root));
+    send_for_project(app, &title, &body, project_root);
+}
+
+/// The notification's words (V2-3.5): the title names the project — its
+/// directory name, Decision D — and the body is a fixed string. Sanitized at
+/// the sink (`send` / `send_for_project`).
+pub fn notification_text(kind: Transition, name: &str) -> (String, String) {
+    match kind {
         Transition::AwaitingInput => (
-            "Maude needs your input",
-            format!("Claude is waiting on an approval or a question in {name}."),
+            format!("{name}: Needs you"),
+            "Claude is waiting on an approval or a question.".to_string(),
         ),
         Transition::Finished => (
-            "Claude finished",
-            format!("Your assistant turn is ready in {name}."),
+            format!("{name}: AI is done"),
+            "Your assistant turn is ready.".to_string(),
         ),
-    };
-    send(app, title, &body);
+    }
 }
 
 /// Spawn the background poller. Call once from `setup`, after `SidecarState`
@@ -428,6 +628,8 @@ pub fn spawn_activity_poller(app: &AppHandle) {
         last_notified: Mutex::new(HashMap::new()),
         notified_count: Mutex::new(HashMap::new()),
         command_notify: Mutex::new((None, 0)),
+        ai: Mutex::new(HashMap::new()),
+        badge: Mutex::new(Badge::default()),
     });
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -437,31 +639,74 @@ pub fn spawn_activity_poller(app: &AppHandle) {
             if sidecar_state.shutting_down.load(Ordering::SeqCst) {
                 break;
             }
-            // "Current" = the project of the FOCUSED window (V2-3.2; was
-            // `project_root`). Every other running instance — in a background
-            // tab or with no window — is this poller's, at the address its
-            // app-owned info file names (decision 8). A resting tab has no
-            // instance, so it is never polled.
-            let current = sidecar_state
-                .windows
-                .lock()
-                .expect("windows mutex poisoned")
-                .displayed_root();
-            let roots: Vec<String> = {
+            let running: Vec<String> = {
                 let pool = sidecar_state.instances.lock().expect("sidecar mutex poisoned");
-                pool.keys()
-                    .filter(|root| current.as_deref() != Some(root.as_str()))
-                    .cloned()
-                    .collect()
+                pool.keys().cloned().collect()
             };
-            // Probed OUTSIDE the pool lock — same reasoning as reap_instances:
-            // the curl is bounded but still slow enough that holding the lock
+            // Targets = running instances whose window is NOT focused (V2-3.5,
+            // §5.2; was "≠ the displayed project"). The focused window's own
+            // client notifies for itself. A resting tab has no instance, so it
+            // is never polled; Home is not in the pool.
+            let targets = {
+                let book = sidecar_state.windows.lock().expect("windows mutex poisoned");
+                poll_targets(&book, &running)
+            };
+            // Probed OUTSIDE every lock — same reasoning as reap_instances:
+            // the probe is bounded but still slow enough that holding a lock
             // across it would stall an unrelated switch.
-            for root in roots {
+            refresh_ai(&app, &running).await;
+            for root in targets {
                 poll_one(&app, &root).await;
             }
         }
     });
+}
+
+/// Refresh the `ai` cache from every running instance's authenticated status
+/// probe (Home shows it for each tab), drop roots that stopped running, and
+/// take a project out of the badge once nothing in it is awaiting.
+async fn refresh_ai(app: &AppHandle, running: &[String]) {
+    let mut fresh: Vec<(String, Option<crate::sidecar::AiCounts>)> = Vec::new();
+    for root in running {
+        let status = crate::sidecar::shell_status(app, root).await;
+        fresh.push((root.clone(), status.map(|s| s.ai)));
+    }
+    let state = app.state::<NotifyPollState>();
+    let (ai_changed, badge_changed) = apply_ai_refresh(
+        &mut state.ai.lock().expect("notify mutex poisoned"),
+        &mut state.badge.lock().expect("notify mutex poisoned"),
+        running,
+        fresh,
+    );
+    if badge_changed {
+        apply_badge(app);
+    }
+    if ai_changed {
+        crate::home::state_changed(app);
+    }
+}
+
+/// Pure half of `refresh_ai`. A probe that did not answer keeps the last
+/// counts (a slow server must not flicker Home); a root no longer running is
+/// dropped. Returns `(ai cache changed, badge changed)`.
+pub fn apply_ai_refresh(
+    ai: &mut HashMap<String, crate::sidecar::AiCounts>,
+    badge: &mut Badge,
+    running: &[String],
+    fresh: Vec<(String, Option<crate::sidecar::AiCounts>)>,
+) -> (bool, bool) {
+    let before = ai.clone();
+    ai.retain(|root, _| running.iter().any(|r| r == root));
+    let mut badge_changed = badge.retain_running(running);
+    for (root, counts) in fresh {
+        if let Some(counts) = counts {
+            if counts.awaiting == 0 {
+                badge_changed |= badge.clear(&root);
+            }
+            ai.insert(root, counts);
+        }
+    }
+    (*ai != before, badge_changed)
 }
 
 #[cfg(test)]
@@ -665,5 +910,108 @@ mod tests {
         assert_eq!(real_hits.load(Ordering::SeqCst), 2, "token probe + wrong-token probe");
         let _ = std::fs::remove_dir_all(project);
         let _ = std::fs::remove_dir_all(app_owned);
+    }
+
+    // ── V2-3.5: targets, click, badge, ai cache ─────────────────────────────
+
+    use crate::sidecar::AiCounts;
+    use crate::windows::{Role, WindowBook, HOME_LABEL};
+
+    fn book_ab() -> WindowBook {
+        let mut book = WindowBook::default();
+        book.insert(HOME_LABEL, Role::Home, 1);
+        for (label, root) in [("p-a", "/a"), ("p-b", "/b")] {
+            book.insert(
+                label,
+                Role::Project {
+                    pid: crate::windows::pid_for_root(root),
+                    root: root.into(),
+                },
+                2,
+            );
+        }
+        book
+    }
+
+    fn roots(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn poller_targets_unfocused_instances_only_never_the_focused_one() {
+        let mut book = book_ab();
+        // "/c" runs with no window (kept by the pool) — still the poller's.
+        let running = roots(&["/a", "/b", "/c"]);
+        book.focus("p-a", 3);
+        assert_eq!(poll_targets(&book, &running), roots(&["/b", "/c"]));
+        book.focus("p-b", 4);
+        assert_eq!(poll_targets(&book, &running), roots(&["/a", "/c"]));
+        // Home focused: every project is unfocused, and Home itself is never
+        // a target (it is not in the pool to begin with).
+        book.focus(HOME_LABEL, 5);
+        assert_eq!(poll_targets(&book, &running), running);
+    }
+
+    #[test]
+    fn notification_click_focuses_that_projects_window() {
+        let mut book = book_ab();
+        book.focus("p-a", 3);
+        let ClickAction::Focus(label) = click_action(&book, "/b") else {
+            panic!("an open project focuses its tab")
+        };
+        assert_eq!(label, "p-b");
+        // What the OS focus event then does: p-b is the focused label.
+        book.focus(&label, 4);
+        assert_eq!(book.focused(), Some("p-b"));
+        assert_eq!(click_action(&book, "/c"), ClickAction::Open);
+    }
+
+    #[test]
+    fn notification_title_names_the_project() {
+        let (t, b) = notification_text(Transition::AwaitingInput, "alligators");
+        assert_eq!(t, "alligators: Needs you");
+        assert!(!b.contains("alligators"), "the body is a fixed string");
+        assert_eq!(notification_text(Transition::Finished, "x").0, "x: AI is done");
+    }
+
+    #[test]
+    fn badge_counts_projects_that_need_you_and_clears_on_focus() {
+        let mut badge = Badge::default();
+        assert!(badge.mark("/a"));
+        assert!(!badge.mark("/a"), "one project counts once");
+        assert!(badge.mark("/b"));
+        assert_eq!(badge.count(), 2);
+        assert!(badge.clear("/a"), "its window gained focus");
+        assert_eq!(badge.count(), 1);
+        assert!(badge.retain_running(&roots(&["/a"])), "/b stopped running");
+        assert_eq!(badge.count(), 0);
+    }
+
+    #[test]
+    fn ai_cache_keeps_running_roots_and_a_settled_project_leaves_the_badge() {
+        let counts = |running, awaiting| AiCounts { running, awaiting };
+        let mut ai = HashMap::new();
+        ai.insert("/gone".to_string(), counts(1, 0));
+        let mut badge = Badge::default();
+        badge.mark("/a");
+        badge.mark("/b");
+        let (ai_changed, badge_changed) = apply_ai_refresh(
+            &mut ai,
+            &mut badge,
+            &roots(&["/a", "/b"]),
+            vec![
+                ("/a".to_string(), Some(counts(0, 0))),
+                ("/b".to_string(), Some(counts(1, 1))),
+            ],
+        );
+        assert!(ai_changed && badge_changed);
+        assert!(!ai.contains_key("/gone"));
+        assert_eq!(ai["/b"], counts(1, 1));
+        assert_eq!(badge.count(), 1, "/a stopped awaiting, /b still waits");
+        // A probe that did not answer keeps the last counts: no flicker.
+        let (ai_changed, _) =
+            apply_ai_refresh(&mut ai, &mut badge, &roots(&["/a", "/b"]), vec![("/b".into(), None)]);
+        assert!(!ai_changed);
+        assert_eq!(ai["/b"], counts(1, 1));
     }
 }

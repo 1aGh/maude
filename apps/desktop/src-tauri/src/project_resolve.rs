@@ -1,7 +1,7 @@
 //! Resolve file links using remembered local projects. Never open or switch here.
 use std::path::{Path, PathBuf};
 
-fn valid_project(project: &str) -> bool {
+pub(crate) fn valid_project(project: &str) -> bool {
     let bytes = project.as_bytes();
     !bytes.is_empty()
         && bytes.len() <= 40
@@ -85,13 +85,19 @@ fn resolve_from_paths(project: &str, paths: impl IntoIterator<Item = String>) ->
     found.map(|p| p.to_string_lossy().into_owned())
 }
 
+/// Every folder a link may resolve to: the project registry (V2-3.1 — what
+/// Home lists), then the legacy recent list and the last project. Remembered
+/// folders only; `resolve_from_paths` still drops any without `.design/`.
+pub(crate) fn resolve_known(state: &crate::app_state::AppState, project: &str) -> Option<String> {
+    let mut paths: Vec<String> = state.projects.values().map(|e| e.root.clone()).collect();
+    paths.extend(state.recent_projects.iter().cloned());
+    paths.extend(state.last_project.iter().cloned());
+    resolve_from_paths(project, paths)
+}
+
 #[tauri::command]
 pub fn resolve_project_for_link(app: tauri::AppHandle, project: String) -> Option<String> {
-    let state = crate::app_state::load(&app);
-    resolve_from_paths(
-        &project,
-        state.recent_projects.into_iter().chain(state.last_project),
-    )
+    resolve_known(&crate::app_state::load(&app), &project)
 }
 
 #[cfg(test)]
