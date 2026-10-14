@@ -27,7 +27,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { saveHubCredential } from '../sync/hub-link.ts';
 import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
-import { cloudConfigPath } from './config-path.ts';
+import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 export interface RenewedCredential {
   token: string;
@@ -57,8 +57,8 @@ function readAccountToken(): string | null {
   const p = cloudConfigPath();
   if (!existsSync(p)) return null;
   try {
-    const parsed = JSON.parse(readFileSync(p, 'utf8'));
-    return parsed && typeof parsed.token === 'string' && parsed.token ? parsed.token : null;
+    // W4: only for the control plane that issued it.
+    return boundCloudToken(JSON.parse(readFileSync(p, 'utf8')), cloudUrl());
   } catch {
     return null;
   }

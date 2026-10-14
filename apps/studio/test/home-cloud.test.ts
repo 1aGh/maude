@@ -74,16 +74,19 @@ beforeAll(() => {
   process.env.MAUDE_CLOUD_CONFIG = join(cfgHome, 'cloud.json');
   process.env.XDG_CONFIG_HOME = cfgHome;
   delete process.env.HUBS_CONFIG_PATH;
-  writeFileSync(process.env.MAUDE_CLOUD_CONFIG, JSON.stringify({ url: 'x', token: 'mpt_default' }));
+  writeFileSync(
+    process.env.MAUDE_CLOUD_CONFIG,
+    JSON.stringify({ url: process.env.MAUDE_CLOUD_URL, token: 'mpt_default' })
+  );
   mkdirSync(join(cfgHome, 'maude', 'profiles', 'work'), { recursive: true });
   writeFileSync(
     join(cfgHome, 'maude', 'profiles', 'work', 'cloud.json'),
-    JSON.stringify({ token: 'mpt_work' })
+    JSON.stringify({ url: `${process.env.MAUDE_CLOUD_URL}/`, token: 'mpt_work' })
   );
   mkdirSync(join(cfgHome, 'maude', 'profiles', 'gone'), { recursive: true });
   writeFileSync(
     join(cfgHome, 'maude', 'profiles', 'gone', 'cloud.json'),
-    JSON.stringify({ token: 'mpt_revoked' })
+    JSON.stringify({ url: process.env.MAUDE_CLOUD_URL, token: 'mpt_revoked' })
   );
 });
 
@@ -176,6 +179,28 @@ describe('/_home/cloud', () => {
     expect(await cloud.listing('nobody')).toMatchObject({ ok: false, signedIn: false });
     expect(await cloud.listing('gone')).toMatchObject({ ok: false, signedIn: false });
     expect((await homeFetch()(homeReq('/_home/cloud?profile=../etc'))).status).toBe(400);
+  });
+
+  // V2-3.10 W4 — a token travels only to the control plane that issued it.
+  test('a profile signed in to ANOTHER control plane is signed out here; its token never travels', async () => {
+    down = false;
+    const xdg = process.env.XDG_CONFIG_HOME as string;
+    for (const [id, file] of [
+      ['elsewhere', { url: 'https://other-plane.test', token: 'mpt_elsewhere' }],
+      ['nourl', { token: 'mpt_nourl' }],
+    ] as const) {
+      mkdirSync(join(xdg, 'maude', 'profiles', id), { recursive: true });
+      writeFileSync(join(xdg, 'maude', 'profiles', id, 'cloud.json'), JSON.stringify(file));
+    }
+    seen.length = 0;
+    const cloud = createHomeCloud();
+    expect(await cloud.listing('elsewhere')).toMatchObject({ ok: false, signedIn: false });
+    expect(await cloud.listing('nourl')).toMatchObject({ ok: false, signedIn: false });
+    expect(
+      seen.filter((s) => s.auth?.includes('mpt_elsewhere') || s.auth?.includes('mpt_nourl'))
+    ).toEqual([]);
+    // The bound one still works (a trailing slash in the recorded url is the same plane).
+    expect(await cloud.listing('work')).toMatchObject({ ok: true, signedIn: true });
   });
 
   test('prepare refuses a bad profile or project id before any network call', async () => {

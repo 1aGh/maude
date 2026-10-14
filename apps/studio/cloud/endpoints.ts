@@ -27,7 +27,7 @@ import {
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
-import { cloudConfigPath } from './config-path.ts';
+import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 /**
  * Where Maude Cloud lives, resolved PER CALL rather than at module load.
@@ -96,7 +96,8 @@ function readCloudFile(p = cloudConfigPath()): CloudFile | null {
   if (!existsSync(p)) return null;
   try {
     const parsed = JSON.parse(readFileSync(p, 'utf8'));
-    if (parsed && typeof parsed.token === 'string') return parsed as CloudFile;
+    // W4: a file another control plane issued is signed out HERE; its token never travels.
+    if (boundCloudToken(parsed, cloudUrl()) !== null) return parsed as CloudFile;
   } catch {
     /* malformed → treat as signed out */
   }
