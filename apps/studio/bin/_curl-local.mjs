@@ -376,7 +376,9 @@ export function buildCurlArgs(req, pinIp, port) {
   if (req.insecure) args.push('-k');
   if (req.include) args.push('-i');
   if (req.verbose) args.push('-v');
-  args.push('--', req.url);
+  // V2-3.10: the PARSED url whose host + port were checked — never the raw string, which
+  // curl's own parser could read as another port (a backslash, a userinfo split).
+  args.push('--', req.parsedUrl.href);
   return args;
 }
 
