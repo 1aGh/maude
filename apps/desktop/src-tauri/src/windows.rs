@@ -1750,6 +1750,21 @@ pub fn resolve_open_root(
     }
 }
 
+/// The `intent` an `open_project` call parks (W1): Home only. A project window
+/// can open a same-profile project, but never park a create-canvas prompt for
+/// it — once the consumer starts an AI run from the intent, that would be a
+/// cross-project prompt injection.
+pub fn intent_for(
+    caller: &Caller,
+    intent: Option<crate::home::OpenIntent>,
+) -> Result<Option<crate::home::OpenIntent>, String> {
+    match (caller, intent) {
+        (_, None) => Ok(None),
+        (Caller::Project(_), Some(_)) => Err("Only Home can open a project with a request.".to_string()),
+        (Caller::Home, Some(i)) => crate::home::validate_intent(i).map(Some),
+    }
+}
+
 /// `open_project({pid} | {root}, target?, intent?)` — open a project as a new
 /// tab after the calling window, or focus its tab if it is already open (open
 /// once, §5.2). From Home, the Home tab closes once the project tab is key
@@ -1771,7 +1786,7 @@ pub async fn open_project(
     let st = crate::app_state::load(&app);
     let path = resolve_open_root(&caller, &st, pid.as_deref(), root.as_deref())?;
     let target = target.map(validate_target).transpose()?;
-    let intent = intent.map(crate::home::validate_intent).transpose()?;
+    let intent = intent_for(&caller, intent)?;
     if !path.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
     }
@@ -2063,6 +2078,31 @@ mod tests {
             );
         }
         st
+    }
+
+    #[test]
+    fn w1_an_intent_is_accepted_from_home_only() {
+        let intent = crate::home::OpenIntent {
+            kind: "create-canvas".into(),
+            prompt: "make a landing page".into(),
+            project_hint: None,
+        };
+        let project = Caller::Project(CallerProject {
+            label: "p-lself".into(),
+            pid: "lself".into(),
+            root: A.into(),
+        });
+        // A project window may open a project, but never park a prompt for one.
+        assert!(intent_for(&project, Some(intent.clone())).is_err());
+        assert_eq!(intent_for(&project, None).unwrap(), None);
+        // Home may, and the prompt is still validated.
+        assert_eq!(intent_for(&Caller::Home, Some(intent.clone())).unwrap(), Some(intent));
+        let empty = crate::home::OpenIntent {
+            kind: "create-canvas".into(),
+            prompt: "  ".into(),
+            project_hint: None,
+        };
+        assert!(intent_for(&Caller::Home, Some(empty)).is_err());
     }
 
     #[test]
