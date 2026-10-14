@@ -96,7 +96,19 @@ let invokes: Array<{ cmd: string; args: unknown }> = [];
 const SECRET = 'ef'.repeat(32);
 let sessions = 0;
 let sessionAnswer: (() => unknown) | null = null;
-let listeners: Record<string, (e: { payload: unknown }) => void> = {};
+// Finding 1d: the shell reaches Home ONLY through the Channel Home hands `shell_subscribe`
+// (client/shell-bus.js). `listeners[kind]({payload})` delivers one shell message on it.
+let busChannel: { onmessage?: (m: unknown) => void } | null = null;
+let subscribes = 0;
+let eventListens: string[] = [];
+const deliver =
+  (kind: string) =>
+  (e: { payload: unknown }): void =>
+    busChannel?.onmessage?.({ kind, payload: e.payload });
+const listeners: Record<string, (e: { payload: unknown }) => void> = new Proxy(
+  {},
+  { get: (_t, kind) => deliver(String(kind)) }
+);
 // per-test shell answers (cmd → value or fn(args)); consulted before the defaults
 let shellAnswers: Record<string, unknown> = {};
 let shellOverride: typeof SHELL | null = null;
@@ -180,7 +192,15 @@ function installTauri(label = 'home') {
   w.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label }, currentWebview: { label } } };
   w.__TAURI__ = {
     core: {
+      Channel: class {
+        onmessage?: (m: unknown) => void;
+      },
       invoke: async (cmd: string, args: unknown) => {
+        if (cmd === 'shell_subscribe') {
+          subscribes++;
+          busChannel = (args as { onMessage: { onmessage?: (m: unknown) => void } }).onMessage;
+          return null;
+        }
         if (cmd === 'home_session') {
           sessions++;
           return sessionAnswer ? sessionAnswer() : { secret: SECRET };
@@ -195,12 +215,11 @@ function installTauri(label = 'home') {
         return null;
       },
     },
+    // A global listener hears every `emit_to` in every webview — Home must not use one.
     event: {
-      listen: async (name: string, cb: (e: { payload: unknown }) => void) => {
-        listeners[name] = cb;
-        return () => {
-          delete listeners[name];
-        };
+      listen: async (name: string) => {
+        eventListens.push(name);
+        return () => {};
       },
     },
   };
@@ -210,6 +229,7 @@ function removeTauri() {
   const w = window as unknown as Record<string, unknown>;
   w.__TAURI__ = undefined;
   w.__TAURI_INTERNALS__ = undefined;
+  w.__maudeShellBus = undefined;
 }
 
 const flush = async (n = 6) => {
@@ -237,7 +257,10 @@ beforeEach(() => {
   sessions = 0;
   sessionAnswer = null;
   api.resetHomeSecret();
-  listeners = {};
+  busChannel = null;
+  subscribes = 0;
+  eventListens = [];
+  (window as unknown as Record<string, unknown>).__maudeShellBus = undefined;
   windowListeners = {};
   shellAnswers = {};
   shellOverride = null;
@@ -508,7 +531,7 @@ describe('Home reads maude:// links', () => {
     expect($('home-link-dialog')).toBeNull();
   });
 
-  test('links are heard on THIS window only (a global listener hears links meant for a tab)', async () => {
+  test('Home hears the shell only on its own shell_subscribe channel, never a Tauri event', async () => {
     const w = window as unknown as { __TAURI__: Record<string, unknown> };
     w.__TAURI__.webviewWindow = {
       getCurrentWebviewWindow: () => ({
@@ -522,11 +545,11 @@ describe('Home reads maude:// links', () => {
     };
     mount();
     await flush();
-    expect(Object.keys(windowListeners).sort()).toEqual(
-      ['index://changed', 'maude://deep-link', 'menu://action', 'shell://state'].sort()
-    );
-    expect(listeners['maude://deep-link']).toBeUndefined();
-    expect(listeners['menu://action']).toBeUndefined();
+    // One channel for the whole page; no event listener of either kind (finding 1d: an
+    // `emit_to('home')` reached every `Any`-target listener in every project page).
+    expect(subscribes).toBe(1);
+    expect(eventListens).toEqual([]);
+    expect(Object.keys(windowListeners)).toEqual([]);
   });
 });
 

@@ -95,6 +95,9 @@ fn main() {
                 "e2e_deliver_deep_link",
                 // V2-3.6 L1: the "Opened from a link" toast of a NEW tab.
                 "take_link_opened",
+                // Finding 1d (bus.rs): every shell → page message goes through
+                // the Channel a page hands this — never an event.
+                "shell_subscribe",
             ]),
         ),
     )

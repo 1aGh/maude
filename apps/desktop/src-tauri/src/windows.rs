@@ -23,7 +23,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::sidecar::SidecarState;
@@ -841,10 +841,8 @@ impl WindowHost for TauriHost<'_> {
         if let Err(e) = crate::tabs::reveal(self.app, label) {
             crate::sidecar::log_line(&format!("[maude] could not show {label}: {e}"));
         }
-        let _ = self.app.emit_to(
-            EventTarget::AnyLabel {
-                label: label.to_string(),
-            },
+        crate::bus::send(
+            label,
             "shell://opened-existing",
             serde_json::json!({ "name": name }),
         );
@@ -1240,6 +1238,9 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
     // with it (a later window with the same label must not inherit it), and
     // Home's tab list changed.
     drop_parked_for(label);
+    // …and so does its shell channel (bus.rs): a reopened tab subscribes anew.
+    crate::bus::forget(label);
+    crate::profiles::forget_prepared(label);
     crate::home::state_changed(app);
     let Some(root) = root else { return };
     crate::sidecar::log_line(&format!(
@@ -1486,8 +1487,8 @@ fn restore_session(app: &AppHandle, plan: &RestorePlan) {
     };
     crate::sidecar::log_line(&format!("[maude] {count} tab(s) reopened — {active} is active"));
     if count >= 2 {
-        let _ = app.emit_to(
-            EventTarget::AnyLabel { label: active },
+        crate::bus::send(
+            &active,
             "shell://tabs-restored",
             serde_json::json!({ "count": count }),
         );
@@ -1630,6 +1631,29 @@ pub fn caller_any<R: Runtime>(
     } else {
         caller_project(webview, allow_app_local).map(Caller::Project)
     }
+}
+
+/// Low 1g: a tab the person can't see may not open a native dialog or switch
+/// the active tab — a background page would otherwise pop a folder picker /
+/// save sheet over the tab in front, or yank the person to another tab. The
+/// active tab is the book's `focused`; none focused means Home is in front.
+pub fn front_only(book: &WindowBook, label: &str) -> Result<(), String> {
+    let front = book.focused().unwrap_or(HOME_LABEL);
+    if front == label {
+        Ok(())
+    } else {
+        Err("Switch to this tab first.".to_string())
+    }
+}
+
+/// `front_only` for the calling webview (its own label, never an argument).
+pub fn caller_in_front<R: Runtime>(webview: &tauri::Webview<R>) -> Result<(), String> {
+    let state = webview
+        .app_handle()
+        .try_state::<SidecarState>()
+        .ok_or_else(|| "Maude is still starting.".to_string())?;
+    let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+    front_only(&book, webview.label())
 }
 
 /// `target` of `open_project`: a canvas (designRoot-relative) and an artboard.
@@ -1870,6 +1894,10 @@ pub async fn open_project(
     intent: Option<crate::home::OpenIntent>,
 ) -> Result<OpenedProject, String> {
     let caller = caller_any(&webview, false)?;
+    // 1g: a background project tab may not switch the active tab.
+    if matches!(caller, Caller::Project(_)) {
+        caller_in_front(&webview)?;
+    }
     let st = crate::app_state::load(&app);
     let path = resolve_open_root(&caller, &st, pid.as_deref(), root.as_deref())?;
     let target = target.map(validate_target).transpose()?;
@@ -1882,16 +1910,10 @@ pub async fn open_project(
     let label = opened.label().to_string();
     park_navigate_for_new(&opened, target.as_ref());
     if let Some(intent) = intent {
-        crate::home::park_intent(&app, &label, intent);
+        crate::home::park_intent(&label, intent);
     }
     if let (Opened::Existing(_), Some(t)) = (&opened, &target) {
-        let _ = app.emit_to(
-            EventTarget::AnyLabel {
-                label: label.clone(),
-            },
-            "shell://navigate",
-            t.clone(),
-        );
+        crate::bus::send(&label, "shell://navigate", t.clone());
     }
     // V2-3.7: Home is pinned and never closes; the opened tab is active.
     Ok(OpenedProject::from(&opened))
@@ -2600,6 +2622,164 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    /// Finding 1d: Tauri delivers an `emit_to(label)` to every JS listener
+    /// registered with target `Any`, in every webview — so no page may listen
+    /// at all. Every capability file (release AND debug) plus the runtime Home
+    /// set: no `core:default`, no `core:event:*`.
+    #[test]
+    fn no_page_capability_grants_events() {
+        fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            for e in std::fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    files(&p, out);
+                } else if p.extension().is_some_and(|x| x == "json") {
+                    out.push(p);
+                }
+            }
+        }
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities");
+        let mut caps = Vec::new();
+        files(&dir, &mut caps);
+        assert!(caps.len() >= 4, "capability files not found: {caps:?}");
+        let mut sets: Vec<(String, Vec<String>)> = caps
+            .iter()
+            .map(|p| {
+                let v: serde_json::Value =
+                    serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap();
+                let perms = v["permissions"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|p| match p {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other["identifier"].as_str().unwrap_or_default().to_string(),
+                    })
+                    .collect();
+                (p.display().to_string(), perms)
+            })
+            .collect();
+        sets.push((
+            "home (runtime)".to_string(),
+            crate::home::HOME_PERMISSIONS
+                .iter()
+                .map(|p| p.to_string())
+                .collect(),
+        ));
+        for (name, set) in &sets {
+            for p in set {
+                assert!(
+                    p != "core:default" && !p.starts_with("core:event:"),
+                    "{name} grants {p}: a listening page hears every webview's emit_to"
+                );
+            }
+        }
+    }
+
+    /// Finding 1d, the other half: nothing in `src/` emits a Tauri event — every
+    /// shell → page message goes through `bus::send` / `bus::broadcast` (the
+    /// Channel the page handed `shell_subscribe`). An event, even `emit_to` one
+    /// label, reaches every `Any`-target listener in every webview. Allow-list
+    /// an emit here only if it provably reaches no page.
+    #[test]
+    fn the_shell_never_emits_to_a_page() {
+        const ALLOWED: &[(&str, &str)] = &[];
+        // Built at runtime so this test's own source doesn't match itself.
+        let needles: Vec<String> = ["emit_to(", ".emit(", "emit_filter(", "emit_str(", "Emitter"]
+            .iter()
+            .map(|n| n.to_string())
+            .collect();
+        let src_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut hits = Vec::new();
+        for e in std::fs::read_dir(&src_dir).unwrap().flatten() {
+            let path = e.path();
+            if path.extension().is_none_or(|x| x != "rs") {
+                continue;
+            }
+            let file = path.file_name().unwrap().to_string_lossy().to_string();
+            let text = std::fs::read_to_string(&path).unwrap();
+            for (i, line) in text.lines().enumerate() {
+                let code = line.split("//").next().unwrap_or("");
+                if code.contains("needles") || code.contains("ALLOWED") {
+                    continue;
+                }
+                for n in &needles {
+                    if code.contains(n.as_str())
+                        && !ALLOWED.iter().any(|(f, l)| *f == file && line.contains(l))
+                    {
+                        hits.push(format!("{file}:{}: {}", i + 1, line.trim()));
+                    }
+                }
+            }
+        }
+        assert!(
+            hits.is_empty(),
+            "the shell emits a Tauri event (use bus::send): {hits:#?}"
+        );
+    }
+
+    /// Low 1g: only the tab in front opens a native dialog or switches tabs.
+    #[test]
+    fn only_the_tab_in_front_may_open_a_dialog_or_switch_tabs() {
+        let mut b = WindowBook::default();
+        b.insert(HOME_LABEL, Role::Home, 0);
+        for (l, r) in [("p-a", "/a"), ("p-b", "/b")] {
+            b.insert(
+                l,
+                Role::Project {
+                    pid: l.into(),
+                    root: r.into(),
+                },
+                0,
+            );
+        }
+        // Nothing focused yet: Home is in front.
+        assert!(front_only(&b, HOME_LABEL).is_ok());
+        assert!(front_only(&b, "p-a").is_err());
+        assert!(b.focus("p-a", 1));
+        assert!(front_only(&b, "p-a").is_ok());
+        assert!(
+            front_only(&b, "p-b").is_err(),
+            "a background tab opened a dialog"
+        );
+        assert!(
+            front_only(&b, HOME_LABEL).is_err(),
+            "hidden Home opened a dialog"
+        );
+        assert!(front_only(&b, "strip").is_err());
+        // And every command that opens one (or switches the tab) asks.
+        let src = |f: &str| {
+            std::fs::read_to_string(
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("src")
+                    .join(f),
+            )
+            .unwrap()
+        };
+        let body = |text: &str, sig: &str| -> String {
+            let i = text.find(sig).unwrap_or_else(|| panic!("{sig} not found"));
+            let rest = &text[i..];
+            let end = rest[1..]
+                .find("#[tauri::command")
+                .map_or(rest.len(), |e| e + 1);
+            rest[..end].to_string()
+        };
+        for (file, sig) in [
+            ("lib.rs", "async fn pick_directory("),
+            ("lib.rs", "async fn save_export("),
+            ("lib.rs", "async fn pick_media_file("),
+            ("lib.rs", "async fn pick_media_files("),
+            ("home.rs", "pub async fn relink_project("),
+            ("home.rs", "pub async fn new_home_tab("),
+            ("windows.rs", "pub async fn open_project("),
+        ] {
+            assert!(
+                body(&src(file), sig).contains("caller_in_front("),
+                "{sig} lets a hidden tab act"
+            );
+        }
+    }
+
     /// V2-3.6 M2 / M5 / L3: what the shipped capabilities may never grant.
     #[test]
     fn capabilities_grant_no_emit_no_profiles_and_no_debug_commands() {
@@ -2629,9 +2809,9 @@ mod tests {
                 assert!(!set.iter().any(|p| p == e), "{name} grants {e}");
             }
         }
-        for listen in ["core:event:allow-listen", "core:event:allow-unlisten"] {
-            assert!(default.iter().any(|p| p == listen), "project windows still listen");
-            assert!(home.iter().any(|p| p == listen), "Home still listens");
+        // Finding 1d: pages hear the shell on their own Channel, never an event.
+        for (name, set) in [("default", &default), ("home", &home)] {
+            assert!(set.iter().any(|p| p == "allow-shell-subscribe"), "{name} can't subscribe");
         }
         // M2: profile management is not a project-page power.
         for p in ["allow-profiles-list", "allow-profiles-create", "allow-profiles-delete"] {

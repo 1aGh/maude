@@ -195,6 +195,56 @@ describe('home (native-desktop)', () => {
     await capture('02-home-back');
   });
 
+  // Finding 1d: Tauri delivers every `emit_to(label)` to every JS listener registered with
+  // the `Any` target, in every webview. A project page that listens globally must hear
+  // nothing the shell sends Home (shell://state, index://changed) or another tab.
+  it('2b · a project page that listens globally hears nothing meant for Home or another tab', async () => {
+    await onServer(label(BETA));
+    await browser.execute(() => {
+      const w = window as unknown as {
+        __eaves?: { listen: string[]; got: { event: string; keys: string[] }[] };
+        // biome-ignore lint/suspicious/noExplicitAny: __TAURI__ is an injected global
+        __TAURI__: any;
+      };
+      const eaves = { listen: [] as string[], got: [] as { event: string; keys: string[] }[] };
+      w.__eaves = eaves;
+      for (const event of [
+        'shell://state',
+        'index://changed',
+        'shell://opened-existing',
+        'shell://navigate',
+        'shell://intent',
+        'menu://action',
+        'maude://deep-link',
+        'github://device-code',
+      ]) {
+        // The global listener registers with target `Any`.
+        Promise.resolve()
+          .then(() =>
+            w.__TAURI__.event.listen(event, (e: { payload: unknown }) => {
+              const p = e.payload;
+              eaves.got.push({ event, keys: p && typeof p === 'object' ? Object.keys(p) : [] });
+            })
+          )
+          .then(
+            () => eaves.listen.push(`${event}: ok`),
+            (err: unknown) => eaves.listen.push(`${event}: refused ${String(err).slice(0, 80)}`)
+          );
+      }
+    });
+    await browser.waitUntil(
+      async () =>
+        browser.execute(
+          () =>
+            ((window as unknown as { __eaves?: { listen: string[] } }).__eaves?.listen.length ??
+              0) === 8
+        ),
+      { timeout: 10_000, timeoutMsg: 'the eavesdrop listeners never settled' }
+    );
+    await newHomeTab();
+    await onHome();
+  });
+
   it('3 · Home lists both projects’ recent canvases, with pictures', async () => {
     for (const f of [ALPHA, BETA]) {
       await (await $(tid(rowId(f)))).waitForDisplayed({ timeout: 60_000 });
@@ -274,6 +324,21 @@ export default function C() {
       1
     );
     await capture('06-home-live-new-canvas');
+  });
+
+  it('6b · the project page that listened since 2b heard none of it', async () => {
+    // Steps 3–6 sent Home shell://state + index://changed and ALPHA shell://opened-existing.
+    await onServer(label(BETA));
+    const eaves = (await browser.execute(
+      () => (window as unknown as { __eaves?: unknown }).__eaves ?? null
+    )) as { listen: string[]; got: { event: string; keys: string[] }[] } | null;
+    console.log(`[home] eavesdrop on ${label(BETA)}: ${JSON.stringify(eaves)}`);
+    expect(eaves).not.toBeNull(); // same page since 2b — no reload
+    expect(eaves?.got).toEqual([]);
+    // No page capability grants event listen any more (the shell talks over Channels).
+    expect(eaves?.listen.filter((l) => l.endsWith(': ok'))).toEqual([]);
+    await newHomeTab();
+    await onHome();
   });
 
   it('7 · the menu follows the active tab; Show Home activates the pinned Home', async () => {

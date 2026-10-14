@@ -22,7 +22,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, EventTarget};
+use tauri::AppHandle;
 use tokio::time::sleep;
 
 /// The Maude GitHub OAuth App client id. NOT a secret. Replace the placeholder
@@ -192,19 +192,12 @@ fn http_client() -> Result<reqwest::Client, String> {
         .map_err(|_| "Couldn't start the sign-in client.".to_string())
 }
 
-/// Where sign-in progress goes: the CALLING window only (V2-3.1, plan T4).
-///
-/// `AnyLabel` matches a `Window`, `Webview` or `WebviewWindow` listener carrying
-/// that label, so it reaches whichever scoped `listen` the client uses. Note what
-/// it does NOT do yet: Tauri also delivers an `emit_to` to every JS listener
-/// registered with target `Any` — which is what today's global
-/// `window.__TAURI__.event.listen` in `client/github.js` registers — in EVERY
-/// window. V2-3.2 moved `client/github.js` to window-scoped listeners
-/// (`getCurrentWebviewWindow().listen`), which is what makes the isolation real.
-fn caller_target(label: &str) -> EventTarget {
-    EventTarget::AnyLabel {
-        label: label.to_string(),
-    }
+/// Sign-in progress goes to the CALLING window only (V2-3.1, plan T4), over
+/// its own `shell_subscribe` channel (bus.rs). Never `emit_to`: Tauri also
+/// delivers that to every JS listener registered with target `Any`, in every
+/// webview, so a sibling tab would read this tab's device code (finding 1d).
+fn to_caller<S: Serialize>(label: &str, kind: &str, payload: S) {
+    crate::bus::send(label, kind, payload);
 }
 
 /// `#[tauri::command]` — the whole device flow, awaited by the webview.
@@ -228,7 +221,7 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
     if !crate::profiles::exists(&profile) {
         return Err("That account profile doesn't exist.".to_string());
     }
-    let target = caller_target(webview.label());
+    let target = webview.label().to_string();
 
     // E2E (debug builds only): the device flow opens the system browser + polls GitHub —
     // neither DOM-drivable nor deterministic. With MAUDE_E2E_FAKE_GITHUB_LOGIN set, show a
@@ -238,8 +231,8 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
     #[cfg(debug_assertions)]
     if let Ok(login) = std::env::var("MAUDE_E2E_FAKE_GITHUB_LOGIN") {
         if !login.is_empty() {
-            let _ = app.emit_to(
-                target.clone(),
+            to_caller(
+                &target,
                 "github://device-code",
                 DeviceCodeEvent {
                     user_code: "E2E-CODE".to_string(),
@@ -248,7 +241,7 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
                 },
             );
             sleep(Duration::from_millis(2500)).await;
-            let _ = app.emit_to(target, "github://signed-in", &login);
+            to_caller(&target, "github://signed-in", &login);
             return Ok(login);
         }
     }
@@ -259,8 +252,8 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
     let dc = request_device_code(&client, &client_id).await?;
 
     // Show the code in the calling window (its device-code modal listens).
-    let _ = app.emit_to(
-        target.clone(),
+    to_caller(
+        &target,
         "github://device-code",
         DeviceCodeEvent {
             user_code: dc.user_code.clone(),
@@ -307,7 +300,7 @@ pub(crate) fn complete_github_sign_in(
                 .map_err(|e| format!("Signed in, but couldn't save it securely: {e}"))
         },
     )?;
-    let _ = app.emit_to(caller_target(label), "github://signed-in", login);
+    to_caller(label, "github://signed-in", login);
     if out.rebound {
         crate::sidecar::log_line(&format!(
             "[maude] {label}: signed in on a new account profile {} — restarting its server",
@@ -555,19 +548,10 @@ pub async fn open_cloud_url(webview: tauri::Webview, url: String) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{caller_target, cloud_base, cloud_url_allowed, DEFAULT_CLOUD_URL};
+    use super::{cloud_base, cloud_url_allowed, DEFAULT_CLOUD_URL};
 
-    #[test]
-    fn sign_in_events_target_the_calling_window_label() {
-        // Not `Any`/`App` (app-wide): only listeners carrying this label match a
-        // scoped filter. See `caller_target` for what a global JS listener sees.
-        assert_eq!(
-            caller_target("p-l6ff9cde02f1b516d"),
-            tauri::EventTarget::AnyLabel {
-                label: "p-l6ff9cde02f1b516d".to_string()
-            }
-        );
-    }
+    // Sign-in progress reaching the calling window only is bus.rs's
+    // `a_message_reaches_its_own_page_and_no_other` (finding 1d).
 
     fn base(s: &str) -> reqwest::Url {
         reqwest::Url::parse(s).unwrap()
