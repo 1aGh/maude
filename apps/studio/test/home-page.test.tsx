@@ -141,6 +141,8 @@ function answer(url: string): unknown {
       ],
     };
   if (u.pathname === '/_home/pins') return { ok: true, pins: [] };
+  if (u.pathname === '/_home/projects/create-local')
+    return { ok: true, root: '/Users/x/Maude/Plakaty', pid: 'lnew', name: 'Plakaty' };
   if (u.pathname === '/_home/cloud/prepare')
     return {
       ok: true,
@@ -340,6 +342,38 @@ describe('Home page in the desktop app', () => {
     expect(invokes.some((i) => i.cmd === 'open_project_folder')).toBe(true);
   });
 
+  test('File ▸ New Project… on Home opens the create sheet: create-local, then open_project({root})', async () => {
+    mount();
+    await flush();
+    expect($('home-create-dialog')).toBeNull();
+    // menu.rs sends `menu://action {id}` to the ACTIVE tab; any other id is not Home's.
+    await act(async () => listeners['menu://action']?.({ payload: { id: 'canvas.new' } }));
+    expect($('home-create-dialog')).toBeNull();
+    await act(async () => listeners['menu://action']?.({ payload: { id: 'project.new' } }));
+    expect($('home-create-dialog')).not.toBeNull();
+    const input = $('home-create-name') as HTMLInputElement;
+    const propsKey = Object.keys(input).find((k) => k.startsWith('__reactProps')) as string;
+    const props = (input as unknown as Record<string, { onChange: (e: unknown) => void }>)[
+      propsKey
+    ];
+    act(() => props?.onChange({ target: { value: '  Plakaty ' } }));
+    act(() => $('home-create-submit')?.click());
+    await flush();
+    const create = calls.find((c) => c.url === '/_home/projects/create-local');
+    expect(create?.method).toBe('POST');
+    expect(create?.headers['x-maude-home']).toBe(SECRET);
+    expect(create?.body).toEqual({ name: 'Plakaty' });
+    expect(invokes.find((i) => i.cmd === 'open_project')?.args).toEqual({
+      root: '/Users/x/Maude/Plakaty',
+    });
+    expect($('home-create-dialog')).toBeNull();
+    // The Projects foot opens the same sheet; Cancel closes it with nothing created.
+    act(() => $('home-new-project')?.click());
+    expect($('home-create-dialog')).not.toBeNull();
+    act(() => $('home-create-cancel')?.click());
+    expect($('home-create-dialog')).toBeNull();
+  });
+
   test('pin toggles POST /_home/pins {pid, canvas, pinned}', async () => {
     mount();
     await flush();
@@ -489,9 +523,10 @@ describe('Home reads maude:// links', () => {
     mount();
     await flush();
     expect(Object.keys(windowListeners).sort()).toEqual(
-      ['index://changed', 'maude://deep-link', 'shell://state'].sort()
+      ['index://changed', 'maude://deep-link', 'menu://action', 'shell://state'].sort()
     );
     expect(listeners['maude://deep-link']).toBeUndefined();
+    expect(listeners['menu://action']).toBeUndefined();
   });
 });
 
@@ -605,6 +640,7 @@ describe('home-api', () => {
     );
     expect(http.map(([n]) => n).sort()).toEqual(
       [
+        'createLocal',
         'getCloud',
         'getConfig',
         'getIndex',

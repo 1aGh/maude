@@ -600,6 +600,11 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `home-cloud-open-<projectId>` | testid (pattern) | Open on a cloud row: Can edit / Can comment → `/_home/cloud/prepare` → `managed_project_open` → `open_project({root})`; Can view → `open_cloud_url`. | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
 | `home-profile-<id>` | testid (pattern) | One account group in Projects (`<id>` = the shell profile id, e.g. `default`). | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
 | `home-open-folder` | testid | "Open project… ⌘O" at the foot of Projects → `open_project_folder`. | `client/home/home-app.jsx` · `HomeApp` | — | new in v2 (V2-3.3) |
+| `home-new-project` | testid | "New project… ⇧⌘N" at the foot of Projects: opens the create sheet (the same sheet File ▸ New Project… opens on Home — `menu://action {id:'project.new'}`). | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
+| `home-create-dialog` | testid | The New project sheet on Home (V2-3.9): a name → `/_home/projects/create-local` → `open_project({root})`. | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
+| `home-create-name` | testid | The project name in the New project sheet (empty = "Untitled project", C4 naming in create-local). | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
+| `home-create-submit` | testid | "Create project" in the New project sheet. | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
+| `home-create-cancel` | testid | Cancel in the New project sheet (Escape and the scrim answer the same). | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
 
 ### other
 

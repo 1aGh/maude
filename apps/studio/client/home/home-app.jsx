@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  createLocal,
   getCloud,
   getIndex,
   getRecentSearches,
@@ -231,6 +232,29 @@ function useDeepLink(native) {
   return [link, setLink];
 }
 
+// ── New project… (V2-3.9) ────────────────────────────────────────────────────────────────────
+// File ▸ New Project… ⇧⌘N sends `menu://action {id:'project.new'}` to the ACTIVE tab (menu.rs). On
+// a project tab IdentityBar opens its create dialog; on Home nothing listened, so the menu item did
+// nothing. Home's answer is this sheet: a name → `create-local` (`~/Maude/<name>`) → `open_project
+// ({root})`, the new project's tab (V2-1.1 §5.4 "A new project from Home is create-local first").
+function useNewProjectRequest(native, onRequest) {
+  useEffect(() => {
+    if (!native) return undefined;
+    let alive = true;
+    let off = null;
+    shellListen('menu://action', (p) => {
+      if (p?.id === 'project.new') onRequest();
+    }).then((fn) => {
+      if (alive) off = fn;
+      else fn();
+    });
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [native, onRequest]);
+}
+
 // ── page ─────────────────────────────────────────────────────────────────────────────────────
 export function HomeApp() {
   const theme = useSystemTheme();
@@ -240,6 +264,10 @@ export function HomeApp() {
   const [link, setLink] = useDeepLink(data.native);
   const [linkBusy, setLinkBusy] = useState(false);
   const searchRef = useRef(null);
+  // null | { name, busy } — the New project… sheet.
+  const [creating, setCreating] = useState(null);
+  const askNewProject = useCallback(() => setCreating((c) => c ?? { name: '', busy: false }), []);
+  useNewProjectRequest(data.native, askNewProject);
 
   const model = useMemo(
     () =>
@@ -378,6 +406,32 @@ export function HomeApp() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [link, setLink]);
+
+  const createProject = useCallback(async () => {
+    if (!creating || creating.busy || !data.native) return;
+    setCreating({ ...creating, busy: true });
+    try {
+      const r = await createLocal(creating.name.trim());
+      if (!r.ok || !r.json?.ok || typeof r.json.root !== 'string') {
+        setNotice(r.json?.error || 'The project could not be created. Nothing changed.');
+        setCreating((c) => (c ? { ...c, busy: false } : c));
+        return;
+      }
+      setCreating(null);
+      await openProject({ root: r.json.root });
+    } catch (e) {
+      setCreating(null);
+      fail(e);
+    }
+  }, [creating, data.native, fail]);
+  useEffect(() => {
+    if (!creating) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setCreating(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [creating]);
 
   const hasProjects = model.groups.some((g) => g.rows.length);
   return (
@@ -561,7 +615,17 @@ export function HomeApp() {
               <p className="home-empty-line">No projects on this Mac yet.</p>
             ) : null}
             <div className="home-projmore">
-              <span />
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm home-projopen"
+                data-testid="home-new-project"
+                onClick={askNewProject}
+                disabled={!data.native}
+              >
+                <HIcon name="plus" size={14} />
+                New project…
+                <kbd className="kbd">⇧⌘N</kbd>
+              </button>
               <button
                 type="button"
                 className="btn btn--ghost btn--sm home-projopen"
@@ -612,6 +676,52 @@ export function HomeApp() {
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {creating ? (
+        <div className="home-link-modal" role="dialog" aria-modal="true" aria-label="New project">
+          <div className="home-link-scrim" aria-hidden="true" onClick={() => setCreating(null)} />
+          <form
+            className="island home-link-dialog"
+            data-testid="home-create-dialog"
+            onSubmit={(e) => {
+              e.preventDefault();
+              createProject();
+            }}
+          >
+            <h2>New project</h2>
+            <p>It goes in the Maude folder in your home folder and opens in a new tab.</p>
+            <input
+              className="home-create-name"
+              data-testid="home-create-name"
+              aria-label="Project name"
+              placeholder="Untitled project"
+              // biome-ignore lint/a11y/noAutofocus: the sheet opens for this one field
+              autoFocus
+              maxLength={80}
+              value={creating.name}
+              onChange={(e) => setCreating({ ...creating, name: e.target.value })}
+            />
+            <div className="home-link-foot">
+              <button
+                type="button"
+                className="btn"
+                data-testid="home-create-cancel"
+                onClick={() => setCreating(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                data-testid="home-create-submit"
+                disabled={creating.busy}
+              >
+                {creating.busy ? 'Creating…' : 'Create project'}
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
     </div>
