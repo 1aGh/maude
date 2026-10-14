@@ -13,6 +13,7 @@
     "e2e:switchrepos": "wdio run ./wdio.switchrepos.conf.ts",
     "e2e:tabs": "wdio run ./wdio.tabs.conf.ts",
     "e2e:tabs-identity": "wdio run ./wdio.tabs-identity.conf.ts",
+    "e2e:relaunch": "wdio run ./wdio.relaunch.conf.ts",
     "e2e:home": "wdio run ./wdio.home.conf.ts",
     "e2e:onboarding": "wdio run ./wdio.onboarding.conf.ts",
     "e2e:acp-cold-start": "wdio run ./wdio.acp-cold-start.conf.ts",

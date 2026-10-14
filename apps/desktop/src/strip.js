@@ -7,9 +7,7 @@
 //   tab_close({ label })     → the tab's × or a middle click (never Home)
 // Every command re-checks in Rust that the caller is this webview on this page.
 // Names arrive sanitized and are set as text only, never as markup.
-(function () {
-  'use strict';
-
+(() => {
   var tauri = window.__TAURI__;
   var tabsEl = document.getElementById('tabs');
   var homeEl = document.getElementById('home');
@@ -64,26 +62,35 @@
     close.innerHTML =
       '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">' +
       '<path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
-    close.addEventListener('click', function (ev) {
+    close.addEventListener('click', (ev) => {
       ev.stopPropagation();
       closeTab(t.label);
     });
-    close.addEventListener('mousedown', function (ev) {
+    close.addEventListener('mousedown', (ev) => {
       ev.stopPropagation();
     });
     el.appendChild(close);
 
-    // Activate on press, like a native tab; a middle click closes.
-    el.addEventListener('mousedown', function (ev) {
-      if (ev.button === 0) activate(t.label);
+    // Activate on press, like a native tab; a middle click closes. A `click` with no press
+    // before it (assistive tech, `element.click()` — the e2e WebDriver's click) activates too.
+    var pressed = false;
+    el.addEventListener('mousedown', (ev) => {
+      if (ev.button === 0) {
+        pressed = true;
+        activate(t.label);
+      }
     });
-    el.addEventListener('auxclick', function (ev) {
+    el.addEventListener('click', () => {
+      if (!pressed) activate(t.label);
+      pressed = false;
+    });
+    el.addEventListener('auxclick', (ev) => {
       if (ev.button === 1) {
         ev.preventDefault();
         closeTab(t.label);
       }
     });
-    el.addEventListener('keydown', function (ev) {
+    el.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
         activate(t.label);
@@ -103,10 +110,18 @@
     document.body.setAttribute('data-active', s.active);
   }
 
-  homeEl.addEventListener('mousedown', function (ev) {
-    if (ev.button === 0) activate('home');
+  var homePressed = false;
+  homeEl.addEventListener('mousedown', (ev) => {
+    if (ev.button === 0) {
+      homePressed = true;
+      activate('home');
+    }
   });
-  homeEl.addEventListener('keydown', function (ev) {
+  homeEl.addEventListener('click', () => {
+    if (!homePressed) activate('home');
+    homePressed = false;
+  });
+  homeEl.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
       activate('home');

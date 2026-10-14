@@ -8,10 +8,10 @@ import { invokeTauri } from '../helpers/native';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
 import {
   activeTab,
-  closeTab,
   focusTab,
   handles,
   labels,
+  menuState,
   openTab,
   pinCurrentWindow,
   STRIP,
@@ -210,7 +210,11 @@ describe('project-tabs (native-desktop)', () => {
 
   // V2-3.7 contract §10 q6: children are re-laid-out on a resize and in fullscreen.
   it('the shell re-lays-out the strip and every tab on resize and in fullscreen', async () => {
-    type Bounds = { inner: [number, number]; fullscreen: boolean; children: Record<string, number[]> };
+    type Bounds = {
+      inner: [number, number];
+      fullscreen: boolean;
+      children: Record<string, number[]>;
+    };
     const at = (args: Record<string, unknown>) => invokeTauri<Bounds>('e2e_shell_bounds', args);
     const near = (got: number[], want: number[], what: string) =>
       got.forEach((v, i) => {
@@ -283,15 +287,39 @@ describe('project-tabs (native-desktop)', () => {
     await capture('4-open-once-focused-b');
   });
 
-  it("closing tab B stops only B's server, after the grace", async () => {
+  // V2-3.9 T5: the Window menu's tab items (⌃⌘1…⌃⌘8 / ⌃⌘9, ⌃Tab / ⌃⇧Tab) walk the strip,
+  // then Home, wrapping.
+  it('the tab menu jumps to tab 1 and the last tab, and Next / Previous wrap through Home', async () => {
+    await focusTab(tabB);
+    expect((await menuState('select_tab_1')).active).toBe(tabA);
+    expect(await activeTab()).toBe(tabA);
+    expect((await menuState('select_tab_last')).active).toBe(tabB);
+    expect(await activeTab()).toBe(tabB);
+    expect((await menuState('next_tab')).active).toBe('home');
+    expect((await menuState('next_tab')).active).toBe(tabA);
+    expect((await menuState('prev_tab')).active).toBe('home');
+    expect((await menuState('prev_tab')).active).toBe(tabB);
+    expect((await strip()).active).toBe(tabB);
+    expect(await activeTab()).toBe(tabB);
+  });
+
+  it("⌘W (Close Tab) closes the active tab B; B's server stops only after the grace", async () => {
     const a = readServerInfo(PRIMARY);
     const b = readServerInfo(SECONDARY);
     expect(await healthy(a.url)).toBe(true);
     expect(await healthy(b.url)).toBe(true);
 
+    await focusTab(tabB);
     const closedAt = Date.now();
-    await closeTab(tabB, tabA, true); // the user close path (CloseRequested → Destroyed)
+    // File ▸ Close Tab: the user close path of the ACTIVE tab (the strip's ×, guard first).
+    // Asked from A's (hidden) page: the call must outlive the tab it closes.
+    await browser.switchToWindow(tabA);
+    await menuState('close_tab');
+    await waitWindow(tabB, false);
+    await browser.switchToWindow(tabA);
     expect(await labels()).toEqual([tabA]);
+    await browser.waitUntil(async () => (await strip()).tabs.length === 1, { timeout: 5_000 });
+    expect((await strip()).tabs).toEqual([tabA]);
 
     // Inside the grace B is still up (a reopen would be instant)…
     await browser.pause(2_000);
@@ -360,5 +388,23 @@ describe('project-tabs (native-desktop)', () => {
     expect(next.label).not.toBe(rested);
     await focusTab(rested);
     await waitBranch(branchOf[rested] as string);
+  });
+
+  it('the strip’s × closes a background tab; the active tab stays', async () => {
+    const before = (await strip()).tabs;
+    expect(before).toHaveLength(3);
+    const victim = before.find((l) => l !== rested) as string;
+    await browser.switchToWindow(STRIP);
+    await (await $(`[data-testid="tab-close-${victim}"]`)).click();
+    await waitWindow(victim, false, 15_000);
+    await browser.switchToWindow(rested);
+    // The strip redraws on the shell's next push (debounced).
+    await browser.waitUntil(async () => (await strip()).tabs.length === before.length - 1, {
+      timeout: 5_000,
+      timeoutMsg: 'the strip still lists the closed tab',
+    });
+    expect((await strip()).tabs).toEqual(before.filter((l) => l !== victim));
+    expect(await activeTab()).toBe(rested);
+    await capture('8-strip-close');
   });
 });

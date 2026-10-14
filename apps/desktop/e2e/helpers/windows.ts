@@ -105,12 +105,30 @@ export async function strip(): Promise<{
     return {
       tabs,
       active: document.body.getAttribute('data-active'),
-      home: { label: home?.getAttribute('aria-label') ?? null, text: (home?.textContent || '').trim() },
+      home: {
+        label: home?.getAttribute('aria-label') ?? null,
+        text: (home?.textContent || '').trim(),
+      },
       dots,
     };
   });
   if (back && back !== STRIP) await browser.switchToWindow(back).catch(() => {});
   return s;
+}
+
+/** What `e2e_menu_state` answers: the active tab and AppKit's enablement of the role items
+ *  (menu.rs `ROLE_ITEMS`: new_canvas, new_project, open_project_folder, show_home, close_tab,
+ *  next_tab, prev_tab). */
+export interface MenuState {
+  active: string | null;
+  enabled: Record<string, boolean | null>;
+}
+
+/** Read the native menu's state — after clicking the menu item `click` (its id, e.g.
+ *  `select_tab_1`, `close_tab`, `show_home`) through the same handler AppKit's click runs.
+ *  WebDriver keys never reach the menu bar, so this is how a scenario presses ⌘W / ⌃⌘1. */
+export async function menuState(click?: string): Promise<MenuState> {
+  return invokeTauri<MenuState>('e2e_menu_state', click ? { click } : {});
 }
 
 /** Wait until `label` is (or, with `present: false`, is no longer) a window. */

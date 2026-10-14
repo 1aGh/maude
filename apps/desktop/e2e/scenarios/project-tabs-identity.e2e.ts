@@ -9,6 +9,7 @@ import {
   labels,
   openTab,
   pinCurrentWindow,
+  strip,
   waitWindow,
 } from '../helpers/windows';
 
@@ -120,6 +121,37 @@ describe('project-tabs-identity (native-desktop)', () => {
     await focusTab(tabA);
     expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
     await capture('2-a-still-x');
+  });
+
+  // V2-3.9 T6 (contract V2-3.7 §6): the activity poller's dot, set before the notification
+  // cooldown. The fixture has no agent to finish a turn, so `e2e_ai_transition` runs the dot
+  // half of one poll tick (notify.rs); activation clears it.
+  it('a background tab whose AI finishes gets the dot; activating it clears the dot', async () => {
+    await focusTab(tabA);
+    expect((await strip()).dots).toEqual({});
+    // The active tab never takes a dot.
+    expect(
+      await invokeTauri<boolean>('e2e_ai_transition', { root: PRIMARY, state: 'finished' })
+    ).toBe(false);
+    expect(
+      await invokeTauri<boolean>('e2e_ai_transition', { root: SECONDARY, state: 'finished' })
+    ).toBe(true);
+    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'done', {
+      timeout: 5_000,
+      timeoutMsg: `no done dot on ${tabB}: ${JSON.stringify((await strip()).dots)}`,
+    });
+    await invokeTauri('e2e_ai_transition', { root: SECONDARY, state: 'awaiting-input' });
+    await browser.waitUntil(async () => (await strip()).dots[tabB] === 'needs-you', {
+      timeout: 5_000,
+    });
+    expect((await strip()).dots[tabA]).toBeUndefined();
+    await capture('2b-dot-on-background-b');
+    await focusTab(tabB);
+    await browser.waitUntil(async () => (await strip()).dots[tabB] === undefined, {
+      timeout: 5_000,
+      timeoutMsg: 'activating B did not clear its dot',
+    });
+    expect((await strip()).dots).toEqual({});
   });
 
   it('a notification click focuses that project’s tab', async () => {
