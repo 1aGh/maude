@@ -633,6 +633,8 @@ pub fn run() {
             tabs::tab_close,
             tabs::tab_reorder,
             tabs::e2e_shell_bounds,
+            menu::e2e_menu_state,
+            notify::e2e_ai_transition,
             open_project_folder,
             home::shell_state,
             home::home_session,
@@ -673,60 +675,7 @@ pub fn run() {
             profiles::profiles_delete,
         ])
         .menu(menu::build_menu)
-        .on_menu_event(|app, event| {
-            // The focused window (no fallback) — where a menu action lands.
-            let focused = || {
-                app.try_state::<SidecarState>().and_then(|s| {
-                    menu::action_target(&s.windows.lock().unwrap_or_else(|e| e.into_inner()))
-                })
-            };
-            let Some(route) = menu::route(event.id().as_ref()) else {
-                return; // a predefined item: AppKit handled it
-            };
-            let id = match route {
-                // exec:'shell' (V2-1.3 §5.8): the focused window's webview runs the
-                // action by registry id — File ▸ New Canvas (`canvas.new`), Help ▸
-                // Report a Bug… (`help.report-bug`, the dialog owns capture + consent)
-                // and New Project… (`project.new`: a project window opens IdentityBar's
-                // create dialog; on Home it is the create sheet once Home has one —
-                // V2-1.1 §5.9's target is "focus/open Home, then emit to it"). No
-                // focused window → nothing (never a background tab).
-                menu::MenuRoute::Action(action) => {
-                    if let Some(label) = focused() {
-                        let _ = app.emit_to(
-                            EventTarget::AnyLabel { label },
-                            menu::MENU_ACTION_EVENT,
-                            serde_json::json!({ "id": action }),
-                        );
-                    }
-                    return;
-                }
-                menu::MenuRoute::Native(id) => id,
-            };
-            if id == menu::MENU_CHECK_UPDATES {
-                // Maude ▸ Check for Updates… — force a check now with explicit
-                // dialog feedback (the background loop is otherwise silent).
-                updater::check_now_interactive(app.clone());
-                return;
-            }
-            // File ▸ Open Project… ⌘O — the `open_project_folder` flow; the new tab
-            // goes after the focused window, as from the command.
-            if id == menu::MENU_OPEN_PROJECT_FOLDER {
-                pick_and_open_folder(app, focused());
-                return;
-            }
-            // File ▸ New Home Tab ⌘T (`home.open`) — the `new_home_tab` flow: focus
-            // Home, or open it as a tab of the focused window.
-            if id == menu::MENU_NEW_HOME_TAB {
-                let app = app.clone();
-                let caller = focused();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = home::ensure_home_window(&app, caller.as_deref()) {
-                        sidecar::log_line(&format!("[maude] could not open Home: {e}"));
-                    }
-                });
-            }
-        })
+        .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .setup(|app| {
             let handle = app.handle().clone();
 
@@ -834,11 +783,11 @@ pub fn run() {
             }
             match &plan {
                 BootPlan::Project(root) => {
-                    windows::boot_windows(&handle, Some(&root.to_string_lossy()), None);
+                    windows::boot_windows(&handle, Some(&root.to_string_lossy()));
                 }
                 BootPlan::Home { reopen } => {
                     let reopen = reopen.as_ref().map(|r| r.to_string_lossy().into_owned());
-                    windows::boot_windows(&handle, reopen.as_deref(), Some(windows::HOME_LABEL));
+                    windows::boot_windows(&handle, reopen.as_deref());
                 }
             }
 
@@ -956,6 +905,56 @@ pub fn run() {
         }
         _ => {}
     });
+}
+
+/// A click on a native menu item (`on_menu_event`; `menu::e2e_menu_state` clicks one in a debug
+/// build). `id` is the menu-item id.
+pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
+    // The focused window (no fallback) — where a menu action lands.
+    let focused = || {
+        app.try_state::<SidecarState>().and_then(|s| {
+            menu::action_target(&s.windows.lock().unwrap_or_else(|e| e.into_inner()))
+        })
+    };
+    let Some(route) = menu::route(id) else {
+        return; // a predefined item: AppKit handled it
+    };
+    let id = match route {
+        // exec:'shell' (V2-1.3 §5.8): the focused window's webview runs the
+        // action by registry id — File ▸ New Canvas (`canvas.new`), Help ▸
+        // Report a Bug… (`help.report-bug`, the dialog owns capture + consent)
+        // and New Project… (`project.new`: a project tab opens IdentityBar's
+        // create dialog; Home opens its create sheet — V2-3.9, home-app.jsx).
+        // The ACTIVE tab only: no active tab → nothing (never a background tab).
+        menu::MenuRoute::Action(action) => {
+            if let Some(label) = focused() {
+                let _ = app.emit_to(
+                    EventTarget::AnyLabel { label },
+                    menu::MENU_ACTION_EVENT,
+                    serde_json::json!({ "id": action }),
+                );
+            }
+            return;
+        }
+        menu::MenuRoute::Native(id) => id,
+    };
+    if id == menu::MENU_CHECK_UPDATES {
+        // Maude ▸ Check for Updates… — force a check now with explicit
+        // dialog feedback (the background loop is otherwise silent).
+        updater::check_now_interactive(app.clone());
+        return;
+    }
+    // File ▸ Open Project… ⌘O — the `open_project_folder` flow; the new tab
+    // goes after the focused window, as from the command.
+    if id == menu::MENU_OPEN_PROJECT_FOLDER {
+        pick_and_open_folder(app, focused());
+        return;
+    }
+    // V2-3.9 — File ▸ Show Home ⌘T (`home.open`, activates the pinned Home), Close Tab
+    // ⌘W, and the Window menu's tab items: the shell's own tab bar (tabs.rs).
+    if let Some(cmd) = menu::tab_command(&id) {
+        tabs::run_tab_command(app, cmd);
+    }
 }
 
 #[cfg(test)]

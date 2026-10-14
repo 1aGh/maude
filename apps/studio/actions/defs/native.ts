@@ -30,14 +30,63 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     native: { menu: 'File', order: 3 },
   },
   {
-    // V2-1.1 §5.9: New Home tab (File) / Back to Home (Menu) — focus Home, or open it as a tab
-    // of the focused window (`new_home_tab`).
+    // V2-1.1 §5.9 / V2-3.9: Show Home (File) / Back to Home (Menu) — activate the pinned Home tab
+    // (`new_home_tab`). Disabled while Home is the active tab (menu.rs `apply_role`).
     id: 'home.open',
-    label: 'New Home tab',
+    label: 'Show Home',
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘T', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'File', order: 4 },
+  },
+  // ── V2-3.9: the own tab bar's tab commands (contract V2-3.7 §5). Native: the shell owns the
+  // tab list, so lib.rs runs them; no web binding fires them (AppKit takes the accelerator). ──
+  {
+    // ⌘W: the strip's × path (the "Stop AI in …?" guard first). Disabled on Home.
+    id: 'tab.close',
+    label: 'Close tab',
+    kind: 'command',
+    exec: 'native',
+    keys: [kb('⌘W', 'global', { inText: true, when: DESKTOP })],
+    native: { menu: 'File', order: 5 },
+  },
+  {
+    // The project tabs in strip order, then Home, wrapping.
+    id: 'tab.next',
+    label: 'Show next tab',
+    kind: 'command',
+    exec: 'native',
+    keys: [kb('⌃tab', 'global', { inText: true, when: DESKTOP })],
+    native: { menu: 'Window', order: 1 },
+  },
+  {
+    id: 'tab.prev',
+    label: 'Show previous tab',
+    kind: 'command',
+    exec: 'native',
+    keys: [kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP })],
+    native: { menu: 'Window', order: 2 },
+  },
+  // Jump to project tab 1…8, and to the LAST project tab (Home is Show Home). ⌃⌘<n>, not ⌘<n>:
+  // ⌘1 is view.zoom-actual on the canvas (an AppKit accelerator would take it from the page), ⌥⌘<n>
+  // is view.jump-artboard, ⇧⌘3/4/5 are macOS screenshots and ⌃<n> is Mission Control's Desktop <n>.
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map(
+    (n): ActionDef => ({
+      id: `tab.select-${n}`,
+      label: `Show tab ${n}`,
+      kind: 'command',
+      exec: 'native',
+      keys: [kb(`⌃⌘${n}`, 'global', { inText: true, when: DESKTOP })],
+      native: { menu: 'Window', order: 2 + n },
+    })
+  ),
+  {
+    id: 'tab.select-last',
+    label: 'Show last tab',
+    kind: 'command',
+    exec: 'native',
+    keys: [kb('⌃⌘9', 'global', { inText: true, when: DESKTOP })],
+    native: { menu: 'Window', order: 11 },
   },
   {
     id: 'app.check-updates',

@@ -56,11 +56,22 @@
         },
         {
           "kind": "item",
-          "id": "new_home_tab",
+          "id": "show_home",
           "action": "home.open",
-          "label": "New Home Tab",
+          "label": "Show Home",
           "exec": "native",
           "accel": "CmdOrCtrl+T"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "close_tab",
+          "action": "tab.close",
+          "label": "Close Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+W"
         }
       ]
     },
@@ -110,6 +121,100 @@
         {
           "kind": "predefined",
           "name": "zoom"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "next_tab",
+          "action": "tab.next",
+          "label": "Show Next Tab",
+          "exec": "native",
+          "accel": "Ctrl+Tab"
+        },
+        {
+          "kind": "item",
+          "id": "prev_tab",
+          "action": "tab.prev",
+          "label": "Show Previous Tab",
+          "exec": "native",
+          "accel": "Ctrl+Shift+Tab"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_1",
+          "action": "tab.select-1",
+          "label": "Tab 1",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+1"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_2",
+          "action": "tab.select-2",
+          "label": "Tab 2",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+2"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_3",
+          "action": "tab.select-3",
+          "label": "Tab 3",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+3"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_4",
+          "action": "tab.select-4",
+          "label": "Tab 4",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+4"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_5",
+          "action": "tab.select-5",
+          "label": "Tab 5",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+5"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_6",
+          "action": "tab.select-6",
+          "label": "Tab 6",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+6"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_7",
+          "action": "tab.select-7",
+          "label": "Tab 7",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+7"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_8",
+          "action": "tab.select-8",
+          "label": "Tab 8",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+8"
+        },
+        {
+          "kind": "item",
+          "id": "select_tab_last",
+          "action": "tab.select-last",
+          "label": "Last Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+Ctrl+9"
         },
         {
           "kind": "separator",

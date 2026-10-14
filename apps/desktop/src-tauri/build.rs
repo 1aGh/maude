@@ -81,6 +81,10 @@ fn main() {
                 "e2e_open_root",
                 // V2-3.7 (tabs.rs): the shell's child bounds after a resize / fullscreen.
                 "e2e_shell_bounds",
+                // V2-3.9 (menu.rs): click a menu item / read its enablement.
+                "e2e_menu_state",
+                // V2-3.9 (notify.rs): the dot half of one poll tick.
+                "e2e_ai_transition",
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ec2af13544a1",
+  "manifestVersion": "729aff7d5b7c",
   "actions": [
     {
       "id": "search.open",
@@ -1366,7 +1366,139 @@
     },
     {
       "id": "home.open",
-      "label": "New Home tab",
+      "label": "Show Home",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.close",
+      "label": "Close tab",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.next",
+      "label": "Show next tab",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.prev",
+      "label": "Show previous tab",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-1",
+      "label": "Show tab 1",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-2",
+      "label": "Show tab 2",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-3",
+      "label": "Show tab 3",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-4",
+      "label": "Show tab 4",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-5",
+      "label": "Show tab 5",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-6",
+      "label": "Show tab 6",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-7",
+      "label": "Show tab 7",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-8",
+      "label": "Show tab 8",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.select-last",
+      "label": "Show last tab",
       "kind": "command",
       "exec": "native",
       "effect": "none",

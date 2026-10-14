@@ -188,5 +188,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'project.new': { effect: 'project', agent: human('onboarding') },
   'project.open': { effect: 'none', agent: human('native-window') },
   'home.open': { effect: 'none', agent: human('native-window') },
+  // V2-3.9: the shell's tab bar — a person's window, never an agent's.
+  'tab.close': { effect: 'none', agent: human('native-window') },
+  'tab.next': { effect: 'none', agent: human('native-window') },
+  'tab.prev': { effect: 'none', agent: human('native-window') },
+  ...Object.fromEntries(
+    [1, 2, 3, 4, 5, 6, 7, 8].map((n) => [
+      `tab.select-${n}`,
+      { effect: 'none', agent: human('native-window') },
+    ])
+  ),
+  'tab.select-last': { effect: 'none', agent: human('native-window') },
   'app.check-updates': { effect: 'none', agent: human('native-window') },
 };

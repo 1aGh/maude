@@ -4,8 +4,10 @@
 // Tauri menu items. Never add an item here by hand — add it to apps/studio/actions/native-menu.ts
 // (+ the action in defs/) and regenerate.
 //
-// V2-3.4 (C3): File = New Canvas ⌘N · New Project… ⇧⌘N · Open Project… ⌘O · New Home Tab ⌘T,
-// plus a Window menu. A click routes by the item's registry `exec` (§5.8): `shell` items emit
+// V2-3.4 (C3): File = New Canvas ⌘N · New Project… ⇧⌘N · Open Project… ⌘O · Show Home ⌘T
+// (V2-3.9: was New Home Tab) · Close Tab ⌘W, plus a Window menu with the own tab bar's items
+// (Show Next / Previous Tab ⌃Tab / ⌃⇧Tab, Tab 1…8 ⌃⌘1…⌃⌘8, Last Tab ⌃⌘9). `apply_role` sets
+// what is enabled on every tab activation (contract V2-3.7 §5). A click routes by the item's registry `exec` (§5.8): `shell` items emit
 // `menu://action {id}` to the focused window (the webview runs the action), `native` items have
 // an arm in lib.rs. `menu://new-project` and `menu://report-bug` are retired.
 
@@ -18,8 +20,116 @@ use tauri::{AppHandle, Runtime};
 /// Menu-item id for File ▸ Open Project… — the same flow as the `open_project_folder` command.
 pub const MENU_OPEN_PROJECT_FOLDER: &str = "open_project_folder";
 
-/// Menu-item id for File ▸ New Home Tab (`home.open`) — the same flow as `new_home_tab`.
-pub const MENU_NEW_HOME_TAB: &str = "new_home_tab";
+/// Menu-item id for File ▸ Show Home (`home.open`) — activate the pinned Home (`new_home_tab`).
+pub const MENU_SHOW_HOME: &str = "show_home";
+
+/// File ▸ Close Tab ⌘W (`tab.close`) — the strip's × path.
+pub const MENU_CLOSE_TAB: &str = "close_tab";
+/// Window ▸ Show Next / Previous Tab (`tab.next` / `tab.prev`).
+pub const MENU_NEXT_TAB: &str = "next_tab";
+pub const MENU_PREV_TAB: &str = "prev_tab";
+/// Window ▸ Tab 1…8 (`tab.select-<n>`, id `select_tab_<n>`) and Last Tab (`tab.select-last`).
+pub const MENU_SELECT_TAB_PREFIX: &str = "select_tab_";
+pub const MENU_SELECT_LAST_TAB: &str = "select_tab_last";
+
+/// What a tab-bar menu item asks the shell to do (lib.rs runs it on `tabs`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TabCommand {
+    ShowHome,
+    Close,
+    Next,
+    Prev,
+    /// Project tab `n` (1-based, strip order).
+    Select(usize),
+    /// The last project tab.
+    Last,
+}
+
+/// The tab command a native menu-item id names, if any.
+pub fn tab_command(id: &str) -> Option<TabCommand> {
+    match id {
+        MENU_SHOW_HOME => Some(TabCommand::ShowHome),
+        MENU_CLOSE_TAB => Some(TabCommand::Close),
+        MENU_NEXT_TAB => Some(TabCommand::Next),
+        MENU_PREV_TAB => Some(TabCommand::Prev),
+        MENU_SELECT_LAST_TAB => Some(TabCommand::Last),
+        _ => id
+            .strip_prefix(MENU_SELECT_TAB_PREFIX)
+            .and_then(|n| n.parse::<usize>().ok())
+            .filter(|n| (1..=8).contains(n))
+            .map(TabCommand::Select),
+    }
+}
+
+/// Which kind of tab is active — what the File menu offers (contract V2-3.7 §5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuRole {
+    Home,
+    Project,
+}
+
+/// The menu items whose enablement follows the active tab.
+pub const ROLE_ITEMS: [&str; 7] = [
+    "new_canvas",
+    "new_project",
+    MENU_OPEN_PROJECT_FOLDER,
+    MENU_SHOW_HOME,
+    MENU_CLOSE_TAB,
+    MENU_NEXT_TAB,
+    MENU_PREV_TAB,
+];
+
+/// Pure: each `ROLE_ITEMS` id and whether it is enabled. On Home, New Canvas (no project to put
+/// it in), Show Home (it is showing) and Close Tab (Home never closes) are off; New Project and
+/// Open Project stay on. On a project everything is on. Next / Previous need a project tab to go
+/// to.
+pub fn enablement(role: MenuRole, project_tabs: usize) -> [(&'static str, bool); 7] {
+    let project = role == MenuRole::Project;
+    let can_cycle = project_tabs > 0;
+    [
+        ("new_canvas", project),
+        ("new_project", true),
+        (MENU_OPEN_PROJECT_FOLDER, true),
+        (MENU_SHOW_HOME, project),
+        (MENU_CLOSE_TAB, project),
+        (MENU_NEXT_TAB, can_cycle),
+        (MENU_PREV_TAB, can_cycle),
+    ]
+}
+
+/// A menu item by id, looked up one submenu deep (`Menu::get` does not descend).
+fn find_item<R: Runtime>(app: &AppHandle<R>, id: &str) -> Option<tauri::menu::MenuItem<R>> {
+    let menu = app.menu()?;
+    for top in menu.items().ok()? {
+        let Some(sub) = top.as_submenu() else { continue };
+        if let Some(it) = sub.get(id).and_then(|k| k.as_menuitem().cloned()) {
+            return Some(it);
+        }
+    }
+    None
+}
+
+/// Set the File / Window items for the active tab (`tabs::activate`, and every tab-list
+/// change). Never call it holding the book lock: menu calls run on the main thread.
+pub fn apply_role<R: Runtime>(app: &AppHandle<R>, role: MenuRole, project_tabs: usize) {
+    for (id, on) in enablement(role, project_tabs) {
+        if let Some(it) = find_item(app, id) {
+            let _ = it.set_enabled(on);
+        }
+    }
+}
+
+/// What AppKit reports now for each `ROLE_ITEMS` id (`e2e_menu_state`).
+pub fn menu_state<R: Runtime>(app: &AppHandle<R>) -> serde_json::Map<String, serde_json::Value> {
+    let mut out = serde_json::Map::new();
+    for id in ROLE_ITEMS {
+        let v = find_item(app, id)
+            .and_then(|it| it.is_enabled().ok())
+            .map_or(serde_json::Value::Null, serde_json::Value::Bool);
+        out.insert(id.to_string(), v);
+    }
+    out
+}
 
 /// Menu-item id for the Maude ▸ Check for Updates… action (manual update check).
 pub const MENU_CHECK_UPDATES: &str = "check_updates";
@@ -33,10 +143,22 @@ pub const MENU_ACTION_EVENT: &str = "menu://action";
 /// natively. Test-only: lib.rs matches the `MENU_*` constants directly, so keep this list in step
 /// with its arms.
 #[cfg(test)]
-pub const HANDLED_MENU_IDS: [&str; 3] = [
+pub const HANDLED_MENU_IDS: [&str; 15] = [
     MENU_OPEN_PROJECT_FOLDER,
-    MENU_NEW_HOME_TAB,
+    MENU_SHOW_HOME,
     MENU_CHECK_UPDATES,
+    MENU_CLOSE_TAB,
+    MENU_NEXT_TAB,
+    MENU_PREV_TAB,
+    "select_tab_1",
+    "select_tab_2",
+    "select_tab_3",
+    "select_tab_4",
+    "select_tab_5",
+    "select_tab_6",
+    "select_tab_7",
+    "select_tab_8",
+    MENU_SELECT_LAST_TAB,
 ];
 
 /// The generated slice, embedded at compile time.
@@ -186,6 +308,44 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     MenuBuilder::new(app).items(&refs).build()
 }
 
+/// Debug-only e2e helper (V2-3.9 T7): optionally click a native menu item by id (`click`, the
+/// same `on_menu` path AppKit's click takes — WebDriver keys never reach the menu bar), then
+/// answer AppKit's enablement of every `ROLE_ITEMS` id and the active tab. Granted only by
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub async fn e2e_menu_state(
+    app: tauri::AppHandle,
+    click: Option<String>,
+) -> Result<serde_json::Value, String> {
+    #[cfg(debug_assertions)]
+    {
+        if let Some(id) = click {
+            if route(&id).is_none() {
+                return Err(format!("no menu item {id}"));
+            }
+            let a = app.clone();
+            app.run_on_main_thread(move || crate::on_menu(&a, &id))
+                .map_err(|e| e.to_string())?;
+            // The click's activation, then `changed`'s debounced menu refresh.
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        }
+        let active = tauri::Manager::try_state::<crate::sidecar::SidecarState>(&app)
+            .and_then(|s| {
+                s.windows
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .focused()
+                    .map(str::to_string)
+            });
+        Ok(serde_json::json!({ "active": active, "enabled": menu_state(&app) }))
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, click);
+        Err("debug builds only".into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,14 +408,28 @@ mod tests {
                     "open_project_folder".into(),
                     Some("CmdOrCtrl+O".into())
                 ),
-                (
-                    "File".into(),
-                    "new_home_tab".into(),
-                    Some("CmdOrCtrl+T".into())
-                ),
+                ("File".into(), "show_home".into(), Some("CmdOrCtrl+T".into())),
+                ("File".into(), "close_tab".into(), Some("CmdOrCtrl+W".into())),
+                ("Window".into(), "next_tab".into(), Some("Ctrl+Tab".into())),
+                ("Window".into(), "prev_tab".into(), Some("Ctrl+Shift+Tab".into())),
+                ("Window".into(), "select_tab_1".into(), Some("CmdOrCtrl+Ctrl+1".into())),
+                ("Window".into(), "select_tab_2".into(), Some("CmdOrCtrl+Ctrl+2".into())),
+                ("Window".into(), "select_tab_3".into(), Some("CmdOrCtrl+Ctrl+3".into())),
+                ("Window".into(), "select_tab_4".into(), Some("CmdOrCtrl+Ctrl+4".into())),
+                ("Window".into(), "select_tab_5".into(), Some("CmdOrCtrl+Ctrl+5".into())),
+                ("Window".into(), "select_tab_6".into(), Some("CmdOrCtrl+Ctrl+6".into())),
+                ("Window".into(), "select_tab_7".into(), Some("CmdOrCtrl+Ctrl+7".into())),
+                ("Window".into(), "select_tab_8".into(), Some("CmdOrCtrl+Ctrl+8".into())),
+                ("Window".into(), "select_tab_last".into(), Some("CmdOrCtrl+Ctrl+9".into())),
                 ("Help".into(), "report_bug".into(), None),
             ]
         );
+        // No two items share an accelerator.
+        let mut accels: Vec<String> = items().into_iter().filter_map(|(_, _, a)| a).collect();
+        let n = accels.len();
+        accels.sort();
+        accels.dedup();
+        assert_eq!(accels.len(), n, "a duplicated accelerator");
     }
 
     #[test]
@@ -279,8 +453,13 @@ mod tests {
             Some(MenuRoute::Native(MENU_OPEN_PROJECT_FOLDER.into()))
         );
         assert_eq!(
-            route("new_home_tab"),
-            Some(MenuRoute::Native(MENU_NEW_HOME_TAB.into()))
+            route("show_home"),
+            Some(MenuRoute::Native(MENU_SHOW_HOME.into()))
+        );
+        assert_eq!(route("new_home_tab"), None, "renamed to Show Home");
+        assert_eq!(
+            route("close_tab"),
+            Some(MenuRoute::Native(MENU_CLOSE_TAB.into()))
         );
         assert_eq!(
             route("check_updates"),
@@ -331,6 +510,50 @@ mod tests {
     }
 
     #[test]
+    fn menu_role_home_disables_new_canvas_show_home_and_close_tab() {
+        let on = |role, n| {
+            enablement(role, n)
+                .into_iter()
+                .filter(|(_, e)| *e)
+                .map(|(id, _)| id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            on(MenuRole::Home, 2),
+            ["new_project", "open_project_folder", "next_tab", "prev_tab"],
+            "Home: New Project works, New Canvas / Show Home / Close Tab do not"
+        );
+        assert_eq!(on(MenuRole::Project, 2), ROLE_ITEMS, "a project: everything");
+        // Home with no project tab: nowhere to cycle to.
+        assert_eq!(on(MenuRole::Home, 0), ["new_project", "open_project_folder"]);
+        // Every role item is in the menu.
+        let ids: Vec<String> = items().into_iter().map(|(_, id, _)| id).collect();
+        for id in ROLE_ITEMS {
+            assert!(ids.iter().any(|i| i == id), "{id} is not in the menu");
+        }
+    }
+
+    #[test]
+    fn menu_tab_commands_parse_from_their_item_ids() {
+        assert_eq!(tab_command("show_home"), Some(TabCommand::ShowHome));
+        assert_eq!(tab_command("close_tab"), Some(TabCommand::Close));
+        assert_eq!(tab_command("next_tab"), Some(TabCommand::Next));
+        assert_eq!(tab_command("prev_tab"), Some(TabCommand::Prev));
+        assert_eq!(tab_command("select_tab_1"), Some(TabCommand::Select(1)));
+        assert_eq!(tab_command("select_tab_8"), Some(TabCommand::Select(8)));
+        assert_eq!(tab_command("select_tab_last"), Some(TabCommand::Last));
+        for bad in ["select_tab_0", "select_tab_9", "select_tab_x", "new_canvas", "check_updates"] {
+            assert_eq!(tab_command(bad), None, "{bad}");
+        }
+        // Every native tab item of the menu parses.
+        for (_, id, _) in items() {
+            if id.starts_with(MENU_SELECT_TAB_PREFIX) || id.ends_with("_tab") || id == "show_home" {
+                assert!(tab_command(&id).is_some(), "{id}");
+            }
+        }
+    }
+
+    #[test]
     fn menu_window_menu_is_the_nsapp_windows_menu_with_predefined_items() {
         let window = spec()
             .menus
@@ -347,7 +570,28 @@ mod tests {
                 ItemSpec::Item { id, .. } => format!("item:{id}"),
             })
             .collect();
-        assert_eq!(names, ["minimize", "zoom", "-", "bring_all_to_front"]);
+        assert_eq!(
+            names,
+            [
+                "minimize",
+                "zoom",
+                "-",
+                "item:next_tab",
+                "item:prev_tab",
+                "-",
+                "item:select_tab_1",
+                "item:select_tab_2",
+                "item:select_tab_3",
+                "item:select_tab_4",
+                "item:select_tab_5",
+                "item:select_tab_6",
+                "item:select_tab_7",
+                "item:select_tab_8",
+                "item:select_tab_last",
+                "-",
+                "bring_all_to_front"
+            ]
+        );
         // Only the Window menu is the windows menu.
         let others = spec()
             .menus

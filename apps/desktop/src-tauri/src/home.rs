@@ -599,6 +599,7 @@ pub fn ensure_home_window(app: &AppHandle, caller: Option<&str>) -> Result<bool,
         label: HOME_LABEL.to_string(),
         title: "Home".to_string(),
         caller: None,
+        background: false,
     };
     if let Err(e) = (windows::TauriHost { app }).create(&spec) {
         state

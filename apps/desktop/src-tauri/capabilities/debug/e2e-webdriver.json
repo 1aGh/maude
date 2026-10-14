@@ -14,6 +14,8 @@
     "allow-e2e-close-window",
     "allow-e2e-open-root",
     "allow-e2e-shell-bounds",
+    "allow-e2e-menu-state",
+    "allow-e2e-ai-transition",
     "allow-e2e-bind-profile",
     "allow-e2e-github-sign-in-as",
     "allow-e2e-notification-click",
