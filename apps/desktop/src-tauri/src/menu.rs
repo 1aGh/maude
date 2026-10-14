@@ -69,6 +69,7 @@ pub enum MenuRole {
 }
 
 /// The menu items whose enablement follows the active tab.
+#[cfg_attr(not(debug_assertions), allow(dead_code))] // read by the debug-only e2e_menu_state
 pub const ROLE_ITEMS: [&str; 7] = [
     "new_canvas",
     "new_project",
@@ -120,6 +121,7 @@ pub fn apply_role<R: Runtime>(app: &AppHandle<R>, role: MenuRole, project_tabs: 
 }
 
 /// What AppKit reports now for each `ROLE_ITEMS` id (`e2e_menu_state`).
+#[cfg_attr(not(debug_assertions), allow(dead_code))] // read by the debug-only e2e_menu_state
 pub fn menu_state<R: Runtime>(app: &AppHandle<R>) -> serde_json::Map<String, serde_json::Value> {
     let mut out = serde_json::Map::new();
     for id in ROLE_ITEMS {
