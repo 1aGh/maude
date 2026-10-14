@@ -556,26 +556,32 @@ pub(crate) fn activity_url(info_file: &std::path::Path) -> Option<String> {
     crate::sidecar::read_shell_origin(info_file).map(|o| format!("{o}/_api/acp/activity"))
 }
 
+/// `GET /_api/acp/activity` of the instance `probe` names (V2-3.10 W6, §5.8.6):
+/// the same `probe_client()` as `/_api/shell/status` — no proxy (system curl
+/// honoured `http_proxy` for 127.0.0.1 unless `NO_PROXY` was set), no
+/// redirects — with the per-spawn token in `X-Maude-Shell`. Any failure is
+/// `None`.
+async fn probe_activity(probe: &crate::sidecar::ShellProbe) -> Option<ActivitySnapshot> {
+    let url = activity_url(&probe.info_file)?;
+    let resp = crate::sidecar::probe_client()?
+        .get(url)
+        .header("X-Maude-Shell", &probe.token)
+        .timeout(Duration::from_millis(ACTIVITY_PROBE_TIMEOUT_MS))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    resp.json::<ActivitySnapshot>().await.ok()
+}
+
 /// Probe one non-current instance's activity endpoint and fire on transition.
-/// `--` before the url in curl's argv stays as belt-and-braces (the A1 finding
-/// this poller was hardened against).
 async fn poll_one(app: &AppHandle, project_root: &str) {
-    let Some(url) = crate::sidecar::shell_info_file(app, project_root)
-        .and_then(|f| activity_url(&f))
-    else {
+    let Some(probe) = crate::sidecar::shell_probe_for(app, project_root) else {
         return;
     };
-    let out = crate::win_process::hidden_command("curl")
-        .args([
-            "-s",
-            "--max-time",
-            &format!("{:.1}", ACTIVITY_PROBE_TIMEOUT_MS as f64 / 1000.0),
-            "--",
-            &url,
-        ])
-        .output();
-    let Ok(out) = out else { return };
-    let Ok(snapshot) = serde_json::from_slice::<ActivitySnapshot>(&out.stdout) else {
+    let Some(snapshot) = probe_activity(&probe).await else {
         return;
     };
 
@@ -974,6 +980,37 @@ mod tests {
         assert_eq!(real_hits.load(Ordering::SeqCst), 2, "token probe + wrong-token probe");
         let _ = std::fs::remove_dir_all(project);
         let _ = std::fs::remove_dir_all(app_owned);
+    }
+
+    // V2-3.10 W6 — the activity probe carries the per-spawn token, like the status probe.
+    #[tokio::test]
+    async fn the_activity_probe_sends_the_per_spawn_token() {
+        let token = "c".repeat(64);
+        let want = token.clone();
+        let (port, hits) = responder(move |got| match got {
+            Some(t) if t == want => (200, r#"{"chats":[{"chatId":"c1","state":"running"}]}"#),
+            _ => (401, r#"{"error":"shell-token"}"#),
+        });
+        let dir = scratch("activity");
+        let info_file = dir.join("lproj-0001.json");
+        std::fs::write(
+            &info_file,
+            format!(r#"{{"pid":3,"port":{port},"url":"http://127.0.0.1:{port}","started":"t","mode":"project"}}"#),
+        )
+        .unwrap();
+        let probe = ShellProbe {
+            info_file: info_file.clone(),
+            token,
+        };
+        let snap = probe_activity(&probe).await.expect("answers to the spawn's token");
+        assert_eq!(snap.chats.len(), 1);
+        let wrong = ShellProbe {
+            info_file,
+            token: "d".repeat(64),
+        };
+        assert!(probe_activity(&wrong).await.is_none());
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     // ── V2-3.5: targets, click, badge, ai cache ─────────────────────────────
