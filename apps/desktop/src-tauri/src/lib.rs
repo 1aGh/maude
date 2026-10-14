@@ -642,6 +642,9 @@ pub fn run() {
             windows::e2e_focus_window,
             windows::e2e_close_window,
             windows::e2e_bind_profile,
+            oauth::e2e_github_sign_in_as,
+            profiles::cloud_sign_in_prepare,
+            profiles::cloud_signed_in,
             notify::e2e_notification_click,
             app_state::app_is_first_run,
             app_state::app_get_last_project,
@@ -728,6 +731,9 @@ pub fn run() {
             // setup is caught (and, only if opted in, written to a local file).
             prefs::init(&handle);
             crash_reporter::install(&handle);
+            // V2-3.8: debug builds only — the e2e lane's in-memory keychain.
+            #[cfg(debug_assertions)]
+            keychain::test_store::install_for_e2e();
 
             // issue #105 — a canvas with audio/video hard-aborts the web process
             // when no GStreamer audio sink is registered, and the user sees only

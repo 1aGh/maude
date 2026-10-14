@@ -23,6 +23,9 @@ fn main() {
                 "open_cloud_url",
                 "github_is_signed_in",
                 "github_sign_out",
+                // V2-3.8 (profiles.rs): a Maude Cloud sign-in keeps its project's profile.
+                "cloud_sign_in_prepare",
+                "cloud_signed_in",
                 "pick_directory",
                 "resolve_dev_server_url",
                 "open_local_project",
@@ -73,6 +76,8 @@ fn main() {
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",
+                // V2-3.8 (oauth.rs): the real sign-in write path on a fake keychain.
+                "e2e_github_sign_in_as",
                 // V2-3.6 M5: e2e delivers a deep link through the shell (pages
                 // can no longer emit events).
                 "e2e_deliver_deep_link",

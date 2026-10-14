@@ -213,8 +213,8 @@ fn caller_target(label: &str) -> EventTarget {
 ///    window so its modal shows the code, and open the browser at the
 ///    verification URL.
 /// 2. Poll until authorized (or expired/denied).
-/// 3. Store the token in `profile`'s keychain slot (never on disk) and return
-///    the **login**.
+/// 3. Store the token in a keychain slot (never on disk) and return the
+///    **login** — the slot is picked by `complete_github_sign_in` (V2-3.8).
 ///
 /// The profile is the CALLING window's project binding (V2-3.2, contract §5.4:
 /// resolved from the `Webview`, never from an argument — the `Some(profile)`
@@ -223,7 +223,8 @@ fn caller_target(label: &str) -> EventTarget {
 /// once cannot cross wires.
 #[tauri::command]
 pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<String, String> {
-    let profile = crate::keychain::resolve_profile(&app, &webview)?;
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let profile = crate::app_state::profile_for(&app, &caller.root);
     if !crate::profiles::exists(&profile) {
         return Err("That account profile doesn't exist.".to_string());
     }
@@ -273,16 +274,79 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
     }
 
     let token = poll_for_token(&client, &client_id, &dc.device_code, dc.interval).await?;
-
-    // The token is a secret → this profile's keychain slot only (DDR-108/132).
-    crate::keychain::set_token(&profile, &token)
-        .map_err(|e| format!("Signed in, but couldn't save it securely: {e}"))?;
-
+    // The login FIRST: which profile the token may go to depends on whose it is.
     let login = fetch_login(&client, &token).await?;
-    // The public handle only — display data for the profile chip.
-    crate::profiles::set_github_login(&profile, &login);
-    let _ = app.emit_to(target, "github://signed-in", &login);
+    complete_github_sign_in(&app, &caller.label, &caller.root, &login, &token)?;
     Ok(login)
+}
+
+/// V2-3.8 — the write half of a GitHub sign-in, shared by the device flow and
+/// the debug-only e2e seam. The project at `root` keeps its own sign-in: a
+/// token for another account than its profile holds (or one that would re-sign
+/// a profile other projects are bound to) goes to a NEW profile the project is
+/// rebound to, and the project's server restarts onto it — the old profile's
+/// token, and every other project's account, are untouched. A first sign-in
+/// stores on the project's own profile and creates nothing.
+pub(crate) fn complete_github_sign_in(
+    app: &AppHandle,
+    label: &str,
+    root: &str,
+    login: &str,
+    token: &str,
+) -> Result<crate::app_state::SignedIn, String> {
+    // The token is a secret → a keychain slot only (DDR-108/132); the profile
+    // records the public handle.
+    let out = crate::app_state::settle_sign_in_app(
+        app,
+        root,
+        crate::profiles::SignInKind::GitHub,
+        login,
+        |p| crate::keychain::get_token(p).is_some(),
+        |p| {
+            crate::keychain::set_token(p, token)
+                .map_err(|e| format!("Signed in, but couldn't save it securely: {e}"))
+        },
+    )?;
+    let _ = app.emit_to(caller_target(label), "github://signed-in", login);
+    if out.rebound {
+        crate::sidecar::log_line(&format!(
+            "[maude] {label}: signed in on a new account profile {} — restarting its server",
+            out.profile
+        ));
+        crate::sidecar::restart_on_binding(app, label, root);
+    }
+    Ok(out)
+}
+
+/// Debug-only e2e seam (V2-3.8 `project-tabs-identity`): finish a GitHub
+/// sign-in as `login` for the CALLING window, through the real write path —
+/// `complete_github_sign_in` picks the profile, stores a fake token, rebinds
+/// and restarts exactly as the device flow does. Only the device flow itself
+/// (browser + GitHub) is skipped. Refused unless the in-memory keychain is in
+/// use (`MAUDE_E2E_FAKE_KEYCHAIN`), so it can never write the person's real
+/// keychain. Granted only by capabilities/debug/e2e-webdriver.json; a release
+/// build answers Err.
+#[tauri::command]
+pub fn e2e_github_sign_in_as(
+    app: AppHandle,
+    webview: tauri::Webview,
+    login: String,
+) -> Result<String, String> {
+    #[cfg(debug_assertions)]
+    {
+        if !crate::keychain::test_store::e2e_installed() {
+            return Err("e2e sign-in needs MAUDE_E2E_FAKE_KEYCHAIN".into());
+        }
+        let caller = crate::windows::caller_project(&webview, false)?;
+        let token = format!("e2e-token-{login}");
+        let out = complete_github_sign_in(&app, &caller.label, &caller.root, &login, &token)?;
+        Ok(out.profile)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, webview, login);
+        Err("debug builds only".into())
+    }
 }
 
 /// `#[tauri::command]` — re-open the verification URL (the modal's "Open it again").
