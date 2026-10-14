@@ -200,11 +200,12 @@ describe('project-tabs (native-desktop)', () => {
       timeout: 5_000,
       timeoutMsg: 'a strip click did not activate B',
     });
-    expect((await strip()).active).toBe(tabB);
+    // The strip redraws on the shell's next (debounced) push.
+    await browser.waitUntil(async () => (await strip()).active === tabB, { timeout: 5_000 });
     await browser.switchToWindow(tabA);
     expect(await browser.execute(() => document.hidden)).toBe(true);
     await focusTab(tabA);
-    expect((await strip()).active).toBe(tabA);
+    await browser.waitUntil(async () => (await strip()).active === tabA, { timeout: 5_000 });
     await capture('1b-strip');
   });
 
