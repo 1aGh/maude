@@ -5,16 +5,25 @@ import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
-import { focusTab, labels, newHomeTab, pinCurrentWindow, waitWindow } from '../helpers/windows';
+import {
+  activeTab,
+  focusTab,
+  handles,
+  labels,
+  newHomeTab,
+  pinCurrentWindow,
+  strip,
+  waitWindow,
+} from '../helpers/windows';
 
 /**
  * V2-3.3 — the Home window (contract V2-1.1 §7 `home.e2e.ts`, decisions 2/3, §5.4).
  *
  *  1. A first launch with an empty app-state opens `home` (no welcome-project sidecar).
- *  2. Opening the two fixture projects from Home replaces the Home tab each time; ⌘T
- *     (`new_home_tab`) brings Home back.
+ *  2. Opening the two fixture projects from Home opens each as the active tab; Home stays,
+ *     pinned (V2-3.7 own tab bar); ⌘T (`new_home_tab`) shows Home again.
  *  3. Home lists both projects' recent canvases, with their pictures.
- *  4. Picking a recent canvas of a CLOSED project opens it as a new tab and closes Home.
+ *  4. Picking a recent canvas of a CLOSED project opens it as a new tab; Home stays.
  *  5. Opening an OPEN project from Home focuses its existing tab (`opened: 'existing'`,
  *     `shell://opened-existing`) — no second window.
  *  6. A canvas created in an OPEN project shows up on Home without a reload (V2-3.10): the
@@ -81,13 +90,22 @@ async function tryInvoke(cmd: string, args: Record<string, unknown> = {}) {
   ) as Promise<{ ok?: unknown; err?: string }>;
 }
 
-/** `open_project({root})` from Home; Home must close once the project tab is key. */
+/** V2-3.7: Home is pinned — it never closes — and `tab` is the one shown. */
+async function homeStaysAnd(tab: string): Promise<void> {
+  expect(await handles()).toContain(HOME);
+  await browser.waitUntil(async () => (await activeTab()) === tab, {
+    timeout: 10_000,
+    timeoutMsg: `${tab} is not the active tab (active: ${await activeTab()})`,
+  });
+}
+
+/** `open_project({root})` from Home: the project opens as the active tab, Home stays. */
 async function openFromHome(f: Fixture): Promise<unknown> {
   await onHome();
   const r = await tryInvoke('open_project', { root: f.root });
   console.log(`[home] open_project(${f.name}) → ${JSON.stringify(r)}`);
   await waitWindow(label(f));
-  await waitWindow(HOME, false);
+  await homeStaysAnd(label(f));
   await onServer(label(f));
   return r.ok ?? r;
 }
@@ -138,7 +156,13 @@ describe('home (native-desktop)', () => {
   });
 
   it('1 · a first launch with an empty app-state opens the Home window', async () => {
-    expect(await labels()).toEqual([HOME]);
+    expect(await labels()).toEqual([]);
+    expect(await handles()).toEqual([HOME, 'strip']);
+    // The strip: no project tab, Home pinned icon-only.
+    const s = await strip();
+    expect(s.tabs).toEqual([]);
+    expect(s.home).toEqual({ label: 'Home', text: '' });
+    expect(s.active).toBe(HOME);
     await onHome();
     expect(await browser.getUrl()).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
     // Home commands answer here (the runtime `home` capability + the Rust re-check).
@@ -147,12 +171,17 @@ describe('home (native-desktop)', () => {
     await capture('01-home-first-launch');
   });
 
-  it('2 · opening a project from Home replaces the Home tab; new_home_tab brings Home back', async () => {
+  it('2 · opening a project from Home opens it as the active tab; Home stays pinned', async () => {
     expect(await openFromHome(ALPHA)).toEqual({ label: label(ALPHA), opened: 'new' });
     expect(await labels()).toEqual([label(ALPHA)]);
     await newHomeTab();
+    await homeStaysAnd(HOME);
     expect(await openFromHome(BETA)).toEqual({ label: label(BETA), opened: 'new' });
     expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
+    // Strip order is open order (Home opened both → each at the end); Home is not a tab.
+    const s = await strip();
+    expect(s.tabs).toEqual([label(ALPHA), label(BETA)]);
+    expect(s.active).toBe(label(BETA));
     // A project window may not read Home's state (capability + label/origin re-check).
     expect((await tryInvoke('shell_state')).err).toBeTruthy();
     await newHomeTab();
@@ -172,13 +201,13 @@ describe('home (native-desktop)', () => {
     await capture('03-home-recent-rows');
   });
 
-  it('4 · picking a closed project’s canvas opens it as a new tab and closes Home', async () => {
+  it('4 · picking a closed project’s canvas opens it as a new tab; Home stays', async () => {
     await invokeTauri('e2e_close_window', { label: label(ALPHA), destroy: false });
     await waitWindow(label(ALPHA), false);
     await onHome();
     await (await $(tid(rowId(ALPHA)))).click();
     await waitWindow(label(ALPHA), true, 30_000);
-    await waitWindow(HOME, false);
+    await homeStaysAnd(label(ALPHA));
     await onServer(label(ALPHA));
     expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
     await capture('04-picked-closed-project');
@@ -189,7 +218,7 @@ describe('home (native-desktop)', () => {
     await onHome();
     const r = await tryInvoke('open_project', { pid: ALPHA.pid });
     expect(r).toEqual({ ok: { label: label(ALPHA), opened: 'existing' } });
-    await waitWindow(HOME, false);
+    await homeStaysAnd(label(ALPHA));
     await onServer(label(ALPHA));
     expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
     await capture('05-open-project-focused');

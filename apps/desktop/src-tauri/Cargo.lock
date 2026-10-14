@@ -2323,7 +2323,6 @@ dependencies = [
  "getrandom 0.2.17",
  "keyring",
  "notify-rust",
- "objc2",
  "open",
  "reqwest 0.12.28",
  "serde",
@@ -4530,8 +4529,6 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-wdio-webdriver"
 version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30c5bffe978c41b06ad44a5f4b5b543405918cf316b98756c678a6431061f2e9"
 dependencies = [
  "async-trait",
  "axum",

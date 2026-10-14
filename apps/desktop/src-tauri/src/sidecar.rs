@@ -948,6 +948,8 @@ pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Opt
         return;
     }
     log_line(&format!("[maude] {label}: switching project → {root}"));
+    // V2-3.7: the strip (and the shell title) show the tab's new project.
+    crate::tabs::changed(app);
     attach_or_spawn(app, &root);
 
     // Apply the cap AFTER the switch: the window just switched is the focused

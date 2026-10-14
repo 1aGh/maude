@@ -51,10 +51,6 @@ const MAX_THUMB_KEYS: usize = 50;
 /// `shell://state` debounce (§5.4 Events).
 const STATE_DEBOUNCE: Duration = Duration::from_millis(250);
 
-/// How long a Home pick waits for the new project tab to become key before it
-/// closes Home anyway.
-const KEY_WAIT: Duration = Duration::from_secs(3);
-
 /// The permissions of the runtime `home` capability (§5.4 Capabilities), plus
 /// `core:event:default` — the Home page `listen`s for `shell://state`. Every
 /// entry must resolve: Tauri `unwrap`s the runtime resolve, so an unknown name
@@ -427,8 +423,10 @@ fn on_bound(app: &AppHandle, pid: u32, port: u16, url: String) {
 /// longer owns cannot be removed (Tauri has no API), but the window can never
 /// reach that port: the navigation guard admits the recorded origin only.
 pub fn home_capability(id: &str, port: u16) -> CapabilityBuilder {
+    // V2-3.7: the webview label, never a window — every tab lives in the one
+    // `shell` window, and a window match would grant this to all of them.
     let mut b = CapabilityBuilder::new(id)
-        .window(HOME_LABEL)
+        .webview(HOME_LABEL)
         .local(false)
         .remote(format!("http://127.0.0.1:{port}/*"));
     for p in HOME_PERMISSIONS {
@@ -541,7 +539,7 @@ pub fn navigate_home(app: &AppHandle) {
     let Some((url, _)) = endpoint(app) else {
         return;
     };
-    let Some(window) = app.get_webview_window(HOME_LABEL) else {
+    let Some(window) = app.get_webview(HOME_LABEL) else {
         return;
     };
     match url.parse::<tauri::Url>() {
@@ -579,27 +577,28 @@ pub fn stamp_home_origin(app: &AppHandle, url: &str) {
     }
 }
 
-/// Focus the Home window, or create it — as a tab of `caller` (else the front
-/// window) — and send it to the Home origin. Returns whether it was created.
+/// Activate Home (V2-3.7: pinned, created once at boot, never closed), or
+/// create it — its webview in the shell, sent to the Home origin. Returns
+/// whether it was created. `caller` is unused since Home has no strip place
+/// to be opened "after"; kept for the callers' shape.
 pub fn ensure_home_window(app: &AppHandle, caller: Option<&str>) -> Result<bool, String> {
-    if let Some(w) = app.get_webview_window(HOME_LABEL) {
-        let _ = w.unminimize();
-        let _ = w.set_focus();
+    let _ = caller;
+    if app.get_webview(HOME_LABEL).is_some() {
+        crate::tabs::reveal(app, HOME_LABEL)?;
         return Ok(false);
     }
     let state = app.state::<SidecarState>();
     let tick = state.tick.fetch_add(1, Ordering::SeqCst);
-    let caller = {
-        let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-        let caller = caller.map(str::to_string).or_else(|| book.front_label());
-        // Written BEFORE the build so the build's `Focused` event finds it.
-        book.insert_after(HOME_LABEL, Role::Home, tick, None);
-        caller
-    };
+    // Written BEFORE the build so activation finds it. Never a strip tab.
+    state
+        .windows
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert_after(HOME_LABEL, Role::Home, tick, None);
     let spec = WindowSpec {
         label: HOME_LABEL.to_string(),
         title: "Home".to_string(),
-        caller,
+        caller: None,
     };
     if let Err(e) = (windows::TauriHost { app }).create(&spec) {
         state
@@ -611,32 +610,6 @@ pub fn ensure_home_window(app: &AppHandle, caller: Option<&str>) -> Result<bool,
     }
     navigate_home(app);
     Ok(true)
-}
-
-/// After a pick on Home opened (or focused) `label`: close Home once that tab
-/// is key — "picking a project replaces the Home tab" (decision 3).
-pub fn close_home_when_key(app: &AppHandle, label: &str) {
-    let app = app.clone();
-    let label = label.to_string();
-    tauri::async_runtime::spawn(async move {
-        let deadline = Instant::now() + KEY_WAIT;
-        while Instant::now() < deadline {
-            let key = app
-                .state::<SidecarState>()
-                .windows
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .focused()
-                == Some(label.as_str());
-            if key {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-        if let Some(w) = app.get_webview_window(HOME_LABEL) {
-            let _ = w.close();
-        }
-    });
 }
 
 // ── ShellState (§5.4) ───────────────────────────────────────────────────────
@@ -788,7 +761,7 @@ static STATE_GEN: AtomicU64 = AtomicU64::new(0);
 
 /// A tab, focus or registry change: tell Home (only), at most once per 250 ms.
 pub fn state_changed(app: &AppHandle) {
-    if app.get_webview_window(HOME_LABEL).is_none() {
+    if app.get_webview(HOME_LABEL).is_none() {
         return;
     }
     let gen = STATE_GEN.fetch_add(1, Ordering::SeqCst) + 1;
@@ -1142,9 +1115,9 @@ pub fn home_session(app: AppHandle, webview: tauri::Webview) -> Result<HomeSessi
     )
 }
 
-/// `new_home_tab()` (⌘T, Back to Home) — focus Home or open it as a tab of the
-/// calling window. Either role — also from a tab still on its splash (it only
-/// opens or focuses Home; nothing is read or written for the caller).
+/// `new_home_tab()` (⌘T, Back to Home) — activate the pinned Home tab. Either
+/// role — also from a tab still on its splash (it only shows Home; nothing is
+/// read or written for the caller).
 #[tauri::command]
 pub async fn new_home_tab(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
     windows::caller_any(&webview, true)?;
@@ -1647,7 +1620,7 @@ mod tests {
         )
         .unwrap();
         let v: Value = serde_json::from_str(&splash).unwrap();
-        assert_eq!(v["windows"], json!(["home"]));
+        assert_eq!(v["webviews"], json!(["home"]), "V2-3.7: webviews, never windows");
         assert_eq!(v["permissions"], json!(["allow-resolve-dev-server-url"]));
         assert!(
             v.get("remote").is_none(),

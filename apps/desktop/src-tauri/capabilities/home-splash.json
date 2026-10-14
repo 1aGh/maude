@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "home-splash",
-  "description": "The Home window's splash (V2-3.3, contract V2-1.1 §5.4 Capabilities): while `home` is on the app-local `index.html` it may only ask `resolve_dev_server_url`, which answers the Home origin. Every Home command (shell_state, open_project, managed_project_open, …) comes from the RUNTIME capability `home` that home.rs adds once the Home server has bound — `window(\"home\")`, `remote(http://127.0.0.1:<H>/*)` + the localhost twin, `local(false)` — and each of those commands re-checks in Rust that the label is `home` AND the URL is on the Home origin (home::check_home). No `remote` here: this file never grants anything to a loopback page.",
-  "windows": ["home"],
+  "description": "The Home window's splash (V2-3.3, contract V2-1.1 §5.4 Capabilities): while `home` is on the app-local `index.html` it may only ask `resolve_dev_server_url`, which answers the Home origin. Every Home command (shell_state, open_project, managed_project_open, …) comes from the RUNTIME capability `home` that home.rs adds once the Home server has bound — `webview(\"home\")` (V2-3.7: webviews, never windows), `remote(http://127.0.0.1:<H>/*)` + the localhost twin, `local(false)` — and each of those commands re-checks in Rust that the label is `home` AND the URL is on the Home origin (home::check_home). No `remote` here: this file never grants anything to a loopback page.",
+  "webviews": ["home"],
   "permissions": ["allow-resolve-dev-server-url"]
 }

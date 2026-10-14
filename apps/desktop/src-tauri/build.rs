@@ -54,6 +54,12 @@ fn main() {
                 "profiles_delete",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
+                // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
+                // capabilities/strip.json).
+                "tabs_state",
+                "tab_activate",
+                "tab_close",
+                "tab_reorder",
                 // V2-3.3 Home window (home.rs, lib.rs). The Home-only ones are
                 // granted by the RUNTIME `home` capability (home::HOME_PERMISSIONS).
                 "shell_state",
@@ -73,6 +79,8 @@ fn main() {
                 "e2e_focus_window",
                 "e2e_close_window",
                 "e2e_open_root",
+                // V2-3.7 (tabs.rs): the shell's child bounds after a resize / fullscreen.
+                "e2e_shell_bounds",
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",

@@ -4,13 +4,18 @@ import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
+import { invokeTauri } from '../helpers/native';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
 import {
+  activeTab,
   closeTab,
   focusTab,
+  handles,
   labels,
   openTab,
   pinCurrentWindow,
+  STRIP,
+  strip,
   waitWindow,
 } from '../helpers/windows';
 
@@ -178,6 +183,58 @@ describe('project-tabs (native-desktop)', () => {
     console.log(`[tabs] A ${urlA}  B ${urlB}`);
     expect(new URL(urlA).port).not.toBe(new URL(urlB).port);
     await capture('1-two-tabs-two-servers');
+  });
+
+  // V2-3.7 T3: the strip is Maude's own tab bar — Rust's tab list, Home pinned last.
+  it('the strip lists the tabs in open order, Home pinned icon-only, and switches on a click', async () => {
+    expect(await handles()).toEqual([tabA, tabB, 'home', STRIP].sort());
+    await browser.waitUntil(async () => (await strip()).tabs.length === 2, { timeout: 10_000 });
+    const s = await strip();
+    expect(s.tabs).toEqual([tabA, tabB]);
+    expect(s.home).toEqual({ label: 'Home', text: '' });
+    expect(s.active).toBe(tabA);
+    // A click on B's tab in the strip makes B the shown tab, and only B.
+    await browser.switchToWindow(STRIP);
+    await (await $(`[data-testid="tab-${tabB}"]`)).click();
+    await browser.waitUntil(async () => (await activeTab()) === tabB, {
+      timeout: 5_000,
+      timeoutMsg: 'a strip click did not activate B',
+    });
+    expect((await strip()).active).toBe(tabB);
+    await browser.switchToWindow(tabA);
+    expect(await browser.execute(() => document.hidden)).toBe(true);
+    await focusTab(tabA);
+    expect((await strip()).active).toBe(tabA);
+    await capture('1b-strip');
+  });
+
+  // V2-3.7 contract §10 q6: children are re-laid-out on a resize and in fullscreen.
+  it('the shell re-lays-out the strip and every tab on resize and in fullscreen', async () => {
+    type Bounds = { inner: [number, number]; fullscreen: boolean; children: Record<string, number[]> };
+    const at = (args: Record<string, unknown>) => invokeTauri<Bounds>('e2e_shell_bounds', args);
+    const near = (got: number[], want: number[], what: string) =>
+      got.forEach((v, i) => {
+        if (Math.abs(v - (want[i] as number)) > 1)
+          throw new Error(`${what}: ${JSON.stringify(got)} ≠ ${JSON.stringify(want)}`);
+      });
+    const check = (r: Bounds, when: string) => {
+      const [w, h] = r.inner;
+      expect(Object.keys(r.children).sort()).toEqual([tabA, tabB, 'home', STRIP].sort());
+      for (const [l, b] of Object.entries(r.children))
+        near(b, l === STRIP ? [0, 0, w, 38] : [0, 38, w, h - 38], `${when} ${l}`);
+    };
+    const before = await at({});
+    console.log(`[tabs] shell ${JSON.stringify(before)}`);
+    check(before, 'boot');
+    check(await at({ size: [1100, 760] }), 'resized');
+    const fs = await at({ fullscreen: true });
+    expect(fs.fullscreen).toBe(true);
+    check(fs, 'fullscreen');
+    const back = await at({ fullscreen: false });
+    expect(back.fullscreen).toBe(false);
+    check(back, 'left fullscreen');
+    check(await at({ size: before.inner }), 'restored');
+    await focusTab(tabA);
   });
 
   it('each tab shows its own project and branch', async () => {

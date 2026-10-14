@@ -15,6 +15,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { pinCurrentWindow } from './helpers/windows';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // ── Specs that are NOT ours ───────────────────────────────────────────────
@@ -197,13 +199,13 @@ export const config: WebdriverIO.Config = {
   // beforeSuite, not before: the service attaches `browser.tauri` in its own
   // `before`, which runs after a config-level one.
   //
-  // V2-3.2: there is no `main` window. Every window is Rust-created as
-  // `p-<pid>`, and no `windowLabel` capability is sent, so the embedded
-  // WebDriver session starts on the FIRST window that exists — the boot
-  // project's (plugin session.rs `wait_for_window`). Pin whatever that is
-  // (helpers/windows.ts `pinCurrentWindow` is the same call for specs).
+  // V2-3.7: ONE `shell` window whose child webviews (`strip`, `home`, `p-<pid>`)
+  // are the W3C handles. No `windowLabel` capability is sent, so the session
+  // starts on whichever webview the provider lists first (a hash map). Pin the
+  // ACTIVE tab — the boot project's when MAUDE_PROJECT_ROOT names one
+  // (helpers/windows.ts `pinCurrentWindow`, the same call specs make).
   async beforeSuite() {
-    await browser.tauri.switchWindow(await browser.getWindowHandle());
+    await pinCurrentWindow();
   },
   tsConfigPath: join(HERE, 'tsconfig.json'),
 

@@ -307,9 +307,7 @@ pub fn on_click(app: &AppHandle, root: &str) {
     let Some(state) = app.try_state::<SidecarState>() else { return };
     let action = click_action(&state.windows.lock().unwrap_or_else(|e| e.into_inner()), root);
     if let ClickAction::Focus(label) = action {
-        if let Some(w) = app.get_webview_window(&label) {
-            let _ = w.unminimize();
-            let _ = w.set_focus();
+        if app.get_webview(&label).is_some() && crate::tabs::reveal(app, &label).is_ok() {
             return;
         }
     }
@@ -340,7 +338,8 @@ pub fn cached_ai(app: &AppHandle, root: &str) -> Option<crate::sidecar::AiCounts
 fn apply_badge(app: &AppHandle) {
     let Some(state) = app.try_state::<NotifyPollState>() else { return };
     let count = state.badge.lock().expect("notify mutex poisoned").count();
-    let Some(w) = app.webview_windows().into_values().next() else { return };
+    // V2-3.7: the one `shell` window (the badge is the app's on macOS).
+    let Some(w) = app.get_window(crate::tabs::SHELL_LABEL) else { return };
     let value = (count > 0).then_some(count as i64);
     if let Err(e) = w.set_badge_count(value) {
         crate::sidecar::log_line(&format!("[maude] notify: could not set the Dock badge: {e}"));

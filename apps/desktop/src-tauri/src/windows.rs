@@ -23,9 +23,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-#[cfg(target_os = "macos")]
-use tauri::WebviewWindow;
-use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::sidecar::SidecarState;
@@ -125,6 +123,9 @@ pub struct WindowEntry {
     /// A close is waiting on the status probe or the "Stop AI in …?" confirm;
     /// a second ⌘W meanwhile must not stack a second dialog.
     pub closing: bool,
+    /// The strip's AI dot (V2-3.7 §6): set on a background tab, cleared when
+    /// it becomes the active tab. Live only.
+    pub dot: Option<crate::tabs::Dot>,
 }
 
 /// Every live window the shell created, keyed by label, plus which one has
@@ -136,10 +137,12 @@ pub struct WindowBook {
     entries: HashMap<String, WindowEntry>,
     /// Open order, oldest first — a stable fallback when nothing is focused.
     order: Vec<String>,
-    /// Tab order as the person sees it: a new window is attached right after
-    /// the window that opened it (`addTabbedWindow:ordered:NSWindowAbove`), so
-    /// this mirrors that placement. What the session saves (§5.5).
+    /// Tab order as the person sees it in the strip (V2-3.7): a new tab goes
+    /// right after the tab that opened it, or at the end when Home opened it.
+    /// Project/cell tabs only — Home is pinned and NEVER in it. What the
+    /// session saves (§5.5).
     tabs: Vec<String>,
+    /// The ACTIVE tab (V2-3.7: the one shown in the shell), `home` included.
     focused: Option<String>,
 }
 
@@ -155,11 +158,13 @@ impl WindowBook {
         self.order.retain(|l| l != label);
         self.order.push(label.to_string());
         self.tabs.retain(|l| l != label);
-        let at = after
-            .and_then(|a| self.tabs.iter().position(|l| l == a))
-            .map(|i| i + 1)
-            .unwrap_or(self.tabs.len());
-        self.tabs.insert(at, label.to_string());
+        if role != Role::Home {
+            let at = after
+                .and_then(|a| self.tabs.iter().position(|l| l == a))
+                .map(|i| i + 1)
+                .unwrap_or(self.tabs.len());
+            self.tabs.insert(at, label.to_string());
+        }
         self.entries.insert(
             label.to_string(),
             WindowEntry {
@@ -169,8 +174,58 @@ impl WindowBook {
                 canvas_origin: None,
                 resting: false,
                 closing: false,
+                dot: None,
             },
         );
+    }
+
+    /// One tab's entry.
+    pub fn entry(&self, label: &str) -> Option<&WindowEntry> {
+        self.entries.get(label)
+    }
+
+    /// The project/cell tabs in strip order (Home is never one).
+    pub fn tab_labels(&self) -> &[String] {
+        &self.tabs
+    }
+
+    /// The tab that becomes active when `label` (the active one) closes: its
+    /// right neighbour, else its left one; `None` ⇒ Home (the last tab closed,
+    /// or `label` is not a tab).
+    pub fn after_close(&self, label: &str) -> Option<String> {
+        let i = self.tabs.iter().position(|l| l == label)?;
+        self.tabs
+            .get(i + 1)
+            .or_else(|| i.checked_sub(1).and_then(|j| self.tabs.get(j)))
+            .cloned()
+    }
+
+    /// Move tab `label` to index `to` of the strip (clamped). Home never
+    /// moves: it is not in the list.
+    pub fn move_tab(&mut self, label: &str, to: usize) -> bool {
+        let Some(i) = self.tabs.iter().position(|l| l == label) else {
+            return false;
+        };
+        let l = self.tabs.remove(i);
+        let to = to.min(self.tabs.len());
+        self.tabs.insert(to, l);
+        true
+    }
+
+    /// Set a BACKGROUND tab's AI dot (V2-3.7 §6; `None` clears it). The active
+    /// tab never carries one: false.
+    #[allow(dead_code)] // SEAM (V2-3.7 T6): the notify.rs activity poller sets it.
+    pub fn set_dot(&mut self, label: &str, dot: Option<crate::tabs::Dot>) -> bool {
+        if self.focused.as_deref() == Some(label) && dot.is_some() {
+            return false;
+        }
+        match self.entries.get_mut(label) {
+            Some(e) => {
+                e.dot = dot;
+                true
+            }
+            None => false,
+        }
     }
 
     /// Record the origin the shell just navigated `label` to.
@@ -225,6 +280,7 @@ impl WindowBook {
         self.entries.remove(label)
     }
 
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -272,12 +328,14 @@ impl WindowBook {
         }
     }
 
-    /// `Focused(true)`: stamp `focused` + `last_focused`. Unknown labels (a
-    /// window the shell did not create) are ignored.
+    /// Activation (V2-3.7 `tabs::activate`): stamp `focused` + `last_focused`
+    /// and clear the tab's dot. Unknown labels (a webview the shell did not
+    /// create as a tab, the strip) are ignored.
     pub fn focus(&mut self, label: &str, tick: u64) -> bool {
         match self.entries.get_mut(label) {
             Some(e) => {
                 e.last_focused = tick;
+                e.dot = None;
                 self.focused = Some(label.to_string());
                 true
             }
@@ -552,6 +610,18 @@ fn data_store_supported_for(product_version: &str) -> bool {
         .is_some_and(|major| major >= 14)
 }
 
+/// Can a webview get its own WebKit data store here? macOS ≥ 14 only.
+pub(crate) fn supports_data_store() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        macos_supports_data_store()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
 /// macOS product version, probed once. `sysctl kern.osproductversion` is the
 /// same value as `NSProcessInfo.operatingSystemVersion` without an objc struct
 /// return (whose encoding objc2 verifies — a mismatch panics in debug builds).
@@ -693,7 +763,7 @@ fn nav_check<R: Runtime>(app: &AppHandle<R>, label: &str, url: &tauri::Url, top:
 /// Send `label` to the app-local splash (a refused top-level page, a server
 /// that gave up).
 pub fn show_splash<R: Runtime>(app: &AppHandle<R>, label: &str) {
-    if let Some(w) = app.get_webview_window(label) {
+    if let Some(w) = app.get_webview(label) {
         if let Err(e) = w.navigate(splash_url()) {
             crate::sidecar::log_line(&format!("[maude] could not show the splash in {label}: {e}"));
         }
@@ -740,114 +810,66 @@ pub struct TauriHost<'a> {
 
 impl WindowHost for TauriHost<'_> {
     fn exists(&self, label: &str) -> bool {
-        self.app.get_webview_window(label).is_some()
+        self.app.get_webview(label).is_some()
     }
 
     fn reveal(&self, label: &str, name: &str) {
-        if let Some(w) = self.app.get_webview_window(label) {
-            let _ = w.unminimize();
-            // `set_focus` = makeKeyAndOrderFront, which on a tabbed NSWindow
-            // also selects its tab (e2e spike).
-            let _ = w.set_focus();
-            let _ = self.app.emit_to(
-                EventTarget::AnyLabel {
-                    label: label.to_string(),
-                },
-                "shell://opened-existing",
-                serde_json::json!({ "name": name }),
-            );
+        if self.app.get_webview(label).is_none() {
+            return;
         }
+        if let Err(e) = crate::tabs::reveal(self.app, label) {
+            crate::sidecar::log_line(&format!("[maude] could not show {label}: {e}"));
+        }
+        let _ = self.app.emit_to(
+            EventTarget::AnyLabel {
+                label: label.to_string(),
+            },
+            "shell://opened-existing",
+            serde_json::json!({ "name": name }),
+        );
     }
 
+    /// A tab is a child webview of the `shell` window (V2-3.7): the splash
+    /// (`index.html`) first; the server URL comes later through the DDR-109
+    /// loopback guard in `navigate_to_server`. Then it becomes the active tab.
     fn create(&self, spec: &WindowSpec) -> Result<(), String> {
-        // The splash (`index.html`) first; the server URL comes later through
-        // the DDR-109 loopback guard in `navigate_to_server`.
-        #[allow(unused_mut)]
-        let mut builder =
-            WebviewWindowBuilder::new(self.app, &spec.label, WebviewUrl::App("index.html".into()))
-                .title(&spec.title)
-                .inner_size(1280.0, 800.0)
-                .min_inner_size(1024.0, 680.0)
-                .disable_drag_drop_handler();
-        // N-M2: every navigation of every shell-built window passes the guard;
+        // N-M2: every navigation of every shell-built tab passes the guard;
         // a main frame that still lands elsewhere goes back to the splash; a
         // page never opens a window of its own.
         let (nav_app, nav_label) = (self.app.clone(), spec.label.clone());
         let (load_app, load_label) = (self.app.clone(), spec.label.clone());
-        builder = builder
-            .on_navigation(move |url| {
-                let ok = nav_check(&nav_app, &nav_label, url, false);
-                if !ok {
-                    crate::sidecar::log_line(&format!(
-                        "[maude] {nav_label}: refused a navigation to {}",
-                        url.origin().ascii_serialization()
-                    ));
-                }
-                ok
-            })
-            .on_page_load(move |_w, payload| {
-                if payload.event() == tauri::webview::PageLoadEvent::Started
-                    && !nav_check(&load_app, &load_label, payload.url(), true)
-                {
-                    crate::sidecar::log_line(&format!(
-                        "[maude] {load_label}: the page left its origin — back to the splash"
-                    ));
-                    show_splash(&load_app, &load_label);
-                }
-            })
-            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny);
-        #[cfg(target_os = "macos")]
-        {
-            // Every window joins one tab group (decision 2), whatever the
-            // person's "Prefer tabs" setting — `attach_as_tab` does the adding.
-            builder = builder.tabbing_identifier("maude");
-            if macos_supports_data_store() {
-                builder = builder.data_store_identifier(data_store_id_for_label(&spec.label));
-            }
-        }
-        let win = builder
-            .build()
-            .map_err(|e| format!("Couldn't open a window for this project: {e}"))?;
-        let parent = spec
-            .caller
-            .as_deref()
-            .filter(|c| *c != spec.label)
-            .and_then(|c| self.app.get_webview_window(c));
-        match parent {
+        let label = spec.label.clone();
+        crate::tabs::add_tab(self.app, &spec.label, move |builder| {
+            #[allow(unused_mut)]
+            let mut builder = builder
+                .on_navigation(move |url| {
+                    let ok = nav_check(&nav_app, &nav_label, url, false);
+                    if !ok {
+                        crate::sidecar::log_line(&format!(
+                            "[maude] {nav_label}: refused a navigation to {}",
+                            url.origin().ascii_serialization()
+                        ));
+                    }
+                    ok
+                })
+                .on_page_load(move |_w, payload| {
+                    if payload.event() == tauri::webview::PageLoadEvent::Started
+                        && !nav_check(&load_app, &load_label, payload.url(), true)
+                    {
+                        crate::sidecar::log_line(&format!(
+                            "[maude] {load_label}: the page left its origin — back to the splash"
+                        ));
+                        show_splash(&load_app, &load_label);
+                    }
+                })
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny);
             #[cfg(target_os = "macos")]
-            Some(parent) => attach_as_tab(self.app, parent, win),
-            _ => {
-                let _ = win.set_focus();
+            if supports_data_store() {
+                builder = builder.data_store_identifier(data_store_id_for_label(&label));
             }
-        }
-        Ok(())
-    }
-}
-
-/// `[parent addTabbedWindow:child ordered:NSWindowAbove]` on the main thread,
-/// then focus the child (the spike left open whether the add selects it).
-/// Fire-and-forget: a caller ON the main thread (setup, a menu handler) must
-/// not block waiting for a closure only the main thread can run.
-#[cfg(target_os = "macos")]
-fn attach_as_tab(app: &AppHandle, parent: WebviewWindow, child: WebviewWindow) {
-    let result = app.run_on_main_thread(move || {
-        if let (Ok(p), Ok(c)) = (parent.ns_window(), child.ns_window()) {
-            use objc2::runtime::AnyObject;
-            // SAFETY: both are live NSWindows owned by tao (this closure holds
-            // their WebviewWindow handles); we are on the main thread.
-            unsafe {
-                let p = p as *mut AnyObject;
-                let c = c as *mut AnyObject;
-                // NSWindowOrderingMode::NSWindowAbove = 1
-                let _: () = objc2::msg_send![p, addTabbedWindow: c, ordered: 1isize];
-            }
-        }
-        let _ = child.set_focus();
-    });
-    if let Err(e) = result {
-        crate::sidecar::log_line(&format!(
-            "[maude] could not attach the window as a tab: {e}"
-        ));
+            builder
+        })?;
+        crate::tabs::reveal(self.app, &spec.label)
     }
 }
 
@@ -855,7 +877,7 @@ fn attach_as_tab(app: &AppHandle, parent: WebviewWindow, child: WebviewWindow) {
 /// it — but only while that window still shows `root`: an in-tab switch or a
 /// close since the wait began makes this navigate stale.
 pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, open: Option<&str>) {
-    let Some(window) = app.get_webview_window(label) else {
+    let Some(window) = app.get_webview(label) else {
         return;
     };
     match url.parse::<tauri::Url>() {
@@ -964,7 +986,8 @@ pub fn open_project_window(
 
 // ── Window events ───────────────────────────────────────────────────────────
 
-/// `Focused(true)`: the front window, its project's `last_shown`, a session
+/// A tab became the active one (V2-3.7 `tabs::activate`; was the window's
+/// `Focused(true)`): the front tab, its project's `last_shown`, a session
 /// save, and — for a resting tab — the wake (§5.2 "Window Focused(true)").
 pub fn on_focused(app: &AppHandle, label: &str) {
     let Some(state) = app.try_state::<SidecarState>() else {
@@ -1051,13 +1074,13 @@ pub fn rest_window(app: &AppHandle, label: &str, root: &str) {
     if !marked {
         return;
     }
-    if let Some(w) = app.get_webview_window(label) {
-        let title = project_display_name(root);
+    if let Some(w) = app.get_webview(label) {
         if let Err(e) = w.navigate(splash_url()) {
             crate::sidecar::log_line(&format!("[maude] could not rest {label}: {e}"));
         }
-        let _ = w.set_title(&crate::notify::sanitize_title(&title));
     }
+    // The strip shows the tab as resting; its name stays.
+    crate::tabs::changed(app);
 }
 
 /// For `resolve_dev_server_url`: the project name a RESTING calling window
@@ -1087,7 +1110,8 @@ pub fn needs_close_confirm(status: Option<&crate::sidecar::ShellStatus>) -> bool
     status.is_some_and(|s| s.ai_active())
 }
 
-/// `CloseRequested` (⌘W, the tab's ×). Home, a resting tab and a project with
+/// The user close of a tab (V2-3.7: the strip's ×, `tabs::close_tab_by_user`;
+/// was the window's `CloseRequested`). Home, a resting tab and a project with
 /// no running server close at once. A running project's close is held while
 /// its `/_api/shell/status` is read (authenticated, decision 8); when AI is
 /// running or waiting the person is asked "Stop AI in <name>?" — **Stop and
@@ -1124,13 +1148,21 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
     let label = label.to_string();
     tauri::async_runtime::spawn(async move {
         let status = crate::sidecar::shell_status(&app, &root).await;
-        let Some(window) = app.get_webview_window(&label) else {
+        let Some(webview) = app.get_webview(&label) else {
             return;
         };
         if !needs_close_confirm(status.as_ref()) {
-            let _ = window.destroy();
+            app.state::<SidecarState>()
+                .windows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .end_close(&label);
+            let _ = crate::tabs::close_tab(&app, &label);
             return;
         }
+        // The confirm is about THIS tab: show it first.
+        let _ = crate::tabs::activate(&app, &label);
+        let window = webview.window();
         let name = project_display_name(&root);
         let app2 = app.clone();
         let label2 = label.clone();
@@ -1152,11 +1184,10 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
                     .unwrap_or_else(|e| e.into_inner())
                     .end_close(&label2);
                 if !stop {
+                    crate::tabs::changed(&app2);
                     return;
                 }
-                if let Some(w) = app2.get_webview_window(&label2) {
-                    let _ = w.destroy();
-                }
+                let _ = crate::tabs::close_tab(&app2, &label2);
                 crate::sidecar::log_line(&format!(
                     "[maude] {label2} closed with AI running — stopping {root} now"
                 ));
@@ -1315,7 +1346,7 @@ fn restore_enabled() -> bool {
 }
 
 /// The boot window(s). With a saved session: every saved project tab, in
-/// order, as one tab group; only the front tab spawns, the others start
+/// order, as tabs of the one shell window; only the front tab spawns, the others start
 /// resting, and the front window hears `shell://tabs-restored {count}`. Without
 /// one: `fallback_root` alone, as before.
 /// `after` = the window the restored tabs follow (Home, when it booted first —
@@ -1380,18 +1411,12 @@ fn restore_session(app: &AppHandle, plan: &RestorePlan, after: Option<&str>) {
     }
     let Some(front) = front_label else { return };
     let front_root = plan.tabs[plan.front].root.clone();
-    // Focus the front tab LAST, on the main thread: each `attach_as_tab` above
-    // queued a closure that focuses its child, and those run first (FIFO), so a
-    // plain `set_focus` here would be undone by the last attach. The resting
-    // tabs that focus passes through on the way stay resting (`WAKE_SETTLE`).
-    if let Some(w) = app.get_webview_window(&front) {
-        if app.run_on_main_thread(move || {
-            let _ = w.set_focus();
-        })
-        .is_err()
-        {
-            crate::sidecar::log_line("[maude] could not focus the restored front tab");
-        }
+    // Activate the front tab LAST. The resting tabs each build passed through
+    // on the way stay resting (`WAKE_SETTLE`).
+    // SEAM (V2-3.9 T4 `plan_tabs`): resting tabs are built without passing
+    // through activation, and `session.focused == "home"` restores Home active.
+    if let Err(e) = crate::tabs::reveal(app, &front) {
+        crate::sidecar::log_line(&format!("[maude] could not show the restored front tab: {e}"));
     }
     crate::sidecar::attach_or_spawn(app, &front_root);
     crate::sidecar::spawn_enforce_cap(app);
@@ -1417,9 +1442,9 @@ pub fn reveal_front(app: &AppHandle) {
             .unwrap_or_else(|e| e.into_inner())
             .front_label()
     });
-    if let Some(w) = label.and_then(|l| app.get_webview_window(&l)) {
-        let _ = w.unminimize();
-        let _ = w.set_focus();
+    let label = label.unwrap_or_else(|| HOME_LABEL.to_string());
+    if let Err(e) = crate::tabs::reveal(app, &label) {
+        crate::sidecar::log_line(&format!("[maude] could not show {label}: {e}"));
     }
 }
 
@@ -1806,9 +1831,7 @@ pub async fn open_project(
             t.clone(),
         );
     }
-    if caller == Caller::Home {
-        crate::home::close_home_when_key(&app, &label);
-    }
+    // V2-3.7: Home is pinned and never closes; the opened tab is active.
     Ok(OpenedProject::from(&opened))
 }
 
@@ -1824,11 +1847,8 @@ pub async fn e2e_open_root(
 ) -> Result<OpenedProject, String> {
     #[cfg(debug_assertions)]
     {
-        let caller = caller_any(&webview, false)?;
+        caller_any(&webview, false)?;
         let opened = open_project_window(&app, Path::new(&root), Some(webview.label()), None)?;
-        if caller == Caller::Home {
-            crate::home::close_home_when_key(&app, opened.label());
-        }
         Ok(OpenedProject::from(&opened))
     }
     #[cfg(not(debug_assertions))]
@@ -1868,13 +1888,13 @@ pub fn e2e_bind_profile(
 // `#[cfg(debug_assertions)]`; a release build gets an Err stub, and only the
 // e2e-webdriver capability grants them — never `default.json`.
 
-/// Every live webview-window label, sorted — a cross-check for WebDriver's
-/// own handle list.
+/// Every live webview label (`strip`, `home`, `p-*`), sorted — a cross-check
+/// for WebDriver's own handle list (V2-3.7: handles are webview labels).
 #[tauri::command]
 pub fn window_labels(app: AppHandle) -> Vec<String> {
     #[cfg(debug_assertions)]
     {
-        let mut v: Vec<String> = app.webview_windows().keys().cloned().collect();
+        let mut v: Vec<String> = app.webviews().keys().cloned().collect();
         v.sort();
         v
     }
@@ -1885,17 +1905,14 @@ pub fn window_labels(app: AppHandle) -> Vec<String> {
     }
 }
 
-/// Bring a window (tab) to the front. A background tab is `document.hidden`
-/// and gets 0 rAF/s, so a scenario selects the tab before any animation-gated
-/// check (spike "Ceiling").
+/// Make a tab the active one (`tabs::reveal`). A background tab is
+/// `document.hidden` and gets 0 rAF/s, so a scenario selects the tab before
+/// any animation-gated check (spike "Ceiling").
 #[tauri::command]
 pub fn e2e_focus_window(app: AppHandle, label: String) -> Result<(), String> {
     #[cfg(debug_assertions)]
     {
-        let w = app
-            .get_webview_window(&label)
-            .ok_or_else(|| format!("no window {label}"))?;
-        w.set_focus().map_err(|e| e.to_string())
+        crate::tabs::reveal(&app, &label)
     }
     #[cfg(not(debug_assertions))]
     {
@@ -1904,17 +1921,21 @@ pub fn e2e_focus_window(app: AppHandle, label: String) -> Result<(), String> {
     }
 }
 
-/// Close a window: `destroy: true` skips `CloseRequested` (what WebDriver's
-/// DELETE /window does); `false` goes through the user close path (⌘W, ×),
-/// including `close_guard`.
+/// Close a tab through the ONE close path (`tabs::close_tab`): `destroy:
+/// true` skips the "Stop AI in …?" guard; `false` is the user close path (the
+/// strip's ×), guard included.
 #[tauri::command]
 pub fn e2e_close_window(app: AppHandle, label: String, destroy: bool) -> Result<(), String> {
     #[cfg(debug_assertions)]
     {
-        let w = app
-            .get_webview_window(&label)
-            .ok_or_else(|| format!("no window {label}"))?;
-        if destroy { w.destroy() } else { w.close() }.map_err(|e| e.to_string())
+        if app.get_webview(&label).is_none() {
+            return Err(format!("no window {label}"));
+        }
+        if destroy {
+            crate::tabs::close_tab(&app, &label)
+        } else {
+            crate::tabs::close_tab_by_user(&app, &label)
+        }
     }
     #[cfg(not(debug_assertions))]
     {
@@ -2373,8 +2394,11 @@ mod tests {
         let read = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         let default = read(include_str!("../capabilities/default.json"));
         let e2e = read(include_str!("../capabilities/debug/e2e-webdriver.json"));
-        assert_eq!(default["windows"], serde_json::json!(["p-*"]));
-        assert_eq!(e2e["windows"], serde_json::json!(["home", "p-*"]));
+        // V2-3.7: tabs are child webviews of the one `shell` window — named
+        // under `webviews`, never `windows` (tabs.rs scans every capability).
+        assert_eq!(default["webviews"], serde_json::json!(["p-*"]));
+        assert_eq!(e2e["webviews"], serde_json::json!(["home", "p-*", "strip"]));
+        assert!(default.get("windows").is_none() && e2e.get("windows").is_none());
         let perms = |v: &serde_json::Value| -> Vec<String> {
             v["permissions"]
                 .as_array()
@@ -2422,6 +2446,16 @@ mod tests {
             .filter_map(|p| p.as_str().map(str::to_string))
             .collect();
         granted.extend(crate::home::HOME_PERMISSIONS.iter().map(|p| p.to_string()));
+        // V2-3.7: the strip's commands (each checks label `strip` + strip.html).
+        let strip = read(include_str!("../capabilities/strip.json"));
+        granted.extend(
+            strip["permissions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|p| p.as_str().map(str::to_string)),
+        );
+        assert!(granted.iter().any(|p| p == "allow-tab-close"));
         let src_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let sources: Vec<String> = std::fs::read_dir(&src_dir)
             .unwrap()
@@ -2437,6 +2471,7 @@ mod tests {
             "check_home(",
             "resolve_profile(",
             "session_for(", // home_session: label + exact Home origin, pure
+            "caller_strip(", // V2-3.7 strip commands: label `strip` + app-local strip.html
         ];
         let mut unchecked = Vec::new();
         for p in granted.iter().filter(|p| p.starts_with("allow-")) {
@@ -2564,6 +2599,7 @@ mod tests {
             "allow-e2e-bind-profile",
             "allow-e2e-notification-click",
             "allow-e2e-deliver-deep-link",
+            "allow-e2e-shell-bounds",
         ];
         for p in debug_only {
             assert!(e2e.contains(&p.to_string()), "{p} belongs to the e2e capability");
@@ -2633,8 +2669,9 @@ mod tests {
     #[test]
     fn session_saves_tabs_in_the_order_the_person_sees_them() {
         // A opens; B opens from A; C opens from A too — C lands right after A,
-        // before B (addTabbedWindow:ordered:NSWindowAbove), so the saved order
-        // is A, C, B, not the open order A, B, C.
+        // before B (a new tab goes after the one that opened it), so the saved
+        // order is A, C, B, not the open order A, B, C. Home is pinned and
+        // never in the session's tabs (V2-3.7), but may be the focused one.
         let host = MockHost::default();
         let book = Mutex::new(WindowBook::default());
         open_in(&host, &book, A, "Alpha", None, 1).unwrap();
@@ -2645,15 +2682,16 @@ mod tests {
 
         let (tabs, focused) = book.lock().unwrap().session_tabs();
         let labels: Vec<&str> = tabs.iter().map(|t| t.label.as_str()).collect();
-        assert_eq!(labels, [label_of(A), label_of(C), label_of(B), "home".into()]);
+        assert_eq!(labels, [label_of(A), label_of(C), label_of(B)]);
         assert_eq!(tabs[1].pid.as_deref(), Some(pid_for_root(C).as_str()));
-        assert_eq!(tabs[3].pid, None, "Home carries no pid");
         assert_eq!(focused, Some(label_of(B)));
+        book.lock().unwrap().focus("home", 6);
+        assert_eq!(book.lock().unwrap().session_tabs().1.as_deref(), Some("home"));
 
         // A closed tab leaves the session.
         forget_window(&mut book.lock().unwrap(), &label_of(C));
         let (tabs, _) = book.lock().unwrap().session_tabs();
-        assert_eq!(tabs.len(), 3);
+        assert_eq!(tabs.len(), 2);
     }
 
     #[test]

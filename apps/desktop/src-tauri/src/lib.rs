@@ -5,7 +5,7 @@
 // focuses the existing window instead of opening a second one.
 //
 // Windows (V2-3.2, contract V2-1.1 §5.2): Rust creates every window — one per
-// open project, label `p-<pid>`, all in one macOS tab group (windows.rs). There
+// open project, label `p-<pid>`, all child webviews of one `shell` window (tabs.rs). There
 // is no `"main"` window. Closing a window stops ONLY its project's server, after
 // a 10 s grace; closing the last one leaves the app running on macOS.
 //
@@ -34,6 +34,7 @@ mod profiles;
 mod project_resolve;
 mod server_json;
 mod sidecar;
+mod tabs;
 mod updater;
 mod win_process;
 mod windows;
@@ -497,11 +498,8 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
     app_state::set_last_project(app, &path);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        // V2-3.7: Home is pinned and stays; the opened tab becomes active.
         match windows::open_project_window(&app, &path, caller.as_deref(), None) {
-            // A pick made from Home replaces the Home tab (V2-1.1 decision 3).
-            Ok(opened) if caller.as_deref() == Some(windows::HOME_LABEL) => {
-                home::close_home_when_key(&app, opened.label());
-            }
             Ok(_) => {}
             Err(e) => sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display())),
         }
@@ -629,6 +627,12 @@ pub fn run() {
             open_local_project,
             windows::open_project,
             windows::e2e_open_root,
+            // V2-3.7 the tab strip (strip-only, capabilities/strip.json).
+            tabs::tabs_state,
+            tabs::tab_activate,
+            tabs::tab_close,
+            tabs::tab_reorder,
+            tabs::e2e_shell_bounds,
             open_project_folder,
             home::shell_state,
             home::home_session,
@@ -818,14 +822,21 @@ pub fn run() {
             // projects go through `open_window_for_root`, not
             // `open_project_window`: the welcome project and an
             // `MAUDE_PROJECT_ROOT` override must not enter the registry.
+            //
+            // V2-3.7: ONE `shell` window with the tab strip, then the pinned
+            // Home tab (always, in both plans — it is never closed), then the
+            // project tab(s), each a child webview of the shell.
+            if let Err(e) = tabs::ensure_shell(&handle) {
+                sidecar::log_line(&format!("[maude] FATAL: could not open the Maude window: {e}"));
+            }
+            if let Err(e) = home::ensure_home_window(&handle, None) {
+                sidecar::log_line(&format!("[maude] FATAL: could not open the Home tab: {e}"));
+            }
             match &plan {
                 BootPlan::Project(root) => {
                     windows::boot_windows(&handle, Some(&root.to_string_lossy()), None);
                 }
                 BootPlan::Home { reopen } => {
-                    if let Err(e) = home::ensure_home_window(&handle, None) {
-                        sidecar::log_line(&format!("[maude] FATAL: could not open the Home window: {e}"));
-                    }
                     let reopen = reopen.as_ref().map(|r| r.to_string_lossy().into_owned());
                     windows::boot_windows(&handle, reopen.as_deref(), Some(windows::HOME_LABEL));
                 }
@@ -853,28 +864,32 @@ pub fn run() {
 
             Ok(())
         })
-        // Per-window lifecycle (V2-3.2, contract §5.2). A close stops ONLY that
-        // window's project, after the grace (`windows::on_destroyed`) — it used
-        // to `kill_server` the whole pool (e2e spike finding 1). `Destroyed`, not
-        // `CloseRequested`, does the bookkeeping: WebDriver's DELETE /window
-        // destroys without asking, and both paths must converge. Focus stamps
-        // the front window and checks for updates (Phase 32 / Task 1).
-        .on_window_event(|window, event| match event {
-            WindowEvent::CloseRequested { api, .. } => {
-                if windows::close_guard(window.app_handle(), window.label())
-                    == windows::CloseGuard::Hold
-                {
+        // The ONE `shell` window (V2-3.7). Tabs are child webviews with no
+        // lifecycle events of their own: a tab closes through `tabs::close_tab`
+        // (the strip's ×, e2e), which does the per-tab bookkeeping (grace,
+        // reap — `windows::on_destroyed`). The shell's close button HIDES it on
+        // macOS — the app keeps running and the Dock (`RunEvent::Reopen`)
+        // shows it again; elsewhere it closes and the app exits. A resize or a
+        // fullscreen change re-lays-out the children. Focus only checks for
+        // updates (Phase 32 / Task 1): the active tab is the strip's business.
+        .on_window_event(|window, event| {
+            if window.label() != tabs::SHELL_LABEL {
+                return;
+            }
+            match event {
+                #[cfg(target_os = "macos")]
+                WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
+                    let _ = window.hide();
                 }
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    tabs::layout(window.app_handle());
+                }
+                WindowEvent::Focused(true) => {
+                    updater::check_now(window.app_handle().clone());
+                }
+                _ => {}
             }
-            WindowEvent::Destroyed => {
-                windows::on_destroyed(window.app_handle(), window.label());
-            }
-            WindowEvent::Focused(true) => {
-                windows::on_focused(window.app_handle(), window.label());
-                updater::check_now(window.app_handle().clone());
-            }
-            _ => {}
         });
 
     // Desktop E2E (DOM-driven scenario tests via @wdio/tauri-service): register the
@@ -927,21 +942,17 @@ pub fn run() {
             sidecar::kill_server(app_handle);
             home::kill(app_handle);
         }
-        // Dock click with no window open: Home (contract §5.2 "Last window
-        // closed").
+        // Dock click with the shell hidden (its close button, V2-3.7): show it
+        // again on the tab that was active.
         #[cfg(target_os = "macos")]
-        RunEvent::Reopen { .. } => {
-            let none_open = app_handle
-                .try_state::<SidecarState>()
-                .is_some_and(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).is_empty());
-            if none_open {
-                let handle = app_handle.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = home::ensure_home_window(&handle, None) {
-                        sidecar::log_line(&format!("[maude] reopen failed: {e}"));
-                    }
-                });
-            }
+        RunEvent::Reopen {
+            has_visible_windows: false,
+            ..
+        } => {
+            let handle = app_handle.clone();
+            tauri::async_runtime::spawn(async move {
+                windows::reveal_front(&handle);
+            });
         }
         _ => {}
     });
