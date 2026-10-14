@@ -13,27 +13,54 @@ import {
 } from '../helpers/windows';
 
 /**
- * V2-3.5 — per-project identity across tabs (old plan T13 scenario 2) and the
- * notification click (contract V2-1.1 §5.2 "Notifications").
+ * V2-3.5 + V2-3.8 — per-project identity across tabs (old plan T13 scenario 2),
+ * "each project keeps its own sign-in" (Michal's finding), and the notification
+ * click (contract V2-1.1 §5.2 "Notifications").
  *
  * primary   = the project the app boots into (profile `default`).
- * secondary = bound to a fresh profile `e2e-b`, then reopened so its server
- *             starts on that profile (env is never hot-swapped).
+ * secondary = opened after primary signed in, so it follows that profile; it
+ *             then signs in as another account and moves to its own profile.
  *
- * wdio.tabs-identity.conf.ts stubs the sign-in state per profile
- * (`MAUDE_E2E_GITHUB_SIGNED_IN_PROFILES=default`, debug builds only) and points
- * the profile registry at a throwaway XDG_CONFIG_HOME.
+ * Sign-in goes through the REAL write path (`oauth::complete_github_sign_in`:
+ * pick the profile, store the token, bind, restart the server) via the
+ * debug-only `e2e_github_sign_in_as` seam, against the debug-only in-memory
+ * keychain (`MAUDE_E2E_FAKE_KEYCHAIN`, wdio.tabs-identity.conf.ts) — only the
+ * GitHub device flow itself is skipped. The profile registry lives in a
+ * throwaway XDG_CONFIG_HOME.
  */
 const PRIMARY = process.env.MAUDE_PROJECT_ROOT as string;
 const SECONDARY = process.env.MAUDE_E2E_SECONDARY_ROOT as string;
 /** windows.rs CLOSE_GRACE, plus headroom for the reap. */
 const GRACE_MS = 10_000;
+const X = 'e2e-x';
+const Y = 'e2e-y';
 
+/** The calling tab's profile id as its own server reports it (`''` while the
+ *  page is reloading onto a restarted server). */
 async function profileOfTab(): Promise<string> {
-  return browser.execute(async () => {
-    const res = await fetch('/_config');
-    const cfg = (await res.json()) as { profile?: { id?: string } };
-    return cfg.profile?.id ?? '';
+  return browser
+    .execute(async () => {
+      const res = await fetch('/_config');
+      const cfg = (await res.json()) as { profile?: { id?: string } };
+      return cfg.profile?.id ?? '';
+    })
+    .catch(() => '');
+}
+
+/** What the current tab is signed in as: its profile, whether the shell finds a
+ *  token for it, and the GitHub login recorded on that profile. */
+async function identityOfTab(): Promise<{ profile: string; signedIn: boolean; login: string }> {
+  const profile = await profileOfTab();
+  const signedIn = await invokeTauri<boolean>('github_is_signed_in');
+  const all = await invokeTauri<Array<{ id: string; githubLogin?: string }>>('profiles_list');
+  return { profile, signedIn, login: all.find((p) => p.id === profile)?.githubLogin ?? '' };
+}
+
+async function waitForProfile(id: string, what: string): Promise<void> {
+  await browser.waitUntil(async () => (await profileOfTab()) === id, {
+    timeout: 60_000,
+    interval: 500,
+    timeoutMsg: `${what} never reported profile ${id}`,
   });
 }
 
@@ -55,7 +82,7 @@ async function visible(label: string): Promise<boolean> {
 describe('project-tabs-identity (native-desktop)', () => {
   let tabA = '';
   let tabB = '';
-  let profileB = '';
+  let profileY = '';
 
   before(async () => {
     startReport('project-tabs-identity (native-desktop)');
@@ -65,49 +92,34 @@ describe('project-tabs-identity (native-desktop)', () => {
     console.log(`[identity] boot window ${tabA}; handles ${JSON.stringify(await labels())}`);
   });
 
-  it('binds the secondary project to profile e2e-b; reopened, each tab runs on its own', async () => {
-    const created = await invokeTauri<{ id: string }>('profiles_create', { label: 'e2e-b' });
-    profileB = created.id;
-    expect(profileB).toBe('e2e-b');
+  it('A signs in as X; B, never signed in, follows the most recent profile', async () => {
+    expect(await profileOfTab()).toBe('default');
+    expect(await invokeTauri<boolean>('github_is_signed_in')).toBe(false);
+    // A first sign-in stays on the project's own profile — no profile made.
+    expect(await invokeTauri<string>('e2e_github_sign_in_as', { login: X })).toBe('default');
+    expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
 
     const opened = await openTab(SECONDARY);
     tabB = opened.label;
     await waitWindow(tabB);
     await focusTab(tabB);
     await waitForSidecar();
-    expect(await profileOfTab()).toBe('default');
-
-    await focusTab(tabA);
-    await invokeTauri('e2e_bind_profile', { root: SECONDARY, profile: profileB });
-    // Reopen: close B, let the grace stop its server, open it again — the new
-    // server is spawned with the bound profile's env.
-    await closeTab(tabB, tabA);
-    await browser.waitUntil(async () => serverGone(SECONDARY), {
-      timeout: GRACE_MS + 20_000,
-      interval: 500,
-      timeoutMsg: "the secondary's server outlived the close grace",
-    });
-    const reopened = await openTab(SECONDARY);
-    tabB = reopened.label;
-    await waitWindow(tabB);
-    await focusTab(tabB);
-    await waitForSidecar();
-    await browser.waitUntil(async () => (await profileOfTab()) === profileB, {
-      timeout: 30_000,
-      interval: 500,
-      timeoutMsg: `tab B never reported profile ${profileB}`,
-    });
-    await capture('1-tab-b-on-e2e-b');
-    await focusTab(tabA);
-    expect(await profileOfTab()).toBe('default');
-    await capture('1-tab-a-on-default');
+    expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
+    await capture('1-b-follows-x');
   });
 
-  it('sign-in state follows each tab’s profile', async () => {
-    await focusTab(tabA);
-    expect(await invokeTauri<boolean>('github_is_signed_in')).toBe(true);
+  it('B signs in as Y: B moves to its own profile, A still reports X', async () => {
     await focusTab(tabB);
-    expect(await invokeTauri<boolean>('github_is_signed_in')).toBe(false);
+    profileY = await invokeTauri<string>('e2e_github_sign_in_as', { login: Y });
+    expect(profileY).not.toBe('default');
+    // B's server restarts onto the new profile and its page reloads on it.
+    await waitForProfile(profileY, 'tab B');
+    expect(await identityOfTab()).toEqual({ profile: profileY, signedIn: true, login: Y });
+    await capture('2-b-on-y');
+
+    await focusTab(tabA);
+    expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
+    await capture('2-a-still-x');
   });
 
   it('a notification click focuses that project’s tab', async () => {
@@ -134,11 +146,23 @@ describe('project-tabs-identity (native-desktop)', () => {
     });
   });
 
-  after(async () => {
-    if (!profileB || !tabA) return;
-    await focusTab(tabA).catch(() => undefined);
-    // The registry is a throwaway XDG dir; deleting is tidy, not load-bearing
-    // (it refuses while a project is still bound to the profile).
-    await invokeTauri('profiles_delete', { id: profileB }).catch(() => undefined);
+  it('an in-tab switch A→B→A keeps each project’s identity', async () => {
+    // Open once: B must not be open elsewhere, or the switch focuses that tab.
+    await closeTab(tabB, tabA);
+    await browser.waitUntil(async () => serverGone(SECONDARY), {
+      timeout: GRACE_MS + 20_000,
+      interval: 500,
+      timeoutMsg: "the secondary's server outlived the close grace",
+    });
+    await focusTab(tabA);
+    await invokeTauri('open_local_project', { path: SECONDARY }).catch(() => undefined);
+    await waitForProfile(profileY, 'tab A on B');
+    expect(await identityOfTab()).toEqual({ profile: profileY, signedIn: true, login: Y });
+    await capture('4-a-switched-to-b');
+
+    await invokeTauri('open_local_project', { path: PRIMARY }).catch(() => undefined);
+    await waitForProfile('default', 'tab A back on A');
+    expect(await identityOfTab()).toEqual({ profile: 'default', signedIn: true, login: X });
+    await capture('4-a-back-on-a');
   });
 });
