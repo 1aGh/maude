@@ -2542,6 +2542,17 @@ mod tests {
             assert!(!home.contains(&p.to_string()), "{p} granted to Home without a UI");
             assert!(e2e.contains(&p.to_string()), "{p}: the identity e2e needs it");
         }
+        // V2-3.10 low (c): no page reads the deep-link plugin directly. Its
+        // `get_current` returns the launch link (which may carry `?code=`) with
+        // no caller check; links reach pages only through `deep_link.rs`'s
+        // caller-checked parking (`take_pending_deep_link`). The plugin's Rust
+        // side (`on_open_url`) needs no capability.
+        for (name, set) in [("default", &default), ("home-splash", &splash), ("home", &home), ("e2e", &e2e)] {
+            assert!(
+                !set.iter().any(|p| p.starts_with("deep-link:")),
+                "{name} grants the deep-link plugin to a page"
+            );
+        }
         // L3: every debug-only command is granted ONLY by the debug capability,
         // and a release build does not compile that file at all.
         let debug_only = [

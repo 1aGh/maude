@@ -46,7 +46,6 @@
     "allow-resolve-project-for-link",
     "allow-send-notification",
     "allow-managed-project-open",
-    "allow-managed-projects-list",
-    "deep-link:default"
+    "allow-managed-projects-list"
   ]
 }
