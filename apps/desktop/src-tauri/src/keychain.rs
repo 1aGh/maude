@@ -300,7 +300,7 @@ pub async fn github_is_signed_in(app: tauri::AppHandle, webview: tauri::Webview)
             .is_ok_and(|p| e2e_signed_in(&list, &p));
     }
     #[cfg(debug_assertions)]
-    if std::env::var_os("MAUDE_E2E_NO_KEYCHAIN").is_some() {
+    if std::env::var_os("MAUDE_E2E_NO_KEYCHAIN").is_some() && !test_store::e2e_installed() {
         return false;
     }
     match resolve_profile(&app, &webview) {
@@ -316,9 +316,14 @@ pub async fn github_sign_out(app: tauri::AppHandle, webview: tauri::Webview) -> 
     delete_token(&resolve_profile(&app, &webview)?)
 }
 
-#[cfg(test)]
+#[cfg(any(test, debug_assertions))]
 pub(crate) mod test_store {
-    //! In-memory keyring backend for tests. keyring v3's own `mock` builder keeps
+    //! In-memory keyring backend for tests — and, in DEBUG builds only, for the
+    //! desktop e2e lane (V2-3.8): `MAUDE_E2E_FAKE_KEYCHAIN=1` routes every
+    //! `keyring::Entry` here at startup (`install_for_e2e`), so a scenario drives
+    //! the REAL sign-in write path (`oauth::complete_github_sign_in`) without
+    //! touching the person's keychain. A release build compiles none of this.
+    //! keyring v3's own `mock` builder keeps
     //! the secret INSIDE each `Entry`, so a fresh `entry()` per call (exactly what
     //! production does) could never read back what an earlier one set. This store
     //! is shared across entries, keyed by (service, account), so tests exercise the
@@ -387,7 +392,26 @@ pub(crate) mod test_store {
     static INSTALL: Once = Once::new();
     static STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
 
-    /// Route every `keyring::Entry` in this test binary to the shared memory store.
+    static E2E: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+    /// Debug builds: install the memory store when `MAUDE_E2E_FAKE_KEYCHAIN` is
+    /// set. Called once from lib.rs setup, before anything reads a token.
+    #[cfg(debug_assertions)]
+    pub fn install_for_e2e() {
+        if std::env::var_os("MAUDE_E2E_FAKE_KEYCHAIN").is_some_and(|v| !v.is_empty()) {
+            install();
+            E2E.store(true, std::sync::atomic::Ordering::SeqCst);
+            crate::sidecar::log_line("[maude] e2e: in-memory keychain (debug build)");
+        }
+    }
+
+    /// Whether the e2e memory keychain is in use (debug builds only).
+    #[cfg_attr(not(debug_assertions), allow(dead_code))]
+    pub fn e2e_installed() -> bool {
+        E2E.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Route every `keyring::Entry` in this process to the shared memory store.
     pub fn install() -> Store {
         let store = STORE.get_or_init(Store::default).clone();
         let s = store.clone();

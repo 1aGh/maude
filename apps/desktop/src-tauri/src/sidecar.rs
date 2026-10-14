@@ -173,7 +173,7 @@ impl ShellStatus {
 /// (hubs-config.ts, cloud/endpoints.ts), and leaving them unset keeps a
 /// pre-profiles install byte-identical. Any other profile points the server at its
 /// own `cloud.json` / `hubs.json`.
-fn profile_env(
+pub(crate) fn profile_env(
     profile_id: &str,
     label: &str,
     paths: Option<&crate::profiles::ProfilePaths>,
@@ -977,6 +977,20 @@ pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Opt
 ///    we are actually about to spawn.
 pub(crate) fn attach_or_spawn(app: &AppHandle, root: &str) -> bool {
     let state = app.state::<SidecarState>();
+    // V2-3.8: a live server spawned on another profile than the project's
+    // binding now holds (a sign-in rebound it; an unbound project adopted the
+    // last sign-in's profile on this open) is NOT attached to — env is never
+    // hot-swapped, so it is replaced by a server on the bound profile.
+    let bound = crate::app_state::profile_for(app, root);
+    let stale = {
+        let pool = state.instances.lock().expect("sidecar mutex poisoned");
+        pool.get(root)
+            .is_some_and(|inst| inst.child.is_some() && inst.profile_id != bound)
+    };
+    if stale {
+        log_line(&format!("[maude] {root} is bound to profile {bound} — restarting its server"));
+        shutdown_instance(app, root);
+    }
     let already_running = {
         let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
         let tick = state.tick.fetch_add(1, Ordering::SeqCst);
@@ -1000,6 +1014,15 @@ pub(crate) fn attach_or_spawn(app: &AppHandle, root: &str) -> bool {
         log_line(&format!("[maude] could not spawn dev-server for {root}: {e}"));
     }
     true
+}
+
+/// V2-3.8: the project in window `label` was just rebound to another profile
+/// (a sign-in that would have re-signed a shared profile): restart its server
+/// onto the new profile's env (`attach_or_spawn` replaces the stale instance)
+/// and reload the window on it, so its identity bar reads the new account.
+pub fn restart_on_binding(app: &AppHandle, label: &str, root: &str) {
+    attach_or_spawn(app, root);
+    crate::windows::navigate_when_up(app, label.to_string(), root.to_string(), None);
 }
 
 /// A window showing `root` was focused: stamp its instance most-recently-shown

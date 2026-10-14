@@ -17,7 +17,15 @@ import { useEffect, useRef, useState } from 'react';
 import { localIdentityMatches, parseMaudeLink } from '../share-link.js';
 import FileDeepLinkDialog from './file-deep-link-dialog.jsx';
 import { safeName, syncPresentation } from '../../sync/presentation.ts';
-import { invoke, isNativeApp, listenHere, openCloudUrl, openTeamProject } from '../github.js';
+import {
+  cloudSignedIn,
+  cloudSignInPrepare,
+  invoke,
+  isNativeApp,
+  listenHere,
+  openCloudUrl,
+  openTeamProject,
+} from '../github.js';
 
 const api = async (path, init) => {
   const res = await fetch(path, init);
@@ -579,6 +587,13 @@ export default function CloudBar({
 
   async function startSignIn() {
     setError('');
+    // V2-3.8: never sign in over another account's cloud credential.
+    try {
+      if (await cloudSignInPrepare()) return; // moved to its own profile — reloading
+    } catch (e) {
+      setError(String(e?.message || e || 'Maude Cloud sign-in could not start.'));
+      return;
+    }
     const r = await api('/_api/cloud/signin/start', { method: 'POST' });
     if (!r.ok || !r.json?.ok) {
       setError(r.json?.error || 'Maude Cloud could not be reached.');
@@ -600,6 +615,7 @@ export default function CloudBar({
           setEmail(p.json.email);
           setState('in');
           setDevice(null);
+          cloudSignedIn().catch(() => undefined); // V2-3.8: may move it to its own profile
         } else {
           setDevice(null);
           setError(p.json?.error || 'The sign-in did not finish. Try again.');

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cloud-signed-in"
+description = "Enables the cloud_signed_in command without any pre-configured scope."
+commands.allow = ["cloud_signed_in"]
+
+[[permission]]
+identifier = "deny-cloud-signed-in"
+description = "Denies the cloud_signed_in command without any pre-configured scope."
+commands.deny = ["cloud_signed_in"]

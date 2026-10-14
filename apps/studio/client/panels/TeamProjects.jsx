@@ -21,7 +21,13 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { isDisplayableUrl, openExternal, shareViewUrl } from './CloudBar.jsx';
-import { managedProjectOpen, managedProjectsList, openTeamProject } from '../github.js';
+import {
+  cloudSignedIn,
+  cloudSignInPrepare,
+  managedProjectOpen,
+  managedProjectsList,
+  openTeamProject,
+} from '../github.js';
 
 const api = async (path, init) => {
   try {
@@ -187,6 +193,13 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
 
   async function startCloudSignIn() {
     setErr('');
+    // V2-3.8: never sign in over another account's cloud credential.
+    try {
+      if (await cloudSignInPrepare()) return; // moved to its own profile — reloading
+    } catch (e) {
+      setErr(String(e?.message || e || 'Maude Cloud sign-in could not start.'));
+      return;
+    }
     const r = await api('/_api/cloud/signin/start', { method: 'POST' });
     if (!r.ok || !r.json?.ok) {
       setErr(r.json?.error || 'Maude Cloud could not be reached.');
@@ -207,6 +220,7 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
         setDevice(null);
         if (p.ok && p.json?.ok) {
           setCloud((c) => ({ ...c, state: 'in', email: p.json.email ?? null }));
+          cloudSignedIn().catch(() => undefined); // V2-3.8: may move it to its own profile
           loadProjects();
         } else setErr(p.json?.error || 'The sign-in did not finish. Try again.');
       },

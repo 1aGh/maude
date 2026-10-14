@@ -277,11 +277,11 @@ fn derive_id(label: &str, taken: &[String]) -> String {
         .expect("an unbounded counter always finds a free id")
 }
 
-fn list_in(file: &Path) -> Vec<Profile> {
+pub(crate) fn list_in(file: &Path) -> Vec<Profile> {
     load_registry(file).profiles
 }
 
-fn create_in(file: &Path, label: &str) -> Result<Profile, String> {
+pub(crate) fn create_in(file: &Path, label: &str) -> Result<Profile, String> {
     let label = clean_label(label)?;
     let _guard = REGISTRY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut reg = load_registry(file);
@@ -324,7 +324,7 @@ fn delete_in(file: &Path, id: &str, is_bound: impl Fn(&str) -> bool) -> Result<(
     save_registry(file, &reg)
 }
 
-fn registry_file() -> PathBuf {
+pub(crate) fn registry_file() -> PathBuf {
     config_root().join("profiles.json")
 }
 
@@ -341,19 +341,90 @@ pub fn label_of(id: &str) -> String {
         .unwrap_or_else(|| id.to_string())
 }
 
-/// Record the public GitHub handle on the profile after sign-in (oauth.rs).
-/// Best-effort: the handle is display-only; the token itself is keychain-only.
-pub fn set_github_login(id: &str, login: &str) {
+// ── which profile a sign-in lands on (V2-3.8) ───────────────────────────────
+
+/// The two credentials a profile holds. A profile is ONE account bundle: a
+/// project's GitHub token and its Maude Cloud credential always live in the
+/// same profile (V2-3.8), so both kinds go through the same decision.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignInKind {
+    GitHub,
+    Cloud,
+}
+
+/// Where a sign-in's credential goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignInTarget {
+    /// The calling project's own profile.
+    Keep,
+    /// A fresh profile, which the calling project is rebound to.
+    NewProfile,
+}
+
+/// V2-3.8 "each project keeps its own sign-in". `prior_credential`: the
+/// caller's profile holds a credential of this kind right now. `recorded`: the
+/// account last signed in on it (kept across a sign-out). `others_bound`:
+/// other projects bound to the same profile.
+///
+/// - the same account again ⇒ Keep (a token refresh changes nobody's account);
+/// - a credential of another (or an unknown) account ⇒ NewProfile — the slot
+///   is never overwritten under the projects that use it;
+/// - signed out, but other projects are bound to it under another account ⇒
+///   NewProfile (never re-sign a shared profile as someone else);
+/// - otherwise (a first sign-in, or the caller's own signed-out profile) ⇒ Keep.
+pub fn sign_in_target(
+    prior_credential: bool,
+    recorded: Option<&str>,
+    others_bound: usize,
+    account: &str,
+) -> SignInTarget {
+    if recorded.is_some_and(|r| r.eq_ignore_ascii_case(account)) {
+        return SignInTarget::Keep;
+    }
+    if prior_credential || (recorded.is_some() && others_bound > 0) {
+        return SignInTarget::NewProfile;
+    }
+    SignInTarget::Keep
+}
+
+/// The account last signed in on profile `id` for `kind` (public handles only).
+pub(crate) fn recorded_account_in(file: &Path, id: &str, kind: SignInKind) -> Option<String> {
+    let p = list_in(file).into_iter().find(|p| p.id == id)?;
+    match kind {
+        SignInKind::GitHub => p.github_login,
+        SignInKind::Cloud => p.cloud_email,
+    }
+    .filter(|a| !a.is_empty())
+}
+
+/// Record the public account handle (GitHub login / cloud e-mail) on a profile
+/// after sign-in. Best-effort: display data and the V2-3.8 decision input; the
+/// credential itself is never here.
+pub(crate) fn set_account_in(file: &Path, id: &str, kind: SignInKind, account: &str) {
     if validate_id(id).is_err() {
         return;
     }
-    let file = registry_file();
     let _guard = REGISTRY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let mut reg = load_registry(&file);
+    let mut reg = load_registry(file);
     if let Some(p) = reg.profiles.iter_mut().find(|p| p.id == id) {
-        p.github_login = Some(crate::notify::sanitize_notify_field(login));
-        let _ = save_registry(&file, &reg);
+        let v = Some(crate::notify::sanitize_notify_field(account));
+        match kind {
+            SignInKind::GitHub => p.github_login = v,
+            SignInKind::Cloud => p.cloud_email = v,
+        }
+        let _ = save_registry(file, &reg);
     }
+}
+
+/// `create_in` under the `MAX_PROFILES` cap (V2-3.6 M2) — the one way a new
+/// profile is made, from Home or from a V2-3.8 sign-in.
+pub(crate) fn create_capped_in(file: &Path, label: &str) -> Result<Profile, String> {
+    if list_in(file).len() >= MAX_PROFILES {
+        return Err(format!(
+            "You can keep up to {MAX_PROFILES} accounts. Remove one in Home first."
+        ));
+    }
+    create_in(file, label)
 }
 
 // ── Tauri commands ──────────────────────────────────────────────────────────
@@ -394,11 +465,7 @@ pub fn profiles_list(webview: tauri::Webview) -> Result<Vec<Profile>, String> {
 #[tauri::command]
 pub fn profiles_create(webview: tauri::Webview, label: String) -> Result<Profile, String> {
     gate(&webview)?;
-    let file = registry_file();
-    if list_in(&file).len() >= MAX_PROFILES {
-        return Err(format!("You can keep up to {MAX_PROFILES} accounts."));
-    }
-    create_in(&file, &label)
+    create_capped_in(&registry_file(), &label)
 }
 
 /// `async`: it also clears the profile's keychain slot, and a keychain call can
@@ -423,6 +490,84 @@ pub async fn profiles_delete(
             let _ = std::fs::remove_dir(dir);
         }
     }
+    Ok(())
+}
+
+// ── Maude Cloud sign-in binding (V2-3.8) ─────────────────────────────────────
+//
+// The cloud device flow runs in the project's server (cloud/endpoints.ts), which
+// writes `cloud.json` at MAUDE_CLOUD_CONFIG — the profile its env names — and
+// cannot rebind anything itself. So the project page brackets the flow with
+// two shell calls: `cloud_sign_in_prepare` BEFORE it starts (a profile that
+// already holds a cloud credential is never overwritten: the project moves to
+// a fresh profile first) and `cloud_signed_in` AFTER the server stored the
+// credential (the same `sign_in_target` decision GitHub uses, on the account's
+// e-mail). The hub link needs no step of its own: its credential is derived
+// from this cloud account and lands in the same profile's `hubs.json`
+// (HUBS_CONFIG_PATH comes from the same `profile_env`).
+
+/// The e-mail in a `cloud.json` (public handle; the token is never read out).
+fn cloud_email_of(raw: &[u8]) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_slice(raw).ok()?;
+    v.get("email")?.as_str().map(str::to_string).filter(|e| !e.is_empty())
+}
+
+/// Before a Maude Cloud sign-in from a project page. Ok(true) = the project
+/// was moved to a fresh profile (its profile already held a cloud credential)
+/// and its server is restarting — the page reloads and the person starts the
+/// sign-in again there. Ok(false) = go ahead on the current profile.
+#[tauri::command]
+pub async fn cloud_sign_in_prepare(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<bool, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let current = crate::app_state::profile_for(&app, &caller.root);
+    if !paths(&current)?.cloud_config.exists() {
+        return Ok(false);
+    }
+    let label = crate::windows::project_display_name(&caller.root);
+    let fresh = create_capped_in(&registry_file(), &label)?;
+    crate::app_state::bind_chosen(&app, &caller.root, &fresh.id)?;
+    crate::sidecar::restart_on_binding(&app, &caller.label, &caller.root);
+    Ok(true)
+}
+
+/// After the project's server stored a cloud credential in its profile's
+/// `cloud.json`: record the account, and when that sign-in would re-sign a
+/// profile other projects use under another account, move the credential to a
+/// fresh profile, rebind the project and restart its server. Ok(true) = rebound.
+#[tauri::command]
+pub async fn cloud_signed_in(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let current = crate::app_state::profile_for(&app, &caller.root);
+    let src = paths(&current)?.cloud_config;
+    let raw = std::fs::read(&src).map_err(|_| "Maude Cloud sign-in didn't finish.".to_string())?;
+    let email = cloud_email_of(&raw).unwrap_or_else(|| "Maude Cloud".to_string());
+    let out = crate::app_state::settle_sign_in_app(
+        &app,
+        &caller.root,
+        SignInKind::Cloud,
+        &email,
+        // `cloud_sign_in_prepare` made sure nothing was there before the flow.
+        |_| false,
+        |target| move_cloud_credential(&src, &paths(target)?.cloud_config, &raw),
+    )?;
+    if out.rebound {
+        crate::sidecar::restart_on_binding(&app, &caller.label, &caller.root);
+    }
+    Ok(out.rebound)
+}
+
+/// Store a cloud credential on the target profile: nothing to do when it is
+/// already there; otherwise write it there (0600, atomic) and put the shared
+/// profile back the way it was before the flow — signed out.
+fn move_cloud_credential(src: &Path, dest: &Path, raw: &[u8]) -> Result<(), String> {
+    if dest == src {
+        return Ok(());
+    }
+    atomic_write(dest, raw).map_err(|e| format!("Couldn't save the sign-in: {e}"))?;
+    let _ = std::fs::remove_file(src);
     Ok(())
 }
 
@@ -557,6 +702,47 @@ mod tests {
         .unwrap();
         let ids: Vec<String> = list_in(&file).into_iter().map(|p| p.id).collect();
         assert_eq!(ids, vec!["default", "ok"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// V2-3.8: where a sign-in lands.
+    #[test]
+    fn a_sign_in_never_re_signs_a_profile_under_another_account() {
+        use SignInTarget::{Keep, NewProfile};
+        // first sign-in, shared or not
+        assert_eq!(sign_in_target(false, None, 0, "x"), Keep);
+        assert_eq!(sign_in_target(false, None, 3, "x"), Keep);
+        // the same account again (case-insensitive handle)
+        assert_eq!(sign_in_target(true, Some("X"), 3, "x"), Keep);
+        // a credential of another / an unknown account
+        assert_eq!(sign_in_target(true, Some("x"), 0, "y"), NewProfile);
+        assert_eq!(sign_in_target(true, None, 0, "y"), NewProfile);
+        // signed out: shared ⇒ new; the caller's own ⇒ keep
+        assert_eq!(sign_in_target(false, Some("x"), 1, "y"), NewProfile);
+        assert_eq!(sign_in_target(false, Some("x"), 0, "y"), Keep);
+    }
+
+    /// V2-3.8 cloud: a credential moved off a shared profile leaves it signed out.
+    #[test]
+    fn a_moved_cloud_credential_leaves_the_shared_profile_signed_out() {
+        let dir = tmp("cloudmove");
+        ensure_private_dir(&dir).unwrap();
+        let src = dir.join("cloud.json");
+        let raw = br#"{"url":"https://c.test","token":"t","email":"y@c.test"}"#;
+        std::fs::write(&src, raw).unwrap();
+        assert_eq!(cloud_email_of(raw).as_deref(), Some("y@c.test"));
+        // Same profile: nothing moves.
+        move_cloud_credential(&src, &src, raw).unwrap();
+        assert!(src.exists());
+        let dest = dir.join("profiles").join("y").join("cloud.json");
+        move_cloud_credential(&src, &dest, raw).unwrap();
+        assert!(!src.exists(), "the shared profile is signed out again");
+        assert_eq!(std::fs::read(&dest).unwrap(), raw.to_vec());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&dest).unwrap().permissions().mode() & 0o777, 0o600);
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 

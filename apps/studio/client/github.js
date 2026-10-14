@@ -42,6 +42,18 @@ export function listenHere(event, handler) {
 /** Run the device flow; resolves to the login (public handle) on success. */
 export const signIn = () => invoke('github_sign_in');
 export const signOut = () => invoke('github_sign_out');
+/** V2-3.8 — a Maude Cloud sign-in keeps its project's own profile. Call before
+ *  the device flow: `true` means this project already held a cloud sign-in and
+ *  was moved to a fresh profile (its server restarts and the page reloads —
+ *  stop, the person starts again there). In a plain browser there is no shell:
+ *  `false`. */
+export const cloudSignInPrepare = () =>
+  isNativeApp() ? invoke('cloud_sign_in_prepare') : Promise.resolve(false);
+/** V2-3.8 — after the server stored the cloud credential: the shell records the
+ *  account and, when it would re-sign a profile other projects use under another
+ *  account, moves it to this project's own profile (`true`: reloading). */
+export const cloudSignedIn = () =>
+  isNativeApp() ? invoke('cloud_signed_in') : Promise.resolve(false);
 /** Whether a token is in the keychain (boolean). Safe to call on launch. */
 export const isSignedIn = () => invoke('github_is_signed_in');
 export const openVerification = () =>

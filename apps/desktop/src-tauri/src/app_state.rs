@@ -28,6 +28,15 @@
 // not proof of who you are; cloud/endpoints.ts). Missing ⇒ `default`. There is
 // deliberately no separate `project_profiles` map: one registry, one binding.
 //
+// V2-3.8 "each project keeps its own sign-in": `projects[pid].bound` marks a
+// binding someone CHOSE (a sign-in, `bind_profile`, a managed copy); an entry
+// on `default` that was never bound is unbound. `lastSignInProfile` is the
+// profile the most recent sign-in (GitHub or Maude Cloud) landed on. An
+// unbound project adopts it the next time it is opened (registry creation or
+// any later open — `AppState::open`) and is bound from then on, so a project
+// that never signed in follows the account you last used, once; a bound
+// project is never rebound by opening it.
+//
 // A registry entry whose root vanished is KEPT (§5.5: shown as "isn't where it
 // was" until Find the folder… rebinds it); it ages out only after 90 days unopened.
 
@@ -79,6 +88,18 @@ pub struct ProjectEntry {
     /// Managed cloud copy descriptor (managed.rs) — `null` for a plain local project.
     #[serde(default)]
     pub managed: Option<serde_json::Value>,
+    /// V2-3.8: the profile was chosen (sign-in / `bind_profile` / managed copy),
+    /// not inherited. See `ProjectEntry::is_bound`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bound: bool,
+}
+
+impl ProjectEntry {
+    /// Bound = chosen. An entry on any profile other than `default` was bound
+    /// by definition (entries written before V2-3.8 carry no `bound` flag).
+    pub fn is_bound(&self) -> bool {
+        self.bound || self.profile != profiles::DEFAULT_ID
+    }
 }
 
 fn default_profile() -> String {
@@ -116,6 +137,14 @@ pub struct AppState {
     pub session: Option<Session>,
     #[serde(default, rename = "homePort")]
     pub home_port: Option<u16>,
+    /// V2-3.8: the profile the most recent sign-in landed on — what an unbound
+    /// project adopts when it is opened.
+    #[serde(
+        default,
+        rename = "lastSignInProfile",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub last_sign_in_profile: Option<String>,
     // ── v1 keys: recomputed from v2 on every load/save, read only to migrate ──
     #[serde(default)]
     pub last_project: Option<String>,
@@ -167,6 +196,7 @@ impl AppState {
                 added_at: now,
                 last_opened_at: 0,
                 managed: None,
+                bound: false,
             });
         e.root = root.to_string();
         if e.name.is_empty() {
@@ -183,12 +213,47 @@ impl AppState {
 
     /// Open `root`: registry entry + MRU head + (today, single window) a one-tab
     /// session. V2-3.2 replaces the session write with the real tab set.
+    /// V2-3.8: an unbound entry adopts `lastSignInProfile` here and is bound
+    /// from then on; a bound one keeps its profile.
     fn open(&mut self, root: &str, now: u64) -> String {
         let pid = self.upsert(root, now);
+        let recent = self
+            .last_sign_in_profile
+            .clone()
+            .filter(|p| profiles::validate_id(p).is_ok());
         if let Some(e) = self.projects.get_mut(&pid) {
             e.last_opened_at = now;
+            if let (false, Some(p)) = (e.is_bound(), recent) {
+                e.profile = p;
+                e.bound = true;
+            }
         }
         self.touch_recent(&pid);
+        pid
+    }
+
+    /// How many projects OTHER than `pid` are bound to `profile` (a missing
+    /// or invalid binding reads as `default`, as `profile_for` does).
+    pub fn others_on_profile(&self, profile: &str, pid: &str) -> usize {
+        self.projects
+            .iter()
+            .filter(|(p, e)| {
+                p.as_str() != pid
+                    && profiles::validate_id(&e.profile)
+                        .map(|_| e.profile.as_str())
+                        .unwrap_or(profiles::DEFAULT_ID)
+                        == profile
+            })
+            .count()
+    }
+
+    /// Bind `root` to `profile` by choice (`bound`), keeping everything else.
+    pub fn bind(&mut self, root: &str, profile: &str, now: u64) -> String {
+        let pid = self.upsert(root, now);
+        if let Some(e) = self.projects.get_mut(&pid) {
+            e.profile = profile.to_string();
+            e.bound = true;
+        }
         pid
     }
 
@@ -288,6 +353,7 @@ impl AppState {
         let pid = self.upsert(root, now);
         if let Some(e) = self.projects.get_mut(&pid) {
             e.profile = profile.to_string();
+            e.bound = true;
             e.managed = Some(serde_json::json!({ "server": server, "projectId": project_id }));
         }
         pid
@@ -409,7 +475,84 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
 /// the tab set is part b's. Returns its pid.
 pub fn upsert_project(app: &tauri::AppHandle, root: &Path) -> String {
     let root = root.to_string_lossy().to_string();
-    update(app, |st, now| st.open(&root, now))
+    update(app, |st, now| {
+        forget_missing_recent(st);
+        st.open(&root, now)
+    })
+}
+
+/// A `lastSignInProfile` that was since deleted is not adopted by anyone.
+fn forget_missing_recent(st: &mut AppState) {
+    if st
+        .last_sign_in_profile
+        .as_deref()
+        .is_some_and(|p| !profiles::exists(p))
+    {
+        st.last_sign_in_profile = None;
+    }
+}
+
+/// What a V2-3.8 sign-in did to the calling project's binding.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SignedIn {
+    /// The profile the credential was stored in (now the project's binding).
+    pub profile: String,
+    /// The project moved to a NEW profile — its server must restart onto it.
+    pub rebound: bool,
+}
+
+/// V2-3.8 bind-on-sign-in, socket- and keychain-free so it is testable: pick
+/// the profile `account`'s credential goes to for the project at `root`
+/// (`profiles::sign_in_target`), make a fresh profile when the caller's own
+/// would be re-signed under the projects sharing it, `store` the credential
+/// THERE, and only then bind the project (`bound`) and record the account +
+/// `lastSignInProfile`. A failed store leaves every binding as it was.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn settle_sign_in(
+    st: &mut AppState,
+    registry: &Path,
+    root: &str,
+    kind: profiles::SignInKind,
+    account: &str,
+    prior_credential: impl FnOnce(&str) -> bool,
+    store: impl FnOnce(&str) -> Result<(), String>,
+    now: u64,
+) -> Result<SignedIn, String> {
+    let current = st.profile_for(root);
+    let pid = windows::pid_for_root(root);
+    let target = profiles::sign_in_target(
+        prior_credential(&current),
+        profiles::recorded_account_in(registry, &current, kind).as_deref(),
+        st.others_on_profile(&current, &pid),
+        account,
+    );
+    let profile = match target {
+        profiles::SignInTarget::Keep => current.clone(),
+        profiles::SignInTarget::NewProfile => profiles::create_capped_in(registry, account)?.id,
+    };
+    store(&profile)?;
+    st.bind(root, &profile, now);
+    st.last_sign_in_profile = Some(profile.clone());
+    profiles::set_account_in(registry, &profile, kind, account);
+    Ok(SignedIn {
+        rebound: profile != current,
+        profile,
+    })
+}
+
+/// `settle_sign_in` through the app-state lock, against the real registry.
+pub fn settle_sign_in_app(
+    app: &tauri::AppHandle,
+    root: &str,
+    kind: profiles::SignInKind,
+    account: &str,
+    prior_credential: impl FnOnce(&str) -> bool,
+    store: impl FnOnce(&str) -> Result<(), String>,
+) -> Result<SignedIn, String> {
+    let registry = profiles::registry_file();
+    update(app, |st, now| {
+        settle_sign_in(st, &registry, root, kind, account, prior_credential, store, now)
+    })
 }
 
 /// Remember the port the Home server bound (contract §5.5 `homePort`), so the
@@ -441,17 +584,26 @@ pub fn profile_for(app: &tauri::AppHandle, root: &str) -> String {
 /// to a profile that doesn't exist would spawn the server on no account at all.
 /// A running server keeps its old env until restarted: T11 restarts it
 /// explicitly; env is never hot-swapped.
-#[allow(dead_code)] // first caller lands with the profile UI (old T11)
+#[allow(dead_code)] // release: no caller yet (e2e_bind_profile is debug-only; V2-3.8 binds via settle_sign_in)
 pub fn bind_profile(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), String> {
     profiles::validate_id(id)?;
     if !profiles::exists(id) {
         return Err("That account profile doesn't exist.".to_string());
     }
     update(app, |st, now| {
-        let pid = st.upsert(root, now);
-        if let Some(e) = st.projects.get_mut(&pid) {
-            e.profile = id.to_string();
-        }
+        st.bind(root, id, now);
+    });
+    Ok(())
+}
+
+/// Bind `root` to an existing profile by choice (V2-3.8 cloud prepare).
+pub fn bind_chosen(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), String> {
+    profiles::validate_id(id)?;
+    if !profiles::exists(id) {
+        return Err("That account profile doesn't exist.".to_string());
+    }
+    update(app, |st, now| {
+        st.bind(root, id, now);
     });
     Ok(())
 }
@@ -528,6 +680,7 @@ pub fn is_first_run(app: &tauri::AppHandle) -> bool {
 pub fn set_last_project(app: &tauri::AppHandle, path: &Path) {
     let s = path.to_string_lossy().to_string();
     update(app, |st, now| {
+        forget_missing_recent(st);
         let pid = st.open(&s, now);
         st.session = Some(one_tab_session(&pid, now));
     });
@@ -809,5 +962,172 @@ mod tests {
         assert_eq!(st.recent.len(), 50);
         assert_eq!(st.recent_projects.len(), 10);
         assert_eq!(st.recent_projects[0], "/p/59");
+    }
+
+    // ── V2-3.8: each project keeps its own sign-in ─────────────────────────────
+
+    use crate::keychain;
+    use crate::profiles::SignInKind;
+
+    /// A throwaway profile registry with one shared profile `<tag>-shared`
+    /// that projects `/v238/<tag>/a` and `/v238/<tag>/b` are bound to — the
+    /// finding's "every project sits on one profile", without touching the
+    /// `default` keychain slot other tests share.
+    fn shared_fixture(tag: &str) -> (PathBuf, AppState, String) {
+        keychain::test_store::install();
+        let dir = tmp(tag);
+        let reg = dir.join("profiles.json");
+        let shared = profiles::create_in(&reg, &format!("{tag} shared")).unwrap().id;
+        let mut st = AppState::default();
+        st.bind(&format!("/v238/{tag}/a"), &shared, 1);
+        st.bind(&format!("/v238/{tag}/b"), &shared, 1);
+        (reg, st, shared)
+    }
+
+    fn github_sign_in(st: &mut AppState, reg: &Path, root: &str, login: &str) -> SignedIn {
+        let token = format!("tok-{login}");
+        settle_sign_in(
+            st,
+            reg,
+            root,
+            SignInKind::GitHub,
+            login,
+            |p| keychain::get_token(p).is_some(),
+            |p| keychain::set_token(p, &token),
+            2,
+        )
+        .unwrap()
+    }
+
+    fn ids(reg: &Path) -> Vec<String> {
+        profiles::list_in(reg).into_iter().map(|p| p.id).collect()
+    }
+
+    #[test]
+    fn a_first_sign_in_creates_no_profile() {
+        let (reg, mut st, shared) = shared_fixture("v238first");
+        let before = ids(&reg);
+        let out = github_sign_in(&mut st, &reg, "/v238/v238first/a", "v238first-x");
+        assert_eq!(out, SignedIn { profile: shared.clone(), rebound: false });
+        assert_eq!(ids(&reg), before, "a first sign-in makes no profile");
+        assert_eq!(keychain::get_token(&shared).as_deref(), Some("tok-v238first-x"));
+        assert_eq!(st.last_sign_in_profile.as_deref(), Some(shared.as_str()));
+        assert_eq!(
+            profiles::recorded_account_in(&reg, &shared, SignInKind::GitHub).as_deref(),
+            Some("v238first-x")
+        );
+    }
+
+    /// The finding: A signs in as X, B (same profile) signs in as Y — B moves
+    /// to a new profile and A's profile still holds X's token.
+    #[test]
+    fn a_rebind_leaves_the_old_profiles_token_untouched() {
+        let (reg, mut st, shared) = shared_fixture("v238rebind");
+        let (a, b) = ("/v238/v238rebind/a", "/v238/v238rebind/b");
+        github_sign_in(&mut st, &reg, a, "v238rebind-x");
+        let out = github_sign_in(&mut st, &reg, b, "v238rebind-y");
+        assert!(out.rebound, "B must not re-sign the profile A uses");
+        assert_ne!(out.profile, shared);
+        assert_eq!(keychain::get_token(&shared).as_deref(), Some("tok-v238rebind-x"), "A's token untouched");
+        assert_eq!(keychain::get_token(&out.profile).as_deref(), Some("tok-v238rebind-y"));
+        assert_eq!(st.profile_for(a), shared, "A keeps its profile");
+        assert_eq!(st.profile_for(b), out.profile, "B is rebound");
+        assert!(ids(&reg).contains(&out.profile));
+        // The same account again on B's own profile refreshes in place.
+        let again = github_sign_in(&mut st, &reg, b, "v238rebind-y");
+        assert_eq!(again, SignedIn { profile: out.profile.clone(), rebound: false });
+    }
+
+    #[test]
+    fn a_rebind_reaches_profile_env() {
+        let (reg, mut st, shared) = shared_fixture("v238env");
+        github_sign_in(&mut st, &reg, "/v238/v238env/a", "v238env-x");
+        let out = github_sign_in(&mut st, &reg, "/v238/v238env/b", "v238env-y");
+        // What spawn_for hands the restarted server: the binding, read per spawn.
+        let bound = st.profile_for("/v238/v238env/b");
+        assert!(out.rebound);
+        assert_eq!(bound, out.profile);
+        assert_ne!(bound, shared, "the restart is onto the NEW profile");
+        let paths = profiles::paths(&bound).unwrap();
+        let env = crate::sidecar::profile_env(&bound, "Y", Some(&paths));
+        let get = |k: &str| env.iter().find(|(n, _)| *n == k).map(|(_, v)| v.clone());
+        assert_eq!(get("MAUDE_PROFILE_ID").as_deref(), Some(bound.as_str()));
+        let cloud = get("MAUDE_CLOUD_CONFIG").expect("a non-default profile names its cloud.json");
+        assert!(cloud.ends_with(&format!("profiles/{bound}/cloud.json")), "{cloud}");
+        let hubs = get("HUBS_CONFIG_PATH").expect("and its hubs.json");
+        assert!(hubs.ends_with(&format!("profiles/{bound}/hubs.json")), "{hubs}");
+    }
+
+    /// Step 3 of the finding: a project that never signed in follows the
+    /// profile of the most recent sign-in — once, when it is opened.
+    #[test]
+    fn a_never_signed_project_takes_the_most_recent_profile() {
+        let (reg, mut st, _shared) = shared_fixture("v238recent");
+        github_sign_in(&mut st, &reg, "/v238/v238recent/a", "v238recent-x");
+        let out = github_sign_in(&mut st, &reg, "/v238/v238recent/b", "v238recent-y");
+        // A project new to the registry…
+        let c = st.open("/v238/v238recent/c", 3);
+        assert_eq!(st.projects[&c].profile, out.profile);
+        assert!(st.projects[&c].bound);
+        // …and an old one that sat on `default` without ever signing in.
+        let d = st.upsert("/v238/v238recent/d", 0);
+        assert_eq!(st.profile_for("/v238/v238recent/d"), "default");
+        st.open("/v238/v238recent/d", 4);
+        assert_eq!(st.projects[&d].profile, out.profile);
+        // Without any sign-in yet, a new project stays on default, unbound.
+        let mut fresh = AppState::default();
+        let e = fresh.open("/v238/v238recent/e", 1);
+        assert_eq!(fresh.projects[&e].profile, "default");
+        assert!(!fresh.projects[&e].is_bound());
+    }
+
+    #[test]
+    fn an_existing_binding_survives_a_reopen() {
+        let (reg, mut st, shared) = shared_fixture("v238keep");
+        github_sign_in(&mut st, &reg, "/v238/v238keep/a", "v238keep-x");
+        github_sign_in(&mut st, &reg, "/v238/v238keep/b", "v238keep-y");
+        // The most recent sign-in is B's new profile; A is bound and stays.
+        st.open("/v238/v238keep/a", 5);
+        assert_eq!(st.profile_for("/v238/v238keep/a"), shared);
+        // A project bound to `default` by choice is bound too (not "unbound").
+        st.bind("/v238/v238keep/f", "default", 5);
+        st.open("/v238/v238keep/f", 6);
+        assert_eq!(st.profile_for("/v238/v238keep/f"), "default");
+        // And it survives the file round trip.
+        let dir = tmp("v238keep-file");
+        let file = dir.join("app-state.json");
+        save_to(&file, &mut st);
+        let mut back = load_from(Some(&file), None, 7);
+        back.open("/v238/v238keep/f", 8);
+        assert_eq!(back.profile_for("/v238/v238keep/f"), "default");
+        assert_eq!(back.profile_for("/v238/v238keep/a"), shared);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Sign-out deletes the calling project's profile token only. Projects
+    /// sharing that profile share the account, so they are signed out with it;
+    /// the recorded login stays, so a later sign-in as someone else from any of
+    /// them still moves that project to its own profile.
+    #[test]
+    fn sign_out_is_scoped_to_the_calling_projects_profile() {
+        let (reg, mut st, shared) = shared_fixture("v238out");
+        let (a, b) = ("/v238/v238out/a", "/v238/v238out/b");
+        st.bind("/v238/v238out/c", &shared, 1);
+        github_sign_in(&mut st, &reg, a, "v238out-x");
+        let y = github_sign_in(&mut st, &reg, b, "v238out-y").profile;
+        // B signs out: only B's profile.
+        keychain::delete_token(&st.profile_for(b)).unwrap();
+        assert_eq!(keychain::get_token(&y), None);
+        assert_eq!(keychain::get_token(&shared).as_deref(), Some("tok-v238out-x"), "A still X");
+        // A signs out of the profile it shares with C …
+        keychain::delete_token(&st.profile_for(a)).unwrap();
+        // … and C signs in as Z: the shared profile is not re-signed as Z.
+        let z = github_sign_in(&mut st, &reg, "/v238/v238out/c", "v238out-z");
+        assert!(z.rebound);
+        assert_eq!(keychain::get_token(&shared), None);
+        assert_eq!(st.profile_for(a), shared);
+        // A signing in as X again lands back on its own profile.
+        let back = github_sign_in(&mut st, &reg, a, "v238out-x");
+        assert_eq!(back, SignedIn { profile: shared, rebound: false });
     }
 }

@@ -1,7 +1,7 @@
 /**
  * WebdriverIO config for the project-tabs-identity scenario (V2-3.5; old plan
- * T13 scenario 2): a per-project account profile, per-profile sign-in state,
- * and a notification click that focuses the right tab. Same two-project fixture
+ * T13 scenario 2; V2-3.8): each project keeps its own sign-in across tabs and
+ * in-tab switches, and a notification click focuses the right tab. Same two-project fixture
  * as wdio.tabs.conf.ts. Run: `pnpm --filter @maude/desktop-e2e e2e:tabs-identity`.
  */
 import { mkdtempSync } from 'node:fs';
@@ -22,9 +22,11 @@ process.env.MAUDE_USE_SYSTEM_GIT = '1';
 // ~/.config/maude/profiles.json. The `default` profile's cloud.json is read
 // from $HOME regardless (and only read).
 process.env.XDG_CONFIG_HOME ??= mkdtempSync(join(tmpdir(), 'maude-e2e-xdg-'));
-// keychain.rs (debug builds only): `default` reads as signed in, every other
-// profile as signed out — no keychain touched.
-process.env.MAUDE_E2E_GITHUB_SIGNED_IN_PROFILES = 'default';
+// keychain.rs (debug builds only, V2-3.8): an in-memory keychain, so the
+// scenario drives the REAL sign-in write path (`e2e_github_sign_in_as`) and
+// never touches the person's keychain. Every profile starts signed out.
+process.env.MAUDE_E2E_FAKE_KEYCHAIN = '1';
+delete process.env.MAUDE_E2E_GITHUB_SIGNED_IN_PROFILES;
 process.env.MAUDE_E2E_SHELL_LOG ??= resolve(
   HERE,
   '../../../.ai/device/scenario-runs/project-tabs-identity',
