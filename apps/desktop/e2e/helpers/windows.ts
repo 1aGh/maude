@@ -71,11 +71,17 @@ export async function activeTab(): Promise<string | null> {
  */
 export async function pinCurrentWindow(): Promise<string> {
   let label: string | null = null;
-  await browser.waitUntil(async () => (label = await activeTab()) !== null, {
-    timeout: 30_000,
-    interval: 200,
-    timeoutMsg: 'no visible tab after 30 s',
-  });
+  await browser.waitUntil(
+    async () => {
+      label = await activeTab();
+      return label !== null;
+    },
+    {
+      timeout: 30_000,
+      interval: 200,
+      timeoutMsg: 'no visible tab after 30 s',
+    }
+  );
   await browser.switchToWindow(label!);
   await (browser as unknown as TauriService).tauri?.switchWindow(label!);
   return label!;

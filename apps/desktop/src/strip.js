@@ -39,7 +39,7 @@
     el.title = t.name;
 
     if (t.dot === 'done' || t.dot === 'needs-you') {
-      var dot = document.createElement('span');
+      const dot = document.createElement('span');
       dot.className = 'dot ' + t.dot;
       dot.setAttribute('data-testid', 'tab-dot');
       dot.setAttribute('data-dot', t.dot);
@@ -102,7 +102,7 @@
   function render(s) {
     if (!s || !Array.isArray(s.tabs)) return;
     var frag = document.createDocumentFragment();
-    for (var i = 0; i < s.tabs.length; i++) frag.appendChild(tabEl(s.tabs[i], s.active));
+    for (let i = 0; i < s.tabs.length; i++) frag.appendChild(tabEl(s.tabs[i], s.active));
     tabsEl.replaceChildren(frag);
     var homeActive = s.active === (s.home && s.home.label);
     homeEl.setAttribute('aria-selected', homeActive ? 'true' : 'false');

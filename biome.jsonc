@@ -30,6 +30,8 @@
       // bundles, compiled binaries) — never linted (was covered by the
       // plugins/**/dist glob before DDR-095 moved the runtime apps under apps/).
       "!**/apps/**/dist",
+      // the vendored WebDriver crate stays byte-identical to its upstream + webviews.patch (V2-3.7 T1)
+      "!**/apps/desktop/src-tauri/vendor",
       "!**/apps/studio/runtime",
       "!**/apps/studio/server.mjs",
       "!**/site/.next",
