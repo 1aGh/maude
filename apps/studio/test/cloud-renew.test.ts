@@ -93,6 +93,20 @@ describe('renewHubCredential', () => {
     expect(calls).toHaveLength(0);
   });
 
+  // V2-3.10 W4 — the account token goes only to the control plane recorded in cloud.json.
+  test('a cloud.json issued by another control plane → not-signed-in, no network', async () => {
+    writeFileSync(
+      join(dir, 'cloud.json'),
+      JSON.stringify({ url: 'https://other-plane.test', token: 'mpt_account', connectedAt: 1 })
+    );
+    const { doFetch, calls } = fakeFetch(HAPPY_ROUTES);
+    expect(await renewHubCredential(HUB_URL, doFetch)).toEqual({
+      ok: false,
+      reason: 'not-signed-in',
+    });
+    expect(calls).toHaveLength(0);
+  });
+
   test('happy path: projects → open → cell login → hubs.json updated, role preserved', async () => {
     signIn();
     writeHubRecord({ token: 'mau_stale', linkedAt: 1, role: 'member', expiresAt: 2 });

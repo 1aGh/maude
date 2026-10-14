@@ -21,7 +21,10 @@ use std::process::Command;
 
 /// A `std::process::Command` that never opens a console window on Windows.
 /// Use this for every child the shell spawns directly; the guard test below
-/// fails on any other direct spawn in `src/`.
+/// fails on any other direct spawn in `src/`. No shipped path spawns one today
+/// (the activity poller moved to `probe_client()`, V2-3.10 W6); it stays for
+/// the next one the guard test sends here.
+#[allow(dead_code)]
 pub(crate) fn hidden_command<S: AsRef<OsStr>>(program: S) -> Command {
     // no-console-window: this IS the helper.
     #[allow(unused_mut)]

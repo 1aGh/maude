@@ -12,7 +12,7 @@
 // read-modify-write with an atomic rename and NO in-memory cache: a race loses at most one toggle.
 
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const PINS_FILE = '_pins.json';
@@ -58,7 +58,17 @@ function readJson(file: string): unknown {
 }
 
 function writeAtomic(file: string, value: unknown) {
-  mkdirSync(path.dirname(file), { recursive: true });
+  const dir = path.dirname(file);
+  // L8 (V2-3.10, with W5): a committed `_canvas-state -> /elsewhere` must not carry the write out
+  // of the project. lstat, not stat: the link itself is the refusal.
+  let isLink = false;
+  try {
+    isLink = lstatSync(dir).isSymbolicLink();
+  } catch {
+    /* absent → created below */
+  }
+  if (isLink) throw new Error(`refusing to write through a symlinked ${path.basename(dir)}/`);
+  mkdirSync(dir, { recursive: true });
   const tmp = `${file}.tmp-${process.pid}-${randomBytes(4).toString('hex')}`;
   try {
     writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, 'utf8');

@@ -809,6 +809,92 @@ pub fn state_changed(app: &AppHandle) {
     });
 }
 
+// ── index://changed (§5.4 Events, §5.6 step 5; V2-3.10) ─────────────────────
+
+/// How often the shell looks at the running projects' index snapshots.
+const INDEX_WATCH_MS: u64 = 1_000;
+
+/// The snapshot mtimes seen last tick, per running project pid.
+#[derive(Default)]
+pub struct IndexWatch {
+    seen: HashMap<String, Option<std::time::SystemTime>>,
+}
+
+impl IndexWatch {
+    /// `now` is `(pid, snapshot mtime)` for every RUNNING project. Returns the
+    /// pids whose snapshot changed since the last tick (a first snapshot counts;
+    /// no snapshot is not news), sorted; a pid no longer running is forgotten,
+    /// so its next sighting is news again.
+    pub fn tick(&mut self, now: Vec<(String, Option<std::time::SystemTime>)>) -> Vec<String> {
+        let mut changed = Vec::new();
+        let mut next = HashMap::with_capacity(now.len());
+        for (pid, mtime) in now {
+            let prev = self.seen.get(&pid).copied().flatten();
+            if mtime.is_some() && mtime != prev {
+                changed.push(pid.clone());
+            }
+            next.insert(pid, mtime);
+        }
+        self.seen = next;
+        changed.sort();
+        changed.dedup();
+        changed
+    }
+}
+
+/// Tell Home when a running project's index changes, so its rows refetch live
+/// (`index://changed {pids}`; home-app.jsx refetches exactly those). The
+/// project server writes `<index dir>/projects/<pid>/index.json` on every
+/// canvas change (index/service.ts); the shell watches only the mtimes of the
+/// RUNNING projects' snapshots — a closed project changes only through Home's
+/// own rebuild-on-read. Payload: pids only, never paths. Emitted to Home only;
+/// a missing Home window makes it a no-op (Home refetches all on load).
+pub fn spawn_index_watch(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut watch = IndexWatch::default();
+        loop {
+            tokio::time::sleep(Duration::from_millis(INDEX_WATCH_MS)).await;
+            let Some(state) = app.try_state::<SidecarState>() else {
+                continue;
+            };
+            if state.shutting_down.load(Ordering::SeqCst) {
+                break;
+            }
+            let roots: Vec<String> = state
+                .instances
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .keys()
+                .cloned()
+                .collect();
+            let Some(dir) = index_dir().map(|d| d.join("projects")) else {
+                continue;
+            };
+            let now = roots
+                .iter()
+                .map(|root| {
+                    let pid = windows::pid_for_root(root);
+                    let mtime = std::fs::metadata(dir.join(&pid).join("index.json"))
+                        .and_then(|m| m.modified())
+                        .ok();
+                    (pid, mtime)
+                })
+                .collect();
+            let pids = watch.tick(now);
+            if !pids.is_empty() {
+                let _ = app.emit_to(
+                    EventTarget::AnyLabel {
+                        label: HOME_LABEL.to_string(),
+                    },
+                    "index://changed",
+                    json!({ "pids": pids }),
+                );
+            }
+        }
+    });
+}
+
 // ── Intents (§5.4 "The create-from-Home intent") ────────────────────────────
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -1188,6 +1274,27 @@ pub async fn relink_project(
 mod tests {
     use super::*;
     use std::cell::RefCell;
+
+    /// V2-3.10: `index://changed` names the running projects whose snapshot
+    /// changed since the last tick — a first snapshot counts, an unchanged one
+    /// does not, and a project that stopped running is forgotten.
+    #[test]
+    fn index_watch_reports_only_changed_snapshots() {
+        use std::time::UNIX_EPOCH;
+        let t = |s: u64| Some(UNIX_EPOCH + Duration::from_secs(s));
+        let mut w = IndexWatch::default();
+        let first = w.tick(vec![("la".into(), t(1)), ("lb".into(), None)]);
+        assert_eq!(first, vec!["la".to_string()], "a first snapshot is news; no snapshot is not");
+        assert!(w.tick(vec![("la".into(), t(1)), ("lb".into(), None)]).is_empty());
+        assert_eq!(
+            w.tick(vec![("la".into(), t(2)), ("lb".into(), t(5))]),
+            vec!["la".to_string(), "lb".to_string()]
+        );
+        // la stops running, then runs again with the same snapshot: news again
+        // (Home may have missed it while it was closed).
+        assert!(w.tick(vec![("lb".into(), t(5))]).is_empty());
+        assert_eq!(w.tick(vec![("la".into(), t(2)), ("lb".into(), t(5))]), vec!["la".to_string()]);
+    }
 
     fn url(s: &str) -> tauri::Url {
         s.parse().unwrap()

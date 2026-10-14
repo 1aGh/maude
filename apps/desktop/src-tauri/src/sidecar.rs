@@ -1125,7 +1125,7 @@ pub(crate) fn read_shell_canvas_origin(info_file: &Path) -> Option<String> {
 
 /// One client for every probe: loopback only, so no proxy (an `HTTP_PROXY` in
 /// the login env must never see the token), no redirects, a short timeout.
-fn probe_client() -> Option<&'static reqwest::Client> {
+pub(crate) fn probe_client() -> Option<&'static reqwest::Client> {
     static CLIENT: std::sync::OnceLock<Option<reqwest::Client>> = std::sync::OnceLock::new();
     CLIENT
         .get_or_init(|| {
@@ -1157,7 +1157,7 @@ pub(crate) async fn probe_status(probe: &ShellProbe) -> Option<ShellStatus> {
 }
 
 /// The probe of `root`'s RUNNING instance, cloned out from under the lock.
-fn shell_probe_for(app: &AppHandle, root: &str) -> Option<ShellProbe> {
+pub(crate) fn shell_probe_for(app: &AppHandle, root: &str) -> Option<ShellProbe> {
     let state = app.try_state::<SidecarState>()?;
     let pool = state.instances.lock().unwrap_or_else(|e| e.into_inner());
     pool.get(root)

@@ -184,14 +184,30 @@ pub fn write_bridge_port_file(run_dir: &std::path::Path) -> Result<(), String> {
     };
     let path = run_dir.join("token-bridge.json");
     crate::profiles::atomic_write(&path, bridge_port_record(*port, std::process::id()).as_bytes())
-        .map_err(|e| format!("could not write {}: {e}", path.display()))
+        .map_err(|e| format!("could not write {}: {e}", path.display()))?;
+    BRIDGE_PUBLISHED.store(true, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
 }
 
-/// The bridge endpoint URL, or `None` if the bridge isn't up.
-fn bridge_endpoint() -> Option<String> {
-    BRIDGE_PORT
-        .get()
+/// Set once the port record is on disk (V2-3.10 low (b)). Fail closed: if it
+/// cannot be written (or the app data dir does not resolve), curl-local cannot
+/// refuse the bridge port, so the bridge hands out no endpoint at all — GitHub
+/// features are off for this run, and the boot log says why (lib.rs).
+static BRIDGE_PUBLISHED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Pure half of `bridge_endpoint`.
+fn endpoint_from(port: Option<u16>, published: bool) -> Option<String> {
+    port.filter(|_| published)
         .map(|port| format!("http://127.0.0.1:{port}{BRIDGE_PATH}"))
+}
+
+/// The bridge endpoint URL, or `None` if the bridge isn't up or its port
+/// record was never published.
+fn bridge_endpoint() -> Option<String> {
+    endpoint_from(
+        BRIDGE_PORT.get().copied(),
+        BRIDGE_PUBLISHED.load(std::sync::atomic::Ordering::SeqCst),
+    )
 }
 
 /// `(endpoint_url, freshly minted key for profile)` for ONE sidecar spawn, or
@@ -572,12 +588,33 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// V2-3.10 low (b): fail closed. Until the port record curl-local reads is
+    /// written, the bridge has no endpoint, so no spawn gets a key for it.
+    #[test]
+    fn no_bridge_endpoint_until_its_port_record_is_published() {
+        assert_eq!(endpoint_from(Some(4777), false), None);
+        assert_eq!(endpoint_from(None, true), None);
+        assert_eq!(
+            endpoint_from(Some(4777), true).as_deref(),
+            Some(format!("http://127.0.0.1:4777{BRIDGE_PATH}").as_str())
+        );
+        // A run dir that cannot be written (a FILE where the dir should be) is an Err.
+        start_token_bridge().unwrap();
+        let blocker = std::env::temp_dir().join(format!("maude-bridge-block-{}", std::process::id()));
+        std::fs::write(&blocker, b"x").unwrap();
+        assert!(write_bridge_port_file(&blocker.join("run")).is_err());
+        let _ = std::fs::remove_file(&blocker);
+    }
+
     #[test]
     fn the_live_bridge_answers_over_loopback() {
         use std::io::{Read, Write};
         test_store::install();
         set_token("live-a", "live-secret").unwrap();
         start_token_bridge().unwrap();
+        // Published first, as lib.rs does (low (b)).
+        let run = std::env::temp_dir().join(format!("maude-bridge-live-{}", std::process::id()));
+        write_bridge_port_file(&run).unwrap();
         let (endpoint, key) = bridge_env("live-a").unwrap();
         let port: u16 = endpoint
             .trim_start_matches("http://127.0.0.1:")

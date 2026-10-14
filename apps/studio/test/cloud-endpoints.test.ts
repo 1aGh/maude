@@ -589,3 +589,34 @@ describe('attachCode — the maude:// lane end to end (stubbed)', () => {
     expect((dead.json as any).error).toMatch(/works once/);
   });
 });
+
+// V2-3.10 W4 — the device token goes only to the control plane that issued it.
+describe('a cloud.json from another control plane reads as signed out', () => {
+  test('projects() refuses before any network call; status() is not connected', async () => {
+    const { createCloudEndpoints } = await import('../cloud/endpoints.ts');
+    const { mkdirSync } = await import('node:fs');
+    const repoRoot = join(scratch, 'w4-project');
+    const designRoot = join(repoRoot, '.design');
+    mkdirSync(designRoot, { recursive: true });
+    const api = createCloudEndpoints({ paths: { repoRoot, designRoot } });
+    const cfg = process.env.MAUDE_CLOUD_CONFIG as string;
+
+    writeFileSync(
+      cfg,
+      JSON.stringify({ url: 'https://other-plane.test', token: 'mpt_x', connectedAt: 1 })
+    );
+    seen.length = 0;
+    expect((await api.projects()).status).toBe(401);
+    expect(seen).toEqual([]);
+    expect((api.status().json as { connected: boolean }).connected).toBe(false);
+
+    // Bound to this plane: the call goes out.
+    writeFileSync(
+      cfg,
+      JSON.stringify({ url: process.env.MAUDE_CLOUD_URL, token: 'mpt_x', connectedAt: 1 })
+    );
+    await api.projects();
+    expect(seen).toContain('GET /api/projects');
+    rmSync(cfg, { force: true });
+  });
+});

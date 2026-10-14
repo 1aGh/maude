@@ -258,6 +258,19 @@ describe("buildCurlArgs — every flag name is one of THIS file's own hardcoded 
     expect(args.at(-2)).toBe('--');
   });
 
+  // V2-3.10 low (a): curl gets the SAME parsed URL whose host and port were checked. A raw
+  // string the two parsers read differently (WHATWG: `\` is a path separator; curl: part of a
+  // userinfo) must not reach curl, or it could connect to a port nobody checked.
+  test('curl receives the parsed URL whose port was checked, never the raw string', () => {
+    const raw = 'http://localhost:3000\\@127.0.0.1:4567/x';
+    const req = parseRequestArgv([raw]);
+    expect(req.parsedUrl.port).toBe('3000');
+    const args = buildCurlArgs(req, '127.0.0.1', 3000);
+    expect(args.at(-1)).toBe(req.parsedUrl.href);
+    expect(args).not.toContain(raw);
+    expect(new URL(args.at(-1)).port).toBe('3000');
+  });
+
   test('POST + headers + data map to -X/-H/--data-raw (never -d, which treats a leading @ as a file path)', () => {
     const req = parseRequestArgv([
       'http://localhost:3000/api',

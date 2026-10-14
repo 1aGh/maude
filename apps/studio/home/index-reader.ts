@@ -13,7 +13,7 @@
 // `pidOf(realpath(root)) === pid`: a snapshot naming another folder (planted, or a renamed copy) is
 // served as `mismatch` and nothing is read or written there.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { loadConfig } from '../context.ts';
@@ -103,6 +103,20 @@ export function resolveProject(
   )
     return { ok: false, state: 'missing', snap };
   const designRoot = path.join(real, designRel);
+  // W5: lstat the design root and every parent up to the project root. A symlink anywhere on
+  // that path resolves the design dir to ANOTHER folder — Home's closed-project rebuild and
+  // `rowsOf` would read there, and `setPin` write there — so it answers like a foreign root.
+  let at = real;
+  for (const seg of designRel.split(/[\\/]/).filter((s) => s && s !== '.')) {
+    at = path.join(at, seg);
+    let st: ReturnType<typeof lstatSync>;
+    try {
+      st = lstatSync(at);
+    } catch {
+      return { ok: false, state: 'gone', snap };
+    }
+    if (st.isSymbolicLink()) return { ok: false, state: 'mismatch', snap };
+  }
   if (!existsSync(designRoot)) return { ok: false, state: 'gone', snap };
   return { ok: true, snap, root: real, designRoot };
 }

@@ -789,14 +789,18 @@ pub fn run() {
                     "[maude] WARN: token bridge did not start (GitHub features disabled): {e}"
                 ));
             }
-            // V2-3.6 M4: name the bridge port for curl-local to refuse.
-            if let Some(Err(e)) = handle
+            // V2-3.6 M4: name the bridge port for curl-local to refuse. If that
+            // record cannot be written the bridge stays unpublished — no spawn
+            // gets its endpoint (V2-3.10 low (b), fail closed).
+            if let Err(e) = handle
                 .path()
                 .app_data_dir()
-                .ok()
-                .map(|d| keychain::write_bridge_port_file(&d.join("run")))
+                .map_err(|e| format!("no app data dir: {e}"))
+                .and_then(|d| keychain::write_bridge_port_file(&d.join("run")))
             {
-                sidecar::log_line(&format!("[maude] WARN: {e}"));
+                sidecar::log_line(&format!(
+                    "[maude] WARN: token bridge port not published, GitHub features disabled: {e}"
+                ));
             }
 
             // 1. The Home server, before any project (V2-1.1 decision 1). Its
@@ -841,6 +845,8 @@ pub fn run() {
             // instance and fire on a state transition. Started after
             // `SidecarState` is managed (above) since it reads the pool.
             notify::spawn_activity_poller(&handle);
+            // V2-3.10: `index://changed` to Home when a running project's index changes.
+            home::spawn_index_watch(&handle);
 
             // The bundled app parks maude:// links; the client validates and
             // opens a file locally or asks before a project switch.

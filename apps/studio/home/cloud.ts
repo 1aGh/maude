@@ -15,6 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
+import { boundCloudToken } from '../cloud/config-path.ts';
 import { cloudConfigPath, cloudUrl } from '../cloud/endpoints.ts';
 import {
   type PreparedProject,
@@ -54,8 +55,8 @@ function profileToken(profile: string): string | null {
   const p = profileCloudPath(profile);
   if (!p || !existsSync(p)) return null;
   try {
-    const parsed = JSON.parse(readFileSync(p, 'utf8')) as { token?: unknown };
-    return typeof parsed.token === 'string' && parsed.token ? parsed.token : null;
+    // W4: the token goes only to the control plane recorded in this profile's file.
+    return boundCloudToken(JSON.parse(readFileSync(p, 'utf8')), cloudUrl());
   } catch {
     return null; // malformed → signed out, as cloud/endpoints.ts reads it
   }
