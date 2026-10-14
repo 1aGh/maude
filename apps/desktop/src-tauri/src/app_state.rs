@@ -1040,12 +1040,14 @@ mod tests {
 
     #[test]
     fn a_rebind_reaches_profile_env() {
-        let (reg, mut st, _shared) = shared_fixture("v238env");
+        let (reg, mut st, shared) = shared_fixture("v238env");
         github_sign_in(&mut st, &reg, "/v238/v238env/a", "v238env-x");
         let out = github_sign_in(&mut st, &reg, "/v238/v238env/b", "v238env-y");
         // What spawn_for hands the restarted server: the binding, read per spawn.
         let bound = st.profile_for("/v238/v238env/b");
+        assert!(out.rebound);
         assert_eq!(bound, out.profile);
+        assert_ne!(bound, shared, "the restart is onto the NEW profile");
         let paths = profiles::paths(&bound).unwrap();
         let env = crate::sidecar::profile_env(&bound, "Y", Some(&paths));
         let get = |k: &str| env.iter().find(|(n, _)| *n == k).map(|(_, v)| v.clone());
