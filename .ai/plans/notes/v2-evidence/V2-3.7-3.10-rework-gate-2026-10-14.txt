@@ -1,0 +1,49 @@
+Phase 3 rework gate — feat/maude-v2 818b8a35, 2026-10-14 (V2-3.7 own tab bar, V2-3.8 per-project sign-in, V2-3.9 relaunch/menu/dot, V2-3.10 follow-ups + 1d/1g/2c)
+
+## Gate run (lock checked before each lane; winprobe every 2 s; SecurityAgent counted as covering)
+head 818b8a35 11:08:24
+typecheck rc=0
+lint rc=0
+format rc=0
+build rc=0
+parity rc=0
+tarball rc=0
+tokens rc=0
+site-content rc=0
+test result: ok. 180 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+clippy rc=0
+e2e build rc=0 11:10:23
+test:e2e:desktop exit=1 11:19:15 Spec Files:	 9 passed, 3 failed, 12 total (100% completed) in 00:08:45   | locked=0 covered=254 securityagent=0
+test:e2e:desktop:tabs exit=0 11:19:50 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:28   | locked=0 covered=2 securityagent=0
+test:e2e:desktop:home exit=0 11:20:09 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:14   | locked=0 covered=1 securityagent=0
+test:e2e:desktop:switchrepos exit=0 11:20:32 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:17   | locked=0 covered=2 securityagent=0
+test:e2e:desktop:tabs-identity exit=0 11:20:58 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:21   | locked=0 covered=2 securityagent=0
+test:e2e:desktop:onboarding exit=0 11:21:44 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:41   | locked=0 covered=2 securityagent=0
+test:e2e:desktop:relaunch exit=0 11:22:03 Spec Files:	 1 passed, 1 total (100% completed) in 00:00:14   | locked=0 covered=3 securityagent=0
+tests-gate rc=0
+studio-full rc=0 11:40:22  7957 pass  0 fail 
+characterization rc=0 all 30 states identical
+release build rc=1 (updater signing fails locally)
+release WebDriver strings: 0
+rel-smoke rc=0
+rel-boots rc=0
+done 11:50:01
+
+Default lane above ran with Screen Sharing/Claude/Arc above the Maude window for 254/256 samples → INVALID (export/report-bug/share = animation-gated reds). Re-run:
+try 1 rc=0 Spec Files:	 12 passed, 12 total (100% completed) in 00:01:29   covered-after-boot=0 11:52:00
+
+[exited with code 0]
+try 1 rc=0 Spec Files:	 12 passed, 12 total (100% completed) in 00:01:29   covered-after-boot=0 11:52:00
+Other lanes: covered samples only at lane start (before the window exists).
+
+## Earlier gate on 805030a8 (before 1d): static all green after lint fix ba6475c5, cargo 174, clippy, e2e 7/7 lanes valid, studio 7953/0, characterization 30/30, release smoke+boots, 0 WebDriver strings.
+
+## Security
+Verification of V2-3.7–3.10 (scout, read-only, 805030a8): capabilities webviews-only, strip local-only + caller-checked, strip state via Channel, caller binding on webview label + origin, nav guards on child tabs, debug seams cfg-gated and absent from the release ACL, vendored WebDriver = upstream 1.2.0 + webviews.patch, V2-3.10 items ok. Open then: 1d medium (emit_to → Any-listener leak, predates the rework), 1g low, 2c low → fixed in ca0b075d (merge 088ba61e): runtime proof home.e2e 2b/6b — before: project tab BETA heard shell://state ×2, index://changed ×2, shell://opened-existing; after: nothing, every listen refused. Residuals accepted: W2 (no Tauri capability removal), M3 tenant subdomains (low), P3 approved Bash.
+
+## Michal's Ready-to-try findings (2026-10-14) → closed by
+1 stray Home on relaunch → V2-3.9 plan_tabs + Home pinned never in session (relaunch lane 3 launches).
+2 Home pinned icon-only right → V2-3.7 own tab bar (Michal chose it), tabs lane strip checks.
+3 Home menu (New Project dead, New Canvas/New Home Tab senseless) → V2-3.9 apply_role + Home create sheet + Show Home (home lane #7/#8).
+4 AI-done dot → V2-3.9 notify dot (tabs-identity dot test).
+5 sign-in drift across projects → V2-3.8 bind-on-sign-in (tabs-identity A=X B=Y A still X, in-tab A→B→A).
