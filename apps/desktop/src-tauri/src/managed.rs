@@ -382,17 +382,79 @@ pub fn managed_projects_list(
     app: tauri::AppHandle,
     webview: tauri::Webview,
 ) -> Result<Vec<ManagedProject>, String> {
-    crate::windows::caller_any(&webview, false)?;
-    Ok(load_index(&app)
+    let caller = crate::windows::caller_any(&webview, false)?;
+    let st = crate::app_state::load(&app);
+    let copies = load_index(&app)
         .projects
         .into_iter()
         .filter(|p| Path::new(&p.path).join(".design").is_dir())
-        .collect())
+        .collect();
+    Ok(visible_copies(&caller, &st, copies))
+}
+
+/// Which copies `caller` may list (V2-3.10 low (d)): Home all of them (it
+/// serves every profile); a project window only those bound to its own account
+/// profile — the `open_project` same-profile rule, so one profile's page never
+/// learns another's cloud projects.
+pub fn visible_copies(
+    caller: &crate::windows::Caller,
+    st: &crate::app_state::AppState,
+    copies: Vec<ManagedProject>,
+) -> Vec<ManagedProject> {
+    match caller {
+        crate::windows::Caller::Home => copies,
+        crate::windows::Caller::Project(c) => {
+            let mine = st.profile_for(&c.root);
+            copies
+                .into_iter()
+                .filter(|p| st.profile_for(&p.path) == mine)
+                .collect()
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// V2-3.10 low (d): a project window lists only the copies bound to its
+    /// own account profile; Home (which serves every profile) lists all.
+    #[test]
+    fn a_project_window_lists_only_its_own_profiles_copies() {
+        use crate::windows::{pid_for_root, Caller, CallerProject};
+        let copy = |path: &str| ManagedProject {
+            key: path.into(),
+            server_url: "https://hub.example".into(),
+            project_id: "p".into(),
+            name: path.into(),
+            path: path.into(),
+            last_opened: 0,
+        };
+        let mut st = crate::app_state::AppState::default();
+        for (root, profile) in [("/me", "work"), ("/c-work", "work"), ("/c-home", "default")] {
+            st.projects.insert(
+                pid_for_root(root),
+                serde_json::from_value(serde_json::json!({ "root": root, "profile": profile }))
+                    .unwrap(),
+            );
+        }
+        let all = vec![copy("/c-work"), copy("/c-home"), copy("/c-unbound")];
+        let me = Caller::Project(CallerProject {
+            label: format!("p-{}", pid_for_root("/me")),
+            pid: pid_for_root("/me"),
+            root: "/me".into(),
+        });
+        let paths = |v: Vec<ManagedProject>| v.into_iter().map(|p| p.path).collect::<Vec<_>>();
+        assert_eq!(paths(visible_copies(&me, &st, all.clone())), vec!["/c-work"]);
+        // An unbound copy reads as `default`, as profile_for does.
+        let mut st_default = st.clone();
+        st_default.projects.remove(&pid_for_root("/me"));
+        assert_eq!(
+            paths(visible_copies(&me, &st_default, all.clone())),
+            vec!["/c-home", "/c-unbound"]
+        );
+        assert_eq!(paths(visible_copies(&Caller::Home, &st, all)).len(), 3);
+    }
 
     /// V2-3.6 M3: from a `p-*` window, an arbitrary (server, project) is never
     /// opened silently — only a known copy or the configured cloud's zone.
