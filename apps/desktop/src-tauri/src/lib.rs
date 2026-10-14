@@ -839,6 +839,8 @@ pub fn run() {
             // instance and fire on a state transition. Started after
             // `SidecarState` is managed (above) since it reads the pool.
             notify::spawn_activity_poller(&handle);
+            // V2-3.10: `index://changed` to Home when a running project's index changes.
+            home::spawn_index_watch(&handle);
 
             // The bundled app parks maude:// links; the client validates and
             // opens a file locally or asks before a project switch.
