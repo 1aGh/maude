@@ -16,6 +16,7 @@
 // detects the stale `_server.json` server.)
 
 mod app_state;
+mod bus;
 mod crash_reporter;
 mod deep_link;
 mod home;
@@ -46,7 +47,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 
-use tauri::{Emitter, EventTarget, Manager, RunEvent, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 use sidecar::SidecarState;
@@ -189,10 +190,11 @@ async fn pick_directory(
     webview: tauri::Webview,
 ) -> Result<Option<String>, String> {
     let caller = windows::caller_project(&webview, false)?;
-    // E2E (debug builds only): a native folder picker can't be DOM-driven, so the
-    // harness injects the chosen path via MAUDE_E2E_PICK_DIR instead of opening the OS
-    // dialog. Gated on `debug_assertions`, so it is NEVER compiled into the release
-    // `.app` (which has no WebDriver server either). See the `desktop-e2e` skill.
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+                                         // E2E (debug builds only): a native folder picker can't be DOM-driven, so the
+                                         // harness injects the chosen path via MAUDE_E2E_PICK_DIR instead of opening the OS
+                                         // dialog. Gated on `debug_assertions`, so it is NEVER compiled into the release
+                                         // `.app` (which has no WebDriver server either). See the `desktop-e2e` skill.
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_PICK_DIR") {
         if !p.is_empty() {
@@ -245,8 +247,9 @@ async fn save_export(
     // The CALLING window's project (V2-3.2): with two tabs, an export from tab
     // B must download from B's server, not from whichever tab is in front.
     let caller = windows::caller_project(&webview, false)?;
-    // The origin comes from the app-owned info file of THAT project's running
-    // child (V2-1.1 decision 8), never the in-project `_server.json` (V2-3.6 M1).
+    windows::caller_in_front(&webview)?; // 1g: no save sheet from a hidden tab
+                                         // The origin comes from the app-owned info file of THAT project's running
+                                         // child (V2-1.1 decision 8), never the in-project `_server.json` (V2-3.6 M1).
     let info_file = sidecar::shell_info_file(&app, &caller.root);
     let download_url = export_download_url(info_file.as_deref(), &job_id)?;
 
@@ -372,8 +375,9 @@ async fn pick_media_file(
     registry: tauri::State<'_, picked_media::PickedMediaRegistry>,
 ) -> Result<Option<picked_media::PickedMediaRef>, String> {
     windows::caller_project(&webview, false)?;
-    // E2E (debug builds only): a native open dialog can't be DOM-driven, so the
-    // harness injects the source path via MAUDE_E2E_OPEN_PATH. Never in release.
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+                                         // E2E (debug builds only): a native open dialog can't be DOM-driven, so the
+                                         // harness injects the source path via MAUDE_E2E_OPEN_PATH. Never in release.
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_OPEN_PATH") {
         if !p.is_empty() {
@@ -412,8 +416,9 @@ async fn pick_media_files(
     registry: tauri::State<'_, picked_media::PickedMediaRegistry>,
 ) -> Result<Vec<picked_media::PickedMediaRef>, String> {
     windows::caller_project(&webview, false)?;
-    // E2E (debug builds only): mirrors MAUDE_E2E_OPEN_PATH but plural —
-    // comma-separated source paths, never read in a release build.
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+                                         // E2E (debug builds only): mirrors MAUDE_E2E_OPEN_PATH but plural —
+                                         // comma-separated source paths, never read in a release build.
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_OPEN_PATHS") {
         if !p.is_empty() {
@@ -665,6 +670,7 @@ pub fn run() {
             crash_reporter::read_crash_log,
             deep_link::take_pending_deep_link,
             deep_link::take_link_opened,
+            bus::shell_subscribe,
             deep_link::e2e_deliver_deep_link,
             project_resolve::resolve_project_for_link,
             notify::send_notification,
@@ -928,8 +934,9 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
         // The ACTIVE tab only: no active tab → nothing (never a background tab).
         menu::MenuRoute::Action(action) => {
             if let Some(label) = focused() {
-                let _ = app.emit_to(
-                    EventTarget::AnyLabel { label },
+                // The focused page's own channel only (bus.rs, finding 1d).
+                bus::send(
+                    &label,
                     menu::MENU_ACTION_EVENT,
                     serde_json::json!({ "id": action }),
                 );

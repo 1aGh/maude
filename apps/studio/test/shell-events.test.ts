@@ -27,17 +27,44 @@ import {
 import { OPEN_LADDER_MS } from '../client/ui-open.js';
 
 type Handler = (e: { payload: unknown }) => void;
-let here: Record<string, Handler> = {};
+type Ch = { onmessage?: (m: { kind: string; payload: unknown }) => void };
+// Finding 1d: the shell reaches this page ONLY on the Channel it hands `shell_subscribe`
+// (client/shell-bus.js). `here` = the kinds with a live handler on that bus; calling
+// `here[kind]({payload})` delivers one message on the channel.
+let channel: Ch | null = null;
+const liveKinds = (): string[] => {
+  const bus = (window as unknown as { __maudeShellBus?: { handlers: Map<string, Set<unknown>> } })
+    .__maudeShellBus;
+  return bus ? [...bus.handlers].filter(([, set]) => set.size > 0).map(([k]) => k) : [];
+};
+const here: Record<string, Handler> = new Proxy({} as Record<string, Handler>, {
+  get: (_t, kind) =>
+    liveKinds().includes(String(kind))
+      ? (e: { payload: unknown }) =>
+          channel?.onmessage?.({ kind: String(kind), payload: e.payload })
+      : undefined,
+  ownKeys: () => liveKinds(),
+  getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }),
+});
 let global: Record<string, Handler> = {};
 let invokes: string[] = [];
 let answers: Record<string, unknown> = {};
 
-// The Tauri global a project webview sees: `emit_to` events reach the current webview window.
+// The Tauri global a project webview sees. A global or window-scoped `listen` must never be used
+// (an `emit_to` aimed at another webview reaches it too) — `global` / the webviewWindow stay to
+// prove nothing registers there.
 function installTauri() {
   (window as unknown as { __TAURI__: unknown }).__TAURI__ = {
     core: {
-      invoke: async (cmd: string) => {
+      Channel: class {
+        onmessage?: Ch['onmessage'];
+      },
+      invoke: async (cmd: string, args?: { onMessage?: Ch }) => {
         invokes.push(cmd);
+        if (cmd === 'shell_subscribe') {
+          channel = args?.onMessage ?? null;
+          return null;
+        }
         if (!(cmd in answers)) throw new Error(`command ${cmd} not found`);
         return answers[cmd];
       },
@@ -51,8 +78,8 @@ function installTauri() {
     webviewWindow: {
       getCurrentWebviewWindow: () => ({
         listen: async (name: string, cb: Handler) => {
-          here[name] = cb;
-          return () => delete here[name];
+          global[`here:${name}`] = cb;
+          return () => delete global[`here:${name}`];
         },
       }),
     },
@@ -64,7 +91,8 @@ const tick = async (n = 4) => {
 };
 
 beforeEach(() => {
-  here = {};
+  channel = null;
+  (window as unknown as { __maudeShellBus?: unknown }).__maudeShellBus = undefined;
   global = {};
   invokes = [];
   answers = {};

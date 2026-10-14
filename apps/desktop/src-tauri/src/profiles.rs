@@ -512,6 +512,71 @@ fn cloud_email_of(raw: &[u8]) -> Option<String> {
     v.get("email")?.as_str().map(str::to_string).filter(|e| !e.is_empty())
 }
 
+// ── Low 2c: `cloud_signed_in` needs this caller's own `cloud_sign_in_prepare` ──
+
+/// How long a prepared cloud sign-in stays valid (a device code lives ~15 min).
+const CLOUD_PREPARE_TTL: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
+/// What `cloud_sign_in_prepare` saw for one caller: the project and the
+/// profile the flow will write. Keyed by the caller's label (from the IPC
+/// webview, never an argument); taken once by `cloud_signed_in`.
+#[derive(Clone, Debug)]
+struct Prepared {
+    root: String,
+    profile: String,
+    at: std::time::Instant,
+}
+
+#[derive(Default)]
+pub(crate) struct PreparedBook(std::collections::HashMap<String, Prepared>);
+
+impl PreparedBook {
+    fn prepare(&mut self, label: &str, root: &str, profile: &str, now: std::time::Instant) {
+        self.0
+            .retain(|_, p| now.duration_since(p.at) <= CLOUD_PREPARE_TTL);
+        self.0.insert(
+            label.to_string(),
+            Prepared {
+                root: root.to_string(),
+                profile: profile.to_string(),
+                at: now,
+            },
+        );
+    }
+
+    /// One-shot: Ok only for the same label, project and profile, in time.
+    fn take(
+        &mut self,
+        label: &str,
+        root: &str,
+        profile: &str,
+        now: std::time::Instant,
+    ) -> Result<(), String> {
+        let again = || "Start the Maude Cloud sign-in again.".to_string();
+        let p = self.0.remove(label).ok_or_else(again)?;
+        if p.root != root || p.profile != profile || now.duration_since(p.at) > CLOUD_PREPARE_TTL {
+            return Err(again());
+        }
+        Ok(())
+    }
+
+    fn forget(&mut self, label: &str) {
+        self.0.remove(label);
+    }
+}
+
+static PREPARED: std::sync::Mutex<Option<PreparedBook>> = std::sync::Mutex::new(None);
+
+fn with_prepared<T>(f: impl FnOnce(&mut PreparedBook) -> T) -> T {
+    let mut g = PREPARED.lock().unwrap_or_else(|e| e.into_inner());
+    f(g.get_or_insert_with(PreparedBook::default))
+}
+
+/// A tab closed: its prepared cloud sign-in (if any) dies with it.
+pub fn forget_prepared(label: &str) {
+    with_prepared(|b| b.forget(label));
+}
+
 /// Before a Maude Cloud sign-in from a project page. Ok(true) = the project
 /// was moved to a fresh profile (its profile already held a cloud credential)
 /// and its server is restarting — the page reloads and the person starts the
@@ -524,6 +589,15 @@ pub async fn cloud_sign_in_prepare(
     let caller = crate::windows::caller_project(&webview, false)?;
     let current = crate::app_state::profile_for(&app, &caller.root);
     if !paths(&current)?.cloud_config.exists() {
+        // 2c: the one sign-in `cloud_signed_in` will accept from this caller.
+        with_prepared(|b| {
+            b.prepare(
+                &caller.label,
+                &caller.root,
+                &current,
+                std::time::Instant::now(),
+            )
+        });
         return Ok(false);
     }
     let label = crate::windows::project_display_name(&caller.root);
@@ -541,6 +615,16 @@ pub async fn cloud_sign_in_prepare(
 pub async fn cloud_signed_in(app: tauri::AppHandle, webview: tauri::Webview) -> Result<bool, String> {
     let caller = crate::windows::caller_project(&webview, false)?;
     let current = crate::app_state::profile_for(&app, &caller.root);
+    // 2c: only after THIS caller's `cloud_sign_in_prepare` on this project and
+    // profile — a page that skipped it can't move a shared profile's cloud.json.
+    with_prepared(|b| {
+        b.take(
+            &caller.label,
+            &caller.root,
+            &current,
+            std::time::Instant::now(),
+        )
+    })?;
     let src = paths(&current)?.cloud_config;
     let raw = std::fs::read(&src).map_err(|_| "Maude Cloud sign-in didn't finish.".to_string())?;
     let email = cloud_email_of(&raw).unwrap_or_else(|| "Maude Cloud".to_string());
@@ -574,6 +658,35 @@ fn move_cloud_credential(src: &Path, dest: &Path, raw: &[u8]) -> Result<(), Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Low 2c: `cloud_signed_in` acts only on this caller's own prepare — same
+    /// label, project and profile, once, within the TTL.
+    #[test]
+    fn cloud_signed_in_needs_this_callers_prepare() {
+        let t0 = std::time::Instant::now();
+        let mut b = PreparedBook::default();
+        // A page that skipped prepare is refused.
+        assert!(b.take("p-a", "/a", "default", t0).is_err());
+        b.prepare("p-a", "/a", "default", t0);
+        // Another tab can't use p-a's prepare; nor can p-a on another profile.
+        assert!(b.take("p-b", "/a", "default", t0).is_err());
+        assert!(b.take("p-a", "/a", "other", t0).is_err());
+        assert!(
+            b.take("p-a", "/a", "default", t0).is_err(),
+            "a mismatched take consumes it"
+        );
+        b.prepare("p-a", "/a", "default", t0);
+        assert!(b.take("p-a", "/a", "default", t0).is_ok());
+        assert!(b.take("p-a", "/a", "default", t0).is_err(), "one-shot");
+        // Expired.
+        b.prepare("p-a", "/a", "default", t0);
+        let late = t0 + CLOUD_PREPARE_TTL + std::time::Duration::from_secs(1);
+        assert!(b.take("p-a", "/a", "default", late).is_err());
+        // A closed tab forgets it.
+        b.prepare("p-a", "/a", "default", t0);
+        b.forget("p-a");
+        assert!(b.take("p-a", "/a", "default", t0).is_err());
+    }
 
     fn tmp(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!(

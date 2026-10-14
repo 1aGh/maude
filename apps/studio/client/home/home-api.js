@@ -19,6 +19,8 @@
 // (the page opened in a browser for development) `inShell()` is false, `shellInvoke` resolves
 // `null` and `shellListen` is a no-op — the page shows the index without shell actions.
 
+import { listen as busListen } from '../shell-bus.js';
+
 export const HOME_HEADER = 'x-maude-home';
 export const DEV_SECRET_KEY = 'maude-home-page-secret';
 
@@ -153,19 +155,15 @@ export function shellInvoke(cmd, args) {
 }
 
 /**
- * Listen to a shell event addressed to THIS window; resolves to an unlisten fn (a no-op outside
- * the app). Rust sends every shell event with `emit_to(label)` (§5.4), and a global
- * `event.listen` also hears one aimed at another window — Home would then read a link that was
- * routed to a project tab as its own (V2-3.5). The global listener is only the fallback for a
- * shell without the webviewWindow API.
+ * Hear a shell message addressed to Home (`shell://state`, `index://changed`, a parked
+ * `maude://deep-link` nudge); resolves to an unlisten fn (a no-op outside the app or when the
+ * shell refuses). Finding 1d: not a Tauri event — an `emit_to('home')` also reached every
+ * `Any`-target listener in every project page. The shell writes to the Channel Home handed
+ * `shell_subscribe` (shell-bus.js), under Home's own label.
  */
 export async function shellListen(event, handler) {
-  const t = tauri();
-  const here = t?.webviewWindow?.getCurrentWebviewWindow?.();
-  const listen = here?.listen ? here.listen.bind(here) : t?.event?.listen;
-  if (!listen) return () => {};
   try {
-    return await listen(event, (e) => handler(e?.payload));
+    return await busListen(event, (p) => handler(p));
   } catch {
     return () => {};
   }

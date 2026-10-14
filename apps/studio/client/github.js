@@ -7,6 +7,8 @@
 // the loopback bridge). In a plain browser (no Tauri) `isNativeApp()` is false and
 // the IdentityBar shows the "open the desktop app" state instead of sign-in.
 
+import { listen as shellListen } from './shell-bus.js';
+
 export function isNativeApp() {
   return typeof window !== 'undefined' && !!window.__TAURI__;
 }
@@ -22,20 +24,18 @@ export function invoke(cmd, args) {
   return tauri().core.invoke(cmd, args);
 }
 
-/** Subscribe to a Tauri event; resolves to an async unlisten fn. */
+/** Hear a shell message (`github://device-code`, `menu://action`, `update-ready`, …) addressed
+ *  to THIS page; resolves to an unlisten fn. Finding 1d: not a Tauri event — Tauri delivers an
+ *  `emit_to` to every `Any`-target listener in every webview, so a sibling tab would read this
+ *  one's device code. The shell writes to the Channel this page handed `shell_subscribe`
+ *  (shell-bus.js). Outside the app: a no-op unlisten. */
 export function listen(event, handler) {
-  return tauri().event.listen(event, (e) => handler(e.payload));
+  return shellListen(event, handler);
 }
 
-/** Subscribe to an event addressed to THIS window only (V2-3.2: one window per
- *  project). A global `event.listen` also receives an `emit_to` aimed at another
- *  window, so with two tabs signing in, each would show the other's code. Falls
- *  back to the global listener on a shell without the webviewWindow API. */
+/** Same as `listen` — every shell message is addressed to one page now. Kept for callers. */
 export function listenHere(event, handler) {
-  const t = tauri();
-  const current = t.webviewWindow?.getCurrentWebviewWindow?.();
-  if (!current) return listen(event, handler);
-  return current.listen(event, (e) => handler(e.payload));
+  return shellListen(event, handler);
 }
 
 // ── Tauri shell commands ──────────────────────────────────────────────────────

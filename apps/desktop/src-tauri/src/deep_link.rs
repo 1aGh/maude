@@ -28,7 +28,7 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Emitter, EventTarget, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::windows::HOME_LABEL;
 
@@ -331,14 +331,12 @@ fn route_now(app: &AppHandle, url: &str) {
     }
     crate::sidecar::log_line(&format!("[maude] deep link routed to {label}"));
     PENDING_LINKS.park(&label, &payload);
-    let target = || EventTarget::AnyLabel {
-        label: label.clone(),
-    };
-    let _ = app.emit_to(target(), "maude://deep-link", payload);
+    // That window's own channel only (bus.rs, finding 1d).
+    crate::bus::send(&label, "maude://deep-link", &payload);
     // A NEW window gets the canvas as its first navigate's `?open=` (the
     // open_project path); an existing one is told where to go.
     if let (true, Some(t)) = (existing, navigate) {
-        let _ = app.emit_to(target(), "shell://navigate", t);
+        crate::bus::send(&label, "shell://navigate", t);
     }
 }
 
@@ -362,11 +360,7 @@ pub fn take_pending_deep_link(webview: tauri::Webview) -> Result<Option<String>,
 /// with a page-side `event.emit`, which pages can no longer do. Granted only by
 /// capabilities/debug/e2e-webdriver.json; a release build answers Err.
 #[tauri::command]
-pub fn e2e_deliver_deep_link(
-    app: AppHandle,
-    webview: tauri::Webview,
-    url: String,
-) -> Result<(), String> {
+pub fn e2e_deliver_deep_link(webview: tauri::Webview, url: String) -> Result<(), String> {
     #[cfg(debug_assertions)]
     {
         crate::windows::caller_any(&webview, false)?;
@@ -375,12 +369,12 @@ pub fn e2e_deliver_deep_link(
         }
         let label = webview.label().to_string();
         PENDING_LINKS.park(&label, &url);
-        app.emit_to(EventTarget::AnyLabel { label }, "maude://deep-link", url)
-            .map_err(|e| e.to_string())
+        crate::bus::send(&label, "maude://deep-link", url);
+        Ok(())
     }
     #[cfg(not(debug_assertions))]
     {
-        let _ = (app, webview, url);
+        let _ = (webview, url);
         Err("debug builds only".into())
     }
 }

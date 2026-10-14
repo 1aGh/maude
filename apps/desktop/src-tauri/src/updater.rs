@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_updater::UpdaterExt;
 
@@ -115,9 +115,8 @@ async fn check_and_apply(handle: &AppHandle, interactive: bool) {
             match result {
                 Ok(()) => {
                     UPDATE_STAGED.store(true, Ordering::Relaxed);
-                    if let Err(e) = handle.emit("update-ready", UpdateReady { version, notes }) {
-                        eprintln!("[maude] could not emit update-ready: {e}");
-                    }
+                    // Every page, each through its own channel (bus.rs, finding 1d).
+                    crate::bus::broadcast("update-ready", UpdateReady { version, notes });
                 }
                 Err(e) => {
                     eprintln!("[maude] update download/install failed: {e}");

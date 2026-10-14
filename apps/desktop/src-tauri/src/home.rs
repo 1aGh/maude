@@ -33,7 +33,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::ipc::CapabilityBuilder;
-use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
@@ -51,14 +51,13 @@ const MAX_THUMB_KEYS: usize = 50;
 /// `shell://state` debounce (§5.4 Events).
 const STATE_DEBOUNCE: Duration = Duration::from_millis(250);
 
-/// The permissions of the runtime `home` capability (§5.4 Capabilities), plus
-/// `core:event:default` — the Home page `listen`s for `shell://state`. Every
+/// The permissions of the runtime `home` capability (§5.4 Capabilities). Every
 /// entry must resolve: Tauri `unwrap`s the runtime resolve, so an unknown name
 /// would panic at bind time (`every_home_permission_exists` pins it).
 pub const HOME_PERMISSIONS: &[&str] = &[
-    // listen/unlisten only — never emit / emit-to (V2-3.6 M5).
-    "core:event:allow-listen",
-    "core:event:allow-unlisten",
+    // No `core:event:*` (V2-3.6 M5, finding 1d): Home hears `shell://state`,
+    // `index://changed` … on the Channel it hands `shell_subscribe` (bus.rs).
+    "allow-shell-subscribe",
     "allow-shell-state",
     "allow-open-project",
     "allow-open-project-folder",
@@ -773,13 +772,8 @@ pub fn state_changed(app: &AppHandle) {
             return;
         }
         let s = current_shell_state(&app);
-        let _ = app.emit_to(
-            EventTarget::AnyLabel {
-                label: HOME_LABEL.to_string(),
-            },
-            "shell://state",
-            s,
-        );
+        // Home's own channel only: a project page must never read this (1d).
+        crate::bus::send(HOME_LABEL, "shell://state", s);
     });
 }
 
@@ -857,13 +851,7 @@ pub fn spawn_index_watch(app: &AppHandle) {
                 .collect();
             let pids = watch.tick(now);
             if !pids.is_empty() {
-                let _ = app.emit_to(
-                    EventTarget::AnyLabel {
-                        label: HOME_LABEL.to_string(),
-                    },
-                    "index://changed",
-                    json!({ "pids": pids }),
-                );
+                crate::bus::send(HOME_LABEL, "index://changed", json!({ "pids": pids }));
             }
         }
     });
@@ -897,20 +885,14 @@ pub fn validate_intent(i: OpenIntent) -> Result<OpenIntent, String> {
 /// Parked per window label; taken once by that window only.
 static INTENTS: Mutex<Option<HashMap<String, OpenIntent>>> = Mutex::new(None);
 
-pub fn park_intent(app: &AppHandle, label: &str, intent: OpenIntent) {
+pub fn park_intent(label: &str, intent: OpenIntent) {
     INTENTS
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .get_or_insert_with(HashMap::new)
         .insert(label.to_string(), intent);
     // A nudge only — the payload is never in the event.
-    let _ = app.emit_to(
-        EventTarget::AnyLabel {
-            label: label.to_string(),
-        },
-        "shell://intent",
-        (),
-    );
+    crate::bus::send(label, "shell://intent", ());
 }
 
 /// `park_intent` without the nudge (no `AppHandle` in a unit test).
@@ -1121,7 +1103,10 @@ pub fn home_session(app: AppHandle, webview: tauri::Webview) -> Result<HomeSessi
 /// read or written for the caller).
 #[tauri::command]
 pub async fn new_home_tab(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
-    windows::caller_any(&webview, true)?;
+    // 1g: a background project tab may not switch the active tab.
+    if let windows::Caller::Project(_) = windows::caller_any(&webview, true)? {
+        windows::caller_in_front(&webview)?;
+    }
     ensure_home_window(&app, Some(webview.label())).map(|_| ())
 }
 
@@ -1209,6 +1194,7 @@ pub async fn relink_project(
     pid: String,
 ) -> Result<Option<String>, String> {
     let who = windows::caller_any(&webview, false)?;
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
     relink_allowed(&who, &pid)?;
     let name = match crate::app_state::load(&app).projects.get(&pid) {
         Some(e) => crate::notify::sanitize_title(&e.name),
