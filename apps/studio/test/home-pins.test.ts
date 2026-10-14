@@ -3,7 +3,16 @@
 // still IS that pid. Plus the project server's own `/_api/pins` route and the index merge.
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { readPins, stampRecent } from '../home/user-state.ts';
@@ -57,6 +66,46 @@ describe('/_home/pins', () => {
     expect(existsSync(join(`${a.root}-moved`, '.design', '_canvas-state', '_pins.json'))).toBe(
       false
     );
+  });
+
+  // V2-3.10 W5 — a design dir (or any parent of it inside the project) that is a symlink is
+  // neither read nor written through; the same for `_canvas-state` itself (L8).
+  test('a symlinked design root or parent is refused: no rows read, no pin written', async () => {
+    const f = homeFetch();
+    const outside = mkdtempSync(join(tmpdir(), 'maude-w5-outside-'));
+
+    // (1) `.design -> /elsewhere`
+    const a = makeProject('alpha', { 'ui/One.tsx': 'One' });
+    renameSync(a.designRoot, join(outside, 'a-design'));
+    symlinkSync(join(outside, 'a-design'), a.designRoot);
+    expect((await f(pin({ pid: a.pid, canvas: 'ui/One.tsx', pinned: true }))).status).toBe(403);
+    expect(existsSync(join(outside, 'a-design', '_canvas-state', '_pins.json'))).toBe(false);
+    const idx = (await (await f(homeReq(`/_home/index?pids=${a.pid}`))).json()) as {
+      projects: Array<{ state: string; canvases: unknown[] }>;
+    };
+    expect(idx.projects[0]?.state).not.toBe('ok');
+    expect(idx.projects[0]?.canvases ?? []).toEqual([]);
+
+    // (2) a PARENT of the design dir: designRel `link/.design`, `link -> /elsewhere`
+    const b = makeProject('beta', { 'ui/One.tsx': 'One' });
+    mkdirSync(join(outside, 'b-parent'));
+    renameSync(b.designRoot, join(outside, 'b-parent', '.design'));
+    symlinkSync(join(outside, 'b-parent'), join(b.root, 'link'));
+    const snap = readSnapshot(b.pid);
+    if (!snap) throw new Error('no snapshot');
+    snap.project.designRel = 'link/.design';
+    writeFileSync(snapshotPath(b.pid), JSON.stringify(snap));
+    expect((await f(pin({ pid: b.pid, canvas: 'ui/One.tsx', pinned: true }))).status).toBe(403);
+    expect(existsSync(join(outside, 'b-parent', '.design', '_canvas-state', '_pins.json'))).toBe(
+      false
+    );
+
+    // (3) L8: the design dir is real but `_canvas-state -> /elsewhere`
+    const c = makeProject('gamma', { 'ui/One.tsx': 'One' });
+    mkdirSync(join(outside, 'c-state'));
+    symlinkSync(join(outside, 'c-state'), join(c.designRoot, '_canvas-state'));
+    expect((await f(pin({ pid: c.pid, canvas: 'ui/One.tsx', pinned: true }))).status).not.toBe(200);
+    expect(existsSync(join(outside, 'c-state', '_pins.json'))).toBe(false);
   });
 
   test('refuses a bad pid, a traversal key, a missing canvas', async () => {
