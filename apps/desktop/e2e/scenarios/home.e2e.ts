@@ -1,3 +1,6 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
@@ -14,6 +17,8 @@ import { focusTab, labels, newHomeTab, pinCurrentWindow, waitWindow } from '../h
  *  4. Picking a recent canvas of a CLOSED project opens it as a new tab and closes Home.
  *  5. Opening an OPEN project from Home focuses its existing tab (`opened: 'existing'`,
  *     `shell://opened-existing`) — no second window.
+ *  6. A canvas created in an OPEN project shows up on Home without a reload (V2-3.10): the
+ *     project server re-indexes, the shell emits `index://changed {pids}`, Home refetches.
  *
  * Fixtures: wdio.home.conf.ts → fixtures/seed-home-index.ts.
  */
@@ -188,5 +193,51 @@ describe('home (native-desktop)', () => {
     await onServer(label(ALPHA));
     expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
     await capture('05-open-project-focused');
+  });
+
+  it('6 · a new canvas in an open project shows up on Home live, without a reload', async () => {
+    // BETA is open (step 2) and running; Home comes back as its own tab.
+    expect(await labels()).toContain(label(BETA));
+    await newHomeTab();
+    await onHome();
+    await (await $(tid(rowId(BETA)))).waitForDisplayed({ timeout: 60_000 });
+    // A page-lifetime marker: a reload (or a re-navigation) would drop it.
+    await browser.execute(() => {
+      (window as unknown as { __v2310: number }).__v2310 = 1;
+    });
+
+    // Create the canvas on disk, as an agent or an editor would, and say it was opened just
+    // now so it lands in Home's Recent list. Home learns of it ONLY through index://changed.
+    const rel = 'ui/live-board.tsx';
+    const designRoot = join(BETA.root, '.design');
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    writeFileSync(
+      join(designRoot, rel),
+      `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+export default function C() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="live" label="Live" width={400} height={300} />
+    </DesignCanvas>
+  );
+}
+`
+    );
+    const recentFile = join(designRoot, '_canvas-state', '_recent.json');
+    const recent = JSON.parse(readFileSync(recentFile, 'utf8')) as {
+      opened: Record<string, number>;
+    };
+    recent.opened[rel] = Date.now() + 60_000;
+    writeFileSync(recentFile, JSON.stringify(recent));
+
+    const live: Fixture = { ...BETA, rel };
+    await (await $(tid(rowId(live)))).waitForDisplayed({
+      timeout: 30_000,
+      timeoutMsg: `${rowId(live)} never appeared on Home (index://changed not delivered?)`,
+    });
+    expect(await browser.execute(() => (window as unknown as { __v2310?: number }).__v2310)).toBe(
+      1
+    );
+    await capture('06-home-live-new-canvas');
   });
 });
