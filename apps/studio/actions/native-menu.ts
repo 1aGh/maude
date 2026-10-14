@@ -4,10 +4,11 @@
 // `apps/desktop/src-tauri/menu.actions.json`, which menu.rs builds the menu from. OS-provided
 // items stay predefined (About, Quit, the Edit items WKWebView needs, the Window items).
 //
-// V2-3.4 — C3's File menu (New Canvas ⌘N · New Project… ⇧⌘N · Open Project… ⌘O · New Home Tab ⌘T)
-// and a Window menu. `windowsMenu` makes it NSApp's Windows menu, so AppKit appends the window-tab
-// commands (Show Previous / Next Tab, Move Tab to New Window, Merge All Windows, Show All Tabs ⇧⌘\)
-// and the window list itself — they are not declared here. A click on an `exec:'shell'` item
+// V2-3.4 — C3's File menu (New Canvas ⌘N · New Project… ⇧⌘N · Open Project… ⌘O · Show Home ⌘T —
+// V2-3.9 renamed New Home Tab) and a Window menu. `windowsMenu` makes it NSApp's Windows menu, so
+// AppKit appends the window list. V2-3.9: Close Tab ⌘W and the Window menu's tab items (next /
+// previous ⌃Tab / ⌃⇧Tab, Tab 1…8 ⌃⌘1…⌃⌘8, Last Tab ⌃⌘9) drive Maude's own tab bar (V2-3.7);
+// nothing is native-tabbed, so AppKit adds no tab items of its own. A click on an `exec:'shell'` item
 // sends `menu://action {id}` to the focused window; an `exec:'native'` item has a lib.rs arm.
 
 import type { ActionId } from './types.ts';
@@ -62,7 +63,9 @@ export const NATIVE_MENU: readonly NativeSubmenu[] = [
       { action: 'canvas.new', nativeId: 'new_canvas', label: 'New Canvas' },
       { action: 'project.new', nativeId: 'new_project', label: 'New Project…' },
       { action: 'project.open', nativeId: 'open_project_folder', label: 'Open Project…' },
-      { action: 'home.open', nativeId: 'new_home_tab', label: 'New Home Tab' },
+      { action: 'home.open', nativeId: 'show_home', label: 'Show Home' },
+      { separator: true },
+      { action: 'tab.close', nativeId: 'close_tab', label: 'Close Tab' },
     ],
   },
   {
@@ -85,6 +88,17 @@ export const NATIVE_MENU: readonly NativeSubmenu[] = [
     items: [
       { predefined: 'minimize' },
       { predefined: 'zoom' },
+      { separator: true },
+      // V2-3.9: our own tab bar's tabs (no window is native-tabbed any more).
+      { action: 'tab.next', nativeId: 'next_tab', label: 'Show Next Tab' },
+      { action: 'tab.prev', nativeId: 'prev_tab', label: 'Show Previous Tab' },
+      { separator: true },
+      ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+        action: `tab.select-${n}`,
+        nativeId: `select_tab_${n}`,
+        label: `Tab ${n}`,
+      })),
+      { action: 'tab.select-last', nativeId: 'select_tab_last', label: 'Last Tab' },
       { separator: true, macos: true },
       { predefined: 'bring_all_to_front', macos: true },
     ],

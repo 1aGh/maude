@@ -316,6 +316,49 @@ pub fn on_click(app: &AppHandle, root: &str) {
     }
 }
 
+/// The strip dot one poll tick's transitions earn (V2-3.7 §6): waiting for you outranks done.
+pub fn dot_for(fired: &[Transition]) -> Option<crate::tabs::Dot> {
+    if fired.contains(&Transition::AwaitingInput) {
+        Some(crate::tabs::Dot::NeedsYou)
+    } else if fired.contains(&Transition::Finished) {
+        Some(crate::tabs::Dot::Done)
+    } else {
+        None
+    }
+}
+
+/// Put the dot on `root`'s tab — a background tab only (`WindowBook::set_dot` refuses the
+/// active one; the poller polls only those, `poll_targets`). Activating the tab clears it
+/// (`WindowBook::focus`).
+fn mark_tab(app: &AppHandle, root: &str, fired: &[Transition]) {
+    if let Some(dot) = dot_for(fired) {
+        crate::tabs::set_dot(app, root, Some(dot));
+    }
+}
+
+/// Debug-only e2e helper (V2-3.9 T7 `tabs-identity`): one poll tick that saw `root`'s AI
+/// reach `state` (`finished` | `awaiting-input`) — the dot half of `poll_one`, since the
+/// e2e fixture has no agent to finish a turn. No OS notification. Granted only by
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub fn e2e_ai_transition(app: AppHandle, root: String, state: String) -> Result<bool, String> {
+    #[cfg(debug_assertions)]
+    {
+        let t = match state.as_str() {
+            "finished" => Transition::Finished,
+            "awaiting-input" => Transition::AwaitingInput,
+            other => return Err(format!("unknown state {other}")),
+        };
+        let dot = dot_for(&[t]).ok_or("no dot")?;
+        Ok(crate::tabs::set_dot(&app, &root, Some(dot)))
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, root, state);
+        Err("debug builds only".into())
+    }
+}
+
 /// A project's window gained focus: the person is looking at it, so it leaves
 /// the Dock badge (V2-3.5).
 pub fn project_focused(app: &AppHandle, root: &str) {
@@ -601,6 +644,9 @@ async fn poll_one(app: &AppHandle, project_root: &str) {
     if fired.is_empty() {
         return;
     }
+    // The strip's AI dot (V2-3.7 §6, V2-3.9 T6) — a bounded two-value flag, never an OS ping,
+    // so it goes before the cooldown/cap below.
+    mark_tab(app, project_root, &fired);
     // The badge counts every project that started waiting while unfocused —
     // before the cooldown/cap below, which only throttle the OS ping.
     if fired.contains(&Transition::AwaitingInput)

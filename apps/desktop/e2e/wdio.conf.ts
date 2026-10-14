@@ -46,6 +46,8 @@ const DEDICATED: Record<string, string> = {
   'team-project.e2e.ts': 'pnpm test:e2e:desktop:team-project',
   // A deployment that is already live, named explicitly — no default target.
   's20-deployment.e2e.ts': 'pnpm test:e2e:desktop:s20',
+  // V2-3.9: open, quit, relaunch, twice — against one kept app-state.
+  'relaunch.e2e.ts': 'pnpm test:e2e:desktop:relaunch',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above
@@ -93,6 +95,13 @@ process.env.NO_OPEN = '1';
 // fails looking exactly like a broken bundle. Honored only under
 // `debug_assertions` (keychain.rs), so no shipped build is affected.
 process.env.MAUDE_E2E_NO_KEYCHAIN = '1';
+// …and nothing in the process may reach the REAL keychain at all (V2-3.9): the token bridge
+// (keychain.rs `start_token_bridge`) reads a profile's GitHub token whenever a project server
+// asks for one — the github-backed tabs fixture does at boot — and that read raised macOS's
+// SecurityAgent prompt over the app (a covered run). The in-memory store (debug builds only,
+// installed first in lib.rs setup) routes every `keyring::Entry` in the app, so EVERY lane gets
+// it. A lane that needs a signed-in profile signs in through `e2e_github_sign_in_as`.
+process.env.MAUDE_E2E_FAKE_KEYCHAIN ??= '1';
 // A native dialog is not DOM-reachable either: managed_project_open's
 // "Open a team project from <host>?" confirm (V2-3.6 M3) answers Open under
 // `debug_assertions` only (managed.rs).

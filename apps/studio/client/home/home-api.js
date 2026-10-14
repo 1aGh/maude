@@ -91,6 +91,8 @@ export const search = (q, pids) =>
 export const getRecentSearches = () => homeFetch('/_home/recent-searches');
 export const saveRecentSearch = (q, results) => post('/_home/recent-searches', { q, results });
 export const setPin = (pid, canvas, pinned) => post('/_home/pins', { pid, canvas, pinned });
+/** "Just a local project" (V2-1.1 §5.3): `~/Maude/<name>` scaffolded → `{ok, root, pid, name}`. */
+export const createLocal = (name) => post('/_home/projects/create-local', { name });
 export const prepareCloud = (profile, server, projectId) =>
   post('/_home/cloud/prepare', { profile, server, projectId });
 /** A connect link's project (`maude://open/<project>?code=…`): the same prepare, with the link's

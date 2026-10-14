@@ -34,6 +34,8 @@ if (!process.env.MAUDE_E2E_HOME_FIXTURES) {
     rmSync(join(e2eConfigDir, f), { force: true });
   }
   process.env.MAUDE_INDEX_DIR = mkdtempSync(join(tmpdir(), 'maude-home-e2e-index-'));
+  // V2-3.9: New Project… on Home creates `<this>/<name>` (home/create-local.ts), never ~/Maude.
+  process.env.MAUDE_HOME_PROJECTS_DIR = mkdtempSync(join(tmpdir(), 'maude-home-e2e-projects-'));
   process.env.MAUDE_E2E_HOME_FIXTURES = execFileSync(
     'bun',
     [resolve(HERE, 'fixtures', 'seed-home-index.ts')],

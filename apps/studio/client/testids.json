@@ -7447,5 +7447,65 @@
     "region": "home",
     "consumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "home-new-project",
+    "kind": "testid",
+    "meaning": "\"New project… ⇧⌘N\" at the foot of Projects: opens the create sheet (the same sheet File ▸ New Project… opens on Home — `menu://action {id:'project.new'}`).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-dialog",
+    "kind": "testid",
+    "meaning": "The New project sheet on Home (V2-3.9): a name → `/_home/projects/create-local` → `open_project({root})`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-name",
+    "kind": "testid",
+    "meaning": "The project name in the New project sheet (empty = \"Untitled project\", C4 naming in create-local).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-submit",
+    "kind": "testid",
+    "meaning": "\"Create project\" in the New project sheet.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
+  },
+  {
+    "hook": "home-create-cancel",
+    "kind": "testid",
+    "meaning": "Cancel in the New project sheet (Escape and the scrim answer the same).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": ["test:home-page"],
+    "v2": "new"
   }
 ]

@@ -214,7 +214,6 @@ impl WindowBook {
 
     /// Set a BACKGROUND tab's AI dot (V2-3.7 §6; `None` clears it). The active
     /// tab never carries one: false.
-    #[allow(dead_code)] // SEAM (V2-3.7 T6): the notify.rs activity poller sets it.
     pub fn set_dot(&mut self, label: &str, dot: Option<crate::tabs::Dot>) -> bool {
         if self.focused.as_deref() == Some(label) && dot.is_some() {
             return false;
@@ -389,6 +388,8 @@ impl WindowBook {
                 e.resting = resting;
                 if resting {
                     e.origin = None;
+                    // A resting tab runs no AI: its dot goes (V2-3.7 §6).
+                    e.dot = None;
                 }
                 true
             }
@@ -503,6 +504,9 @@ pub struct WindowSpec {
     pub title: String,
     /// The window to attach the new one after, as a tab.
     pub caller: Option<String>,
+    /// Build the tab without activating it (a relaunch builds every saved tab
+    /// in the background, then activates the saved one — V2-3.9 T4).
+    pub background: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -530,13 +534,29 @@ pub fn open_in(
     caller: Option<&str>,
     tick: u64,
 ) -> Result<Opened, String> {
+    open_in_as(host, book, root, name, caller, tick, false)
+}
+
+/// `open_in`; `background` builds a new tab without activating it, and leaves
+/// an existing one where it is (the relaunch path, V2-3.9 T4).
+pub fn open_in_as(
+    host: &impl WindowHost,
+    book: &Mutex<WindowBook>,
+    root: &str,
+    name: &str,
+    caller: Option<&str>,
+    tick: u64,
+    background: bool,
+) -> Result<Opened, String> {
     let pid = pid_for_root(root);
     let label = {
         let mut b = book.lock().unwrap_or_else(|e| e.into_inner());
         match b.label_for_pid(&pid) {
             Some(existing) if host.exists(&existing) => {
                 drop(b);
-                host.reveal(&existing, name);
+                if !background {
+                    host.reveal(&existing, name);
+                }
                 return Ok(Opened::Existing(existing));
             }
             Some(stale) => {
@@ -560,6 +580,7 @@ pub fn open_in(
         label: label.clone(),
         title: crate::notify::sanitize_title(name),
         caller: caller.map(str::to_string),
+        background,
     };
     if let Err(e) = host.create(&spec) {
         book.lock()
@@ -869,6 +890,11 @@ impl WindowHost for TauriHost<'_> {
             }
             builder
         })?;
+        if spec.background {
+            // Hidden, not the active tab; the strip still lists it.
+            crate::tabs::changed(self.app);
+            return Ok(());
+        }
         crate::tabs::reveal(self.app, &spec.label)
     }
 }
@@ -1284,32 +1310,39 @@ pub struct RestoreTab {
     pub root: String,
 }
 
-/// What a relaunch reopens: project tabs in saved order and which one runs.
+/// What a relaunch reopens (contract V2-3.7 §4 `plan_tabs`): project tabs in
+/// saved order, and which one is active — `None` = Home, the pinned tab.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RestorePlan {
     pub tabs: Vec<RestoreTab>,
-    /// Index into `tabs` of the tab that spawns; every other tab starts resting.
-    pub front: usize,
+    /// Index into `tabs` of the active tab, the only one that spawns; every
+    /// other tab starts resting. `None`: Home is active and nothing spawns.
+    pub active: Option<usize>,
 }
 
-/// Pure half of the relaunch: the saved session resolved against the registry.
-/// A tab whose pid is unknown or whose root is gone is skipped (Home's "isn't
-/// where it was" card handles those, not a dead tab), as is a repeated pid
-/// (open once). The front tab is `session.focused` when it survived, else the
-/// first tab. `None` when nothing is left to restore.
-///
-/// SEAM (Home restore): a `home` entry is skipped here for now; the Home window
-/// (V2-3.3) hooks in to reopen it in its saved place.
-pub fn plan_restore(
+/// Pure half of the relaunch (V2-3.9 T4), on today's app-state schema: the
+/// saved session resolved against the registry.
+/// - Project tabs come back in saved order, each pid once, only when the
+///   registry still knows the pid and its root still exists (Home's "isn't
+///   where it was" card handles the rest, not a dead tab).
+/// - A `home` entry (a pre-V2-3.7 session, where Home was a tab) and any other
+///   entry without a pid is dropped: Home is the pinned tab, never a strip
+///   tab — re-adding that entry was the stray Home tab.
+/// - `session.focused == "home"` → Home active; a focused tab that is gone (or
+///   none saved) → the first survivor, else Home.
+pub fn plan_tabs(
     session: &crate::app_state::Session,
     projects: &std::collections::BTreeMap<String, crate::app_state::ProjectEntry>,
     exists: impl Fn(&str) -> bool,
-) -> Option<RestorePlan> {
+) -> RestorePlan {
     let mut tabs: Vec<RestoreTab> = Vec::new();
-    let mut front = None;
+    let mut focused_at = None;
     for t in &session.tabs {
+        if t.label == HOME_LABEL {
+            continue;
+        }
         let Some(pid) = t.pid.as_deref() else {
-            continue; // SEAM (Home restore): `home` and other non-project tabs
+            continue; // a cell tab: no relaunch path (yet)
         };
         let Some(entry) = projects.get(pid) else {
             continue;
@@ -1318,20 +1351,40 @@ pub fn plan_restore(
             continue;
         }
         if session.focused.as_deref() == Some(t.label.as_str()) {
-            front = Some(tabs.len());
+            focused_at = Some(tabs.len());
         }
         tabs.push(RestoreTab {
             pid: pid.to_string(),
             root: entry.root.clone(),
         });
     }
-    if tabs.is_empty() {
-        return None;
+    let active = if session.focused.as_deref() == Some(HOME_LABEL) {
+        None
+    } else {
+        focused_at.or_else(|| (!tabs.is_empty()).then_some(0))
+    };
+    RestorePlan { tabs, active }
+}
+
+/// What the boot builds after the shell and Home (pure half of `boot_windows`).
+#[derive(Clone, Debug, PartialEq)]
+pub enum BootTabs {
+    /// A saved session — even one with no project tab left (Home alone): the
+    /// relaunch restores exactly what was open. A one-tab session takes this
+    /// path too (no `len() > 1` special case, contract §4).
+    Restore(RestorePlan),
+    /// No session to restore: this project alone (the boot plan's root).
+    Open(String),
+    /// Nothing: Home alone.
+    HomeOnly,
+}
+
+pub fn boot_tabs(plan: Option<RestorePlan>, fallback_root: Option<&str>) -> BootTabs {
+    match (plan, fallback_root) {
+        (Some(plan), _) => BootTabs::Restore(plan),
+        (None, Some(root)) => BootTabs::Open(root.to_string()),
+        (None, None) => BootTabs::HomeOnly,
     }
-    Some(RestorePlan {
-        front: front.unwrap_or(0),
-        tabs,
-    })
 }
 
 /// Does this launch restore the saved session? Not when `MAUDE_PROJECT_ROOT`
@@ -1345,51 +1398,49 @@ fn restore_enabled() -> bool {
     std::env::var("MAUDE_PROJECT_ROOT").map_or(true, |v| v.is_empty())
 }
 
-/// The boot window(s). With a saved session: every saved project tab, in
-/// order, as tabs of the one shell window; only the front tab spawns, the others start
-/// resting, and the front window hears `shell://tabs-restored {count}`. Without
-/// one: `fallback_root` alone, as before.
-/// `after` = the window the restored tabs follow (Home, when it booted first —
-/// V2-3.3 resolves the 3.2b `SEAM (Home restore)`); `fallback_root` = the project to
-/// open when there is no multi-tab session (`None` = Home alone).
-pub fn boot_windows(app: &AppHandle, fallback_root: Option<&str>, after: Option<&str>) {
+/// The boot tabs, after the shell and the pinned Home (lib.rs). With a saved
+/// session: `plan_tabs` — every saved project tab in order, built in the
+/// background (never passing through activation), only the active one spawns,
+/// and it (or Home) is activated last. Without one: `fallback_root` alone
+/// (`None` = Home alone).
+pub fn boot_windows(app: &AppHandle, fallback_root: Option<&str>) {
     let plan = if restore_enabled() {
         let st = crate::app_state::load(app);
         st.session
             .as_ref()
-            .and_then(|s| plan_restore(s, &st.projects, |r| Path::new(r).join(".design").is_dir()))
+            .map(|s| plan_tabs(s, &st.projects, |r| Path::new(r).join(".design").is_dir()))
     } else {
         None
     };
-    let Some(plan) = plan.filter(|p| p.tabs.len() > 1) else {
-        // Zero or one tab: today's boot. (A one-tab session's root is what
-        // `resolve_project_root` already resolved to.)
-        if let Some(root) = fallback_root {
-            if let Err(e) = open_window_for_root(app, root, after, None) {
+    match boot_tabs(plan, fallback_root) {
+        BootTabs::Restore(plan) => restore_session(app, &plan),
+        BootTabs::Open(root) => {
+            if let Err(e) = open_window_for_root(app, &root, None, None) {
                 crate::sidecar::log_line(&format!("[maude] FATAL: could not open the project window: {e}"));
             }
         }
-        return;
-    };
-    restore_session(app, &plan, after);
+        BootTabs::HomeOnly => {}
+    }
 }
 
-fn restore_session(app: &AppHandle, plan: &RestorePlan, after: Option<&str>) {
+fn restore_session(app: &AppHandle, plan: &RestorePlan) {
     let state = app.state::<SidecarState>();
-    let mut prev: Option<String> = after.map(str::to_string);
-    let mut front_label = None;
+    let mut prev: Option<String> = None;
+    let mut active_label = None;
+    let mut count = 0;
     for (i, tab) in plan.tabs.iter().enumerate() {
         let tick = state.tick.fetch_add(1, Ordering::SeqCst);
         let name = project_display_name(&tab.root);
-        // Each tab is attached after the previous one, so the group keeps the
-        // saved order (attaching all to the first would reverse it).
-        let opened = open_in(
+        // Each tab goes after the previous one, so the strip keeps the saved
+        // order; built in the background, so no tab passes through activation.
+        let opened = open_in_as(
             &TauriHost { app },
             &state.windows,
             &tab.root,
             &name,
             prev.as_deref(),
             tick,
+            true,
         );
         let label = match opened {
             Ok(o) => o.label().to_string(),
@@ -1398,8 +1449,9 @@ fn restore_session(app: &AppHandle, plan: &RestorePlan, after: Option<&str>) {
                 continue;
             }
         };
-        if i == plan.front {
-            front_label = Some(label.clone());
+        count += 1;
+        if plan.active == Some(i) {
+            active_label = Some((label.clone(), tab.root.clone()));
         } else {
             state
                 .windows
@@ -1409,28 +1461,38 @@ fn restore_session(app: &AppHandle, plan: &RestorePlan, after: Option<&str>) {
         }
         prev = Some(label);
     }
-    let Some(front) = front_label else { return };
-    let front_root = plan.tabs[plan.front].root.clone();
-    // Activate the front tab LAST. The resting tabs each build passed through
-    // on the way stay resting (`WAKE_SETTLE`).
-    // SEAM (V2-3.9 T4 `plan_tabs`): resting tabs are built without passing
-    // through activation, and `session.focused == "home"` restores Home active.
-    if let Err(e) = crate::tabs::reveal(app, &front) {
-        crate::sidecar::log_line(&format!("[maude] could not show the restored front tab: {e}"));
+    let active = match active_label {
+        Some((front, root)) => {
+            if let Err(e) = crate::tabs::reveal(app, &front) {
+                crate::sidecar::log_line(&format!("[maude] could not show the restored tab: {e}"));
+            }
+            crate::sidecar::attach_or_spawn(app, &root);
+            crate::sidecar::spawn_enforce_cap(app);
+            navigate_when_up(app, front.clone(), root, None);
+            // The front tab is still on its splash: the event below reaches
+            // no page. Parked too, for the page to take once it mounts.
+            if count >= 2 {
+                TABS_RESTORED.park(&front, TabsRestored { count });
+            }
+            front
+        }
+        // Home active (saved so, or the active tab did not come back).
+        None => {
+            if let Err(e) = crate::tabs::reveal(app, HOME_LABEL) {
+                crate::sidecar::log_line(&format!("[maude] could not show Home: {e}"));
+            }
+            HOME_LABEL.to_string()
+        }
+    };
+    crate::sidecar::log_line(&format!("[maude] {count} tab(s) reopened — {active} is active"));
+    if count >= 2 {
+        let _ = app.emit_to(
+            EventTarget::AnyLabel { label: active },
+            "shell://tabs-restored",
+            serde_json::json!({ "count": count }),
+        );
     }
-    crate::sidecar::attach_or_spawn(app, &front_root);
-    crate::sidecar::spawn_enforce_cap(app);
-    navigate_when_up(app, front.clone(), front_root, None);
-    let count = plan.tabs.len();
-    crate::sidecar::log_line(&format!("[maude] {count} tabs reopened — only {front} runs"));
-    // The front tab is still on its splash: the event below reaches no page.
-    // Parked too, for the page to take once it mounts.
-    TABS_RESTORED.park(&front, TabsRestored { count });
-    let _ = app.emit_to(
-        EventTarget::AnyLabel { label: front },
-        "shell://tabs-restored",
-        serde_json::json!({ "count": count }),
-    );
+    crate::tabs::changed(app);
     schedule_session_save(app);
 }
 
@@ -2694,48 +2756,135 @@ mod tests {
         assert_eq!(tabs.len(), 2);
     }
 
-    #[test]
-    fn session_restore_keeps_saved_order_and_only_the_focused_tab_runs() {
-        use crate::app_state::{ProjectEntry, Session, SessionTab};
-        let entry = |root: &str| ProjectEntry {
-            root: root.to_string(),
-            ..ProjectEntry::default()
-        };
+    fn restore_fixture() -> std::collections::BTreeMap<String, crate::app_state::ProjectEntry> {
         let mut projects = std::collections::BTreeMap::new();
         for r in [A, B, C] {
-            projects.insert(pid_for_root(r), entry(r));
+            projects.insert(
+                pid_for_root(r),
+                crate::app_state::ProjectEntry {
+                    root: r.to_string(),
+                    ..crate::app_state::ProjectEntry::default()
+                },
+            );
         }
-        let tab = |r: &str| SessionTab {
+        projects
+    }
+
+    fn stab(r: &str) -> crate::app_state::SessionTab {
+        crate::app_state::SessionTab {
             label: label_of(r),
             pid: Some(pid_for_root(r)),
-        };
+        }
+    }
+
+    fn roots(plan: &RestorePlan) -> Vec<&str> {
+        plan.tabs.iter().map(|t| t.root.as_str()).collect()
+    }
+
+    #[test]
+    fn plan_tabs_keeps_saved_order_and_only_the_focused_tab_runs() {
+        use crate::app_state::{Session, SessionTab};
+        let projects = restore_fixture();
         let session = Session {
             tabs: vec![
-                tab(C),
-                SessionTab { label: "home".into(), pid: None },
-                tab(A),
+                stab(C),
+                stab(A),
                 // A pid the registry forgot, and a repeat: both skipped.
                 SessionTab { label: "p-lffffffffffffffff".into(), pid: Some("lffffffffffffffff".into()) },
-                tab(A),
-                tab(B),
+                stab(A),
+                stab(B),
             ],
             focused: Some(label_of(A)),
             saved_at: 1,
         };
-        let plan = plan_restore(&session, &projects, |_| true).unwrap();
-        let roots: Vec<&str> = plan.tabs.iter().map(|t| t.root.as_str()).collect();
-        assert_eq!(roots, [C, A, B]);
-        assert_eq!(plan.front, 1, "only session.focused spawns");
+        let plan = plan_tabs(&session, &projects, |_| true);
+        assert_eq!(roots(&plan), [C, A, B]);
+        assert_eq!(plan.active, Some(1), "only session.focused spawns");
 
         // A vanished root is skipped; a focused tab that vanished falls back to
-        // the first surviving tab.
-        let plan = plan_restore(&session, &projects, |r| r != A).unwrap();
-        let roots: Vec<&str> = plan.tabs.iter().map(|t| t.root.as_str()).collect();
-        assert_eq!(roots, [C, B]);
-        assert_eq!(plan.front, 0);
+        // the first survivor.
+        let plan = plan_tabs(&session, &projects, |r| r != A);
+        assert_eq!(roots(&plan), [C, B]);
+        assert_eq!(plan.active, Some(0));
 
-        // Nothing left → no restore (the boot opens its fallback project).
-        assert_eq!(plan_restore(&session, &projects, |_| false), None);
+        // Nothing survives: Home alone, Home active.
+        let plan = plan_tabs(&session, &projects, |_| false);
+        assert!(plan.tabs.is_empty());
+        assert_eq!(plan.active, None);
+    }
+
+    #[test]
+    fn plan_tabs_drops_an_old_home_entry_and_restores_home_active() {
+        use crate::app_state::{Session, SessionTab};
+        let projects = restore_fixture();
+        // A pre-V2-3.7 session: Home was a tab of its own, and the active one.
+        let session = Session {
+            tabs: vec![
+                SessionTab { label: "home".into(), pid: None },
+                stab(A),
+                stab(B),
+            ],
+            focused: Some("home".into()),
+            saved_at: 1,
+        };
+        let plan = plan_tabs(&session, &projects, |_| true);
+        assert_eq!(roots(&plan), [A, B], "no stray Home tab");
+        assert_eq!(plan.active, None, "focused == home: Home active, nothing spawns");
+
+        // Today's session (Home never in tabs), B active.
+        let session = Session {
+            tabs: vec![stab(A), stab(B)],
+            focused: Some(label_of(B)),
+            saved_at: 2,
+        };
+        let plan = plan_tabs(&session, &projects, |_| true);
+        assert_eq!(roots(&plan), [A, B]);
+        assert_eq!(plan.active, Some(1));
+
+        // No focus saved: the first tab.
+        let session = Session { focused: None, ..session };
+        assert_eq!(plan_tabs(&session, &projects, |_| true).active, Some(0));
+
+        // Home active with no project tab at all: Home alone.
+        let session = Session { tabs: vec![], focused: Some("home".into()), saved_at: 3 };
+        assert_eq!(
+            plan_tabs(&session, &projects, |_| true),
+            RestorePlan { tabs: vec![], active: None }
+        );
+    }
+
+    #[test]
+    fn boot_restores_any_saved_session_and_opens_the_fallback_only_without_one() {
+        let one = RestorePlan {
+            tabs: vec![RestoreTab { pid: "a".into(), root: A.into() }],
+            active: Some(0),
+        };
+        // A one-tab session restores (its active tab), not the "last project".
+        assert_eq!(boot_tabs(Some(one.clone()), Some(B)), BootTabs::Restore(one));
+        // A session with nothing left is Home alone, never the last project.
+        let none = RestorePlan { tabs: vec![], active: None };
+        assert_eq!(boot_tabs(Some(none.clone()), Some(B)), BootTabs::Restore(none));
+        // No session: the boot plan's project, else Home alone.
+        assert_eq!(boot_tabs(None, Some(B)), BootTabs::Open(B.into()));
+        assert_eq!(boot_tabs(None, None), BootTabs::HomeOnly);
+    }
+
+    #[test]
+    fn a_background_open_builds_the_tab_without_activating_it() {
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        let a = open_in_as(&host, &book, A, "Alpha", None, 1, true).unwrap();
+        assert_eq!(a, Opened::New(label_of(A)));
+        assert!(host.created.borrow()[0].background);
+        // Opening it again in the background leaves it where it is.
+        let again = open_in_as(&host, &book, A, "Alpha", None, 2, true).unwrap();
+        assert_eq!(again, Opened::Existing(label_of(A)));
+        assert!(host.revealed.borrow().is_empty(), "no reveal while restoring");
+        // A normal open still activates, and a normal build is not background.
+        open_in(&host, &book, A, "Alpha", None, 3).unwrap();
+        assert_eq!(host.revealed.borrow().len(), 1);
+        open_in(&host, &book, B, "Beta", None, 4).unwrap();
+        assert!(!host.created.borrow()[1].background);
     }
 
     // ── V2-3 patches: one-shot values parked per window label ──────────────

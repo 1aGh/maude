@@ -10,6 +10,7 @@ import {
   focusTab,
   handles,
   labels,
+  menuState,
   newHomeTab,
   pinCurrentWindow,
   strip,
@@ -28,6 +29,11 @@ import {
  *     `shell://opened-existing`) — no second window.
  *  6. A canvas created in an OPEN project shows up on Home without a reload (V2-3.10): the
  *     project server re-indexes, the shell emits `index://changed {pids}`, Home refetches.
+ *  7. The File menu follows the active tab (V2-3.9): on Home New Canvas, Show Home and Close
+ *     Tab are disabled and New Project / Open Project enabled; on a project all are enabled;
+ *     Show Home activates the pinned Home.
+ *  8. File ▸ New Project… on Home opens Home's create sheet, and the new project opens as the
+ *     active tab (it did nothing before V2-3.9).
  *
  * Fixtures: wdio.home.conf.ts → fixtures/seed-home-index.ts.
  */
@@ -268,5 +274,62 @@ export default function C() {
       1
     );
     await capture('06-home-live-new-canvas');
+  });
+
+  it('7 · the menu follows the active tab; Show Home activates the pinned Home', async () => {
+    await newHomeTab();
+    await onHome();
+    const onHomeMenu = await menuState();
+    expect(onHomeMenu.active).toBe(HOME);
+    expect(onHomeMenu.enabled).toEqual({
+      new_canvas: false,
+      new_project: true,
+      open_project_folder: true,
+      show_home: false,
+      close_tab: false,
+      next_tab: true,
+      prev_tab: true,
+    });
+    // A project tab: everything on.
+    const onProject = await menuState('select_tab_1');
+    expect(onProject.active).toMatch(/^p-/);
+    expect(Object.values(onProject.enabled).every((v) => v === true)).toBe(true);
+    // Show Home (⌘T) from the project: Home is active again, and Show Home is off.
+    const back = await menuState('show_home');
+    expect(back.active).toBe(HOME);
+    expect(back.enabled.show_home).toBe(false);
+    expect(await activeTab()).toBe(HOME);
+    // Close Tab on Home does nothing: Home never closes, no tab is lost.
+    const tabs = await labels();
+    await menuState('close_tab');
+    expect(await labels()).toEqual(tabs);
+    expect(await activeTab()).toBe(HOME);
+    await capture('07-menu-on-home');
+  });
+
+  it('8 · New Project… on Home opens the create sheet; the new project opens as the active tab', async () => {
+    await onHome();
+    const before = await labels();
+    await menuState('new_project');
+    await browser.switchToWindow(HOME);
+    await (await $(tid('home-create-dialog'))).waitForDisplayed({
+      timeout: 10_000,
+      timeoutMsg: 'File ▸ New Project… did nothing on Home',
+    });
+    await (await $(tid('home-create-name'))).setValue('Relaunch plakaty');
+    await (await $(tid('home-create-submit'))).click();
+    await browser.waitUntil(async () => (await labels()).length === before.length + 1, {
+      timeout: 30_000,
+      interval: 250,
+      timeoutMsg: 'no new project tab after Create project',
+    });
+    const created = (await labels()).find((l) => !before.includes(l)) as string;
+    await browser.waitUntil(async () => (await activeTab()) === created, { timeout: 10_000 });
+    // A tab opened from Home goes at the end of the strip (Home has no place in it).
+    await browser.waitUntil(async () => (await strip()).tabs.at(-1) === created, {
+      timeout: 5_000,
+      timeoutMsg: `the new project is not the last strip tab: ${JSON.stringify((await strip()).tabs)}`,
+    });
+    await capture('08-new-project-from-home');
   });
 });

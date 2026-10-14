@@ -50,11 +50,10 @@ const CHANGED_DEBOUNCE: Duration = Duration::from_millis(16);
 
 // ── The strip state (contract §3.2) ─────────────────────────────────────────
 
-/// The AI dot of a background tab. Reserved: V2-3.7 T6 sets it from the
-/// activity poller (notify.rs); activating the tab clears it. Live only.
+/// The AI dot of a background tab: the activity poller (notify.rs, V2-3.9 T6) sets it when
+/// the tab's AI finishes or needs you; activating the tab clears it. Live only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(dead_code)] // SEAM (V2-3.7 T6): constructed by the notify.rs poller hook.
 pub enum Dot {
     Done,
     NeedsYou,
@@ -267,8 +266,7 @@ fn title_of(app: &AppHandle, label: &str) -> String {
 /// `focused` (+ `last_focused`, dot cleared) and today's focus side effects
 /// (`windows::on_focused`: mark shown, Dock badge, wake a resting tab, session
 /// save, Home's state), then show it, hide every other tab, focus it, and title
-/// the shell after it.
-// SEAM (V2-3.9 T5): `menu::apply_role(app, role)` runs here.
+/// the shell after it, and set the menu for its role (V2-3.9 T5, `menu::apply_role`).
 pub fn activate(app: &AppHandle, label: &str) -> Result<(), String> {
     let known = app.try_state::<SidecarState>().is_some_and(|s| {
         s.windows
@@ -295,8 +293,111 @@ pub fn activate(app: &AppHandle, label: &str) -> Result<(), String> {
         let _ = shell.set_title(&title_of(app, label));
     }
     let _ = target.set_focus();
+    apply_menu_role(app);
     changed(app);
     Ok(())
+}
+
+/// The menu role of the active tab (`menu::apply_role`), from the book.
+fn apply_menu_role(app: &AppHandle) {
+    let Some((role, n)) = app.try_state::<SidecarState>().map(|s| {
+        let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        (menu_role(&book), book.tab_labels().len())
+    }) else {
+        return;
+    };
+    crate::menu::apply_role(app, role, n);
+}
+
+/// Pure: the menu role of the book's active tab — Home when Home (or nothing) is active.
+pub fn menu_role(book: &WindowBook) -> crate::menu::MenuRole {
+    match book.focused().and_then(|l| book.entry(l)).map(|e| &e.role) {
+        Some(Role::Project { .. }) | Some(Role::Cell { .. }) => crate::menu::MenuRole::Project,
+        _ => crate::menu::MenuRole::Home,
+    }
+}
+
+/// Pure: the tab a tab-bar menu command goes to (contract V2-3.7 §5). Next / Previous walk the
+/// project tabs in strip order and then Home, wrapping; Tab `n` is project tab `n`; Last is the
+/// last project tab; Show Home is Home. `None`: nothing to do (no such tab, or Close — which
+/// `run_tab_command` handles itself).
+pub fn tab_command_target(book: &WindowBook, cmd: crate::menu::TabCommand) -> Option<String> {
+    use crate::menu::TabCommand;
+    let tabs = book.tab_labels();
+    match cmd {
+        TabCommand::ShowHome => Some(HOME_LABEL.to_string()),
+        TabCommand::Close => None,
+        TabCommand::Select(n) => tabs.get(n.checked_sub(1)?).cloned(),
+        TabCommand::Last => tabs.last().cloned(),
+        TabCommand::Next | TabCommand::Prev => {
+            if tabs.is_empty() {
+                return None;
+            }
+            let ring: Vec<&str> = tabs.iter().map(String::as_str).chain([HOME_LABEL]).collect();
+            let at = book
+                .focused()
+                .and_then(|f| ring.iter().position(|l| *l == f))
+                .unwrap_or(ring.len() - 1);
+            let n = ring.len();
+            let to = if cmd == TabCommand::Next { (at + 1) % n } else { (at + n - 1) % n };
+            Some(ring[to].to_string())
+        }
+    }
+}
+
+/// Run a tab-bar menu command (lib.rs `on_menu`): Close Tab is the user close path of the
+/// ACTIVE project tab (nothing on Home); the rest activate their target.
+pub fn run_tab_command(app: &AppHandle, cmd: crate::menu::TabCommand) {
+    let Some((focused, target)) = app.try_state::<SidecarState>().map(|s| {
+        let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        (book.focused().map(str::to_string), tab_command_target(&book, cmd))
+    }) else {
+        return;
+    };
+    let result = if cmd == crate::menu::TabCommand::Close {
+        match focused {
+            Some(l) if l != HOME_LABEL => close_tab_by_user(app, &l),
+            _ => Ok(()),
+        }
+    } else if let Some(t) = target {
+        reveal(app, &t)
+    } else {
+        Ok(())
+    };
+    if let Err(e) = result {
+        crate::sidecar::log_line(&format!("[maude] menu {cmd:?}: {e}"));
+    }
+}
+
+/// Set (or clear) the AI dot of `root`'s tab (V2-3.7 §6; notify.rs's poller). The active tab
+/// never takes one, and 'needs-you' outranks 'done' until the tab is activated. True when the
+/// strip state changed.
+pub fn set_dot(app: &AppHandle, root: &str, dot: Option<Dot>) -> bool {
+    let changed_now = app.try_state::<SidecarState>().is_some_and(|s| {
+        let mut book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        set_dot_in(&mut book, root, dot)
+    });
+    if changed_now {
+        changed(app);
+    }
+    changed_now
+}
+
+/// Pure half of `set_dot`.
+pub fn set_dot_in(book: &mut WindowBook, root: &str, dot: Option<Dot>) -> bool {
+    let Some(label) = book.label_for_root(root) else {
+        return false;
+    };
+    let current = book.entry(&label).and_then(|e| e.dot);
+    let next = match (current, dot) {
+        // 'needs-you' is not downgraded to 'done' by a later finish.
+        (Some(Dot::NeedsYou), Some(Dot::Done)) => Some(Dot::NeedsYou),
+        (_, d) => d,
+    };
+    if next == current {
+        return false;
+    }
+    book.set_dot(&label, next)
 }
 
 /// `activate`, and bring the shell to the front (unhide, unminimize, key):
@@ -387,6 +488,8 @@ pub fn changed(app: &AppHandle) {
         if let Some(shell) = app.get_window(SHELL_LABEL) {
             let _ = shell.set_title(&title);
         }
+        // The tab count changes Next / Previous (a tab opened or closed).
+        apply_menu_role(&app);
         let ch = STRIP_CHANNEL.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if let Some(ch) = ch {
             let _ = ch.send(s);
@@ -565,6 +668,80 @@ mod tests {
         // Home is a valid active tab.
         assert!(b.focus(HOME_LABEL, 7));
         assert_eq!(strip_state(&b, |_| String::new()).active, "home");
+    }
+
+    #[test]
+    fn the_menu_role_follows_the_active_tab() {
+        use crate::menu::MenuRole;
+        let mut b = book_abc();
+        assert_eq!(menu_role(&b), MenuRole::Home, "nothing active yet (boot)");
+        b.focus("p-b", 5);
+        assert_eq!(menu_role(&b), MenuRole::Project);
+        b.focus(HOME_LABEL, 6);
+        assert_eq!(menu_role(&b), MenuRole::Home);
+    }
+
+    #[test]
+    fn tab_menu_commands_walk_the_strip_then_home() {
+        use crate::menu::TabCommand::*;
+        let mut b = book_abc();
+        b.focus("p-c", 5);
+        let to = |b: &WindowBook, c| tab_command_target(b, c);
+        assert_eq!(to(&b, Next).as_deref(), Some("home"), "after the last tab: Home");
+        assert_eq!(to(&b, Prev).as_deref(), Some("p-b"));
+        b.focus(HOME_LABEL, 6);
+        assert_eq!(to(&b, Next).as_deref(), Some("p-a"), "Home wraps to the first tab");
+        assert_eq!(to(&b, Prev).as_deref(), Some("p-c"));
+        assert_eq!(to(&b, Select(1)).as_deref(), Some("p-a"));
+        assert_eq!(to(&b, Select(3)).as_deref(), Some("p-c"));
+        assert_eq!(to(&b, Select(4)), None, "no tab 4");
+        assert_eq!(to(&b, Last).as_deref(), Some("p-c"));
+        assert_eq!(to(&b, ShowHome).as_deref(), Some("home"));
+        assert_eq!(to(&b, Close), None, "Close is run_tab_command's own");
+        // Home alone: nowhere to cycle, no tab to select.
+        let mut home = WindowBook::default();
+        home.insert_after(HOME_LABEL, Role::Home, 1, None);
+        home.focus(HOME_LABEL, 2);
+        for c in [Next, Prev, Select(1), Last] {
+            assert_eq!(to(&home, c), None, "{c:?}");
+        }
+    }
+
+    #[test]
+    fn the_ai_dot_marks_a_background_tab_and_needs_you_outranks_done() {
+        let mut b = book_abc();
+        b.focus("p-a", 5);
+        assert!(set_dot_in(&mut b, B, Some(Dot::Done)));
+        assert!(!set_dot_in(&mut b, B, Some(Dot::Done)), "no change, no push");
+        assert!(set_dot_in(&mut b, B, Some(Dot::NeedsYou)));
+        assert!(!set_dot_in(&mut b, B, Some(Dot::Done)), "a finish never downgrades needs-you");
+        assert_eq!(b.entry("p-b").unwrap().dot, Some(Dot::NeedsYou));
+        assert!(!set_dot_in(&mut b, A, Some(Dot::Done)), "the active tab takes no dot");
+        assert!(!set_dot_in(&mut b, "/nonexistent/other", Some(Dot::Done)));
+        // Activating clears it; resting drops it.
+        b.focus("p-b", 6);
+        assert_eq!(b.entry("p-b").unwrap().dot, None);
+        assert!(set_dot_in(&mut b, C, Some(Dot::Done)));
+        b.set_resting("p-c", true);
+        assert_eq!(b.entry("p-c").unwrap().dot, None, "a resting tab runs no AI");
+        // The poller's mapping.
+        use crate::notify::{dot_for, Transition};
+        assert_eq!(dot_for(&[Transition::Finished]), Some(Dot::Done));
+        assert_eq!(
+            dot_for(&[Transition::Finished, Transition::AwaitingInput]),
+            Some(Dot::NeedsYou)
+        );
+        assert_eq!(dot_for(&[]), None);
+    }
+
+    #[test]
+    fn the_poller_sets_the_dot_before_the_notification_cooldown() {
+        let src = include_str!("notify.rs");
+        let body = &src[src.find("async fn poll_one(").unwrap()..];
+        let dot = body.find("mark_tab(app, project_root, &fired);").expect("poll_one marks the tab");
+        let cooldown = body.find("NOTIFY_COOLDOWN_MS").unwrap();
+        let empty = body.find("if fired.is_empty()").unwrap();
+        assert!(empty < dot && dot < cooldown, "dot after any transition, before the cooldown");
     }
 
     #[test]

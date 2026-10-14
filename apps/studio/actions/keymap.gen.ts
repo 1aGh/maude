@@ -624,4 +624,64 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     exec: 'native',
     keys: [{ chord: '⌘T', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
+  {
+    id: 'tab.close',
+    exec: 'native',
+    keys: [{ chord: '⌘W', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.next',
+    exec: 'native',
+    keys: [{ chord: '⌃tab', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.prev',
+    exec: 'native',
+    keys: [{ chord: '⌃⇧tab', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-1',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘1', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-2',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘2', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-3',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘3', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-4',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘4', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-5',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘5', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-6',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘6', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-7',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘7', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-8',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘8', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'tab.select-last',
+    exec: 'native',
+    keys: [{ chord: '⌃⌘9', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
 ];
