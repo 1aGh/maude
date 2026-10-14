@@ -127,6 +127,14 @@ pub(crate) fn sanitize_title(s: &str) -> String {
     one_line.chars().take(MAX_NOTIFY_FIELD_LEN).collect()
 }
 
+/// A notification's `(title, body)` as the OS draws them (V2-3.10 W3): the
+/// title is ONE line (`sanitize_title` — a project-controlled name with a
+/// newline would push a forged second line into the banner's title row); the
+/// body may keep `\n`/`\t`. Both are bidi-free and capped.
+pub(crate) fn notification_fields(title: &str, body: &str) -> (String, String) {
+    (sanitize_title(title), sanitize_notify_field(body))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ChatState {
     Idle,
@@ -367,8 +375,7 @@ pub fn e2e_notification_click(
 /// project client (Task 6), invoked over IPC. Sanitizes at the sink — see
 /// `sanitize_notify_field`'s doc comment — regardless of caller.
 fn send(app: &AppHandle, title: &str, body: &str) {
-    let title = sanitize_notify_field(title);
-    let body = sanitize_notify_field(body);
+    let (title, body) = notification_fields(title, body);
     if let Err(e) = app.notification().builder().title(title).body(body).show() {
         eprintln!("[maude] notify: failed to show notification: {e}");
     }
@@ -391,8 +398,7 @@ fn send_for_project(app: &AppHandle, title: &str, body: &str, root: &str) {
     #[cfg(target_os = "macos")]
     {
         if CLICK_WAITERS.fetch_add(1, Ordering::SeqCst) < MAX_CLICK_WAITERS {
-            let title = sanitize_notify_field(title);
-            let body = sanitize_notify_field(body);
+            let (title, body) = notification_fields(title, body);
             let identifier = app.config().identifier.clone();
             let app2 = app.clone();
             let root2 = root.to_string();
@@ -824,6 +830,16 @@ mod tests {
 
     /// W3: a title is one line with no bidi controls; a notification body
     /// keeps its newlines but loses the bidi controls too.
+    #[test]
+    fn notification_titles_are_one_line_and_bodies_keep_their_lines() {
+        let (title, body) = notification_fields(
+            "Acme\nClaude needs your password\t\u{202E}x",
+            "line1\n\u{2067}line2",
+        );
+        assert_eq!(title, "Acme Claude needs your password x");
+        assert_eq!(body, "line1\nline2");
+    }
+
     #[test]
     fn titles_are_one_line_and_bidi_free() {
         assert_eq!(
