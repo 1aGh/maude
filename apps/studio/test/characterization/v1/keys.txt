@@ -70,8 +70,8 @@
   canvas: =
 ## browser/canvas/chrome Meta+r
   keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
-  to-shell: child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child loaded · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child peers · child mode-changed tool=move mode=edit · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: (none)
   shell: =
   canvas: =
@@ -80,18 +80,19 @@
   to-shell: (none)
   to-canvas: parent occluded-insets
   writes: (none)
-  shell: +21 -3 #41ff2e93a7
+  shell: +22 -4 #d00b56a2ef
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
+    - button .st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="false"] [title="Comments ⇧⌘M"] [type="button"]
     - svg [aria-hidden="true"]
     + aside .st-rpanel [aria-label="Comments"]
     + button .is-active.st-cm-filter [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] "Open · 0"
     + button .is-active.st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="true"] [type="button"] "Comments"
+    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + button .st-cm-filter [data-testid="comment-filter-all"] [role="tab"] [aria-selected="false"] [type="button"] "All · 0"
     + button .st-cm-filter [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] "Resolved · 0"
     + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
     + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
-    + div .island.st-dockslot-inner [data-testid="dock-slot-right"]
-    + … 4 more
+    + … 5 more
   canvas: =
 ## browser/canvas/chrome Meta+Shift+G
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="G" PREVENTED
@@ -263,14 +264,20 @@
   to-shell: (none)
   to-canvas: (canvas reloaded)
   writes: (none)
-  shell: +55 -12 #10129fb531
+  shell: +58 -15 #d57e47da32
+    - button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [type="button"] "Share"
     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
     - button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"]
+    - button .st-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [type="button"]
+    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
     - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
     - iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
-    - span .st-pill-sep [aria-hidden="true"] "/"
+    - … 1 more
+    + button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [aria-disabled="true"] [title="Open a canvas to share it"] [type="button"] "Sh
     + button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
+    + button .st-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [type="button"] [disabled]
+    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"] [disabled]
     + button .st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
     + div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="false"] [tabindex="0"]
     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="true"] [tabindex="-1"]
@@ -488,8 +495,8 @@
   canvas: =
 ## browser/canvas/text Meta+r
   keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
-  to-shell: child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child loaded · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child peers · child mode-changed tool=move mode=edit · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: (none)
   shell: =
   canvas: =
@@ -498,18 +505,19 @@
   to-shell: (none)
   to-canvas: parent occluded-insets
   writes: (none)
-  shell: +21 -3 #41ff2e93a7
+  shell: +22 -4 #d00b56a2ef
     - button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
+    - button .st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="false"] [title="Comments ⇧⌘M"] [type="button"]
     - svg [aria-hidden="true"]
     + aside .st-rpanel [aria-label="Comments"]
     + button .is-active.st-cm-filter [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] "Open · 0"
     + button .is-active.st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="true"] [type="button"] "Comments"
+    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + button .st-cm-filter [data-testid="comment-filter-all"] [role="tab"] [aria-selected="false"] [type="button"] "All · 0"
     + button .st-cm-filter [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] "Resolved · 0"
     + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
     + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
-    + div .island.st-dockslot-inner [data-testid="dock-slot-right"]
-    + … 4 more
+    + … 5 more
   canvas: =
 ## browser/canvas/text Meta+Shift+G
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="G" PREVENTED
@@ -1483,8 +1491,8 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+r
   keydown: (none)
-  to-shell: child key · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child key · child loaded · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child peers · child mode-changed tool=move mode=edit · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: (none)
   shell: =
   canvas: +0 -1 #57fc8cbb43
@@ -1518,7 +1526,7 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +14 -536 #141d47365c
+  shell: +15 -537 #dd7c4ef27d
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
@@ -1527,10 +1535,11 @@
     - button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
-    - … 211 more
+    - … 212 more
     + aside .st-rpanel [aria-label="Comments"]
     + button .is-active.st-cm-filter [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] "Open · 0"
     + button .is-active.st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="true"] [type="button"] "Comments"
+    + button .is-on.st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="true"] [title="Comments ⇧⌘M"] [type="button"]
     + button .st-cm-filter [data-testid="comment-filter-all"] [role="tab"] [aria-selected="false"] [type="button"] "All · 0"
     + button .st-cm-filter [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] "Resolved · 0"
     + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
@@ -1776,16 +1785,20 @@
     + … 53 more
 ## browser/in-canvas/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
-  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit
+  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
-  shell: +7 -1 #ff66ca08e1
+  shell: +10 -4 #e2079c1673
+    - input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.995px 108.135px"]
+    - input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="136"}
     + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
     + div .maude-notice [data-testid="notice-canvas-notice-0"]
-  canvas: +6 -2 #ab876afa11
+    + input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.992px 108.809px"]
+    + input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="138"}
+  canvas: +6 -2 #b177860cd7
     - @world translate(443.42px, 447.918px)
     - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
-    + @world translate(466.84px, 447.918px)
+    + @world translate(612.585px, 665.805px)
     + input [aria-label="Name"] [placeholder="Name"]
 ## browser/in-canvas/canvas Meta+g
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" default
@@ -1796,8 +1809,8 @@
   canvas: =
 ## browser/in-canvas/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
-  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
-  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit
+  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: POST /_api/delete-element
   shell: +10 -530 #a691e263fc
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
@@ -1943,8 +1956,8 @@
     + @focus body
 ## browser/in-canvas-text/canvas Meta+r
   keydown: (none)
-  to-shell: child key · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
-  to-canvas: parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child key · child loaded · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child peers · child mode-changed tool=move mode=edit · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: (none)
   shell: =
   canvas: +1 -2 #f4fa5be56e
@@ -2041,8 +2054,8 @@
   canvas: =
 ## browser/in-canvas-selected/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
-  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit
+  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: POST /_api/duplicate-element
   shell: +7 -1 #750e6a9d6d
     + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
@@ -2063,8 +2076,8 @@
   canvas: =
 ## browser/in-canvas-selected/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
-  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
-  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
+  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit · child peers · child mode-changed tool=move mode=edit
+  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: POST /_api/delete-element
   shell: +10 -530 #a691e263fc
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
@@ -2516,13 +2529,21 @@
   canvas: =
 ## browser/presenting/chrome Escape
   keydown: shell key="Escape" PREVENTED
-  to-shell: (none)
-  to-canvas: parent view-chrome · parent comments-set · parent occluded-insets
+  to-shell: child peers · child mode-changed tool=move mode=edit · child tool-cursor tool=move · child tool-cursor tool=move
+  to-canvas: parent view-chrome · parent occluded-insets · parent set-mode mode=edit · parent comments-set
   writes: (none)
-  shell: +1 -5 #21a4d5302c
+  shell: +3 -7 #3ba0190695
+    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
     - button .st-present-exit [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
     - svg [aria-hidden="true"]
-  canvas: +46 -0 #c12e232389
+    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+  canvas: +41 -3 #0d7bb6e5e4
+    - body [data-active-tool="browse"]
+    - div .dc-canvas [data-active-tool="browse"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
     + button [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lock"] [type="button"]
     + button [aria-label="Comment (C)"] [aria-pressed="false"] [title="Comment (C)"] [type="button"]
     + button [aria-label="Eraser (E) · double-click to lock"] [aria-pressed="false"] [title="Eraser (E) · double-click to lock"] [type="button"]
@@ -2530,17 +2551,24 @@
     + button [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
     + button [aria-label="Highlighter (I) · double-click to lock"] [aria-pressed="false"] [title="Highlighter (I) · double-click to lock"] [type="button"]
     + button [aria-label="Insert element — Div, Text, or Image"] [aria-expanded="false"] [title="Insert element (appends to the active artboard)"] [type="button"]
-    + button [aria-label="Pen (B) · double-click to lock"] [aria-pressed="false"] [title="Pen (B) · double-click to lock"] [type="button"]
-    + … 29 more
+    + … 25 more
 ## browser/presenting/chrome Shift+Escape
   keydown: shell ⇧key="Shift" default · shell ⇧key="Escape" PREVENTED
-  to-shell: (none)
-  to-canvas: parent view-chrome · parent comments-set · parent occluded-insets
+  to-shell: child peers · child mode-changed tool=move mode=edit · child tool-cursor tool=move · child tool-cursor tool=move
+  to-canvas: parent view-chrome · parent occluded-insets · parent set-mode mode=edit · parent comments-set
   writes: (none)
-  shell: +1 -5 #21a4d5302c
+  shell: +3 -7 #3ba0190695
+    - button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+    - button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="true"] [title="Present"] [type="button"]
     - button .st-present-exit [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
     - svg [aria-hidden="true"]
-  canvas: +46 -0 #c12e232389
+    + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="true"] [title="Edit"] [type="button"]
+    + button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"]
+  canvas: +41 -3 #0d7bb6e5e4
+    - body [data-active-tool="browse"]
+    - div .dc-canvas [data-active-tool="browse"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
     + button [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lock"] [type="button"]
     + button [aria-label="Comment (C)"] [aria-pressed="false"] [title="Comment (C)"] [type="button"]
     + button [aria-label="Eraser (E) · double-click to lock"] [aria-pressed="false"] [title="Eraser (E) · double-click to lock"] [type="button"]
@@ -2548,8 +2576,7 @@
     + button [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
     + button [aria-label="Highlighter (I) · double-click to lock"] [aria-pressed="false"] [title="Highlighter (I) · double-click to lock"] [type="button"]
     + button [aria-label="Insert element — Div, Text, or Image"] [aria-expanded="false"] [title="Insert element (appends to the active artboard)"] [type="button"]
-    + button [aria-label="Pen (B) · double-click to lock"] [aria-pressed="false"] [title="Pen (B) · double-click to lock"] [type="button"]
-    + … 29 more
+    + … 25 more
 ## browser/presenting/chrome t
   keydown: shell key="t" default
   to-shell: (none)
@@ -2595,9 +2622,8 @@
     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
     - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
     - … 206 more
-  canvas: +3 -14 #b03267ac77
+  canvas: +3 -13 #ac75214097
     - body [data-active-tool="browse"]
-    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
     - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
     - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
     - div [data-active-tool="browse"]
@@ -2785,19 +2811,19 @@
   canvas: =
 ## viewer/in-canvas/canvas v
   keydown: canvas key="v" PREVENTED
-  to-shell: child tool-cursor tool=move · child tool-cursor tool=move
-  to-canvas: (none)
+  to-shell: child mode-request tool=move mode=viewing · child tool-cursor tool=move · child peers · child mode-changed tool=move mode=viewing · child tool-cursor tool=move
+  to-canvas: parent set-mode tool=move mode=viewing
   writes: (none)
-  shell: =
-  canvas: +5 -5 #105519627c
+  shell: +2 -2 #f143dbd441
+    - button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
+    - button .st-mode-b [data-testid="palette-mode-viewing"] [aria-label="Viewing — click shows specs"] [aria-pressed="false"] [title="Viewing"] [type="button"]
+    + button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="false"] [title="Preview"] [type="button"]
+    + button .st-mode-b [data-testid="palette-mode-viewing"] [aria-label="Viewing — click shows specs"] [aria-pressed="true"] [title="Viewing"] [type="button"]
+  canvas: +3 -3 #009aef6193
     - body [data-active-tool="browse"]
-    - button [data-testid="palette-mode-edit"] [aria-label="Edit mode — click selects & edits, like Figma (V)"] [aria-pressed="false"] [title="Edit — click selects & 
-    - button [data-testid="palette-mode-preview"] [aria-label="Preview mode — the mock is live; annotation tools stay on"] [aria-pressed="true"] [title="Preview — the
     - div .dc-canvas [data-active-tool="browse"] [tabindex="0"]
     - div [data-active-tool="browse"]
     + body [data-active-tool="move"]
-    + button [data-testid="palette-mode-edit"] [aria-label="Edit mode — click selects & edits, like Figma (V)"] [aria-pressed="true"] [title="Edit — click selects & e
-    + button [data-testid="palette-mode-preview"] [aria-label="Preview mode — the mock is live; annotation tools stay on"] [aria-pressed="false"] [title="Preview — th
     + div .dc-canvas [data-active-tool="move"] [tabindex="0"]
     + div [data-active-tool="move"]
 ## viewer/in-canvas/canvas Meta+z

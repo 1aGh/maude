@@ -962,6 +962,11 @@ export interface ViewportControllerHandle {
   zoomAt: (factor: number, cx: number, cy: number) => void;
   /** Cmd+0 — fit-to-screen on the artboard union. */
   fit: () => void;
+  /**
+   * V2-1.2 §5.6 I2 — the boot re-fit: re-run the boot fit in place (crisp, no ease, no settle), so the
+   * camera is still a boot camera — nothing is persisted, exactly like the boot fit itself.
+   */
+  refitBoot: () => void;
   /** Cmd+1 — actual size (zoom = 1.0), recentered on viewport midpoint. */
   reset: () => void;
   /** Cmd+= — zoom in 1.2× at host center. */
@@ -1332,6 +1337,15 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     if (a) a(next, PROGRAMMATIC_EASE_MS);
     else applyViewport(next);
   }, [applyViewport]);
+
+  const refitBoot = useCallback(() => {
+    if (interactingRef.current) return;
+    const next = computeFitRef.current();
+    vpRef.current = { ...next };
+    liveViewport = { ...next };
+    writeTransform(vpRef.current, { crisp: true });
+    setViewportPublished({ ...vpRef.current });
+  }, []);
 
   const reset = useCallback(() => {
     const host = hostRef.current;
@@ -1732,6 +1746,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     panBy,
     zoomAt,
     fit,
+    refitBoot,
     reset,
     zoomIn,
     zoomOut,
@@ -2166,7 +2181,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
       const c = controllerRef.current;
       const boot = bootFitRef.current;
       bootFitRef.current = null;
-      if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) c.fit();
+      if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) c.refitBoot();
     });
   }, []);
 

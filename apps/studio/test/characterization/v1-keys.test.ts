@@ -46,6 +46,16 @@
 // a reloaded shell lists the pill's `.st-pill-sep`, and one case sends a second `occluded-insets`. No key
 // or write changed. (One alone run showed a one-off inspector variant, +19 −25; the refresh and the verify
 // run both match the old golden there.)
+// Lead refresh (V2-4.3a, decision:maude/v2-4.3a-cluster-via-registry-runner): shell lists gain the Share
+// cluster — `share-cluster-comments` toggles aria-pressed / is-on with the Comments panel, and
+// `share-cluster-share` is aria-disabled "Open a canvas to share it" with no canvas; "… N more" counts
+// shift by one. No key or write changed.
+// Lead refresh (V2-4.3b, decision:maude/v2-4.3b-shell-owns-mode-switch): the shell now governs mode —
+// `to-canvas` lists gain `set-mode mode=edit` (seeded per canvas, insets first), `to-shell` lists gain
+// `mode-changed` and the canvas's `peers`; a viewer's V lands in Viewing (`mode-request` → `set-mode
+// mode=viewing`) instead of a local tool switch. The I2 boot re-fit no longer persists the camera
+// (decision:maude/v2-4.3b-boot-refit-does-not-persist), so the reload cases write nothing — before it
+// they added a PATCH canvas-meta in some runs. Refreshed once and verified identical in two more runs.
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
