@@ -71,7 +71,8 @@ export function createShellMode(caps = ALL_CAPS) {
      *  opens in Preview, as DDR-223's read-only canvas does. */
     clamp(caps2) {
       const m = snap.nonce === 0 ? initialMode(caps2) : clampMode(snap.mode, caps2);
-      if (m !== snap.mode) emit({ mode: m, tool: null, nonce: snap.nonce === 0 ? 0 : snap.nonce + 1 });
+      if (m !== snap.mode)
+        emit({ mode: m, tool: null, nonce: snap.nonce === 0 ? 0 : snap.nonce + 1 });
     },
   };
 }
