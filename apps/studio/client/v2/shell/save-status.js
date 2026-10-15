@@ -140,6 +140,12 @@ export function facesOf({ you, agentActive = false, peers = [] } = {}) {
     { initials: initialsOf(you || 'you'), name: you ? `${you} (you)` : 'You', you: true },
   ];
   if (agentActive) out.push({ initials: 'C', name: 'Claude · editing', agent: true });
-  for (const p of peers) out.push({ initials: initialsOf(p?.name), name: String(p?.name ?? '') });
+  for (const p of peers)
+    out.push({
+      initials: initialsOf(p?.name),
+      name: String(p?.name ?? ''),
+      clientID: p?.clientID,
+      following: p?.following === true,
+    });
   return out.slice(0, MAX_FACES);
 }

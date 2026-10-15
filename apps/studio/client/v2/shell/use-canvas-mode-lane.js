@@ -8,7 +8,7 @@
 //   `loaded` / `canvas-rendered` / a new active canvas → that frame is seeded with the current mode
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
+import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import {
@@ -176,6 +176,12 @@ export function useCanvasModeLane({
     mode,
     caps,
     peers,
+    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`peer.follow`). */
+    follow(clientID) {
+      const win = activeWin();
+      if (!win || typeof clientID !== 'number') return;
+      postToCanvas(win, 'run-action', { v: 1, id: 'peer.follow', params: { clientID } }, '*');
+    },
     select(m) {
       if (m === 'present') {
         if (!live.current.presenting) live.current.togglePresent?.();

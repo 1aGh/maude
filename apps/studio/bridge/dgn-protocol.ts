@@ -155,7 +155,7 @@ export interface CanvasToShell {
   // (`present-enter` retired in V2-4.3b: Present lives in the Share cluster, shell-local)
   // V2-4.3b — who else is on the active canvas, from its Yjs awareness, for the Share cluster's faces.
   // Untrusted text: ≤ PEERS_MAX peers, names ≤ PEER_NAME_MAX, rendered as text only.
-  peers: { peers: Array<{ clientID: number; name: string; color?: string }> };
+  peers: { peers: Array<{ clientID: number; name: string; color?: string; following?: boolean }> };
   // legacy, no in-tree sender (accepted today; removal needs a characterization proof)
   select: { selection: Selection };
   'clear-select': Empty;
@@ -391,14 +391,21 @@ export const PEER_NAME_MAX = 64;
 const PEER_COLOR = /^(#[0-9a-f]{3,8}|oklch\([0-9.%\s/-]{1,40}\))$/i;
 const peerList: V = (v) => {
   if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
-  const out: Array<{ clientID: number; name: string; color?: string }> = [];
+  const out: Array<{ clientID: number; name: string; color?: string; following?: boolean }> = [];
   for (const x of v) {
     if (!isPlain(x)) return BAD;
-    const { clientID, name, color } = x;
+    const { clientID, name, color, following } = x;
     if (typeof clientID !== 'number' || !Number.isSafeInteger(clientID) || clientID < 0) return BAD;
     if (typeof name !== 'string' || name.length > PEER_NAME_MAX) return BAD;
     if (color !== undefined && (typeof color !== 'string' || !PEER_COLOR.test(color))) return BAD;
-    out.push(color === undefined ? { clientID, name } : { clientID, name, color });
+    if (following !== undefined && typeof following !== 'boolean') return BAD;
+    const peer: { clientID: number; name: string; color?: string; following?: boolean } = {
+      clientID,
+      name,
+    };
+    if (color !== undefined) peer.color = color;
+    if (following === true) peer.following = true;
+    out.push(peer);
   }
   return out;
 };

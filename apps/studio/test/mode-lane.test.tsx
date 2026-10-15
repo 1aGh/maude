@@ -161,6 +161,22 @@ describe('shell: peers (active canvas only, strict)', () => {
     new MessageEvent('message', { origin, source: source as Window, data }) as MessageEvent;
   const ok = { dgn: 'peers', peers: [{ clientID: 7, name: 'Tereza' }] };
 
+  test('Follow state rides on peers (V2-4.3b lead): following is a strict boolean, the payload marks the target', () => {
+    const f = { dgn: 'peers', peers: [{ clientID: 7, name: 'Tereza', following: true }] };
+    expect(acceptFromCanvas(ev(activeWin, f), ctx)).toEqual(f);
+    const junk = { dgn: 'peers', peers: [{ clientID: 7, name: 'Tereza', following: 'yes' }] };
+    expect(acceptFromCanvas(ev(activeWin, junk), ctx)).toBeNull();
+    const list = [
+      { clientID: 7, name: 'Tereza' },
+      { clientID: 9, name: 'Jonas' },
+    ];
+    expect(peersPayload(list, 9)).toEqual([
+      { clientID: 7, name: 'Tereza' },
+      { clientID: 9, name: 'Jonas', following: true },
+    ]);
+    expect(peersPayload(list)).toEqual(list);
+  });
+
   test('a planted list from another frame is dropped', () => {
     expect(acceptFromCanvas(ev({ name: 'sibling' }, ok), ctx)).toBeNull();
     expect(acceptFromCanvas(ev(activeWin, ok), ctx)).toEqual(ok);

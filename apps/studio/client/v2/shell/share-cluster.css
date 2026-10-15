@@ -61,8 +61,23 @@
     background: color-mix(in oklab, var(--accent) 24%, var(--bg-3));
     box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
   }
-  .st-face + .st-face {
+  .st-face + .st-face,
+  .st-face + .st-face-li,
+  .st-face-li + .st-face-li,
+  .st-face-li + .st-face {
     margin-left: -6px;
+  }
+  .st-face-li {
+    display: flex;
+  }
+  button.st-face {
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+  }
+  .st-face.is-following {
+    box-shadow: 0 0 0 2px var(--accent);
   }
   .st-face.is-agent {
     background: color-mix(in oklab, var(--presence-agent, var(--accent)) 28%, var(--bg-3));

@@ -63,6 +63,23 @@ describe('the cluster', () => {
     expect(faces?.textContent).toBe('MDC');
   });
 
+  test('a peer’s face is the Follow control (moved from the canvas stack)', async () => {
+    const followed: number[] = [];
+    const faces = facesOf({ you: 'Michal Dovrtěl', peers: [{ clientID: 7, name: 'Tereza K' }] });
+    const { q } = await mount({ faces, onFollow: (id: number) => followed.push(id) });
+    const face = q('share-cluster-face-7');
+    expect(face?.tagName).toBe('BUTTON');
+    expect(face?.getAttribute('aria-label')).toBe('Follow Tereza');
+    expect(face?.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => face?.click());
+    expect(followed).toEqual([7]);
+    act(() => root?.unmount());
+    const on = facesOf({ you: 'M', peers: [{ clientID: 7, name: 'Tereza K', following: true }] });
+    const b = await mount({ faces: on, onFollow: () => {} });
+    expect(b.q('share-cluster-face-7')?.getAttribute('aria-label')).toBe('Stop following Tereza');
+    expect(b.q('share-cluster-face-7')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
   test('the status word, one per state, with its testid', async () => {
     const cases: [object, string, string][] = [
       [linked, 'saved', 'Saved'],

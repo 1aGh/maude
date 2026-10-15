@@ -17,20 +17,43 @@ import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { StIcon } from '../../shell/icons.jsx';
 import { keyHint } from './project-menu-model.js';
 
-function Faces({ faces }) {
+function Faces({ faces, onFollow }) {
   if (!faces?.length) return null;
   return (
     <ul className="st-faces" aria-label="People here" data-testid="share-cluster-faces">
-      {faces.map((f) => (
-        <li
-          key={`${f.you ? 'you' : f.agent ? 'agent' : 'peer'}:${f.name}`}
-          className={`st-face${f.agent ? ' is-agent' : ''}`}
-          title={f.name}
-          aria-label={f.name}
-        >
-          {f.initials}
-        </li>
-      ))}
+      {faces.map((f) => {
+        const key = `${f.you ? 'you' : f.agent ? 'agent' : `peer-${f.clientID}`}:${f.name}`;
+        // A peer's face is the Follow control (it moved here with the faces from the canvas stack).
+        if (!f.you && !f.agent && typeof f.clientID === 'number' && onFollow) {
+          const first = f.name.split(/\s+/)[0] || f.name;
+          const label = f.following ? `Stop following ${first}` : `Follow ${first}`;
+          return (
+            <li key={key} className="st-face-li">
+              <button
+                type="button"
+                className={`st-face${f.following ? ' is-following' : ''}`}
+                title={`${f.name} · ${label}`}
+                aria-label={label}
+                aria-pressed={f.following ? 'true' : 'false'}
+                data-testid={`share-cluster-face-${f.clientID}`}
+                onClick={() => onFollow(f.clientID)}
+              >
+                {f.initials}
+              </button>
+            </li>
+          );
+        }
+        return (
+          <li
+            key={key}
+            className={`st-face${f.agent ? ' is-agent' : ''}`}
+            title={f.name}
+            aria-label={f.name}
+          >
+            {f.initials}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -75,6 +98,7 @@ const withKey = (label, def, ctx) => {
  */
 export function ShareCluster({
   faces,
+  onFollow,
   status,
   access = null,
   commentsCount = 0,
@@ -102,7 +126,7 @@ export function ShareCluster({
       data-docked={docked ? 'true' : undefined}
       data-mode={mode ?? undefined}
     >
-      <Faces faces={faces} />
+      <Faces faces={faces} onFollow={onFollow} />
       {access ? (
         <span
           className="st-saved"

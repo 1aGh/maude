@@ -331,11 +331,17 @@ export function isHostedByShell(): boolean {
 /** The `peers` payload: the table's caps applied here too, so an honest canvas never trips them.
  *  Names only — the cluster draws initials, so no colour crosses. */
 export function peersPayload(
-  list: readonly Pick<ForeignAwareness, 'clientID' | 'name'>[]
-): Array<{ clientID: number; name: string }> {
-  return list
-    .slice(0, PEERS_MAX)
-    .map((p) => ({ clientID: p.clientID, name: String(p.name ?? '').slice(0, PEER_NAME_MAX) }));
+  list: readonly Pick<ForeignAwareness, 'clientID' | 'name'>[],
+  followTarget: number | null = null
+): Array<{ clientID: number; name: string; following?: boolean }> {
+  return list.slice(0, PEERS_MAX).map((p) => {
+    const out: { clientID: number; name: string; following?: boolean } = {
+      clientID: p.clientID,
+      name: String(p.name ?? '').slice(0, PEER_NAME_MAX),
+    };
+    if (p.clientID === followTarget) out.following = true;
+    return out;
+  });
 }
 const peerListKey = (list: readonly ForeignAwareness[]) =>
   list.map((p) => `${p.clientID}:${p.name}`).join('|');
@@ -404,13 +410,37 @@ export function ParticipantsChrome(): JSX.Element | null {
   // whenever the shell (re)seeds `set-mode` — it does that when this canvas becomes the active one,
   // and the shell takes `peers` from the active canvas only.
   const hosted = isHostedByShell();
-  const peerKey = hosted ? peerListKey(visiblePeers) : '';
+  const peerKey = hosted ? `${peerListKey(visiblePeers)}#${followTarget ?? ''}` : '';
+  // V2-4.3b (lead) — Follow moved with the faces: the cluster asks for it over the parent-gated
+  // `run-action` lane (`peer.follow`, params.clientID), and the state rides back on `peers`.
+  const toggleFollowRef = useRef(onToggleFollow);
+  toggleFollowRef.current = onToggleFollow;
+  useEffect(() => {
+    if (!hosted) return;
+    const onRunAction = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const m = e.data as {
+        dgn?: string;
+        v?: unknown;
+        id?: unknown;
+        params?: { clientID?: unknown };
+      } | null;
+      if (!m || m.dgn !== 'run-action' || m.v !== 1 || m.id !== 'peer.follow') return;
+      const id = m.params?.clientID;
+      if (typeof id === 'number' && Number.isSafeInteger(id)) toggleFollowRef.current(id);
+    };
+    window.addEventListener('message', onRunAction);
+    return () => window.removeEventListener('message', onRunAction);
+  }, [hosted]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: `peerKey` is the list's value identity
   useEffect(() => {
     if (!hosted) return;
     const post = () => {
       try {
-        window.parent.postMessage({ dgn: 'peers', peers: peersPayload(visiblePeers) }, '*');
+        window.parent.postMessage(
+          { dgn: 'peers', peers: peersPayload(visiblePeers, followTarget) },
+          '*'
+        );
       } catch {
         /* detached */
       }

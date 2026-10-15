@@ -143,6 +143,7 @@ export function ShellShareCluster() {
   return (
     <ShareCluster
       faces={faces}
+      onFollow={lane.follow}
       status={shown}
       access={access}
       commentsCount={Number(totalOpen) || 0}
