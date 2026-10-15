@@ -76,6 +76,7 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
                 onMouseEnter={(e) => onHover(depth, n.label, e.currentTarget)}
                 onClick={() => onRow(depth, n, key)}
               >
+                <span className="st-pm-ic" aria-hidden="true" />
                 <span className="st-pm-lab">{n.label}</span>
                 <span className="st-pm-ch" aria-hidden="true">
                   <StIcon name="chevron-right" size={12} />
