@@ -103,7 +103,11 @@ function build(nodes, ctx, state, byId) {
  * @param ctx KeyCtx (actions/types.ts) — role, shell, mode, facts. Use `menuCtx()` to make one.
  * @param state `{ panelsHidden, checked: { <toggle id>: boolean } }` — what the labels / ticks show.
  */
-export function buildProjectMenu(ctx, state = {}, { tree = PROJECT_MENU, byId = ACTIONS_BY_ID } = {}) {
+export function buildProjectMenu(
+  ctx,
+  state = {},
+  { tree = PROJECT_MENU, byId = ACTIONS_BY_ID } = {}
+) {
   return tidy(build(tree, ctx, state, byId));
 }
 
@@ -117,8 +121,60 @@ export function modelIds(model) {
   return out;
 }
 
+/**
+ * The project menu's rows as ⌘K commands (V2-4.2: "⌘K finds every row"). One row per action id the
+ * menu shows (a row the tree names twice is one command), minus rows `existing` already lists under
+ * a label that contains the menu's; group = the top-level submenu the row lives in. They appear once
+ * something is typed.
+ */
+export function menuPaletteRows(ctx, { existing = [], run, state } = {}) {
+  const rows = [];
+  const seen = new Set();
+  const had = new Map(existing.map((e) => [e.id, String(e.label).toLowerCase()]));
+  const walk = (nodes, group) => {
+    for (const n of nodes) {
+      if (n.type === 'sub') walk(n.children, group ?? n.label);
+      else if (n.type === 'item' && !seen.has(n.id)) {
+        seen.add(n.id);
+        // The palette already lists it under a label that a search for the menu's own words finds.
+        if (had.get(n.id)?.includes(n.label.toLowerCase())) continue;
+        rows.push({
+          // A palette row with this id exists under another label: the twin gets its own key.
+          id: had.has(n.id) ? `menu:${n.id}` : n.id,
+          actionId: n.id,
+          group: group ?? 'Menu',
+          label: n.label,
+          icon: 'chevron-right',
+          ...(n.keys ? { kbd: n.keys } : {}),
+          run: () => run(n.id),
+          onlyWhenSearched: true,
+        });
+      }
+    }
+  };
+  walk(buildProjectMenu(ctx, state), null);
+  return rows;
+}
+
+/** Move to… destinations: every canvas group's folder, as the Files tree's row menu lists them
+ *  (tree/tree.jsx `destinations`). The design-system group is never a destination. */
+export function moveDestinations(groups) {
+  const out = [];
+  for (const g of groups ?? []) {
+    if (g.label === 'Design system' || g.kind !== 'canvas') continue;
+    out.push({ path: g.fullPath, label: g.fullPath.replace(/^\.[^/]+\//, '') || g.fullPath });
+    for (const dir of g.dirs || []) out.push({ path: dir, label: dir.replace(/^\.[^/]+\//, '') });
+  }
+  return out;
+}
+
 /** The KeyCtx the menu resolves with: the shell's, focus on chrome (the menu is chrome). */
-export function menuCtx({ native = false, readOnly = false, canvasOpen = false, presenting = false } = {}) {
+export function menuCtx({
+  native = false,
+  readOnly = false,
+  canvasOpen = false,
+  presenting = false,
+} = {}) {
   const facts = new Set();
   if (native) facts.add('native');
   if (canvasOpen) facts.add('canvasOpen');

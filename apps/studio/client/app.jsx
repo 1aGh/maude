@@ -135,6 +135,7 @@ import {
 import { PhotoKnobs } from './photo-knobs.jsx';
 import {
   appIsFirstRun,
+  cloudSignInPrepare,
   invoke,
   isNativeApp,
   onUpdateReady,
@@ -219,6 +220,9 @@ import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx'
 import { Sidebar } from './tree/tree.jsx';
 import { CollapsedRail } from './shell/collapsed-rail.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
+import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
+import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
+import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { HelpModal } from './dialogs/help-modal.jsx';
@@ -1460,9 +1464,12 @@ function ShellState({ children }) {
       assembleVideo,
       clearSelected,
       closeTab,
+      duplicateCanvasReq,
+      moveCanvasReq,
       openSystem,
       openTab,
       reloadActive,
+      renameCanvasReq,
       replaceMediaViaPicker,
       retryCanvasLoad,
       shareLinksFor,
@@ -1666,6 +1673,209 @@ function ShellMenubar() {
         </>
       }
     />
+  );
+}
+
+// V2-4.2: the project pill and the one menu. Every row runs the shell's own function for that action
+// (v2/shell/menu-runner.js) — this component hands the runner this render's closures (through a ref, so
+// the handler map is built once), binds it (⌘K's twin rows call the same runner) and renders
+// PROJECT_MENU through the registry.
+function ShellProjectPill() {
+  const {
+    shellCore: {
+      activePath,
+      annotationsVisible,
+      autoOpenInspector,
+      cfg,
+      changesOpen,
+      commentsPanelOpen,
+      groups,
+      inspectorOpen,
+      minimapVisible,
+      openPanelExclusive,
+      postToActiveCanvas,
+      presentMode,
+      printGuidesVisible,
+      project,
+      setAutoOpenInspector,
+      setBrandUploadOpen,
+      setExportDialog,
+      setFigmaImportOpen,
+      setHelpOpen,
+      setIntroOpen,
+      setQuickSetupOpen,
+      setReportBugOpen,
+      setSettingsOpen,
+      setShortcutsOpen,
+      setShowHidden,
+      showHidden,
+      startTour,
+      timelineOpen,
+      toggleRightPanel,
+      toggleTimeline,
+      viewerMode,
+      whatsNew,
+      zoomCtlVisible,
+    },
+    photoAndTimeline: {
+      toggleAnnotations,
+      toggleMinimap,
+      togglePresent,
+      togglePrintGuides,
+      toggleZoomCtl,
+    },
+    tabs: {
+      assembleVideo,
+      closeTab,
+      duplicateCanvasReq,
+      moveCanvasReq,
+      reloadActive,
+      renameCanvasReq,
+      showShare,
+    },
+    canvasBridge: { onInsertArtboard },
+    paletteAndPanels: { leftActive },
+  } = useShellStore();
+  const { hidden: panelsHidden, pinned } = usePanelLayout();
+  const native = isNativeApp();
+  const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
+  const [movePicker, setMovePicker] = useState(null);
+  const pillRef = useRef(null);
+  const openerRef = useRef(null);
+  const live = useRef(null);
+  live.current = {
+    native,
+    activePath,
+    canvasName: displayName(basename(activePath || '')),
+    toast: (m) => shellToast(m),
+    postToActiveCanvas,
+    openPanelExclusive,
+    toggleRightPanel,
+    setExportDialog,
+    setSettingsOpen,
+    setHelpOpen,
+    setShortcutsOpen,
+    setReportBugOpen,
+    onUsageTour: () => startTour(USAGE_TOUR),
+    onCollabTour: () => startTour(COLLAB_TOUR),
+    onQuickSetup: () => setQuickSetupOpen(true),
+    onIntro: () => setIntroOpen(true),
+    onWhatsNew: whatsNew.openPanel,
+    onShare: () => showShare(),
+    onReload: reloadActive,
+    onCloseCanvas: () => activePath && closeTab(activePath),
+    onAssembleVideo: assembleVideo,
+    onToggleShowHidden: () => setShowHidden((v) => !v),
+    onToggleAnnotations: toggleAnnotations,
+    onToggleMinimap: toggleMinimap,
+    onToggleZoomCtl: toggleZoomCtl,
+    onTogglePresent: togglePresent,
+    onTogglePrintGuides: togglePrintGuides,
+    onToggleTimeline: toggleTimeline,
+    onToggleAutoOpenInspector: () => setAutoOpenInspector((v) => !v),
+    onInsertArtboard,
+    onImportFigma: () => setFigmaImportOpen(true),
+    onImportBrand: () => setBrandUploadOpen(true),
+    onDuplicate: duplicateCanvasReq,
+    onRename: renameCanvasReq,
+    // Move to… — the Files tree row menu's destination list, opened under the pill.
+    onPickMoveDestination: () => {
+      const r = pillRef.current?.getBoundingClientRect();
+      setMovePicker({
+        view: 'move-to',
+        x: r?.left ?? 16,
+        y: (r?.bottom ?? 56) + 4,
+        anchor: r
+          ? { top: r.top, bottom: r.bottom, left: r.left }
+          : { top: 16, bottom: 56, left: 16 },
+        anchorEl: pillRef.current,
+      });
+    },
+    // V2-3.8: this project signs in as someone else — it moves onto a profile of its own and the
+    // page reloads signed out. A project with no cloud sign-in has nothing to move.
+    onSwitchAccount: () => {
+      cloudSignInPrepare().then(
+        (moved) => {
+          if (!moved) shellToast('Sign in from the Share panel to use another account.');
+        },
+        (e) => shellToast(String(e?.message || e || 'Could not switch accounts.'))
+      );
+    },
+    onCutPaste: (kind) => cutCopyPaste(kind, openerRef.current, { postToActiveCanvas }),
+  };
+  const d = useMemo(() => new Proxy({}, { get: (_t, k) => live.current[k] }), []);
+  const handlers = useMemo(() => createMenuHandlers(d), [d]);
+  useEffect(() => {
+    menuRunner.bind(handlers, {
+      postToActiveCanvas: (m) => live.current.postToActiveCanvas(m),
+      invokeNative: native ? invoke : null,
+    });
+    return () => menuRunner.unbind(handlers);
+  }, [handlers, native]);
+
+  const ctx = useMemo(
+    () => menuCtx({ native, readOnly: viewerMode, canvasOpen, presenting: presentMode }),
+    [native, viewerMode, canvasOpen, presentMode]
+  );
+  const state = useMemo(
+    () => ({
+      panelsHidden,
+      checked: {
+        'view.pin-panels': pinned,
+        'view.annotations': annotationsVisible,
+        'view.minimap': minimapVisible,
+        'view.zoom-controls': zoomCtlVisible,
+        'view.print-guides': printGuidesVisible,
+        'view.hidden-files': showHidden,
+        'view.inspector-on-select': autoOpenInspector,
+        'view.timeline-keep-open': timelineOpen,
+        'view.inspector': inspectorOpen,
+        'view.comments': commentsPanelOpen,
+        'history.open': changesOpen,
+        'present.canvas': presentMode,
+      },
+    }),
+    [
+      panelsHidden,
+      pinned,
+      annotationsVisible,
+      minimapVisible,
+      zoomCtlVisible,
+      printGuidesVisible,
+      showHidden,
+      autoOpenInspector,
+      timelineOpen,
+      inspectorOpen,
+      commentsPanelOpen,
+      changesOpen,
+      presentMode,
+    ]
+  );
+  const destinations = useMemo(() => moveDestinations(groups), [groups]);
+  const dir = activePath ? activePath.slice(0, activePath.lastIndexOf('/')) : '';
+
+  return (
+    <>
+      <ProjectPill
+        pillRef={pillRef}
+        project={project || cfg?.cloud?.projectName || ''}
+        canvas={canvasOpen ? displayName(basename(activePath)) : ''}
+        ctx={ctx}
+        state={state}
+        run={(id) => menuRunner.run(id)}
+        docked={pinned && !panelsHidden && !!leftActive}
+        onOpen={(el) => {
+          openerRef.current = el;
+        }}
+      />
+      <TreeRowMenu
+        state={movePicker}
+        onClose={() => setMovePicker(null)}
+        rootItems={[]}
+        destinations={destinations.filter((x) => x.path !== dir)}
+        onPickDestination={(dest) => activePath && moveCanvasReq(activePath, dest)}
+      />
+    </>
   );
 }
 
@@ -2778,6 +2988,7 @@ function ShellTree() {
           ref={bodyRef}
           style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpSize.w}px` }}
         >
+          <ShellProjectPill />
           {/* LEFT dock slot (feature-configurable-panel-docking) — pinned, the collapsed
               rail shows when the left slot is empty; the tree's expand hooks open
               it on the tree tab. Floating, the corner icon below plays that part. */}

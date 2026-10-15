@@ -27,6 +27,12 @@
 // Actual size moved ⌘1 → ⇧0 (⌘1–⌘9 pick a tab), so the View menu's "Actual Size · 100 %" row in
 // `browser/menu-view` and the sheet's "Fit · actual size" second combo in `browser/shortcuts` read
 // "⇧ 0". Only those two states were refreshed (`--update --only`).
+// Approved delta (V2-4.2, decision:maude/v2-4.2-project-pill-and-menu): 20 of the 30 states (every one that shows the
+// shell body) gain ONE element as the first child of `div.st-body` — the project pill
+// `span.st-pill.island[data-occludes="top"]` › `button[data-testid="project-pill"]` ("Project menu",
+// mark + project name [+ open canvas]). Nothing else in the DOM moved: the left dock slot and the
+// left corner icon sit 52px lower (CSS only), the menubar stays until V2-4.8. The ⌘K palette's list
+// with nothing typed is unchanged (the menu's rows join it once something is typed).
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]

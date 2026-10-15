@@ -3607,6 +3607,35 @@ export function AnnotationsLayer() {
     return () => document.removeEventListener('keydown', onKey, true);
   }, [annotSel, chainCreate, copySelection]);
 
+  // V2-4.2 — the project menu's Cut / Copy / Paste on the `run-action` lane (V2-1.3 §5.7), only from
+  // the shell itself. They reach the same functions ⌘X / ⌘C / the context menu's Paste do.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onRunAction = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const m = e.data as { dgn?: string; v?: unknown; id?: unknown } | null;
+      if (!m || m.dgn !== 'run-action' || m.v !== 1) return;
+      if (m.id === 'edit.copy') copySelection(false);
+      else if (m.id === 'edit.cut') copySelection(true);
+      else if (m.id === 'edit.paste') {
+        try {
+          void navigator.clipboard
+            ?.readText()
+            .then((t) => {
+              pasteStrokesText(t);
+            })
+            .catch(() => {
+              /* clipboard read blocked — paste is best-effort from the menu */
+            });
+        } catch {
+          /* clipboard API absent */
+        }
+      }
+    };
+    window.addEventListener('message', onRunAction);
+    return () => window.removeEventListener('message', onRunAction);
+  }, [copySelection, pasteStrokesText]);
+
   // FigJam v3 — paste strokes. ⌘C serialized the selection as a JSON text
   // payload; this CAPTURE-phase listener claims it before the media-intake
   // hook (bubble phase) so a strokes payload never falls through to the URL/

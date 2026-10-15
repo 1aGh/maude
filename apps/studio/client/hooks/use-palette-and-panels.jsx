@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
+import { menuRunner } from '../v2/shell/menu-runner.js';
+import { menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
 import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
@@ -184,7 +186,7 @@ export function usePaletteAndPanels({
       'help.guides': () => setHelpOpen(true),
       'help.report-bug': () => setReportBugOpen(true),
     };
-    return V1_PALETTE.map((r) => ({
+    const v1 = V1_PALETTE.map((r) => ({
       id: r.id,
       group: r.group,
       label: ACTIONS_BY_ID.get(r.id).legacy.palette,
@@ -192,7 +194,21 @@ export function usePaletteAndPanels({
       ...(r.kbd ? { kbd: r.kbd } : {}),
       run: run[r.id],
     }));
+    // V2-4.2 — ⌘K finds every row of the project menu too: typing a word finds the menu's row for it
+    // (the list with nothing typed stays v1's). Same runner as the pill, so a row and its ⌘K twin
+    // are one function.
+    const menuRows = menuPaletteRows(
+      menuCtx({
+        native: isNativeApp(),
+        readOnly: viewerMode,
+        canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
+      }),
+      { existing: v1, run: (id) => menuRunner.run(id) }
+    );
+    return [...v1, ...menuRows];
   }, [
+    viewerMode,
+    activePath,
     openSystem,
     toggleTheme,
     reloadActive,

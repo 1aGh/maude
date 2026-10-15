@@ -70,7 +70,13 @@ describe('buildProjectMenu', () => {
       .filter((n) => n.type !== 'sep')
       .map((n) => (n.type === 'sub' ? n.label : n.label));
     expect(top.slice(0, 5)).toEqual(['Back to Home', 'File', 'Edit', 'View', 'Help']);
-    expect(top.slice(5)).toEqual(['Version history', 'Share…', 'Export…', 'Diagnostics', 'Settings…']);
+    expect(top.slice(5)).toEqual([
+      'Version history',
+      'Share…',
+      'Export…',
+      'Diagnostics',
+      'Settings…',
+    ]);
   });
 
   test('Advanced groups are one quiet submenu row, flagged advanced', () => {

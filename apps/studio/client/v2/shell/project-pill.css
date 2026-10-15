@@ -1,0 +1,194 @@
+/* client/v2/shell/project-pill.css — V2-4.2: the project pill and the one menu.
+ *
+ * Geometry is the kit's (.design/ui/v2/_kit.css `.k-pill`, `.k-menu`): the pill is a 40px island 16px
+ * in from the window's top-left; the left panel island starts at 68px (pill 40 + 12 gap) — see
+ * floating-panels.css, which reads `--pill-h` / `--pill-gap`. The menu is the POPOVER plane: opaque,
+ * the largest shadow, radius 14, 252px wide, submenus open to the right at 272px. No backdrop-filter
+ * anywhere (V2-1.8 M1) — `.island` is the one rule that sets material, and the pill is an `.island`.
+ *
+ * Pinned (View › Advanced › Pin panels to the side): the pill sits at the top of the pinned left
+ * column (06 Advanced `ad-dock-pill`) — `data-docked` takes the island chrome off it; the column
+ * leaves room for it. With the left column gone the pill is a floating island again.
+ *
+ * Motion: the menu is a cut — it appears and disappears; reduced motion has nothing to collapse. */
+
+@layer shell {
+  .st-body {
+    --pill-h: 40px;
+    --pill-gap: 12px;
+  }
+
+  .st-pill {
+    position: absolute;
+    left: var(--float-gap, 16px);
+    top: var(--float-gap, 16px);
+    z-index: 30;
+    display: inline-flex;
+    height: var(--pill-h);
+    max-width: min(440px, calc(100% - 2 * var(--float-gap, 16px)));
+  }
+  /* Pinned: the island chrome that `.st-body--float .island` gives is not applied, so give it here. */
+  .st-body:not(.st-body--float) .st-pill {
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .st-pill[data-open="true"] {
+    background: var(--bg-2);
+  }
+  .st-body:not(.st-body--float) .st-pill[data-docked="true"] {
+    left: var(--space-2, 8px);
+    top: var(--space-2, 8px);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .st-pill-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-semibold, 600);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-width: 0;
+    padding: 0 var(--space-3, 12px) 0 var(--space-2, 8px);
+    border-radius: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .st-pill-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .st-pill-mark {
+    display: grid;
+    flex: none;
+    color: var(--accent);
+  }
+  .st-pill-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .st-pill-sep {
+    color: var(--fg-2);
+    font-weight: var(--w-regular, 400);
+  }
+  .st-pill-canvas {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--fg-1);
+    font-weight: var(--w-medium, 500);
+  }
+  .st-pill-caret {
+    display: inline-grid;
+    flex: none;
+    color: var(--fg-2);
+  }
+
+  /* ── the menu ── */
+  .st-pm-root {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+  }
+  .st-pm {
+    display: flex;
+    flex-direction: column;
+    width: 252px;
+    padding: var(--space-1, 4px);
+    border-radius: var(--island-radius, 14px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    font-size: var(--type-sm, 13px);
+    text-align: left;
+  }
+  .st-pm--sub {
+    position: absolute;
+    left: calc(100% + var(--space-2, 8px));
+    top: -4px;
+    width: 272px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+  }
+  .st-pm-li {
+    position: relative;
+    display: block;
+  }
+  .st-pm-row {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    width: 100%;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    text-align: left;
+    white-space: nowrap;
+    cursor: default;
+  }
+  .st-pm-row:hover,
+  .st-pm-row:focus-visible,
+  .st-pm-row[aria-expanded="true"] {
+    background: var(--accent-muted, var(--bg-3));
+    outline: none;
+  }
+  .st-pm-row[aria-disabled="true"] {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .st-pm-row--adv {
+    min-height: 26px;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-1);
+  }
+  .st-pm-ic {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .st-pm-lab {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .st-pm-ch {
+    display: grid;
+    color: var(--fg-2);
+  }
+  .st-pm-sep {
+    display: block;
+    flex: none;
+    border: 0;
+    height: 1px;
+    margin: var(--space-1, 4px) var(--space-2, 8px);
+    background: var(--border-subtle);
+  }
+  .st-pm-row .kbd {
+    margin-left: auto;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+
+  /* Pinned: the left column leaves room for the pill above its first panel. */
+  .st-body:not(.st-body--float) > .st-dockslot--left,
+  .st-body:not(.st-body--float) > .st-rail {
+    padding-top: calc(var(--pill-h) + var(--space-2, 8px) * 2);
+    box-sizing: border-box;
+    background: var(--bg-1);
+  }
+}
