@@ -21,7 +21,12 @@ function rig() {
 
 describe('panel layout store', () => {
   test('starts floating and showing', () => {
-    expect(rig().store.get()).toEqual({ hidden: false, pinned: false });
+    expect(rig().store.get()).toEqual({
+      hidden: false,
+      pinned: false,
+      folded: false,
+      userHidden: false,
+    });
   });
 
   test('⌘\\ hides everything, says the voice-rule hint once, and the next press shows again', () => {
@@ -41,7 +46,7 @@ describe('panel layout store', () => {
     const { store, persisted } = rig();
     store.hide();
     store.setPinned(true);
-    expect(store.get()).toEqual({ hidden: true, pinned: true });
+    expect(store.get()).toEqual({ hidden: true, pinned: true, folded: false, userHidden: true });
     expect(persisted).toEqual([{ pin: { on: true } }]);
     store.setPinned(true); // no change → no write
     expect(persisted).toHaveLength(1);

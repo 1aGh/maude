@@ -16,10 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import {
   IconChevronDown,
-  IconEye,
   IconLetterA,
-  IconPencilRuler,
-  IconPresentation,
   IconSquare,
   SHAPE_KIND_ICONS,
   TOOL_ICONS,
@@ -219,10 +216,6 @@ const PALETTE_CSS = `
   background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 14%, transparent);
   color: var(--maude-hud-accent, #d63b1f);
 }
-/* DDR-223 — Preview/Edit/Present segmented mode toggle at the head of the
-   palette (owner steer 2026-08-15: icon segments — lucide eye / pencil-ruler /
-   presentation). Standard 32 × 32 buttons; active state reuses the
-   aria-pressed tint + underbar. */
 /* Stage I3 tail — "+ Element" insert popover. A vertical labeled list (not the
    shape popover's icon grid): Div/Text/Image have no recognizable glyph on
    their own, and this is a rare, must-be-legible action, not a recalled tool. */
@@ -333,18 +326,8 @@ export function resolveInsertAnchor(
 
 export function ToolPalette() {
   ensurePaletteStyles();
-  const {
-    tool,
-    setTool,
-    tools,
-    mode,
-    setMode,
-    resetTool,
-    sticky,
-    toggleSticky,
-    shapeKind,
-    setShapeKind,
-  } = useToolMode();
+  const { tool, setTool, tools, mode, sticky, toggleSticky, shapeKind, setShapeKind } =
+    useToolMode();
   const chrome = useChromeVisibility();
   const [mounted, setMounted] = useState(false);
   const [shapeOpen, setShapeOpen] = useState(false);
@@ -504,65 +487,8 @@ export function ToolPalette() {
     );
   };
 
-  // DDR-223 — the mode toggle, three segments (owner steer 2026-08-15, round
-  // 2): Preview (eye), Edit (pencil-ruler), Present (presentation) — icon-only,
-  // the words live in aria-label + title. Clicking the ACTIVE Preview/Edit
-  // segment re-arms that mode's resting tool (the "get me out of the pen tool"
-  // gesture — especially in preview, where browse has no palette button of its
-  // own). Present is the existing SHELL-level state (enter-only — the palette
-  // is hidden while presenting; exit is Esc or the floating pill); it moved
-  // here from the palette's right end so all three "ways of looking at the
-  // canvas" sit in one control.
-  const renderModeToggle = () => (
-    // biome-ignore lint/a11y/useSemanticElements: segmented control of buttons, not a form — fieldset semantics (and its default box styling) don't apply
-    <div className="dc-tp-group dc-tp-mode" role="group" aria-label="Canvas mode">
-      <button
-        type="button"
-        data-testid="palette-mode-preview"
-        aria-label="Preview mode — the mock is live; annotation tools stay on"
-        aria-pressed={mode === 'preview'}
-        title="Preview — the mock is live (buttons click); annotation tools stay on"
-        onClick={() => (mode === 'preview' ? resetTool() : setMode('preview'))}
-      >
-        <IconEye />
-      </button>
-      <button
-        type="button"
-        data-testid="palette-mode-edit"
-        aria-label="Edit mode — click selects & edits, like Figma (V)"
-        aria-pressed={mode === 'edit'}
-        title="Edit — click selects & edits, like Figma (V)"
-        onClick={() => (mode === 'edit' ? resetTool() : setMode('edit'))}
-      >
-        <IconPencilRuler />
-      </button>
-      <button
-        type="button"
-        data-testid="palette-mode-present"
-        aria-label="Presentation mode — hide all chrome (Esc to exit)"
-        aria-pressed={chrome?.present ?? false}
-        title="Presentation mode — hide all chrome (Esc to exit)"
-        onClick={() => {
-          // Present Mode is a SHELL-level state (it hides the menubar /
-          // sidebar / panels too), so the canvas iframe requests it from the
-          // parent shell, which flips on `.is-present` + broadcasts
-          // dgn:'view-chrome' back down.
-          try {
-            window.parent.postMessage({ dgn: 'present-enter' }, '*');
-          } catch {
-            /* detached / cross-origin */
-          }
-        }}
-      >
-        <IconPresentation />
-      </button>
-    </div>
-  );
-
   return (
     <div ref={containerRef} className="dc-tool-palette" role="toolbar" aria-label="Canvas tools">
-      {renderModeToggle()}
-      <div className="dc-tp-sep" />
       <div className="dc-tp-group">
         {navList.map((t) => (t ? renderToolButton(t.id, t.label, t.shortcut) : null))}
       </div>

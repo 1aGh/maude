@@ -16,13 +16,29 @@
 export const PANELS_HIDDEN_HINT = 'Panels hidden. Press ⌘\\ to bring them back.';
 export const PANELS_HINT_ID = 'panels-hidden';
 
+//   folded  V2-4.3b — Preview folds the Canvases / AI chat panels to their corner icons (V2-1.2 §5.4,
+//           "Shell: Canvases / AI chat panels"). The mode's fold, not the person's: leaving Preview
+//           unfolds, and the ⌘\ choice underneath is kept. `hidden` in the snapshot is what the layout
+//           shows (⌘\ OR the fold), so every consumer folds through the one mechanism; `userHidden` is
+//           the ⌘\ half alone.
+
 export function createPanelLayout({ persist = () => {}, say = () => {}, unsay = () => {} } = {}) {
-  let snap = Object.freeze({ hidden: false, pinned: false });
+  let user = { hidden: false, pinned: false, folded: false };
+  const view = () =>
+    Object.freeze({
+      hidden: user.hidden || user.folded,
+      pinned: user.pinned,
+      folded: user.folded,
+      userHidden: user.hidden,
+    });
+  let snap = view();
   const subs = new Set();
   const set = (patch) => {
-    const next = { ...snap, ...patch };
-    if (next.hidden === snap.hidden && next.pinned === snap.pinned) return;
-    snap = Object.freeze(next);
+    const next = { ...user, ...patch };
+    if (next.hidden === user.hidden && next.pinned === user.pinned && next.folded === user.folded)
+      return;
+    user = next;
+    snap = view();
     for (const fn of subs) fn();
   };
   const store = {
@@ -31,20 +47,25 @@ export function createPanelLayout({ persist = () => {}, say = () => {}, unsay = 
       subs.add(fn);
       return () => subs.delete(fn);
     },
-    /** ⌘\ — hides every panel, or brings them back. */
+    /** ⌘\ — hides every panel, or brings them back (in Preview too: showing them unfolds). */
     toggleHidden() {
       if (snap.hidden) store.show();
       else store.hide();
     },
     hide() {
-      if (snap.hidden) return;
+      if (user.hidden) return;
       set({ hidden: true });
       say({ id: PANELS_HINT_ID, title: PANELS_HIDDEN_HINT, kind: 'info' });
     },
     show() {
       if (!snap.hidden) return;
-      set({ hidden: false });
-      unsay(PANELS_HINT_ID);
+      const wasUser = user.hidden;
+      set({ hidden: false, folded: false });
+      if (wasUser) unsay(PANELS_HINT_ID);
+    },
+    /** The mode's fold (Preview). No hint: the mode switch says where you are. */
+    setFolded(on) {
+      set({ folded: !!on });
     },
     /** The View › Advanced toggle. Persists to prefs.json `pin.on`. */
     setPinned(on) {

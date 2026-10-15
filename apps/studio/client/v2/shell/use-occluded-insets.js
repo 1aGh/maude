@@ -6,6 +6,10 @@ import { useEffect, useRef } from 'react';
 import { postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { createInsetsPump, measureShellInsets, seedOnLadder } from './occlusion-insets.js';
 
+/** V2-4.3b — the live pump's synchronous flush, for the mode lane (insets before `set-mode`). A no-op
+ *  until the hook has mounted. */
+export const insetsLane = { flushNow: () => {} };
+
 /**
  * @param bodyRef the `.st-body` element — the islands' positioning context
  * @param iframesRef Map<path, HTMLIFrameElement> (the shell's registered canvas frames)
@@ -36,6 +40,7 @@ export function useOccludedInsets({ bodyRef, iframesRef, presenting, layoutKey }
 
     const request = () => pump.request();
     requestRef.current = request;
+    insetsLane.flushNow = () => pump.flushNow();
     const ro = new ResizeObserver(request);
     const watched = new Set();
     const sync = () => {
@@ -90,6 +95,7 @@ export function useOccludedInsets({ bodyRef, iframesRef, presenting, layoutKey }
       ro.disconnect();
       pump.dispose();
       requestRef.current = null;
+      insetsLane.flushNow = () => {};
     };
   }, [bodyRef, iframesRef]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: layoutKey is the trigger, not an input

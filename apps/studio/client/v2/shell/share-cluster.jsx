@@ -10,8 +10,8 @@
 // so Fit leaves room for it. Docked (pinned layout with a right panel showing) it heads the right column
 // and declares no edge — it covers no canvas there.
 //
-// The mode switch (Edit · Preview · Present) is V2-4.3b: `modeSlot` marks where it goes, and renders
-// nothing until then.
+// The mode switch (Edit · Preview · Present, mode-switch.jsx) arrives as `modeSlot` (V2-4.3b); `mode`
+// marks the cluster so Preview can make it compact (the faces and the status word step aside).
 
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { StIcon } from '../../shell/icons.jsx';
@@ -70,7 +70,8 @@ const withKey = (label, def, ctx) => {
  * @param onStatusAction (id) => void — Retry / Show in Finder
  * @param onAskToEdit () => void
  * @param docked the cluster heads the pinned right column (no island chrome, no edge)
- * @param modeSlot reserved for the mode switch (V2-4.3b)
+ * @param modeSlot the mode switch (V2-4.3b, mode-switch.jsx)
+ * @param mode the canvas mode — `preview` makes the cluster compact
  */
 export function ShareCluster({
   faces,
@@ -88,6 +89,7 @@ export function ShareCluster({
   onAskToEdit,
   docked = false,
   modeSlot = null,
+  mode = null,
 }) {
   const panelsLabel = panelsHidden ? 'Show panels' : 'Hide panels';
   const exportsLabel = ex.ring !== undefined ? `Exports — ${ex.ring} % done` : 'Exports';
@@ -98,6 +100,7 @@ export function ShareCluster({
       data-testid="share-cluster"
       data-occludes={docked ? undefined : 'top'}
       data-docked={docked ? 'true' : undefined}
+      data-mode={mode ?? undefined}
     >
       <Faces faces={faces} />
       {access ? (

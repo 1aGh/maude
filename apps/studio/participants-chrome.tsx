@@ -17,7 +17,10 @@
 import type { JSX } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { PEER_NAME_MAX, PEERS_MAX } from './bridge/dgn-protocol.ts';
 import { useViewportControllerContext } from './canvas-lib.tsx';
+import { isEmbedCanvas } from './read-only-mode.ts';
 import { type AgentPresence, useAgentPresence } from './use-agent-presence.tsx';
 import { type ForeignAwareness, useCollab, useForeignAwareness } from './use-collab.tsx';
 
@@ -320,6 +323,23 @@ function AgentAvatar({ agent }: { agent: AgentPresence }): JSX.Element {
   );
 }
 
+/** Inside the Maude shell (an iframe that is not an embed): the cluster owns the faces. */
+export function isHostedByShell(): boolean {
+  return typeof window !== 'undefined' && window.parent !== window && !isEmbedCanvas();
+}
+
+/** The `peers` payload: the table's caps applied here too, so an honest canvas never trips them.
+ *  Names only — the cluster draws initials, so no colour crosses. */
+export function peersPayload(
+  list: readonly Pick<ForeignAwareness, 'clientID' | 'name'>[]
+): Array<{ clientID: number; name: string }> {
+  return list
+    .slice(0, PEERS_MAX)
+    .map((p) => ({ clientID: p.clientID, name: String(p.name ?? '').slice(0, PEER_NAME_MAX) }));
+}
+const peerListKey = (list: readonly ForeignAwareness[]) =>
+  list.map((p) => `${p.clientID}:${p.name}`).join('|');
+
 export function ParticipantsChrome(): JSX.Element | null {
   ensureChromeStyles();
   const collab = useCollab();
@@ -378,6 +398,33 @@ export function ParticipantsChrome(): JSX.Element | null {
   // (different name), so they still get the "X is editing" heads-up.
   const myName = collab?.myName;
   const visiblePeers = peers.filter((p) => !isOwnEditingEcho(p, myName));
+
+  // V2-4.3b — hosted by the shell, the Share cluster shows who is here (its faces), so this stack
+  // steps aside and the canvas reports its peers instead: `{dgn:'peers'}` on every change, and again
+  // whenever the shell (re)seeds `set-mode` — it does that when this canvas becomes the active one,
+  // and the shell takes `peers` from the active canvas only.
+  const hosted = isHostedByShell();
+  const peerKey = hosted ? peerListKey(visiblePeers) : '';
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `peerKey` is the list's value identity
+  useEffect(() => {
+    if (!hosted) return;
+    const post = () => {
+      try {
+        window.parent.postMessage({ dgn: 'peers', peers: peersPayload(visiblePeers) }, '*');
+      } catch {
+        /* detached */
+      }
+    };
+    post();
+    const store = canvasModeStore(window);
+    let seq = store.get().modeSeq;
+    return store.subscribe((s) => {
+      if (s.modeSeq === seq) return;
+      seq = s.modeSeq;
+      post();
+    });
+  }, [hosted, peerKey]);
+  if (hosted) return null;
 
   // Render whenever there's a visible human peer OR an active agent (so an agent
   // shows even with no human collaborators connected).

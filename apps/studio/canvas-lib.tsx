@@ -1829,7 +1829,8 @@ export function DesignCanvas(props: DesignCanvasProps) {
   // CollabProvider is omitted; useCollab() falls back gracefully to null.
   const collabSlug = canvasSlugFromPath(canvasFile);
   const inner = (
-    <MaybeToolProvider>
+    // V2-4.3b — this instance owns the toolbar, so it is the one the shell's `set-mode` governs.
+    <MaybeToolProvider governed>
       <DesignCanvasInner {...props} />
     </MaybeToolProvider>
   );

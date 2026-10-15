@@ -41,6 +41,14 @@
 // edit for the viewer shells). The right panel and the right corner icon sit 52px lower (CSS only). `browser/palette-query`
 // also gains the registered "Exports" row under View (`view.exports`: Menu › View › Exports, ⌘K "Exports"). The
 // menubar and the status bar stay until V2-4.8.
+// Approved delta (V2-4.3b, decision:maude/v2-4.3b-shell-owns-mode-switch — V2-1.2 §8 step 7): the 21 shell states gain
+// the mode switch inside the Share cluster, after Comments — `div.st-modes[data-testid="share-cluster-mode"]` ›
+// `palette-mode-edit` (Edit, pressed) or, in `viewer/` and `cloud-viewer/`, `palette-mode-viewing` with
+// `palette-mode-preview` pressed (a view-only link boots Preview, DDR-223), then Preview and the Present slot
+// (`palette-mode-present` + the `mode-present-menu` chevron; both [disabled] with no canvas open). `browser/palette-open`
+// and `browser/palette-query` list the three segment buttons. The canvas states' "You're in Edit" notice now reads
+// "Switch to Preview at the top right" (it named "the toolbar"). Nothing else moved: the boot Preview of a viewer does
+// NOT fold the panels (only a chosen Preview does). Refreshed all states (`--update`), then `--repeat` green.
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
