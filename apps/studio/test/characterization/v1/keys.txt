@@ -1359,7 +1359,7 @@
   to-shell: child force-clear · child tool-cursor tool=move
   to-canvas: (none)
   writes: (none)
-  shell: +4 -530 #827606b134
+  shell: +4 -530 #fa586a8f81
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -1383,7 +1383,7 @@
   to-shell: child force-clear · child tool-cursor tool=move
   to-canvas: (none)
   writes: (none)
-  shell: +4 -530 #827606b134
+  shell: +4 -530 #fa586a8f81
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -1407,7 +1407,7 @@
   to-shell: child force-clear · child tool-cursor tool=move
   to-canvas: (none)
   writes: (none)
-  shell: +4 -530 #827606b134
+  shell: +4 -530 #fa586a8f81
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -1500,7 +1500,7 @@
   to-shell: child key
   to-canvas: parent occluded-insets
   writes: (none)
-  shell: +2 -542 #6ffae73012
+  shell: +2 -542 #5724ff0e95
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
@@ -1517,7 +1517,7 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +14 -536 #7beb54a3eb
+  shell: +14 -536 #141d47365c
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
@@ -1587,7 +1587,7 @@
   to-shell: child key
   to-canvas: (none)
   writes: (none)
-  shell: +18 -535 #e1f5c05ce2
+  shell: +18 -535 #d657122e56
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
@@ -1611,7 +1611,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +25 -25 #36832b1880
+  shell: +25 -25 #daf5720b1b
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
@@ -1692,8 +1692,8 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #e062c32c11
-    - @world translate(360.862px, 250.862px)
+  canvas: +1 -1 #3503e1826e
+    - @world translate(466.84px, 397.955px)
     + @world translate(581.854px, 600.244px)
 ## browser/in-canvas/canvas Meta+1
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="1" PREVENTED
@@ -1701,27 +1701,27 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #83d578cb48
-    - @world translate(360.862px, 250.862px)
-    + @world translate(211.897px, 165px)
+  canvas: +1 -1 #ae9e2b0410
+    - @world translate(466.84px, 397.955px)
+    + @world translate(62.6766px, 165px)
 ## browser/in-canvas/canvas Meta+Equal
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="=" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #0e7aa084bd
-    - @world translate(360.862px, 250.862px)
-    + @world translate(216.034px, 167.385px)
+  canvas: +1 -1 #c1b8340cd9
+    - @world translate(466.84px, 397.955px)
+    + @world translate(279.48px, 289.963px)
 ## browser/in-canvas/canvas Meta+Minus
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #fca381588a
-    - @world translate(360.862px, 250.862px)
-    + @world translate(534.655px, 351.034px)
+  canvas: +1 -1 #eed9f5c1ac
+    - @world translate(466.84px, 397.955px)
+    + @world translate(691.673px, 527.546px)
 ## browser/in-canvas/canvas Shift+P
   keydown: canvas ⇧key="Shift" default · canvas ⇧key="P" PREVENTED
   to-shell: (none)
@@ -1735,7 +1735,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +25 -25 #6d2770f1fa
+  shell: +25 -25 #5be44432c4
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
@@ -1768,20 +1768,16 @@
     + … 53 more
 ## browser/in-canvas/canvas Meta+d
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
-  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded · child active-artboard id=home-pricing
+  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
   to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
   writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
-  shell: +10 -4 #3db1cfea78
-    - input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.992px 108.536px"]
-    - input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="137"}
+  shell: +7 -1 #ff66ca08e1
     + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
     + div .maude-notice [data-testid="notice-canvas-notice-0"]
-    + input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.992px 108.809px"]
-    + input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="138"}
-  canvas: +6 -2 #3aeaf0e98b
-    - @world translate(28.9655px, 250.862px)
+  canvas: +6 -2 #a0ee5611be
+    - @world translate(443.42px, 397.955px)
     - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
-    + @world translate(612.585px, 600.244px)
+    + @world translate(466.84px, 397.955px)
     + input [aria-label="Name"] [placeholder="Name"]
 ## browser/in-canvas/canvas Meta+g
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" default
@@ -1795,7 +1791,7 @@
   to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
   to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
   writes: POST /_api/delete-element
-  shell: +10 -530 #3333de73cf
+  shell: +10 -530 #a691e263fc
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -1832,7 +1828,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +26 -26 #6abc43c15c
+  shell: +26 -26 #def2e8822a
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
@@ -1968,7 +1964,7 @@
   to-shell: child key
   to-canvas: parent occluded-insets
   writes: (none)
-  shell: +2 -548 #75a8a93d8b
+  shell: +2 -548 #b483e571c4
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
@@ -2006,7 +2002,7 @@
   to-shell: child force-clear
   to-canvas: (none)
   writes: (none)
-  shell: +4 -530 #dec3d3cefe
+  shell: +4 -530 #825cf0564c
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -2062,7 +2058,7 @@
   to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
   to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome · parent occluded-insets · parent occluded-insets · parent occluded-insets
   writes: POST /_api/delete-element
-  shell: +10 -530 #3333de73cf
+  shell: +10 -530 #a691e263fc
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -2089,7 +2085,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +26 -26 #6abc43c15c
+  shell: +26 -26 #def2e8822a
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
@@ -2128,7 +2124,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +25 -25 #6d2770f1fa
+  shell: +25 -25 #5be44432c4
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
@@ -2164,7 +2160,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +25 -25 #6d2770f1fa
+  shell: +25 -25 #5be44432c4
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
@@ -2558,7 +2554,7 @@
   to-shell: child force-clear · child tool-cursor tool=move
   to-canvas: (none)
   writes: (none)
-  shell: +4 -530 #827606b134
+  shell: +4 -530 #fa586a8f81
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -2581,7 +2577,7 @@
   to-shell: child force-clear · child tool-cursor tool=move
   to-canvas: (none)
   writes: (none)
-  shell: +4 -530 #827606b134
+  shell: +4 -530 #fa586a8f81
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
@@ -2605,7 +2601,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +4 -542 #9d4c3a407a
+  shell: +4 -542 #5d3ce2ab68
     - aside .st-rpanel [aria-label="Assistant"] [aria-hidden="true"]
     - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
@@ -2676,7 +2672,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +25 -25 #36832b1880
+  shell: +25 -25 #daf5720b1b
     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]

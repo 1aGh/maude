@@ -31,6 +31,10 @@
 // and whenever a panel opens or closes — so `to-canvas` lists gain `parent occluded-insets`; (3) with
 // the left panel floating over the canvas the first Fit lands in the visible area, so the `@world
 // translate` of the zoom cases moved. No write changed.
+// Lead refresh (V2-4.1, V2-1.2 §5.6 I2): the canvas now re-fits once when the shell's first insets
+// arrive after its boot fit, so every case's boot `@world translate` is the inset-aware fit (it used
+// to depend on whether the insets beat the boot fit — the ⌘D case flipped between runs). Inspector
+// values derived from the zoom (height, transform-origin) moved with it. No key or write changed.
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not

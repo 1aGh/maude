@@ -388,7 +388,7 @@ div
                             input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
                             input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
                             input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
-                            div .st-cp-boxcore "663 × 180"
+                            div .st-cp-boxcore "512 × 139"
                   section .st-cp-sec
                     div .st-cp-sechd-row
                       button .st-cp-sechd [data-testid="inspector-section-size"] [aria-expanded="true"] [type="button"] "Size"
@@ -436,7 +436,7 @@ div
                           div .st-cp-ctl
                             div .st-cp-num
                               span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"] "H"
-                              input .st-cp-numin [role="spinbutton"] [aria-label="height"] [value="137"] {value="137"}
+                              input .st-cp-numin [role="spinbutton"] [aria-label="height"] [value="136"] {value="136"}
                               span .st-cp-step
                                 button .st-cp-stepb [aria-label="increase height"] [type="button"] [tabindex="-1"] "▲"
                                 button .st-cp-stepb [aria-label="decrease height"] [type="button"] [tabindex="-1"] "▼"
@@ -656,7 +656,7 @@ div
                           button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
                           label .st-cp-label [title="transform-origin"] "transform-origin"
                           div .st-cp-ctl
-                            input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.992px 108.536px"] [value]
+                            input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.995px 108.135px"] [value]
                   section .st-cp-sec
                     div .st-cp-sechd-row
                       button .st-cp-sechd [data-testid="inspector-section-advanced"] [aria-expanded="false"] [type="button"] "Advanced"

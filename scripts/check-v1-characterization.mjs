@@ -20,6 +20,9 @@
 // slot was) and the View menu's first row is "Hide panels  ⌘ \" (was "Project Tree  T") with a new
 // last row "Pin panels to the side". `browser/menu-view` shows the second; the other 20 the first. The
 // shortcut sheet's row reads "Hide / show panels". No other region moved.
+// Lead refresh (V2-4.1, V2-1.2 §5.6 I2): the canvas re-fits once on the shell's first insets, so the
+// boot zoom is the inset-aware fit; `browser/inspector-selected` shows it in the box-model core, which
+// reads the selection's on-screen size ("663 × 180" → "512 × 139"). No other state moved.
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
