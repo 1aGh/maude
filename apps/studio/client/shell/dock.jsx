@@ -30,30 +30,58 @@ export const PANEL_SIDES_DEFAULTS = {
 // resizable width + a tab strip over the panels assigned to the slot; renders
 // the active panel (passed as children). Collapses to 0 width when nothing is
 // visibly open (it may still host an always-mounted hidden ChatPanel).
-export function DockSlot({ side, width, open, ids, activeId, onPick, children, labels = null }) {
+//
+// V2-4.1 — the DOM is the same in both layouts, so pinning / unpinning never remounts the panels (the AI
+// chat keeps its stream, DDR-123): `.st-dockslot` is the positioned slot, `.st-dockslot-inner` the panel
+// surface. Pinned (today's docked column) the inner is `display: contents`; floating it is the `.island`
+// and carries `data-occludes` (V2-1.2 §5.6) so the shell can tell the canvas what it covers. `hidden`
+// (⌘\) takes the slot out of the layout but leaves it mounted.
+export function DockSlot({
+  side,
+  width,
+  open,
+  ids,
+  activeId,
+  onPick,
+  children,
+  labels = null,
+  floating = false,
+  hidden = false,
+}) {
   return (
     <div
-      className={'st-dockslot st-dockslot--' + side + (open ? '' : ' is-collapsed')}
+      className={
+        'st-dockslot st-dockslot--' +
+        side +
+        (open ? '' : ' is-collapsed') +
+        (hidden ? ' is-hidden' : '')
+      }
       style={{ width: open ? width : 0, flexBasis: open ? width : 0 }}
     >
-      {open && ids.length > 1 && (
-        <div className="st-docktabs" role="tablist" aria-label={side + ' panels'}>
-          {ids.map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              data-testid={`dock-tab-${id}`}
-              aria-selected={activeId === id}
-              className={'st-docktab' + (activeId === id ? ' is-active' : '')}
-              onClick={() => onPick(id)}
-            >
-              {labels?.[id] || (DOCK_PANELS.find((p) => p.id === id) || {}).label || id}
-            </button>
-          ))}
-        </div>
-      )}
-      {children}
+      <div
+        className={'st-dockslot-inner' + (floating ? ' island' : '')}
+        data-testid={`dock-slot-${side}`}
+        data-occludes={floating && open && !hidden ? side : undefined}
+      >
+        {open && ids.length > 1 && (
+          <div className="st-docktabs" role="tablist" aria-label={side + ' panels'}>
+            {ids.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                data-testid={`dock-tab-${id}`}
+                aria-selected={activeId === id}
+                className={'st-docktab' + (activeId === id ? ' is-active' : '')}
+                onClick={() => onPick(id)}
+              >
+                {labels?.[id] || (DOCK_PANELS.find((p) => p.id === id) || {}).label || id}
+              </button>
+            ))}
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   );
 }
@@ -94,7 +122,9 @@ export function PanelGrip({ label, size, onPointerDown, active, dir = 'ltr' }) {
   const grow = dir === 'rtl' ? -1 : 1;
   return (
     <div
-      className={'st-grip' + (active ? ' is-active' : '')}
+      className={
+        'st-grip' + (dir === 'rtl' ? ' st-grip--r' : ' st-grip--l') + (active ? ' is-active' : '')
+      }
       role="separator"
       tabIndex={0}
       aria-orientation="vertical"

@@ -12,7 +12,7 @@ export function CollapsedRail({ shown, onExpand, onSearch }) {
           type="button"
           className="st-iconbtn"
           aria-label="Expand sidebar"
-          title="Expand sidebar (T)"
+          title="Expand sidebar"
           onClick={onExpand}
         >
           <StIcon name="panel-left" size={15} />

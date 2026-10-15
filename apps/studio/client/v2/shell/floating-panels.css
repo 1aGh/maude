@@ -1,0 +1,202 @@
+/* client/v2/shell/floating-panels.css — V2-4.1: the window body is the canvas, edge to edge.
+ *
+ * Floating (the default, `.st-body--float`): the left / right dock slots are `.island`s laid over the
+ * canvas viewport (`.main`, which keeps the whole body), and a panel that is not showing leaves its
+ * corner icon (`.st-corner`). Pinned (View › Advanced › "Pin panels to the side") is today's docked
+ * column layout — no rule here applies, `.st-dockslot-inner` is `display: contents`. ⌘\ (`.is-hidden`)
+ * takes every slot out of the layout in both; the corner icons are the way back.
+ *
+ * Geometry is the kit's: islands sit 16px in from the window edge (`.k-cp` left/top `--space-4`),
+ * radius 14 (`--radius-lg`), the soft island shadow. Every island root carries `data-occludes`
+ * (dock.jsx / corner-icons.jsx) — use-occluded-insets.js turns them into the canvas' occluded insets.
+ *
+ * MATERIAL (V2-1.8 M1–M3). Solid, global, never keyed on engine / shell / setting: `.island` below is
+ * the ONE rule that applies it, and `--island-backdrop` is the only thing allowed in a
+ * `backdrop-filter`. The three tokens are set on `.st-body--float` because this shell still resolves
+ * the v1 `.maude` ladder; when the shell mounts under `.maude-v2` (later Phase 4) the DS' own
+ * `--island-bg` / `--island-backdrop: none` replace them and this block shrinks to nothing.
+ *
+ * MOTION. Every duration is `var(--dur-panel)` — 1ms under prefers-reduced-motion (1-tokens-maude.css
+ * collapses it) — and the keyframes are dropped outright there: reduced motion is a cut. */
+
+@layer shell {
+  .st-body {
+    position: relative; /* the corner icons position against it in either layout */
+  }
+  .st-body--float {
+    --float-gap: 16px; /* kit: left/top var(--space-4) of the v2 ladder (v1's --space-4 is 12) */
+    --island-radius: 14px; /* kit: --radius-lg of the v2 ladder (v1's is 10) */
+    --island-bg: var(--bg-1);
+    --island-bg-strong: var(--bg-1);
+    --island-backdrop: none;
+  }
+  .maude[data-theme="light"] .st-body--float {
+    --island-edge: oklch(0.24 0.014 250 / 0.1);
+    --island-shadow:
+      0 2px 10px oklch(0.24 0.03 250 / 0.07), 0 0.5px 1.5px oklch(0.24 0.03 250 / 0.06);
+  }
+  .maude[data-theme="dark"] .st-body--float {
+    --island-edge: oklch(1 0 0 / 0.09);
+    --island-shadow: 0 4px 14px oklch(0 0 0 / 0.3), 0 0.5px 1.5px oklch(0 0 0 / 0.26);
+  }
+
+  .st-body--float .island {
+    background: var(--island-bg);
+    -webkit-backdrop-filter: var(--island-backdrop);
+    backdrop-filter: var(--island-backdrop);
+    border-radius: var(--island-radius);
+    box-shadow:
+      var(--island-shadow),
+      inset 0 0 0 0.5px var(--island-edge);
+    color: var(--fg-0);
+  }
+
+  /* ── dock slots ─────────────────────────────────────────────────────────────
+   * The slot is a transparent, click-through frame whose padding is the 16px gap, so its inline width
+   * (the user's panel width) ends exactly at the island's inner edge — the seam the grip sits on and
+   * the drag math in use-shell-core measures from. */
+  .st-body--float > .st-dockslot {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 20;
+    box-sizing: border-box;
+    overflow: visible;
+    pointer-events: none;
+    padding: var(--float-gap);
+  }
+  .st-body--float > .st-dockslot--left {
+    left: 0;
+    padding-right: 0;
+  }
+  .st-body--float > .st-dockslot--right {
+    right: 0;
+    padding-left: 0;
+  }
+  .st-body--float .st-dockslot-inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    pointer-events: auto;
+    animation: st-island-in var(--dur-panel) var(--ease-out);
+  }
+  .st-body--float .st-dockslot-inner > .st-sidebar,
+  .st-body--float .st-dockslot-inner > .st-rpanel {
+    flex: 1 1 auto;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    animation: none;
+  }
+  .st-body--float .st-docktabs {
+    background: transparent;
+  }
+
+  /* Pinned: the inner steps out of the box tree, so the panel is today's direct child of the slot. */
+  .st-body:not(.st-body--float) .st-dockslot-inner {
+    display: contents;
+  }
+  /* ⌘\ — out of the layout, still mounted (the AI chat keeps its stream). */
+  .st-dockslot.is-hidden {
+    display: none;
+  }
+  .st-body--float > .st-dockslot.is-collapsed {
+    display: none;
+  }
+
+  /* ── resize grips: on the island's inner edge ── */
+  .st-body--float > .st-grip {
+    position: absolute;
+    top: var(--float-gap);
+    bottom: var(--float-gap);
+    margin: 0;
+    z-index: 25;
+  }
+  .st-body--float > .st-grip--l {
+    left: calc(var(--sb-w) - 4px);
+  }
+  .st-body--float > .st-grip--r {
+    right: calc(var(--rp-w) - 4px);
+  }
+
+  /* ── folded corner icons ── */
+  .st-corner {
+    position: absolute;
+    z-index: 21;
+    display: grid;
+    padding: var(--space-1);
+    animation: st-island-in var(--dur-panel) var(--ease-out);
+  }
+  .st-corner--left {
+    left: var(--float-gap, 16px);
+    top: var(--float-gap, 16px);
+  }
+  .st-corner--right {
+    right: var(--float-gap, 16px);
+    top: var(--float-gap, 16px);
+  }
+  .st-corner--ai {
+    right: var(--float-gap, 16px);
+    bottom: var(--float-gap, 16px);
+  }
+  .st-corner--ai-left {
+    left: var(--float-gap, 16px);
+    bottom: var(--float-gap, 16px);
+  }
+  .st-corner .st-iconbtn {
+    position: relative;
+    width: 28px;
+    height: 28px;
+  }
+  .st-corner-dot {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
+  }
+  /* Pinned + ⌘\: the icons float over the canvas with the same material. */
+  .st-body:not(.st-body--float) .st-corner {
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .st-body:not(.st-body--float) .st-corner--left,
+  .st-body:not(.st-body--float) .st-corner--ai-left {
+    left: 16px;
+  }
+  .st-body:not(.st-body--float) .st-corner--right,
+  .st-body:not(.st-body--float) .st-corner--ai {
+    right: 16px;
+  }
+  .st-body:not(.st-body--float) .st-corner--left,
+  .st-body:not(.st-body--float) .st-corner--right {
+    top: 16px;
+  }
+  .st-body:not(.st-body--float) .st-corner--ai,
+  .st-body:not(.st-body--float) .st-corner--ai-left {
+    bottom: 16px;
+  }
+
+  @keyframes st-island-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .st-body--float .st-dockslot-inner,
+    .st-corner {
+      animation: none;
+    }
+  }
+}

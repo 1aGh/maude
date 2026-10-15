@@ -126,8 +126,13 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['/', shell('range'), null],
     ['⌘F', shell('chrome'), 'canvases.find'],
     ['⌘F', shell('text'), null],
-    ['T', shell('chrome'), 'view.panels'],
-    ['T', shell('select'), 'view.panels'],
+    // V2-4.1 approved delta (CONTRACT §2 "keys that moved", D17): bare T no longer toggles the Files
+    // panel. ⌘\ hides/shows ALL panels (view.panels); T stays unbound until V2-4.5 binds Text.
+    ['T', shell('chrome'), null],
+    ['T', shell('select'), null],
+    ['⌘\\', shell('chrome'), 'view.panels'],
+    ['⌘\\', shell('text'), 'view.panels'], // a modifier chord works while typing, like ⇧⌘I
+    ['⌘\\', shell('textarea'), 'view.panels'],
     ['T', shell('range'), null],
     ['T', shell('textarea'), null],
     ['T', shell('editable'), null],

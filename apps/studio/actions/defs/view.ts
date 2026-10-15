@@ -9,9 +9,21 @@ export const VIEW_ACTIONS: ActionDef[] = [
     label: 'Hide panels',
     kind: 'toggle',
     exec: 'shell',
-    // v1: bare T toggles the Files panel (the v2 key is ⌘\, D4: T is Text).
-    keys: [kb('T', 'global', { inText: false, when: SHELL_NOT_TYPING })],
-    legacy: { menu: 'Project Tree', sheet: 'Project tree' },
+    // V2-4.1 (CONTRACT §2 "keys that moved", D17): ⌘\ hides / shows ALL panels. Bare T used to toggle
+    // the Files panel; it is unbound now and V2-4.5 binds it to Text (D4).
+    keys: [kb('⌘\\', 'global', { inText: true })],
+    // A designer lives in the canvas: ⌘\ must work with the canvas focused, so the canvas forwards it.
+    fromCanvas: true,
+    legacy: { menu: 'Hide panels', sheet: 'Hide / show panels' },
+  },
+  {
+    id: 'view.pin-panels',
+    label: 'Pin panels to the side',
+    kind: 'toggle',
+    exec: 'shell',
+    // View › Advanced (CONTRACT §1): panels sit flush at the sides instead of floating over the canvas.
+    // A per-Mac pref (prefs.json `pin.on`); no key.
+    legacy: { menu: 'Pin panels to the side' },
   },
   {
     id: 'view.hidden-files',

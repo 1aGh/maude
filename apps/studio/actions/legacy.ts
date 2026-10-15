@@ -84,7 +84,7 @@ export const V1_SHEET: readonly V1SheetGroup[] = [
     id: 'view',
     label: 'View',
     items: [
-      { label: 'Project tree', kbd: 'T', ids: ['view.panels'] },
+      { label: 'Hide / show panels', kbd: '⌘ \\', ids: ['view.panels'] },
       { label: 'Design system view', kbd: 'S', ids: ['view.design-system'] },
       { label: 'Inspector', kbd: '⌘ ⇧ I', ids: ['view.inspector'] },
       { label: 'Comments sidebar', kbd: '⌘ ⇧ M', ids: ['view.comments'] },
@@ -192,7 +192,7 @@ export const V1_MENUBAR: Readonly<Record<V1MenuName, readonly V1MenuRow[]>> = {
   // The View menu's "Panels" rows; menubar.jsx adds each row's live state (checked, the Changes
   // count, the cloud Assistant notice) and v1's viewer filter.
   view: [
-    { id: 'view.panels', kbd: 'T' },
+    { id: 'view.panels', kbd: '⌘ \\' },
     { id: 'history.open', kbd: '⌘ ⇧ G' },
     { id: 'view.comments', kbd: '⌘ ⇧ M' },
     { id: 'view.hidden-files', kbd: 'H' },
@@ -206,6 +206,7 @@ export const V1_MENUBAR: Readonly<Record<V1MenuName, readonly V1MenuRow[]>> = {
     { id: 'view.zoom-controls', kbd: '' },
     { id: 'present.canvas', kbd: '' },
     { id: 'view.print-guides', kbd: '' },
+    { id: 'view.pin-panels', kbd: '' },
   ],
   zoom: [
     { id: 'view.zoom-in', kbd: '⌘ +' },

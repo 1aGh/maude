@@ -9,6 +9,7 @@ import { ExportBadge } from '../export-center.jsx';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_MENUBAR } from '../../actions/legacy.ts';
 import { runActionMessage } from '../actions/shell-key-handlers.js';
+import { panelLayout, usePanelLayout } from '../v2/shell/use-panel-layout.js';
 
 /** V2-2.4 — a dropdown's rows, rendered from the action registry's v1 layout
  *  (actions/legacy.ts `V1_MENUBAR`): label = the action's v1 menu label, the
@@ -274,8 +275,6 @@ export function Menubar({
   changesCount,
   onToggleChanges,
   onOpenSystem,
-  sidebarOpen,
-  onToggleSidebar,
   showHidden,
   onToggleShowHidden,
   onOpenHelp,
@@ -327,6 +326,7 @@ export function Menubar({
   // menu, and the stamp says VIEW ONLY so the absence is legible.
   readOnly = false,
 }) {
+  const layout = usePanelLayout();
   const isSystem = activePath === SYSTEM_TAB;
   const stamp = isSystem ? 'SYSTEM' : activePath ? 'CANVAS' : 'IDLE';
   const fileLabel = isSystem ? (
@@ -358,7 +358,10 @@ export function Menubar({
   // this map adds each row's live state.
   const noCanvas = !activePath || isSystem;
   const panelState = {
-    'view.panels': { checked: sidebarOpen },
+    // V2-4.1 — ⌘\ hides / shows every panel (CONTRACT §3 words); the row names what it does next.
+    'view.panels': { label: layout.hidden ? 'Show panels' : 'Hide panels', checked: false },
+    // View › Advanced › "Pin panels to the side" — a per-Mac pref (prefs.json pin.on).
+    'view.pin-panels': { checked: layout.pinned },
     // In a cell this panel is History (the hub already committed the work),
     // so the menu names what it opens rather than an unsaved count there is
     // no way — and no reason — to act on.
@@ -572,7 +575,8 @@ export function Menubar({
         <ViewDropdown
           panels={panels}
           onToggle={(id) => {
-            if (id === 'view.panels') onToggleSidebar();
+            if (id === 'view.panels') panelLayout.toggleHidden();
+            else if (id === 'view.pin-panels') panelLayout.togglePinned();
             else if (id === 'history.open') onToggleChanges();
             else if (id === 'view.comments') onToggleComments();
             else if (id === 'view.hidden-files') onToggleShowHidden();

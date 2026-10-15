@@ -218,6 +218,9 @@ import { AssetPicker } from './dialogs/asset-picker.jsx';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
 import { CollapsedRail } from './shell/collapsed-rail.jsx';
+import { CornerIcons } from './v2/shell/corner-icons.jsx';
+import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
+import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { Menubar } from './menus/menubar.jsx';
@@ -1288,6 +1291,7 @@ function ShellState({ children }) {
       assistantUnseen,
       autoOpenInspector,
       bodyRef,
+      iframesRef,
       brandUploadOpen,
       canvasActiveArtboard,
       canvasError,
@@ -1585,8 +1589,6 @@ function ShellMenubar() {
       changesCount={unsavedCount}
       onToggleChanges={() => toggleRightPanel('changes')}
       onOpenSystem={openSystem}
-      sidebarOpen={sidebarOpen}
-      onToggleSidebar={() => togglePanel('tree')}
       showHidden={showHidden}
       onToggleShowHidden={() => setShowHidden((v) => !v)}
       onOpenHelp={() => setHelpOpen(true)}
@@ -2592,7 +2594,10 @@ function ShellTree() {
     shellCore: {
       activeComps,
       activePath,
+      assistantBusy,
+      assistantOpen,
       bodyRef,
+      iframesRef,
       brandUploadOpen,
       canvasActiveArtboard,
       captureFromCanvas,
@@ -2693,6 +2698,28 @@ function ShellTree() {
     },
   } = useShellStore();
 
+  // V2-4.1 — panel layout (⌘\ hide, View › Advanced pin) and the insets the islands cause.
+  const { hidden: panelsHidden, pinned } = usePanelLayout();
+  useHydratePanelLayout();
+  const floating = !pinned;
+  // Opening a panel while the panels are hidden brings them all back (the open panel must be seen).
+  const shownRef = useRef({ l: leftActive, r: rightActive });
+  useEffect(() => {
+    const prev = shownRef.current;
+    shownRef.current = { l: leftActive, r: rightActive };
+    if (
+      panelsHidden &&
+      ((leftActive && leftActive !== prev.l) || (rightActive && rightActive !== prev.r))
+    )
+      panelLayout.show();
+  }, [leftActive, rightActive, panelsHidden]);
+  useOccludedInsets({
+    bodyRef,
+    iframesRef,
+    presenting: presentMode,
+    layoutKey: `${pinned}|${panelsHidden}|${leftActive}|${rightActive}|${sbSize.w}|${rpSize.w}`,
+  });
+
   return (
     <div
       className={'maude' + (presentMode ? ' is-present' : '')}
@@ -2740,18 +2767,30 @@ function ShellTree() {
       )}
       <div className="st-shell">
         <ShellMenubar />
-        <div className={'st-body' + (dragSide ? ' is-resizing' : '')} ref={bodyRef}>
-          {/* LEFT dock slot (feature-configurable-panel-docking) — the collapsed
+        {/* V2-4.1 — the canvas is the whole window body. Floating (default): the dock slots are
+            `.island`s over it and the folded corner icons are the way back; pinned (View › Advanced):
+            today's docked columns. ⌘\ hides every panel either way. Every island root carries
+            `data-occludes` and the insets reach the canvas through useOccludedInsets. */}
+        <div
+          className={
+            'st-body' + (floating ? ' st-body--float' : '') + (dragSide ? ' is-resizing' : '')
+          }
+          ref={bodyRef}
+          style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpSize.w}px` }}
+        >
+          {/* LEFT dock slot (feature-configurable-panel-docking) — pinned, the collapsed
               rail shows when the left slot is empty; the tree's expand hooks open
-              it on the tree tab. */}
-          <CollapsedRail
-            shown={!leftActive}
-            onExpand={() => openPanelExclusive('tree')}
-            onSearch={() => {
-              openPanelExclusive('tree');
-              setTimeout(() => document.querySelector('.st-search input')?.focus(), 60);
-            }}
-          />
+              it on the tree tab. Floating, the corner icon below plays that part. */}
+          {!floating && (
+            <CollapsedRail
+              shown={!leftActive && !panelsHidden}
+              onExpand={() => openPanelExclusive('tree')}
+              onSearch={() => {
+                openPanelExclusive('tree');
+                setTimeout(() => document.querySelector('.st-search input')?.focus(), 60);
+              }}
+            />
+          )}
           {(leftActive || leftHostsAssistant) && (
             <DockSlot
               side="left"
@@ -2761,6 +2800,8 @@ function ShellTree() {
               activeId={leftActive}
               onPick={togglePanel}
               labels={dockLabels}
+              floating={floating}
+              hidden={panelsHidden}
             >
               {leftHostsAssistant && (
                 <ChatPanel
@@ -2783,7 +2824,7 @@ function ShellTree() {
               {leftActive && leftActive !== 'assistant' && renderPanelBody(leftActive)}
             </DockSlot>
           )}
-          {leftActive && (
+          {leftActive && !panelsHidden && (
             <PanelGrip
               label="Resize left panel"
               size={sbSize}
@@ -2798,7 +2839,7 @@ function ShellTree() {
           <div className="main">
             <ShellViewport />
           </div>
-          {rightActive && (
+          {rightActive && !panelsHidden && (
             <PanelGrip
               label="Resize right panel"
               dir="rtl"
@@ -2823,6 +2864,8 @@ function ShellTree() {
               activeId={rightActive}
               onPick={togglePanel}
               labels={dockLabels}
+              floating={floating}
+              hidden={panelsHidden}
             >
               {rightHostsAssistant && (
                 <ChatPanel
@@ -2844,6 +2887,26 @@ function ShellTree() {
               )}
               {rightActive && rightActive !== 'assistant' && renderPanelBody(rightActive)}
             </DockSlot>
+          )}
+          {(floating || panelsHidden) && (
+            <CornerIcons
+              hidden={panelsHidden}
+              leftActive={leftActive}
+              rightActive={rightActive}
+              leftIds={leftIds}
+              rightIds={rightIds}
+              assistant={
+                leftHostsAssistant || rightHostsAssistant
+                  ? {
+                      side: leftHostsAssistant ? 'left' : 'right',
+                      shown: (leftHostsAssistant ? leftActive : rightActive) === 'assistant',
+                      busy: assistantBusy,
+                    }
+                  : null
+              }
+              onOpen={openPanelExclusive}
+              onShow={panelLayout.show}
+            />
           )}
         </div>
         {/* DDR-148 — Timeline is a BOTTOM dock (full-width strip below the stage,

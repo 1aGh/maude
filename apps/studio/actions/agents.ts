@@ -93,6 +93,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.nudge': TSX('Change the element’s position props'),
   // ── view ──
   'view.panels': PREF(),
+  'view.pin-panels': PREF(),
   'view.hidden-files': PREF(),
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
