@@ -1,0 +1,19 @@
+V2-4.2 — Project pill + the one menu (CONTRACT §1), all rows from the registry; Back to Home
+Date: 2026-10-15 · feat/maude-v2 · gated on 97905e1c
+Commits: e0d6252d (A: nine menu actions, render model, pending pin) · 02e5e76e (B: pill + menu UI, keyboard, ⌘K twins, canvas replay lane) · lead: 46ea6a08 7c71a50e 64dec6d5 (bundle, lint ratchet: dynamic menuitemcheckbox role, JSX comment) · e532de89 (keys golden refresh) · 97905e1c (submenu label alignment, seen on screen)
+
+Done-when
+- every row reachable by keyboard: project-pill.test.tsx walks the whole rendered tree with arrows/→ only, ↵/Space/↓ open, esc returns focus to the pill (red with → handling broken).
+- ⌘K finds every row: for each rendered row the palette matcher returns that action for its label (red with the label-match rule broken); twins appear once something is typed.
+- all rows from the registry: project-menu-model.test.ts — rendered ids ∈ registry ∩ menuIds(), tree order = PROJECT_MENU minus PENDING_MENU_IDS; "no row without a runner".
+- PENDING_MENU_IDS (14, each with its owner): view.assets + view.layers-panel (V2-4.4), view.exports (V2-4.3), diag.sync/server/ai/logs/ai-recheck/address/process/project-folder + sync.resync + sync.download-all (V2-4.7), edit.undo-history (S2). Registered now: nav.home, canvas.duplicate/rename/move, import.figma/brand, account.switch, edit.cut/paste (actions.parity humanMax 69 → 73).
+
+Gates (on e532de89, code-identical to 97905e1c except one aria-hidden span)
+- typecheck / lint (ratchet) / format ok; check-client-boots-source OK
+- studio suite (lane, alone): 8035 pass / 4 fail → v1-keys (refreshed below), system-data per-DS (5 s timeout), notifications, schema-drift: the three files 26/0 alone
+- v1-keys: refreshed (pill top inset 56 px → every boot fit ~50 px lower; reloaded shell lists .st-pill-sep; one extra occluded-insets) and verified identical on a second run; one alone run had shown a one-off inspector variant (+19 −25) that neither the refresh nor the verify run reproduced — noted in the header
+- 30-state characterization: all 30 identical (builder refreshed 20 states that gain only the pill)
+- desktop e2e (debug build of e532de89, Arc hidden, probe 2 s): default 12/12 (1:29, 0 covered on-screen samples / 47) · tabs 1/1 (0:28, 0 / 17). Valid.
+- on screen (Chromium, 1440×900): pill top-left, menu = File · Edit · View · Help · Version history · Share… · Export… · Diagnostics · Settings… (Back to Home hidden in the browser shell by its when); File submenu opens with canvas rows disabled without a canvas.
+
+Follow-ups: older rows have no registry  (Undo, Export…, Close canvas run as no-ops with no canvas); project.new in a browser tab toasts instead of being hidden; Rename uses window.prompt as the tree row does; Version history shows today's ⇧⌘G (CONTRACT ⌥⌘H arrives with its task); builder peak 370k (> 300k).
