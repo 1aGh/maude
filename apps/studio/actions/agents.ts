@@ -105,6 +105,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
   'history.open': { effect: 'none', agent: cli('maude design history list') },
+  'view.exports': { effect: 'none', agent: cli('maude design exports list') },
   'view.inspector': PREF('read the element’s JSX for its properties'),
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),

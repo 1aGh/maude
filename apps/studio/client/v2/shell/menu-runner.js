@@ -93,6 +93,7 @@ export function createMenuHandlers(d) {
     'view.panels': () => panelLayout.toggleHidden(),
     'view.pin-panels': () => panelLayout.togglePinned(),
     'view.comments': () => d.toggleRightPanel('comments'),
+    'view.exports': () => d.onToggleExports(),
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),
     'view.timeline-keep-open': () => d.onToggleTimeline(),
