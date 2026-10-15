@@ -5,15 +5,15 @@
 // corner icons, ⌘\ hidden, and pinned (which must come out 0 by itself).
 // The browser-level proof of the same claim (a live canvas iframe in Chromium) is in the V2-4.1 hand-back.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { type Insets, ZERO_INSETS } from '../bridge/occlusion.ts';
 import { type ArtboardRect, computeFit } from '../canvas-lib.tsx';
-import { measureShellInsets } from '../client/v2/shell/occlusion-insets.js';
 import { DockSlot } from '../client/shell/dock.jsx';
 import { CornerIcons } from '../client/v2/shell/corner-icons.jsx';
+import { measureShellInsets } from '../client/v2/shell/occlusion-insets.js';
 
 beforeAll(() => {
   if (typeof window === 'undefined') GlobalRegistrator.register();
