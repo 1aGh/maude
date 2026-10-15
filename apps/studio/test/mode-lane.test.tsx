@@ -262,7 +262,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
       </ToolProvider>
     );
     mount(
-      <ToolProvider>
+      <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
@@ -309,7 +309,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
 
   test('a seed of the current mode keeps the armed tool; a mode change arms its resting tool', () => {
     mount(
-      <ToolProvider>
+      <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
@@ -327,7 +327,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
 
   test('a cross-mode gesture is a mode-request, never a local change (M3)', () => {
     mount(
-      <ToolProvider>
+      <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
@@ -360,7 +360,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
       </ToolProvider>
     );
     mount(
-      <ToolProvider>
+      <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
@@ -377,7 +377,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
 
   test('Present keeps its posture: an Esc ladder’s resting-tool arm neither leaves nor asks', () => {
     mount(
-      <ToolProvider>
+      <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
@@ -389,16 +389,28 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
     expect(shellPosts.filter((m) => m.dgn === 'mode-request')).toEqual([]);
   });
 
-  test('a provider that mounts after the seeds still adopts the mode (its own state, not prevMode)', () => {
+  test('the governed provider mounting after the seeds adopts the mode (its own state, not prevMode)', () => {
     const base = canvasModeStore(window).get().modeSeq + 1;
-    setMode(base, 'edit');
-    setMode(base + 1, 'edit'); // ladder seeds landed before the comment-mount layer mounted
+    setMode(base, 'preview');
+    setMode(base + 1, 'preview'); // ladder seeds landed before canvas-lib's DesignCanvas mounted
+    mount(
+      <ToolProvider governed>
+        <CapB />
+      </ToolProvider>
+    );
+    expect([ctxB?.mode, ctxB?.tool]).toEqual(['preview', 'browse']);
+  });
+
+  test('the comment-mount ancestor is NOT governed: a bare DS specimen stays alive in Edit', () => {
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit');
     mount(
       <ToolProvider initial="browse">
         <CapA />
       </ToolProvider>
     );
-    expect([ctxA?.mode, ctxA?.tool]).toEqual(['edit', 'move']);
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit');
+    expect([ctxA?.mode, ctxA?.tool]).toEqual(['preview', 'browse']);
+    expect(echoes().length).toBe(0); // no DesignCanvas, nobody echoes — the shell needs none
   });
 
   test('a read-only canvas clamps Edit to Viewing and says so (cause clamp)', () => {
@@ -408,7 +420,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
     _resetReadOnlyCache();
     try {
       mount(
-        <ToolProvider>
+        <ToolProvider governed>
           <CapB />
         </ToolProvider>
       );

@@ -192,11 +192,17 @@ export function ToolProvider({
   // specimens stay alive too.
   initial,
   initialMode,
+  governed = false,
 }: {
   children: ReactNode;
   tools?: readonly ToolDescriptor[];
   initial?: Tool;
   initialMode?: CanvasMode;
+  /** V2-4.3b — this instance is the one the shell's `set-mode` governs: canvas-lib's, under
+   *  `DesignCanvas` (it owns the toolbar, V2-1.2 §5.4). It arms, echoes and asks; the comment-mount
+   *  ancestor stays v1 and converges through `maude:tool-sync` as it always has — so a bare DS
+   *  specimen (no DesignCanvas) stays alive whatever the shell's mode. */
+  governed?: boolean;
 }) {
   // Cloud Phase 25 C2 — a read-only canvas keeps only navigate/inspect tools.
   // Filtering HERE covers every consumer at once: the palette renders from
@@ -287,7 +293,7 @@ export function ToolProvider({
   const toolNowRef = useRef(tool);
   toolNowRef.current = tool;
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!governed || typeof window === 'undefined') return;
     const store = canvasModeStore(window);
     let lastSeq = -1;
     // This provider's own last governed mode: one that mounts after the shell's seeds (the
@@ -330,7 +336,7 @@ export function ToolProvider({
     };
     apply(); // the shell may have spoken before this provider mounted
     return store.subscribe(apply);
-  }, [tools]);
+  }, [tools, governed]);
   const toggleSticky = useCallback((t: Tool) => {
     setSticky((prev) => {
       if (prev.locked && prev.tool === t) return { tool: null, locked: false };
@@ -483,17 +489,20 @@ export function MaybeToolProvider({
   children,
   initial,
   initialMode,
+  governed,
 }: {
   children: ReactNode;
   /** DDR-223 — forwarded so the comment-mount layer can pin bare DS
    *  specimens to the preview/`browse` posture (see canvas-comment-mount). */
   initial?: Tool;
   initialMode?: CanvasMode;
+  /** V2-4.3b — canvas-lib's `DesignCanvas` instance (see ToolProvider). */
+  governed?: boolean;
 }) {
   const outer = useContext(ToolContext);
   if (outer) return <>{children}</>;
   return (
-    <ToolProvider initial={initial} initialMode={initialMode}>
+    <ToolProvider initial={initial} initialMode={initialMode} governed={governed}>
       {children}
     </ToolProvider>
   );
