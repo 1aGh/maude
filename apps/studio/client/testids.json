@@ -4763,25 +4763,25 @@
     "hook": "palette-mode-preview",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Tool palette mode segment: Preview (`aria-pressed`).",
+    "meaning": "Share cluster mode switch: Preview (`aria-pressed`). Moved from the canvas tool palette in V2-4.3b; the id is kept (V2-1.2 §5.5 rule 5).",
     "producer": {
-      "file": "apps/studio/tool-palette.tsx",
-      "symbol": "ToolPalette"
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
     },
-    "region": "canvas iframe chrome",
+    "region": "other",
     "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "palette-mode-edit",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Tool palette mode segment: Edit (`aria-pressed`).",
+    "meaning": "Share cluster mode switch: Edit (`aria-pressed`; editors only — absent for viewing roles). Moved from the canvas tool palette in V2-4.3b; the id is kept (rule 5).",
     "producer": {
-      "file": "apps/studio/tool-palette.tsx",
-      "symbol": "ToolPalette"
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
     },
-    "region": "canvas iframe chrome",
+    "region": "other",
     "consumers": [
       ".ai/scenarios/reliable-project-multiplayer/runners/f3/s09-browser.mjs",
       "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts",
@@ -4789,20 +4789,85 @@
       "apps/desktop/e2e/multiplayer/surface.e2e.ts",
       "apps/studio/test/mode-toggle.test.tsx"
     ],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "palette-mode-present",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Tool palette mode segment: Present (posts `present-enter` to the shell).",
+    "meaning": "Share cluster mode switch: Present (`aria-pressed` while presenting; presents the canvas until S3). Was the palette segment that posted the retired `present-enter`.",
     "producer": {
-      "file": "apps/studio/tool-palette.tsx",
-      "symbol": "ToolPalette"
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
     },
-    "region": "canvas iframe chrome",
+    "region": "other",
     "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
-    "v2": "moves"
+    "v2": "stable"
+  },
+  {
+    "hook": "palette-mode-viewing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Share cluster mode switch: Viewing, the first slot for Can view / Can comment (`aria-pressed`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-cluster-mode",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The mode switch group in the Share cluster (Edit|Viewing · Preview · Present).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ — the chevron that opens Present’s small menu (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present’s small menu (role=menu).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Present the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "artboard-rename-<id>",

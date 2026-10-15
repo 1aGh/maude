@@ -66,3 +66,58 @@ const TOOL_SET: ReadonlySet<string> = new Set(TOOL_IDS);
 export const isCanvasMode = (v: unknown): v is CanvasModeV2 =>
   typeof v === 'string' && MODE_SET.has(v);
 export const isToolId = (v: unknown): v is ToolId => typeof v === 'string' && TOOL_SET.has(v);
+
+// ─── the governed path's pure helpers (§5.4; landed with V2-4.3b) ─────────────────────────────────
+//
+// v1 bridge: until the two v2 toolbars land (V2-4.5) the canvas still runs DDR-223's binary
+// `preview | edit` posture over the v1 tools. A governed mode maps onto it:
+//   edit    → edit / `move`
+//   viewing → edit / `move`      a read-only `move` IS v1's "select & inspect" (`inspect` is S3's)
+//   preview → preview / `browse`
+//   present → preview / `browse`  Present · Canvas: clicks pan (Present · Artboards is S3's)
+
+export const NO_CAPS: Readonly<ModeCaps> = Object.freeze({
+  edit: false,
+  annotate: false,
+  comment: false,
+});
+export const ALL_CAPS: Readonly<ModeCaps> = Object.freeze({
+  edit: true,
+  annotate: true,
+  comment: true,
+});
+
+/** Where esc ends. */
+export const baseMode = (caps: ModeCaps): CanvasModeV2 => (caps.edit ? 'edit' : 'viewing');
+/** DDR-223's boot posture: editors open in Edit, a view-only link in Preview (04 md-edge-viewer). */
+export const initialMode = (caps: ModeCaps): CanvasModeV2 => (caps.edit ? 'edit' : 'preview');
+
+/** Defence in depth behind the shell: a role without edit rights never lands in Edit, and Viewing is
+ *  the read-only slot, so an editor asking for it gets Edit. */
+export function clampMode(m: CanvasModeV2, caps: ModeCaps): CanvasModeV2 {
+  if (m === 'edit' && !caps.edit) return 'viewing';
+  if (m === 'viewing' && caps.edit) return 'edit';
+  return m;
+}
+
+/** The v1 posture a governed mode runs on (see the note above). */
+export const V1_POSTURE: Readonly<Record<CanvasModeV2, 'preview' | 'edit'>> = Object.freeze({
+  edit: 'edit',
+  viewing: 'edit',
+  preview: 'preview',
+  present: 'preview',
+});
+/** The resting tool each governed mode arms (v1 ids until V2-4.5). */
+export const REST_TOOL: Readonly<Record<CanvasModeV2, ToolId>> = Object.freeze({
+  edit: 'move',
+  viewing: 'move',
+  preview: 'browse',
+  present: 'browse',
+});
+
+/** The mode that arming `t` implies while governed — null for the mode-neutral annotation tools. */
+export function governedModeOfTool(t: string, caps: ModeCaps): CanvasModeV2 | null {
+  if (t === 'browse') return 'preview';
+  if (t === 'move') return caps.edit ? 'edit' : 'viewing';
+  return null;
+}

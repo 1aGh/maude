@@ -139,9 +139,12 @@ describe('canvas→shell messages that act on the active canvas (V2-2.8 S1, shel
   test('V2-2.10 — every active-gated type refuses null === null (no canvas open, discarded source)', async () => {
     // present-enter / delete-request compared `e.source === activeWin` without `activeWin &&`:
     // with no active canvas both sides are null. The table's one up-front gate closes it.
+    // V2-4.3b retired `present-enter` (Present is the Share cluster's; a canvas asks through
+    // `mode-request`, mode-lane.test) — it presents from no frame at all now, the active one included.
     const present: unknown[] = [];
-    await mount(null, { setPresentMode: (v: unknown) => present.push(v) });
+    await mount(ACTIVE, { setPresentMode: (v: unknown) => present.push(v) });
     post(null, { dgn: 'present-enter' });
+    post(activeWin, { dgn: 'present-enter' });
     expect(present).toEqual([]);
   });
 

@@ -1152,8 +1152,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               for (const p of all) await openCanvas(p, rel);
               for (const p of all) await until(async () => (await p.read('h1', true)) !== null);
               const before = bytes(from.root, rel).toString();
-              await until(async () => !!(await from.probe(selector('palette-mode-edit')))?.visible);
-              await gesture(from, selector('palette-mode-edit'), 'click');
+              await until(async () => (await from.read(selector('palette-mode-edit'))) !== null);
+              await from.click(selector('palette-mode-edit'));
               const editor = 'h1[contenteditable="plaintext-only"]';
               // Double-click drills the real selection hierarchy before entering
               // the leaf editor, matching the existing native text-edit scenario.
@@ -1220,8 +1220,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           }
           window[key].push({ at: performance.now(), kind: 'preparation-start' });
         })()`);
-        await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
-        await gesture(p, selector('palette-mode-edit'), 'click');
+        await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
+        await p.click(selector('palette-mode-edit'));
         const selectedValue = '[aria-label="Selected element"] .val';
         // Discard the parked selection through the visible shell control.
         // Waiting for it to disappear prevents a same-id heading in the old
@@ -1730,9 +1730,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             for (const p of all) {
               await openCanvas(p, `ui/${name}.tsx`);
               await until(async () => (await p.read('h1', true)) === 'Surface shapes baseline');
-              await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+              await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             }
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const shapeButton = '[aria-label^="Shape (R)"]';
             await gesture(from, shapeButton, 'click');
             await until(
@@ -1778,7 +1778,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             if (!shapeId) throw new Unexercised('Shape creation did not establish an ID');
             const before = await snapshot();
             const old = shapeDisk(from, shapeId);
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const start = performance.now();
             await gesture(from, q(), 'pointer', { dx: 65, dy: 35 });
             return observeAll(
@@ -1824,7 +1824,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await check(`L09.shape-${kind}.delete`, `${from.name}-to-peers`, async () => {
             if (!shapeId) throw new Unexercised('Shape creation did not establish an ID');
             await snapshot();
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             await gesture(from, q(), 'pointer');
             const start = performance.now();
             await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -1895,9 +1895,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             for (const p of all) {
               await openCanvas(p, `ui/${name}.tsx`);
               await until(async () => (await p.read('h1', true)) === 'Surface drawing baseline');
-              await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+              await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             }
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const button = `[aria-label^="${label} ("]`;
             await gesture(from, button, 'click');
             await until(
@@ -1947,7 +1947,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (kind === 'text' || kind === 'section') {
             await check(`L09.${kind}.edit-text`, `${from.name}-to-peers`, async () => {
               await snapshot();
-              await gesture(from, selector('palette-mode-edit'), 'click');
+              await from.click(selector('palette-mode-edit'));
               await gesture(from, grabQ(), 'doubleClick');
               // A section's title is renamed in its chip; a text in place.
               const editor =
@@ -1972,7 +1972,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await check(`L09.${kind}.${action}`, `${from.name}-to-peers`, async () => {
               const before = await snapshot();
               const old = drawingDisk(from, drawingId);
-              await gesture(from, selector('palette-mode-edit'), 'click');
+              await from.click(selector('palette-mode-edit'));
               let target = grabQ();
               if (action === 'resize') {
                 await gesture(from, grabQ(), 'pointer');
@@ -2023,7 +2023,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           }
           await check(`L09.${kind}.delete`, `${from.name}-to-peers`, async () => {
             await snapshot();
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             await gesture(from, grabQ(), 'pointer');
             const start = performance.now();
             await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -2070,7 +2070,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // strokes under the next direction's resize/selection gestures.
             await openCanvas(p, `ui/${notesCanvas}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface media baseline');
-            await gesture(p, selector('palette-mode-edit'), 'click');
+            await p.click(selector('palette-mode-edit'));
           }
           const before = new Set(
             (await from.probe('[data-tool="sticky"][data-id]'))?.matches?.map((m) => m.id)
@@ -2130,7 +2130,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               return result.rect;
             })
           );
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           const oldDisk = stickyDisk(from, strokeId);
           const start = performance.now();
           await gesture(from, q, 'pointer', { dx: 80, dy: 35 });
@@ -2206,7 +2206,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q))?.visible)
               throw new Error(`Delete precondition absent at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q, 'pointer');
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -2265,9 +2265,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all) {
             await openCanvas(p, `ui/${name}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface drawing baseline');
-            await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+            await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
           }
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, '[aria-label^="Pen ("]', 'click');
           await until(
             async () => !!(await from.probe('[aria-label^="Pen ("][aria-pressed="true"]'))?.visible
@@ -2354,7 +2354,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all) {
             await openCanvas(p, `ui/${name}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface upload baseline');
-            await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+            await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             if ((await p.probe('[data-type="image"][data-id]')) !== null)
               throw new Unexercised(`Upload requires a clean image fixture at ${p.name}`);
           }
@@ -2713,7 +2713,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             for (const p of all) await until(async () => bright(p), 30000);
             const before = await Promise.all(all.map(async (p) => (await p.probe(q()))?.rect));
             const start = performance.now();
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             await gesture(from, q(), 'pointer', { dx: 60, dy: 30 });
             return observeAll(
               all,
@@ -2775,7 +2775,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q))?.visible)
               throw new Unexercised(`Image not rendered before replace at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q, 'contextMenu');
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
@@ -2862,7 +2862,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               throw new Unexercised(
                 `Image must be rendered and persisted before deletion at ${p.name}`
               );
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q, 'pointer');
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -3002,7 +3002,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q()))?.visible)
               throw new Unexercised(`Video not rendered before replace at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, `${q()} > text`, 'contextMenu');
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
@@ -3063,7 +3063,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           for (const p of all)
             if (!(await p.probe(q()))?.visible || !drawingDisk(p, videoId))
               throw new Unexercised(`Video reference absent before deletion at ${p.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, `${q()} > text`, 'pointer');
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Backspace' });
@@ -4113,7 +4113,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         });
         const toolbar = '[aria-label="Annotation properties"]';
         const select = async (targets: string[]) => {
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           // Start from nothing: Shift+click on an element already in the
           // selection removes it (annotations v2), so re-selecting the same
           // three from the previous step would leave only the first.
@@ -4371,7 +4371,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const q = (id: string) => `[data-id="${id}"]`;
         // A section is grabbed by its title chip; its body is click-through.
         const chip = (id: string) => `${q(id)} [data-section-chip="1"]`;
-        const editMode = (p: Surface) => gesture(p, selector('palette-mode-edit'), 'click');
+        const editMode = (p: Surface) => p.click(selector('palette-mode-edit'));
         const stickyEditor = '[aria-label="Edit sticky note text"]';
         const swatch = (c: string) =>
           `[aria-label="Annotation properties"] [aria-label="Sticky color ${c}"]`;
@@ -4995,7 +4995,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           });
           await check('L19.selection.shown', `${from.name}-to-peers`, async () => {
             const others = all.filter((p) => p !== from);
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const start = performance.now();
             // A press, not a bare click event: the canvas selects on pointerdown.
             await gesture(from, 'h1', 'pointer');
@@ -5044,7 +5044,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             (p, i) =>
               (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null) !== metaBefore[i]
           );
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           return {
             status: leaked.length === 0 && !contentChanged && !metaChanged ? 'pass' : 'fail',
             viewChangedAt: leaked,
@@ -5244,7 +5244,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               async () => (await peer.read('h1', true)) === 'Edited offline by peer',
               30000
             );
-            await gesture(peer, selector('palette-mode-edit'), 'click');
+            await peer.click(selector('palette-mode-edit'));
             await gesture(peer, '[aria-label^="Sticky ("]', 'click');
             await until(async () => !!(await peer.probe('.dc-annot-input'))?.visible, 30000);
             await gesture(peer, '.dc-annot-input', 'pointer', { x: 0.3, y: 0.3, dx: 130, dy: 100 });
@@ -6141,7 +6141,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L10.sticker.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Stickers ${from.name}`));
           await openSeeded(rel, `Stickers ${from.name}`, `L10-${from.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           const before = new Set(
             (await from.probe('[data-tool="image"][data-id]'))?.matches?.map((m) => m.id)
           );
@@ -6229,7 +6229,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (!id) throw new Unexercised('Add did not produce a sticker');
           const sid = id;
           const next = 'assets/surface-pattern.png';
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, q(sid), 'contextMenu');
           const replace = '.dc-context-menu [data-action="replace"]';
           await until(async () => !!(await from.probe(replace))?.visible);
@@ -6391,7 +6391,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // The palette's "+ Element → Text" appends to the active artboard.
           const texts = (p: Surface) => count(p, rel, '<p\\b');
           const before = all.map((p) => texts(p));
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           await gesture(from, '[aria-label="Insert element — Div, Text, or Image"]', 'click');
           await until(
             async () =>
@@ -6612,7 +6612,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L08.artboard.resize', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, boardsCanvas(`Board size ${from.name}`));
           await openSeeded(rel, `Board size ${from.name}`, `L08-size-${from.name}`);
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           // The artboard itself (its empty area), not its name: the name
           // selects it for board actions, the body for the resize handles.
           await gesture(from, '[data-dc-screen="main"] .dc-artboard-body', 'pointer', {
@@ -6703,7 +6703,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // heading in its leaf editor while another restyles the paragraph from
       // the inspector. Both changes survive everywhere, nobody gets a conflict.
       const selectEl = async (p: Surface, q: string) => {
-        await gesture(p, selector('palette-mode-edit'), 'click');
+        await p.click(selector('palette-mode-edit'));
         for (let level = 0; level < 6; level++) {
           const chip = (await p.read('.st-sb-sel .val')) ?? '';
           if ((await p.read(weight)) !== null && chip.includes('Kept paragraph')) return;
@@ -6720,7 +6720,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await seedCanvas(from, rel, elementCanvas(`Independent ${from.name}`));
           await openSeeded(rel, `Independent ${from.name}`, `L21-ind-${from.name}`);
           await selectEl(other, 'p');
-          await gesture(from, selector('palette-mode-edit'), 'click');
+          await from.click(selector('palette-mode-edit'));
           const editor = 'h1[contenteditable="plaintext-only"]';
           for (let level = 0; level < 12 && !(await from.probe(editor))?.visible; level++) {
             await gesture(from, 'h1', 'doubleClick');
@@ -7304,7 +7304,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => !!(await from.probe('[data-id="s_gesture"]'))?.visible, 15000);
             beforeDrag = disk(from);
             const seen = new Set((await projectHistory()).map((a) => JSON.stringify(a)));
-            await gesture(from, selector('palette-mode-edit'), 'click');
+            await from.click(selector('palette-mode-edit'));
             const start = performance.now();
             // A dozen moves while held, like a hand settling a shape (the probe
             // answers within a second, so the hold stays under it).

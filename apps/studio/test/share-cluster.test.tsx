@@ -4,7 +4,7 @@
 //  · every button runs the shell's action through `run(id)` — view.comments, view.exports, view.panels,
 //    share.open — never a handler of its own;
 //  · the island declares `data-occludes="top"` (docked in the pinned column: no edge);
-//  · the mode switch's slot (V2-4.3b) renders nothing yet.
+//  · the mode switch's slot sits after Comments (V2-4.3b fills it; mode-toggle.test covers the switch).
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
@@ -183,7 +183,7 @@ describe('the cluster', () => {
     expect(b.q('share-cluster')?.getAttribute('data-docked')).toBe('true');
   });
 
-  test('the mode switch’s slot (V2-4.3b) renders nothing yet, and fills when given something', async () => {
+  test('the mode switch’s slot sits after Comments (the host fills it with ModeSwitch — mode-toggle.test)', async () => {
     const a = await mount();
     const order = [...(a.q('share-cluster')?.children ?? [])].map((c) =>
       c.getAttribute('data-testid')

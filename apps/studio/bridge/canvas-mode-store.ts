@@ -5,9 +5,23 @@
 // One idempotent `message` listener, installed on first use, applies the shell's `occluded-insets`
 // through the typed table (parent-gated, validated, an older `seq` dropped — §5.6 I4). The camera
 // consumers read `insets` when they compute (Fit, reveal); an inset change alone never moves the
-// camera (I1). `set-mode` (and with it `mode` / `caps`) joins the snapshot with the dormant governed
-// path (V2-2.10e); nothing in the v1 shell sends either message yet.
+// camera (I1).
+//
+// The same listener applies the shell's `set-mode` (V2-4.3b — the governed path, §5.4): parent-gated,
+// an older `seq` dropped, the mode clamped by the caps (and by a `?ro=1` canvas). The first applied
+// `set-mode` makes the document GOVERNED; from then on the `ToolProvider`s adopt `mode` from here and
+// a cross-mode gesture becomes a `mode-request`. `claimEcho(seq)` lets exactly one provider echo each
+// applied `set-mode` as `mode-changed` (M2), however many providers the document mounts.
 
+import { isReadOnlyCanvas } from '../read-only-mode.ts';
+import {
+  type CanvasModeV2,
+  clampMode,
+  governedModeOfTool,
+  type ModeCaps,
+  type PresentSpec,
+  type ToolId,
+} from './canvas-modes.ts';
 import { acceptFromShell } from './dgn-protocol.ts';
 import { type Insets, ZERO_INSETS } from './occlusion.ts';
 
@@ -15,20 +29,52 @@ export interface CanvasModeSnapshot {
   readonly insets: Readonly<Insets>;
   /** The `seq` of the applied `occluded-insets` (-1 = none yet). */
   readonly insetsSeq: number;
+  /** Governed (V2-4.3b): the shell's mode; null until the first applied `set-mode`. */
+  readonly mode: CanvasModeV2 | null;
+  readonly present: PresentSpec | null;
+  readonly caps: Readonly<ModeCaps> | null;
+  /** The `seq` of the applied `set-mode` (-1 = none yet). */
+  readonly modeSeq: number;
+  /** The tool the shell asked for with this `set-mode` (null = keep the tool, or the mode's rest
+   *  when the mode changed). Already checked against the mode. */
+  readonly tool: ToolId | null;
+  /** The mode before this `set-mode` (null on the first one). */
+  readonly prevMode: CanvasModeV2 | null;
+  /** The requested mode was clamped (echo cause `clamp`). */
+  readonly clamped: boolean;
 }
 
 export interface CanvasModeStore {
   get(): CanvasModeSnapshot;
   subscribe(fn: (s: CanvasModeSnapshot) => void): () => void;
+  /** True for the first caller per applied `set-mode` seq — that caller posts the one echo. */
+  claimEcho(seq: number): boolean;
+  /** True once per distinct `mode-request` until the next applied `set-mode` (or 250 ms): both providers
+   *  see the same keydown, so the document asks the shell once. */
+  claimRequest(key: string): boolean;
 }
 
 const KEY = Symbol.for('maude.canvasMode.v2');
 
 export function canvasModeStore(win: Window): CanvasModeStore {
   const slot = win as unknown as Record<symbol, CanvasModeStore | undefined>;
-  const existing = slot[KEY];
-  if (existing) return existing;
-  let snap: CanvasModeSnapshot = { insets: ZERO_INSETS, insetsSeq: -1 };
+  const existing = slot[KEY] as (CanvasModeStore & { doc?: unknown }) | undefined;
+  // Keyed to the document too: a test runner that re-registers a DOM onto the same global keeps the
+  // slot but drops its listeners (a real window keeps its document across soft HMR).
+  if (existing && existing.doc === win.document) return existing;
+  let snap: CanvasModeSnapshot = {
+    insets: ZERO_INSETS,
+    insetsSeq: -1,
+    mode: null,
+    present: null,
+    caps: null,
+    modeSeq: -1,
+    tool: null,
+    prevMode: null,
+    clamped: false,
+  };
+  let echoed = -1;
+  let asked = new Map<string, number>(); // key → when (a denied request may be asked again later)
   const subs = new Set<(s: CanvasModeSnapshot) => void>();
   const store: CanvasModeStore = {
     get: () => snap,
@@ -38,14 +84,49 @@ export function canvasModeStore(win: Window): CanvasModeStore {
         subs.delete(fn);
       };
     },
+    claimEcho(seq) {
+      if (seq !== snap.modeSeq || seq <= echoed) return false;
+      echoed = seq;
+      return true;
+    },
+    claimRequest(key) {
+      const now = Date.now();
+      const at = asked.get(key);
+      if (at !== undefined && now - at < 250) return false;
+      asked.set(key, now);
+      return true;
+    },
   };
   win.addEventListener('message', (e: MessageEvent) => {
     const m = acceptFromShell(e, win);
+    if (m?.dgn === 'set-mode') {
+      if (m.seq <= snap.modeSeq) return; // an older (or repeated) seq is dropped, like I4
+      asked = new Map();
+      const caps: ModeCaps = isReadOnlyCanvas()
+        ? { edit: false, annotate: false, comment: m.caps.comment }
+        : { ...m.caps };
+      const mode = clampMode(m.mode, caps);
+      const toolMode = m.tool ? governedModeOfTool(m.tool, caps) : null;
+      const tool = m.tool && (toolMode === null || toolMode === mode) ? m.tool : null;
+      snap = {
+        ...snap,
+        mode,
+        present: mode === 'present' ? (m.present ?? { kind: 'canvas' }) : null,
+        caps: Object.freeze(caps),
+        modeSeq: m.seq,
+        tool,
+        prevMode: snap.mode,
+        clamped: mode !== m.mode,
+      };
+      for (const fn of subs) fn(snap);
+      return;
+    }
     if (m?.dgn !== 'occluded-insets') return;
     if (m.seq <= snap.insetsSeq) return; // I4 — an older (or repeated) seq is dropped
     snap = { ...snap, insets: Object.freeze({ ...m.insets }), insetsSeq: m.seq };
     for (const fn of subs) fn(snap);
   });
+  Object.defineProperty(store, 'doc', { value: win.document });
   slot[KEY] = store;
   return store;
 }

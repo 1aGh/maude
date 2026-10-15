@@ -70,7 +70,6 @@ export function useCanvasBridge({
   minimapVisible,
   zoomCtlVisible,
   presentMode,
-  setPresentMode,
   setActiveArtboards,
   iframesRef,
   postToActiveCanvas,
@@ -716,25 +715,10 @@ export function useCanvasBridge({
         // target from that selection's `photoAsset`).
         openRightPanel('inspector');
         if (typeof m.tab === 'string') setInspectorTab(m.tab);
-      } else if (m.dgn === 'present-enter') {
-        // Canvas tool-palette "Presentation mode" button — Present Mode is a
-        // shell-level state (hides the menubar / sidebar / panels), so the
-        // canvas requests it here and the shell flips it on + broadcasts
-        // dgn:'view-chrome' back to every iframe. Enter-only (the palette is
-        // hidden while presenting); exit is Esc or the floating pill. The
-        // inbound origin gate above (DDR-054) already authenticates the canvas.
-        // Hardening (phase-28 audit F-2): honor it ONLY from the ACTIVE canvas
-        // (a background tab's untrusted canvas must not flip the foreground),
-        // and NEVER while a modal dialog is open — present mode hides Sidebar-
-        // descendant modals (OAuth device-code / Share-invite), so an untrusted
-        // canvas could otherwise blank an in-flight confirmation.
-        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        const modalOpen = !!document.querySelector('[role="dialog"][aria-modal="true"]');
-        if (e.source === activeWin && !modalOpen && !presentMode) {
-          setPresentMode(true);
-          broadcastChrome({ present: true });
-        }
       } else if (m.dgn === 'comment-compose' && m.selection) {
+        // (`present-enter` retired in V2-4.3b: Present lives in the Share cluster's mode switch, and
+        // a canvas asks for a mode through `mode-request` — the same active + no-modal hardening
+        // (phase-28 F-2), generalised as M4 in v2/shell/use-canvas-mode-lane.js.)
         // Phase 6 — the iframe overlay owns the composer surface now. The
         // shell just mirrors `selected` so the StatusBar / sidebar still
         // reflect the target, and skips the legacy `startDraftFor` path that

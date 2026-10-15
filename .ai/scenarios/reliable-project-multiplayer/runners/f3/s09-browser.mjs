@@ -79,7 +79,7 @@ try {
   result.steps.cameraAndPresence = { newRevisions: afterCamera.length - startLog };
 
   // A persistent comment through the real comment tool.
-  await frame.locator('[data-testid="palette-mode-edit"]').click().catch(() => {});
+  await page.locator('[data-testid="palette-mode-edit"]').click().catch(() => {}); // shell document since V2-4.3b
   await frame.locator('.dc-tool-palette button[aria-label^="Comment"]').click();
   await frame.locator('h1').click();
   await frame.locator('[aria-label="Comment body"]').fill(`S09 comment ${tag}`);
@@ -100,7 +100,7 @@ try {
 
   // A persistent artboard layout move.
   await page.keyboard.press('Escape');
-  await frame.locator('[data-testid="palette-mode-edit"]').click().catch(() => {});
+  await page.locator('[data-testid="palette-mode-edit"]').click().catch(() => {}); // shell document since V2-4.3b
   const label = frame.locator('[data-dc-screen="main"] .dc-artboard-label');
   const lb = await label.boundingBox();
   await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);

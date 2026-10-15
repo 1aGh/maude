@@ -22,9 +22,41 @@ import {
   useState,
 } from 'react';
 
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import {
+  baseMode,
+  type CanvasModeV2,
+  governedModeOfTool,
+  type ModeCaps,
+  REST_TOOL,
+  V1_POSTURE,
+} from './bridge/canvas-modes.ts';
 import { TOOL_CURSORS } from './canvas-cursors.ts';
 import type { Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
+
+/** V2-4.3b — the governed path (V2-1.2 §5.4): once the shell has sent its first `set-mode`, the mode
+ *  is the shell's. A gesture that would cross modes asks the shell (`mode-request`) instead of moving
+ *  the mode here (M1, M3). Literal posts, so the dgn inventory sees the send sites. */
+function requestMode(mode: CanvasModeV2, tool?: Tool): void {
+  if (typeof window === 'undefined' || window.parent === window) return;
+  if (!canvasModeStore(window).claimRequest(`${mode}|${tool ?? ''}`)) return;
+  try {
+    window.parent.postMessage(
+      tool
+        ? { dgn: 'mode-request', mode, tool, cause: 'toolbar' }
+        : { dgn: 'mode-request', mode, cause: 'toolbar' },
+      '*'
+    );
+  } catch {
+    /* detached */
+  }
+}
+
+interface Governed {
+  mode: CanvasModeV2;
+  caps: ModeCaps;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -182,11 +214,29 @@ export function ToolProvider({
     tool: null,
     locked: false,
   }));
+  // V2-4.3b — governed once the shell's first `set-mode` is applied (null = v1, DDR-223 byte for byte).
+  const govRef = useRef<Governed | null>(null);
   const setTool = useCallback(
     (t: Tool) => {
       // Refuse tools that aren't offered (read-only filtering above) — a
       // shortcut or postMessage can't arm a tool the palette doesn't show.
       if (!tools.some((d) => d.id === t)) return;
+      const gov = govRef.current;
+      if (gov) {
+        // Governed: a tool whose posture is another mode's is a request to the shell, never a local
+        // mode change. Present keeps its posture: a stray resting-tool arm there (an Esc ladder, a
+        // letter key) neither leaves Present nor asks to — esc out of Present is the shell's.
+        const m = governedModeOfTool(t, gov.caps);
+        if (m && V1_POSTURE[m] !== V1_POSTURE[gov.mode]) {
+          if (gov.mode !== 'present') requestMode(m, t);
+          return;
+        }
+        setToolState(t);
+        setSticky((prev) =>
+          prev.locked && prev.tool === t ? prev : { tool: null, locked: false }
+        );
+        return;
+      }
       setToolState(t);
       // DDR-223 — mode⇄tool invariant: arming a resting tool moves the mode
       // with it, so V, the menubar `tool-set` lane, and the Cmd+click-in-
@@ -208,6 +258,11 @@ export function ToolProvider({
       // Switching mode arms its resting tool (Figma-style: the toggle IS the
       // posture). Read-only keeps both browse+move on its allowlist, so the
       // guard below never fires there; it exists for exotic custom `tools`.
+      const gov = govRef.current;
+      if (gov) {
+        requestMode(m === 'edit' ? baseMode(gov.caps) : 'preview');
+        return;
+      }
       const rest = MODE_DEFAULT_TOOL[m];
       if (!tools.some((d) => d.id === rest)) return;
       setModeState(m);
@@ -219,8 +274,63 @@ export function ToolProvider({
     [tools]
   );
   const resetTool = useCallback(() => {
-    setTool(MODE_DEFAULT_TOOL[mode]);
+    const gov = govRef.current;
+    setTool(gov ? (REST_TOOL[gov.mode] as Tool) : MODE_DEFAULT_TOOL[mode]);
   }, [mode, setTool]);
+
+  // V2-4.3b — adopt the shell's `set-mode` from the document's one mode store (both provider
+  // instances read the same snapshot, so they cannot disagree). The mode's resting tool is armed when
+  // the mode changes or the shell names a tool; a seed that repeats the current mode keeps the tool.
+  // Exactly one provider per document echoes each applied seq (M2).
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const toolNowRef = useRef(tool);
+  toolNowRef.current = tool;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const store = canvasModeStore(window);
+    let lastSeq = -1;
+    // This provider's own last governed mode: one that mounts after the shell's seeds (the
+    // comment-mount and canvas-lib bundles mount at different times) compares against ITS state.
+    let lastMode: CanvasModeV2 | null = null;
+    const apply = () => {
+      const s = store.get();
+      if (s.mode === null || !s.caps || s.modeSeq <= lastSeq) return;
+      lastSeq = s.modeSeq;
+      govRef.current = { mode: s.mode, caps: s.caps };
+      const posture = V1_POSTURE[s.mode];
+      const changed = lastMode === null ? modeRef.current !== posture : lastMode !== s.mode;
+      lastMode = s.mode;
+      const want: Tool | null =
+        (s.tool as Tool | null) ?? (changed ? (REST_TOOL[s.mode] as Tool) : null);
+      const arm = want && tools.some((d) => d.id === want) ? want : null;
+      setModeState(posture);
+      if (arm) {
+        setToolState(arm);
+        toolNowRef.current = arm;
+      }
+      if (changed) setSticky({ tool: null, locked: false }); // Q7 — a lock never survives a mode change
+      if (store.claimEcho(s.modeSeq) && window.parent !== window) {
+        try {
+          window.parent.postMessage(
+            {
+              dgn: 'mode-changed',
+              seq: s.modeSeq,
+              mode: s.mode,
+              tool: arm ?? toolNowRef.current,
+              present: s.present,
+              cause: s.clamped ? 'clamp' : 'set-mode',
+            },
+            '*'
+          );
+        } catch {
+          /* detached */
+        }
+      }
+    };
+    apply(); // the shell may have spoken before this provider mounted
+    return store.subscribe(apply);
+  }, [tools]);
   const toggleSticky = useCallback((t: Tool) => {
     setSticky((prev) => {
       if (prev.locked && prev.tool === t) return { tool: null, locked: false };

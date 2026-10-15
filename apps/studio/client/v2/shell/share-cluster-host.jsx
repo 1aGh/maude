@@ -17,9 +17,11 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { menuRunner } from './menu-runner.js';
+import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
 import { accessStatus, exportsRing, facesOf, outboxPending, saveStatus } from './save-status.js';
 import { ShareCluster } from './share-cluster.jsx';
+import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
 import { isNativeApp } from '../../github.js';
 
@@ -73,12 +75,15 @@ export function ShellShareCluster() {
       commentsPanelOpen,
       exportCenter,
       gitUser,
+      iframesRef,
+      presentMode,
       project,
       syncStatus,
       viewerMode,
     },
     keyboardShortcuts: { totalOpen },
     paletteAndPanels: { rightActive },
+    photoAndTimeline: { togglePresent, exitPresent },
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
@@ -102,7 +107,21 @@ export function ShellShareCluster() {
   // "Show in Finder" has no reveal path in the shell yet (Diagnostics › Project folder, V2-4.7).
   const shown = { ...status, actions: status.actions.filter((a) => a.id !== 'show-in-finder') };
 
-  const faces = useMemo(() => facesOf({ you: gitUser, agentActive }), [gitUser, agentActive]);
+  // V2-4.3b — the mode lane: the switch below sends `set-mode`; the active canvas reports its peers.
+  const lane = useCanvasModeLane({
+    activePath,
+    iframesRef,
+    cfg,
+    canEdit: !viewerMode,
+    role: cfg?.cloud?.role,
+    presenting: !!presentMode,
+    togglePresent,
+    exitPresent,
+  });
+  const faces = useMemo(
+    () => facesOf({ you: gitUser, agentActive, peers: lane.peers }),
+    [gitUser, agentActive, lane.peers]
+  );
   const ex = useMemo(() => exportsRing(exportCenter?.jobs), [exportCenter?.jobs]);
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const ctx = useMemo(
@@ -141,6 +160,16 @@ export function ShellShareCluster() {
       // `share.ask-to-edit`, no sender registered). Until then it says what to do, as the menubar does.
       onAskToEdit={() => shellToast('Ask a project owner for edit access.')}
       docked={pinned && !panelsHidden && !!rightActive}
+      mode={lane.mode}
+      modeSlot={
+        <ModeSwitch
+          mode={lane.mode}
+          caps={lane.caps}
+          onSelect={lane.select}
+          onPresentCanvas={() => lane.select('present')}
+          canPresent={canvasOpen}
+        />
+      }
     />
   );
 }

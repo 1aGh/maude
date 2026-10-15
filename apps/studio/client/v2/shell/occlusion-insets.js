@@ -90,6 +90,14 @@ export function createInsetsPump({ measure, send, schedule, cancel = () => {} })
       if (disposed || handle !== null) return;
       handle = schedule(flush) ?? true;
     },
+    /** V2-4.3b — measure and send NOW (dropping a pending frame): the mode lane calls this right
+     *  after a fold committed, so the target insets precede its `set-mode` (§5.6). */
+    flushNow() {
+      if (disposed) return;
+      if (handle !== null && handle !== true) cancel(handle);
+      handle = null;
+      flush();
+    },
     /** Send the current insets to ONE canvas (a freshly loaded iframe) whether or not they changed.
      *  Newer seq than anything sent so far, so the canvas never drops it and older frames never win. */
     seed(to) {

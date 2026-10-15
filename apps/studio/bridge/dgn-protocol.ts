@@ -152,14 +152,17 @@ export interface CanvasToShell {
   key: { v: 1; chord: string; hint?: { artboardId?: Id } };
   // mode / tools
   'tool-cursor': { tool: ToolId };
-  'present-enter': Empty;
+  // (`present-enter` retired in V2-4.3b: Present lives in the Share cluster, shell-local)
+  // V2-4.3b — who else is on the active canvas, from its Yjs awareness, for the Share cluster's faces.
+  // Untrusted text: ≤ PEERS_MAX peers, names ≤ PEER_NAME_MAX, rendered as text only.
+  peers: { peers: Array<{ clientID: number; name: string; color?: string }> };
   // legacy, no in-tree sender (accepted today; removal needs a characterization proof)
   select: { selection: Selection };
   'clear-select': Empty;
   artboards: { count: number };
   'insert-artboard-request': { id?: Id; label?: string; width?: number; height?: number };
 
-  // ── NEW (V2-1.2) — declared; the governed path that sends / handles them is V2-2.10e+ ──
+  // ── V2-1.2 mode lane — live since V2-4.3b (set-mode / mode-changed / mode-request); the rest new ──
   'mode-changed': {
     seq: number;
     mode: CanvasModeV2;
@@ -382,6 +385,23 @@ const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
 const caps = shape({ edit: bool, annotate: bool, comment: bool });
 const insets: V = (v) => clampInsets(v) ?? BAD;
+/** `peers` (V2-4.3b): a planted or oversized list is REJECTED whole, never trimmed. */
+export const PEERS_MAX = 32;
+export const PEER_NAME_MAX = 64;
+const PEER_COLOR = /^(#[0-9a-f]{3,8}|oklch\([0-9.%\s/-]{1,40}\))$/i;
+const peerList: V = (v) => {
+  if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
+  const out: Array<{ clientID: number; name: string; color?: string }> = [];
+  for (const x of v) {
+    if (!isPlain(x)) return BAD;
+    const { clientID, name, color } = x;
+    if (typeof clientID !== 'number' || !Number.isSafeInteger(clientID) || clientID < 0) return BAD;
+    if (typeof name !== 'string' || name.length > PEER_NAME_MAX) return BAD;
+    if (color !== undefined && (typeof color !== 'string' || !PEER_COLOR.test(color))) return BAD;
+    out.push(color === undefined ? { clientID, name } : { clientID, name, color });
+  }
+  return out;
+};
 
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
@@ -658,7 +678,12 @@ const c2s: C2S = {
     parse: p({ v: lit(1), chord: str, hint: opt(shape({ artboardId: opt(str) })) }),
   },
   'tool-cursor': { gate: 'active', status: 'live', owner: BR, parse: p({ tool: str }) },
-  'present-enter': { gate: 'active', status: 'legacy', owner: BR, parse: none },
+  peers: {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/shell/use-canvas-mode-lane (V2-4.3b)',
+    parse: p({ peers: peerList }),
+  },
   select: {
     gate: 'active',
     status: 'legacy',
@@ -689,8 +714,8 @@ const c2s: C2S = {
   },
   'mode-changed': {
     gate: 'active',
-    status: 'new',
-    owner: 'shell mode router (V2-2.10e)',
+    status: 'live',
+    owner: 'v2/shell/use-canvas-mode-lane (V2-4.3b)',
     parse: p({
       seq: num,
       mode,
@@ -701,8 +726,8 @@ const c2s: C2S = {
   },
   'mode-request': {
     gate: 'active', // + no modal + role (M4), in the handler
-    status: 'new',
-    owner: 'shell mode router (V2-2.10e)',
+    status: 'live',
+    owner: 'v2/shell/use-canvas-mode-lane (V2-4.3b)',
     parse: p({
       mode: (v) => (v === 'back' ? v : mode(v)),
       tool: opt(tool),
@@ -992,8 +1017,8 @@ const s2c: S2C = {
   },
   'set-mode': {
     gate: 'parent',
-    status: 'new',
-    owner: 'bridge/canvas-mode-store (V2-2.10e)',
+    status: 'live',
+    owner: 'bridge/canvas-mode-store (V2-4.3b)',
     parse: p({ v: lit(2), seq: num, mode, present: nul(present), tool: opt(tool), caps }),
   },
   'occluded-insets': {

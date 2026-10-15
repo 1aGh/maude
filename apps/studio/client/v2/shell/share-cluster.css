@@ -204,6 +204,113 @@
     white-space: normal;
   }
 
+  /* V2-4.3b — the mode switch (kit `.k-modes` / `.k-mode-b`): a sunken track of 30 × 28 segments, the
+     pressed one raised with the accent ring; Present is the kit's 40px slot (segment + chevron). No
+     motion of its own: a mode change is a cut here (M6). */
+  .st-modes {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    gap: 2px;
+    margin: 0 4px;
+    padding: 2px;
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+  }
+  .st-mode-b {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .st-mode-b--menu {
+    width: 40px;
+    gap: 0;
+    cursor: default;
+  }
+  .st-mode-b[aria-pressed="true"],
+  .st-mode-b--menu:has(> .st-mode-hit[aria-pressed="true"]) {
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--accent);
+  }
+  .st-mode-b--menu.is-open {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .st-mode-hit,
+  .st-mode-ch {
+    display: inline-grid;
+    place-items: center;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .st-mode-hit {
+    width: 26px;
+    border-radius: var(--radius-sm, 6px) 0 0 var(--radius-sm, 6px);
+  }
+  .st-mode-ch {
+    width: 14px;
+    color: var(--fg-2);
+    border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+  }
+  .st-mode-b:hover:not([aria-pressed="true"]),
+  .st-mode-hit:hover,
+  .st-mode-ch:hover {
+    color: var(--fg-0);
+  }
+  .st-mode-hit:disabled,
+  .st-mode-ch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .st-mode-b:focus-visible,
+  .st-mode-hit:focus-visible,
+  .st-mode-ch:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .st-mode-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    z-index: 40;
+    width: 300px;
+  }
+  .st-mode-menu-hd {
+    padding: 8px 8px 4px;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .st-mode-menu-note {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  /* Preview: the cluster goes compact — the faces and the status word step aside (V2-1.2 §5.4). */
+  .st-share[data-mode="preview"] > .st-faces,
+  .st-share[data-mode="preview"] > .st-saved,
+  .st-share[data-mode="preview"] > .st-share-act {
+    display: none;
+  }
+
   /* Pinned: the right column leaves room for the cluster above its panel (06 Advanced `ad-dock-r`). */
   .st-body:not(.st-body--float) > .st-dockslot--right {
     padding-top: calc(var(--pill-h, 40px) + var(--space-2, 8px) * 2);

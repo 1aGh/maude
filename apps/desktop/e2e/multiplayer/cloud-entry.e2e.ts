@@ -120,7 +120,7 @@ describe('S01 cloud entry on a clean Linux native profile', () => {
       timeoutMsg: 'Created board did not render in native canvas',
     });
     await capture('first-ui-create');
-    await probe(tid('palette-mode-edit'), 'click');
+    await (await browser.$(tid('palette-mode-edit'))).click(); // V2-4.3b: the switch is the Share cluster's (shell document)
     const editor = '[contenteditable="plaintext-only"]';
     await browser.waitUntil(
       async () => {
