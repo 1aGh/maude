@@ -39,55 +39,48 @@ div
             span .st-dot
           span .st-mb-sep
           span .st-mb-proj "characterization"
-      div .st-body
-        div .st-rail
-          div .st-rail-inner
-            button .st-iconbtn [aria-label="Expand sidebar"] [title="Expand sidebar (T)"] [type="button"]
-              svg [aria-hidden="true"]
-            button .st-iconbtn [aria-label="Search"] [title="Search (/)"] [type="button"]
-              svg [aria-hidden="true"]
-            button .st-iconbtn [aria-label="Files"] [title="Files"] [type="button"]
-              svg [aria-hidden="true"]
+      div .st-body.st-body--float
         div .st-dockslot.st-dockslot--left
-          div .st-docktabs [role="tablist"] [aria-label="left panels"]
-            button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
-            button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-          nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
-            div .st-sb-hd
-              span .st-sb-title "Files"
-              div .st-sb-hd-actions
-                button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
+          div .island.st-dockslot-inner [data-testid="dock-slot-left"]
+            div .st-docktabs [role="tablist"] [aria-label="left panels"]
+              button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+              button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+            nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
+              div .st-sb-hd
+                span .st-sb-title "Files"
+                div .st-sb-hd-actions
+                  button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
+                    svg [aria-hidden="true"]
+                  button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
+                    svg [aria-hidden="true"]
+                  button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
+                    svg [aria-hidden="true"]
+                  span .st-live "4 / 4"
+                    span .is-connected.st-live-dot [aria-hidden="true"]
+                  button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
+                    svg [aria-hidden="true"]
+              div .st-search
+                div .st-search-box
                   svg [aria-hidden="true"]
-                button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
+                  input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
+                  span .kbd "/"
+              div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
+                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="false"] [tabindex="0"]
+                  div .st-row-wrap
+                    button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
+                      svg .st-chev [aria-hidden="true"]
+                      span .st-sec-name "DESIGN SYSTEM"
+                      span .st-pill "1"
+                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="-1"]
+                  div .st-row-wrap
+                    button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
+                      svg .st-chev [aria-hidden="true"]
+                      span .st-sec-name "UI CANVASES"
+                      span .st-pill "3"
+              div .cb-rail.gi-rail [data-testid="cloud-bar"]
+                button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
                   svg [aria-hidden="true"]
-                button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
-                  svg [aria-hidden="true"]
-                span .st-live "4 / 4"
-                  span .is-connected.st-live-dot [aria-hidden="true"]
-                button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
-                  svg [aria-hidden="true"]
-            div .st-search
-              div .st-search-box
-                svg [aria-hidden="true"]
-                input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
-                span .kbd "/"
-            div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="false"] [tabindex="0"]
-                div .st-row-wrap
-                  button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                    svg .st-chev [aria-hidden="true"]
-                    span .st-sec-name "DESIGN SYSTEM"
-                    span .st-pill "1"
-              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="-1"]
-                div .st-row-wrap
-                  button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                    svg .st-chev [aria-hidden="true"]
-                    span .st-sec-name "UI CANVASES"
-                    span .st-pill "3"
-            div .cb-rail.gi-rail [data-testid="cloud-bar"]
-              button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
-                svg [aria-hidden="true"]
-        div .st-grip [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+        div .st-grip.st-grip--l [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
@@ -105,6 +98,9 @@ div
                 strong "To select something on the canvas:"
                 span .kbd "⌘"
                 span .kbd "⌘⇧"
+        span .island.st-corner.st-corner--right
+          button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
+            svg [aria-hidden="true"]
       footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
         span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
           span .lead [aria-hidden="true"]

@@ -13,12 +13,11 @@ header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
     button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
   div .st-dropdown [role="menu"] [aria-label="View"]
     div .st-dd-hd "Panels"
-    button .is-on.st-dd-item [role="menuitem"] [type="button"]
+    button .st-dd-item [role="menuitem"] [type="button"]
       span .st-dd-lead
         span .st-dd-check
-          svg [aria-hidden="true"]
-        span "Project Tree"
-      span .kbd "T"
+        span "Hide panels"
+      span .kbd "⌘ \\"
     button .st-dd-item [role="menuitem"] [type="button"]
       span .st-dd-lead
         span .st-dd-check
@@ -75,6 +74,10 @@ header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
       span .st-dd-lead
         span .st-dd-check
         span "Show print guides"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Pin panels to the side"
     div .st-dd-sep
     div .st-dd-hd "Zoom"
     button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]

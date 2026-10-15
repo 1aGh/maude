@@ -47,7 +47,7 @@ export function measureShellInsets(frameEl, root, { presenting = false } = {}) {
  * `ui-open.js` / the halo restore use covers the gap: each rung is a fresh seed (newer seq, same value),
  * stopped as soon as the window is gone. Returns a cancel function.
  */
-export const SEED_LADDER_MS = [0, 50, 450, 1200, 2500, 5000];
+export const SEED_LADDER_MS = [0, 50, 450, 1200];
 export function seedOnLadder(pump, to, { alive = () => true, setTimer, clearTimer } = {}) {
   const set = setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   const clear = clearTimer ?? ((h) => clearTimeout(h));

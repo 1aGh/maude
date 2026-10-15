@@ -13,6 +13,14 @@
 // A move-only refactor must leave every snapshot byte-identical. Any diff is a behaviour
 // change and fails the check with a unified diff of the first differing lines.
 //
+// Approved delta (V2-4.1, decision:maude/v2-4.1-floating-panels): 21 of the 30 states changed, all in
+// the same two places — the shell body is the floating layout (`div.st-body.st-body--float`; the left
+// dock slot `.st-dockslot` › `.island.st-dockslot-inner` replaces the always-present `.st-rail`, a right
+// slot or the top-right corner icon `[data-testid="panel-icon-right"]` stands where the closed right
+// slot was) and the View menu's first row is "Hide panels  ⌘ \" (was "Project Tree  T") with a new
+// last row "Pin panels to the side". `browser/menu-view` shows the second; the other 20 the first. The
+// shortcut sheet's row reads "Hide / show panels". No other region moved.
+//
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
 //                                              [--build] [--shots <dir>] [--repeat]

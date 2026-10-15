@@ -65,9 +65,16 @@ export function useOccludedInsets({ bodyRef, iframesRef, presenting, layoutKey }
     // the ladder, because its runtime listener is not installed yet when `loaded` arrives.
     const cancels = new Set();
     const onMessage = (e) => {
-      if (e.data?.dgn !== 'loaded') return;
+      const dgn = e.data?.dgn;
+      if (dgn !== 'loaded' && dgn !== 'canvas-rendered') return;
       const win = frames().find((f) => f.contentWindow === e.source)?.contentWindow;
       if (!win) return;
+      // `canvas-rendered` means the runtime is up for certain (a cold canvas can take seconds, longer
+      // than the ladder): one more seed, so the canvas holds the insets for its next Fit.
+      if (dgn === 'canvas-rendered') {
+        pump.seed(win);
+        return;
+      }
       const cancel = seedOnLadder(pump, win, {
         alive: () => frames().some((f) => f.contentWindow === win),
       });

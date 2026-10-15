@@ -31,7 +31,8 @@ export function canvasForwards(actions: readonly ActionDef[] = ACTIONS): Record<
  * The injected script's chord normaliser — plain ES5, no imports (it runs before the canvas
  * bundle). It is the part of keys.ts › chordFromEvent the forwarded chords need: ⌃ folds into ⌘,
  * ⌥, ⇧ kept on letters, a letter / digit / ASCII symbol from `e.key`, else the physical key from
- * `e.code`. `actions-forward.test.ts` proves it agrees with chordFromEvent on every forwarded
+ * `e.code` (a letter, a digit, or the Backslash key — ⌘\ is forwarded since V2-4.1, and a layout
+ * that needs ⌥ for it reports a non-ASCII `e.key`). `actions-forward.test.ts` proves it agrees with chordFromEvent on every forwarded
  * chord. No backslashes on purpose: the string is interpolated into a template literal.
  */
 export const CHORD_OF_EVENT_JS = `function (e) {
@@ -39,6 +40,7 @@ export const CHORD_OF_EVENT_JS = `function (e) {
     if (!/^[!-~]$/.test(k)) {
       var m = /^Key([A-Z])$/.exec(e.code || '') || /^Digit([0-9])$/.exec(e.code || '');
       if (m) k = m[1];
+      else if (e.code === 'Backslash') k = String.fromCharCode(92);
     }
     if (/^[a-z]$/.test(k)) k = k.toUpperCase();
     return (e.altKey ? '⌥' : '') + (e.shiftKey && /^[A-Z]$/.test(k) ? '⇧' : '') + (e.metaKey || e.ctrlKey ? '⌘' : '') + k;
