@@ -232,7 +232,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'view.zoom-actual',
     exec: 'canvas',
-    keys: [{ chord: '⌘1', layer: 'global', inText: true, when: { focus: ['canvas', 'text'] } }],
+    keys: [{ chord: '⇧0', layer: 'global', inText: false, when: { focus: ['canvas', 'text'] } }],
   },
   {
     id: 'view.jump-artboard',
@@ -648,46 +648,46 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'tab.select-1',
     exec: 'native',
-    keys: [{ chord: '⌃⌘1', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘1', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-2',
     exec: 'native',
-    keys: [{ chord: '⌃⌘2', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘2', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-3',
     exec: 'native',
-    keys: [{ chord: '⌃⌘3', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘3', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-4',
     exec: 'native',
-    keys: [{ chord: '⌃⌘4', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘4', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-5',
     exec: 'native',
-    keys: [{ chord: '⌃⌘5', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘5', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-6',
     exec: 'native',
-    keys: [{ chord: '⌃⌘6', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘6', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-7',
     exec: 'native',
-    keys: [{ chord: '⌃⌘7', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘7', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-8',
     exec: 'native',
-    keys: [{ chord: '⌃⌘8', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘8', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-last',
     exec: 'native',
-    keys: [{ chord: '⌃⌘9', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [{ chord: '⌘9', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
 ];

@@ -288,7 +288,7 @@ describe('project-tabs (native-desktop)', () => {
     await capture('4-open-once-focused-b');
   });
 
-  // V2-3.9 T5: the Window menu's tab items (⌃⌘1…⌃⌘8 / ⌃⌘9, ⌃Tab / ⌃⇧Tab) walk the strip,
+  // V2-3.9 T5: the Window menu's tab items (⌘1…⌘8 / ⌘9 since V2-3.11, ⌃Tab / ⌃⇧Tab) walk the strip,
   // then Home, wrapping.
   it('the tab menu jumps to tab 1 and the last tab, and Next / Previous wrap through Home', async () => {
     await focusTab(tabB);

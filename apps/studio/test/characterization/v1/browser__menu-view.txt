@@ -99,7 +99,7 @@ header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
       span .st-dd-lead
         span .st-dd-check
         span "Actual Size · 100 %"
-      span .kbd "⌘ 1"
+      span .kbd "⇧ 0"
   div .st-mb-right [data-tour="status"]
     div .st-presence
       span .st-avatar [aria-label="You"] "YO"

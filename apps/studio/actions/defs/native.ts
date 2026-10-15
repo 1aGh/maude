@@ -67,16 +67,16 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     keys: [kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'Window', order: 2 },
   },
-  // Jump to project tab 1…8, and to the LAST project tab (Home is Show Home). ⌃⌘<n>, not ⌘<n>:
-  // ⌘1 is view.zoom-actual on the canvas (an AppKit accelerator would take it from the page), ⌥⌘<n>
-  // is view.jump-artboard, ⇧⌘3/4/5 are macOS screenshots and ⌃<n> is Mission Control's Desktop <n>.
+  // Jump to project tab 1…8, and to the LAST project tab (Home is Show Home). ⌘<n>, as in Safari /
+  // Chrome / Arc / Terminal (V2-3.11): Actual size moved to ⇧0, so ⌘1 is free. ⌥⌘<n> stays
+  // view.jump-artboard. These are AppKit accelerators: no page may preventDefault a ⌘<digit>.
   ...[1, 2, 3, 4, 5, 6, 7, 8].map(
     (n): ActionDef => ({
       id: `tab.select-${n}`,
       label: `Show tab ${n}`,
       kind: 'command',
       exec: 'native',
-      keys: [kb(`⌃⌘${n}`, 'global', { inText: true, when: DESKTOP })],
+      keys: [kb(`⌘${n}`, 'global', { inText: true, when: DESKTOP })],
       native: { menu: 'Window', order: 2 + n },
     })
   ),
@@ -85,7 +85,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Show last tab',
     kind: 'command',
     exec: 'native',
-    keys: [kb('⌃⌘9', 'global', { inText: true, when: DESKTOP })],
+    keys: [kb('⌘9', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'Window', order: 11 },
   },
   {

@@ -179,7 +179,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     label: 'Actual size',
     kind: 'command',
     exec: 'canvas',
-    keys: [kb('⌘1', 'global', { inText: true, when: IN_CANVAS_ANY })],
+    // ⇧0, Figma's "Zoom to 100%" (V2-3.11: ⌘1…⌘9 pick a tab). Never in a text field: ⇧0 types ")".
+    keys: [kb('⇧0', 'global', { inText: false, when: IN_CANVAS_ANY })],
     legacy: { menu: 'Actual Size · 100 %', sheet: 'Fit · actual size' },
   },
   {

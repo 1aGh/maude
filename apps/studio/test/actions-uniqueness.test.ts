@@ -35,6 +35,37 @@ test('the registry has no same-layer ambiguity in any context', () => {
   expect(lines).toEqual([]);
 });
 
+// V2-3.11 (Michal 2026-10-15, "as other apps do it"): ⌘1…⌘8 show tab 1…8 and ⌘9 the last tab, as
+// in Safari / Chrome / Arc / Terminal; Actual size moved ⌘1 → ⇧0 (Figma's "Zoom to 100%").
+describe('tab keys own ⌘1–⌘9, Actual size is ⇧0', () => {
+  const chordsOf = (id: string) =>
+    (ACTIONS.find((a) => a.id === id)?.keys ?? []).map((b) => b.chord);
+  test('tab.select-1…8 = ⌘1…⌘8, tab.select-last = ⌘9', () => {
+    for (let n = 1; n <= 8; n++) expect(chordsOf(`tab.select-${n}`)).toEqual([k(`⌘${n}`)]);
+    expect(chordsOf('tab.select-last')).toEqual([k('⌘9')]);
+  });
+  test('view.zoom-actual = ⇧0, never inside a text field (⇧0 types ")" on US)', () => {
+    const keys = ACTIONS.find((a) => a.id === 'view.zoom-actual')?.keys ?? [];
+    expect(keys.map((b) => b.chord)).toEqual([k('⇧0')]);
+    expect(keys.every((b) => !b.inText)).toBe(true);
+    expect(chordsOf('view.zoom-fit')).toEqual([k('⌘0')]);
+  });
+  test('no other action binds ⌘1–⌘9, ⌃⌘1–⌃⌘9 or ⇧0', () => {
+    const owner: Record<string, string> = {
+      [k('⇧0')]: 'view.zoom-actual',
+      [k('⌘9')]: 'tab.select-last',
+    };
+    for (let n = 1; n <= 8; n++) owner[k(`⌘${n}`)] = `tab.select-${n}`;
+    const stray: string[] = [];
+    for (const a of ACTIONS)
+      for (const b of a.keys ?? []) {
+        if (/^⌃⌘[1-9]$/.test(b.chord)) stray.push(`${b.chord} ${a.id}`);
+        else if (b.chord in owner && owner[b.chord] !== a.id) stray.push(`${b.chord} ${a.id}`);
+      }
+    expect(stray).toEqual([]);
+  });
+});
+
 describe('the uniqueness check is not vacuous (planted faults)', () => {
   test('two global bindings on one chord with overlapping predicates', () => {
     const planted = [

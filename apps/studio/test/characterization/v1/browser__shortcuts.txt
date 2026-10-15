@@ -280,8 +280,8 @@ div
                       span .kbd "0"
                     span .so-or "/"
                     span .so-combo
-                      span .kbd "⌘"
-                      span .kbd "1"
+                      span .kbd "⇧"
+                      span .kbd "0"
           section .so-section.so-section--view
             h3 .so-section-hd "View"
             dl .so-list
