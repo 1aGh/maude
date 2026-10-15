@@ -55,6 +55,42 @@ export function canvasInsets(): Readonly<Insets> {
   return typeof window === 'undefined' ? ZERO_INSETS : canvasModeStore(window).get().insets;
 }
 
+/**
+ * Calls `fn` exactly once, with the first applied `occluded-insets` snapshot — immediately when the
+ * shell's insets already arrived before the caller subscribed. Returns the unsubscribe.
+ */
+export function onFirstInsets(
+  store: CanvasModeStore,
+  fn: (s: CanvasModeSnapshot) => void
+): () => void {
+  let done = false;
+  const fire = (s: CanvasModeSnapshot) => {
+    if (done || s.insetsSeq < 0) return;
+    done = true;
+    unsub();
+    fn(s);
+  };
+  const unsub = store.subscribe(fire);
+  fire(store.get());
+  return unsub;
+}
+
+/**
+ * §5.6 I2 — boot re-fit, once only: the first insets re-fit the camera only while it still IS the boot
+ * fit (`bootFit` is null when the camera came from a persisted viewport / a soft-reload resume, or when
+ * the boot fit already honoured insets), the user is not gesturing, and the insets are not all zero.
+ */
+export function shouldBootRefit(
+  bootFit: { x: number; y: number; zoom: number } | null,
+  current: { x: number; y: number; zoom: number },
+  interacting: boolean,
+  insets: Readonly<Insets>
+): boolean {
+  if (!bootFit || interacting) return false;
+  if (!insets.top && !insets.right && !insets.bottom && !insets.left) return false;
+  return bootFit.x === current.x && bootFit.y === current.y && bootFit.zoom === current.zoom;
+}
+
 // Installed when the canvas runtime loads, so an `occluded-insets` the shell seeds on `loaded`
 // isn't missed by a listener a later first fit would have installed.
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
