@@ -44,6 +44,15 @@ div
             span .st-pill-name "characterization"
             span .st-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
+        div .island.st-share [data-testid="share-cluster"]
+          ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
+            li .st-face [aria-label="You"] [title="You"] "YO"
+          span .st-saved [data-testid="share-cluster-status"] [role="status"] "Can comment"
+          button .st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="false"] [title="Comments ⇧⌘M"] [type="button"]
+            svg [aria-hidden="true"]
+          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [aria-pressed="false"] [title="Hide panels ⌘\\"] [type="button"]
+            svg [aria-hidden="true"]
+          button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-ask"] [type="button"] "Ask to edit"
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .st-docktabs [role="tablist"] [aria-label="left panels"]

@@ -12,3 +12,8 @@ div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true
       span .st-pal-label "Export…"
       span .st-pal-kbd
         span .kbd "⇧⌘E"
+    div .st-pal-group "View"
+    button .st-pal-item [type="button"]
+      span .st-pal-icon
+        svg [aria-hidden="true"]
+      span .st-pal-label "Exports"

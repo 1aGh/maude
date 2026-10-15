@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "a243dfad9873",
+  "manifestVersion": "2dad5ede6d4b",
   "actions": [
     {
       "id": "search.open",
@@ -498,6 +498,17 @@
       "agent": {
         "path": "cli",
         "verb": "maude design comments list"
+      }
+    },
+    {
+      "id": "view.exports",
+      "label": "Exports",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design exports list"
       }
     },
     {

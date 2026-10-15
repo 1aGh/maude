@@ -16,6 +16,8 @@ import { CornerIcons } from '../client/v2/shell/corner-icons.jsx';
 import { measureShellInsets } from '../client/v2/shell/occlusion-insets.js';
 import { menuCtx } from '../client/v2/shell/project-menu-model.js';
 import { ProjectPill } from '../client/v2/shell/project-pill.jsx';
+import { facesOf, saveStatus } from '../client/v2/shell/save-status.js';
+import { ShareCluster } from '../client/v2/shell/share-cluster.jsx';
 
 beforeAll(() => {
   if (typeof window === 'undefined') GlobalRegistrator.register();
@@ -31,6 +33,7 @@ const PILL_H = Number(/--pill-h:\s*(\d+)px/.exec(PILL)?.[1]);
 const PILL_GAP = Number(/--pill-gap:\s*(\d+)px/.exec(PILL)?.[1]);
 const BELOW_PILL = GAP + PILL_H + PILL_GAP; // V2-4.2: the left panel and its corner icon start under the pill
 const PILL_W = 220;
+const CLUSTER_W = 380; // faces + status word + comments + Hide panels + Share (measured on screen)
 const ICON = 28 + 2 * 2; // .st-corner .st-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
 
 const W = 1440;
@@ -47,11 +50,14 @@ function layout(el: Element, sbW: number, rpW: number): Box {
   if (cls0 === 'st-pill island')
     return { left: GAP, top: GAP, right: GAP + PILL_W, bottom: GAP + PILL_H };
   if (isSlot && side === 'left') return { left: GAP, top: BELOW_PILL, right: sbW, bottom: H - GAP };
-  if (isSlot) return { left: W - rpW, top: GAP, right: W - GAP, bottom: H - GAP };
+  if (cls0 === 'st-share island')
+    return { left: W - GAP - CLUSTER_W, top: GAP, right: W - GAP, bottom: GAP + PILL_H };
+  // V2-4.3a: the right panel and the right corner icon start under the Share cluster, like the left under the pill.
+  if (isSlot) return { left: W - rpW, top: BELOW_PILL, right: W - GAP, bottom: H - GAP };
   const cls = el.className;
   const corner = (x: number, y: number) => ({ left: x, top: y, right: x + ICON, bottom: y + ICON });
   if (cls.includes('st-corner--left') && !cls.includes('ai')) return corner(GAP, BELOW_PILL);
-  if (cls.includes('st-corner--right')) return corner(W - GAP - ICON, GAP);
+  if (cls.includes('st-corner--right')) return corner(W - GAP - ICON, BELOW_PILL);
   if (cls.includes('st-corner--ai-left')) return corner(GAP, H - GAP - ICON);
   if (cls.includes('st-corner--ai')) return corner(W - GAP - ICON, H - GAP - ICON);
   throw new Error(`unplaced island ${edge}`);
@@ -74,6 +80,13 @@ function shell(opts: {
         state={{}}
         run={noop}
         docked={!floating && !hidden && !!leftActive}
+      />
+      <ShareCluster
+        faces={facesOf({ you: 'Studio' })}
+        status={saveStatus({ linked: true })}
+        ctx={menuCtx({ native: true })}
+        run={noop}
+        docked={!floating && !hidden && !!rightActive}
       />
       {leftActive && (
         <DockSlot
@@ -235,5 +248,55 @@ describe('every floating island root declares its edge', () => {
       e.getAttribute('data-occludes')
     );
     expect(edges.sort()).toEqual(['left', 'right', 'right']);
+  });
+});
+
+describe('V2-4.3a — the Share cluster is the top-right island', () => {
+  const ROOT = join(import.meta.dir, '..');
+  test('it declares the top edge, and the right island starts under it', () => {
+    const { body } = shell({
+      floating: true,
+      hidden: false,
+      leftActive: 'tree',
+      rightActive: 'inspector',
+    });
+    const cluster = body.querySelector('[data-testid="share-cluster"]') as HTMLElement;
+    expect(cluster.getAttribute('data-occludes')).toBe('top');
+    const c = cluster.getBoundingClientRect();
+    for (const el of body.querySelectorAll('[data-occludes="right"]'))
+      expect((el as HTMLElement).getBoundingClientRect().top).toBeGreaterThanOrEqual(c.bottom);
+  });
+  test('the top inset reaches the cluster’s bottom edge', () => {
+    const { body, main } = shell({
+      floating: true,
+      hidden: false,
+      leftActive: null,
+      rightActive: null,
+    });
+    const insets = measureShellInsets(main, body);
+    expect(insets.top).toBeGreaterThanOrEqual(GAP + PILL_H);
+  });
+  test('the model above matches the CSS: the right slot, grip and corner icon sit under the cluster', () => {
+    const below = 'calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px))';
+    const slot = /\.st-body--float > \.st-dockslot--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
+    expect(slot).toContain(`padding-top: ${below}`);
+    const grip = /\.st-body--float > \.st-grip--r \{[^}]*\}/.exec(CSS)?.[0] ?? '';
+    expect(grip).toContain(`top: ${below}`);
+    const corner = /\.st-corner--right \{[^}]*\}/.exec(CSS)?.[0] ?? '';
+    expect(corner).toContain('var(--pill-h, 40px)');
+    const cluster = readFileSync(join(ROOT, 'client/v2/shell/share-cluster.css'), 'utf8');
+    expect(cluster).toMatch(/\.st-share \{[^}]*height: var\(--pill-h, 40px\)/);
+    expect(cluster).not.toMatch(/backdrop-filter\s*:\s*(?!none)/); // M1: material is the island's
+  });
+  test('pinned with a right panel showing, the cluster heads the column and declares no edge', () => {
+    const { body } = shell({
+      floating: false,
+      hidden: false,
+      leftActive: 'tree',
+      rightActive: 'inspector',
+    });
+    expect(body.querySelector('[data-testid="share-cluster"]')?.hasAttribute('data-occludes')).toBe(
+      false
+    );
   });
 });

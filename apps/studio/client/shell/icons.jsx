@@ -319,6 +319,52 @@ export const STICONS = {
     </>
   ),
   square: <rect x="3.5" y="3.5" width="9" height="9" rx="1" />,
+  // V2-4.3a — the Share cluster's glyphs, lifted from .design/ui/v2/_kit.tsx (same 16 grid, same stroke).
+  cloud: (
+    <path d="M4.75 12.5a2.75 2.75 0 0 1-.4-5.47A3.75 3.75 0 0 1 11.6 6a3.25 3.25 0 0 1 .15 6.5zM6.25 9.5l1.25 1.25 2.25-2.5" />
+  ),
+  sync: (
+    <path d="M3 7.25a5 5 0 0 1 8.6-3L13 5.5M13 2.5v3h-3M13 8.75a5 5 0 0 1-8.6 3L3 10.5M3 13.5v-3h3" />
+  ),
+  offline: (
+    <>
+      <path d="M4.75 12.5a2.75 2.75 0 0 1-.4-5.47A3.75 3.75 0 0 1 11.6 6a3.25 3.25 0 0 1 .15 6.5z" />
+      <path d="M2.5 2.5l11 11" />
+    </>
+  ),
+  laptop: (
+    <>
+      <rect x="3.5" y="3.5" width="9" height="6.5" rx="1.25" />
+      <path d="M1.75 12.5h12.5" />
+    </>
+  ),
+  problem: (
+    <>
+      <path d="M8 2.75l5.75 10H2.25z" />
+      <path d="M8 6.75v2.5M8 11h.01" />
+    </>
+  ),
+  'panel-right': (
+    <>
+      <rect x="2" y="3" width="12" height="10" rx="2.5" />
+      <path d="M10 3v10" />
+    </>
+  ),
+  comment: (
+    <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />
+  ),
+  export: (
+    <>
+      <path d="M8 2.5V10M5.25 7.25L8 10l2.75-2.75" />
+      <path d="M2.75 10.5V12a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-1.5" />
+    </>
+  ),
+  'share-up': (
+    <>
+      <path d="M8 9.5v-7M5.25 5.25L8 2.5l2.75 2.75" />
+      <path d="M5 7.5h-.5A1.5 1.5 0 0 0 3 9v3a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5V9a1.5 1.5 0 0 0-1.5-1.5H11" />
+    </>
+  ),
 };
 
 export function StIcon({ name, size = 16, className }) {

@@ -23,7 +23,6 @@ export const PENDING_MENU_IDS = Object.freeze({
   'edit.undo-history': 'S2 (undo history)',
   'view.assets': 'V2-4.4',
   'view.layers-panel': 'V2-4.4',
-  'view.exports': 'V2-4.3',
   'diag.sync': 'V2-4.7',
   'diag.server': 'V2-4.7',
   'diag.ai': 'V2-4.7',

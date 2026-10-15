@@ -33,6 +33,14 @@
 // mark + project name [+ open canvas]). Nothing else in the DOM moved: the left dock slot and the
 // left corner icon sit 52px lower (CSS only), the menubar stays until V2-4.8. The ⌘K palette's list
 // with nothing typed is unchanged (the menu's rows join it once something is typed).
+// Approved delta (V2-4.3a, decision:maude/v2-4.3a-share-cluster-and-status-machine): all 21 states that show the
+// shell body gain ONE element after the project pill — the Share cluster
+// `div.island.st-share[data-testid="share-cluster"]`: `ul.st-faces` (you), the status word
+// `span.st-saved[data-testid="share-cluster-status"]` ("Local project" in the local fixture, "Offline — kept on this
+// Mac" in `sync-offline/`, "Can comment" in the viewer shells), the comments button, Hide panels, and Share (Ask to
+// edit for the viewer shells). The right panel and the right corner icon sit 52px lower (CSS only). `browser/palette-query`
+// also gains the registered "Exports" row under View (`view.exports`: Menu › View › Exports, ⌘K "Exports"). The
+// menubar and the status bar stay until V2-4.8.
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]

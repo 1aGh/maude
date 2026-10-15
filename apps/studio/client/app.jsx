@@ -223,6 +223,7 @@ import { CornerIcons } from './v2/shell/corner-icons.jsx';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
+import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { HelpModal } from './dialogs/help-modal.jsx';
@@ -1689,6 +1690,7 @@ function ShellProjectPill() {
       cfg,
       changesOpen,
       commentsPanelOpen,
+      exportCenter,
       groups,
       inspectorOpen,
       minimapVisible,
@@ -1773,6 +1775,9 @@ function ShellProjectPill() {
     onTogglePrintGuides: togglePrintGuides,
     onToggleTimeline: toggleTimeline,
     onToggleAutoOpenInspector: () => setAutoOpenInspector((v) => !v),
+    // V2-4.3a: Menu › View › Exports / ⌘K "Exports" / the Share cluster's Exports icon — the export center's list.
+    onToggleExports: () =>
+      exportCenter.panelOpen ? exportCenter.closePanel() : exportCenter.openPanel(),
     onInsertArtboard,
     onImportFigma: () => setFigmaImportOpen(true),
     onImportBrand: () => setBrandUploadOpen(true),
@@ -1831,6 +1836,7 @@ function ShellProjectPill() {
         'view.timeline-keep-open': timelineOpen,
         'view.inspector': inspectorOpen,
         'view.comments': commentsPanelOpen,
+        'view.exports': exportCenter.panelOpen,
         'history.open': changesOpen,
         'present.canvas': presentMode,
       },
@@ -1847,6 +1853,7 @@ function ShellProjectPill() {
       timelineOpen,
       inspectorOpen,
       commentsPanelOpen,
+      exportCenter.panelOpen,
       changesOpen,
       presentMode,
     ]
@@ -2989,6 +2996,8 @@ function ShellTree() {
           style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpSize.w}px` }}
         >
           <ShellProjectPill />
+          {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
+          <ShellShareCluster />
           {/* LEFT dock slot (feature-configurable-panel-docking) — pinned, the collapsed
               rail shows when the left slot is empty; the tree's expand hooks open
               it on the tree tab. Floating, the corner icon below plays that part. */}

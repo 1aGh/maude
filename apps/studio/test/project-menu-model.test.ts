@@ -25,7 +25,7 @@ describe('the registry half of the menu', () => {
     for (const [id, owner] of Object.entries(PENDING_MENU_IDS))
       expect(owner, id).toMatch(/^(V2-\d+\.\d+|S\d+ \(.+\))$/);
     // the owners the plan names
-    expect(PENDING_MENU_IDS['view.exports']).toBe('V2-4.3');
+    expect(PENDING_MENU_IDS['view.exports']).toBeUndefined(); // V2-4.3a registered it
     expect(PENDING_MENU_IDS['view.layers-panel']).toBe('V2-4.4');
     expect(PENDING_MENU_IDS['diag.logs']).toBe('V2-4.7');
     expect(PENDING_MENU_IDS['sync.resync']).toBe('V2-4.7');

@@ -47,6 +47,18 @@ div
             span .st-pill-name "characterization"
             span .st-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
+        div .island.st-share [data-testid="share-cluster"]
+          ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
+            li .st-face [aria-label="You"] [title="You"] "YO"
+          span .st-saved.st-saved--warn [data-testid="share-cluster-status"] [role="status"]
+            svg [aria-hidden="true"]
+            span .st-saved-w "Offline — kept on this Mac"
+          button .st-share-ic [data-testid="share-cluster-comments"] [aria-label="Comments"] [aria-pressed="false"] [title="Comments ⇧⌘M"] [type="button"]
+            svg [aria-hidden="true"]
+          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [aria-pressed="false"] [title="Hide panels ⌘\\"] [type="button"]
+            svg [aria-hidden="true"]
+          button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [aria-disabled="true"] [title="Open a canvas to share it"] [type="button"] "Share"
+            svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .st-docktabs [role="tablist"] [aria-label="left panels"]

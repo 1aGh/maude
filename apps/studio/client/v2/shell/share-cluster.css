@@ -1,0 +1,213 @@
+/* client/v2/shell/share-cluster.css — V2-4.3a: the Share cluster (top-right).
+ *
+ * Geometry is the kit's (.design/ui/v2/_kit.css `.k-tr`): a 40px island (4px pad around 32px controls,
+ * 4px gap) 16px in from the window's top-right — the same 40px the project pill has on the left, so
+ * `--pill-h` is the one number. The right panel island and the right corner icon start BELOW it
+ * (68px from the top = 16 + 40 + 12), exactly as the left ones start below the pill (floating-panels.css).
+ * Material is the island's (`.island` in floating-panels.css — no backdrop-filter of its own, V2-1.8 M1).
+ *
+ * Pinned (View › Advanced › Pin panels to the side): with a right panel showing, the cluster heads the
+ * right column (06 Advanced `ad-dock-r`): `data-docked` takes the island chrome off it and the column
+ * leaves room (see the end of this file). With no right panel it is a floating island again.
+ *
+ * Words / state colour: warn and error tint the status WORD, never replace it (the word carries the
+ * meaning; colour is the second channel). Motion: none of its own — the island appears with the shell. */
+
+@layer shell {
+  .st-share {
+    position: absolute;
+    right: var(--float-gap, 16px);
+    top: var(--float-gap, 16px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    height: var(--pill-h, 40px);
+    box-sizing: border-box;
+    max-width: calc(100% - 2 * var(--float-gap, 16px));
+  }
+  /* Pinned: the island chrome `.st-body--float .island` gives is not applied, so give it here. */
+  .st-body:not(.st-body--float) .st-share {
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .st-body:not(.st-body--float) .st-share[data-docked="true"] {
+    right: var(--space-2, 8px);
+    top: var(--space-2, 8px);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .st-faces {
+    display: inline-flex;
+    flex: none;
+    margin: 0;
+    padding: 0 4px;
+    list-style: none;
+  }
+  .st-face {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-pill, 999px);
+    font-family: var(--font-rounded, var(--font-body));
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    line-height: 1;
+    color: var(--fg-0);
+    background: color-mix(in oklab, var(--accent) 24%, var(--bg-3));
+    box-shadow: 0 0 0 2px var(--island-bg, var(--bg-1));
+  }
+  .st-face + .st-face {
+    margin-left: -6px;
+  }
+  .st-face.is-agent {
+    background: color-mix(in oklab, var(--presence-agent, var(--accent)) 28%, var(--bg-3));
+  }
+
+  .st-saved {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 32px;
+    padding: 0 8px 0 4px;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .st-saved-w {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .st-saved--warn {
+    color: var(--status-warn-text, var(--status-warn));
+  }
+  .st-saved--error {
+    color: var(--status-error-text, var(--status-error));
+  }
+
+  .st-share-ic {
+    appearance: none;
+    position: relative;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .st-share-ic:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .st-share-ic.is-on {
+    background: var(--accent-muted, var(--bg-3));
+    color: var(--accent-text, var(--accent));
+  }
+  .st-share-ic:focus-visible,
+  .st-share-act:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .st-share-count {
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: 10px;
+    font-weight: var(--w-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    line-height: 14px;
+    text-align: center;
+  }
+
+  /* Exports (09 Export `ex-ring`): the ring sits on the icon button's edge while anything runs. */
+  .st-ex-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    rotate: -90deg;
+    fill: none;
+    stroke-width: 2.5;
+    pointer-events: none;
+  }
+  .st-ex-ring circle {
+    stroke: var(--bg-4, var(--border-default));
+  }
+  .st-ex-ring circle.st-ex-ring-v {
+    stroke: var(--accent);
+    stroke-linecap: round;
+  }
+
+  /* The one action beside a failed status: text button, no chrome until hover. */
+  .st-share-act {
+    appearance: none;
+    flex: none;
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    color: var(--accent-text, var(--accent));
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    cursor: pointer;
+  }
+  .st-share-act:hover {
+    background: var(--bg-3);
+  }
+
+  .st-share-btn {
+    flex: none;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-md, 8px);
+    white-space: nowrap;
+  }
+  .st-share-btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* "This Mac is out of space — …" (C37): a note hung under the cluster, the popover plane's look. */
+  .st-share-note {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    width: max-content;
+    max-width: 320px;
+    padding: 8px 12px;
+    border-radius: var(--island-radius, 14px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    font-size: var(--type-sm, 13px);
+    line-height: 1.4;
+    white-space: normal;
+  }
+
+  /* Pinned: the right column leaves room for the cluster above its panel (06 Advanced `ad-dock-r`). */
+  .st-body:not(.st-body--float) > .st-dockslot--right {
+    padding-top: calc(var(--pill-h, 40px) + var(--space-2, 8px) * 2);
+    box-sizing: border-box;
+    background: var(--bg-1);
+  }
+}

@@ -74,6 +74,8 @@
   .st-body--float > .st-dockslot--right {
     right: 0;
     padding-left: 0;
+    /* V2-4.3a: the Share cluster is the top-right island; the panel starts below it (kit: 68px). */
+    padding-top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-body--float .st-dockslot-inner {
     flex: 1 1 auto;
@@ -122,6 +124,7 @@
   }
   .st-body--float > .st-grip--r {
     right: calc(var(--rp-w) - 4px);
+    top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
 
   /* ── folded corner icons ── */
@@ -138,7 +141,8 @@
   }
   .st-corner--right {
     right: var(--float-gap, 16px);
-    top: var(--float-gap, 16px);
+    /* V2-4.3a: below the Share cluster (kit: 68px). */
+    top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-corner--ai {
     right: var(--float-gap, 16px);
@@ -178,7 +182,7 @@
     right: 16px;
   }
   .st-body:not(.st-body--float) .st-corner--right {
-    top: 16px;
+    top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-body:not(.st-body--float) .st-corner--left {
     top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
