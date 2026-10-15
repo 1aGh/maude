@@ -31,6 +31,12 @@
 // and whenever a panel opens or closes — so `to-canvas` lists gain `parent occluded-insets`; (3) with
 // the left panel floating over the canvas the first Fit lands in the visible area, so the `@world
 // translate` of the zoom cases moved. No write changed.
+// Approved delta (V2-3.11, decision:maude/v2-3.11-browser-tab-keys — CONTRACT §2 "keys that moved",
+// Michal 2026-10-15): ⌘1…⌘8 / ⌘9 are the desktop's tab accelerators and Actual size moved ⌘1 → ⇧0,
+// so `browser/in-canvas/canvas Meta+1` is `default` (not PREVENTED) with no zoom, and the new
+// `Shift+Digit0` canvas case (US: e.key ")") runs Actual size the way Meta+1 used to. Also: the three
+// cases that open the "?" sheet hash differently (its "Fit · actual size" row reads ⇧ 0), and the
+// extra case re-deals the lanes, so `Meta+Minus`'s boot `@world translate` moved. No write changed.
 // Lead refresh (V2-4.1, V2-1.2 §5.6 I2): the canvas now re-fits once when the shell's first insets
 // arrive after its boot fit, so every case's boot `@world translate` is the inset-aware fit (it used
 // to depend on whether the insets beat the boot fit — the ⌘D case flipped between runs). Inspector
@@ -479,6 +485,7 @@ const CANVAS_KEYS = [
   'Meta+e',
   'Meta+0',
   'Meta+1',
+  'Shift+Digit0',
   'Meta+Equal',
   'Meta+Minus',
   'Shift+P',

@@ -1,4 +1,4 @@
-# v1 key characterization — 239 cases (V2-2.4)
+# v1 key characterization — 240 cases (V2-2.4)
 ## browser/canvas/chrome Meta+k
   keydown: shell ⌘key="Meta" default · shell ⌘key="k" PREVENTED
   to-shell: (none)
@@ -292,7 +292,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +227 -0 #5157e4d475
+  shell: +227 -0 #894b53d536
     + div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
     + div .st-scrim [role="presentation"]
   canvas: =
@@ -301,7 +301,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +227 -0 #5157e4d475
+  shell: +227 -0 #894b53d536
     + div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
     + div .st-scrim [role="presentation"]
   canvas: =
@@ -1020,7 +1020,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +227 -0 #5157e4d475
+  shell: +227 -0 #894b53d536
     + div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
     + div .st-scrim [role="presentation"]
   canvas: =
@@ -1696,7 +1696,14 @@
     - @world translate(466.84px, 397.955px)
     + @world translate(581.854px, 600.244px)
 ## browser/in-canvas/canvas Meta+1
-  keydown: canvas ⌘key="Meta" default · canvas ⌘key="1" PREVENTED
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="1" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Shift+Digit0
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key=")" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
@@ -1719,9 +1726,9 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #eed9f5c1ac
-    - @world translate(466.84px, 397.955px)
-    + @world translate(691.673px, 527.546px)
+  canvas: +1 -1 #cd44016546
+    - @world translate(443.42px, 397.955px)
+    + @world translate(668.253px, 527.546px)
 ## browser/in-canvas/canvas Shift+P
   keydown: canvas ⇧key="Shift" default · canvas ⇧key="P" PREVENTED
   to-shell: (none)

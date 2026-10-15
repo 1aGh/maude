@@ -23,6 +23,10 @@
 // Lead refresh (V2-4.1, V2-1.2 §5.6 I2): the canvas re-fits once on the shell's first insets, so the
 // boot zoom is the inset-aware fit; `browser/inspector-selected` shows it in the box-model core, which
 // reads the selection's on-screen size ("663 × 180" → "512 × 139"). No other state moved.
+// Approved delta (V2-3.11, decision:maude/v2-3.11-browser-tab-keys — CONTRACT §2 "keys that moved"):
+// Actual size moved ⌘1 → ⇧0 (⌘1–⌘9 pick a tab), so the View menu's "Actual Size · 100 %" row in
+// `browser/menu-view` and the sheet's "Fit · actual size" second combo in `browser/shortcuts` read
+// "⇧ 0". Only those two states were refreshed (`--update --only`).
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
