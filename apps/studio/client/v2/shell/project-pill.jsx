@@ -101,6 +101,8 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
         const check = n.checked !== undefined;
         return (
           <div role="none" key={key} className="st-pm-li">
+            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is menuitemcheckbox whenever
+            aria-checked is set (dynamic role biome can't follow)
             <button
               type="button"
               role={check ? 'menuitemcheckbox' : 'menuitem'}
