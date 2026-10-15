@@ -75,7 +75,7 @@ export const V1_SHEET: readonly V1SheetGroup[] = [
       {
         label: 'Fit · actual size',
         kbd: '⌘ 0',
-        alt: '⌘ 1',
+        alt: '⇧ 0',
         ids: ['view.zoom-fit', 'view.zoom-actual'],
       },
     ],
@@ -212,7 +212,7 @@ export const V1_MENUBAR: Readonly<Record<V1MenuName, readonly V1MenuRow[]>> = {
     { id: 'view.zoom-in', kbd: '⌘ +' },
     { id: 'view.zoom-out', kbd: '⌘ −' },
     { id: 'view.zoom-fit', kbd: '⌘ 0' },
-    { id: 'view.zoom-actual', kbd: '⌘ 1' },
+    { id: 'view.zoom-actual', kbd: '⇧ 0' },
   ],
   selection: [
     { id: 'select.none', kbd: 'Esc', keyOf: 'ui.step-back' },

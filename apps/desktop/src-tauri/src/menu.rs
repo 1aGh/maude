@@ -6,7 +6,7 @@
 //
 // V2-3.4 (C3): File = New Canvas ⌘N · New Project… ⇧⌘N · Open Project… ⌘O · Show Home ⌘T
 // (V2-3.9: was New Home Tab) · Close Tab ⌘W, plus a Window menu with the own tab bar's items
-// (Show Next / Previous Tab ⌃Tab / ⌃⇧Tab, Tab 1…8 ⌃⌘1…⌃⌘8, Last Tab ⌃⌘9). `apply_role` sets
+// (Show Next / Previous Tab ⌃Tab / ⌃⇧Tab, Tab 1…8 ⌘1…⌘8, Last Tab ⌘9 — V2-3.11, as in every browser). `apply_role` sets
 // what is enabled on every tab activation (contract V2-3.7 §5). A click routes by the item's registry `exec` (§5.8): `shell` items emit
 // `menu://action {id}` to the focused window (the webview runs the action), `native` items have
 // an arm in lib.rs. `menu://new-project` and `menu://report-bug` are retired.
@@ -414,15 +414,15 @@ mod tests {
                 ("File".into(), "close_tab".into(), Some("CmdOrCtrl+W".into())),
                 ("Window".into(), "next_tab".into(), Some("Ctrl+Tab".into())),
                 ("Window".into(), "prev_tab".into(), Some("Ctrl+Shift+Tab".into())),
-                ("Window".into(), "select_tab_1".into(), Some("CmdOrCtrl+Ctrl+1".into())),
-                ("Window".into(), "select_tab_2".into(), Some("CmdOrCtrl+Ctrl+2".into())),
-                ("Window".into(), "select_tab_3".into(), Some("CmdOrCtrl+Ctrl+3".into())),
-                ("Window".into(), "select_tab_4".into(), Some("CmdOrCtrl+Ctrl+4".into())),
-                ("Window".into(), "select_tab_5".into(), Some("CmdOrCtrl+Ctrl+5".into())),
-                ("Window".into(), "select_tab_6".into(), Some("CmdOrCtrl+Ctrl+6".into())),
-                ("Window".into(), "select_tab_7".into(), Some("CmdOrCtrl+Ctrl+7".into())),
-                ("Window".into(), "select_tab_8".into(), Some("CmdOrCtrl+Ctrl+8".into())),
-                ("Window".into(), "select_tab_last".into(), Some("CmdOrCtrl+Ctrl+9".into())),
+                ("Window".into(), "select_tab_1".into(), Some("CmdOrCtrl+1".into())),
+                ("Window".into(), "select_tab_2".into(), Some("CmdOrCtrl+2".into())),
+                ("Window".into(), "select_tab_3".into(), Some("CmdOrCtrl+3".into())),
+                ("Window".into(), "select_tab_4".into(), Some("CmdOrCtrl+4".into())),
+                ("Window".into(), "select_tab_5".into(), Some("CmdOrCtrl+5".into())),
+                ("Window".into(), "select_tab_6".into(), Some("CmdOrCtrl+6".into())),
+                ("Window".into(), "select_tab_7".into(), Some("CmdOrCtrl+7".into())),
+                ("Window".into(), "select_tab_8".into(), Some("CmdOrCtrl+8".into())),
+                ("Window".into(), "select_tab_last".into(), Some("CmdOrCtrl+9".into())),
                 ("Help".into(), "report_bug".into(), None),
             ]
         );

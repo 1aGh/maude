@@ -14,7 +14,7 @@ written into the sections below (row ids in brackets, e.g. [A7], [C26]). Nothing
 
 - Opened by the **project pill** (mark + project name, top-left). Accessible name: **"Project menu"**.
 - In "where it lives" chips and copy, write the path as **`Menu › File › Export…`** — never "Icon menu", never "the icon menu".
-- **The Mac's own menu bar** [C3, D19] keeps **Maude** (About · Check for Updates… · Quit), **Edit** (the predefined undo/redo/cut/copy/paste/select-all WKWebView needs) and **Help › Report a Bug…** as today. Its **File** menu becomes **New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · New Home tab ⌘T**, and a **Window** menu carries the native tab commands.
+- **The Mac's own menu bar** [C3, D19] keeps **Maude** (About · Check for Updates… · Quit), **Edit** (the predefined undo/redo/cut/copy/paste/select-all WKWebView needs) and **Help › Report a Bug…** as today. Its **File** menu becomes **New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · New Home tab ⌘T**, and a **Window** menu carries the native tab commands (⌘1–⌘8 tab 1–8 · ⌘9 last tab).
 - **Project tabs are native macOS window tabs** [A1]. Home is its own window tab (⌘T, "Back to Home"). A tab shows no avatar and no status glyph — that state lives in the project pill and the Share cluster. Right-clicking a tab gives the native tab menu; **"Sign in as another account…"** lives in the project pill menu.
 
 ```
@@ -29,7 +29,7 @@ Menu
 │                Select all ⌘A · Deselect all esc · Select all annotations ⇧⌘A
 │                Advanced ▸ New artboard (Desktop · Laptop · Tablet · Mobile · A4 · Letter)
 ├─ View ›        Hide panels / Show panels ⌘\ · Comments ⇧⌘M · Assets · Exports · Annotations ⇧P · Present the canvas
-│                Zoom in ⌘+ · Zoom out ⌘− · Zoom to fit ⌘0 · Actual size ⌘1
+│                Zoom in ⌘+ · Zoom out ⌘− · Zoom to fit ⌘0 · Actual size ⇧0
 │                Advanced ▸ Layers as a panel · Inspector ⇧⌘I · Open inspector on select ·
 │                           Keep timeline open ⇧⌘T · Minimap · Zoom controls · Print guides · Hidden files ·
 │                           Pin panels to the side
@@ -59,7 +59,7 @@ Menu
 | R | Shape | ? | All shortcuts |
 | P | Pen | esc | Step back (deselect, close, leave tool) |
 | T | Text | ⌘Z / ⇧⌘Z | Undo / Redo (includes changes made by AI) |
-| I / ⇧I | Image / Component | ⌘0 / ⌘1 | Zoom to fit / Actual size |
+| I / ⇧I | Image / Component | ⌘0 / ⇧0 | Zoom to fit / Actual size |
 | N C M A E S | Sticky · Comment · Marker · Arrow · Stickers · Section — switch to Preview with that tool | ⌥⌘H | Version history |
 | ⌥⌘P | Preview [A7] | ⌥⌘↵ / ⇧⌥⌘↵ | Present from the selected artboard / from the start [A7] |
 | L | Pointer (in Present) [A7] | ⇧⌘C | Copy as PNG (inspector Export section) [C21] |
@@ -72,7 +72,7 @@ Menu
 - **Object keys in Edit** [A11]: ⌥⌘G frame selection (⌘G works too) · ⇧⌘G remove frame · ] / [ forward / backward · ⌘] / ⌘[ to front / back · arrows nudge 1 px (⇧ 10 px), inside auto layout arrows reorder · double-click enters a frame, esc steps out · ⌘D duplicate · ⌫ removes (⌘Z and Version history bring it back). Hide has no key (⇧⌘H is Handoff). **In Preview** ⌘G / ⇧⌘G group / ungroup annotations.
 - **⇧⌘L** locks / unlocks the selection — objects in Edit, annotations in Preview (shipped behaviour). A locked item rides along with its artboard but can't be dragged by itself.
 - **Focus decides** [C26]: a key goes to the first owner that wants it — focused text field › timeline focus (S split, I / O loop, ← / → frames, ⌘+ / ⌘− timeline zoom) › selection (a generated image's ← / → other takes) › mode tools › global. **⌘B always splits.**
-- **Keys and tools that moved** (listed in "?" under that heading) [D1–D4, D17]: the Browse tool is Preview mode (Hand + click uses the design) · Pen B → **P** · Rect R → **Shape R** · Ellipse O → Edit › More › Ellipse · Highlighter I → the Marker's Highlighter tip · Eraser E → the Marker's Eraser tip · Section ⇧S → **S** · the canvas palette's Export ⌘E → one sheet ⇧⌘E (**⌘E is unbound**; "Export again" sits on every Exports row) · ⇧⌘R Refresh tree stays (Canvases › Advanced + ⌘K) · T toggle tree → ⌘\ / the panel icon · H hidden files → the Canvases › Advanced switch (no key) · S design-system view → the pinned Design system row · N new board → ⌘N · Toggle theme → ⌘K "Theme" + Settings › General · New video… → ⌘K "New video" + New artboard › Video.
+- **Keys and tools that moved** (listed in "?" under that heading) [D1–D4, D17]: the Browse tool is Preview mode (Hand + click uses the design) · Pen B → **P** · Rect R → **Shape R** · Ellipse O → Edit › More › Ellipse · Highlighter I → the Marker's Highlighter tip · Eraser E → the Marker's Eraser tip · Section ⇧S → **S** · the canvas palette's Export ⌘E → one sheet ⇧⌘E (**⌘E is unbound**; "Export again" sits on every Exports row) · ⇧⌘R Refresh tree stays (Canvases › Advanced + ⌘K) · T toggle tree → ⌘\ / the panel icon · H hidden files → the Canvases › Advanced switch (no key) · S design-system view → the pinned Design system row · N new board → ⌘N · Toggle theme → ⌘K "Theme" + Settings › General · New video… → ⌘K "New video" + New artboard › Video · Actual size ⌘1 → ⇧0 (⌘1–9 pick a tab, as in every browser).
 - A v2 key lands in the same change that removes the v1 binding it collides with (T / H / S / N / I / E / B, ⇧⌘A, ⇧⌘G, ⌘E, native ⌘N); every scope's bindings are unique.
 - Write modifier order as macOS does: **⌥⇧⌘** (e.g. `⇧⌘E`, `⌥⌘H`). Return key glyph: **↵**.
 

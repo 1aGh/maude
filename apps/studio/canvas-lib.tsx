@@ -102,6 +102,7 @@ import {
   useState,
 } from 'react';
 
+import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
 import {
   ArtboardGuidesOverlay,
@@ -168,6 +169,14 @@ import { VideoComp } from './video-comp.tsx';
 
 export type { CompSnapshot, VideoCompMeta, VideoCompProps } from './video-comp.tsx';
 export { VideoComp };
+
+/** The viewport's zoom keys, resolved from the registry (V2-3.11) — `useViewportController`'s keydown. */
+const CANVAS_ZOOM_KEYS = canvasKeyIndex([
+  'view.zoom-in',
+  'view.zoom-out',
+  'view.zoom-fit',
+  'view.zoom-actual',
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AIPlaceholder — feature-enhanced-video-editing (Task 21). A prompt-carrying
@@ -1612,10 +1621,9 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
         return;
       }
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
       // Cmd+Option+1..9 → jump to artboard N (Option avoids Chrome's
       // Cmd+1..9 tab-switching shortcut).
-      if (e.altKey && /^Digit[1-9]$/.test(e.code)) {
+      if (mod && e.altKey && /^Digit[1-9]$/.test(e.code)) {
         const n = Number(e.code.slice(-1));
         const target = jumpTargetsRef.current?.[n - 1];
         if (target) {
@@ -1625,21 +1633,22 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
         return;
       }
       if (e.altKey) return;
-      switch (e.key) {
-        case '0':
+      // V2-3.11 — the zoom keys come from the registry (⌘= / ⌘+ / ⌘− / ⌘0 Fit / ⇧0 Actual size).
+      // ⌘1…⌘9 are the native tab accelerators: this listener must never prevent them.
+      switch (resolveCanvasKey(CANVAS_ZOOM_KEYS, e, false)) {
+        case 'view.zoom-fit':
           e.preventDefault();
           fit();
           return;
-        case '1':
+        case 'view.zoom-actual':
           e.preventDefault();
           reset();
           return;
-        case '=':
-        case '+':
+        case 'view.zoom-in':
           e.preventDefault();
           zoomIn();
           return;
-        case '-':
+        case 'view.zoom-out':
           e.preventDefault();
           zoomOut();
           return;

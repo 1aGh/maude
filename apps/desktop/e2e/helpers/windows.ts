@@ -132,7 +132,7 @@ export interface MenuState {
 
 /** Read the native menu's state — after clicking the menu item `click` (its id, e.g.
  *  `select_tab_1`, `close_tab`, `show_home`) through the same handler AppKit's click runs.
- *  WebDriver keys never reach the menu bar, so this is how a scenario presses ⌘W / ⌃⌘1. */
+ *  WebDriver keys never reach the menu bar, so this is how a scenario presses ⌘W / ⌘1. */
 export async function menuState(click?: string): Promise<MenuState> {
   return invokeTauri<MenuState>('e2e_menu_state', click ? { click } : {});
 }

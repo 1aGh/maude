@@ -150,7 +150,7 @@
           "action": "tab.select-1",
           "label": "Tab 1",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+1"
+          "accel": "CmdOrCtrl+1"
         },
         {
           "kind": "item",
@@ -158,7 +158,7 @@
           "action": "tab.select-2",
           "label": "Tab 2",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+2"
+          "accel": "CmdOrCtrl+2"
         },
         {
           "kind": "item",
@@ -166,7 +166,7 @@
           "action": "tab.select-3",
           "label": "Tab 3",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+3"
+          "accel": "CmdOrCtrl+3"
         },
         {
           "kind": "item",
@@ -174,7 +174,7 @@
           "action": "tab.select-4",
           "label": "Tab 4",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+4"
+          "accel": "CmdOrCtrl+4"
         },
         {
           "kind": "item",
@@ -182,7 +182,7 @@
           "action": "tab.select-5",
           "label": "Tab 5",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+5"
+          "accel": "CmdOrCtrl+5"
         },
         {
           "kind": "item",
@@ -190,7 +190,7 @@
           "action": "tab.select-6",
           "label": "Tab 6",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+6"
+          "accel": "CmdOrCtrl+6"
         },
         {
           "kind": "item",
@@ -198,7 +198,7 @@
           "action": "tab.select-7",
           "label": "Tab 7",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+7"
+          "accel": "CmdOrCtrl+7"
         },
         {
           "kind": "item",
@@ -206,7 +206,7 @@
           "action": "tab.select-8",
           "label": "Tab 8",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+8"
+          "accel": "CmdOrCtrl+8"
         },
         {
           "kind": "item",
@@ -214,7 +214,7 @@
           "action": "tab.select-last",
           "label": "Last Tab",
           "exec": "native",
-          "accel": "CmdOrCtrl+Ctrl+9"
+          "accel": "CmdOrCtrl+9"
         },
         {
           "kind": "separator",
