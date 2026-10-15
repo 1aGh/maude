@@ -52,6 +52,7 @@ import {
   useViewportControllerContext,
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
+import { replayActionKey } from './canvas-replay-keys.ts';
 import {
   buildEditSourceRecord,
   type EditSourceApplyFn,
@@ -2750,6 +2751,9 @@ function CanvasRouter({
           void afterShellRecords().then(() => undoStackRef.current.undo());
         } else if (id === 'edit.redo') {
           void afterShellRecords().then(() => undoStackRef.current.redo());
+        } else if (replayActionKey(id)) {
+          // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
+          // canvas replays the action's own chord, so the key handler is the one implementation.
         } else if (zoomController) {
           // Shell View-menu zoom items — route to the live viewport controller
           // (the same methods the in-canvas zoom pill calls).

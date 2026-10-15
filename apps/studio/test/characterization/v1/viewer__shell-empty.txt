@@ -37,6 +37,13 @@ div
           span .st-mb-sep
           span .st-mb-proj "characterization"
       div .st-body.st-body--float
+        span .island.st-pill
+          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [title="Project menu"] [type="button"]
+            span .st-pill-mark
+              svg [aria-hidden="true"]
+            span .st-pill-name "characterization"
+            span .st-pill-caret [aria-hidden="true"]
+              svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .st-docktabs [role="tablist"] [aria-label="left panels"]

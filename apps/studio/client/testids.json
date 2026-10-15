@@ -4923,6 +4923,71 @@
     "v2": "stable"
   },
   {
+    "hook": "project-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The project pill (mark + project name, top-left): the `.island` button that opens the one menu. Accessible name \"Project menu\". Carries `data-occludes=\"top\"` on its island.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "ProjectPill"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "project-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The root `role=menu` of the one menu (CONTRACT §1), opened by the project pill.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "Level"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "project-menu-row-<action-id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the one menu; `<action-id>` is the registry action id (e.g. `export.open`, `settings.open`). Disabled rows carry `aria-disabled`. `export.open` appears twice when File is open (top level and File).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "Level"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "project-menu-row-sub-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A submenu row of the one menu; `<name>` ∈ file, edit, view, help, diagnostics, advanced, new-artboard (kebab of the label).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "Level"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "project-menu-sub-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A submenu `role=menu` once its row is open; `<name>` as in `project-menu-row-sub-<name>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "Level"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "shell-prompt-input",
     "kind": "testid",
     "pattern": false,

@@ -45,6 +45,48 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     exec: 'shell',
     legacy: { menu: 'Close canvas' },
   },
+  // V2-4.2 — the File menu's canvas rows (CONTRACT §1). Each wraps what the Files tree's row menu
+  // already does for a canvas (tree/tree.jsx: Duplicate, Rename…, Move to…); the menu runs it on
+  // the OPEN canvas. A viewer cannot write, and with no canvas open there is nothing to act on.
+  {
+    id: 'canvas.duplicate',
+    label: 'Duplicate canvas',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+  },
+  {
+    id: 'canvas.rename',
+    label: 'Rename canvas',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+  },
+  {
+    id: 'canvas.move',
+    label: 'Move to…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+  },
+  // Today's panels: the Figma import dialog and the brand upload panel.
+  {
+    id: 'import.figma',
+    label: 'Import from Figma…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+  },
+  {
+    id: 'import.brand',
+    label: 'Import a brand…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+  },
   {
     id: 'video.assemble',
     label: 'Assemble clips into a video',

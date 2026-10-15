@@ -8,7 +8,8 @@ export function matchCommands(actions, query) {
   const needle = String(query ?? '')
     .trim()
     .toLowerCase();
-  if (!needle) return actions;
+  // V2-4.2: rows marked `onlyWhenSearched` (the project menu's twins) show once something is typed.
+  if (!needle) return actions.filter((a) => !a.onlyWhenSearched);
   return actions.filter(
     (a) =>
       a.label.toLowerCase().includes(needle) || (a.group && a.group.toLowerCase().includes(needle))

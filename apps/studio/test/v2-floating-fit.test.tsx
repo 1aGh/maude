@@ -14,6 +14,8 @@ import { type ArtboardRect, computeFit } from '../canvas-lib.tsx';
 import { DockSlot } from '../client/shell/dock.jsx';
 import { CornerIcons } from '../client/v2/shell/corner-icons.jsx';
 import { measureShellInsets } from '../client/v2/shell/occlusion-insets.js';
+import { menuCtx } from '../client/v2/shell/project-menu-model.js';
+import { ProjectPill } from '../client/v2/shell/project-pill.jsx';
 
 beforeAll(() => {
   if (typeof window === 'undefined') GlobalRegistrator.register();
@@ -24,6 +26,11 @@ afterAll(async () => {
 
 const CSS = readFileSync(join(import.meta.dir, '../client/v2/shell/floating-panels.css'), 'utf8');
 const GAP = Number(/--float-gap:\s*(\d+)px/.exec(CSS)?.[1]);
+const PILL = readFileSync(join(import.meta.dir, '../client/v2/shell/project-pill.css'), 'utf8');
+const PILL_H = Number(/--pill-h:\s*(\d+)px/.exec(PILL)?.[1]);
+const PILL_GAP = Number(/--pill-gap:\s*(\d+)px/.exec(PILL)?.[1]);
+const BELOW_PILL = GAP + PILL_H + PILL_GAP; // V2-4.2: the left panel and its corner icon start under the pill
+const PILL_W = 220;
 const ICON = 28 + 2 * 2; // .st-corner .st-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
 
 const W = 1440;
@@ -34,13 +41,16 @@ type Box = { left: number; top: number; right: number; bottom: number };
  *  width includes that gap (padding), so the island ends at `width` from its own edge. */
 function layout(el: Element, sbW: number, rpW: number): Box {
   const edge = el.getAttribute('data-occludes');
+  const cls0 = el.className;
   const isSlot = el.getAttribute('data-testid')?.startsWith('dock-slot-');
   const side = el.getAttribute('data-testid') === 'dock-slot-left' ? 'left' : 'right';
-  if (isSlot && side === 'left') return { left: GAP, top: GAP, right: sbW, bottom: H - GAP };
+  if (cls0 === 'st-pill island')
+    return { left: GAP, top: GAP, right: GAP + PILL_W, bottom: GAP + PILL_H };
+  if (isSlot && side === 'left') return { left: GAP, top: BELOW_PILL, right: sbW, bottom: H - GAP };
   if (isSlot) return { left: W - rpW, top: GAP, right: W - GAP, bottom: H - GAP };
   const cls = el.className;
   const corner = (x: number, y: number) => ({ left: x, top: y, right: x + ICON, bottom: y + ICON });
-  if (cls.includes('st-corner--left') && !cls.includes('ai')) return corner(GAP, GAP);
+  if (cls.includes('st-corner--left') && !cls.includes('ai')) return corner(GAP, BELOW_PILL);
   if (cls.includes('st-corner--right')) return corner(W - GAP - ICON, GAP);
   if (cls.includes('st-corner--ai-left')) return corner(GAP, H - GAP - ICON);
   if (cls.includes('st-corner--ai')) return corner(W - GAP - ICON, H - GAP - ICON);
@@ -58,6 +68,13 @@ function shell(opts: {
   const html = renderToStaticMarkup(
     <div className="st-body">
       <div className="main" />
+      <ProjectPill
+        project="Studio site"
+        ctx={menuCtx({ native: true })}
+        state={{}}
+        run={noop}
+        docked={!floating && !hidden && !!leftActive}
+      />
       {leftActive && (
         <DockSlot
           side="left"

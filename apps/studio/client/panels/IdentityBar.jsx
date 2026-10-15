@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { MENU_ACTION_EVENT } from '../v2/shell/menu-runner.js';
 import CreateProject from './CreateProject.jsx';
 import {
   fetchIdentity,
@@ -180,7 +181,13 @@ export default function IdentityBar() {
     const p = onMenuAction((id) => {
       if (id === 'project.new' && stateRef.current !== 'loading') setView('new');
     });
+    // V2-4.2: the project pill's menu row (File › New project…) is the same action, run in-page.
+    const onLocal = (e) => {
+      if (e.detail?.id === 'project.new' && stateRef.current !== 'loading') setView('new');
+    };
+    window.addEventListener(MENU_ACTION_EVENT, onLocal);
     return () => {
+      window.removeEventListener(MENU_ACTION_EVENT, onLocal);
       p?.then?.((fn) => fn?.());
     };
   }, [native]);

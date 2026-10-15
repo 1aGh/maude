@@ -59,6 +59,23 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: [kb('⌘C', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
   },
   {
+    // V2-4.2: like Copy, the key is WebKit's own (the Edit menu's predefined Cut / Paste on the
+    // Mac); this action is the project menu's row, which does the same to whatever was focused
+    // before the menu opened.
+    id: 'edit.cut',
+    label: 'Cut',
+    kind: 'command',
+    exec: 'shell',
+    keys: [kb('⌘X', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
+  },
+  {
+    id: 'edit.paste',
+    label: 'Paste',
+    kind: 'command',
+    exec: 'shell',
+    keys: [kb('⌘V', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
+  },
+  {
     id: 'select.all',
     label: 'Select all',
     kind: 'command',

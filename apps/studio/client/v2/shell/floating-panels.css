@@ -68,6 +68,8 @@
   .st-body--float > .st-dockslot--left {
     left: 0;
     padding-right: 0;
+    /* V2-4.2: the project pill is the top-left island; the panel starts below it (kit: 68px). */
+    padding-top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-body--float > .st-dockslot--right {
     right: 0;
@@ -116,6 +118,7 @@
   }
   .st-body--float > .st-grip--l {
     left: calc(var(--sb-w) - 4px);
+    top: calc(var(--float-gap) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-body--float > .st-grip--r {
     right: calc(var(--rp-w) - 4px);
@@ -131,7 +134,7 @@
   }
   .st-corner--left {
     left: var(--float-gap, 16px);
-    top: var(--float-gap, 16px);
+    top: calc(var(--float-gap, 16px) + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-corner--right {
     right: var(--float-gap, 16px);
@@ -174,9 +177,11 @@
   .st-body:not(.st-body--float) .st-corner--ai {
     right: 16px;
   }
-  .st-body:not(.st-body--float) .st-corner--left,
   .st-body:not(.st-body--float) .st-corner--right {
     top: 16px;
+  }
+  .st-body:not(.st-body--float) .st-corner--left {
+    top: calc(16px + var(--pill-h, 40px) + var(--pill-gap, 12px));
   }
   .st-body:not(.st-body--float) .st-corner--ai,
   .st-body:not(.st-body--float) .st-corner--ai-left {
