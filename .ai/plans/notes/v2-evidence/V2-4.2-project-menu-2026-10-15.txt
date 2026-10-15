@@ -16,4 +16,4 @@ Gates (on e532de89, code-identical to 97905e1c except one aria-hidden span)
 - desktop e2e (debug build of e532de89, Arc hidden, probe 2 s): default 12/12 (1:29, 0 covered on-screen samples / 47) · tabs 1/1 (0:28, 0 / 17). Valid.
 - on screen (Chromium, 1440×900): pill top-left, menu = File · Edit · View · Help · Version history · Share… · Export… · Diagnostics · Settings… (Back to Home hidden in the browser shell by its when); File submenu opens with canvas rows disabled without a canvas.
 
-Follow-ups: older rows have no registry  (Undo, Export…, Close canvas run as no-ops with no canvas); project.new in a browser tab toasts instead of being hidden; Rename uses window.prompt as the tree row does; Version history shows today's ⇧⌘G (CONTRACT ⌥⌘H arrives with its task); builder peak 370k (> 300k).
+Follow-ups: older rows have no registry 'enabled' (Undo, Export…, Close canvas run as no-ops with no canvas); project.new in a browser tab toasts instead of being hidden; Rename uses window.prompt as the tree row does; Version history shows today's ⇧⌘G (CONTRACT ⌥⌘H arrives with its task); builder peak 370k (> 300k).
