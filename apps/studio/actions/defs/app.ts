@@ -16,6 +16,16 @@ export const APP_ACTIONS: ActionDef[] = [
     legacy: { palette: 'Settings…', menu: 'Settings…' },
   },
   {
+    // V2-4.2 / V2-3.8: this project signs in as someone else. The shell moves the project onto a
+    // profile of its own (`cloud_sign_in_prepare`) and reloads signed out; the person then signs in
+    // from the Share panel as usual. Desktop only — profiles are the app's.
+    id: 'account.switch',
+    label: 'Sign in as another account…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'] },
+  },
+  {
     id: 'ai.chat',
     label: 'AI chat',
     kind: 'toggle',

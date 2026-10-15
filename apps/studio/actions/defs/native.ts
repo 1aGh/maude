@@ -39,6 +39,17 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     keys: [kb('⌘T', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'File', order: 4 },
   },
+  {
+    // V2-4.2: "Back to Home" is the first row of the project pill's menu (CONTRACT §1) — the SAME
+    // command as File ▸ Show Home (`home.open`, `new_home_tab`), worded for the Menu. ⌘T stays
+    // `home.open`'s. A browser tab has no Home window (the cloud dashboard link is V2-4.9).
+    id: 'nav.home',
+    label: 'Back to Home',
+    kind: 'command',
+    icon: 'home',
+    exec: 'native',
+    visible: DESKTOP,
+  },
   // ── V2-3.9: the own tab bar's tab commands (contract V2-3.7 §5). Native: the shell owns the
   // tab list, so lib.rs runs them; no web binding fires them (AppKit takes the accelerator). ──
   {

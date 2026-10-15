@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "0cfcf041e7e4",
+  "manifestVersion": "a243dfad9873",
   "actions": [
     {
       "id": "search.open",
@@ -98,6 +98,67 @@
         "path": "human",
         "because": "view-pref",
         "note": "closes the user’s tab"
+      }
+    },
+    {
+      "id": "canvas.duplicate",
+      "label": "Duplicate canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the .tsx and its .meta.json under a new name in the same folder"
+      }
+    },
+    {
+      "id": "canvas.rename",
+      "label": "Rename canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rename the .tsx and its .meta.json together"
+      }
+    },
+    {
+      "id": "canvas.move",
+      "label": "Move to…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the .tsx and its .meta.json to another folder under the design root"
+      }
+    },
+    {
+      "id": "import.figma",
+      "label": "Import from Figma…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design import-figma"
+      }
+    },
+    {
+      "id": "import.brand",
+      "label": "Import a brand…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design import-brand"
       }
     },
     {
@@ -225,6 +286,30 @@
         "path": "human",
         "because": "view-pref",
         "note": "the clipboard is the user’s; read the source instead"
+      }
+    },
+    {
+      "id": "edit.cut",
+      "label": "Cut",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the clipboard is the user’s; remove the content from the source instead"
+      }
+    },
+    {
+      "id": "edit.paste",
+      "label": "Paste",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the clipboard is the user’s; write the content into the source instead"
       }
     },
     {
@@ -1042,6 +1127,18 @@
       }
     },
     {
+      "id": "account.switch",
+      "label": "Sign in as another account…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "the desktop app’s profiles; an agent never picks an account"
+      }
+    },
+    {
       "id": "ai.chat",
       "label": "AI chat",
       "kind": "toggle",
@@ -1379,6 +1476,17 @@
     {
       "id": "home.open",
       "label": "Show Home",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "nav.home",
+      "label": "Back to Home",
       "kind": "command",
       "exec": "native",
       "effect": "none",

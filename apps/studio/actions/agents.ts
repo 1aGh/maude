@@ -63,6 +63,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.refresh': { effect: 'none', agent: cli('maude design index') },
   // ── canvas ──
   'canvas.new': TSX('Write a new .tsx under the design root with a DCArtboard per screen'),
+  'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
+  'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
+  'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
+  'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
+  'import.brand': { effect: 'project', agent: cli('maude design import-brand') },
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),
   'canvas.new-video': TSX('Write a new video-comp .tsx canvas', 'design:video-comp'),
   'canvas.close': PREF('closes the user’s tab'),
@@ -79,6 +84,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── edit / select / object ──
   'edit.undo': UNDO_KEYS,
   'edit.redo': UNDO_KEYS,
+  'edit.cut': PREF('the clipboard is the user’s; remove the content from the source instead'),
+  'edit.paste': PREF('the clipboard is the user’s; write the content into the source instead'),
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),
   'select.all': NAV('<canvas> --select all'),
   'select.none': NAV('<canvas> --select none'),
@@ -189,6 +196,12 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'project.new': { effect: 'project', agent: human('onboarding') },
   'project.open': { effect: 'none', agent: human('native-window') },
   'home.open': { effect: 'none', agent: human('native-window') },
+  'nav.home': { effect: 'none', agent: human('native-window') },
+  // V2-4.2: a person's sign-in; an agent never picks an account.
+  'account.switch': {
+    effect: 'none',
+    agent: human('native-window', 'the desktop app’s profiles; an agent never picks an account'),
+  },
   // V2-3.9: the shell's tab bar — a person's window, never an agent's.
   'tab.close': { effect: 'none', agent: human('native-window') },
   'tab.next': { effect: 'none', agent: human('native-window') },
