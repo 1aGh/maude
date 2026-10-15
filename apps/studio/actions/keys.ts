@@ -152,7 +152,12 @@ export function chordFromEvent(e: KeyEventLike): Chord {
     const m = /^Key([A-Z])$/.exec(e.code) ?? /^Digit(\d)$/.exec(e.code);
     key = m ? m[1] : (CODE_KEY[e.code] ?? key);
   }
-  const shiftSignificant = /^[A-Z]$/.test(key) || NAMED_KEYS.has(key) || /^F\d/.test(key);
+  // ⇧ + a digit key without ⌘/⌥ is ⇧<digit>, read from `e.code` (V2-3.11: Actual size ⇧0): US
+  // types ')' there and Czech QWERTZ '0', so the physical key is the only chord both agree on.
+  const shiftDigit = e.shiftKey && mods.size === 0 ? /^Digit(\d)$/.exec(e.code ?? '') : null;
+  if (shiftDigit) key = shiftDigit[1];
+  const shiftSignificant =
+    !!shiftDigit || /^[A-Z]$/.test(key) || NAMED_KEYS.has(key) || /^F\d/.test(key);
   if (e.shiftKey && shiftSignificant) mods.add('⇧');
   return MOD_ORDER.filter((m) => mods.has(m)).join('') + key;
 }
