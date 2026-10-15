@@ -15,6 +15,8 @@ const V1_HAND_LIST = {
   '⇧⌘T': 'view.timeline-keep-open',
   '⌘K': 'search.open',
   '⌘R': 'canvas.reload',
+  // V2-4.1 approved delta: ⌘\ hides / shows all panels, from the canvas too (view.panels is fromCanvas).
+  '⌘\\': 'view.panels',
 };
 
 test('the generated forward table is exactly v1’s hand list', () => {
@@ -38,11 +40,14 @@ describe('the injected chord normaliser agrees with chordFromEvent', () => {
     ev('˚', 'KeyK', { metaKey: true, altKey: true }),
     ev('1', 'Digit1', { metaKey: true }),
     ev('е', 'KeyT', { metaKey: true, shiftKey: true }), // a non-Latin layout → e.code
+    ev('\\', 'Backslash', { metaKey: true }), // V2-4.1 ⌘\
+    ev('\\', 'Backslash', { ctrlKey: true }),
+    ev('«', 'Backslash', { metaKey: true }), // a layout whose backslash key types something else → e.code
   ];
   for (const e of rows)
     test(`${JSON.stringify(e)} → ${chordFromEvent(e)}`, () =>
       expect(chordOf(e)).toBe(chordFromEvent(e)));
-  test('every forwarded chord is ⌘ + modifiers + a letter (the normaliser’s domain)', () => {
-    for (const c of Object.keys(canvasForwards())) expect(c).toMatch(/^[⌥⇧]*⌘[A-Z]$/);
+  test('every forwarded chord is ⌘ + modifiers + a letter or the backslash (the normaliser’s domain)', () => {
+    for (const c of Object.keys(canvasForwards())) expect(c).toMatch(/^[⌥⇧]*⌘([A-Z]|\\)$/);
   });
 });

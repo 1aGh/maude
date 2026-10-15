@@ -20,6 +20,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
+import { panelLayout } from '../v2/shell/use-panel-layout.js';
 
 // ── the timeline transport (was use-photo-and-timeline.jsx, DDR-150 P3 Task 9) ─────────────
 // Gated by the registry on focus 'timeline' (timeline open + a comp, focus in the shell, not
@@ -185,10 +186,10 @@ export const SHELL_KEY_HANDLERS = {
     if (!d.sidebarOpen) d.openPanelExclusive('tree');
     setTimeout(focusSearch, 0);
   },
-  // T — toggle Project Tree (sidebar)
-  'view.panels': (d, { event: e }) => {
+  // ⌘\ — hide / show ALL panels (V2-4.1; was T → the Files panel). The corner icons stay as the way back.
+  'view.panels': (_d, { event: e }) => {
     e.preventDefault();
-    d.togglePanel('tree');
+    panelLayout.toggleHidden();
   },
   // H — toggle show-hidden (sidecars + project/runtime orphans)
   'view.hidden-files': (d, { event: e }) => {

@@ -22,6 +22,15 @@
 // desktop shell ⌘N is New Canvas (`canvas.new`, the brief-board composer) and New Project moved to
 // ⇧⌘N, so `tauri/canvas/chrome Meta+n` now prevents the default and opens the composer. No other
 // case changed (two full runs on the Phase 3 gate tree).
+// Approved delta (V2-4.1, decision:maude/v2-4.1-floating-panels — CONTRACT §2 "keys that moved", D17):
+// bare T no longer toggles the Files panel — ⌘\ hides / shows ALL panels (`view.panels`) and T stays
+// unbound until V2-4.5 binds Text, so every `shell key="t"` case is `default` (not PREVENTED) and the
+// tree stays as it was. Also in this refresh, none of them a key change: (1) the shell DOM is the
+// floating layout (`.st-body--float`, `.st-dockslot-inner` islands, corner icons instead of the rail);
+// (2) the shell now sends the canvas `occluded-insets` (V2-1.2 §5.6) — on `loaded`, on `canvas-rendered`
+// and whenever a panel opens or closes — so `to-canvas` lists gain `parent occluded-insets`; (3) with
+// the left panel floating over the canvas the first Fit lands in the visible area, so the `@world
+// translate` of the zoom cases moved. No write changed.
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not

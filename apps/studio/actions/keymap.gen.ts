@@ -171,6 +171,12 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'view.panels',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [{ chord: '⌘\\', layer: 'global', inText: true }],
+  },
+  {
     id: 'view.comments',
     exec: 'shell',
     fromCanvas: true,

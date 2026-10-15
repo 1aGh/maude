@@ -4897,6 +4897,32 @@
     "notes": "Region: the configurable left/right panel dock, which v2 removes."
   },
   {
+    "hook": "dock-slot-<side>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The panel surface of a dock slot (`.st-dockslot-inner`); `<side>` ∈ left, right. Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`.",
+    "producer": {
+      "file": "apps/studio/client/shell/dock.jsx",
+      "symbol": "DockSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "panel-icon-<which>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\\); `<which>` ∈ left (Files), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/corner-icons.jsx",
+      "symbol": "CornerIcons"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "shell-prompt-input",
     "kind": "testid",
     "pattern": false,

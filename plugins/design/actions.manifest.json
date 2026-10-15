@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "729aff7d5b7c",
+  "manifestVersion": "0cfcf041e7e4",
   "actions": [
     {
       "id": "search.open",
@@ -360,6 +360,18 @@
     {
       "id": "view.panels",
       "label": "Hide panels",
+      "kind": "toggle",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.pin-panels",
+      "label": "Pin panels to the side",
       "kind": "toggle",
       "exec": "shell",
       "effect": "none",

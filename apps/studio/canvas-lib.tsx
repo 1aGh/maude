@@ -120,7 +120,12 @@ import './print-overlay-content.tsx';
 // feature-3-web-artboards T2 — same side-effect-import contract as the print
 // registration above, for the 'web' kind's breakpoint-band chip.
 import './web-overlay-content.tsx';
-import { canvasInsets } from './bridge/canvas-mode-store.ts';
+import {
+  canvasInsets,
+  canvasModeStore,
+  onFirstInsets,
+  shouldBootRefit,
+} from './bridge/canvas-mode-store.ts';
 import { type Insets, visibleRect, ZERO_INSETS } from './bridge/occlusion.ts';
 import {
   buildMoveArtboardsRecord,
@@ -2092,6 +2097,9 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   const artboardsRef = useRef(artboards);
   artboardsRef.current = artboards;
 
+  // V2-1.2 §5.6 I2 — the camera getInitial() fitted at boot (null: persisted / resumed / already inset).
+  const bootFitRef = useRef<ViewportState | null>(null);
+
   const computeFitForArtboards = useCallback((): ViewportState => {
     const host = hostRef.current;
     if (!host) return { x: 0, y: 0, zoom: 1 };
@@ -2110,7 +2118,11 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     }
     const host = hostRef.current;
     if (!host) return null;
-    return computeFit(artboardsRef.current, host, 24, canvasInsets());
+    const fit = computeFit(artboardsRef.current, host, 24, canvasInsets());
+    // §5.6 I2 — remember the boot fit only if no insets had arrived yet (else it already honours them).
+    bootFitRef.current =
+      typeof window !== 'undefined' && canvasModeStore(window).get().insetsSeq < 0 ? fit : null;
+    return fit;
   }, []);
 
   const onSettle = useCallback((v: ViewportState) => {
@@ -2131,6 +2143,22 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     jumpTargets: artboards,
     isPanDragActive,
   });
+
+  // V2-1.2 §5.6 I2 — boot re-fit, once only. The shell's first `occluded-insets` usually lands after
+  // the boot fit (the runtime listener installs after `loaded`), which would leave a fresh canvas fitted
+  // under a floating panel. Re-fit once if the camera is still exactly the boot fit; any later inset
+  // change never moves the camera (I1).
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    return onFirstInsets(canvasModeStore(window), (s) => {
+      const c = controllerRef.current;
+      const boot = bootFitRef.current;
+      bootFitRef.current = null;
+      if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) c.fit();
+    });
+  }, []);
 
   const rectById = useMemo(() => {
     const m = new Map<string, ArtboardRect>();
