@@ -333,3 +333,18 @@
     background: var(--bg-1);
   }
 }
+
+/* The Share / Ask to edit button and the icon buttons never shrink — the status word gives way first
+   (it ellipsises), so the primary action is always whole (seen squeezed to 28 px, V2-4.3 lead). */
+.st-share .st-share-btn,
+.st-share .st-share-ic,
+.st-share .st-modes {
+  flex: none;
+  white-space: nowrap;
+}
+/* `.st-share-btn` is also the v1 menubar's 28 px Share icon (3-shell.css) — the cluster's button is a
+   labelled button, so it takes its own width until V2-4.8 removes the menubar. */
+.st-share .btn.st-share-btn {
+  width: auto;
+  min-width: max-content;
+}
