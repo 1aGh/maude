@@ -263,12 +263,13 @@
   to-shell: (none)
   to-canvas: (canvas reloaded)
   writes: (none)
-  shell: +55 -10 #6570af30bd
+  shell: +55 -12 #10129fb531
     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
     - button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"]
     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
     - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
     - iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
+    - span .st-pill-sep [aria-hidden="true"] "/"
     + button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
     + button .st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
     + div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="false"] [tabindex="0"]
@@ -1692,9 +1693,9 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #3503e1826e
-    - @world translate(466.84px, 397.955px)
-    + @world translate(581.854px, 600.244px)
+  canvas: +1 -1 #ae4de215cf
+    - @world translate(466.84px, 447.918px)
+    + @world translate(581.854px, 665.805px)
 ## browser/in-canvas/canvas Meta+1
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="1" default
   to-shell: (none)
@@ -1708,27 +1709,27 @@
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #ae9e2b0410
-    - @world translate(466.84px, 397.955px)
-    + @world translate(62.6766px, 165px)
+  canvas: +1 -1 #4b83abbba8
+    - @world translate(466.84px, 447.918px)
+    + @world translate(62.6766px, 214.963px)
 ## browser/in-canvas/canvas Meta+Equal
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="=" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #c1b8340cd9
-    - @world translate(466.84px, 397.955px)
-    + @world translate(279.48px, 289.963px)
+  canvas: +1 -1 #10d743beb9
+    - @world translate(466.84px, 447.918px)
+    + @world translate(279.48px, 339.926px)
 ## browser/in-canvas/canvas Meta+Minus
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: PATCH (canvas)/_api/canvas-meta
   shell: =
-  canvas: +1 -1 #cd44016546
-    - @world translate(443.42px, 397.955px)
-    + @world translate(668.253px, 527.546px)
+  canvas: +1 -1 #1c5759221a
+    - @world translate(443.42px, 447.918px)
+    + @world translate(668.253px, 577.509px)
 ## browser/in-canvas/canvas Shift+P
   keydown: canvas ⇧key="Shift" default · canvas ⇧key="P" PREVENTED
   to-shell: (none)
@@ -1781,10 +1782,10 @@
   shell: +7 -1 #ff66ca08e1
     + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
     + div .maude-notice [data-testid="notice-canvas-notice-0"]
-  canvas: +6 -2 #a0ee5611be
-    - @world translate(443.42px, 397.955px)
+  canvas: +6 -2 #ab876afa11
+    - @world translate(443.42px, 447.918px)
     - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
-    + @world translate(466.84px, 397.955px)
+    + @world translate(466.84px, 447.918px)
     + input [aria-label="Name"] [placeholder="Name"]
 ## browser/in-canvas/canvas Meta+g
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" default

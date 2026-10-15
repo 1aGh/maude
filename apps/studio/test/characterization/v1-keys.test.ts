@@ -41,6 +41,11 @@
 // arrive after its boot fit, so every case's boot `@world translate` is the inset-aware fit (it used
 // to depend on whether the insets beat the boot fit — the ⌘D case flipped between runs). Inspector
 // values derived from the zoom (height, transform-origin) moved with it. No key or write changed.
+// Lead refresh (V2-4.2, decision:maude/v2-4.2-project-pill-and-menu): the project pill is a top island
+// (data-occludes=top, 56 px), so every boot `@world translate` moved down ~50 px (the inset-aware fit),
+// a reloaded shell lists the pill's `.st-pill-sep`, and one case sends a second `occluded-insets`. No key
+// or write changed. (One alone run showed a one-off inspector variant, +19 −25; the refresh and the verify
+// run both match the old golden there.)
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
