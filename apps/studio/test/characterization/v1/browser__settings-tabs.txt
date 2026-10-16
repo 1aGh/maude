@@ -89,41 +89,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"] [hidden]
@@ -448,41 +454,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"] [hidden]
@@ -807,41 +819,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"] [hidden]
@@ -1166,41 +1184,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"]
@@ -1525,41 +1549,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"] [hidden]
@@ -1884,41 +1914,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"] [hidden]
@@ -2243,41 +2279,47 @@ div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Panel positions"
-          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Files"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "Canvases"
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assets"
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assistant"
-            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
       section [role="tabpanel"] [hidden]

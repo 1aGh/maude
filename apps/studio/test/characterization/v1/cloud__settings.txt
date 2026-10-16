@@ -80,10 +80,13 @@ div
             svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
-            div .st-docktabs [role="tablist"] [aria-label="left panels"]
-              button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
-              button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-              button .st-docktab [data-testid="dock-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+            div .lp-head [data-testid="panel-head-left"]
+              div .lp-tabs [role="tablist"] [aria-label="left panels"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+              button .lp-fold.st-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
+                svg [aria-hidden="true"]
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
               div .st-sb-hd
                 span .st-sb-title "Canvases"
@@ -119,7 +122,7 @@ div
                 button .lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
                   span .lp-adv-ch
                     svg [aria-hidden="true"]
-        div .st-grip.st-grip--l [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+        div .st-grip.st-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
@@ -233,41 +236,47 @@ div
               div .st-provider-card
                 div .st-provider-hd
                   span .st-provider-name "Panel positions"
-                div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+                div .st-provider-notes "Put each panel on the left or the right. The AI chat is its own panel and shows beside the rest; Canvases, Layers and Assets share one panel"
                 div .st-pref-row
                   span .st-pref-body
-                    span .st-pref-label "Files"
-                  span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+                    span .st-pref-label "Canvases"
+                  span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Layers"
-                  span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+                    button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+                    button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+                div .st-pref-row
+                  span .st-pref-body
+                    span .st-pref-label "Assets"
+                  span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Inspector"
-                  span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Comments"
-                  span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Changes"
-                  span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Assistant"
-                  span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
             section [role="tabpanel"] [hidden]

@@ -69,10 +69,13 @@ div
             svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
-            div .st-docktabs [role="tablist"] [aria-label="left panels"]
-              button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
-              button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-              button .st-docktab [data-testid="dock-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+            div .lp-head [data-testid="panel-head-left"]
+              div .lp-tabs [role="tablist"] [aria-label="left panels"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+              button .lp-fold.st-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
+                svg [aria-hidden="true"]
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
               div .st-sb-hd
                 span .st-sb-title "Canvases"
@@ -121,7 +124,7 @@ div
               div .gi-rail
                 button .btn.btn--primary.btn--sm.gi-rail-signin [type="button"] "Sign in with GitHub"
                   svg [aria-hidden="true"]
-        div .st-grip.st-grip--l [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+        div .st-grip.st-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
@@ -143,12 +146,13 @@ div
                 br
               button .btn.btn--primary.st-empty-quick-setup [data-testid="st-empty-start-quick-setup"] [type="button"] "Start quick setup"
         div .is-collapsed.st-dockslot.st-dockslot--right
-          div .island.st-dockslot-inner [data-testid="dock-slot-right"]
+          div .island.st-dockslot-ai.st-dockslot-inner [data-testid="dock-ai-right"] [hidden]
             aside .st-rpanel [aria-label="Assistant"] [aria-hidden="true"]
-              div .st-rp-tabs
-                span .is-active.st-rp-tab "Assistant"
+              div .chat-bar.chat-bar--v2 [data-testid="ai-chat-header"]
+                span .chat-hd-spark [aria-hidden="true"]
                   svg [aria-hidden="true"]
-                button .st-iconbtn [aria-label="Close assistant"] [type="button"]
+                span .chat-hd-title "AI"
+                button .st-iconbtn [data-testid="ai-chat-hide"] [aria-label="Hide the AI chat panel"] [title="Hide the AI chat panel"] [type="button"]
                   svg [aria-hidden="true"]
               div .st-rp-body.st-rp-body--chat
                 div .chat-disabled [data-testid="acp-not-connected"]

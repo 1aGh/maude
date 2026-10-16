@@ -13,6 +13,12 @@
 // A move-only refactor must leave every snapshot byte-identical. Any diff is a behaviour
 // change and fails the check with a unified diff of the first differing lines.
 //
+// Approved delta (V2-4.4a+b, decision:maude/v2-4.4a-left-panel-tabs, decision:maude/v2-4.4b-right-islands):
+// 21 states — the dock tab strip becomes the left panel's own header (`panel-head-left`, `panel-tab-*`,
+// `panel-fold-left`), grips gain testids, Settings › Layout reads Canvases/Assets with `panel-side-*` and a new
+// note, the right dock tab strip and the Assistant strip are gone (the AI chat header replaces the latter).
+// The tour anchor `data-tour="sidebar"` is still there. Verified identical on a second run.
+//
 // Approved delta (V2-4.1, decision:maude/v2-4.1-floating-panels): 21 of the 30 states changed, all in
 // the same two places — the shell body is the floating layout (`div.st-body.st-body--float`; the left
 // dock slot `.st-dockslot` › `.island.st-dockslot-inner` replaces the always-present `.st-rail`, a right

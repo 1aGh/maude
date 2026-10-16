@@ -65,6 +65,10 @@
 // mode=viewing`) instead of a local tool switch. The I2 boot re-fit no longer persists the camera
 // (decision:maude/v2-4.3b-boot-refit-does-not-persist), so the reload cases write nothing — before it
 // they added a PATCH canvas-meta in some runs. Refreshed once and verified identical in two more runs.
+// Lead refresh (V2-4.4a+b, decision:maude/v2-4.4b-right-islands): the left panel's own header replaces the
+// dock tab strip (panel-tab-*), Canvases/Assets tabs, the pinned DS row + Trash + Advanced, and the
+// Inspector now appears on selection — so selection cases send one more `occluded-insets` (its island
+// covers part of the canvas). No key or write changed.
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not

@@ -80,10 +80,13 @@ div
             svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
-            div .st-docktabs [role="tablist"] [aria-label="left panels"]
-              button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
-              button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-              button .st-docktab [data-testid="dock-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+            div .lp-head [data-testid="panel-head-left"]
+              div .lp-tabs [role="tablist"] [aria-label="left panels"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+              button .lp-fold.st-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
+                svg [aria-hidden="true"]
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
               div .st-sb-hd
                 span .st-sb-title "Canvases"
@@ -119,7 +122,7 @@ div
                 button .lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
                   span .lp-adv-ch
                     svg [aria-hidden="true"]
-        div .st-grip.st-grip--l [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+        div .st-grip.st-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
