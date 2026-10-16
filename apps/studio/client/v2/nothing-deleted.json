@@ -1661,9 +1661,9 @@
       "home": "⇧⌘R kept (Canvases › Advanced + ⌘K); tree → ⌘\\ / panel icon; hidden files → Canvases › Advanced switch (no key); DS → pinned row; new board → ⌘N",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "canvases.refresh",
+        "testid": "canvases-refresh",
+        "where": "Menu-less: Canvases › Advanced › Refresh + ⌘K \"Refresh tree\" (⇧⌘R); hidden files = Canvases › Advanced switch; DS = pinned row; tree = ⌘\\ / panel icon; new board = ⌘N"
       }
     },
     {
@@ -1675,8 +1675,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-list",
+        "where": "Canvases panel (tree kept: New folder, composer, folder menu, drag-drop, keyboard nav, comment counts, badges); preview via Canvases › Advanced › Hidden files"
       }
     },
     {
