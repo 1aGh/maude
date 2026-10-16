@@ -95,6 +95,29 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 | `.st-search input` | selector | The sidebar search input (focused by keyboard handlers in `App()`). *Internal cross-component consumer: `App()`.* | `client/app.jsx` · `Sidebar` | app.jsx | stable — re-emit |
 | `.st-sidebar [data-testid^="canvas-row-"]` | selector | First canvas row inside the sidebar; `App()` clicks it to open a canvas. *Internal cross-component consumer: `App()`.* | `client/app.jsx` · `Sidebar` | app.jsx | stable — re-emit |
 | menuitem by name (row menu) | selector | Tree row-menu items by accessible name: "Rename…", "Duplicate", "Move to…", "Delete", "New folder here", "Rename folder", "Delete folder", "Share…", and Move-to destinations named `ui/<folder>`. *Labels are defined in `Sidebar` (row-menu items) and rendered by `TreeRowMenu`. `share-link` uses the WebdriverIO text selector `button=Share…`; `surface.e2e.ts` uses `getByRole('menuitem', { name })`.* | `client/app.jsx` · `Sidebar`<br>`client/tree-row-menu.jsx` · `TreeRowMenu` | e2e-mp:surface, e2e:share-link | stable — re-emit |
+| `canvases-pinned` | testid | The pinned strip above the Canvases list that holds the Design system row(s). | `client/v2/left-panel/canvases-pinned.jsx` · `DsPinnedRows` | — | stable — re-emit |
+| `canvases-ds-row` | testid | A pinned Design system row (one per system; `data-ds` carries the system). Click opens the design-system view (the old S key). | `client/v2/left-panel/canvases-pinned.jsx` · `DsPinnedRows` | — | stable — re-emit |
+| `canvases-trash-row` | testid | The Canvases panel's last row: Trash and its count. Click opens the Trash list. | `client/v2/left-panel/canvases-pinned.jsx` · `TrashRow` | — | stable — re-emit |
+| `canvases-trash` | testid | The Trash list that replaces the Canvases list while it is open. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-back` | testid | Back from the Trash list to the Canvases list. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-empty` | testid | The "Trash is empty." state. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-item` | testid | One parked thing in the Trash list. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-restore` | testid | Restore on a Trash item (hidden for a viewer). | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-clear` | testid | "Clear out…" in the Trash foot (hidden for a viewer); asks before it does anything. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-ask` | testid | The "Clear out the trash?" confirmation. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-clear-yes` | testid | The primary button of the clear-out confirmation. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-advanced` | testid | The "Advanced" disclosure row at the foot of the Canvases panel (`aria-expanded`). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
+| `canvases-advanced-fold` | testid | The Canvases > Advanced container (`data-open` while open). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
+| `canvases-hidden-files` | testid | The "Show hidden files" switch in Canvases > Advanced (`role="switch"`). Same function as Menu > View > Advanced > Hidden files. | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
+| `canvases-refresh` | testid | "Refresh" in Canvases > Advanced (re-reads the index; also Shift-Cmd-R and the search row "Refresh tree"). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
+| `canvases-advanced-trash` | testid | "Open" on the Trash row inside Canvases > Advanced. | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
+| `canvases-ds-files` | testid | The design system's files (tokens CSS, specimens) as a tree, inside Canvases > Advanced. | `client/tree/tree.jsx` · `Sidebar` | — | stable — re-emit |
+| `assets-panel` | testid | The Assets tab body (the left panel's third tab). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-search` | testid | The Assets tab's search field (names). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-add` | testid | "Add files..." in the Assets tab head (hidden for a viewer). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-empty` | testid | The Assets tab's empty state ("No images or footage yet."). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-nohits` | testid | The Assets tab's "Nothing called ..." state. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `assets-tile` | testid | One asset tile in the Assets tab (`aria-pressed` when picked). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 
 ### viewport
 
@@ -610,7 +633,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `dock-tab-<id>` | testid (pattern) | Panel dock tab; `<id>` ∈ tree, layers, inspector, comments, changes, sync, assistant (`DOCK_PANELS`). *Region: the configurable left/right panel dock, which v2 removes.* | `client/app.jsx` · `DockSlot` | e2e-mp:surface | moves — map in Phase 4 |
+| `dock-tab-<id>` | testid (pattern) | Panel dock tab; `<id>` ∈ tree (reads "Canvases"), layers, assets, inspector, comments, changes, sync, assistant (`DOCK_PANELS`). The left slot's strip is Canvases · Layers · Assets (V2-4.4a). *Region: the configurable left/right panel dock, which v2 removes.* | `client/app.jsx` · `DockSlot` | e2e-mp:surface | moves — map in Phase 4 |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `embed-view` | testid | Root of the embed shell (`?embed` location). | `client/embed-view.jsx` · `EmbedView` | — | stable — re-emit |
@@ -626,7 +649,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `.st-sp-body / .st-sp-cell` | selector | Sticker picker body and one sticker cell. | `client/panels/StickerPicker.jsx` · `StickerPicker` | e2e-mp:surface | stable — re-emit |
 | `[aria-label="Stickers"]` | selector | Sticker picker dialog (shell) and the palette Stickers button (iframe) share this label. | `client/panels/StickerPicker.jsx` · `StickerPicker`<br>`tool-palette.tsx` · `ToolPalette` | e2e-mp:surface | stable — re-emit |
 | `dock-slot-<side>` | testid (pattern) | The panel surface of a dock slot (`.st-dockslot-inner`); `<side>` ∈ left, right. Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`. | `client/shell/dock.jsx` · `DockSlot` | — | stable |
-| `panel-icon-<which>` | testid (pattern) | The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\); `<which>` ∈ left (Files), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides. | `client/v2/shell/corner-icons.jsx` · `CornerIcons` | — | stable |
+| `panel-icon-<which>` | testid (pattern) | The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\); `<which>` ∈ left (Canvases), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides. | `client/v2/shell/corner-icons.jsx` · `CornerIcons` | — | stable |
 | `project-pill` | testid | The project pill (mark + project name, top-left): the `.island` button that opens the one menu; accessible name "Project menu"; `data-occludes="top"` on its island (V2-4.2). | `client/v2/shell/project-pill.jsx` · `ProjectPill` | — | new in v2 (V2-4.2) |
 | `project-menu` | testid | The root `role=menu` of the one menu (CONTRACT §1). | `client/v2/shell/project-pill.jsx` · `Level` | — | new in v2 (V2-4.2) |
 | `project-menu-row-<action-id>` | testid (pattern) | One row of the one menu; `<action-id>` is the registry action id (`export.open`, `settings.open`, …). Disabled rows carry `aria-disabled`; `export.open` shows twice with File open (top level and File). | `client/v2/shell/project-pill.jsx` · `Level` | — | new in v2 (V2-4.2) |

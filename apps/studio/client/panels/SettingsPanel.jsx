@@ -1011,8 +1011,9 @@ const SETTINGS_TAB_STORE = 'mdcc-settings-tab';
 // feature-configurable-panel-docking — the panels the Layout tab can dock. Order
 // = display order. (Assistant is native-only; moving it is a no-op in the browser.)
 const LAYOUT_PANELS = [
-  { id: 'tree', label: 'Files' },
+  { id: 'tree', label: 'Canvases' },
   { id: 'layers', label: 'Layers' },
+  { id: 'assets', label: 'Assets' },
   { id: 'inspector', label: 'Inspector' },
   { id: 'comments', label: 'Comments' },
   { id: 'changes', label: 'Changes' },

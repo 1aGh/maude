@@ -106,6 +106,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.comments': COMMENTS,
   'history.open': { effect: 'none', agent: cli('maude design history list') },
   'view.exports': { effect: 'none', agent: cli('maude design exports list') },
+  // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).
+  // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.
+  'view.assets': { effect: 'none', agent: cli('maude design asset-sweep') },
+  'view.layers-panel': PREF('puts Layers in the left panel or in the Inspector'),
+  'view.trash': PREF('shows the Trash list; the parked files are under <designRoot>/_trash/'),
   'view.inspector': PREF('read the element’s JSX for its properties'),
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),

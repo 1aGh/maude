@@ -13,6 +13,7 @@
 
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { requestTrash } from '../left-panel/left-panel-bus.js';
 import { panelLayout } from './use-panel-layout.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
@@ -47,7 +48,7 @@ const noop = () => {};
  *   onQuickSetup(), onIntro(), onWhatsNew(), onShare(), onReload(), onCloseCanvas(), onAssembleVideo(),
  *   onToggleShowHidden(), onToggleAnnotations(), onToggleMinimap(), onToggleZoomCtl(),
  *   onTogglePresent(), onTogglePrintGuides(), onToggleTimeline(), onToggleAutoOpenInspector(),
- *   onInsertArtboard(preset), onImportFigma(), onImportBrand(), onDuplicate(path),
+ *   onToggleLayersMode(), onInsertArtboard(preset), onImportFigma(), onImportBrand(), onDuplicate(path),
  *   onRename(path, name), onPickMoveDestination() (opens the folder list), onSwitchAccount(),
  *   onCutPaste(kind)
  */
@@ -94,6 +95,18 @@ export function createMenuHandlers(d) {
     'view.pin-panels': () => panelLayout.togglePinned(),
     'view.comments': () => d.toggleRightPanel('comments'),
     'view.exports': () => d.onToggleExports(),
+    // V2-4.4a — Assets is the left panel's third tab; Layers as a panel is the switch that puts Layers there
+    // (or in the Inspector); Trash is the Canvases panel's last row (⌘K, no menu row).
+    'view.assets': () => {
+      panelLayout.show();
+      d.toggleRightPanel('assets');
+    },
+    'view.layers-panel': () => d.onToggleLayersMode(),
+    'view.trash': () => {
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestTrash();
+    },
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),
     'view.timeline-keep-open': () => d.onToggleTimeline(),

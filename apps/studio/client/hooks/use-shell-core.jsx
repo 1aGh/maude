@@ -635,6 +635,8 @@ export function useShellCore({}) {
   // three hydrate from disk (/_api/ui-prefs) on mount and persist on change,
   // mirroring the view-pref pattern.
   const [layersOpen, setLayersOpen] = useState(false);
+  // V2-4.4a — Assets, the left panel's third tab (CONTRACT §7). Like Layers: not remembered across launches.
+  const [assetsOpen, setAssetsOpen] = useState(false);
   const [panelSide, setPanelSide] = useState(() =>
     readJsonStore(PANEL_SIDES_STORE, PANEL_SIDES_DEFAULTS)
   );
@@ -844,6 +846,7 @@ export function useShellCore({}) {
     open: {
       tree: sidebarOpen,
       layers: layersOpen,
+      assets: assetsOpen,
       inspector: inspectorOpen,
       comments: commentsPanelOpen,
       changes: changesOpen,
@@ -855,6 +858,7 @@ export function useShellCore({}) {
   const setPanelOpen = useCallback((id, val) => {
     if (id === 'tree') setSidebarOpen(val);
     else if (id === 'layers') setLayersOpen(val);
+    else if (id === 'assets') setAssetsOpen(val);
     else if (id === 'inspector') setInspectorOpen(val);
     else if (id === 'comments') setCommentsPanelOpen(val);
     else if (id === 'changes') setChangesOpen(val);
@@ -1242,6 +1246,7 @@ export function useShellCore({}) {
     layersBusyTimerRef,
     layersMode,
     layersOpen,
+    assetsOpen,
     layersTree,
     loadServerConfig,
     loadedPath,
@@ -1319,6 +1324,7 @@ export function useShellCore({}) {
     setIntroOpen,
     setLayersMode,
     setLayersOpen,
+    setAssetsOpen,
     setLayersTree,
     setLoadedPath,
     setLoadingPath,

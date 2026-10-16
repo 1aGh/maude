@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "2dad5ede6d4b",
+  "manifestVersion": "ae56c1c9623d",
   "actions": [
     {
       "id": "search.open",
@@ -486,6 +486,41 @@
         "path": "human",
         "because": "view-pref",
         "note": "read system/<ds>/ for the design system itself"
+      }
+    },
+    {
+      "id": "view.assets",
+      "label": "Assets",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design asset-sweep"
+      }
+    },
+    {
+      "id": "view.layers-panel",
+      "label": "Layers as a panel",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "puts Layers in the left panel or in the Inspector"
+      }
+    },
+    {
+      "id": "view.trash",
+      "label": "Trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "shows the Trash list; the parked files are under <designRoot>/_trash/"
       }
     },
     {

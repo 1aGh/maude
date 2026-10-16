@@ -37,6 +37,15 @@
 // `Shift+Digit0` canvas case (US: e.key ")") runs Actual size the way Meta+1 used to. Also: the three
 // cases that open the "?" sheet hash differently (its "Fit · actual size" row reads ⇧ 0), and the
 // extra case re-deals the lanes, so `Meta+Minus`'s boot `@world translate` moved. No write changed.
+// Approved delta (V2-4.4a, decision:maude/v2-4.4a-left-panel-tabs — Canvases · Layers · Assets, no key moved,
+// no write changed): the left panel reads Canvases (the search field is `aria-label="Filter canvases"`, was
+// "Filter files"; the header loses the Refresh button and the live count; the DESIGN SYSTEM section left the
+// default list for the pinned `canvases-ds-row` above it, Trash and Advanced follow the list). Per case: (1) the
+// `shell key="s"` cases (the design-system view) select the pinned row — `button.lp-ds.is-sel[aria-current]`
+// where the `demo` folder row was `[aria-selected]`; (2) every `shell` case whose key lands in the search field
+// (/, ⌘F, t, h, s, n, c, 0, ?, space …) types a query, and a query shows the DESIGN SYSTEM group among the
+// hits (the pinned row steps aside while searching, as in the kit), so those diffs list the section's rows
+// where v1 listed it already expanded — the hashes moved, the keydown / writes lines did not.
 // Lead refresh (V2-4.1, V2-1.2 §5.6 I2): the canvas now re-fits once when the shell's first insets
 // arrive after its boot fit, so every case's boot `@world translate` is the inset-aware fit (it used
 // to depend on whether the insets beat the boot fit — the ⌘D case flipped between runs). Inspector

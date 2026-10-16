@@ -1,5 +1,5 @@
 // client/v2/shell/corner-icons.jsx — V2-4.1: the folded form of the floating panels. A panel that is not
-// showing — closed, or stepped aside by ⌘\ — leaves its icon in the corner it lives in: Files top-left,
+// showing — closed, or stepped aside by ⌘\ — leaves its icon in the corner it lives in: Canvases top-left,
 // Inspector / Comments top-right, the AI chat's spark bottom (kit `PanelIcon at=left|insp|ai`). Each is a
 // small `.island` and carries `data-occludes`, so Fit leaves room for it too (V2-1.2 §5.6).
 //
@@ -8,8 +8,8 @@
 import { StIcon } from '../../shell/icons.jsx';
 
 const FIRST_OF_KIND = {
-  left: ['tree', 'layers', 'changes', 'comments', 'inspector', 'sync'],
-  right: ['inspector', 'comments', 'changes', 'sync', 'tree', 'layers'],
+  left: ['tree', 'layers', 'assets', 'changes', 'comments', 'inspector', 'sync'],
+  right: ['inspector', 'comments', 'changes', 'sync', 'tree', 'layers', 'assets'],
 };
 
 /** The panel a side's corner icon opens: the first non-assistant panel assigned to that side, in the order
@@ -21,8 +21,9 @@ export function cornerTarget(side, ids) {
 }
 
 const LABEL = {
-  tree: 'Files',
+  tree: 'Canvases',
   layers: 'Layers',
+  assets: 'Assets',
   inspector: 'Inspector',
   comments: 'Comments',
   changes: 'Changes',

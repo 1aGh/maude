@@ -19,6 +19,12 @@ import { TreeRowMenu, useRowMenu } from '../tree-row-menu.jsx';
 import RepoBranchSwitcher from '../panels/RepoBranchSwitcher.jsx';
 import CloudBar from '../panels/CloudBar.jsx';
 import IdentityBar from '../panels/IdentityBar.jsx';
+import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-advanced.jsx';
+import { DsPinnedRows, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
+import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
+import { dsPinnedRows } from '../v2/left-panel/left-panel-model.js';
+import { TrashView } from '../v2/left-panel/trash-view.jsx';
+import { useTrash } from '../v2/left-panel/use-trash.js';
 
 // ───── Tree (CV-08 spec) ─────
 // File rows use `.tp-row` with optional .dir / .sel / .star / .modified
@@ -770,7 +776,7 @@ export function TreeLoading({ failures, cloud }) {
     <div className="st-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
       <div className="st-tree-loading-head">
         <span className="st-canvas-loading-spinner" aria-hidden="true" />
-        <span>Loading files…</span>
+        <span>Loading canvases…</span>
       </div>
       {[64, 48, 72, 40, 56, 68, 44].map((w, i) => (
         <span
@@ -816,6 +822,8 @@ export function Sidebar({
   onDeleteBoard,
   onRefresh,
   refreshing,
+  // V2-4.4a — Canvases › Advanced › Hidden files runs the same function as ⌘K / Menu › View.
+  onToggleShowHidden,
   collapsed,
   onCollapse,
   width,
@@ -1055,17 +1063,128 @@ export function Sidebar({
     return total;
   }, [filteredGroups]);
 
+  // V2-4.4a — the Canvases tab: the Design system pinned on top, Trash as the last row, Advanced under it.
+  const pinnedDs = useMemo(() => dsPinnedRows(groups), [groups]);
+  const dsGroup = useMemo(
+    () => filteredGroups.find((g) => g.label === 'Design system'),
+    [filteredGroups]
+  );
+  const [advancedOpen, setAdvancedOpen] = useAdvancedOpen();
+  const [trashOpen, setTrashOpen] = useState(() => takeTrashRequest());
+  useEffect(() => {
+    const open = () => {
+      takeTrashRequest();
+      setTrashOpen(true);
+    };
+    window.addEventListener(OPEN_TRASH_EVENT, open);
+    return () => window.removeEventListener(OPEN_TRASH_EVENT, open);
+  }, []);
+  const { trash, reload: reloadTrash } = useTrash({ enabled: !readOnly, stamp: groups });
+
+  // One section of the tree (a group): PROJECT / DESIGN SYSTEM / UI CANVASES / RUNTIME. Unchanged from
+  // v1 — the Design system group now renders inside Advanced (and in search results) instead of the list.
+  const renderSection = (g) => {
+    // Hide gitignored runtime / orphan-only project sections by default.
+    // Active search overrides — if the user typed a query, they want hits
+    // wherever they live.
+    if (!showHidden && !search && g.kind === 'runtime') return null;
+    const meta = sectionMetaFor(g);
+    // Counter pill counts canvases only — sidecars + orphans inflate the
+    // raw `paths.length` and the FILES header already filters this way.
+    const canvasCount = (g.paths || []).filter((p) => CANVAS_EXT_RE.test(p)).length;
+    const pill =
+      meta.pill ||
+      (meta.pillFromDsCount ? String(g.dsFolders?.length || 0) : null) ||
+      (meta.pillFromCount ? String(canvasCount || g.paths?.length || 0) : null);
+    const hasItems = g.tree && Object.keys(g.tree).length > 0;
+    const isDs = g.label === 'Design system';
+    const isProject = g.kind === 'project';
+    // Project section: when showHidden is off, every row inside is an
+    // orphan (.md / .json / .css) → empty body. Skip the header in that
+    // case so the sidebar doesn't show "PROJECT" with nothing under it.
+    if (!showHidden && !search && isProject && canvasCount === 0) return null;
+    const defaultOpen = sectionDefaultOpen(g);
+    const explicit = sectionsExpanded[g.label];
+    // Active search forces every section open so hits aren't hidden.
+    const sectionOpen = !!search || (explicit === undefined ? defaultOpen : explicit);
+    // feature-file-tree-drag-drop-folders (dogfood follow-up) — the
+    // section header IS the drop target for "move back to this group's
+    // root". Without this a canvas inside a folder could never return
+    // to the top level via drag & drop — DirRow only covers actual
+    // subfolders, never the group root itself.
+    const canDropOnRoot = !isDs && g.kind === 'canvas' && !readOnly;
+    const rootDropHandlers = canDropOnRoot ? treeDrag.dropProps(g.fullPath, true) : {};
+    const isRootOver = treeDrag.overDir === g.fullPath;
+    return (
+      <FileTreeItem
+        className="st-tree-section"
+        key={g.label}
+        label={meta.title}
+        expanded={sectionOpen}
+        onToggle={() => onToggleSection(g.label, defaultOpen)}
+        row={
+          <button
+            type="button"
+            className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
+            data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+            onClick={() => onToggleSection(g.label, defaultOpen)}
+            aria-expanded={sectionOpen}
+            aria-dropeffect={canDropOnRoot ? 'move' : undefined}
+            title={sectionOpen ? 'Collapse section' : 'Expand section'}
+            {...rootDropHandlers}
+          >
+            <StIcon
+              name="chevron-right"
+              className={'st-chev' + (sectionOpen ? ' is-open' : '')}
+              size={13}
+            />
+            <span className="st-sec-name">{meta.title}</span>
+            {pill && <span className="st-pill">{pill}</span>}
+          </button>
+        }
+      >
+        {sectionOpen &&
+          (hasItems ? (
+            <Tree
+              node={g.tree}
+              activePath={activePath}
+              previewPath={previewPath}
+              onOpen={onOpen}
+              onPreview={onPreview}
+              commentsByFile={commentsByFile}
+              depth={1}
+              kind={g.kind}
+              showHidden={showHidden}
+              search={search}
+              dsFolders={g.dsFolders}
+              activeDsName={activeDsName}
+              onOpenSystem={isDs ? onOpenSystem : undefined}
+              onDelete={isDs || readOnly ? undefined : onDeleteBoard}
+              dirtyByPath={dirtyByPath}
+              canvasKinds={canvasKinds}
+              dirPath={g.fullPath}
+              drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
+              menu={rowMenu}
+              expansion={treeExpansion}
+            />
+          ) : (
+            <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
+          ))}
+      </FileTreeItem>
+    );
+  };
+
   return (
     <nav
       className={
         'st-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')
       }
       style={collapsed || !width ? undefined : { width, flexBasis: width }}
-      aria-label="Files"
+      aria-label="Canvases"
       data-tour="sidebar"
     >
       <div className="st-sb-hd">
-        <span className="st-sb-title">Files</span>
+        <span className="st-sb-title">Canvases</span>
         <div className="st-sb-hd-actions">
           {!readOnly && (
             <button
@@ -1100,35 +1219,12 @@ export function Sidebar({
               <StIcon name="folder-plus" size={15} />
             </button>
           )}
-          {onRefresh && (
-            <button
-              type="button"
-              className={'st-iconbtn st-refresh' + (refreshing ? ' is-spinning' : '')}
-              data-tip="Refresh files · ⇧⌘R"
-              aria-label="Refresh files"
-              aria-busy={refreshing || undefined}
-              disabled={refreshing}
-              onClick={() => onRefresh()}
-            >
-              <StIcon name="reload" size={15} />
-            </button>
-          )}
-          <span
-            className="st-live"
-            data-tip={wsConnected ? 'live · file index synced' : 'reconnecting…'}
-          >
-            <span
-              className={'st-live-dot' + (wsConnected ? ' is-connected' : '')}
-              aria-hidden="true"
-            />
-            {htmlShown} / {htmlCount}
-          </span>
           {onCollapse && (
             <button
               type="button"
               className="st-iconbtn"
               aria-label="Collapse sidebar"
-              data-tip="Collapse sidebar · T"
+              data-tip="Close panel · ⌘\ hides every panel"
               onClick={onCollapse}
             >
               <StIcon name="panel-left" size={15} />
@@ -1179,133 +1275,85 @@ export function Sidebar({
         </div>
       ) : null}
 
-      <div className="st-search">
-        <div className="st-search-box">
-          <StIcon name="search" size={13} />
-          <input
-            type="search"
-            data-testid="canvas-search"
-            placeholder="Search canvases…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              // Esc — clear the filter first; a second Esc leaves the field.
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                if (search) setSearch('');
-                else e.currentTarget.blur();
-              }
-            }}
-            aria-label="Filter files"
-          />
-          {search ? (
-            <button
-              className="st-search-clear"
-              onClick={() => setSearch('')}
-              data-tip="Clear · Esc"
-              aria-label="Clear search"
-            >
-              ×
-            </button>
-          ) : (
-            <Kbd>/</Kbd>
-          )}
-        </div>
-      </div>
-
-      {!filesReady && <TreeLoading failures={treeLoadFailures} cloud={cloud} />}
-      <FileTree aria-label="Project file tree" data-testid="canvas-list">
-        {filteredGroups.map((g) => {
-          // Hide gitignored runtime / orphan-only project sections by default.
-          // Active search overrides — if the user typed a query, they want hits
-          // wherever they live.
-          if (!showHidden && !search && g.kind === 'runtime') return null;
-          const meta = sectionMetaFor(g);
-          // Counter pill counts canvases only — sidecars + orphans inflate the
-          // raw `paths.length` and the FILES header already filters this way.
-          const canvasCount = (g.paths || []).filter((p) => CANVAS_EXT_RE.test(p)).length;
-          const pill =
-            meta.pill ||
-            (meta.pillFromDsCount ? String(g.dsFolders?.length || 0) : null) ||
-            (meta.pillFromCount ? String(canvasCount || g.paths?.length || 0) : null);
-          const hasItems = g.tree && Object.keys(g.tree).length > 0;
-          const isDs = g.label === 'Design system';
-          const isProject = g.kind === 'project';
-          // Project section: when showHidden is off, every row inside is an
-          // orphan (.md / .json / .css) → empty body. Skip the header in that
-          // case so the sidebar doesn't show "PROJECT" with nothing under it.
-          if (!showHidden && !search && isProject && canvasCount === 0) return null;
-          const defaultOpen = sectionDefaultOpen(g);
-          const explicit = sectionsExpanded[g.label];
-          // Active search forces every section open so hits aren't hidden.
-          const sectionOpen = !!search || (explicit === undefined ? defaultOpen : explicit);
-          // feature-file-tree-drag-drop-folders (dogfood follow-up) — the
-          // section header IS the drop target for "move back to this group's
-          // root". Without this a canvas inside a folder could never return
-          // to the top level via drag & drop — DirRow only covers actual
-          // subfolders, never the group root itself.
-          const canDropOnRoot = !isDs && g.kind === 'canvas' && !readOnly;
-          const rootDropHandlers = canDropOnRoot ? treeDrag.dropProps(g.fullPath, true) : {};
-          const isRootOver = treeDrag.overDir === g.fullPath;
-          return (
-            <FileTreeItem
-              className="st-tree-section"
-              key={g.label}
-              label={meta.title}
-              expanded={sectionOpen}
-              onToggle={() => onToggleSection(g.label, defaultOpen)}
-              row={
+      {trashOpen ? (
+        <TrashView
+          trash={trash}
+          readOnly={readOnly}
+          onBack={() => setTrashOpen(false)}
+          onChanged={reloadTrash}
+        />
+      ) : (
+        <>
+          <div className="st-search">
+            <div className="st-search-box">
+              <StIcon name="search" size={13} />
+              <input
+                type="search"
+                data-testid="canvas-search"
+                placeholder="Search canvases…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  // Esc — clear the filter first; a second Esc leaves the field.
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (search) setSearch('');
+                    else e.currentTarget.blur();
+                  }
+                }}
+                aria-label="Filter canvases"
+              />
+              {search ? (
                 <button
-                  type="button"
-                  className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
-                  data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                  onClick={() => onToggleSection(g.label, defaultOpen)}
-                  aria-expanded={sectionOpen}
-                  aria-dropeffect={canDropOnRoot ? 'move' : undefined}
-                  title={sectionOpen ? 'Collapse section' : 'Expand section'}
-                  {...rootDropHandlers}
+                  className="st-search-clear"
+                  onClick={() => setSearch('')}
+                  data-tip="Clear · Esc"
+                  aria-label="Clear search"
                 >
-                  <StIcon
-                    name="chevron-right"
-                    className={'st-chev' + (sectionOpen ? ' is-open' : '')}
-                    size={13}
-                  />
-                  <span className="st-sec-name">{meta.title}</span>
-                  {pill && <span className="st-pill">{pill}</span>}
+                  ×
                 </button>
-              }
-            >
-              {sectionOpen &&
-                (hasItems ? (
-                  <Tree
-                    node={g.tree}
-                    activePath={activePath}
-                    previewPath={previewPath}
-                    onOpen={onOpen}
-                    onPreview={onPreview}
-                    commentsByFile={commentsByFile}
-                    depth={1}
-                    kind={g.kind}
-                    showHidden={showHidden}
-                    search={search}
-                    dsFolders={g.dsFolders}
-                    activeDsName={activeDsName}
-                    onOpenSystem={isDs ? onOpenSystem : undefined}
-                    onDelete={isDs || readOnly ? undefined : onDeleteBoard}
-                    dirtyByPath={dirtyByPath}
-                    canvasKinds={canvasKinds}
-                    dirPath={g.fullPath}
-                    drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
-                    menu={rowMenu}
-                    expansion={treeExpansion}
-                  />
-                ) : (
-                  <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
-                ))}
-            </FileTreeItem>
-          );
-        })}
-      </FileTree>
+              ) : (
+                <Kbd>/</Kbd>
+              )}
+            </div>
+          </div>
+
+          {!filesReady && <TreeLoading failures={treeLoadFailures} cloud={cloud} />}
+          {/* V2-4.4a — the project's Design system(s), pinned above every canvas; the Design system's
+          FILES moved under Advanced (CONTRACT §7). While searching the pinned row steps aside (kit)
+          and the group's hits show in the list below. */}
+          {!search && (
+            <DsPinnedRows rows={pinnedDs} activeDsName={activeDsName} onOpen={onOpenSystem} />
+          )}
+          <FileTree aria-label="Project file tree" data-testid="canvas-list">
+            {filteredGroups
+              .filter((g) => g.label !== 'Design system' || !!search)
+              .map((g) => renderSection(g))}
+          </FileTree>
+          {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
+          {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
+          <CanvasesAdvanced
+            open={advancedOpen}
+            onToggle={() => setAdvancedOpen((v) => !v)}
+            showHidden={showHidden}
+            onToggleHidden={() => (onToggleShowHidden ? onToggleShowHidden() : undefined)}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            shown={htmlShown}
+            total={htmlCount}
+            wsConnected={wsConnected}
+            trash={trash}
+            showTrash={!readOnly}
+            onOpenTrash={() => setTrashOpen(true)}
+          >
+            {dsGroup && !search ? (
+              <FileTree aria-label="Design system files" data-testid="canvases-ds-files">
+                {renderSection(dsGroup)}
+              </FileTree>
+            ) : null}
+          </CanvasesAdvanced>
+        </>
+      )}
       <TreeRowMenu
         state={rowMenu.state}
         onClose={rowMenu.close}

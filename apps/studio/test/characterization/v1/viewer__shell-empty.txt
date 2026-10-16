@@ -66,36 +66,36 @@ div
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .st-docktabs [role="tablist"] [aria-label="left panels"]
-              button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+              button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
               button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-            nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
+              button .st-docktab [data-testid="dock-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+            nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
               div .st-sb-hd
-                span .st-sb-title "Files"
+                span .st-sb-title "Canvases"
                 div .st-sb-hd-actions
-                  button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
-                    svg [aria-hidden="true"]
-                  span .st-live "4 / 4"
-                    span .is-connected.st-live-dot [aria-hidden="true"]
                   button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
                     svg [aria-hidden="true"]
               div .st-search
                 div .st-search-box
                   svg [aria-hidden="true"]
-                  input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
+                  input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] [value]
                   span .kbd "/"
+              div .lp-pinned [data-testid="canvases-pinned"]
+                button .lp-ds.lp-row [data-testid="canvases-ds-row"] [title="Open the design system"] [type="button"]
+                  span .lp-ds-ic
+                    svg [aria-hidden="true"]
+                  span .lp-name "Design system"
               div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="false"] [tabindex="0"]
-                  div .st-row-wrap
-                    button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
-                      svg .st-chev [aria-hidden="true"]
-                      span .st-sec-name "DESIGN SYSTEM"
-                      span .st-pill "1"
-                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="-1"]
+                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="0"]
                   div .st-row-wrap
                     button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
                       svg .st-chev [aria-hidden="true"]
                       span .st-sec-name "UI CANVASES"
                       span .st-pill "3"
+              div .lp-adv [data-testid="canvases-advanced-fold"]
+                button .lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+                  span .lp-adv-ch
+                    svg [aria-hidden="true"]
               div .cb-rail.gi-rail [data-testid="cloud-bar"]
                 button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
                   svg [aria-hidden="true"]
