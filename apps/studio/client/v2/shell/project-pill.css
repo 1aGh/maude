@@ -185,8 +185,7 @@
   }
 
   /* Pinned: the left column leaves room for the pill above its first panel. */
-  .st-body:not(.st-body--float) > .st-dockslot--left,
-  .st-body:not(.st-body--float) > .st-rail {
+  .st-body:not(.st-body--float) > .st-dockslot--left {
     padding-top: calc(var(--pill-h) + var(--space-2, 8px) * 2);
     box-sizing: border-box;
     background: var(--bg-1);

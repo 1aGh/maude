@@ -218,7 +218,6 @@ import { CommandPalette } from './dialogs/command-palette.jsx';
 import { AssetPicker } from './dialogs/asset-picker.jsx';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
-import { CollapsedRail } from './shell/collapsed-rail.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
@@ -2937,22 +2936,42 @@ function ShellTree() {
   useHydratePanelLayout();
   const floating = !pinned;
   // Opening a panel while the panels are hidden brings them all back (the open panel must be seen).
-  const shownRef = useRef({ l: leftActive, r: rightActive });
+  // V2-4.4b — the AI chat is its own island: its opening un-hides the panels like any other panel's does.
+  const shownRef = useRef({ l: leftActive, r: rightActive, ai: assistantOpen });
   useEffect(() => {
     const prev = shownRef.current;
-    shownRef.current = { l: leftActive, r: rightActive };
+    shownRef.current = { l: leftActive, r: rightActive, ai: assistantOpen };
     if (
       panelsHidden &&
-      ((leftActive && leftActive !== prev.l) || (rightActive && rightActive !== prev.r))
+      ((leftActive && leftActive !== prev.l) ||
+        (rightActive && rightActive !== prev.r) ||
+        (assistantOpen && !prev.ai))
     )
       panelLayout.show();
-  }, [leftActive, rightActive, panelsHidden]);
+  }, [leftActive, rightActive, assistantOpen, panelsHidden]);
   useOccludedInsets({
     bodyRef,
     iframesRef,
     presenting: presentMode,
-    layoutKey: `${pinned}|${panelsHidden}|${leftActive}|${rightActive}|${sbSize.w}|${rpSize.w}`,
+    layoutKey: `${pinned}|${panelsHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpSize.w}`,
   });
+  // The AI chat island's body. Always mounted (the island is `hidden`, not removed), so its stream survives
+  // a Hide (DDR-123).
+  const renderAssistant = () => (
+    <ChatPanel
+      hidden={!assistantOpen}
+      activeCanvas={activeCanvasFile}
+      selected={selected}
+      openComments={activeOpenComments}
+      designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+      resizing={resizingFor('assistant')}
+      onClose={() => setAssistantOpen(false)}
+      onBusyChange={setAssistantBusy}
+      onFinished={handleAssistantFinished}
+      onPermissionRequest={handleAssistantAttention}
+      onElicitationRequest={handleAssistantAttention}
+    />
+  );
 
   return (
     <div
@@ -3015,19 +3034,9 @@ function ShellTree() {
           <ShellProjectPill />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
-          {/* LEFT dock slot (feature-configurable-panel-docking) — pinned, the collapsed
-              rail shows when the left slot is empty; the tree's expand hooks open
-              it on the tree tab. Floating, the corner icon below plays that part. */}
-          {!floating && (
-            <CollapsedRail
-              shown={!leftActive && !panelsHidden}
-              onExpand={() => openPanelExclusive('tree')}
-              onSearch={() => {
-                openPanelExclusive('tree');
-                setTimeout(() => document.querySelector('.st-search input')?.focus(), 60);
-              }}
-            />
-          )}
+          {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
+              tab strip in the panel's OWN header; the AI chat, when docked here, is a separate island under it
+              (always mounted, so its stream survives — DDR-123). Folded, the corner icon below is the way back. */}
           {(leftActive || leftHostsAssistant) && (
             <DockSlot
               side="left"
@@ -3036,32 +3045,17 @@ function ShellTree() {
               ids={leftIds}
               activeId={leftActive}
               onPick={togglePanel}
+              onFold={() => leftActive && togglePanel(leftActive)}
               labels={dockLabels}
               floating={floating}
               hidden={panelsHidden}
+              aiShown={leftHostsAssistant && assistantOpen}
+              ai={leftHostsAssistant ? renderAssistant() : null}
             >
-              {leftHostsAssistant && (
-                <ChatPanel
-                  hidden={leftActive !== 'assistant'}
-                  activeCanvas={activeCanvasFile}
-                  selected={selected}
-                  openComments={activeOpenComments}
-                  designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(
-                    /^\/+|\/+$/g,
-                    ''
-                  )}
-                  resizing={resizingFor('assistant')}
-                  onClose={() => setAssistantOpen(false)}
-                  onBusyChange={setAssistantBusy}
-                  onFinished={handleAssistantFinished}
-                  onPermissionRequest={handleAssistantAttention}
-                  onElicitationRequest={handleAssistantAttention}
-                />
-              )}
-              {leftActive && leftActive !== 'assistant' && renderPanelBody(leftActive)}
+              {leftActive && renderPanelBody(leftActive)}
             </DockSlot>
           )}
-          {leftActive && !panelsHidden && (
+          {(leftActive || (leftHostsAssistant && assistantOpen)) && !panelsHidden && (
             <PanelGrip
               label="Resize left panel"
               size={sbSize}
@@ -3076,7 +3070,7 @@ function ShellTree() {
           <div className="main">
             <ShellViewport />
           </div>
-          {rightActive && !panelsHidden && (
+          {(rightActive || (rightHostsAssistant && assistantOpen)) && !panelsHidden && (
             <PanelGrip
               label="Resize right panel"
               dir="rtl"
@@ -3089,9 +3083,9 @@ function ShellTree() {
               }}
             />
           )}
-          {/* RIGHT dock slot (feature-configurable-panel-docking). The Assistant
-              (ACP) chat stays MOUNTED (display:none when inactive) so its stream
-              survives a tab switch — DDR-123. Native-only. */}
+          {/* RIGHT dock slot (feature-configurable-panel-docking). V2-4.4b — separate islands, no tab strip:
+              the main island is Inspector / Comments / Changes / Sync (opening one replaces another; each has
+              its own opener), the AI chat its own island, native-only. */}
           {(rightActive || rightHostsAssistant) && (
             <DockSlot
               side="right"
@@ -3100,51 +3094,37 @@ function ShellTree() {
               ids={rightIds}
               activeId={rightActive}
               onPick={togglePanel}
+              onFold={() => rightActive && togglePanel(rightActive)}
               labels={dockLabels}
               floating={floating}
               hidden={panelsHidden}
+              aiShown={rightHostsAssistant && assistantOpen}
+              ai={rightHostsAssistant ? renderAssistant() : null}
             >
-              {rightHostsAssistant && (
-                <ChatPanel
-                  hidden={rightActive !== 'assistant'}
-                  activeCanvas={activeCanvasFile}
-                  selected={selected}
-                  openComments={activeOpenComments}
-                  designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(
-                    /^\/+|\/+$/g,
-                    ''
-                  )}
-                  resizing={resizingFor('assistant')}
-                  onClose={() => setAssistantOpen(false)}
-                  onBusyChange={setAssistantBusy}
-                  onFinished={handleAssistantFinished}
-                  onPermissionRequest={handleAssistantAttention}
-                  onElicitationRequest={handleAssistantAttention}
-                />
-              )}
-              {rightActive && rightActive !== 'assistant' && renderPanelBody(rightActive)}
+              {rightActive && renderPanelBody(rightActive)}
             </DockSlot>
           )}
-          {(floating || panelsHidden) && (
-            <CornerIcons
-              hidden={panelsHidden}
-              leftActive={leftActive}
-              rightActive={rightActive}
-              leftIds={leftIds}
-              rightIds={rightIds}
-              assistant={
-                leftHostsAssistant || rightHostsAssistant
-                  ? {
-                      side: leftHostsAssistant ? 'left' : 'right',
-                      shown: (leftHostsAssistant ? leftActive : rightActive) === 'assistant',
-                      busy: assistantBusy,
-                    }
-                  : null
-              }
-              onOpen={openPanelExclusive}
-              onShow={panelLayout.show}
-            />
-          )}
+          {/* V2-4.4b — the corner icons are the only way back for a panel that is not showing, in every layout:
+              they replaced the pinned layout's CollapsedRail (Expand · Search · Files) along with it. */}
+          <CornerIcons
+            hidden={panelsHidden}
+            leftActive={leftActive}
+            rightActive={rightActive}
+            leftIds={leftIds}
+            rightIds={rightIds}
+            assistant={
+              leftHostsAssistant || rightHostsAssistant
+                ? {
+                    side: leftHostsAssistant ? 'left' : 'right',
+                    shown: assistantOpen,
+                    busy: assistantBusy,
+                  }
+                : null
+            }
+            onOpen={openPanelExclusive}
+            onShow={panelLayout.show}
+          />
+
         </div>
         {/* DDR-148 — Timeline is a BOTTOM dock (full-width strip below the stage,
             above the status bar) — video timelines are horizontal. */}

@@ -3791,7 +3791,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const id = idOf();
           if (!id || statusOf(from, id) !== 'resolved')
             throw new Unexercised('reopen needs a resolved thread');
-          await from.click(selector('dock-tab-comments'));
+          // V2-4.4b — Comments is a right island, opened from the Share cluster (the dock tab strip is gone).
+          await from.click(selector('share-cluster-comments'));
           await from.click(selector('comment-filter-resolved'));
           const reopen = `${selector(`comment-item-${id}`)} [aria-label="Reopen"]`;
           await until(async () => (await from.read(reopen)) !== null);
@@ -7431,12 +7432,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               const state = {
                 heading: await p.probe('h1'),
                 weight: await inspectedWeight(p),
-                inspectorSelected: await p.read(
-                  `${selector('dock-tab-inspector')}[aria-selected="true"]`
-                ),
-                historySelected: await p.read(
-                  `${selector('dock-tab-changes')}[aria-selected="true"]`
-                ),
+                inspectorSelected: await p.read(selector('inspector-panel')),
+                historySelected: await p.read(`${selector('open-changes')}[aria-pressed="true"]`),
                 previewOpen: (await p.read(selector('history-preview-version'))) !== null,
                 previewHeadings,
                 previewBodies: await p.shell(previewFrameProbe('body')).catch((e) => String(e)),
@@ -7462,13 +7459,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               await until(
                 async () => (await p.read('h1', true)) === `Preview current ${from.name}`
               ).catch((error) => failedStep('current-heading', p, error));
-              // Auto-open intentionally preserves a different active dock
-              // panel. Establish this case's Inspector precondition explicitly
-              // after the previous direction left History selected.
-              if (
-                (await p.read(`${selector('dock-tab-inspector')}[aria-selected="false"]`)) !== null
-              )
-                await p.click(selector('dock-tab-inspector'));
+              // Auto-open intentionally preserves a different open right panel
+              // (V2-4.4b: one main right island at a time). Establish this case's
+              // Inspector precondition explicitly after the previous direction
+              // left History open: close it, so the selection below opens the Inspector.
+              if ((await p.read(`${selector('open-changes')}[aria-pressed="true"]`)) !== null)
+                await p.click(selector('open-changes'));
               await selectHeading(p);
               await until(async () => (await inspectedWeight(p)) === '700').catch((error) =>
                 failedStep('current-inspector', p, error)

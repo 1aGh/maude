@@ -8,7 +8,7 @@ import {
   readJsonStore,
   shellToast,
 } from '../shell/util.js';
-import { DOCK_PANELS, PANEL_SIDES_DEFAULTS, usePanelSize } from '../shell/dock.jsx';
+import { PANEL_SIDES_DEFAULTS, siblingsToClose, usePanelSize } from '../shell/dock.jsx';
 import {
   ANNOT_STORE,
   ATTENTION_NOTIFY_COOLDOWN_MS,
@@ -825,9 +825,11 @@ export function useShellCore({}) {
   // it never steals focus from an already-open panel (the user's explicit rule).
   const anyRightPanelOpenRef = useRef(false);
   useEffect(() => {
+    // V2-4.4b — the AI chat is its own island, not a rival for the main panel's place: an open chat does
+    // not stop the Inspector appearing on a selection.
     anyRightPanelOpenRef.current =
-      inspectorOpen || commentsPanelOpen || changesOpen || syncPanelOpen || assistantOpen;
-  }, [inspectorOpen, commentsPanelOpen, changesOpen, syncPanelOpen, assistantOpen]);
+      inspectorOpen || commentsPanelOpen || changesOpen || syncPanelOpen;
+  }, [inspectorOpen, commentsPanelOpen, changesOpen, syncPanelOpen]);
   // The right dock holds exactly ONE panel (Changes / Inspector / Comments) at
   // a time — opening any panel REPLACES whatever was there. These two helpers
   // are the single source of that invariant; every open/toggle path routes
@@ -871,11 +873,9 @@ export function useShellCore({}) {
   );
   const openPanelExclusive = useCallback(
     (id) => {
-      const side = sideOf(id);
       setPanelOpen(id, true);
-      for (const p of DOCK_PANELS) {
-        if (p.id !== id && sideOf(p.id) === side) setPanelOpen(p.id, false);
-      }
+      // V2-4.4b — one main panel per side; the AI chat is its own island and is neither closed by them nor closes them.
+      for (const other of siblingsToClose(id, sideOf)) setPanelOpen(other, false);
     },
     [setPanelOpen, sideOf]
   );
@@ -895,17 +895,31 @@ export function useShellCore({}) {
   // docked on the right (never override an open Layers/Inspect/Comments panel)
   // and only when the preference is on. Idempotent: once the inspector is open,
   // the `anyRightPanelOpen` guard stops it re-firing on the next selection.
+  const inspectorAutoOpenedRef = useRef(false);
   const maybeAutoOpenInspectorOnSelect = useCallback(
     (sel) => {
       if (!autoOpenInspectorRef.current) return;
       if (viewerMode) return; // Cloud Phase 25 C2 — inspector is edit chrome
       if (!sel || !sel.id) return; // need a stable element id to inspect
       if (anyRightPanelOpenRef.current) return; // don't steal from an open panel
+      inspectorAutoOpenedRef.current = true; // V2-4.4b — this appearance is the selection's; it leaves with it
       openRightPanel('inspector');
       setInspectorTab('css');
     },
     [openRightPanel, viewerMode]
   );
+  // V2-4.4b — "appears when something is selected and goes away on deselect". Only an Inspector the
+  // SELECTION opened goes away with it; one opened on purpose (⇧⌘I, View ▸ Inspector) stays, and closing
+  // it by hand ends the claim. With "Open inspector on select" off neither half runs.
+  useEffect(() => {
+    if (!inspectorOpen) inspectorAutoOpenedRef.current = false;
+  }, [inspectorOpen]);
+  const hasSelection = !!selected && (!Array.isArray(selected) || selected.length > 0);
+  useEffect(() => {
+    if (hasSelection || !inspectorAutoOpenedRef.current) return;
+    inspectorAutoOpenedRef.current = false;
+    if (autoOpenInspectorRef.current) setInspectorOpen(false);
+  }, [hasSelection]);
   // DDR-148 — the Timeline is a BOTTOM dock, independent of the right rail: it
   // toggles on its own and coexists with Inspector/Changes/Comments/Chat.
   const toggleTimeline = useCallback(() => setTimelineOpen((v) => !v), []);

@@ -36,6 +36,7 @@ const PILL_W = 220;
 const CLUSTER_W = 380; // faces + status word + comments + Hide panels + Share (measured on screen)
 const ICON = 28 + 2 * 2; // .st-corner .st-iconbtn 28px + the island's 2×--space-1 (v1: 2px)
 
+const AI_H = Number(/--ai-h,\s*(\d+)px/.exec(CSS)?.[1]);
 const W = 1440;
 const H = 830; // the body: window minus menubar + status bar
 type Box = { left: number; top: number; right: number; bottom: number };
@@ -47,6 +48,12 @@ function layout(el: Element, sbW: number, rpW: number): Box {
   const cls0 = el.className;
   const isSlot = el.getAttribute('data-testid')?.startsWith('dock-slot-');
   const side = el.getAttribute('data-testid') === 'dock-slot-left' ? 'left' : 'right';
+  // V2-4.4b — the AI chat is its own island at the slot's bottom (floating-panels.css `--ai-h`: 460), and the
+  // main island above it gives way (`.has-ai`).
+  if (el.getAttribute('data-testid') === 'dock-ai-right')
+    return { left: W - rpW, top: H - GAP - AI_H, right: W - GAP, bottom: H - GAP };
+  if (isSlot && side === 'right' && el.closest('.has-ai'))
+    return { left: W - rpW, top: BELOW_PILL, right: W - GAP, bottom: H - GAP - AI_H - GAP };
   if (cls0 === 'st-pill island')
     return { left: GAP, top: GAP, right: GAP + PILL_W, bottom: GAP + PILL_H };
   if (isSlot && side === 'left') return { left: GAP, top: BELOW_PILL, right: sbW, bottom: H - GAP };
@@ -68,8 +75,9 @@ function shell(opts: {
   hidden: boolean;
   leftActive: string | null;
   rightActive: string | null;
+  ai?: boolean; // the AI chat island is showing on the right
 }) {
-  const { floating, hidden, leftActive, rightActive } = opts;
+  const { floating, hidden, leftActive, rightActive, ai = false } = opts;
   const noop = () => {};
   const html = renderToStaticMarkup(
     <div className="st-body">
@@ -102,32 +110,32 @@ function shell(opts: {
           <aside className="st-sidebar" />
         </DockSlot>
       )}
-      {rightActive && (
+      {(rightActive || ai) && (
         <DockSlot
           side="right"
           width={304}
-          open
-          ids={['inspector', 'comments', 'assistant']}
+          open={!!rightActive}
+          ids={['inspector', 'comments']}
           activeId={rightActive}
           onPick={noop}
           floating={floating}
           hidden={hidden}
+          aiShown={ai}
+          ai={<aside className="st-rpanel" />}
         >
           <aside className="st-rpanel" />
         </DockSlot>
       )}
-      {(floating || hidden) && (
-        <CornerIcons
-          hidden={hidden}
-          leftActive={leftActive}
-          rightActive={rightActive}
-          leftIds={['tree', 'layers']}
-          rightIds={['inspector', 'comments', 'assistant']}
-          assistant={{ side: 'right', shown: rightActive === 'assistant', busy: false }}
-          onOpen={noop}
-          onShow={noop}
-        />
-      )}
+      <CornerIcons
+        hidden={hidden}
+        leftActive={leftActive}
+        rightActive={rightActive}
+        leftIds={['tree', 'layers']}
+        rightIds={['inspector', 'comments']}
+        assistant={{ side: 'right', shown: ai, busy: false }}
+        onOpen={noop}
+        onShow={noop}
+      />
     </div>
   );
   document.body.innerHTML = html;
@@ -176,7 +184,12 @@ const CASES: Array<[string, Parameters<typeof shell>[0], boolean]> = [
   ],
   [
     'floating, AI chat open on the right',
-    { floating: true, hidden: false, leftActive: null, rightActive: 'assistant' },
+    { floating: true, hidden: false, leftActive: null, rightActive: null, ai: true },
+    true,
+  ],
+  [
+    'floating, Inspector with the AI chat island under it',
+    { floating: true, hidden: false, leftActive: 'tree', rightActive: 'inspector', ai: true },
     true,
   ],
   [
@@ -185,8 +198,8 @@ const CASES: Array<[string, Parameters<typeof shell>[0], boolean]> = [
     true,
   ],
   [
-    'pinned, both panels open',
-    { floating: false, hidden: false, leftActive: 'tree', rightActive: 'inspector' },
+    'pinned, both panels and the AI chat open',
+    { floating: false, hidden: false, leftActive: 'tree', rightActive: 'inspector', ai: true },
     false,
   ],
 ];
@@ -227,7 +240,8 @@ describe('every floating island root declares its edge', () => {
       floating: true,
       hidden: false,
       leftActive: 'tree',
-      rightActive: 'assistant',
+      rightActive: 'inspector',
+      ai: true,
     });
     expect(
       body.querySelector('[data-testid="dock-slot-left"]')?.getAttribute('data-occludes')
@@ -235,11 +249,15 @@ describe('every floating island root declares its edge', () => {
     expect(
       body.querySelector('[data-testid="dock-slot-right"]')?.getAttribute('data-occludes')
     ).toBe('right');
+    expect(body.querySelector('[data-testid="dock-ai-right"]')?.getAttribute('data-occludes')).toBe(
+      'right'
+    );
     const hiddenBody = shell({
       floating: true,
       hidden: true,
       leftActive: 'tree',
-      rightActive: 'assistant',
+      rightActive: 'inspector',
+      ai: true,
     }).body;
     expect(
       hiddenBody.querySelector('[data-testid="dock-slot-left"]')?.hasAttribute('data-occludes')

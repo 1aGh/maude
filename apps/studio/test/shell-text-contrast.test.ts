@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { contrastRatio, oklchToRgb, parseOklch } from '../draw/palette';
 
 const shell = readFileSync(new URL('../client/styles/3-shell-maude.css', import.meta.url), 'utf8');
+const leftPanel = readFileSync(
+  new URL('../client/v2/left-panel/left-panel.css', import.meta.url),
+  'utf8'
+);
 const components = readFileSync(
   new URL('../client/styles/4-components.css', import.meta.url),
   'utf8'
@@ -31,7 +35,7 @@ for (const theme of ['light', 'dark']) {
     ['.st-mb-proj', shell],
     ['.st-sb-slot .lbl', shell],
     ['.st-sb-version .val', shell],
-    ['.st-docktab', shell],
+    ['.lp-tab', leftPanel],
     ['.dv-zoom-sync', shell],
     ['.st-skel-cap', shell],
     ['.st-cloudwho-out', components],
