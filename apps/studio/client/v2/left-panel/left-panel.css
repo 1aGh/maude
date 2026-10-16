@@ -4,42 +4,57 @@
  * — so nothing here reuses a bare v1 name). Tokens are the shell's (v1 ladder), exactly as floating-panels.css. */
 
 @layer shell {
-  /* ── the tab strip: Canvases · Layers · Assets ─────────────────────────────── */
-  .st-dockslot--left .st-docktabs {
+  /* ── the panel's own header: Canvases · Layers · Assets, then Hide (V2-4.4b — was the dock's tab strip) ── */
+  .lp-head {
     display: flex;
-    gap: 2px;
+    align-items: center;
+    gap: var(--space-1);
     margin: var(--space-2) var(--space-2) var(--space-1);
+    flex: none;
+  }
+  .lp-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 2px;
     padding: 2px;
-    border: 0;
     border-radius: var(--radius-md);
     background: var(--bg-3);
   }
-  .st-dockslot--left .st-docktab {
+  .lp-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
     flex: 1 1 0;
     min-width: 0;
     padding: var(--space-1) var(--space-2);
     border-radius: calc(var(--radius-md) - 2px);
     font-family: var(--font-body);
     font-size: var(--type-xs);
-    letter-spacing: 0;
     text-align: center;
     white-space: nowrap;
     color: var(--fg-1);
+    transition:
+      color var(--dur-soft) var(--ease-out),
+      background var(--dur-soft) var(--ease-out);
   }
-  .st-dockslot--left .st-docktab:hover {
-    background: transparent;
+  .lp-tab:hover {
     color: var(--fg-0);
   }
-  .st-dockslot--left .st-docktab.is-active {
+  .lp-tab.is-active {
     background: var(--bg-2);
     color: var(--fg-0);
     box-shadow:
       var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.12)),
       inset 0 0 0 1px var(--accent);
   }
-  .st-dockslot--left .st-docktab:focus-visible {
+  .lp-tab:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  }
+  .lp-fold {
+    flex: none;
   }
 
   /* ── rows (pinned Design system, Trash) ───────────────────────────────────── */

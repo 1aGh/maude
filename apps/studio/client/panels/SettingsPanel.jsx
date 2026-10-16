@@ -1020,9 +1020,9 @@ const LAYOUT_PANELS = [
   { id: 'assistant', label: 'Assistant' },
 ];
 
-function SideToggle({ value, disabled, onChange }) {
+function SideToggle({ value, disabled, onChange, testId }) {
   return (
-    <span className="st-sidetoggle" role="radiogroup" aria-label="Panel side">
+    <span className="st-sidetoggle" role="radiogroup" aria-label="Panel side" data-testid={testId}>
       {['left', 'right'].map((s) => (
         <button
           key={s}
@@ -1079,8 +1079,8 @@ function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMode }) {
           <span className="st-provider-name">Panel positions</span>
         </div>
         <div className="st-provider-notes">
-          Dock each panel to the left or right side. Each side shows one panel at a time, with tabs
-          to switch between the panels docked there.
+          Put each panel on the left or the right. The AI chat is its own panel and shows beside the
+          rest; Canvases, Layers and Assets share one panel with tabs.
         </div>
         {LAYOUT_PANELS.map((p) => {
           const disabled = p.id === 'layers' && layersMode !== 'separate';
@@ -1095,6 +1095,7 @@ function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMode }) {
                 )}
               </span>
               <SideToggle
+                testId={`panel-side-${p.id}`}
                 value={panelSide?.[p.id] || 'left'}
                 disabled={disabled}
                 onChange={(s) => onSetPanelSide(p.id, s)}

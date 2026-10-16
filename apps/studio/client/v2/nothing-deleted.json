@@ -128,8 +128,8 @@
       "drawnAt": "ad-pinned",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "panel-grip-<side>",
+        "where": "Left panel's own header strip panel-tab-<id> + Hide panel-fold-<side>; grips on the panels' inner edge (panel-grip-<side>)"
       }
     },
     {
@@ -1362,9 +1362,9 @@
       "home": "view",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "view.inspector-on-select",
         "testid": null,
-        "where": null
+        "where": "Menu > View > Advanced > Open inspector on select; on = the Inspector appears with a selection and leaves on deselect"
       }
     },
     {
@@ -1376,8 +1376,8 @@
       "drawnAt": "ad-pinned",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "panel-side-<id>",
+        "where": "Settings > Layout > Panel positions (prefs panelSides)"
       }
     },
     {

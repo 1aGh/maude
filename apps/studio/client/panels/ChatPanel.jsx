@@ -52,6 +52,7 @@ import {
 import { buildChatContext } from './chat-context.js';
 import CapabilityBar from './CapabilityBar.jsx';
 import ElicitationPrompt from './ElicitationPrompt.jsx';
+import { ChatHeader } from './chat-header.jsx';
 import PermissionPrompt from './PermissionPrompt.jsx';
 import { Markdown } from './chat-markdown.jsx';
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
@@ -88,11 +89,6 @@ const Check = ({ size = 13 }) => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-  </svg>
-);
-const Close = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 const SendArrow = ({ size = 16 }) => (
@@ -2172,6 +2168,8 @@ export default function ChatPanel({
   }, [chats, openChatIds, sessionTitles]);
 
   const connected = status.available !== false;
+  // "✦ N" in the header — YOUR running chats (the busy ones), never anyone else's.
+  const runningChats = Object.values(busyChats || {}).filter(Boolean).length;
 
   return (
     <aside
@@ -2183,147 +2181,131 @@ export default function ChatPanel({
       aria-label="Assistant"
       aria-hidden={hidden || undefined}
     >
-      <div className="st-rp-tabs">
-        <span className="st-rp-tab is-active">
-          <Spark size={13} /> Assistant
-        </span>
-        <button
-          type="button"
-          className="st-iconbtn"
-          aria-label="Close assistant"
-          style={{ marginLeft: 'auto' }}
-          onClick={onClose}
-        >
-          <Close />
-        </button>
-      </div>
-      {connected ? (
-        <div className="chat-bar">
-          <div className="chat-switch">
-            <button
-              type="button"
-              className="chat-switch-trigger"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-haspopup="listbox"
-              aria-expanded={menuOpen}
-            >
-              <span
-                className={`chat-dot ${busyChats[activeChatId] ? 'chat-dot--busy' : 'chat-dot--idle'}`}
-              />
-              <span className="chat-switch-title">
-                {chatOptions.find((c) => c.id === activeChatId)?.title || 'New chat'}
-              </span>
-              <span className="chat-switch-caret">▾</span>
-            </button>
-            {menuOpen ? (
-              <>
-                <div
-                  className="chat-menu-backdrop"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setOverflowChatId(null);
-                    setRenamingChatId(null);
-                  }}
-                />
-                <div className="chat-menu" role="listbox">
-                  {chatOptions.map((c) => (
-                    <div
-                      key={c.id}
-                      className={`chat-menu-row${c.id === activeChatId ? ' is-active' : ''}`}
-                    >
-                      {renamingChatId === c.id ? (
-                        <input
-                          type="text"
-                          className="chat-menu-rename-input"
-                          value={renameValue}
-                          autoFocus
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onBlur={() => commitRename(c.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') commitRename(c.id);
-                            else if (e.key === 'Escape') setRenamingChatId(null);
-                          }}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          className="chat-menu-open"
-                          onClick={() => {
-                            switchTo(c.id);
-                            setMenuOpen(false);
-                          }}
-                        >
-                          <span
-                            className={`chat-dot ${busyChats[c.id] ? 'chat-dot--busy' : c.open ? 'chat-dot--idle' : 'chat-dot--off'}`}
-                            title={busyChats[c.id] ? 'Running' : c.open ? 'Open' : 'Saved'}
-                          />
-                          <span className="chat-menu-title">{c.title}</span>
-                        </button>
-                      )}
-                      <div className="chat-menu-overflow-wrap">
-                        <button
-                          type="button"
-                          className="chat-menu-more"
-                          aria-label="More options"
-                          title="More options"
-                          aria-haspopup="menu"
-                          aria-expanded={overflowChatId === c.id}
-                          onClick={() => setOverflowChatId((prev) => (prev === c.id ? null : c.id))}
-                        >
-                          ⋯
-                        </button>
-                        {overflowChatId === c.id ? (
-                          <div
-                            className="chat-menu-overflow"
-                            role="menu"
-                            data-testid="chat-overflow-menu"
-                          >
-                            <button type="button" role="menuitem" onClick={() => startRename(c)}>
-                              Rename
-                            </button>
-                            <button type="button" role="menuitem" onClick={() => archiveChat(c.id)}>
-                              Archive
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => copyTranscript(c.id)}
-                            >
-                              Copy transcript
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="chat-menu-overflow-danger"
-                              onClick={() => {
-                                setOverflowChatId(null);
-                                deleteChat(c.id);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : null}
-          </div>
+      {/* V2-4.4b — the 03 header (kit `AIPanel chat=…`): spark · the chat's title ⌄ (opens the chat list) ·
+          "✦ N" YOUR running chats · New chat · Hide. Hide folds the island to its spark corner icon. */}
+      <ChatHeader
+        connected={connected}
+        running={runningChats}
+        onToggleList={() => setMenuOpen((v) => !v)}
+        onNew={() => {
+          newChat();
+          setMenuOpen(false);
+        }}
+        onHide={onClose}
+      >
+        <div className="chat-switch">
           <button
             type="button"
-            className="chat-newbtn"
-            onClick={() => {
-              newChat();
-              setMenuOpen(false);
-            }}
-            title="Start a new chat"
+            className="chat-switch-trigger"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={menuOpen}
           >
-            ＋ New
+            <span
+              className={`chat-dot ${busyChats[activeChatId] ? 'chat-dot--busy' : 'chat-dot--idle'}`}
+            />
+            <span className="chat-switch-title">
+              {chatOptions.find((c) => c.id === activeChatId)?.title || 'New chat'}
+            </span>
+            <span className="chat-switch-caret">▾</span>
           </button>
+          {menuOpen ? (
+            <>
+              <div
+                className="chat-menu-backdrop"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setOverflowChatId(null);
+                  setRenamingChatId(null);
+                }}
+              />
+              <div className="chat-menu" role="listbox">
+                {chatOptions.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`chat-menu-row${c.id === activeChatId ? ' is-active' : ''}`}
+                  >
+                    {renamingChatId === c.id ? (
+                      <input
+                        type="text"
+                        className="chat-menu-rename-input"
+                        value={renameValue}
+                        autoFocus
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => commitRename(c.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRename(c.id);
+                          else if (e.key === 'Escape') setRenamingChatId(null);
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="chat-menu-open"
+                        onClick={() => {
+                          switchTo(c.id);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <span
+                          className={`chat-dot ${busyChats[c.id] ? 'chat-dot--busy' : c.open ? 'chat-dot--idle' : 'chat-dot--off'}`}
+                          title={busyChats[c.id] ? 'Running' : c.open ? 'Open' : 'Saved'}
+                        />
+                        <span className="chat-menu-title">{c.title}</span>
+                      </button>
+                    )}
+                    <div className="chat-menu-overflow-wrap">
+                      <button
+                        type="button"
+                        className="chat-menu-more"
+                        aria-label="More options"
+                        title="More options"
+                        aria-haspopup="menu"
+                        aria-expanded={overflowChatId === c.id}
+                        onClick={() => setOverflowChatId((prev) => (prev === c.id ? null : c.id))}
+                      >
+                        ⋯
+                      </button>
+                      {overflowChatId === c.id ? (
+                        <div
+                          className="chat-menu-overflow"
+                          role="menu"
+                          data-testid="chat-overflow-menu"
+                        >
+                          <button type="button" role="menuitem" onClick={() => startRename(c)}>
+                            Rename
+                          </button>
+                          <button type="button" role="menuitem" onClick={() => archiveChat(c.id)}>
+                            Archive
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => copyTranscript(c.id)}
+                          >
+                            Copy transcript
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="chat-menu-overflow-danger"
+                            onClick={() => {
+                              setOverflowChatId(null);
+                              deleteChat(c.id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
-      ) : null}
+      </ChatHeader>
       <div className="st-rp-body st-rp-body--chat">
         {status.available === false ? (
           <NotConnected

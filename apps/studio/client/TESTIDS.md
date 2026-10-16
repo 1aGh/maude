@@ -633,7 +633,16 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `dock-tab-<id>` | testid (pattern) | Panel dock tab; `<id>` ∈ tree (reads "Canvases"), layers, assets, inspector, comments, changes, sync, assistant (`DOCK_PANELS`). The left slot's strip is Canvases · Layers · Assets (V2-4.4a). *Region: the configurable left/right panel dock, which v2 removes.* | `client/app.jsx` · `DockSlot` | e2e-mp:surface | moves — map in Phase 4 |
+| `panel-tab-<id>` | testid (pattern) | A tab of the left panel's own header strip; `<id>` ∈ tree (reads "Canvases"), layers, assets (and any other panel a person docks on the left, Settings › Layout). Replaces the dock tab strip `dock-tab-<id>` (V2-4.4b). | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
+| `panel-head-<side>` | testid (pattern) | The panel's own header row (the tab strip + its Hide icon); `<side>` ∈ left, right. Only a side that hosts Canvases · Layers · Assets and more than one panel has one. | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
+| `panel-fold-<side>` | testid (pattern) | The Hide icon in the panel's header: folds the panel to its corner icon. | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
+| `panel-grip-<side>` | testid (pattern) | The resize grip on the inner edge of the left / right panel (drag, arrow keys, Home / End, double-click resets). Role separator. | `client/shell/dock.jsx` · `PanelGrip` | — | stable |
+| `panel-side-<id>` | testid (pattern) | Settings › Layout › Panel positions: the Left / Right radio group of one panel (`<id>` ∈ tree, layers, assets, inspector, comments, changes, assistant). Persisted as prefs `panelSides`. | `client/panels/SettingsPanel.jsx` · `SideToggle` | — | stable |
+| `dock-ai-<side>` | testid (pattern) | The AI chat's own island in a dock slot (always mounted; `hidden` while the chat is folded to its corner icon). Floating and showing, it carries `data-occludes` for its side. | `client/shell/dock.jsx` · `DockSlot` | — | stable |
+| `ai-chat-header` | testid | The AI chat panel's header row (03 AI Chat): spark · chat title ⌄ · ✦ N running · New chat · Hide. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
+| `ai-chat-new` | testid | The AI chat header's New chat icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
+| `ai-chat-hide` | testid | The AI chat header's Hide icon (replaces the old "Close assistant" button): folds the island to its spark corner icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
+| `ai-chat-count` | testid | The AI chat header's "✦ N" chip: how many of YOUR chats are running; absent at zero. Click opens the chat list. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `embed-view` | testid | Root of the embed shell (`?embed` location). | `client/embed-view.jsx` · `EmbedView` | — | stable — re-emit |
@@ -648,7 +657,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `[aria-label="Choose media"] / .st-ap-cell` | selector | Replace-media asset picker dialog and one asset cell. | `client/app.jsx` · `AssetPicker` | e2e-mp:surface | stable — re-emit |
 | `.st-sp-body / .st-sp-cell` | selector | Sticker picker body and one sticker cell. | `client/panels/StickerPicker.jsx` · `StickerPicker` | e2e-mp:surface | stable — re-emit |
 | `[aria-label="Stickers"]` | selector | Sticker picker dialog (shell) and the palette Stickers button (iframe) share this label. | `client/panels/StickerPicker.jsx` · `StickerPicker`<br>`tool-palette.tsx` · `ToolPalette` | e2e-mp:surface | stable — re-emit |
-| `dock-slot-<side>` | testid (pattern) | The panel surface of a dock slot (`.st-dockslot-inner`); `<side>` ∈ left, right. Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`. | `client/shell/dock.jsx` · `DockSlot` | — | stable |
+| `dock-slot-<side>` | testid (pattern) | The MAIN panel island of a dock slot (`.st-dockslot-inner`); `<side>` ∈ left (Canvases · Layers · Assets), right (Inspector / Comments / Changes / Sync — one at a time, no tab strip). The AI chat is its own island, `dock-ai-<side>` (V2-4.4b). Floating, it is the `.island` that carries `data-occludes` (V2-4.1); pinned, `display: contents`. | `client/shell/dock.jsx` · `DockSlot` | — | stable |
 | `panel-icon-<which>` | testid (pattern) | The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\); `<which>` ∈ left (Canvases), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides. | `client/v2/shell/corner-icons.jsx` · `CornerIcons` | — | stable |
 | `project-pill` | testid | The project pill (mark + project name, top-left): the `.island` button that opens the one menu; accessible name "Project menu"; `data-occludes="top"` on its island (V2-4.2). | `client/v2/shell/project-pill.jsx` · `ProjectPill` | — | new in v2 (V2-4.2) |
 | `project-menu` | testid | The root `role=menu` of the one menu (CONTRACT §1). | `client/v2/shell/project-pill.jsx` · `Level` | — | new in v2 (V2-4.2) |
@@ -666,7 +675,6 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `share-cluster-panels` | testid | Hide panels / Show panels (`view.panels`, ⌘\); `aria-pressed` while panels are hidden. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-share` | testid | Share (primary, editors): runs `share.open`; `aria-disabled` with no canvas open. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-ask` | testid | Ask to edit (primary, people without edit rights) — in place of Share. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
-| `.st-docktab` | selector | A panel dock tab (same element as `dock-tab-<id>`). *CSS consumer.* | `client/app.jsx` · `DockSlot` | test:shell-text-contrast | moves — map in Phase 4 |
 | `.maude[data-theme]` | selector | The shell root `div.maude` and its `data-theme="light\|dark"` (mirrored on `<html data-theme>`). The token blocks in `styles/1-tokens-maude.css` are scoped to `.maude[data-theme=…]`. *`team-project` reads `<html data-theme>`; `shell-text-contrast` reads the CSS token blocks.* | `client/app.jsx` · `App` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e:team-project, test:shell-text-contrast | stable — re-emit |
 
 ## What's New spotlights

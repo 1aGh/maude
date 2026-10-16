@@ -94,8 +94,31 @@
     border: 0;
     animation: none;
   }
-  .st-body--float .st-docktabs {
+
+  /* ── the AI chat island (V2-4.4b) ───────────────────────────────────────────
+   * The chat is its own island in the slot, under the main panel (kit: bottom corner, `.k-ai`). Alone it
+   * sits at the bottom edge at a chat's height; with a main panel above it the two share the column and
+   * the main panel gives way first. Hidden, it stays mounted (the stream survives — DDR-123). */
+  .st-dockslot > .st-dockslot-inner.st-dockslot-ai[hidden] {
+    display: none;
+  }
+  .st-body--float > .st-dockslot {
+    gap: var(--float-gap);
+  }
+  .st-body--float .st-dockslot-ai {
+    flex: 0 1 var(--ai-h, 460px);
+    min-height: min(260px, 100%);
+    margin-top: auto;
+  }
+  .st-body--float > .st-dockslot.has-ai > .st-dockslot-inner:not(.st-dockslot-ai) {
+    flex: 1 1 0;
+    min-height: 120px;
+  }
+  .st-body--float .st-dockslot-ai > .st-rpanel {
+    flex: 1 1 auto;
+    width: 100%;
     background: transparent;
+    border: 0;
   }
 
   /* Pinned: the inner steps out of the box tree, so the panel is today's direct child of the slot. */
