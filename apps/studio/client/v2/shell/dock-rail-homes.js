@@ -12,7 +12,7 @@ export const DOCK_RAIL_HOMES = [
     was: 'Rail › Expand sidebar',
     home: 'The Canvases corner icon, in every layout (also ⌘\\ Show panels)',
     file: 'client/v2/shell/corner-icons.jsx',
-    testid: 'panel-icon-left',
+    testid: 'panel-icon-<which>',
     actionId: 'view.panels',
   },
   {
@@ -25,7 +25,7 @@ export const DOCK_RAIL_HOMES = [
     was: 'Rail › Files',
     home: 'The Canvases corner icon',
     file: 'client/v2/shell/corner-icons.jsx',
-    testid: 'panel-icon-left',
+    testid: 'panel-icon-<which>',
   },
   // ── the dock tab strip ──
   {

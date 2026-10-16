@@ -3105,7 +3105,7 @@ function ShellTree() {
             </DockSlot>
           )}
           {/* V2-4.4b — the corner icons are the only way back for a panel that is not showing, in every layout:
-              they replaced the pinned layout's CollapsedRail (Expand · Search · Files) along with it. */}
+              they replaced the pinned layout's old collapsed rail (Expand · Search · Files) along with it. */}
           <CornerIcons
             hidden={panelsHidden}
             leftActive={leftActive}
@@ -3124,7 +3124,6 @@ function ShellTree() {
             onOpen={openPanelExclusive}
             onShow={panelLayout.show}
           />
-
         </div>
         {/* DDR-148 — Timeline is a BOTTOM dock (full-width strip below the stage,
             above the status bar) — video timelines are horizontal. */}

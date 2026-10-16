@@ -51,7 +51,7 @@ export function hasPanelTabs(ids) {
 }
 
 // V2-4.4b — the left panel's OWN header (kit `CanvasesPanel` `.k-cp-hd`): the segmented strip over the panels
-// assigned to the side, then the Hide icon. Replaces the old dock tab strip (`dock-tab-<id>` / `.st-docktabs`).
+// assigned to the side, then the Hide icon. Replaces the old dock tab strip (the `dock-tab-<id>` hooks).
 export function PanelTabs({ side, ids, activeId, onPick, onFold, labels = null }) {
   const label = (id) => labels?.[id] || (DOCK_PANELS.find((p) => p.id === id) || {}).label || id;
   return (

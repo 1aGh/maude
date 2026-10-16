@@ -29,6 +29,7 @@ import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
+import { shouldCloseOnDeselect, shouldOpenOnSelect } from '../v2/shell/inspector-follow.js';
 import { useExportCenter } from '../export-center.jsx';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
 
@@ -898,10 +899,15 @@ export function useShellCore({}) {
   const inspectorAutoOpenedRef = useRef(false);
   const maybeAutoOpenInspectorOnSelect = useCallback(
     (sel) => {
-      if (!autoOpenInspectorRef.current) return;
-      if (viewerMode) return; // Cloud Phase 25 C2 — inspector is edit chrome
-      if (!sel || !sel.id) return; // need a stable element id to inspect
-      if (anyRightPanelOpenRef.current) return; // don't steal from an open panel
+      // V2-4.4b — the rule is v2/shell/inspector-follow.js (pref on, not a viewer — Cloud Phase 25 C2,
+      // a stable element id, never stealing from an open main panel; the AI chat does not count).
+      const open = shouldOpenOnSelect({
+        pref: autoOpenInspectorRef.current,
+        viewer: !!viewerMode,
+        hasId: !!sel?.id,
+        anyMainOpen: anyRightPanelOpenRef.current,
+      });
+      if (!open) return;
       inspectorAutoOpenedRef.current = true; // V2-4.4b — this appearance is the selection's; it leaves with it
       openRightPanel('inspector');
       setInspectorTab('css');
@@ -917,8 +923,13 @@ export function useShellCore({}) {
   const hasSelection = !!selected && (!Array.isArray(selected) || selected.length > 0);
   useEffect(() => {
     if (hasSelection || !inspectorAutoOpenedRef.current) return;
+    const close = shouldCloseOnDeselect({
+      pref: autoOpenInspectorRef.current,
+      autoOpened: inspectorAutoOpenedRef.current,
+      hasSelection,
+    });
     inspectorAutoOpenedRef.current = false;
-    if (autoOpenInspectorRef.current) setInspectorOpen(false);
+    if (close) setInspectorOpen(false);
   }, [hasSelection]);
   // DDR-148 — the Timeline is a BOTTOM dock, independent of the right rail: it
   // toggles on its own and coexists with Inspector/Changes/Comments/Chat.
