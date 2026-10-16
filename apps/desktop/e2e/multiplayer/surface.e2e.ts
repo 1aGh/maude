@@ -7690,8 +7690,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const specimenBody = (title: string) =>
           `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function Specimen() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="specimen" label="Specimen" width={360} height={200}>\n        <h1 style={{ padding: 24 }}>${title}</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
         // The DESIGN SYSTEM section of every tree shows the project's design
-        // system (a copy learns it from the project) with its specimens.
+        // system (a copy learns it from the project) with its specimens. V2-4.4a:
+        // it lives under Canvases › Advanced now (the pinned Design system row opens
+        // the canvas view), so open that fold first.
         const openDsSection = async (p: Surface) => {
+          const adv = selector('canvases-advanced');
+          await until(async () => (await p.read(adv)) !== null, 30000);
+          if ((await p.read(`${adv}[aria-expanded="false"]`)) !== null) await p.click(adv);
           const hd = selector('tree-section-design-system');
           await until(async () => (await p.read(hd)) !== null, 30000);
           if ((await p.read(`${hd}[aria-expanded="false"]`)) !== null) await p.click(hd);

@@ -344,6 +344,7 @@ function ShellState({ children }) {
     layersBusyTimerRef,
     layersMode,
     layersOpen,
+    assetsOpen,
     layersTree,
     loadServerConfig,
     loadedPath,
@@ -1212,6 +1213,7 @@ function ShellState({ children }) {
     setInspectorOpen,
     layersOpen,
     setLayersOpen,
+    assetsOpen,
     panelSide,
     layersMode,
     assistantOpen,
@@ -1711,6 +1713,10 @@ function ShellProjectPill() {
       setShortcutsOpen,
       setShowHidden,
       showHidden,
+      layersMode,
+      setLayersMode,
+      setLayersOpen,
+      assetsOpen,
       startTour,
       timelineOpen,
       toggleRightPanel,
@@ -1768,6 +1774,13 @@ function ShellProjectPill() {
     onCloseCanvas: () => activePath && closeTab(activePath),
     onAssembleVideo: assembleVideo,
     onToggleShowHidden: () => setShowHidden((v) => !v),
+    // V2-4.4a: View › Advanced › Layers as a panel — the Settings › Layout switch, from the menu.
+    onToggleLayersMode: () => {
+      const next = layersMode === 'separate' ? 'in-inspector' : 'separate';
+      setLayersMode(next);
+      // Leaving separate mode retires the standalone Layers panel.
+      if (next !== 'separate') setLayersOpen(false);
+    },
     onToggleAnnotations: toggleAnnotations,
     onToggleMinimap: toggleMinimap,
     onToggleZoomCtl: toggleZoomCtl,
@@ -1832,6 +1845,8 @@ function ShellProjectPill() {
         'view.zoom-controls': zoomCtlVisible,
         'view.print-guides': printGuidesVisible,
         'view.hidden-files': showHidden,
+        'view.layers-panel': layersMode === 'separate',
+        'view.assets': assetsOpen,
         'view.inspector-on-select': autoOpenInspector,
         'view.timeline-keep-open': timelineOpen,
         'view.inspector': inspectorOpen,
@@ -1849,6 +1864,8 @@ function ShellProjectPill() {
       zoomCtlVisible,
       printGuidesVisible,
       showHidden,
+      layersMode,
+      assetsOpen,
       autoOpenInspector,
       timelineOpen,
       inspectorOpen,

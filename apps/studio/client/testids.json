@@ -4951,7 +4951,7 @@
     "hook": "dock-tab-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Panel dock tab; `<id>` ∈ tree, layers, inspector, comments, changes, sync, assistant (`DOCK_PANELS`).",
+    "meaning": "Panel dock tab; `<id>` ∈ tree (reads \"Canvases\"), layers, assets, inspector, comments, changes, sync, assistant (`DOCK_PANELS`). The left slot's strip is Canvases · Layers · Assets (V2-4.4a).",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "DockSlot"
@@ -4978,7 +4978,7 @@
     "hook": "panel-icon-<which>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\\); `<which>` ∈ left (Files), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides.",
+    "meaning": "The folded corner icon of a panel that is not showing (closed, or hidden by ⌘\\); `<which>` ∈ left (Canvases), right (Inspector / Comments), assistant (the AI chat's spark). Click brings the panel up and un-hides.",
     "producer": {
       "file": "apps/studio/client/v2/shell/corner-icons.jsx",
       "symbol": "CornerIcons"
@@ -7806,5 +7806,304 @@
     "region": "home",
     "consumers": ["test:home-page"],
     "v2": "new"
+  },
+  {
+    "hook": "canvases-pinned",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The pinned strip above the Canvases list that holds the Design system row(s).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-ds-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A pinned Design system row (one per system; `data-ds` carries the system). Click opens the design-system view (the old S key).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "DsPinnedRows"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Canvases panel's last row: Trash and its count. Click opens the Trash list.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-pinned.jsx",
+      "symbol": "TrashRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Trash list that replaces the Canvases list while it is open.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Back from the Trash list to the Canvases list.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Trash is empty.\" state.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-item",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One parked thing in the Trash list.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Restore on a Trash item (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Clear out…\" in the Trash foot (hidden for a viewer); asks before it does anything.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Clear out the trash?\" confirmation.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-clear-yes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The primary button of the clear-out confirmation.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Advanced\" disclosure row at the foot of the Canvases panel (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-advanced-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Canvases > Advanced container (`data-open` while open).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-hidden-files",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Show hidden files\" switch in Canvases > Advanced (`role=\"switch\"`). Same function as Menu > View > Advanced > Hidden files.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-refresh",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Refresh\" in Canvases > Advanced (re-reads the index; also Shift-Cmd-R and the search row \"Refresh tree\").",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-advanced-trash",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open\" on the Trash row inside Canvases > Advanced.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "canvases-ds-files",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The design system's files (tokens CSS, specimens) as a tree, inside Canvases > Advanced.",
+    "producer": {
+      "file": "apps/studio/client/tree/tree.jsx",
+      "symbol": "Sidebar"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Assets tab body (the left panel's third tab).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Assets tab's search field (names).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Add files...\" in the Assets tab head (hidden for a viewer).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Assets tab's empty state (\"No images or footage yet.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-nohits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Assets tab's \"Nothing called ...\" state.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "assets-tile",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One asset tile in the Assets tab (`aria-pressed` when picked).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/assets-panel.jsx",
+      "symbol": "AssetsPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
   }
 ]

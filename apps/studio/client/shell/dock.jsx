@@ -7,8 +7,11 @@ import { useCallback, useEffect, useState } from 'react';
 // single-panel-at-a-time surface with a tab strip over the panels assigned to
 // it. Order here = tab order within a slot. `assistant` is native-only.
 export const DOCK_PANELS = [
-  { id: 'tree', label: 'Files' },
+  // V2-4.4a — the left slot reads Canvases · Layers · Assets (CONTRACT §7). The id stays `tree`
+  // (`dock-tab-tree`, panelSides, the e2e hooks); only the word changed.
+  { id: 'tree', label: 'Canvases' },
   { id: 'layers', label: 'Layers' },
+  { id: 'assets', label: 'Assets' },
   { id: 'inspector', label: 'Inspector' },
   { id: 'comments', label: 'Comments' },
   { id: 'changes', label: 'Changes' },
@@ -19,6 +22,7 @@ export const DOCK_PANELS = [
 export const PANEL_SIDES_DEFAULTS = {
   tree: 'left',
   layers: 'left',
+  assets: 'left',
   inspector: 'right',
   comments: 'right',
   changes: 'right',

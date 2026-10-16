@@ -49,6 +49,19 @@
 // and `browser/palette-query` list the three segment buttons. The canvas states' "You're in Edit" notice now reads
 // "Switch to Preview at the top right" (it named "the toolbar"). Nothing else moved: the boot Preview of a viewer does
 // NOT fold the panels (only a chosen Preview does). Refreshed all states (`--update`), then `--repeat` green.
+// Approved delta (V2-4.4a, decision:maude/v2-4.4a-left-panel-tabs): the 20 states that show the left panel read
+// Canvases · Layers · Assets. In every one: the dock tab `dock-tab-tree` says "Canvases" (was "Files") and a third
+// tab `dock-tab-assets` "Assets" follows Layers; the sidebar `nav` is `aria-label="Canvases"`, its title
+// `span.st-sb-title` "Canvases", the search input `aria-label="Filter canvases"`. The header loses the Refresh button
+// (`.st-refresh`) and the live "4 / 4" count — both moved under Canvases › Advanced (`canvases-refresh`, the foot's
+// "N of M shown"). The DESIGN SYSTEM section (`tree-section-design-system` + its `demo` DsFolderRow) is gone from the
+// default list: the project's system is the pinned row `div.lp-pinned › button[data-testid="canvases-ds-row"]` ("Design
+// system") above the list (19 states; `browser/system-view` shows it `.is-sel[aria-current]`), and its files render
+// inside Advanced. The tree's roving tab stop (`tabindex="0"`) therefore lands on UI CANVASES (it was the first item,
+// DESIGN SYSTEM). After the list: `button[data-testid="canvases-trash-row"]` "Trash" (17 states — the three viewer
+// states, `viewer/*` and `cloud-viewer/`, have no trash to open) and `div.lp-adv` › `button[data-testid="canvases-advanced"]`
+// "Advanced" (`aria-expanded="false"`). Nothing else in the 20 states moved. Refreshed with `--update`, then a second
+// run green (`--repeat`).
 //
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]

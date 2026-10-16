@@ -43,6 +43,32 @@ export const VIEW_ACTIONS: ActionDef[] = [
     legacy: { palette: 'Open design system view', sheet: 'Design system view' },
   },
   {
+    id: 'view.assets',
+    label: 'Assets',
+    kind: 'toggle',
+    icon: 'image',
+    exec: 'shell',
+    // V2-4.4a (CONTRACT §7): Assets is the left panel's third tab; Menu › View › Assets and ⌘K open it.
+    // No key.
+  },
+  {
+    id: 'view.layers-panel',
+    label: 'Layers as a panel',
+    kind: 'toggle',
+    exec: 'shell',
+    // V2-4.4a (CONTRACT §1, View › Advanced): on (the default) Layers is the left panel's second tab;
+    // off, Layers lives in the Inspector. The same switch as Settings › Layout. No key.
+  },
+  {
+    id: 'view.trash',
+    label: 'Trash',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    // V2-4.4a (CONTRACT §1, C10): the Canvases panel's last row, and ⌘K "Trash". Not in the menu.
+    // Clearing it out is owner-only [A6].
+  },
+  {
     id: 'view.comments',
     label: 'Comments',
     kind: 'toggle',

@@ -11,6 +11,7 @@ import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { openCount } from '../shell/util.js';
 import { Sidebar } from '../tree/tree.jsx';
+import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
 import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
@@ -72,6 +73,7 @@ export function usePaletteAndPanels({
   setInspectorOpen,
   layersOpen,
   setLayersOpen,
+  assetsOpen,
   panelSide,
   layersMode,
   assistantOpen,
@@ -205,7 +207,34 @@ export function usePaletteAndPanels({
       }),
       { existing: v1, run: (id) => menuRunner.run(id) }
     );
-    return [...v1, ...menuRows];
+    // V2-4.4a — ⌘K "Trash" and "Refresh tree" (CONTRACT §1 C10, §2 ⇧⌘R). Neither is a menu row; both are
+    // the left panel's. Same runner as the panel's own controls.
+    const leftRows = [
+      {
+        id: 'canvases.refresh',
+        actionId: 'canvases.refresh',
+        group: 'Canvases',
+        label: 'Refresh tree',
+        icon: 'chevron-right',
+        kbd: '⇧⌘R',
+        run: () => refreshTree(),
+        onlyWhenSearched: true,
+      },
+      ...(viewerMode
+        ? []
+        : [
+            {
+              id: 'view.trash',
+              actionId: 'view.trash',
+              group: 'Canvases',
+              label: 'Trash',
+              icon: 'chevron-right',
+              run: () => menuRunner.run('view.trash'),
+              onlyWhenSearched: true,
+            },
+          ]),
+    ];
+    return [...v1, ...menuRows, ...leftRows];
   }, [
     viewerMode,
     activePath,
@@ -219,6 +248,7 @@ export function usePaletteAndPanels({
     cloudLinkedHub,
     localProjectName,
     cfg.designRel,
+    refreshTree,
   ]);
 
   // Native menu items whose registry action runs in the webview (`menu://action {id}`,
@@ -259,6 +289,7 @@ export function usePaletteAndPanels({
   const panelIsOpen = {
     tree: sidebarOpen,
     layers: layersOpen,
+    assets: assetsOpen,
     inspector: inspectorOpen,
     comments: commentsPanelOpen,
     changes: changesOpen,
@@ -335,6 +366,7 @@ export function usePaletteAndPanels({
           onDuplicateCanvas={duplicateCanvasReq}
           onDeleteFile={deleteFileReq}
           onRefresh={refreshTree}
+          onToggleShowHidden={() => menuRunner.run('view.hidden-files')}
           refreshing={treeRefreshing}
           collapsed={false}
           onCollapse={() => togglePanel('tree')}
@@ -349,6 +381,14 @@ export function usePaletteAndPanels({
           onLinkedHub={setCloudLinkedHub}
           onLocalProject={setLocalProjectName}
           savingIsManaged={savingIsManaged}
+        />
+      );
+    // V2-4.4a — the left panel's third tab. Lists today's asset library (the Choose-media dialog's list).
+    if (id === 'assets')
+      return (
+        <AssetsPanel
+          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+          readOnly={viewerMode}
         />
       );
     if (id === 'changes')
