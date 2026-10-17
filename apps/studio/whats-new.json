@@ -723,9 +723,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-testid=\"open-sync\"]",
+          "target": "[data-testid=\"share-cluster-status\"]",
           "title": "Per-file sync progress",
-          "body": "The hub sync chip is now a button — click it to see every canvas and asset move to the cloud, and which ones need attention.",
+          "body": "The word at the top right says how your project is syncing. Menu › Diagnostics › Sync shows every canvas and asset as it moves to the cloud, and which ones need attention.",
           "placement": "top"
         }
       ]
