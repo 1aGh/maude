@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 86,
+  "humanMax": 90,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -15,9 +15,9 @@
     "view-pref": "decision:maude/v2-V2-1.11-ai-operability"
   },
   "humanMaxRaised": {
-    "to": 86,
-    "from": 84,
-    "by": "decision:maude/v2-4-gate-github-doors",
-    "why": "File › Pull a local copy… and Share on GitHub… (the removed sidebar avatar menu's doors) act under the person's GitHub account — human (accounts) by design."
+    "to": 90,
+    "from": 86,
+    "by": "decision:maude/v2-S1.2-human-view-prefs",
+    "why": "S1.2: Pin canvas, Unpin canvas, Sort canvases and Copy canvas link are per-person view state (pins are the person's, the sort order is a per-project view preference, the link goes to the clipboard) — human (view-pref) by design, the same reason as view.pin-panels and edit.copy-properties. (Earlier: 84 → 86 by decision:maude/v2-4-gate-github-doors — File › Pull a local copy… and Share on GitHub… act under the person's GitHub account.)"
   }
 }
