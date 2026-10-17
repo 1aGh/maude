@@ -116,7 +116,6 @@
       "lint/a11y/noStaticElementInteractions": 2
     },
     "apps/studio/client/panels/SettingsPanel.jsx": {
-      "lint/a11y/noStaticElementInteractions": 1,
       "lint/a11y/useSemanticElements": 1
     },
     "apps/studio/client/panels/SetupChecklist.jsx": {

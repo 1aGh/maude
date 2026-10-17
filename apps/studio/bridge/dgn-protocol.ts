@@ -744,8 +744,9 @@ const c2s: C2S = {
   },
   'toolbar-rect': {
     gate: 'active',
-    status: 'new',
-    owner: 'shell tool panels (V2-4.5)',
+    status: 'live',
+    owner: 'tool-palette (V2-4.5a); shell tool panels (V2-4.5b)',
+    orphan: 'no-handler', // the shell side lands with V2-4.5b; drop this line there
     parse: p({ mode, rect: nul(rect) }),
   },
   'tool-panel-open': {
