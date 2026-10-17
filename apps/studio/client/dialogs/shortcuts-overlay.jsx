@@ -1,47 +1,51 @@
-// dialogs/shortcuts-overlay.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
-
-import { Kbd } from '../shell/icons.jsx';
-import { Fragment, useEffect } from 'react';
-import { V1_SHEET } from '../../actions/legacy.ts';
-
-// ───────── Keyboard-shortcuts overlay (DS components-shortcuts-overlay) ─────
+// dialogs/shortcuts-overlay.jsx — the "?" sheet (Maude v2, V2-4.6; 06 ad-search).
 //
-// The ? cheat-sheet: dim scrim, shared panel material, four dense mono-headed
-// columns, Esc chip in the footer. REAL bindings only — the rows render from
-// the action registry's v1 layout (V2-2.4: actions/legacy.ts `V1_SHEET`), and
-// actions-legacy.test.ts proves every key a row shows is a binding of the
-// action it names. Scope chips mark the rows that need canvas focus.
+// Built from the action registry's keymap when it opens (v2/search/help-model.js): every visible key,
+// grouped Edit tools · Preview tools · File · Canvas · Panels and AI · Objects · Timeline · Present, a
+// "Find a shortcut" box that uses the ⌘K matcher's fold, and one Advanced fold — View › Advanced and
+// Diagnostics keys with their path, then "Keys and tools that moved" (old → new). A key is read from
+// the registry here, never typed, so a re-binding shows up on the next "?".
 
-export const SHORTCUT_GROUPS = V1_SHEET.map((g) => ({
-  id: g.id,
-  label: g.label,
-  items: g.items.map(({ label, kbd, alt }) => (alt ? { label, kbd, alt } : { label, kbd })),
-}));
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { isNativeApp } from '../github.js';
+import { Kbd, StIcon } from '../shell/icons.jsx';
+import { buildHelpSheet, filterHelpSheet } from '../v2/search/help-model.js';
+import { menuCtx } from '../v2/shell/project-menu-model.js';
 
-export function ShortcutCombo({ kbd, alt }) {
-  const combo = (s, key) => (
-    <span className="so-combo" key={key}>
-      {s.split(' ').map((k, i) => (
-        <Kbd key={`${k}-${i}`}>{k}</Kbd>
-      ))}
-    </span>
-  );
+const FOLD_KEY = 'mdcc-help-advanced-open';
+
+function readFold() {
+  try {
+    return localStorage.getItem(FOLD_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+/** One key as caps: "⇧⌘E" is the registry's string; show it as one Kbd, or the menu path in a browser. */
+export function ShortcutCombo({ keys, alt = [], path }) {
+  if (path) return <span className="so-path">{path}</span>;
   return (
     <span className="so-combos">
-      {combo(kbd, 'main')}
-      {alt
-        ? alt.split(' / ').map((a) => (
-            <Fragment key={a}>
-              <span className="so-or">/</span>
-              {combo(a, a)}
-            </Fragment>
-          ))
-        : null}
+      {keys.map((k) => (
+        <Kbd key={k}>{k}</Kbd>
+      ))}
+      {alt.map((a) => (
+        <Fragment key={a}>
+          <span className="so-or">or</span>
+          <Kbd>{a}</Kbd>
+        </Fragment>
+      ))}
     </span>
   );
 }
 
-export function ShortcutsOverlay({ open, onClose }) {
+export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
+  const [find, setFind] = useState('');
+  const [fold, setFold] = useState(readFold);
+  useEffect(() => {
+    if (open) setFind('');
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     function onKey(e) {
@@ -53,8 +57,27 @@ export function ShortcutsOverlay({ open, onClose }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
-  if (!open) return null;
-  const bindings = SHORTCUT_GROUPS.reduce((n, g) => n + g.items.length, 0);
+  // Built each time it opens: the registry may have been re-bound since the last "?".
+  const sheet = useMemo(
+    () =>
+      open ? buildHelpSheet(menuCtx({ native: isNativeApp(), readOnly, canvasOpen: true })) : null,
+    [open, readOnly]
+  );
+  if (!open || !sheet) return null;
+  const shown = filterHelpSheet(sheet, find);
+  const searching = find.trim().length > 0;
+  const foldOpen = fold || searching;
+  const toggleFold = () => {
+    const next = !fold;
+    setFold(next);
+    try {
+      localStorage.setItem(FOLD_KEY, next ? '1' : '0');
+    } catch {
+      /* private window: the fold simply does not remember */
+    }
+  };
+  const nothing =
+    searching && shown.groups.length + shown.advanced.length + shown.moved.length === 0;
   return (
     <div
       className="st-scrim"
@@ -63,23 +86,51 @@ export function ShortcutsOverlay({ open, onClose }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="so-overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div
+        className="so-overlay so-overlay--v2"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Keyboard shortcuts"
+        data-testid="shortcuts-sheet"
+      >
         <div className="so-overlay-hd">
           <span className="so-title">Keyboard shortcuts</span>
-          <span className="so-trigger">
-            press <Kbd>?</Kbd> to open
-          </span>
+          <label className="so-find">
+            <StIcon name="search" size={14} />
+            <input
+              // biome-ignore lint/a11y/noAutofocus: "?" opens on an explicit key press.
+              autoFocus
+              data-testid="shortcuts-find"
+              aria-label="Find a shortcut"
+              placeholder="Find a shortcut"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+            />
+          </label>
+          <button type="button" className="so-close" aria-label="Close" onClick={onClose}>
+            <StIcon name="x" size={12} />
+          </button>
         </div>
-        <div className="so-columns">
-          {SHORTCUT_GROUPS.map((g) => (
-            <section key={g.id} className={'so-section so-section--' + g.id}>
+        {nothing ? (
+          <p className="so-none" data-testid="shortcuts-none">
+            Nothing called “{find.trim()}”. Try another word.
+          </p>
+        ) : null}
+        <div className="so-columns so-columns--3">
+          {shown.groups.map((g) => (
+            <section
+              key={g.id}
+              className={`so-section so-section--${g.id}`}
+              data-testid={`shortcuts-group-${g.id}`}
+            >
               <h3 className="so-section-hd">{g.label}</h3>
+              {g.note ? <p className="so-note">{g.note}</p> : null}
               <dl className="so-list">
-                {g.items.map((it) => (
-                  <div key={it.label} className="so-pair">
-                    <dt>{it.label}</dt>
+                {g.rows.map((r) => (
+                  <div key={r.id} className="so-pair" data-testid={`shortcuts-row-${r.id}`}>
+                    <dt>{r.label}</dt>
                     <dd>
-                      <ShortcutCombo kbd={it.kbd} alt={it.alt} />
+                      <ShortcutCombo keys={r.keys} alt={r.alt} path={r.path} />
                     </dd>
                   </div>
                 ))}
@@ -87,13 +138,60 @@ export function ShortcutsOverlay({ open, onClose }) {
             </section>
           ))}
         </div>
+        {shown.advanced.length > 0 || shown.moved.length > 0 ? (
+          <div className="so-adv" data-testid="shortcuts-advanced">
+            <button
+              type="button"
+              className="so-adv-btn"
+              aria-expanded={foldOpen}
+              onClick={toggleFold}
+              data-testid="shortcuts-advanced-toggle"
+            >
+              <StIcon name={foldOpen ? 'chevron-down' : 'chevron-right'} size={12} />
+              Advanced
+              <span className="so-adv-count">
+                {shown.advanced.length} {shown.advanced.length === 1 ? 'key' : 'keys'} ·{' '}
+                {shown.moved.length} moved
+              </span>
+            </button>
+            {foldOpen ? (
+              <div className="so-adv-body">
+                {shown.advanced.map((r) => (
+                  <div
+                    key={r.id}
+                    className="so-pair so-pair--adv"
+                    data-testid={`shortcuts-row-${r.id}`}
+                  >
+                    <span className="so-adv-label">{r.label}</span>
+                    <span className="so-adv-path">{r.path}</span>
+                    <ShortcutCombo keys={r.keys} alt={r.alt} />
+                  </div>
+                ))}
+                {shown.moved.length > 0 ? (
+                  <>
+                    <h4 className="so-sub" data-testid="shortcuts-moved-hd">
+                      Keys and tools that moved
+                    </h4>
+                    <ul className="so-moved" data-testid="shortcuts-moved">
+                      {shown.moved.map((m) => (
+                        <li key={m.was} className="so-mv">
+                          <span className="so-mv-was">{m.was}</span>
+                          <StIcon name="chevron-right" size={11} />
+                          <span className="so-mv-now">{m.now}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="so-overlay-ft">
           <span>
-            close with <Kbd>Esc</Kbd>
+            close with <Kbd>esc</Kbd>
           </span>
-          <span className="so-count">
-            {bindings} bindings · {SHORTCUT_GROUPS.length} groups
-          </span>
+          <span className="so-count">{shown.count} keys</span>
         </div>
       </div>
     </div>

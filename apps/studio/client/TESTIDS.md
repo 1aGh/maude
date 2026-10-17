@@ -137,7 +137,15 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `[aria-label="Command palette"]` | selector | The ⌘K command palette dialog. It has no testid. | `client/app.jsx` · `CommandPalette` | e2e-mp:surface | moves — map in Phase 4 |
+| `[aria-label="Command palette"]` | selector | The ⌘K command palette dialog (V2-4.6: Search ⌘K; the aria-label is kept). | `client/dialogs/command-palette.jsx` · `CommandPalette` | e2e-mp:surface | stable — re-emit |
+| `palette-input` | testid | The ⌘K search box (placeholder “Search canvases, actions, or ask AI…”). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-list` | testid | The ⌘K result list (scroll container). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-row-<id>` | testid | One ⌘K row; <id> is `action:<registry id>`, `tool:<id>`, `setting:<section>:<testid>:<n>`, `canvas:<rel>`, `artboard:<rel>#<id>`, `ask-ai`, or a short-list action id. The active row also has `.is-active`. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-group-<id>` | testid | A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-ask-ai` | testid | The wrapper of the last row, Ask AI (desktop only; ⌘↵ runs it). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-empty` | testid | The “Nothing called …” empty state. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-close-note` | testid | The “Showing close matches for …” note when every hit is a typo match. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-count` | testid | The ⌘K footer: “Type to search” or “N results”. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 
 ### export dialog
 
@@ -204,7 +212,19 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 
 ### help/shortcuts
 
-No hooks. Nothing outside the components in this region targets their DOM (`HelpModal` and `ShortcutsOverlay` emit no testid; the Help menu trigger is listed under menubar).
+V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still emits none (the Help menu trigger is listed under menubar).
+
+| Hook | Kind | Meaning | Producer | Consumers | v2 |
+| --- | --- | --- | --- | --- | --- |
+| `shortcuts-sheet` | testid | The “?” sheet dialog. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-find` | testid | The sheet’s “Find a shortcut” box. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-group-<id>` | testid | A sheet group (`edit-tools`, `preview-tools`, `file`, `canvas`, `panels-ai`, `objects`, `timeline`, `present`). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-row-<id>` | testid | One sheet row; <id> is the registry action id (also in the Advanced fold). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-advanced` | testid | The sheet’s Advanced fold (View › Advanced / Diagnostics keys, then the moved keys). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-advanced-toggle` | testid | The Advanced fold’s disclosure button (`aria-expanded`; remembered). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-moved-hd` | testid | The “Keys and tools that moved” heading. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-moved` | testid | The list of moved keys and tools (old → new). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-none` | testid | The sheet’s “Nothing called …” line. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 
 ### settings
 

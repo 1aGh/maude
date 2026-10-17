@@ -1,0 +1,257 @@
+/* client/v2/search/search.css — V2-4.6: Search ⌘K (01 cf-search-k, 05 es-search-k, 06 ad-search) and the
+ * "?" sheet. Extends the v1 `.st-palette` / `.so-overlay` looks in 3-shell-maude.css (loaded earlier, so
+ * equal-specificity rules here win). Tokens are the shell's (v1 ladder), as floating-panels.css. */
+
+@layer shell {
+  /* ── ⌘K ── */
+  .st-palette--search {
+    width: 640px;
+  }
+  .st-palette--search .st-pal-list {
+    max-height: min(480px, 62vh);
+  }
+  .st-pal-group {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .st-pal-aside {
+    font-family: var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--fg-3);
+  }
+  .st-pal-label {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .st-pal-ltxt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .st-pal-meta {
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-3);
+  }
+  /* where it lives — the path a person learns the way back by */
+  .st-pal-where {
+    flex: none;
+    max-width: 46%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .st-pal-item.is-active .st-pal-where {
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .st-pal-item.is-dim .st-pal-ltxt {
+    color: var(--fg-3);
+  }
+  .st-pal-mark {
+    background: var(--accent-tint);
+    color: inherit;
+    border-radius: var(--radius-xs);
+    padding: 0 1px;
+  }
+  .st-pal-icon--spark,
+  .st-pal-item.is-active .st-pal-icon--spark {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .st-pal-ask {
+    margin-top: var(--space-1);
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .st-pal-none {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-5) var(--space-4);
+    text-align: left;
+  }
+  .st-pal-sit {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .st-pal-next,
+  .st-pal-note {
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .st-pal-note {
+    padding: var(--space-2) var(--space-3);
+  }
+  .st-pal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--type-xs);
+    color: var(--fg-3);
+  }
+  .st-pal-hints {
+    display: flex;
+    gap: var(--space-3);
+  }
+  .st-pal-hints > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* ── "?" ── */
+  .so-overlay--v2 {
+    max-width: 880px;
+    max-height: 86vh;
+    overflow-y: auto;
+  }
+  .so-overlay--v2 .so-overlay-hd {
+    align-items: center;
+  }
+  .so-find {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 280px;
+    margin-left: auto;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-3);
+  }
+  .so-find input {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .so-close {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .so-close:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .so-columns--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .so-note {
+    margin: calc(-1 * var(--space-2)) 0 var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-3);
+  }
+  .so-path {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .so-none {
+    margin: 0 0 var(--space-4);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .so-adv {
+    margin-top: var(--space-5);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .so-adv-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    cursor: pointer;
+  }
+  .so-adv-count {
+    color: var(--fg-3);
+    font-size: var(--type-xs);
+  }
+  .so-adv-body {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+  .so-pair--adv {
+    grid-template-columns: 1fr auto auto;
+  }
+  .so-adv-label {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .so-adv-path {
+    font-size: var(--type-xs);
+    color: var(--fg-3);
+  }
+  .so-sub {
+    margin: var(--space-3) 0 var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    font-weight: 500;
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+  .so-moved {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .so-mv {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .so-mv-was {
+    flex: none;
+    color: var(--fg-1);
+  }
+  .so-mv svg {
+    flex: none;
+    align-self: center;
+    color: var(--fg-3);
+  }
+  @media (max-width: 760px) {
+    .so-columns--3,
+    .so-moved {
+      grid-template-columns: 1fr;
+    }
+  }
+}
