@@ -42,13 +42,15 @@ export const NATIVE_ACTIONS: ActionDef[] = [
   {
     // V2-4.2: "Back to Home" is the first row of the project pill's menu (CONTRACT §1) — the SAME
     // command as File ▸ Show Home (`home.open`, `new_home_tab`), worded for the Menu. ⌘T stays
-    // `home.open`'s. A browser tab has no Home window (the cloud dashboard link is V2-4.9).
+    // `home.open`'s. A plain browser tab has no Home window. V2-4.8a: a CLOUD tab has one — the
+    // dashboard — and this row is the v1 menubar's "← Dashboard" link (the shell opens `dashboardUrl`;
+    // a hub that serves one project has none, and the shell leaves the row out there).
     id: 'nav.home',
     label: 'Back to Home',
     kind: 'command',
     icon: 'home',
     exec: 'native',
-    visible: DESKTOP,
+    visible: { shell: ['desktop', 'cloud'] },
   },
   // ── V2-3.9: the own tab bar's tab commands (contract V2-3.7 §5). Native: the shell owns the
   // tab list, so lib.rs runs them; no web binding fires them (AppKit takes the accelerator). ──

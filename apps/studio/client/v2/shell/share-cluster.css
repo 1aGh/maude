@@ -342,8 +342,9 @@
   flex: none;
   white-space: nowrap;
 }
-/* `.st-share-btn` is also the v1 menubar's 28 px Share icon (3-shell.css) — the cluster's button is a
-   labelled button, so it takes its own width until V2-4.8 removes the menubar. */
+/* `.st-share-btn` is also a v1 rule (4-components.css: a 28 px square, from the Share icon of the menubar
+   V2-4.8a deleted) — the cluster's button is a labelled button, so it takes its own width. The v1 rule
+   can go with the next CSS sweep; this override is harmless without it. */
 .st-share .btn.st-share-btn {
   width: auto;
   min-width: max-content;

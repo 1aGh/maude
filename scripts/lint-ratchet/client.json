@@ -68,10 +68,6 @@
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 1
     },
-    "apps/studio/client/menus/menubar.jsx": {
-      "lint/a11y/noNoninteractiveElementToInteractiveRole": 1,
-      "lint/a11y/useAriaPropsSupportedByRole": 1
-    },
     "apps/studio/client/panels/BrandUploadPanel.jsx": {
       "lint/a11y/noStaticElementInteractions": 1
     },
@@ -165,8 +161,7 @@
       "lint/a11y/useSemanticElements": 1
     },
     "apps/studio/client/shell/icons.jsx": {
-      "lint/a11y/noSvgWithoutTitle": 1,
-      "lint/a11y/useAriaPropsSupportedByRole": 1
+      "lint/a11y/noSvgWithoutTitle": 1
     },
     "apps/studio/client/shell/status-bar.jsx": {
       "lint/a11y/useSemanticElements": 6

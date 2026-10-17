@@ -22,7 +22,7 @@
 //                         refuses by design (DDR-209 D1). Left in, they render
 //                         as a wall of `HTTP 404`, which is what the owner saw.
 //
-// Source-level assertions, because the menubar's dropdowns do not open under a
+// Source-level assertions, because the shell's menus do not open under a
 // synthetic click and a test that cannot fail is worse than no test. What these
 // pin is exactly what would regress: someone re-introducing `TABS.map` or
 // dropping the gate on `<CloudBar />`.
@@ -135,7 +135,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('every component that gates on the shell is actually GIVEN the flag', () => {
     // The bug this exists for: three `cfg?.cloud` reads inside a component that
     // never receives `cfg` — a ReferenceError at render, and a blank app.
-    for (const call of ['<Menubar', '<Sidebar', '<SettingsSheet']) {
+    for (const call of ['<Sidebar', '<SettingsSheet']) {
       // Sliced inside the one file that renders it, so the window never runs
       // past the end of that file into the next.
       const { src } = fileContaining(call);
@@ -151,7 +151,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('no component reaches for `cfg` where only the flag was passed', () => {
     // `cfg` is a real variable at the top level, so a stray reference in a
     // child component is a ReferenceError the bundler happily emits.
-    for (const name of ['Menubar', 'Sidebar']) {
+    for (const name of ['Sidebar']) {
       // Bounded window: the component's own body, not the whole file —
       // wherever that component is defined.
       const body = fnBody(name);
@@ -205,16 +205,18 @@ describe('the way back out exists only where there is somewhere to go', () => {
     }
   });
 
-  test('the ← Dashboard anchor is gated on the URL, not on the shell', () => {
-    const { src } = fileContaining('data-testid="cloud-back"');
-    const at = src.indexOf('data-testid="cloud-back"');
+  // V2-4.8a: the menubar's "← Dashboard" anchor is the project menu's "Back to Home" row in a cloud tab.
+  test('Back to Home is gated on the URL, not on the shell', () => {
+    const { src } = fileContaining('onOpenDashboard: () => {');
+    const at = src.indexOf('onOpenDashboard: () => {');
     expect(at).toBeGreaterThan(0);
-    const block = src.slice(at, at + 1200);
-    expect(block).toContain('{cloud.dashboardUrl ? (');
-    expect(block).toContain('href={cloud.dashboardUrl}');
-    // The project name is NOT gated with it: a tab must still say which
-    // project it is showing, dashboard or no dashboard.
-    expect(block).toContain('data-testid="cloud-project-name"');
+    const open = src.slice(at, at + 200);
+    // It navigates to the configured URL — there is no fallback literal (the test above).
+    expect(open).toContain('cfg?.cloud?.dashboardUrl');
+    expect(open).toContain('window.location.assign(url)');
+    // A hub that serves one project has no dashboard: the row is left out, not dead.
+    expect(src).toContain('const noDashboard = isCloudTab && !cfg.cloud.dashboardUrl;');
+    expect(src).toContain("...(noDashboard ? ['nav.home'] : []),");
   });
 
   test('the server sends the field only when it is configured', () => {

@@ -2,14 +2,13 @@
 // (feature-background-export-notification-center).
 //
 //   useExportCenter()  → headless handle (hydrate + WS upsert + toast/panel state)
-//   <ExportBadge>      → menubar entry point (busy pulse + running/queued count)
 //   <ExportToast>       → completion notice (bottom-left, mirrors WhatsNewToast)
 //   <ExportPanel>       → job list (reuses the help-modal backdrop)
 //
 // Structurally a near-exact twin of whats-new.jsx, but driven by live WS
 // `export:job` pushes (via `upsert`, called from app.jsx's WS message handler)
-// instead of a static feed. Styling lives in client/styles/3-shell-maude.css
-// (`.st-exports`) and 4-components.css (`.st-export-*`).
+// instead of a static feed. Styling lives in client/styles/4-components.css (`.st-export-*`).
+// The entry point is the Share cluster's Exports icon (v2/shell/share-cluster.jsx).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dismissNotice, notify, summarizeNoticeText } from '../notifications.tsx';
@@ -367,28 +366,6 @@ function DegradedNote({ degraded, compact = false }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-export function ExportBadge({ center }) {
-  const busy = center.busyCount > 0;
-  return (
-    <button
-      type="button"
-      className="st-exports"
-      data-tour="exports"
-      data-busy={busy ? 'true' : 'false'}
-      aria-label={busy ? `Exports — ${center.busyCount} running` : 'Exports'}
-      data-tip="Exports"
-      onClick={center.openPanel}
-    >
-      <span aria-hidden="true">⬇</span>
-      {busy && (
-        <span className="st-exports__count" aria-hidden="true">
-          {center.busyCount}
-        </span>
-      )}
-    </button>
   );
 }
 

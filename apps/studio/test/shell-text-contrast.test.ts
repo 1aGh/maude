@@ -8,10 +8,6 @@ const leftPanel = readFileSync(
   'utf8'
 );
 const callouts = readFileSync(new URL('../client/v2/shell/callouts.css', import.meta.url), 'utf8');
-const components = readFileSync(
-  new URL('../client/styles/4-components.css', import.meta.url),
-  'utf8'
-);
 const tokens = readFileSync(
   new URL('../client/styles/1-tokens-maude.css', import.meta.url),
   'utf8'
@@ -33,12 +29,10 @@ for (const theme of ['light', 'dark']) {
     return oklchToRgb(parseOklch(value));
   };
   for (const [selector, css] of [
-    ['.st-mb-proj', shell],
     ['.st-callout-t > span', callouts],
     ['.lp-tab', leftPanel],
     ['.dv-zoom-sync', shell],
     ['.st-skel-cap', shell],
-    ['.st-cloudwho-out', components],
   ]) {
     test(`${theme} ${selector} text meets AA on shell surfaces`, () => {
       const foreground = block(css, selector).match(/(?:^|;)\s*color:\s*var\((--[^)]+)\)/)?.[1];

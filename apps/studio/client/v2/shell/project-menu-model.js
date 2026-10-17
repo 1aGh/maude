@@ -164,6 +164,7 @@ export function moveDestinations(groups) {
 /** The KeyCtx the menu resolves with: the shell's, focus on chrome (the menu is chrome). */
 export function menuCtx({
   native = false,
+  cloudTab = false,
   readOnly = false,
   canvasOpen = false,
   presenting = false,
@@ -174,7 +175,8 @@ export function menuCtx({
   if (presenting) facts.add('presenting');
   return {
     role: readOnly ? 'comment' : 'owner',
-    shell: native ? 'desktop' : 'browser',
+    // A tab served by a hub is the `cloud` shell (V2-4.8a: "Back to Home" is its dashboard link).
+    shell: native ? 'desktop' : cloudTab ? 'cloud' : 'browser',
     mode: presenting ? 'present' : 'edit',
     focus: 'chrome',
     selection: 'none',

@@ -387,8 +387,7 @@ export function StIcon({ name, size = 16, className }) {
   );
 }
 
-// P3 (Plan C) — menubar presence avatar (matches `.design/ui/Studio.tsx` Avatar).
-// Up to two uppercase glyphs from a name; falls back to "?" for empties.
+// Up to two uppercase glyphs from a name (the Share cluster's faces); falls back to "?" for empties.
 export function initialsOf(name) {
   if (!name || typeof name !== 'string') return '?';
   const parts = name
@@ -400,24 +399,6 @@ export function initialsOf(name) {
   // avatar reads as initials rather than a lone count badge.
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return ((parts[0][0] || '') + (parts[parts.length - 1][0] || '')).toUpperCase() || '?';
-}
-
-export function StAvatar({ initials, hue, title, pulse }) {
-  // Hue rides a custom property so CSS can mix it into the surface (DS avatar
-  // recipe: tinted bg + hue border + fg-0 text — solid fill + white text broke
-  // the accent-fg contrast rule and washed out in light theme). `pulse` plays
-  // the DS motion-presence role (scale+opacity ring) — the AI agent's "live"
-  // tell while it's editing.
-  return (
-    <span
-      className={'st-avatar' + (pulse ? ' is-pulsing' : '')}
-      style={{ '--av-hue': hue }}
-      data-tip={title}
-      aria-label={title}
-    >
-      {initials}
-    </span>
-  );
 }
 
 export function Kbd({ children }) {

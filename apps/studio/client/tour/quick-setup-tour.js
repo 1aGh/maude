@@ -21,7 +21,8 @@ export const QUICK_SETUP_TOUR = [
     placement: 'right',
   },
   {
-    target: "[data-testid='assistant-toggle']",
+    // the AI chat's own header when it is showing, else the spark corner icon that brings it back
+    target: "[data-testid='ai-chat-header'], [data-testid='panel-icon-assistant']",
     title: 'Ask the Assistant to build your design system',
     body: 'Open the Assistant and describe your brand — colors, type, the vibe you want. It sets up a real design system for you. Already have one? Say so and it can bring it in.',
     placement: 'left',

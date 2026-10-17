@@ -744,8 +744,10 @@ async function runSetup(page: Page, lane: Lane, c: Case): Promise<void> {
     await page.keyboard.press('Meta+Shift+T');
     await page.waitForSelector('[data-testid="timeline-panel"]', { timeout: 8000 });
   } else if (c.setup === 'presenting') {
-    await page.locator('[data-testid="menu-view"]').click();
-    await page.locator('.st-dropdown [role="menuitem"]', { hasText: 'Presentation Mode' }).click();
+    // V2-4.8a: the project pill's menu (the in-app menubar is gone) — View › Presentation Mode.
+    await page.locator('[data-testid="project-pill"]').click();
+    await page.locator('[data-testid="project-menu-row-sub-view"]').click();
+    await page.locator('[data-testid="project-menu-row-present.canvas"]').click();
     await page.waitForSelector('.st-present-exit', { timeout: 8000 });
   }
   await settle(page, 600);

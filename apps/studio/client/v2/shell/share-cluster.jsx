@@ -122,6 +122,7 @@ export function ShareCluster({
     <div
       className="st-share island"
       data-testid="share-cluster"
+      data-tour="status"
       data-occludes={docked ? undefined : 'top'}
       data-docked={docked ? 'true' : undefined}
       data-mode={mode ?? undefined}
@@ -188,6 +189,7 @@ export function ShareCluster({
           type="button"
           className={`st-share-ic st-ex${exportsOpen ? ' is-on' : ''}`}
           data-testid="share-cluster-exports"
+          data-tour="exports"
           data-busy={ex.busy > 0 ? 'true' : 'false'}
           aria-label={exportsLabel}
           aria-pressed={exportsOpen}
