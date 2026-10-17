@@ -270,9 +270,11 @@ export function NotificationHost({
       }}
     >
       <style>{NOTICE_CSS}</style>
+      {/* V2-4.9: bottom-centre, above the canvas toolbar island — the v2 bottom-left is the floating
+          left panel (a toast there covered its Trash / Advanced rows). */}
       <Toaster
-        position="bottom-left"
-        offset={{ left: 16, bottom: 84 }}
+        position="bottom-center"
+        offset={{ bottom: 84 }}
         mobileOffset={{ left: 16, right: 16, bottom: 84 }}
         visibleToasts={3}
         expand={focused}
