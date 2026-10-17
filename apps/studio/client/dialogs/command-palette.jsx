@@ -204,6 +204,7 @@ export function CommandPalette({ open, onClose, actions }) {
     body = runs.map((run, r) => {
       const hd = `${baseId}-short-${r}`;
       return run.heading ? (
+        // biome-ignore lint/a11y/useSemanticElements: an ARIA listbox may only own option or group children; a <fieldset> is a form grouping and would break the listbox tree
         <div key={hd} role="group" aria-labelledby={hd}>
           <div className="st-pal-group" id={hd} role="presentation">
             {run.heading}
@@ -240,6 +241,7 @@ export function CommandPalette({ open, onClose, actions }) {
       </div>
     ) : null;
     body = view.groups.map((g) => (
+      // biome-ignore lint/a11y/useSemanticElements: an ARIA listbox may only own option or group children; a <fieldset> would break the listbox tree
       <div
         key={g.id}
         data-testid={`palette-group-${g.id}`}
@@ -327,8 +329,7 @@ export function CommandPalette({ open, onClose, actions }) {
           ref={listRef}
           id={listId}
           data-testid="palette-list"
-          role={items.length > 0 ? 'listbox' : undefined}
-          aria-label={items.length > 0 ? 'Results' : undefined}
+          {...(items.length > 0 ? { role: 'listbox', 'aria-label': 'Results' } : {})}
         >
           {body}
           {askRow}

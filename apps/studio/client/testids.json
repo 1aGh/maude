@@ -8533,6 +8533,32 @@
     "v2": "stable"
   },
   {
+    "hook": "settings-keyboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Keyboard group (the Single-key shortcuts switch).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-single-keys",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Keyboard › the Single-key shortcuts switch: off, only shortcuts with ⌘ or ⌥ fire (V, H, N, /, ? go quiet).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "settings-layout",
     "kind": "testid",
     "pattern": false,
