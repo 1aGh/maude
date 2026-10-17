@@ -121,6 +121,16 @@ export const SETTINGS_ROWS = Object.freeze([
     local: true,
   },
   {
+    // G0-D D19: the native menu keeps Check for Updates…; the sheet carries the same check. Only in
+    // the desktop app (`native`) — a browser tab on the desktop server has no updater.
+    nd: 'D19',
+    section: 'advanced',
+    testid: 'settings-check-updates',
+    where: 'Settings › Advanced › This Mac › Update › Check for updates',
+    local: true,
+    native: true,
+  },
+  {
     nd: 'A-server-build-name-maude-dev-srv',
     section: 'advanced',
     testid: 'settings-server-build',

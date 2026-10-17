@@ -37,6 +37,7 @@
     "allow-app-get-last-project",
     "allow-app-recent-projects",
     "allow-restart-to-update",
+    "allow-check-for-updates",
     "allow-prefs-get-crash-reporting",
     "allow-prefs-set-crash-reporting",
     "allow-prefs-get-claude-auto-setup",

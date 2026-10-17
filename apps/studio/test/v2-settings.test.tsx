@@ -168,10 +168,13 @@ function installFetch(over: Record<string, unknown> = {}) {
 }
 
 /** The Tauri bridge, stubbed: nothing here reaches a keychain or a window. */
+let invokes: Array<{ cmd: string; args: unknown }> = [];
 function installTauri() {
+  invokes = [];
   (window as unknown as { __TAURI__: unknown }).__TAURI__ = {
     core: {
-      invoke: async (cmd: string) => {
+      invoke: async (cmd: string, args?: unknown) => {
+        invokes.push({ cmd, args });
         if (cmd === 'github_is_signed_in') return false;
         if (cmd === 'prefs_get_claude_auto_setup') return true;
         return null;
@@ -350,9 +353,34 @@ describe('the desktop sheet renders every Settings row', () => {
       'sync-setting-syncFiles',
       'sync-setting-propagateDeletes',
       'sync-setting-firstAnchor',
+      'sync-settings',
+      'sync-ownership',
+      'sync-ownership-mode',
       'sync-ownership-adopt',
+      'settings-check-updates',
     ])
       expect(q(id), id).toBeTruthy();
+  });
+
+  test('V2-4.7c: Check for updates runs the native updater check — no arguments, nothing else', async () => {
+    installTauri();
+    await mount();
+    await goto('advanced');
+    const btn = q('settings-check-updates') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    expect(q('settings-update')?.contains(btn)).toBe(true);
+    invokes = [];
+    await click(btn);
+    await settle();
+    expect(invokes.map((i) => i.cmd)).toEqual(['check_for_updates']);
+    expect(invokes[0].args).toBeUndefined();
+  });
+
+  test('V2-4.7c: a browser tab on the desktop server has no Check for updates (no updater there)', async () => {
+    await mount();
+    await goto('advanced');
+    expect(q('settings-update-restart')).toBeTruthy();
+    expect(q('settings-check-updates')).toBeNull();
   });
 
   test('every model row’s testid is on screen in its section (pattern ids by prefix)', async () => {
@@ -515,6 +543,37 @@ describe('secrets stay where they are', () => {
     await mount();
     await goto('connections');
     expect(document.body.textContent).not.toContain('tok_SECRET');
+  });
+});
+
+describe('V2-4.7c: Settings › Advanced owns the switches — the old homes are gone', () => {
+  const src = (f: string) => readFileSync(join(import.meta.dir, '..', 'client', f), 'utf8');
+  test('the Sync panel no longer carries the sync settings or the ownership switch', () => {
+    const s = src('panels/SyncPanel.jsx');
+    for (const needle of [
+      'data-testid="sync-settings"',
+      'data-testid="sync-ownership',
+      'data-testid="sync-setting-',
+      "'/_api/sync/settings'",
+      "'/_api/sync/ownership'",
+    ])
+      expect(s.includes(needle), needle).toBe(false);
+  });
+  test('the readiness dialog no longer carries the auto-setup toggle', () => {
+    const s = src('panels/ReadinessList.jsx');
+    expect(s.includes('AutoSetupToggle')).toBe(false);
+    expect(s.includes('setClaudeAutoSetup')).toBe(false);
+  });
+  test('the Settings copies carry the same routes', () => {
+    const s = src('v2/settings/project-sync-settings.jsx');
+    expect(s.includes("'/_api/sync/settings'")).toBe(true);
+    expect(s.includes("'/_api/sync/ownership'")).toBe(true);
+    expect(src('v2/settings/advanced-section.jsx').includes('setClaudeAutoSetup')).toBe(true);
+  });
+  test('D19 names the Check for updates button', () => {
+    const d19 = ND.rows.find((r) => r.id === 'D19');
+    expect(d19?.v2.testid).toBe('settings-check-updates');
+    expect(d19?.v2.where).toContain('Check for updates');
   });
 });
 

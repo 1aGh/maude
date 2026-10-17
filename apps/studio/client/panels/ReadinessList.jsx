@@ -8,7 +8,7 @@
 // as the persistent re-check surface — `refresh()` re-probes without a reinstall.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getClaudeAutoSetup, isNativeApp, setClaudeAutoSetup } from '../github.js';
+import { isNativeApp } from '../github.js';
 
 /** Fetch + cache the readiness report. `refresh()` re-probes (the re-check button). */
 export function useReadiness(enabled = true) {
@@ -384,40 +384,8 @@ export default function ReadinessList({ report, loading, refresh }) {
   );
 }
 
-// DDR-166 Decision 5 — the settings-UI opt-out for the auto-install/auto-
-// sign-in buttons above. DEFAULT ON. Native-only (the toggle is backed by a
-// Tauri command); a terminal-launched `maude design serve` web session has
-// no automated action to opt out of in the first place.
-function AutoSetupToggle() {
-  const [on, setOn] = useState(true);
-  useEffect(() => {
-    let alive = true;
-    getClaudeAutoSetup()
-      .then((v) => alive && setOn(v !== false))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  if (!isNativeApp()) return null;
-  return (
-    <label className="rdy-autosetup-toggle">
-      <input
-        type="checkbox"
-        checked={on}
-        onChange={(e) => {
-          const next = e.target.checked;
-          setOn(next);
-          setClaudeAutoSetup(next).catch(() => setOn(!next));
-        }}
-      />
-      <span>
-        Offer to install Claude Code and sign in automatically. Turn off to see only the copy-paste
-        command — takes effect next launch or project switch.
-      </span>
-    </label>
-  );
-}
+// DDR-166 Decision 5's opt-out (offer to install Claude Code and sign in) lives in Settings ›
+// Advanced › Claude Code (V2-4.7a; the dialog's own copy went in V2-4.7c). The dialog says where.
 
 // Standalone readiness modal reachable any time from Help ▸ Check AI editing
 // readiness… (DDR-128, T6 — the persistent re-check surface, not gated on
@@ -473,7 +441,12 @@ export function ReadinessDialog({ open, onClose }) {
               {loading ? 'Checking…' : "Couldn't reach the readiness probe."}
             </p>
           )}
-          <AutoSetupToggle />
+          {isNativeApp() && (
+            <p className="rdy-modal-note" data-testid="readiness-autosetup-where">
+              To stop the install and sign-in offers, turn off Settings › Advanced › Claude Code ›
+              Install and sign in automatically.
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -34,6 +34,8 @@ fn main() {
                 "app_set_last_project",
                 "app_recent_projects",
                 "restart_to_update",
+                // V2-4.7c: Settings › Advanced › Check for updates (the menu's check).
+                "check_for_updates",
                 "prefs_get_crash_reporting",
                 "prefs_set_crash_reporting",
                 "prefs_get_claude_auto_setup",

@@ -11,14 +11,17 @@
 // webview loads the dev-server UI from a REMOTE (loopback http://) origin. Letting
 // that origin invoke the updater plugin would mean granting `updater:default` to
 // remote content (it could trigger an install). Instead we keep all updater calls
-// in the trusted Rust core and expose only the narrow `restart_to_update` command.
+// in the trusted Rust core and expose only the narrow `restart_to_update` command
+// plus `check_for_updates` (V2-4.7c, Settings › Advanced) — the menu's own check,
+// no arguments, throttled.
 //
 // Cadence: an initial check shortly after boot, on every window focus, and every
 // 4 h. Checks never block the UI and failures are logged, not fatal (a dev / un-
 // bundled build has nothing to install — that's expected and quiet).
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::AppHandle;
@@ -35,6 +38,17 @@ const INITIAL_DELAY_SECS: u64 = 15;
 /// call from the (CSP-less, DDR-109-F2) main origin can't loop-restart the app —
 /// you can only "restart to update" when there genuinely IS a staged update.
 static UPDATE_STAGED: AtomicBool = AtomicBool::new(false);
+
+/// V2-4.7c: a page may ask for an interactive check at most this often. Each
+/// interactive check can end in a native dialog, so a forged call loop from the
+/// main origin could otherwise stack dialogs; a person clicking twice loses nothing.
+const PAGE_CHECK_COOLDOWN: Duration = Duration::from_secs(10);
+static LAST_PAGE_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Whether a page-requested check may start now (pure; `check_for_updates` records `now`).
+fn page_check_allowed(last: Option<Instant>, now: Instant) -> bool {
+    last.is_none_or(|t| now.saturating_duration_since(t) >= PAGE_CHECK_COOLDOWN)
+}
 
 /// Payload for the `update-ready` event the client banner listens for.
 #[derive(Clone, Serialize)]
@@ -83,6 +97,28 @@ pub fn check_now_interactive(handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
         check_and_apply(&handle, true).await;
     });
+}
+
+/// Webview → shell (V2-4.7c): Settings › Advanced › Check for updates. The SAME
+/// path as Maude ▸ Check for Updates… (`check_now_interactive`): the signed feed
+/// from tauri.conf.json, the same dialogs, the same `update-ready` broadcast.
+/// Takes no input — no URL, no path, no channel — and only a project page may call it.
+#[tauri::command]
+pub fn check_for_updates(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
+    {
+        let mut last = LAST_PAGE_CHECK
+            .lock()
+            .map_err(|_| "updater state poisoned".to_string())?;
+        let now = Instant::now();
+        if !page_check_allowed(*last, now) {
+            eprintln!("[maude] check_for_updates ignored — a check ran moments ago");
+            return Ok(());
+        }
+        *last = Some(now);
+    }
+    check_now_interactive(app);
+    Ok(())
 }
 
 /// `interactive` = the user asked for this check (menu), so give explicit feedback
@@ -214,7 +250,17 @@ pub fn restart_to_update(app: AppHandle, webview: tauri::Webview) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{up_to_date_message, up_to_date_title};
+    use super::{page_check_allowed, up_to_date_message, up_to_date_title, PAGE_CHECK_COOLDOWN};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn a_page_check_runs_first_time_and_again_only_after_the_cooldown() {
+        let t0 = Instant::now();
+        assert!(page_check_allowed(None, t0));
+        assert!(!page_check_allowed(Some(t0), t0));
+        assert!(!page_check_allowed(Some(t0), t0 + Duration::from_secs(3)));
+        assert!(page_check_allowed(Some(t0), t0 + PAGE_CHECK_COOLDOWN));
+    }
 
     #[test]
     fn linux_manual_check_explains_that_automatic_updates_are_unavailable() {
