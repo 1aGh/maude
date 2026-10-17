@@ -122,6 +122,9 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Check for updates…',
     kind: 'command',
     exec: 'native',
+    // The updater is the desktop app's: a browser tab, a cloud tab and a read-only link have none (their
+    // Settings › Advanced › This Mac › Update row is absent too), so the registry must not promise the row there.
+    visible: { shell: ['desktop'] },
     native: { menu: 'App', order: 1 },
   },
 ];

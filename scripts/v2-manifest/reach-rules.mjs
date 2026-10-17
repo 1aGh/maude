@@ -208,16 +208,94 @@ export const HOOK_SHELLS = Object.freeze([
   [/^team-/, ['desktop'], 'TeamProjectsDialog is native-only (needs the shell for a keychain)'],
   [/^palette-ask-ai$/, ['desktop'], 'Ask AI is desktop only (palette-ask-ai meaning)'],
   [
-    /^(chat-|acp-|dock-ai-|\.chat-|\.btn--danger \(permission|\[aria-label="(Send message|Stop|Reopen)"\])/,
+    /^(chat-|acp-|dock-ai-|\.chat-|\.btn--danger \(permission|\[aria-label="(Send message|Stop)"\])/,
     ['desktop'],
     'the ACP chat panel exists only in the desktop app',
   ],
+  [
+    /^(g[i]t-save-all|g[i]t-get-latest|publish|save-local|pull)$/,
+    ['desktop'],
+    "a browser tab opens the Changes panel read-only (GitPanel readOnly = !isNativeApp()): saving and publishing are the app's",
+  ],
+  [
+    /^(cloud-deeplink-|file-deeplink-|cloud-signin-refused$|sync-signin-again$|readiness-autosetup-where$)/,
+    ['desktop'],
+    'the shell hands the window a maude:// link, opens addresses and holds the sign-in: native only (isNativeApp())',
+  ],
+  [/^embed-/, ['embed'], 'the embed shell (?embed=1)'],
   [
     /^share-open-app$/,
     ['browser', 'cloud-owner', 'cloud-member', 'cloud-viewer', 'viewer'],
     'no "Open in app" inside the app (share-open-app meaning)',
   ],
 ]);
+
+/**
+ * State-internal proofs (V2-4.gate-d, lead decision). A kept hook that only exists mid-gesture or in a transient
+ * state (snap guides while a board is dragged, a peer's cursor, a holding card during a hot reload, a collaborator
+ * edit notice) is not worth a probe state that fakes a second person or a race. The audit accepts a NAMED RENDER
+ * TEST instead: the hook counts as reached in a shell when its `container` (a hook the probe reaches in that shell)
+ * is reached there AND `test` exists AND contains the title `name` AND contains the hook (or every string in
+ * `needles`: a hook written as several selectors is found by its own spellings). The test must render the hook;
+ * `proofHolds` only checks that the test still says so. A proof for a hook the probe CAN reach is a smell: prefer a
+ * probe state.
+ *   hook → { container, test: '<repo-relative file>', name: '<test title substring>', needles?: string[] }
+ */
+export const HOOK_PROOFS = Object.freeze({
+  // a collaborator's frame / halo / drawn-gesture ghost: a second person is connected. Rendered, and followed
+  // through a pan and a zoom, by the peer-selection test
+  '.dc-cursor / .dc-peer-selection / [data-peer-gesture]': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/peer-selection-follows-camera.test.tsx',
+    name: 'the frame follows a pan',
+    needles: ['.dc-peer-selection'],
+  },
+  // the "holding" card shown for the instant a hot reload swaps the canvas module
+  '.dc-hmr-holding': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/canvas-hmr-loaded.test.tsx',
+    name: 'soft HMR announces only committed replacement DOM',
+    needles: ['dc-hmr-holding'],
+  },
+  // the canvas's own participant stack: the Share cluster hosts the faces inside the shell, so only a standalone
+  // canvas (or an embed) draws it
+  '.dc-participants / .dc-participant(--agent)': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/v2-gate-proofs.test.tsx',
+    name: 'draws the working agent as a participant',
+    needles: ['.dc-participants', '.dc-participant'],
+  },
+  // a section's label chip; the probe fixture draws no section
+  '[data-section-chip] / [data-edit-notice]': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/v2-gate-proofs.test.tsx',
+    name: 'is the section label chip',
+    needles: ['data-section-chip'],
+  },
+  // the local harness canvas `maude design photo-bg-remove` drives; nobody opens it
+  '[data-photo-bgremove-status]': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/v2-gate-proofs.test.tsx',
+    name: 'is on the page, pending first',
+    needles: ['data-photo-bgremove-status'],
+  },
+  // the readiness dialog opens from the desktop menu's native item only
+  'readiness-autosetup-where': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/v2-gate-proofs.test.tsx',
+    name: 'names the setting that stops the offers',
+    needles: ['readiness-autosetup-where'],
+  },
+});
+
+/** Does the proof still hold? `readText(repoRelPath)` → the file's text or null. Pure. */
+export function proofHolds(hook, proof, readText) {
+  if (!proof) return false;
+  const text = readText(proof.test);
+  if (typeof text !== 'string') return false;
+  if (!text.includes(proof.name)) return false;
+  return (proof.needles ?? [hook]).every((n) => text.includes(n));
+}
 
 /** Probes where a kept hook must be reachable: every shell v1 showed it in, else the local probes. */
 export function hookProbes(hook, v1Seen, roles) {
@@ -240,6 +318,28 @@ export function hookProbes(hook, v1Seen, roles) {
  *   css      the selector alternatives (" / " separated, explanatory "(…)" suffixes dropped)
  * Returns null for prose hooks ("Inspector field labels") — nothing to look for.
  */
+/** Hooks on an element that is mounted but draws no box (a host that only owns dialogs, `.cb-host`): the probe
+ *  counts them when they are in the document, not when they have a client rect. */
+export const PRESENCE_ONLY = Object.freeze(new Set(['cloud-host']));
+
+/** A hook whose testids.json text is prose + a selector: the selector the page is asked about. */
+export const CSS_ALIASES = Object.freeze({
+  '.btn--danger (permission prompt)': ['.chat-perm .btn--danger'],
+  '[aria-expanded] on tree rows': ['[role="tree"] [aria-expanded]'],
+  '[aria-label="Delete canvas <name>"]': ['[aria-label^="Delete canvas "]'],
+  // label sets written as prose in testids.json: any one of the spellings on screen is the hook on screen
+  'Annotation node labels': ['[aria-label="Edit text"]', '[aria-label="Edit sticky note text"]'],
+  'Annotation toolbar labels': [
+    '[aria-label="Annotation properties"]',
+    '[aria-label="Align and distribute"]',
+    '[aria-label="Group selection"]',
+  ],
+  'Photo tab field labels': ['[aria-label="Brightness"]', '[aria-label="Contrast"]'],
+  'menuitem by name (row menu)': ['.st-dropdown [role="menuitem"]'],
+  '[data-theme] on DS/artboard wrappers': ['[data-theme]:not(html)'],
+  '[data-path] on canvas-frame': ['[data-testid="canvas-frame"][data-path]'],
+});
+
 export function hookMatcher(def) {
   const hook = typeof def === 'string' ? def : def.hook;
   const kind = typeof def === 'string' ? 'testid' : def.kind;
@@ -254,6 +354,7 @@ export function hookMatcher(def) {
       .replace(/~ANY~/g, '.+');
     return { testidRe: `^${src}$` };
   }
+  if (CSS_ALIASES[hook]) return { css: CSS_ALIASES[hook] };
   const alts = hook
     .split(' / ')
     .map((a) => a.replace(/\s*\((?:\+|--)[^)]*\)\s*$/, '').trim())
@@ -281,7 +382,7 @@ export function seenIn(evidence, def) {
  * @param evidence  { [probeId]: { [openerId]: { ok, err?, testids, tours, css, palette: {id: bool} } } }
  * @param subjects  { rows: [{ id, need: probeIds, testid, action }], targets: [{ id, need, hook|action }] }
  */
-export function summarize({ evidence, subjects, hooksByName, taken, bundle }) {
+export function summarize({ evidence, subjects, hooksByName, taken, bundle, proofs = new Map() }) {
   const findHook = (probe, hook) => {
     const def = hooksByName.get(hook) ?? hook;
     for (const [opener, ev] of Object.entries(evidence[probe] ?? {}))
@@ -307,8 +408,14 @@ export function summarize({ evidence, subjects, hooksByName, taken, bundle }) {
     if (!subj.hook && !subj.action) return 'no v2 home yet (v2.action / v2.testid empty)';
     const missing = [];
     for (const p of subj.need) {
+      // a hook that has a named render test counts where its container is on screen (HOOK_PROOFS)
+      const proof = subj.hook ? proofs.get(subj.hook) : null;
+      const viaProof =
+        proof?.ok && findHook(p, proof.container) ? `proof(${proof.test} › ${proof.name})` : null;
       const at =
-        (subj.hook && findHook(p, subj.hook)) || (subj.action && findAction(p, subj.action));
+        (subj.hook && findHook(p, subj.hook)) ||
+        (subj.action && findAction(p, subj.action)) ||
+        viaProof;
       perShell[p][bucket][subj.id] = at ? `ok: ${at}` : 'missing';
       if (!at) missing.push(p);
     }

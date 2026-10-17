@@ -34,14 +34,18 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { ACP_SCRIPTS, acpOpenFrames, acpReplies } from './acp-stub.mjs';
 import { OPENERS, PALETTE, resolveOpener, tid, WS_PUSH } from './openers.mjs';
 import {
   ACTION_SURFACE,
   actionProbes,
   GOLDEN_SHELLS,
+  HOOK_PROOFS,
   hookMatcher,
   hookProbes,
+  PRESENCE_ONLY,
   PROBES,
+  proofHolds,
   rowProbes,
   summarize,
   toolRoles,
@@ -167,6 +171,8 @@ const restoreDist = () => {
   if (BUILD) spawnSync('git', ['checkout', '--', 'apps/studio/dist/'], { cwd: REPO });
 };
 
+const { scaffoldDesign } = await import(join(STUDIO, 'scaffold-design.ts'));
+
 // ── fixture + server ─────────────────────────────────────────────────────────────────────
 const runDir = mkdtempSync(join(tmpdir(), 'maude-v2-reach-'));
 const CANVAS = (
@@ -184,7 +190,7 @@ ${boards
           <main style={{ padding: 40, fontFamily: 'system-ui' }}>
             <h1 data-cd-id="${id}-title">${label}</h1>
             <p data-cd-id="${id}-body">Reachability fixture.</p>
-            <div data-cd-id="${id}-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div data-cd-id="${id}-grid" data-dc-element="Grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <span>A</span>
               <span>B</span>
             </div>
@@ -257,6 +263,40 @@ function makeFixture(project) {
     '.design/ui/Home.meta.json',
     `${JSON.stringify({ artboards: [{ id: 'home-hero' }, { id: 'home-pricing' }] }, null, 2)}\n`
   );
+  // drawn annotations (the .annotations.svg sidecar is versioned): a note card, a label anchored to it, an arrow
+  put(
+    '.design/ui-home.annotations.svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">' +
+      '<rect data-id="r1" data-tool="rect" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#fff4d6" x="500" y="260" width="160" height="90"/>' +
+      '<text data-id="t1" data-tool="text" data-anchor-id="r1" data-font-size="14" fill="#1a1a1a" text-anchor="middle" dominant-baseline="middle">needs work</text>' +
+      '<g data-id="mr1" data-tool="mediaref" data-src="assets/ab12cd34.mp4" data-media-kind="video" data-title="b-roll.mp4"><rect x="500" y="20" width="240" height="120" rx="8" ry="8" fill="#ffffff" stroke="#d4d4d8" stroke-width="1"/><text x="548" y="80" font-size="13" fill="#18181b" dominant-baseline="hanging">b-roll.mp4</text></g>' +
+      '<text data-id="t2" data-tool="text" x="520" y="400" data-font-size="14" fill="#1a1a1a">Standalone note</text>' +
+      '<g data-id="a1" data-tool="arrow" stroke="#1a8f3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="420" y1="300" x2="500" y2="300"/><polyline points="485.6,306.9 500,300 485.6,293.1" fill="#1a8f3e"/></g>' +
+      '</svg>'
+  );
+  // the canvas a freshly created project opens to (scaffold-design.ts) — its welcome artboard
+  const scaffolded = join(runDir, 'scaffold');
+  mkdirSync(scaffolded, { recursive: true });
+  scaffoldDesign(scaffolded, 'reachability');
+  for (const f of ['Welcome.tsx', 'Welcome.meta.json'])
+    put(`.design/ui/${f}`, readFileSync(join(scaffolded, '.design/ui', f), 'utf8'));
+  put(
+    '.design/ui/Flyer.tsx',
+    `import { DCArtboard, DesignCanvas } from '@maude/canvas-lib';
+
+export default function Flyer() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="flyer" kind="print" label="Flyer" width={420} height={594}>
+        <main style={{ padding: 40, fontFamily: 'system-ui' }}>
+          <h1 data-cd-id="flyer-title">Flyer</h1>
+        </main>
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`
+  );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
   // a video comp (two 20 s sequences = long, each animates its title): the Timeline and its clip inspector
   put(
@@ -327,11 +367,13 @@ async function bootServer() {
 }
 
 // ── in-page collector (runs in every frame) ──────────────────────────────────────────────
-function collectInFrame(css) {
+function collectInFrame([css, presence]) {
   const shown = (el) => el.getClientRects().length > 0;
   const testids = new Set();
   for (const el of document.querySelectorAll('[data-testid]'))
     if (shown(el)) testids.add(el.getAttribute('data-testid'));
+  // a host is mounted to own dialogs and draws no box: it counts when it is in the document
+  for (const t of presence) if (document.querySelector(`[data-testid="${t}"]`)) testids.add(t);
   const tours = new Set();
   for (const el of document.querySelectorAll('[data-tour]'))
     if (shown(el)) tours.add(el.getAttribute('data-tour'));
@@ -350,12 +392,16 @@ function collectInFrame(css) {
   return { testids: [...testids], tours: [...tours], css: hit };
 }
 
+const PNG_1X1 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const TAURI_STUB = `window.__TAURI__ = {
   core: {
-    invoke: (cmd) =>
-      cmd in (window.__PROBE_INVOKE__ || {})
-        ? Promise.resolve(window.__PROBE_INVOKE__[cmd])
-        : Promise.reject(new Error('reachability probe: ' + cmd)),
+    invoke: (cmd) => {
+      const answers = window.__PROBE_INVOKE__ || {};
+      if (!(cmd in answers)) return Promise.reject(new Error('reachability probe: ' + cmd));
+      const a = answers[cmd];
+      return a && a.__reject ? Promise.reject(new Error(a.__reject)) : Promise.resolve(a);
+    },
   },
   event: { listen: () => Promise.resolve(() => {}) },
   window: {}, path: {}, app: {},
@@ -385,15 +431,57 @@ async function runOpener(browser, srv, probe, opener) {
         await route.fulfill({ response: res, json: { ...body, ...config } });
       });
     for (const [path, json] of Object.entries(world.routes))
-      await page.route(`${srv.origin}${path}`, (route) => route.fulfill({ json }));
+      await page.route(
+        path.startsWith('re:') ? new RegExp(path.slice(3)) : `${srv.origin}${path}`,
+        (route) => {
+          if (json?.__hang) return undefined; // the request never answers (a slow start)
+          if (json?.__abort) return route.abort();
+          if (json?.__png)
+            return route.fulfill({
+              contentType: 'image/png',
+              body: Buffer.from(PNG_1X1, 'base64'),
+            });
+          if (json?.__status) return route.fulfill({ status: json.__status, json });
+          return route.fulfill({ json });
+        }
+      );
     // the studio's own WebSocket, passed through; a `push` step injects a frame the server would send
     const sockets = [];
     await page.routeWebSocket(/\/_ws(\?|$)/, (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((m) => server.send(m));
-      server.onMessage((m) => ws.send(m));
+      // a state that stubs an answer also drops the real server's own pushes of it (a `git-status` frame would
+      // overwrite the stubbed repo with the fixture's, which has none)
+      server.onMessage((m) => {
+        if (world.dropFrames.length) {
+          try {
+            if (world.dropFrames.includes(JSON.parse(String(m)).type)) return;
+          } catch {
+            /* not JSON: pass it on */
+          }
+        }
+        ws.send(m);
+      });
       sockets.push(ws);
     });
+    // the desktop chat's bridge, played from a script (acp-stub.mjs): the frames the server would send
+    if (world.acp) {
+      await page.routeWebSocket(/\/_ws\/acp/, (ws) => {
+        let chat = 'probe-chat';
+        for (const f of acpOpenFrames(ACP_SCRIPTS, world.acp)) ws.send(JSON.stringify(f));
+        ws.onMessage((raw) => {
+          let frame;
+          try {
+            frame = JSON.parse(String(raw));
+          } catch {
+            return;
+          }
+          if (typeof frame.chat === 'string') chat = frame.chat;
+          for (const [i, f] of acpReplies(ACP_SCRIPTS, world.acp, frame, chat).entries())
+            setTimeout(() => ws.send(JSON.stringify(f)), 60 * (i + 1));
+        });
+      });
+    }
     if (probe.tauri) {
       await page.addInitScript(`window.__PROBE_INVOKE__ = ${JSON.stringify(world.invoke)};`);
       await page.addInitScript(TAURI_STUB);
@@ -411,7 +499,7 @@ async function runOpener(browser, srv, probe, opener) {
     const collect = async () => {
       for (const f of page.frames()) {
         try {
-          const r = await f.evaluate(collectInFrame, cssHooks);
+          const r = await f.evaluate(collectInFrame, [cssHooks, [...PRESENCE_ONLY]]);
           for (const t of r.testids) ev.testids.add(t);
           for (const t of r.tours) ev.tours.add(t);
           for (const t of r.css) ev.css.add(t);
@@ -444,6 +532,7 @@ async function runOpener(browser, srv, probe, opener) {
       await sleep(2500);
     }
     await collect();
+    let gesture = { x: 0, y: 0 };
     for (const step of opener.steps) {
       // `unless`: skip the step when that selector is already on screen (a fold the Mac remembers open)
       if (
@@ -473,6 +562,53 @@ async function runOpener(browser, srv, probe, opener) {
           await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
+      } else if (step.upload) {
+        const [selector, name, text] = step.upload;
+        await page
+          .locator(selector)
+          .first()
+          .setInputFiles({
+            name,
+            mimeType: 'image/svg+xml',
+            buffer: Buffer.from(text),
+          });
+      } else if (step.post) {
+        const [path, body] = step.post;
+        await page.evaluate(
+          ([u, b]) =>
+            fetch(u, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(b),
+            }).then((r) => r.status),
+          [path, body]
+        );
+      } else if (step.hover) {
+        await page.locator(step.hover).first().hover({ timeout: 4000 });
+      } else if (step.frameDown) {
+        // press on an element in the canvas and keep the button down (the next steps move / release)
+        const t = page.frameLocator(tid('canvas-frame')).locator(step.frameDown).first();
+        await t.waitFor({ state: 'visible', timeout: 8000 });
+        const b = await t.boundingBox();
+        gesture = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        await page.mouse.move(gesture.x, gesture.y);
+        await page.mouse.down();
+      } else if (step.mouseMove) {
+        const [dx, dy] = step.mouseMove;
+        for (let i = 1; i <= 8; i++) {
+          await page.mouse.move(gesture.x + (dx * i) / 8, gesture.y + (dy * i) / 8);
+          await sleep(30);
+        }
+        gesture = { x: gesture.x + dx, y: gesture.y + dy };
+      } else if (step.mouseUp) {
+        await page.mouse.up();
+      } else if (step.frameDblclick) {
+        const target = page.frameLocator(tid('canvas-frame')).locator(step.frameDblclick).first();
+        if (step.optional) {
+          await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
+          if (!(await target.isVisible().catch(() => false))) continue;
+        }
+        await target.dblclick({ timeout: 10_000 });
       } else if (step.dblclick) {
         const el = page.locator(step.dblclick).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
@@ -557,6 +693,18 @@ async function runOpener(browser, srv, probe, opener) {
       await sleep(400);
       await collect();
     }
+    // PROBE_EVAL='<js expression>': print what it returns in the main frame once the steps are done (debugging)
+    if (process.env.PROBE_EVAL)
+      console.log(
+        `  [eval ${opener.id}]`,
+        JSON.stringify(await page.evaluate(process.env.PROBE_EVAL))
+      );
+    // PROBE_FRAME_EVAL: the same, in every other frame (the canvas runs in one)
+    if (process.env.PROBE_FRAME_EVAL)
+      for (const f of page.frames().filter((x) => x !== page.mainFrame())) {
+        const r = await f.evaluate(process.env.PROBE_FRAME_EVAL).catch(() => null);
+        if (r != null) console.log(`  [frame-eval ${opener.id}]`, JSON.stringify(r));
+      }
   } catch (err) {
     ev.ok = false;
     ev.err = String(err?.message ?? err)
@@ -582,9 +730,9 @@ let evidence = {};
 try {
   for (const probe of PROBES.filter((p) => !ONLY || ONLY.includes(p.id))) {
     evidence[probe.id] = {};
-    const openers = (probe.query ? OPENERS.filter((o) => o.id === 'shell') : OPENERS).filter(
-      (o) => !ONLY_OPENERS || ONLY_OPENERS.includes(o.id)
-    );
+    const openers = (probe.query ? OPENERS.filter((o) => o.id === 'shell') : OPENERS)
+      .filter((o) => !o.probes || o.probes.includes(probe.id))
+      .filter((o) => !ONLY_OPENERS || ONLY_OPENERS.includes(o.id));
     for (const o of openers) {
       const t0 = Date.now();
       const ev = await runOpener(browser, srv, probe, o);
@@ -611,9 +759,15 @@ if (MERGE) {
     base[p] = { ...(base[p] ?? {}), ...byOpener };
   evidence = base;
 }
+const readRepoText = (rel) =>
+  existsSync(join(REPO, rel)) ? readFileSync(join(REPO, rel), 'utf8') : null;
+const proofs = new Map(
+  Object.entries(HOOK_PROOFS).map(([h, p]) => [h, { ...p, ok: proofHolds(h, p, readRepoText) }])
+);
 const doc = summarize({
   evidence,
   subjects,
+  proofs,
   hooksByName,
   taken: new Date().toISOString(),
   bundle: `${BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js'}${MERGE ? ' (earlier run + re-run openers merged)' : ''}`,

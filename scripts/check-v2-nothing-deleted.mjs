@@ -25,6 +25,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HOOK_PROOFS, proofHolds } from './v2-manifest/reach-rules.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = join(ROOT, 'apps/studio/client/v2/v1-manifest.json');
@@ -171,8 +172,24 @@ if (existsSync(REACH)) {
         .filter(([, v]) => v === true)
         .map(([k]) => k)
     );
-  const ok = okIn(reach.rows);
-  const okT = okIn(reach.targets);
+  // a subject the probe credits to a named render test (HOOK_PROOFS) is only as good as that test today:
+  // re-read it here, so deleting or renaming the test turns the line red without a new probe run
+  const readRepoText = (rel) =>
+    existsSync(join(ROOT, rel)) ? readFileSync(join(ROOT, rel), 'utf8') : null;
+  const proofDecay = (map, bucket) =>
+    new Set(
+      Object.keys(map ?? {}).filter((id) => {
+        const credited = Object.values(reach.perShell ?? {}).some((sh) =>
+          String(sh?.[bucket]?.[id] ?? '').startsWith('ok: proof(')
+        );
+        const hook = id.startsWith('testid:') ? id.slice(7) : null;
+        return credited && !(hook && proofHolds(hook, HOOK_PROOFS[hook], readRepoText));
+      })
+    );
+  const rowDecay = proofDecay(reach.rows, 'rows');
+  const targetDecay = proofDecay(reach.targets, 'targets');
+  const ok = new Set([...okIn(reach.rows)].filter((id) => !rowDecay.has(id)));
+  const okT = new Set([...okIn(reach.targets)].filter((id) => !targetDecay.has(id)));
   unreached = live.filter((r) => !ok.has(r.id));
   unreachedKept = kept.filter((t) => !okT.has(t));
   reachNote = `reachability from ${reach.taken ?? 'unknown run'}`;
