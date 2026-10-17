@@ -2989,6 +2989,7 @@ function ShellTree() {
     activePath,
     iframesRef,
     cfg,
+    canEdit: !viewerMode,
     openStickers: setStickerPickerReq,
     openAssets: () => {
       panelLayout.show();

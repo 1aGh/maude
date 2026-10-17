@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1f7b68d2a5f3",
+  "manifestVersion": "c4155a1196ef",
   "actions": [
     {
       "id": "search.open",
@@ -750,6 +750,30 @@
       }
     },
     {
+      "id": "view.advanced-open-all",
+      "label": "Open all Advanced sections",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "opens every panel’s Advanced fold; a UI preference"
+      }
+    },
+    {
+      "id": "view.advanced-close-all",
+      "label": "Close all Advanced sections",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "folds every panel’s Advanced section; a UI preference"
+      }
+    },
+    {
       "id": "tool.select",
       "label": "Select",
       "kind": "tool",
@@ -1421,7 +1445,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design preflight"
+        "verb": "maude doctor"
       }
     },
     {
@@ -1444,7 +1468,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design preflight"
+        "verb": "maude doctor"
       }
     },
     {

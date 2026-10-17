@@ -280,8 +280,10 @@ describe('rows come from the registry, at call time', () => {
   });
 
   test('tools say which toolbar they are on, from MODE_TOOLS', () => {
+    // V2-4.5b: `tool.pen` is the Marker (a Preview tool); Edit's Pen P waits for S2.
     const pen = ACTIONS_BY_ID.get('tool.pen')!;
-    expect(toolbarOf(pen)).toBe('Edit toolbar');
+    expect(toolbarOf(pen)).toBe('Preview toolbar');
+    expect(toolbarOf(ACTIONS_BY_ID.get('tool.select')!)).toBe('Edit toolbar');
     const sticky = ACTIONS_BY_ID.get('tool.sticky')!;
     expect(toolbarOf(sticky)).toBe('Preview toolbar');
     const tools = LOCAL.filter((r) => r.group === 'tools');
@@ -343,8 +345,9 @@ describe('"?" — the shortcuts sheet', () => {
     expect(preview?.note).toBe('The key switches to Preview');
     expect(preview?.rows.map((r) => r.id)).toContain('tool.sticky');
     expect(sheet.groups.find((g) => g.id === 'edit-tools')?.rows.map((r) => r.id)).toContain(
-      'tool.pen'
+      'tool.select'
     );
+    expect(preview?.rows.map((r) => r.id)).toContain('tool.pen'); // the Marker (V2-4.5b)
   });
 
   test('the Advanced fold holds View › Advanced and Diagnostics keys with their path', () => {

@@ -249,4 +249,17 @@ export const VIEW_ACTIONS: ActionDef[] = [
       kb(`⌥⌘${n}`, 'global', { inText: true, alias: i > 0, when: IN_CANVAS_ANY })
     ),
   },
+  // V2-4.10 — ⌘K: every panel's › Advanced fold at once (per Mac, client/v2/fold/fold-store.js).
+  {
+    id: 'view.advanced-open-all',
+    label: 'Open all Advanced sections',
+    kind: 'command',
+    exec: 'shell',
+  },
+  {
+    id: 'view.advanced-close-all',
+    label: 'Close all Advanced sections',
+    kind: 'command',
+    exec: 'shell',
+  },
 ];

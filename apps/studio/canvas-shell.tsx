@@ -52,7 +52,7 @@ import {
   useViewportControllerContext,
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
-import { replayActionKey } from './canvas-replay-keys.ts';
+import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
 import {
   buildEditSourceRecord,
   type EditSourceApplyFn,
@@ -2751,6 +2751,8 @@ function CanvasRouter({
           void afterShellRecords().then(() => undoStackRef.current.undo());
         } else if (id === 'edit.redo') {
           void afterShellRecords().then(() => undoStackRef.current.redo());
+        } else if (replayToolKey(id, params)) {
+          // V2-4.5b — a toolbar key pressed with the shell focused; the router decides.
         } else if (replayActionKey(id)) {
           // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
           // canvas replays the action's own chord, so the key handler is the one implementation.

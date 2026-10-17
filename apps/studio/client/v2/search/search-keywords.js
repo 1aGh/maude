@@ -9,6 +9,8 @@
 
 /** action id → extra words. */
 export const ACTION_KEYWORDS = Object.freeze({
+  'view.advanced-open-all': ['open advanced', 'advanced mode', 'expert', 'pro'],
+  'view.advanced-close-all': ['close advanced', 'fold advanced', 'reset advanced'],
   // Hub / cloud — Michal's "hub" is the team server and the cloud (CONTRACT §7 words: "Maude Cloud",
   // "team server"); the Diagnostics rows and the sync actions answer it too.
   'sync.resync': ['hub', 'cloud', 'sync'],

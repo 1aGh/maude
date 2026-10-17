@@ -45,9 +45,10 @@ const ev = (data: unknown, source: unknown, origin = ORIGIN) =>
 const BAR = { x: 300, y: 720, w: 400, h: 44 };
 const BUTTON = { x: 600, y: 724, w: 36, h: 36 };
 
-function makeLane(opts: { activePath?: string | null } = {}) {
+function makeLane(opts: { activePath?: string | null; canEdit?: boolean } = {}) {
   const opened: Array<{ canvas: string; anchor: unknown }> = [];
   let assets = 0;
+  let denied = 0;
   const frames = new Map<string, ReturnType<typeof frameEl>>([
     ['a.tsx', frameEl(activeWin)],
     ['b.tsx', frameEl(backgroundWin)],
@@ -61,8 +62,12 @@ function makeLane(opts: { activePath?: string | null } = {}) {
     openAssets: () => {
       assets++;
     },
+    canEdit: () => opts.canEdit !== false,
+    deny: () => {
+      denied++;
+    },
   });
-  return { lane, opened, assets: () => assets };
+  return { lane, opened, assets: () => assets, denied: () => denied };
 }
 
 describe('toShellRect / placePanel (pure)', () => {
@@ -101,6 +106,15 @@ describe('toShellRect / placePanel (pure)', () => {
 });
 
 describe('the lane: toolbar-rect + tool-panel-open', () => {
+  test('a viewing role asking for Stickers or Assets gets the denial line, not a panel (V2-4.5b Q2)', () => {
+    const { lane, opened, assets, denied } = makeLane({ canEdit: false });
+    lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'stickers', anchor: null }, activeWin));
+    lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'assets', anchor: null }, activeWin));
+    expect(opened).toHaveLength(0);
+    expect(assets()).toBe(0);
+    expect(denied()).toBe(2);
+  });
+
   test('stickers opens anchored to the last toolbar-rect (shell coordinates)', () => {
     const { lane, opened } = makeLane();
     lane.onMessage(ev({ dgn: 'toolbar-rect', mode: 'preview', rect: BAR }, activeWin));
@@ -232,5 +246,46 @@ describe('StickerPicker hosted as a shell panel', () => {
     expect(host.querySelector('.st-scrim--anchored')).toBeNull();
     await act(async () => root.unmount());
     host.remove();
+  });
+});
+
+describe('a tool key pressed with the shell focused is replayed in the canvas (V2-4.5b)', () => {
+  test('only tool.key with a bare letter (or ⇧ + letter) dispatches; anything else is swallowed', async () => {
+    const { replayToolKey } = await import('../canvas-replay-keys.ts');
+    const seen: Array<{ key: string; code: string; shift: boolean }> = [];
+    const doc = {
+      body: {
+        dispatchEvent: (e: KeyboardEvent) => {
+          seen.push({ key: e.key, code: e.code, shift: e.shiftKey });
+          return true;
+        },
+      },
+    } as unknown as Document;
+    expect(replayToolKey('select.all', { key: 'N' }, doc)).toBe(false);
+    expect(replayToolKey('tool.key', { key: 'N' }, doc)).toBe(true);
+    expect(replayToolKey('tool.key', { key: '⇧I' }, doc)).toBe(true);
+    for (const bad of ['⌘N', 'NN', 'n', '', 7, null])
+      expect(replayToolKey('tool.key', { key: bad }, doc)).toBe(true);
+    expect(replayToolKey('tool.key', null, doc)).toBe(true);
+    expect(seen).toEqual([
+      { key: 'n', code: 'KeyN', shift: false },
+      { key: 'I', code: 'KeyI', shift: true },
+    ]);
+  });
+
+  test('every tool.<id> action has a shell handler that posts tool.key to the active canvas', async () => {
+    const { SHELL_KEY_HANDLERS } = await import('../client/actions/shell-key-handlers.js');
+    const { ACTIONS } = await import('../actions/index.ts');
+    const tools = ACTIONS.filter((a) => a.id.startsWith('tool.')).map((a) => a.id);
+    expect(tools.length).toBeGreaterThan(5);
+    for (const id of tools) expect(typeof SHELL_KEY_HANDLERS[id], id).toBe('function');
+    const posted: unknown[] = [];
+    let prevented = 0;
+    SHELL_KEY_HANDLERS['tool.sticky'](
+      { postToActiveCanvas: (m: unknown) => posted.push(m) },
+      { event: { key: 'n', code: 'KeyN', preventDefault: () => prevented++ } }
+    );
+    expect(prevented).toBe(1);
+    expect(posted).toEqual([{ dgn: 'run-action', v: 1, id: 'tool.key', params: { key: 'N' } }]);
   });
 });

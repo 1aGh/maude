@@ -14,7 +14,9 @@
 import { useEffect, useRef } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
+import { shellToast } from '../../shell/util.js';
 import { createToolbarRects, PANEL_HOSTS, placePanel, toShellRect } from './tool-panels.js';
+import { ROLE_DENIAL } from './use-canvas-mode-lane.js';
 
 /**
  * @param deps.canvasOrigin () => string — the canvas origin messages must come from
@@ -23,6 +25,8 @@ import { createToolbarRects, PANEL_HOSTS, placePanel, toShellRect } from './tool
  * @param deps.viewport () => {w,h}
  * @param deps.openStickers ({canvas, anchor}) => void — `anchor` is a placement or null (centred)
  * @param deps.openAssets () => void
+ * @param deps.canEdit () => boolean — the panels add to the design; a non-editor gets `deps.deny()`
+ * @param deps.deny () => void
  */
 export function createToolPanelLane(deps) {
   const rects = createToolbarRects();
@@ -41,7 +45,12 @@ export function createToolPanelLane(deps) {
       rects.set(canvas, m.mode, m.rect);
       return;
     }
-    // tool-panel-open
+    // tool-panel-open — Stickers / Assets add to the design: an editor's (V2-4.5b, Q2). A viewing role's
+    // E reaches here as a request; the shell owns the role and says the one denial line.
+    if (deps.canEdit && !deps.canEdit()) {
+      deps.deny?.();
+      return;
+    }
     const host = PANEL_HOSTS[m.panel];
     if (host === 'popover') {
       const frame = deps.frameOf(canvas);
@@ -66,9 +75,9 @@ export function createToolPanelLane(deps) {
   };
 }
 
-export function useToolPanels({ activePath, iframesRef, cfg, openStickers, openAssets }) {
+export function useToolPanels({ activePath, iframesRef, cfg, canEdit, openStickers, openAssets }) {
   const live = useRef({});
-  live.current = { activePath, iframesRef, cfg, openStickers, openAssets };
+  live.current = { activePath, iframesRef, cfg, canEdit, openStickers, openAssets };
   const laneRef = useRef(null);
   if (!laneRef.current)
     laneRef.current = createToolPanelLane({
@@ -76,6 +85,8 @@ export function useToolPanels({ activePath, iframesRef, cfg, openStickers, openA
       activePath: () => live.current.activePath,
       frameOf: (p) => live.current.iframesRef.current?.get(p),
       viewport: () => ({ w: window.innerWidth, h: window.innerHeight }),
+      canEdit: () => live.current.canEdit !== false,
+      deny: () => shellToast(ROLE_DENIAL),
       openStickers: (req) => live.current.openStickers(req),
       openAssets: () => live.current.openAssets(),
     });

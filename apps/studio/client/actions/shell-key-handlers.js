@@ -16,6 +16,7 @@
 
 import { documentIndex } from '../../actions/documents.ts';
 import { ACTIONS, ACTIONS_BY_ID } from '../../actions/index.ts';
+import { chordFromEvent } from '../../actions/keys.ts';
 import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
@@ -305,6 +306,21 @@ export const SHELL_KEY_HANDLERS = {
     if (next != null) doSeek(next);
   },
   'timeline.prev-keyframe': (d, { event: e }) => prevKeyframe(d, e),
+};
+
+// V2-4.5b — the toolbar keys and ⌥⌘P with the SHELL focused (a panel, the pill): the active canvas
+// replays the chord over `run-action`, so its input router stays the one place that decides (arm,
+// add one, open a panel, or `mode-request` back to the shell — which owns the role).
+for (const a of ACTIONS) {
+  if (!a.id.startsWith('tool.') || a.id in SHELL_KEY_HANDLERS) continue;
+  SHELL_KEY_HANDLERS[a.id] = (d, { event: e }) => {
+    e.preventDefault();
+    d.postToActiveCanvas(runActionMessage('tool.key', { key: chordFromEvent(e) }));
+  };
+}
+SHELL_KEY_HANDLERS['mode.preview'] = (d, { event: e }) => {
+  e.preventDefault();
+  d.postToActiveCanvas(runActionMessage('mode.preview'));
 };
 
 // ── the message lanes (V2-1.3 §5.7; V2-2.4 step 6) ─────────────────────────────────────────

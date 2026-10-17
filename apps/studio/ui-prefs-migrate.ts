@@ -126,8 +126,8 @@ export const KEY_CLASS: Readonly<Record<string, KeyRule>> = {
     note: 'Per-hub notice acks; carried forward unchanged.',
   },
   'mdcc-settings-tab': {
-    class: 'kept',
-    note: 'Tab id of the 7-tab v1 Settings; v2 has 3. Guarded by has(v).',
+    class: 'dead',
+    note: 'Tab id of the 7-tab v1 Settings dialog, deleted in V2-4.7a; the v2 sheet keeps its 3 sections under mdcc-settings-tab-v2.',
   },
   'maude-acp-picks': {
     class: 'kept',

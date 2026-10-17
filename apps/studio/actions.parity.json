@@ -1,9 +1,10 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 75,
+  "humanMax": 84,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
+    "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
     "keys": "decision:maude/v2-2.4b-undo-keys-human",
     "links": "decision:maude/v2-V2-1.11-ai-operability",
     "native-window": "decision:maude/v2-V2-1.11-ai-operability",
@@ -11,5 +12,11 @@
     "report-bug": "decision:maude/v2-V2-1.11-ai-operability",
     "summon": "decision:maude/v2-V2-1.11-ai-operability",
     "view-pref": "decision:maude/v2-V2-1.11-ai-operability"
+  },
+  "humanMaxRaised": {
+    "to": 84,
+    "from": 75,
+    "by": "decision:maude/v2-4-human-paths-cap-84",
+    "why": "Phase 4 added human paths that have no agent equivalent by design: the per-mode toolbar tools that only switch a person's view (V2-4.5b tool.inspect), Diagnostics copy/view rows and Resync/Download all (V2-4.7b), and the two fold-all view prefs (V2-4.10)."
   }
 }

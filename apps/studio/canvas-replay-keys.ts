@@ -11,7 +11,36 @@ export const REPLAY_KEYS: Readonly<Record<string, KeyboardEventInit>> = Object.f
   'select.all': { key: 'a', metaKey: true },
   'edit.copy-properties': { key: 'c', metaKey: true, altKey: true },
   'edit.paste-properties': { key: 'v', metaKey: true, altKey: true },
+  // V2-4.5b — ⌥⌘P pressed with the shell focused: the canvas router asks for Preview / back (Q1).
+  'mode.preview': { key: 'p', code: 'KeyP', metaKey: true, altKey: true },
 });
+
+/** A toolbar key (V2-4.5b, `tool.<id>` from MODE_TOOLS): one letter, optionally ⇧. */
+const TOOL_CHORD = /^(⇧)?([A-Z])$/;
+
+/**
+ * V2-4.5b — a tool key pressed with the shell focused (`run-action {id:'tool.key', params:{key}}`):
+ * the canvas replays it so its input router decides — arm here, add one, open a panel, or ask the
+ * shell for the other mode. Only a bare letter (or ⇧ + letter) is accepted.
+ * @returns true when `id` is the tool-key replay (whether or not the chord was valid).
+ */
+export function replayToolKey(id: unknown, params: unknown, doc: Document = document): boolean {
+  if (id !== 'tool.key') return false;
+  const chord = (params as { key?: unknown } | null)?.key;
+  const m = typeof chord === 'string' ? TOOL_CHORD.exec(chord) : null;
+  if (!m) return true;
+  const letter = m[2] as string;
+  (doc.body ?? doc).dispatchEvent(
+    new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: m[1] ? letter : letter.toLowerCase(),
+      code: `Key${letter}`,
+      shiftKey: !!m[1],
+    })
+  );
+  return true;
+}
 
 /** Replay `id`'s chord on the document body. @returns true when `id` is a replayed action. */
 export function replayActionKey(id: unknown, doc: Document = document): boolean {

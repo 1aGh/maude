@@ -59,8 +59,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── diagnostics (V2-4.7b) ──
   'diag.sync': { effect: 'none', agent: cli('maude design status') },
   'diag.server': { effect: 'none', agent: cli('maude design status') },
-  'diag.ai': { effect: 'none', agent: cli('maude design preflight') },
-  'diag.ai-recheck': { effect: 'none', agent: cli('maude design preflight') },
+  'diag.ai': { effect: 'none', agent: cli('maude doctor') },
+  'diag.ai-recheck': { effect: 'none', agent: cli('maude doctor') },
   'diag.logs': {
     effect: 'none',
     agent: human('view-pref', 'opens the log sheet; the files sit in ~/.maude/logs'),
@@ -97,6 +97,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
   'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
   'import.brand': { effect: 'project', agent: cli('maude design import-brand') },
+  'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
+  'view.advanced-close-all': PREF('folds every panel’s Advanced section; a UI preference'),
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),
   'canvas.new-video': TSX('Write a new video-comp .tsx canvas', 'design:video-comp'),
   'canvas.close': PREF('closes the user’s tab'),
