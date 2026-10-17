@@ -357,6 +357,10 @@ describe('the Diagnostics sheet', () => {
     await click('diag-get-latest');
     expect(calls).toEqual(['get-latest']);
     expect(q('diag-get-latest-note')?.textContent).toBe('Up to date with everyone.');
+    // V2-4.10: "Hub, commands" is the shared Advanced fold now — one quiet row until it is opened
+    expect(q('diag-sync-hints-toggle')?.getAttribute('aria-expanded')).toBe('false');
+    expect(q('diag-sync-hints')?.textContent).not.toContain('maude design status');
+    await click('diag-sync-hints-toggle');
     expect(q('diag-sync-hints')?.textContent).toContain('maude design status');
     expect(q('diag-sync-hints')?.textContent).toContain('/design:rollback');
   });

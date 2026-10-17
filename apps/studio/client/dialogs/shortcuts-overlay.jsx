@@ -9,18 +9,22 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { isNativeApp } from '../github.js';
 import { Kbd, StIcon } from '../shell/icons.jsx';
+import { AdvancedFold } from '../v2/fold/advanced-fold.jsx';
+import { useFold } from '../v2/fold/use-fold.js';
 import { buildHelpSheet, filterHelpSheet } from '../v2/search/help-model.js';
 import { menuCtx } from '../v2/shell/project-menu-model.js';
 
-const FOLD_KEY = 'mdcc-help-advanced-open';
+/** The "?" sheet's Advanced fold in prefs.json `fold` (open at first look: it lists the keys that moved). */
+export const HELP_FOLD = 'help';
 
-function readFold() {
-  try {
-    return localStorage.getItem(FOLD_KEY) !== '0';
-  } catch {
-    return true;
-  }
-}
+/** The sheet's classes (search.css): the fold's markup, the sheet's look. */
+const SO_CLASSES = Object.freeze({
+  root: 'so-adv',
+  btn: 'so-adv-btn',
+  ch: 'so-adv-ch',
+  hint: 'so-adv-count',
+  body: 'so-adv-body',
+});
 
 /** One key as caps: "⇧⌘E" is the registry's string; show it as one Kbd, or the menu path in a browser. */
 export function ShortcutCombo({ keys, alt = [], path }) {
@@ -42,7 +46,7 @@ export function ShortcutCombo({ keys, alt = [], path }) {
 
 export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
   const [find, setFind] = useState('');
-  const [fold, setFold] = useState(readFold);
+  const [fold, setFold] = useFold(HELP_FOLD);
   useEffect(() => {
     if (open) setFind('');
   }, [open]);
@@ -67,15 +71,6 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
   const shown = filterHelpSheet(sheet, find);
   const searching = find.trim().length > 0;
   const foldOpen = fold || searching;
-  const toggleFold = () => {
-    const next = !fold;
-    setFold(next);
-    try {
-      localStorage.setItem(FOLD_KEY, next ? '1' : '0');
-    } catch {
-      /* private window: the fold simply does not remember */
-    }
-  };
   const nothing =
     searching && shown.groups.length + shown.advanced.length + shown.moved.length === 0;
   return (
@@ -139,53 +134,48 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
           ))}
         </div>
         {shown.advanced.length > 0 || shown.moved.length > 0 ? (
-          <div className="so-adv" data-testid="shortcuts-advanced">
-            <button
-              type="button"
-              className="so-adv-btn"
-              aria-expanded={foldOpen}
-              onClick={toggleFold}
-              data-testid="shortcuts-advanced-toggle"
-            >
-              <StIcon name={foldOpen ? 'chevron-down' : 'chevron-right'} size={12} />
-              Advanced
-              <span className="so-adv-count">
+          <AdvancedFold
+            panel={HELP_FOLD}
+            classes={SO_CLASSES}
+            testid="shortcuts-advanced"
+            buttonTestid="shortcuts-advanced-toggle"
+            open={foldOpen}
+            onToggle={() => setFold(!fold)}
+            hint={
+              <>
                 {shown.advanced.length} {shown.advanced.length === 1 ? 'key' : 'keys'} ·{' '}
                 {shown.moved.length} moved
-              </span>
-            </button>
-            {foldOpen ? (
-              <div className="so-adv-body">
-                {shown.advanced.map((r) => (
-                  <div
-                    key={r.id}
-                    className="so-pair so-pair--adv"
-                    data-testid={`shortcuts-row-${r.id}`}
-                  >
-                    <span className="so-adv-label">{r.label}</span>
-                    <span className="so-adv-path">{r.path}</span>
-                    <ShortcutCombo keys={r.keys} alt={r.alt} />
-                  </div>
-                ))}
-                {shown.moved.length > 0 ? (
-                  <>
-                    <h4 className="so-sub" data-testid="shortcuts-moved-hd">
-                      Keys and tools that moved
-                    </h4>
-                    <ul className="so-moved" data-testid="shortcuts-moved">
-                      {shown.moved.map((m) => (
-                        <li key={m.was} className="so-mv">
-                          <span className="so-mv-was">{m.was}</span>
-                          <StIcon name="chevron-right" size={11} />
-                          <span className="so-mv-now">{m.now}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : null}
+              </>
+            }
+          >
+            {shown.advanced.map((r) => (
+              <div
+                key={r.id}
+                className="so-pair so-pair--adv"
+                data-testid={`shortcuts-row-${r.id}`}
+              >
+                <span className="so-adv-label">{r.label}</span>
+                <span className="so-adv-path">{r.path}</span>
+                <ShortcutCombo keys={r.keys} alt={r.alt} />
               </div>
+            ))}
+            {shown.moved.length > 0 ? (
+              <>
+                <h4 className="so-sub" data-testid="shortcuts-moved-hd">
+                  Keys and tools that moved
+                </h4>
+                <ul className="so-moved" data-testid="shortcuts-moved">
+                  {shown.moved.map((m) => (
+                    <li key={m.was} className="so-mv">
+                      <span className="so-mv-was">{m.was}</span>
+                      <StIcon name="chevron-right" size={11} />
+                      <span className="so-mv-now">{m.now}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : null}
-          </div>
+          </AdvancedFold>
         ) : null}
         <div className="so-overlay-ft">
           <span>

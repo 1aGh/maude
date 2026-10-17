@@ -14,6 +14,7 @@
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
+import { foldStore } from '../fold/use-fold.js';
 import { requestTrash } from '../left-panel/left-panel-bus.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -107,6 +108,16 @@ export function createMenuHandlers(d) {
       panelLayout.show();
       d.openPanelExclusive('tree');
       requestTrash();
+    },
+    // V2-4.10 — ⌘K "Open / Close all Advanced sections" (06 ad-open-all): a one-shot command, not a mode.
+    // Each panel then remembers its own fold (fold-store.js); ⌘Z does not undo it, Close all does.
+    'view.advanced-open-all': () => {
+      foldStore.openAll();
+      d.toast?.('All Advanced sections are open.');
+    },
+    'view.advanced-close-all': () => {
+      foldStore.closeAll();
+      d.toast?.('All Advanced sections are closed.');
     },
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),

@@ -9377,5 +9377,89 @@
     "region": "help/shortcuts",
     "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "diag-sync-hints-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Hub, commands\" fold's disclosure button (`aria-expanded`; remembered as fold `diagnostics`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "diagnostics",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-diagnostics-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-folds",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Settings › Advanced › Reset › Reset Advanced sections: the row (every panel's Advanced fold goes back to a fresh Mac's).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "ResetFoldsRow"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-settings.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-folds-btn",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Reset button inside that row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "ResetFoldsRow"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-settings.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "fold-<panel>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A shared Advanced fold (`<AdvancedFold>`) that has no hook of its own; `<panel>` is its prefs key (e.g. `inspector`). Carries `data-fold` and `data-open` while open. The migrated folds keep their old hooks.",
+    "producer": {
+      "file": "apps/studio/client/v2/fold/advanced-fold.jsx",
+      "symbol": "AdvancedFold"
+    },
+    "region": "help/shortcuts",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "fold-<panel>-toggle",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That fold's disclosure button (`aria-expanded`, `aria-controls` the body while open).",
+    "producer": {
+      "file": "apps/studio/client/v2/fold/advanced-fold.jsx",
+      "symbol": "AdvancedFold"
+    },
+    "region": "help/shortcuts",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "fold-<panel>-body",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That fold's body: rendered only while the fold is open. Every migrated fold has one too.",
+    "producer": {
+      "file": "apps/studio/client/v2/fold/advanced-fold.jsx",
+      "symbol": "AdvancedFold"
+    },
+    "region": "help/shortcuts",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "v2": "new"
   }
 ]
