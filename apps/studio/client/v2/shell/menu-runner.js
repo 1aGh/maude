@@ -69,6 +69,25 @@ export function createMenuHandlers(d) {
       }
       window.dispatchEvent(new CustomEvent(MENU_ACTION_EVENT, { detail: { id: 'project.new' } }));
     },
+    // V2-4 gate: IdentityBar's 'get' / 'share' views, heard like project.new (desktop only).
+    'project.pull-copy': () => {
+      if (!d.native) {
+        d.toast('Pull a local copy… is in the Maude desktop app.');
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent(MENU_ACTION_EVENT, { detail: { id: 'project.pull-copy' } })
+      );
+    },
+    'project.share-github': () => {
+      if (!d.native) {
+        d.toast('Share on GitHub… is in the Maude desktop app.');
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent(MENU_ACTION_EVENT, { detail: { id: 'project.share-github' } })
+      );
+    },
     'canvas.duplicate': () => {
       if (d.activePath) d.onDuplicate(d.activePath);
     },

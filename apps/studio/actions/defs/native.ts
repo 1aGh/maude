@@ -21,6 +21,22 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     keys: [kb('⇧⌘N', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'File', order: 2 },
   },
+  // V2-4 gate: the sidebar avatar menu's two GitHub doors (gone with V2-4.7a's footer) — IdentityBar's
+  // existing 'get' / 'share' views, opened the way project.new opens its 'new' view. Desktop only.
+  {
+    id: 'project.pull-copy',
+    label: 'Pull a local copy…',
+    kind: 'command',
+    exec: 'shell',
+    visible: DESKTOP,
+  },
+  {
+    id: 'project.share-github',
+    label: 'Share on GitHub…',
+    kind: 'command',
+    exec: 'shell',
+    visible: DESKTOP,
+  },
   {
     id: 'project.open',
     label: 'Open project…',

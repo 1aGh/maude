@@ -192,8 +192,16 @@ export default function IdentityBar({ variant = 'rail' }) {
       if (id === 'project.new' && stateRef.current !== 'loading') setView('new');
     });
     // V2-4.2: the project pill's menu row (File › New project…) is the same action, run in-page.
+    // V2-4 gate: File › Pull a local copy… / Share on GitHub… open the 'get' / 'share' views (the
+    // sidebar avatar menu that held them is gone).
+    const VIEW_OF = {
+      'project.new': 'new',
+      'project.pull-copy': 'get',
+      'project.share-github': 'share',
+    };
     const onLocal = (e) => {
-      if (e.detail?.id === 'project.new' && stateRef.current !== 'loading') setView('new');
+      const v = VIEW_OF[e.detail?.id];
+      if (v && stateRef.current !== 'loading') setView(v);
     };
     window.addEventListener(MENU_ACTION_EVENT, onLocal);
     return () => {

@@ -254,9 +254,24 @@ test('an action whose v2 home is a control inside a sheet is reached through ACT
     subjects: {
       rows: [],
       targets: [
-        { id: 'action:export.rerun-last', need: ['desktop'], action: 'export.rerun-last', hook: null },
-        { id: 'action:app.check-updates', need: ['desktop'], action: 'app.check-updates', hook: null },
-        { id: 'action:help.ai-readiness', need: ['desktop'], action: 'help.ai-readiness', hook: null },
+        {
+          id: 'action:export.rerun-last',
+          need: ['desktop'],
+          action: 'export.rerun-last',
+          hook: null,
+        },
+        {
+          id: 'action:app.check-updates',
+          need: ['desktop'],
+          action: 'app.check-updates',
+          hook: null,
+        },
+        {
+          id: 'action:help.ai-readiness',
+          need: ['desktop'],
+          action: 'help.ai-readiness',
+          hook: null,
+        },
       ],
     },
     hooksByName: new Map(),

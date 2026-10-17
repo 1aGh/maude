@@ -446,7 +446,14 @@ async function runOpener(browser, srv, probe, opener) {
     await collect();
     for (const step of opener.steps) {
       // `unless`: skip the step when that selector is already on screen (a fold the Mac remembers open)
-      if (step.unless && (await page.locator(step.unless).first().isVisible().catch(() => false)))
+      if (
+        step.unless &&
+        (await page
+          .locator(step.unless)
+          .first()
+          .isVisible()
+          .catch(() => false))
+      )
         continue;
       if (step.click) {
         const el = page.locator(step.click).first();
@@ -462,7 +469,8 @@ async function runOpener(browser, srv, probe, opener) {
       } else if (step.frameClick) {
         const fr = page.frameLocator(tid('canvas-frame'));
         const target = fr.locator(step.frameClick).first();
-        if (step.optional) await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
+        if (step.optional)
+          await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
       } else if (step.dblclick) {
@@ -475,7 +483,8 @@ async function runOpener(browser, srv, probe, opener) {
         // a right-click inside the canvas iframe: the canvas's own context menu
         const fr = page.frameLocator(tid('canvas-frame'));
         const target = fr.locator(step.frameContext).first();
-        if (step.optional) await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
+        if (step.optional)
+          await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ button: 'right', timeout: 10_000 });
       } else if (step.expandMenu) {
@@ -598,7 +607,8 @@ try {
 
 if (MERGE) {
   const base = JSON.parse(readFileSync(MERGE, 'utf8'));
-  for (const [p, byOpener] of Object.entries(evidence)) base[p] = { ...(base[p] ?? {}), ...byOpener };
+  for (const [p, byOpener] of Object.entries(evidence))
+    base[p] = { ...(base[p] ?? {}), ...byOpener };
   evidence = base;
 }
 const doc = summarize({

@@ -71,6 +71,8 @@
       "present.canvas",
       "project.new",
       "project.open",
+      "project.pull-copy",
+      "project.share-github",
       "select.all",
       "select.all-annotations",
       "select.none",
@@ -103,6 +105,8 @@
       "canvas.new": ["file"],
       "project.new": ["file"],
       "project.open": ["file"],
+      "project.pull-copy": ["file"],
+      "project.share-github": ["file"],
       "canvas.duplicate": ["file"],
       "canvas.rename": ["file"],
       "canvas.move": ["file"],
@@ -226,6 +230,8 @@
             "canvas.new",
             "project.new",
             "project.open",
+            "project.pull-copy",
+            "project.share-github",
             "canvas.duplicate",
             "canvas.rename",
             "canvas.move",
@@ -626,6 +632,8 @@
           },
           "absent": {
             "nav.home": "Back to Home is for desktop and cloud only",
+            "project.pull-copy": "Pull a local copy… is for desktop only",
+            "project.share-github": "Share on GitHub… is for desktop only",
             "account.switch": "Sign in as another account… is for desktop and cloud only"
           }
         },
@@ -950,6 +958,8 @@
             "role": "owner"
           },
           "absent": {
+            "project.pull-copy": "Pull a local copy… is for desktop only",
+            "project.share-github": "Share on GitHub… is for desktop only",
             "sync.resync": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)",
             "sync.download-all": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)"
           }
@@ -1198,6 +1208,8 @@
             "role": "owner"
           },
           "absent": {
+            "project.pull-copy": "Pull a local copy… is for desktop only",
+            "project.share-github": "Share on GitHub… is for desktop only",
             "sync.resync": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)",
             "sync.download-all": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)"
           }
@@ -1441,6 +1453,8 @@
             "role": "comment"
           },
           "absent": {
+            "project.pull-copy": "Pull a local copy… is for desktop only",
+            "project.share-github": "Share on GitHub… is for desktop only",
             "canvas.duplicate": "Duplicate canvas needs edit rights",
             "canvas.rename": "Rename canvas needs edit rights",
             "canvas.move": "Move to… needs edit rights",
@@ -1686,6 +1700,8 @@
           },
           "absent": {
             "nav.home": "Back to Home is for desktop and cloud only",
+            "project.pull-copy": "Pull a local copy… is for desktop only",
+            "project.share-github": "Share on GitHub… is for desktop only",
             "canvas.duplicate": "Duplicate canvas needs edit rights",
             "canvas.rename": "Rename canvas needs edit rights",
             "canvas.move": "Move to… needs edit rights",

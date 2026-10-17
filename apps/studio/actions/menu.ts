@@ -22,6 +22,8 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'canvas.new' },
       { id: 'project.new' },
       { id: 'project.open' },
+      { id: 'project.pull-copy' },
+      { id: 'project.share-github' },
       SEP,
       { id: 'canvas.duplicate' },
       { id: 'canvas.rename' },

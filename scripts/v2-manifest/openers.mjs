@@ -134,8 +134,18 @@ export const ROUTE_ANSWERS = {
   // a saved-version list (GET /_api/git/log): each row carries a short sha
   gitLog: {
     entries: [
-      { sha: 'a1b2c3d4e5f6a7b8', author: 'Tereza', date: '2026-10-16T10:00:00Z', message: 'Tighten the hero' },
-      { sha: '0f9e8d7c6b5a4f3e', author: 'Ola', date: '2026-10-15T09:00:00Z', message: 'First pass at pricing' },
+      {
+        sha: 'a1b2c3d4e5f6a7b8',
+        author: 'Tereza',
+        date: '2026-10-16T10:00:00Z',
+        message: 'Tighten the hero',
+      },
+      {
+        sha: '0f9e8d7c6b5a4f3e',
+        author: 'Ola',
+        date: '2026-10-15T09:00:00Z',
+        message: 'First pass at pricing',
+      },
     ],
   },
   // the branch list the draft switcher reads: the shared version and two drafts (one newer)
@@ -401,7 +411,11 @@ export const OPENERS = [
     steps: [{ key: 'Shift+Meta+G' }, { click: '.gp-tabs [role="tab"]:nth-child(2)' }],
   },
   // the draft switcher at the foot of Canvases (desktop): its menu, then a draft checked out
-  { id: 'switcher', state: 'git-dirty', steps: [{ click: tid('repo-switcher-trigger'), optional: true }] },
+  {
+    id: 'switcher',
+    state: 'git-dirty',
+    steps: [{ click: tid('repo-switcher-trigger'), optional: true }],
+  },
   {
     id: 'switcher-draft',
     state: 'git-on-draft',

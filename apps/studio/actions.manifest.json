@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c4155a1196ef",
+  "manifestVersion": "9ea92eb9a01f",
   "actions": [
     {
       "id": "search.open",
@@ -1721,6 +1721,30 @@
       "agent": {
         "path": "human",
         "because": "onboarding"
+      }
+    },
+    {
+      "id": "project.pull-copy",
+      "label": "Pull a local copy…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "clones a GitHub project the signed-in person can read; an agent uses git itself"
+      }
+    },
+    {
+      "id": "project.share-github",
+      "label": "Share on GitHub…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "agent": {
+        "path": "human",
+        "because": "accounts",
+        "note": "invites a GitHub user to the project repository under the person’s account"
       }
     },
     {

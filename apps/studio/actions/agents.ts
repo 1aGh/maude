@@ -238,6 +238,20 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── native ──
   // V2-1.1 §5.9
   'project.new': { effect: 'project', agent: human('onboarding') },
+  'project.pull-copy': {
+    effect: 'project',
+    agent: human(
+      'accounts',
+      'clones a GitHub project the signed-in person can read; an agent uses git itself'
+    ),
+  },
+  'project.share-github': {
+    effect: 'shared',
+    agent: human(
+      'accounts',
+      'invites a GitHub user to the project repository under the person’s account'
+    ),
+  },
   'project.open': { effect: 'none', agent: human('native-window') },
   'home.open': { effect: 'none', agent: human('native-window') },
   'nav.home': { effect: 'none', agent: human('native-window') },
