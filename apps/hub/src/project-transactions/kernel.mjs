@@ -38,6 +38,9 @@ const ORIGIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /** `history.undo { actionIds }` takes 1–50 distinct ids (V2-1.5 §5.2). */
 export const MAX_UNDO_TARGETS = 50;
 const ACTION_ID_MAX = 160;
+/** `fence.runId` (V2-1.15 §5.1 RunId) and the most leases one publish names. */
+const RUN_ID = /^r_[A-Za-z0-9_-]{6,64}$/;
+export const MAX_FENCE_LEASES = 200;
 
 /** Codes whose rejection is terminal for these exact bytes (retained). */
 const TERMINAL = new Set([
@@ -48,6 +51,8 @@ const TERMINAL = new Set([
   'invalid',
   'undo-conflict',
   'path-conflict',
+  // A newer grant took the artboard; these bytes can never pass again.
+  'lease-fenced',
 ]);
 
 const HTTP = {
@@ -64,6 +69,7 @@ const HTTP = {
   'transaction-id-reused': 409,
   'undo-conflict': 409,
   'path-conflict': 409,
+  'lease-fenced': 409,
   retryable: 503,
 };
 
@@ -181,7 +187,38 @@ export function createKernel({
       if (Number.isSafeInteger(p.origin.madeAt) && p.origin.madeAt >= 0)
         origin.madeAt = p.origin.madeAt;
     }
-    return { p, label, kind, origin };
+    return { p, label, kind, origin, fence: parseFence(p.fence) };
+  }
+
+  /**
+   * V2-1.15 §5.3 — an AI run's publish carries its lease tokens:
+   * `fence: { runId, leases: [{entry, artboard, token}] }`, at most 200. Absent
+   * on every v1 proposal (and on undo / Keep). Malformed → `invalid`: a fence
+   * that cannot be read must not be taken as "no fence".
+   */
+  function parseFence(f) {
+    if (f === undefined || f === null) return null;
+    const bad = (reason) => new Reject('invalid', { reason });
+    if (typeof f !== 'object' || Array.isArray(f)) throw bad('bad fence');
+    if (typeof f.runId !== 'string' || !RUN_ID.test(f.runId)) throw bad('bad fence.runId');
+    if (!Array.isArray(f.leases) || f.leases.length > MAX_FENCE_LEASES)
+      throw bad(`fence.leases takes at most ${MAX_FENCE_LEASES}`);
+    const leases = f.leases.map((l) => {
+      if (
+        !l ||
+        typeof l.entry !== 'string' ||
+        !l.entry ||
+        l.entry.length > 300 ||
+        typeof l.artboard !== 'string' ||
+        !l.artboard ||
+        l.artboard.length > 128 ||
+        !Number.isSafeInteger(l.token) ||
+        l.token < 1
+      )
+        throw bad('bad fence lease');
+      return { entry: l.entry, artboard: l.artboard, token: l.token };
+    });
+    return { runId: f.runId, leases };
   }
 
   // ------------------------------------------------------------ working state
@@ -579,6 +616,25 @@ export function createKernel({
     return { ids, many: true };
   }
 
+  /**
+   * The target actions in one store call when the home has `actions` (a cloud
+   * cell answers 50 targets in one RPC, not 50); a store without it — an older
+   * Durable Object during a rollout — is asked one id at a time.
+   */
+  async function loadActions(ids) {
+    if (ids.length > 1 && typeof store.actions === 'function') {
+      try {
+        const got = await store.actions(ids);
+        if (Array.isArray(got) && got.length === ids.length) return got;
+      } catch (err) {
+        if (err instanceof StoreConflict) throw err;
+      }
+    }
+    const out = [];
+    for (const id of ids) out.push(await store.action(id));
+    return out;
+  }
+
   /** `(entry, lane)` — the unit a lane revert works on. */
   const laneKey = (e) => `${e.entry ?? e.doc}\u0000${e.lane}`;
 
@@ -650,8 +706,8 @@ export function createKernel({
   async function opUndo(work, op, auth) {
     const { ids, many } = undoTargets(op);
     const targets = [];
-    for (const id of ids) {
-      const t = await store.action(id);
+    const found = await loadActions(ids);
+    for (const t of found) {
       if (!t) throw new Reject('dependency-missing', { reason: 'unknown action' });
       if (t.actor !== auth.actor)
         throw new Reject('forbidden', { reason: 'undo targets your own actions' });
@@ -799,7 +855,7 @@ export function createKernel({
   // ------------------------------------------------------------ submit
 
   async function process(bytes, auth) {
-    const { p, label, kind, origin } = parseEnvelope(bytes);
+    const { p, label, kind, origin, fence } = parseEnvelope(bytes);
     const proposalHash = sha256(bytes);
     const actor = auth.actor;
     const tx = p.transactionId;
@@ -950,9 +1006,21 @@ export function createKernel({
         dirs: { add: [...work.dirs.add], remove: [...work.dirs.remove] },
         effects: work.effects,
         result,
+        ...(fence ? { fence } : {}),
       });
     } catch (err) {
       if (err instanceof StoreConflict) {
+        if (err.code === 'lease-fenced') {
+          throw new Reject('lease-fenced', {
+            reason: 'another AI run was given this artboard since',
+            keys: (err.keys ?? []).map((k) => ({
+              entry: k.entry,
+              artboard: k.artboard,
+              token: k.token,
+              fence: k.fence,
+            })),
+          });
+        }
         throw new Reject(err.code === 'epoch-stale' ? 'epoch-stale' : 'retryable', {
           reason: err.message,
         });

@@ -16,6 +16,8 @@
 //
 // No Node, Bun or Worker globals. No I/O but `sql`.
 
+import { createRunsCore, RUNS_DDL } from './runs-core.mjs';
+
 export const STORE_SCHEMA_VERSION = 1;
 
 /** Lanes a canvas document carries (DDR-241 §4). */
@@ -34,11 +36,17 @@ export function asFormat(v) {
 }
 
 export class StoreConflict extends Error {
-  /** @param {'epoch-stale'|'revision-moved'|'head-moved'} code */
-  constructor(code, detail = '') {
+  /**
+   * @param {'epoch-stale'|'revision-moved'|'head-moved'|'lease-fenced'} code
+   * @param {string} [detail]
+   * @param {{ keys?: Array<{entry: string, artboard: string, token: number, fence: number}> }} [extra]
+   *   `lease-fenced` names the keys a newer grant took (V2-1.15 §5.3).
+   */
+  constructor(code, detail = '', extra = undefined) {
     super(`${code}${detail ? `: ${detail}` : ''}`);
     this.name = 'StoreConflict';
     this.code = code;
+    if (Array.isArray(extra?.keys)) this.keys = extra.keys;
   }
 }
 
@@ -79,6 +87,9 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS results (
      actor TEXT NOT NULL, tx TEXT NOT NULL, proposal_hash TEXT NOT NULL, result TEXT NOT NULL,
      rev INTEGER, at INTEGER NOT NULL, PRIMARY KEY (actor, tx))`,
+  // V2-1.15 §5.2 — AI runs, leases, the waiting line (additive: CREATE IF NOT
+  // EXISTS, no schema bump; an old hub opening this store ignores them).
+  ...RUNS_DDL,
 ];
 
 function one(rows) {
@@ -141,6 +152,8 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
       String(v)
     );
   }
+
+  const runs = createRunsCore(sql, { now, meta, setMeta });
 
   function migrate() {
     sql.transaction(() => {
@@ -355,6 +368,12 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
         sql.exec(`SELECT 1 AS x FROM results WHERE actor = ? AND tx = ?`, input.actor, input.tx)
       );
       if (prior) throw new StoreConflict('head-moved', 'transaction already has a result');
+      // V2-1.15 §5.3 (L4) — an AI run's publish carries its lease tokens; a
+      // newer grant on any of its artboards refuses it in THIS transaction.
+      const fenced = runs.fenceMismatches(input.fence, now());
+      if (fenced.length) {
+        throw new StoreConflict('lease-fenced', `${fenced.length} artboard(s)`, { keys: fenced });
+      }
       for (const h of input.heads ?? []) {
         if (h.expectHash === undefined) continue;
         const row = one(
@@ -569,6 +588,12 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
     return a ? { ...actionRow(a), effects: effectRows('WHERE action_id = ?', actionId) } : null;
   }
 
+  /** `action` for up to 50 ids in one call (a multi-target undo is one RPC on a cell). */
+  function actions(actionIds) {
+    if (!Array.isArray(actionIds)) return [];
+    return actionIds.slice(0, 50).map((id) => (typeof id === 'string' ? action(id) : null));
+  }
+
   /** The live (non-retired) document at a manifest path, if any. */
   function docByPath(path) {
     const row = one(sql.exec(`SELECT doc FROM docs WHERE path = ? AND retired = 0`, path));
@@ -634,10 +659,16 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
     revisions,
     history,
     action,
+    actions,
     manifest,
     docByPath,
     laneAt,
     effectsAfter,
     liveDocByEntry,
+    runsBegin: runs.runsBegin,
+    runsClaim: runs.runsClaim,
+    runsRenew: runs.runsRenew,
+    runsEnd: runs.runsEnd,
+    runsList: runs.runsList,
   };
 }
