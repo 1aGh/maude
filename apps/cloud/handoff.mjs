@@ -18,6 +18,7 @@
 // Guessing is not a lane: 32 random bytes; the exchange burns the row on
 // first use, win or lose downstream.
 
+import { declaredAccessOf, legacyClaim, peerTokenDoor } from '../studio/access/scope.ts';
 import { DESKTOP_DOWNLOAD_URL } from './brand.mjs';
 import { mintProjectToken } from './cell-token.mjs';
 import { audit } from './db.mjs';
@@ -51,7 +52,7 @@ function json(body, status = 200) {
  */
 export async function mintHandoffCode(
   env,
-  { account, projectId, now = Date.now(), surface = 'app' }
+  { account, projectId, now = Date.now(), surface = 'app', declaredAccess = 1 }
 ) {
   let project = null;
   let members = [];
@@ -75,7 +76,12 @@ export async function mintHandoffCode(
   // where a viewer does it. The cell then holds them read-only (C1/C3), so the
   // rule is enforced where it cannot be argued with rather than by withholding
   // the door.
-  if (surface !== 'browser' && verdict.role === 'viewer') {
+  //
+  // V2-1.7 §5.4 (S9.2): a client that DECLARES `X-Maude-Access: 2` holds a
+  // viewer read-only on the app lane too (the v2 desktop gates every write by
+  // the role), so the refusal stands only for a client that did not say so —
+  // a 1.x app, or the dashboard's own form, which cannot.
+  if (surface !== 'browser' && verdict.role === 'viewer' && declaredAccess !== 2) {
     return { ok: false, reason: 'viewer-not-supported' };
   }
 
@@ -183,7 +189,12 @@ export async function handleHandoff(request, env, { account }) {
     if (!account) account = await personalTokenAccount(env, request, { now });
     if (!account) return refuse(ACCESS_MESSAGES['not-signed-in'], 401);
     const projectId = mintMatch[1];
-    const minted = await mintHandoffCode(env, { account, projectId, now });
+    const minted = await mintHandoffCode(env, {
+      account,
+      projectId,
+      now,
+      declaredAccess: declaredAccessOf(request.headers.get('x-maude-access')),
+    });
     if (!minted.ok) {
       if (minted.reason === 'viewer-not-supported') {
         // No gallery to send them to (Cloud Phase 25 C4 removes it), so this
@@ -269,7 +280,26 @@ export async function handleHandoff(request, env, { account }) {
     // been minted two minutes ago and to a membership that may have changed
     // since. NULL surface = a code from before this lane existed = 'app'.
     const browserLane = row.surface === 'browser';
-    if (!verdict.ok || (!browserLane && verdict.role === 'viewer') || !who) {
+    // THE MINT DOOR (V2-1.7 §5.4) — the same decision the cell's /auth/login
+    // makes, asked of the same table. The client declares what it understands;
+    // the cell's browser sign-in (the browser lane) declares 2 itself.
+    const declaredAccess = declaredAccessOf(request.headers.get('x-maude-access'));
+    if (
+      !verdict.ok ||
+      (!browserLane && verdict.role === 'viewer' && declaredAccess !== 2) ||
+      !who
+    ) {
+      return json({ error: 'that code is not valid or has expired' }, 400);
+    }
+    const door = peerTokenDoor(legacyClaim(verdict.role), {
+      declaredAccess,
+      doorUrl: `https://${row.project_id}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
+      browserLane,
+    });
+    if (door.outcome === 'update' || door.outcome === 'browser-door') {
+      return json(door.body, door.status);
+    }
+    if (door.outcome !== 'mint') {
       return json({ error: 'that code is not valid or has expired' }, 400);
     }
 
@@ -281,11 +311,12 @@ export async function handleHandoff(request, env, { account }) {
       master: env.CELL_SECRET_MASTER ?? '',
       project: row.project_id,
       email: who.email,
-      role: verdict.role,
+      role: door.claim.role,
+      grants: door.claim.grants,
     });
     return json({
       token,
-      role: verdict.role,
+      role: door.claim.role,
       project: row.project_id,
       url: `https://${row.project_id}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
       expiresAt: claims.exp,

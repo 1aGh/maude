@@ -116,9 +116,14 @@ describe('m2. tokens round-trip and fail closed on an old cell', () => {
     assert.equal(verifyAccessTokenV191(t, KEY, { now: NOW, tenantId: TENANT }).ok, true);
     const r = verify(t);
     assert.equal(r.ok, true);
-    assert.equal(r.format, 1);
+    assert.equal(r.format, undefined);
     assert.equal(r.access, undefined);
     assert.deepEqual(r.user, { email: 'a@example.com', role: 'member' });
+    // Key-for-key the verdict 1.9.1 returns, for every v1 role.
+    for (const role of ['owner', 'member', 'viewer', 'admin']) {
+      const v1 = signAccessToken(accessClaims({ ...base, role }, { now: NOW }), KEY);
+      assert.deepEqual(verify(v1), verifyAccessTokenV191(v1, KEY, { now: NOW, tenantId: TENANT }));
+    }
   });
 
   it('a forged or tampered m2. token is refused', () => {

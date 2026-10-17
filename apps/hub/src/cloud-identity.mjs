@@ -200,10 +200,11 @@ export function verifyAccessToken(token, secret, { now = Date.now(), tenantId } 
     // `role` stays in whichever vocabulary the token spoke (a v1 token may say
     // `admin`); the minting door translates it (`projectRoleForAccount`).
     user: { email: claims.email, role: claims.role },
-    // The access-claim format: 2 → `access` carries the claim the door decides on.
-    format: v2 ? 2 : 1,
+    // v2 only: `format: 2` and the `access` claim the minting door decides on.
+    // A v1 verdict stays key-for-key what 1.9.1 returned (token-interop pins it).
     ...(v2
       ? {
+          format: 2,
           access: {
             v: 1,
             role: claims.role,
@@ -349,8 +350,7 @@ export function authenticateForMode(
       ok: true,
       user: verdict.user,
       expiresAt: verdict.expiresAt,
-      format: verdict.format,
-      ...(verdict.access ? { access: verdict.access } : {}),
+      ...(verdict.access ? { format: verdict.format, access: verdict.access } : {}),
     };
   }
 
