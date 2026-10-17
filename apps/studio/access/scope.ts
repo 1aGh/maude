@@ -207,3 +207,77 @@ export function seesDoc(
   const slug = parts[3];
   return access.grants.some((g) => access.can('read', g.c) && slugOf(g.c) === slug);
 }
+
+// ---------------------------------------------------------------------------
+// THE PEER-TOKEN MINT DOOR — V2-1.7 §5.4 (S9.2).
+//
+// One decision for every door that turns a claim into a peer credential: the
+// hub's `/auth/login`, the cloud handoff exchange, and (browser lane) the
+// cell's browser sign-in. A v1 client must keep getting exactly today's answer
+// for owner / member / viewer; a claim it cannot honour (observer, canvas-only,
+// grants) is refused by VERSION (426, never 403 — V2-1.12), and an observer
+// whose client did declare is sent to the browser door (409) — no peer token,
+// so no local file-plane copy (A19).
+
+/** The access-claim version a client declares with `X-Maude-Access`. */
+export const ACCESS_VERSION = 2 as const;
+
+/** `X-Maude-Access` → what the client understands. Absent, garbage or `1` → 1. */
+export function declaredAccessOf(value: unknown): 1 | 2 {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const n = Number.parseInt(String(raw ?? '').trim(), 10);
+  return Number.isInteger(n) && n >= ACCESS_VERSION ? 2 : 1;
+}
+
+/** The 426 body (V2-1.7 §5.4, copy per §5.9). */
+export const ACCESS_VERSION_REFUSAL = Object.freeze({
+  error: 'Update Maude to open this project.',
+  reason: 'access-version',
+  minAccess: ACCESS_VERSION,
+});
+
+export type PeerDoor =
+  /** Mint. `v2` → the credential carries `claim` (peer `access` column / `m2.` token). */
+  | { outcome: 'mint'; claim: AccessClaim; v2: boolean }
+  | { outcome: 'update'; status: 426; body: typeof ACCESS_VERSION_REFUSAL }
+  | { outcome: 'browser-door'; status: 409; body: { reason: 'browser-door'; url: string } }
+  /** No role and no grant: holds nothing. The door answers with its own refusal. */
+  | { outcome: 'none' };
+
+/** A canvas path as URL path segments (`/` kept, every segment encoded). */
+const canvasUrlPath = (c: string): string => c.split('/').map(encodeURIComponent).join('/');
+
+/**
+ * Decide one mint. `claim` is in the PROJECT vocabulary (translate an account role with
+ * `legacyClaim` first). `doorUrl` is the cell's public shell URL; `browserLane` is the
+ * cell's own browser sign-in, which IS the browser door and so never answers 409.
+ */
+export function peerTokenDoor(
+  claim: AccessClaim | null | undefined,
+  opts: { declaredAccess?: 1 | 2; doorUrl?: string | null; browserLane?: boolean } = {}
+): PeerDoor {
+  const access = resolveAccess(claim);
+  const { role, grants } = access;
+  if (role === null && grants.length === 0) return { outcome: 'none' };
+  if (role !== null && role !== 'observer' && grants.length === 0) {
+    // v1-expressible: byte-identical to today, declared or not.
+    return { outcome: 'mint', claim: { v: 1, role }, v2: false };
+  }
+  if (opts.declaredAccess !== ACCESS_VERSION) {
+    return { outcome: 'update', status: 426, body: ACCESS_VERSION_REFUSAL };
+  }
+  const normalized: AccessClaim = {
+    v: 1,
+    role,
+    ...(grants.length ? { grants: grants.map((g) => ({ c: g.c, r: g.r })) } : {}),
+  };
+  if (!opts.browserLane) {
+    const observerGrant = role === null ? grants.find((g) => g.r === 'observer') : undefined;
+    if (role === 'observer' || observerGrant) {
+      const base = String(opts.doorUrl ?? '').replace(/\/+$/, '');
+      const url = observerGrant ? `${base}/c/${canvasUrlPath(observerGrant.c)}` : base;
+      return { outcome: 'browser-door', status: 409, body: { reason: 'browser-door', url } };
+    }
+  }
+  return { outcome: 'mint', claim: normalized, v2: true };
+}
