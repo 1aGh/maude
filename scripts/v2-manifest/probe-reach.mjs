@@ -269,6 +269,7 @@ function makeFixture(project) {
     '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">' +
       '<rect data-id="r1" data-tool="rect" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#fff4d6" x="500" y="260" width="160" height="90"/>' +
       '<text data-id="t1" data-tool="text" data-anchor-id="r1" data-font-size="14" fill="#1a1a1a" text-anchor="middle" dominant-baseline="middle">needs work</text>' +
+      '<text data-id="t2" data-tool="text" x="520" y="400" data-font-size="14" fill="#1a1a1a">Standalone note</text>' +
       '<g data-id="a1" data-tool="arrow" stroke="#1a8f3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="420" y1="300" x2="500" y2="300"/><polyline points="485.6,306.9 500,300 485.6,293.1" fill="#1a8f3e"/></g>' +
       '</svg>'
   );

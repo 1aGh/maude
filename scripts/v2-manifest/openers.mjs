@@ -816,6 +816,16 @@ export const OPENERS = [
       { wait: 400 },
     ],
   },
+  // a standalone text annotation edited (Enter on a selected text)
+  {
+    id: 'annot-edit-note',
+    steps: [
+      { frameClick: '.dc-annot-el[data-id="t2"]' },
+      { wait: 300 },
+      { key: 'Enter' },
+      { wait: 600 },
+    ],
+  },
   {
     id: 'annot-edit-enter',
     steps: [
@@ -852,8 +862,12 @@ export const OPENERS = [
     id: 'text-edit',
     steps: [
       { frameClick: '[data-cd-id="home-hero-title"]' },
+      { wait: 600 },
       { frameDblclick: '[data-cd-id="home-hero-title"]' },
       { wait: 500 },
+      // a second double-click drills one more level when the first only moved the selection
+      { frameDblclick: '[data-cd-id="home-hero-title"]' },
+      { wait: 700 },
     ],
   },
   {
@@ -1163,8 +1177,9 @@ export const OPENERS = [
   {
     id: 'canvas-chrome',
     steps: [
+      { wait: 800 },
       { run: 'view.minimap' },
-      { wait: 500 },
+      { wait: 800 },
       { run: 'view.zoom-controls' },
       { wait: 500 },
       { post: ['/_api/ui-prefs', { minimap: false, zoom: false }] },
