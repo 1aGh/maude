@@ -14,7 +14,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { pathTestIdSlug } from '../../shell/util.js';
+import { CANVASES_OP_EVENT, takeCanvasesOps } from '../left-panel/left-panel-bus.js';
 import { MoreIcon, PinIcon, PrintIcon, SparkIcon, VideoIcon } from './canvas-icons.jsx';
+import { InlineRename } from './inline-rename.jsx';
+import { moveTargets } from './move-model.js';
+import { siblingNames } from './rename-model.js';
+import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
 import { SORT_ASIDE, SORT_BYS, SORT_LABELS, KIND_NOTE } from './sort.js';
 import {
   buildTree,
@@ -25,6 +30,7 @@ import {
   navigate,
   nothingCalled,
   panelFoot,
+  relOf,
   rowHeight,
   scrollToReveal,
   visibleRows,
@@ -32,11 +38,16 @@ import {
 } from './tree-model.js';
 import { useCanvasIndex } from './use-canvas-index.js';
 import { useCanvasesSort } from './use-canvases-sort.js';
+import { ancestorDirs, useRowOps } from './use-move.js';
 import { usePins } from './use-pins.js';
 
 const INDENT_BASE = 8;
 const INDENT_STEP = 16;
 const pad = (depth) => ({ paddingLeft: `${INDENT_BASE + depth * INDENT_STEP}px` });
+
+/** A canvas dragged over the folder it already sits in has nowhere to go — no "Move here". */
+const isOwnFolder = (draggedPath, folderPath) =>
+  !!draggedPath && draggedPath.slice(0, draggedPath.lastIndexOf('/')) === folderPath;
 
 const KIND_ICON = { print: PrintIcon, video: VideoIcon };
 const KIND_WORD = { print: 'Print', video: 'Video' };
@@ -51,7 +62,11 @@ export function CanvasesPanel({
   drag,
   menu,
   readOnly = false,
-  onDelete,
+  onMove,
+  onRename,
+  onDuplicate,
+  onTrash,
+  onCopyLink,
   onNewCanvasIn,
   commentsByFile = {},
   dirtyByPath,
@@ -172,6 +187,16 @@ export function CanvasesPanel({
       }
       return;
     }
+    // F2 renames the focused canvas in place (the double-click's keyboard twin)
+    if (e.key === 'F2') {
+      const r = rows[index];
+      if (r?.type === 'canvas' && !readOnly) {
+        e.preventDefault();
+        e.stopPropagation();
+        rowOps.startRename(r.key);
+      }
+      return;
+    }
     if (e.shiftKey && e.key.length === 1) return;
     if ((e.key === 'Enter' || e.key === ' ') && e.target !== item) return;
     const act = navigate(rows, index, e.key);
@@ -189,20 +214,25 @@ export function CanvasesPanel({
     if (r && r.key !== focusKey) setFocusKey(r.key);
   };
 
-  // ── the Sort menu ──
+  // ── the Sort menu ── mouse or keyboard: the checked choice takes the focus, ↑ ↓ Home End walk, ↵ / Space
+  // choose, esc closes and gives the focus back to the Sort button, Tab leaves.
   const panelRef = useRef(null);
   const [sortMenu, setSortMenu] = useState(null); // { top, right } | null
+  const sortButton = () => panelRef.current?.querySelector('[data-testid="canvases-sort"]');
+  const openSortMenuFrom = (btn) => {
+    const a = btn?.getBoundingClientRect();
+    const p = panelRef.current?.getBoundingClientRect();
+    setSortMenu({
+      top: p && a ? a.bottom - p.top + 4 : 28,
+      right: p && a ? Math.max(0, p.right - a.right) : 8,
+    });
+  };
   const openSortMenu = (e) => {
     if (sortMenu) {
       setSortMenu(null);
       return;
     }
-    const a = e.currentTarget.getBoundingClientRect();
-    const p = panelRef.current?.getBoundingClientRect();
-    setSortMenu({
-      top: p ? a.bottom - p.top + 4 : 28,
-      right: p ? Math.max(0, p.right - a.right) : 8,
-    });
+    openSortMenuFrom(e.currentTarget);
   };
   useEffect(() => {
     if (!sortMenu) return undefined;
@@ -214,6 +244,7 @@ export function CanvasesPanel({
       )
         return;
       setSortMenu(null);
+      if (e.type === 'keydown') sortButton()?.focus();
     };
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', close);
@@ -222,12 +253,102 @@ export function CanvasesPanel({
       document.removeEventListener('keydown', close);
     };
   }, [sortMenu]);
+  // opening it takes the focus into the menu (the checked choice), so the keys have somewhere to land
+  const sortOpen = !!sortMenu;
+  useEffect(() => {
+    if (!sortOpen) return;
+    const menuEl = panelRef.current?.querySelector('[data-sort-menu]');
+    (menuEl?.querySelector('[aria-checked="true"]') || menuEl?.querySelector('button'))?.focus();
+  }, [sortOpen]);
+  const onSortKeyDown = (e) => {
+    const items = Array.from(e.currentTarget.querySelectorAll('button'));
+    const i = items.indexOf(document.activeElement);
+    let next = -1;
+    if (e.key === 'ArrowDown') next = (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    else if (e.key === 'Tab') setSortMenu(null);
+    if (next < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    items[next]?.focus();
+  };
+
+  // ── rename in place, the row menu, and what ⌘K / the File menu ask of the panel ──
+  const rowOps = useRowOps();
+  const edit = !readOnly;
+  const [pendingRename, setPendingRename] = useState(null);
+  const beginRename = useCallback(
+    (path) => {
+      for (const d of ancestorDirs(tree, path)) expansion?.setOpen(d, true);
+      setPendingRename(path);
+    },
+    [tree, expansion]
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `rowOps.startRename` is stable
+  useEffect(() => {
+    if (!pendingRename) return;
+    const i = rows.findIndex((r) => r.type === 'canvas' && r.path === pendingRename && !r.inPinned);
+    if (i < 0) {
+      if (searching) setPendingRename(null); // the row is not in the search's answer: nothing to edit
+      return;
+    }
+    setPendingRename(null);
+    rowOps.startRename(rows[i].key);
+    focusRow(i);
+  }, [pendingRename, rows]);
+
+  const opRef = useRef(null);
+  opRef.current = (o) => {
+    if (o.op === 'pin' && o.path) pins.toggle(relOf(o.path, designRel), !!o.pinned);
+    else if (o.op === 'sort') openSortMenuFrom(sortButton());
+    else if (o.op === 'rename' && o.path && edit) beginRename(o.path);
+  };
+  useEffect(() => {
+    const drain = () => {
+      for (const o of takeCanvasesOps()) opRef.current?.(o);
+    };
+    drain();
+    window.addEventListener(CANVASES_OP_EVENT, drain);
+    return () => window.removeEventListener(CANVASES_OP_EVENT, drain);
+  }, []);
+
+  const menuRow = rowOps.menu?.row;
+  const menuItems = menuRow ? canvasMenuItems(menuRow, { edit }) : [];
+  const targets = useMemo(
+    () => (menuRow ? moveTargets(tree, { fromDir: menuRow.dir, projectLabel }) : []),
+    [tree, menuRow, projectLabel]
+  );
+  const onMenuSelect = (id) => {
+    const row = rowOps.menu?.row;
+    if (!row) return;
+    if (id === 'move') {
+      rowOps.setView('move');
+      return;
+    }
+    rowOps.closeMenu(false);
+    if (id === 'open') onOpen(row.path);
+    else if (id === 'pin') pins.toggle(row.rel, !row.pinned);
+    else if (id === 'rename') rowOps.startRename(row.key);
+    else if (id === 'duplicate') onDuplicate?.(row.path);
+    else if (id === 'copy-link') onCopyLink?.(row.path);
+    else if (id === 'trash') onTrash?.(row.path, row.name);
+  };
+  const onMovePick = (target) => {
+    const row = rowOps.menu?.row;
+    rowOps.closeMenu(false);
+    if (row) (onMove || drag?.move)?.(row.path, target.path);
+  };
 
   const ctx = {
     onOpen,
     drag: readOnly ? undefined : drag,
     menu,
-    onDelete: readOnly ? undefined : onDelete,
+    edit,
+    rowOps,
+    tree,
+    onRename,
     commentsByFile,
     dirtyByPath,
     canvasKinds,
@@ -294,6 +415,7 @@ export function CanvasesPanel({
           data-sort-menu
           data-testid="canvases-sort-menu"
           style={{ top: sortMenu.top, right: sortMenu.right }}
+          onKeyDown={onSortKeyDown}
         >
           <p className="cv-menu-group">Sort by</p>
           {SORT_BYS.map((by) => (
@@ -335,6 +457,15 @@ export function CanvasesPanel({
           </button>
         </div>
       ) : null}
+      <CanvasRowMenu
+        state={rowOps.menu}
+        items={menuItems}
+        targets={targets}
+        onSelect={onMenuSelect}
+        onPick={onMovePick}
+        onView={rowOps.setView}
+        onClose={rowOps.closeMenu}
+      />
     </div>
   );
 }
@@ -364,7 +495,11 @@ function PanelHead({ row, style, ctx }) {
   const isProject = row.id === 'project';
   const dropProps =
     isProject && row.rootPath && ctx.drag ? ctx.drag.dropProps(row.rootPath, true) : {};
-  const over = isProject && row.rootPath && ctx.drag?.overDir === row.rootPath;
+  const over =
+    isProject &&
+    row.rootPath &&
+    ctx.drag?.overDir === row.rootPath &&
+    !isOwnFolder(ctx.drag.draggedPath, row.rootPath);
   return (
     <div
       className={`cv-head${over ? ' is-drop-target' : ''}`}
@@ -374,6 +509,11 @@ function PanelHead({ row, style, ctx }) {
     >
       <span className="cv-head-name">{row.label}</span>
       {row.aside ? <span className="cv-head-aside">{row.aside}</span> : null}
+      {over ? (
+        <span className="cv-drop-tag" data-testid="canvases-drop-tag">
+          Move here
+        </span>
+      ) : null}
       {isProject && !ctx.searching ? (
         <button
           type="button"
@@ -395,7 +535,7 @@ function PanelHead({ row, style, ctx }) {
 function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
   const slug = pathTestIdSlug(row.path);
   const { drag, menu } = ctx;
-  const over = drag?.overDir === row.path;
+  const over = drag?.overDir === row.path && !isOwnFolder(drag.draggedPath, row.path);
   const dragging = drag?.draggedPath === row.path;
   const busy = drag?.busyPath === row.path;
   const drop = drag ? drag.dropProps(row.path, true, () => ctx.setOpen(row.path, true)) : {};
@@ -444,6 +584,11 @@ function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
             <StIcon name="folder" size={14} />
           </span>
           <span className="cv-name">{row.name}</span>
+          {over ? (
+            <span className="cv-drop-tag" data-testid="canvases-drop-tag">
+              Move here
+            </span>
+          ) : null}
           <span className="cv-count" aria-label={`${row.count} canvases`}>
             {row.count}
           </span>
@@ -469,8 +614,9 @@ function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
 }
 
 function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
-  const { drag, menu, onDelete } = ctx;
+  const { drag, rowOps } = ctx;
   const slug = pathTestIdSlug(row.path);
+  const renaming = rowOps.renaming === row.key;
   const pinnedCopy = !!row.inPinned;
   const dirty = ctx.dirtyByPath?.get?.(row.path);
   const oc = (ctx.commentsByFile?.[row.path] || []).filter((c) => c.status !== 'resolved').length;
@@ -478,8 +624,22 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
   const src = drag ? drag.dragProps(row.path, true) : {};
   const dragging = drag?.draggedPath === row.path;
   const busy = drag?.busyPath === row.path;
-  const dir = row.dir;
-  const openMenu = (e) => menu.openAt(e, { kind: 'file', path: row.path, dir, canMove: !!drag });
+  const openMenu = (e) => rowOps.openMenu(e, row);
+  const thumb = (
+    <span className="cv-thumb" aria-hidden="true">
+      {row.cover ? (
+        <img
+          src={`/_api/thumb/${row.cover}`}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          onError={(e) => {
+            e.currentTarget.style.visibility = 'hidden';
+          }}
+        />
+      ) : null}
+    </span>
+  );
   const mainId = pinnedCopy ? `canvas-pinned-${slug}` : `canvas-row-${slug}`;
   const label = row.name;
   const tip = `${row.path}${oc ? ` — ${oc} open` : ''}`;
@@ -500,101 +660,103 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
       <div
         className={`cv-row cv-row--canvas${row.current ? ' is-sel' : ''}${dragging ? ' is-dragging' : ''}${busy ? ' is-busy' : ''}${row.pinned ? ' is-pinned' : ''}`}
       >
-        <button
-          type="button"
-          className="cv-main"
-          data-tree-primary=""
-          data-testid={mainId}
-          tabIndex={-1}
-          style={pad(row.depth)}
-          title={tip}
-          onClick={() => ctx.onOpen(row.path)}
-          onContextMenu={menu ? openMenu : undefined}
-          {...src}
-        >
-          <span className="cv-thumb" aria-hidden="true">
-            {row.cover ? (
-              <img
-                src={`/_api/thumb/${row.cover}`}
-                alt=""
-                loading="lazy"
-                draggable={false}
-                onError={(e) => {
-                  e.currentTarget.style.visibility = 'hidden';
-                }}
-              />
-            ) : null}
-          </span>
-          <span className="cv-name">{label}</span>
-          {row.sub ? <span className="cv-sub">{row.sub}</span> : null}
-          <span className="cv-badges">
-            {row.ai ? (
-              <span
-                className="cv-badge cv-badge--ai"
-                title="Made by AI"
-                role="img"
-                aria-label="Made by AI"
-              >
-                <SparkIcon size={11} />
-              </span>
-            ) : null}
-            {row.kinds.map((k) => {
-              const K = KIND_ICON[k];
-              return K ? (
+        {renaming ? (
+          <div className="cv-main cv-main--edit" style={pad(row.depth)}>
+            {thumb}
+            <InlineRename
+              slug={slug}
+              current={label}
+              siblings={siblingNames(ctx.tree, row.dir, row.path)}
+              onCommit={(name) => ctx.onRename(row.path, name, { quiet: true })}
+              onCancel={rowOps.stopRename}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="cv-main"
+            data-tree-primary=""
+            data-testid={mainId}
+            tabIndex={-1}
+            style={pad(row.depth)}
+            title={tip}
+            onClick={() => ctx.onOpen(row.path)}
+            onDoubleClick={ctx.edit && ctx.onRename ? () => rowOps.startRename(row.key) : undefined}
+            onContextMenu={openMenu}
+            {...src}
+          >
+            {thumb}
+            <span className="cv-name">{label}</span>
+            {row.sub ? <span className="cv-sub">{row.sub}</span> : null}
+            <span className="cv-badges">
+              {row.ai ? (
                 <span
-                  key={k}
-                  className="cv-badge"
-                  title={KIND_WORD[k]}
+                  className="cv-badge cv-badge--ai"
+                  title="Made by AI"
                   role="img"
-                  aria-label={KIND_WORD[k]}
+                  aria-label="Made by AI"
                 >
-                  <K size={11} />
+                  <SparkIcon size={11} />
                 </span>
-              ) : null;
-            })}
-            {experimental === 'reconstructed-experimental' && (
-              <span
-                className="st-row-exp-badge"
-                title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
-                aria-label="Reconstructed, experimental"
-              >
-                exp
-              </span>
-            )}
-            {experimental === 'imported-figma' && (
-              <span
-                className="st-row-exp-badge"
-                title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
-                aria-label="Imported from Figma, third-party content"
-              >
-                fig
-              </span>
-            )}
-            {dirty && (
-              <span
-                className="st-git-badge"
-                data-testid="canvas-row-unsaved"
-                data-kind={dirty}
-                title={`Unsaved (${dirty})`}
-                aria-label={`Unsaved, ${dirty}`}
-              >
-                {dirty}
-              </span>
-            )}
-            {oc > 0 && <span className="st-row-badge">{oc}</span>}
-            {row.pinned ? (
-              <span
-                className="cv-badge cv-badge--pin"
-                title="Pinned"
-                role="img"
-                aria-label="Pinned"
-              >
-                <PinIcon size={12} filled />
-              </span>
-            ) : null}
-          </span>
-        </button>
-        <span className="cv-actions">
+              ) : null}
+              {row.kinds.map((k) => {
+                const K = KIND_ICON[k];
+                return K ? (
+                  <span
+                    key={k}
+                    className="cv-badge"
+                    title={KIND_WORD[k]}
+                    role="img"
+                    aria-label={KIND_WORD[k]}
+                  >
+                    <K size={11} />
+                  </span>
+                ) : null;
+              })}
+              {experimental === 'reconstructed-experimental' && (
+                <span
+                  className="st-row-exp-badge"
+                  title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
+                  aria-label="Reconstructed, experimental"
+                >
+                  exp
+                </span>
+              )}
+              {experimental === 'imported-figma' && (
+                <span
+                  className="st-row-exp-badge"
+                  title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
+                  aria-label="Imported from Figma, third-party content"
+                >
+                  fig
+                </span>
+              )}
+              {dirty && (
+                <span
+                  className="st-git-badge"
+                  data-testid="canvas-row-unsaved"
+                  data-kind={dirty}
+                  title={`Unsaved (${dirty})`}
+                  aria-label={`Unsaved, ${dirty}`}
+                >
+                  {dirty}
+                </span>
+              )}
+              {oc > 0 && <span className="st-row-badge">{oc}</span>}
+              {row.pinned ? (
+                <span
+                  className="cv-badge cv-badge--pin"
+                  title="Pinned"
+                  role="img"
+                  aria-label="Pinned"
+                >
+                  <PinIcon size={12} filled />
+                </span>
+              ) : null}
+            </span>
+          </button>
+        )}
+        <span className="cv-actions" hidden={renaming}>
           {row.pinnable ? (
             <button
               type="button"
@@ -608,33 +770,17 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               <PinIcon size={12} filled={row.pinned} />
             </button>
           ) : null}
-          {menu ? (
-            <button
-              type="button"
-              className="cv-act"
-              data-testid={pinnedCopy ? `canvas-pinned-menu-${slug}` : `tree-row-menu-${slug}`}
-              title={`Actions for ${label}`}
-              aria-label={`Actions for ${label}`}
-              aria-haspopup="menu"
-              onClick={openMenu}
-            >
-              <MoreIcon size={12} />
-            </button>
-          ) : null}
-          {onDelete && !pinnedCopy ? (
-            <button
-              type="button"
-              className="cv-act cv-act--del"
-              title={`Delete ${label}`}
-              aria-label={`Delete canvas ${label}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(row.path, label);
-              }}
-            >
-              <StIcon name="x" size={12} />
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="cv-act"
+            data-testid={pinnedCopy ? `canvas-pinned-menu-${slug}` : `tree-row-menu-${slug}`}
+            title={`Actions for ${label}`}
+            aria-label={`Actions for ${label}`}
+            aria-haspopup="menu"
+            onClick={openMenu}
+          >
+            <MoreIcon size={12} />
+          </button>
         </span>
       </div>
     </div>

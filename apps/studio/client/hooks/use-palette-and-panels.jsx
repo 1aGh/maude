@@ -14,7 +14,8 @@ import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.
 import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
-import { openCount, shellToast } from '../shell/util.js';
+import { basename, displayName, openCount, shellToast } from '../shell/util.js';
+import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
@@ -158,6 +159,26 @@ export function usePaletteAndPanels({
   // group, label, icon, key) render from the action registry's v1 layout
   // (actions/legacy.ts `V1_PALETTE`); what each row RUNS stays v1's, keyed by
   // action id (the palette opened what the key toggles — Phase 4 unifies them).
+  // S1.2 — "Copy link" on a canvas row, and its File-menu / ⌘K twins (`canvas.copy-link`, `canvas.trash`),
+  // which reach here as a `maude:canvas-op` event from the menu runner (it holds no shell closures for
+  // these). The link is the one Share offers today; S1.18's stable `…/c/<entry>` resolver replaces it.
+  const copyCanvasLink = (path) => {
+    const links = shareLinksFor(path);
+    const link = links.web ?? links.app ?? links.local;
+    if (link) copyShareLink(link);
+  };
+  const canvasOpRef = useRef(null);
+  canvasOpRef.current = ({ op, path, label }) => {
+    if (!path) return;
+    if (op === 'copy-link') copyCanvasLink(path);
+    else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
+  };
+  useEffect(() => {
+    const on = (e) => canvasOpRef.current?.(e.detail || {});
+    window.addEventListener(CANVAS_OP_EVENT, on);
+    return () => window.removeEventListener(CANVAS_OP_EVENT, on);
+  }, []);
+
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
@@ -420,6 +441,7 @@ export function usePaletteAndPanels({
           onRenameCanvas={renameCanvasReq}
           onDuplicateCanvas={duplicateCanvasReq}
           onDeleteFile={deleteFileReq}
+          onCopyLink={copyCanvasLink}
           onRefresh={refreshTree}
           onToggleShowHidden={() => menuRunner.run('view.hidden-files')}
           refreshing={treeRefreshing}

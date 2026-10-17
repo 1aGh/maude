@@ -377,6 +377,98 @@
     outline-offset: 1px;
   }
 
+  /* ── S1.2 · drag target, rename in place, the row menu and the folder list (11 · pn-move) ── */
+  .cv-drop-tag {
+    flex: none;
+    margin-left: auto;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg, var(--fg-0));
+    font-size: var(--type-xs);
+    line-height: 18px;
+    white-space: nowrap;
+  }
+  .cv-drop-tag + .cv-count {
+    margin-left: var(--space-2);
+  }
+  .cv-main--edit {
+    cursor: text;
+  }
+  .cv-rename {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+  .cv-rename:focus-visible {
+    outline: none;
+  }
+  .cv-rename.is-invalid {
+    box-shadow: inset 0 0 0 1px var(--status-error);
+  }
+  .cv-rename-err {
+    position: absolute;
+    left: var(--space-2);
+    right: var(--space-2);
+    top: calc(100% - 2px);
+    z-index: 3;
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md, 0 6px 24px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--status-error);
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+  .cv-rowmenu .cv-menu-sep {
+    margin: var(--space-1) 0;
+  }
+  .cv-move {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: 260px;
+  }
+  .cv-move-filter {
+    margin: 0 var(--space-1);
+    height: 26px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+  .cv-move-filter:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cv-move-list {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .cv-move-item {
+    cursor: pointer;
+  }
+  .cv-move-none {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
   .cv-none {
     margin: var(--space-3) var(--space-2);
     font-size: var(--type-sm);

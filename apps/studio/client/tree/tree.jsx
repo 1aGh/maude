@@ -843,6 +843,8 @@ export function Sidebar({
   onRenameCanvas,
   onDuplicateCanvas,
   onDeleteFile,
+  // S1.2 — a canvas row's "Copy link" (the Canvases panel's row menu).
+  onCopyLink,
   // Passed through to CloudBar only — the live `sync:status` payload that makes
   // the connect note follow the link instead of freezing at attach time.
   syncStatus,
@@ -1366,7 +1368,11 @@ export function Sidebar({
                 drag={treeDrag}
                 menu={rowMenu}
                 readOnly={readOnly}
-                onDelete={onDeleteBoard}
+                onMove={onMoveCanvas}
+                onRename={onRenameCanvas}
+                onDuplicate={onDuplicateCanvas}
+                onTrash={onDeleteBoard}
+                onCopyLink={onCopyLink}
                 commentsByFile={commentsByFile}
                 dirtyByPath={dirtyByPath}
                 canvasKinds={canvasKinds}
