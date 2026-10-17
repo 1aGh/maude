@@ -4774,7 +4774,7 @@
     "hook": "project-pill",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The project pill (mark + project name, top-left): the `.island` button that opens the one menu. Accessible name \"Project menu\". Carries `data-occludes=\"top\"` on its island.",
+    "meaning": "The project pill (mark + project name, top-left): the `.island` button that opens the one menu. Accessible name \"<project> / <canvas>, project menu\" (the visible text leads — WCAG 2.5.3); `title` stays \"Project menu\". Carries `data-occludes=\"top\"` on its island.",
     "producer": {
       "file": "apps/studio/client/v2/shell/project-pill.jsx",
       "symbol": "ProjectPill"
@@ -4943,7 +4943,7 @@
     "hook": "share-cluster-panels",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Hide panels / Show panels (`view.panels`, ⌘\\); `aria-pressed` while panels are hidden.",
+    "meaning": "Hide panels / Show panels (`view.panels`, ⌘\\); the label flips and there is no `aria-pressed` (V2-4.gate).",
     "producer": {
       "file": "apps/studio/client/v2/shell/share-cluster.jsx",
       "symbol": "ShareCluster"

@@ -141,6 +141,10 @@ describe('the cluster', () => {
   test('comments: the count shows when there are open comments; the button runs view.comments', async () => {
     const none = await mount();
     expect(none.q('share-cluster-comments-count')).toBeNull();
+    // design-critic blocker 8: a speech bubble with a visible tail (the path drops to a point below the
+    // box and comes back), not the DS tool glyph's tail-less rounded square
+    const d = none.q('share-cluster-comments')?.querySelector('svg path')?.getAttribute('d') ?? '';
+    expect(d).toContain('l-3 2.5');
     act(() => root?.unmount());
     host?.remove();
     const some = await mount({ commentsCount: 3 });
@@ -201,13 +205,16 @@ describe('the cluster', () => {
     const a = await mount();
     expect(a.q('share-cluster-panels')?.getAttribute('aria-label')).toBe('Hide panels');
     expect(a.q('share-cluster-panels')?.getAttribute('title')).toBe('Hide panels  ⌘\\');
+    expect(a.q('share-cluster-panels')?.hasAttribute('aria-pressed')).toBe(false);
     await act(async () => a.q('share-cluster-panels')?.click());
     expect(a.ran).toEqual(['view.panels']);
     act(() => root?.unmount());
     host?.remove();
     const b = await mount({ panelsHidden: true });
     expect(b.q('share-cluster-panels')?.getAttribute('aria-label')).toBe('Show panels');
-    expect(b.q('share-cluster-panels')?.getAttribute('aria-pressed')).toBe('true');
+    // one signal, not two: the flipping label names the action, so it carries no aria-pressed (a pressed
+    // "Show panels" announced the opposite of the state)
+    expect(b.q('share-cluster-panels')?.hasAttribute('aria-pressed')).toBe(false);
   });
 
   test('the island declares its edge (top); docked in the pinned column it declares none', async () => {

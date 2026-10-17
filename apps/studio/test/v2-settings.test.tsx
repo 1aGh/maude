@@ -466,6 +466,48 @@ describe('the sheet’s own behaviour', () => {
     expect(panel?.hidden).toBe(false);
   });
 
+  // V2-4.gate (a11y B3): the tablist held the title, the version line and Done — aria-required-children
+  // (axe critical). Only tabs may be its children; the rest sits beside it in the rail.
+  test('the tablist holds only tabs; the title, version and Done sit beside it', async () => {
+    await mount();
+    const tablist = document.querySelector('[role="tablist"]') as HTMLElement;
+    expect([...tablist.children].map((c) => c.getAttribute('role'))).toEqual(['tab', 'tab', 'tab']);
+    expect(tablist.contains(q('settings-close'))).toBe(false);
+    expect(tablist.closest('.v2s-rail')?.contains(q('settings-close'))).toBe(true);
+    expect(document.querySelector('.v2s-rail')?.getAttribute('role')).toBeNull();
+  });
+
+  // V2-4.gate (a11y B4, WCAG 2.5.3): the accessible name must contain the visible text.
+  test('Done is named “Done” (no “Close settings” label that hides the visible word)', async () => {
+    await mount();
+    const done = q('settings-close') as HTMLElement;
+    expect(done.textContent).toBe('Done');
+    expect(done.hasAttribute('aria-label')).toBe(false);
+  });
+
+  // V2-4.gate (a11y B5): seven radiogroups were all “Panel side”.
+  test('each Panel positions radiogroup is named by its visible row label', async () => {
+    await mount();
+    const groups = qa('[data-testid^="panel-side-"]');
+    expect(groups.length).toBe(7);
+    const names = groups.map((g) => {
+      const id = g.getAttribute('aria-labelledby');
+      expect(id, g.dataset.testid).toBeTruthy();
+      expect(g.hasAttribute('aria-label')).toBe(false);
+      return document.getElementById(id as string)?.textContent;
+    });
+    expect(names).toEqual([
+      'Canvases',
+      'Layers',
+      'Assets',
+      'Inspector',
+      'Comments',
+      'Changes',
+      'AI chat panel',
+    ]);
+    expect(new Set(names).size).toBe(7);
+  });
+
   test('esc closes the sheet and focus goes back to where it was', async () => {
     let closed = 0;
     const { opener } = await mount({ onClose: () => closed++ });

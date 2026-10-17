@@ -75,12 +75,29 @@ const idOf = (el: Element | null) =>
   el?.getAttribute('data-action') ?? el?.getAttribute('data-sub') ?? null;
 
 describe('the pill', () => {
-  test('is an island with data-occludes="top" and the accessible name "Project menu"', async () => {
+  test('is an island with data-occludes="top"; its name leads with the visible text (2.5.3) then says what it is', async () => {
     await mount();
-    expect(pill().getAttribute('aria-label')).toBe('Project menu');
+    expect(pill().getAttribute('aria-label')).toBe(
+      'Alligators brand / Combine-kampan, project menu'
+    );
+    // the visible text is a prefix of the accessible name: voice control ("click Alligators brand") works
+    expect(pill().getAttribute('aria-label')?.startsWith('Alligators brand')).toBe(true);
+    expect(pill().getAttribute('title')).toBe('Project menu');
     expect(pill().getAttribute('aria-haspopup')).toBe('menu');
     expect(pill().closest('.island')?.getAttribute('data-occludes')).toBe('top');
     expect(pill().textContent).toContain('Alligators brand');
+  });
+
+  test('the mark is the DS Mark (azure tile + white star), never the AI spark glyph', async () => {
+    await mount();
+    const paths = [...(host?.querySelectorAll('.st-pill-mark svg path') ?? [])];
+    expect(paths.length).toBe(2);
+    // the kit `Mark`, verbatim: the tile (round on three corners), then the star on it
+    expect(paths[0].getAttribute('d')).toBe(
+      'M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z'
+    );
+    expect(paths[0].getAttribute('fill')).toBe('var(--accent)');
+    expect(paths[1].getAttribute('fill')).toBe('var(--accent-fg)');
   });
 
   test('docked on the pinned left column it declares no edge (it covers no canvas)', async () => {

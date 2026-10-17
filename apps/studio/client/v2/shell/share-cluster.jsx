@@ -176,7 +176,7 @@ export function ShareCluster({
         title={withKey('Comments', ACTIONS_BY_ID.get('view.comments'), ctx)}
         onClick={() => run('view.comments')}
       >
-        <StIcon name="comment" size={16} />
+        <StIcon name="comment-bubble" size={16} />
         {commentsCount > 0 ? (
           <span className="st-share-count" data-testid="share-cluster-comments-count">
             {commentsCount > 99 ? '99+' : commentsCount}
@@ -205,7 +205,8 @@ export function ShareCluster({
         className={`st-share-ic${panelsHidden ? ' is-on' : ''}`}
         data-testid="share-cluster-panels"
         aria-label={panelsLabel}
-        aria-pressed={panelsHidden}
+        // The label flips ("Hide panels" / "Show panels") and names what a press does, so there is no
+        // `aria-pressed`: a pressed "Show panels" read as the opposite of the state (a11y W5).
         title={withKey(panelsLabel, ACTIONS_BY_ID.get('view.panels'), ctx)}
         onClick={() => run('view.panels')}
       >

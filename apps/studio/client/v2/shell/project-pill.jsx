@@ -27,10 +27,14 @@ function rowsOf(menuEl) {
   return Array.from(menuEl.querySelectorAll(':scope > [role=none] > [role^=menuitem]'));
 }
 
-function Mark() {
+// The DS Mark, lifted verbatim from the kit (.design/ui/v2/_kit.tsx `Mark`, = assets/logos/mark.svg):
+// the azure tile (round on three corners, square bottom-right) with the white star. DDR-141 Tier-0 —
+// never redrawn, never the AI's spark (that glyph is reserved for the AI, CONTRACT §7).
+function Mark({ size = 22 }) {
   return (
-    <svg viewBox="0 0 32 32" width="20" height="20" fill="none" aria-hidden="true">
-      <path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" />
+    <svg viewBox="0 0 32 32" width={size} height={size} fill="none" aria-hidden="true">
+      <path d="M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z" fill="var(--accent)" />
+      <path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="var(--accent-fg)" />
     </svg>
   );
 }
@@ -324,7 +328,9 @@ export function ProjectPill({
         ref={btnRef}
         type="button"
         className="st-pill-btn"
-        aria-label="Project menu"
+        // Label in Name (WCAG 2.5.3): the visible text leads, so voice control ("click e2e-fixture") and a
+        // screen reader both get the open project and canvas, then what the control is.
+        aria-label={`${project || 'maude'}${canvas ? ` / ${canvas}` : ''}, project menu`}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Project menu"
