@@ -26,7 +26,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { saveHubCredential } from '../sync/hub-link.ts';
-import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
+import { getHubRecord, isEditRole, normalizeUrl } from '../sync/hubs-config.ts';
 import { boundCloudToken, cloudConfigPath } from './config-path.ts';
 
 export interface RenewedCredential {
@@ -125,8 +125,14 @@ export async function renewHubCredential(
     }
   }) as { id?: unknown; role?: unknown } | undefined;
   // A viewer's Connect is a different lane (share-view); renewing an editor
-  // credential for one would mint capability the panel never offered.
-  if (!match || typeof match.id !== 'string' || match.role === 'viewer') {
+  // credential for one would mint capability the panel never offered. Fail closed: any role a
+  // hub names that is not an editing role (observer, guest, a new one) is treated like a viewer
+  // — the `=== 'viewer'` comparison failed open (V2-4 gate, V2-1.7 R1). No role = an older hub.
+  if (
+    !match ||
+    typeof match.id !== 'string' ||
+    (match.role !== undefined && !isEditRole(match.role))
+  ) {
     return { ok: false, reason: 'no-matching-project' };
   }
 

@@ -194,6 +194,21 @@ describe('renewHubCredential', () => {
     expect(r).toEqual({ ok: false, reason: 'no-matching-project' });
   });
 
+  test('an unknown or read-only role (observer, guest, Viewer) never renews an editor credential', async () => {
+    // V2-4 gate: the `=== 'viewer'` comparison failed open for every other non-editing role (V2-1.7 R1).
+    for (const role of ['observer', 'guest', 'Viewer', 'commenter']) {
+      signIn();
+      const { doFetch } = fakeFetch({
+        'https://cloud.test/api/projects': {
+          status: 200,
+          body: { projects: [{ id: 'alligators', url: HUB_URL, role }] },
+        },
+      });
+      const r = await renewHubCredential(HUB_URL, doFetch);
+      expect(r, role).toEqual({ ok: false, reason: 'no-matching-project' });
+    }
+  });
+
   test('removed member: /projects/open refuses → open-refused (the right place to die)', async () => {
     signIn();
     const { doFetch } = fakeFetch({

@@ -153,10 +153,13 @@ function warnIfWorldOrGroupReadable(path: string): void {
  */
 const EDIT_ROLES: ReadonlySet<unknown> = new Set(['owner', 'member', 'admin']);
 
+/** A hub-vouched role that may edit. Anything else a hub names holds nothing (V2-1.7 R1). */
+export const isEditRole = (role: unknown): boolean => EDIT_ROLES.has(role);
+
 export function isHubReadOnly(url: string): boolean {
   try {
     const record = loadHubsConfig().hubs[normalizeUrl(url)];
-    return record?.role !== undefined && !EDIT_ROLES.has(record.role);
+    return record?.role !== undefined && !isEditRole(record.role);
   } catch {
     return false;
   }
