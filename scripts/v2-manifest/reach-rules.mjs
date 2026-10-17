@@ -101,6 +101,53 @@ export const ACTION_SURFACE = Object.freeze({
   'share.open': 'share-cluster-share',
 });
 
+/** The slot role a probe's person holds (canvas-modes.ts roleOfCaps): owner and member edit, a hub viewer
+ *  is Can comment (V2-1.7). */
+export const PROBE_SLOT_ROLE = Object.freeze({ owner: 'edit', member: 'edit', viewer: 'comment' });
+const SLOT_RANK = Object.freeze({ view: 0, comment: 1, edit: 2 });
+
+/**
+ * Who a canvas tool is for. The registry keeps every `tool.*` key resolvable for every role (a denied key
+ * must still reach the shell's denial line), so its `visible` over-promises tools to viewers; the
+ * toolbar's own data does not (MODE_TOOLS `minRole`: Hand = view, Comment = comment, the rest = edit).
+ * Returns `Map<ref, minRole>` for both the action (`tool.<id>`) and the slot hook (`toolbar-slot-<tool>`);
+ * a ref in several modes takes the LOWEST role (Comment is in Preview and Viewing); a Marker tip inherits
+ * its slot's. `slotActionId` is actions/defs/tool.ts's.
+ */
+export function toolRoles(modeTools, slotActionId) {
+  const out = new Map();
+  const put = (ref, role) => {
+    const have = out.get(ref);
+    if (!have || SLOT_RANK[role] < SLOT_RANK[have]) out.set(ref, role);
+  };
+  const visit = (s) => {
+    put(slotActionId(s), s.minRole);
+    if (s.tool) put(`toolbar-slot-${s.tool}`, s.minRole);
+    for (const tip of s.tips ?? []) {
+      put(`tool.${tip}`, s.minRole);
+      put(`toolbar-tip-${tip}`, s.minRole);
+    }
+    for (const c of s.more ?? []) visit(c);
+  };
+  for (const bar of Object.values(modeTools)) for (const s of bar.slots) visit(s);
+  return out;
+}
+
+/** The tool a row / hook / action points at, if any: a `tool.*` action or a concrete `toolbar-slot-*` hook. */
+const toolRef = (ref) =>
+  typeof ref === 'string' && (/^tool\./.test(ref) || /^toolbar-slot-[\w-]+$/.test(ref)) ? ref : null;
+
+/** Is `probe` allowed to need this tool? Anything that is not a tool, or has no toolbar data, passes. */
+function toolAllows(refs, probe, roles) {
+  if (!roles) return true;
+  return refs.every((r) => {
+    const ref = toolRef(r);
+    if (!ref) return true;
+    const min = roles.get(ref) ?? 'edit'; // no slot behind it: the rest are edit
+    return SLOT_RANK[PROBE_SLOT_ROLE[probe.role]] >= SLOT_RANK[min];
+  });
+}
+
 /** The registry context a probe's shell computes (actions/ctx.ts) with a canvas open. */
 export function ctxFor(probe) {
   const facts = new Set(['canvasOpen', 'online']);
@@ -121,10 +168,11 @@ export function ctxFor(probe) {
  * the owning model's local flag (settings-model `local: true` = absent in a cloud tab, DDR-209 D1) →
  * the registry's `visible` predicate when the row names an action → editor-only homes → never embed.
  */
-export function rowProbes(row, { settingsLocal, actions, isVisible }) {
+export function rowProbes(row, { settingsLocal, actions, isVisible, toolRoles: roles }) {
   if (Array.isArray(row.v2?.reach)) return row.v2.reach.filter((p) => PROBE_IDS.includes(p));
   if (row.id.startsWith('D')) return B_REACH[row.id] ?? LOCAL_PROBES;
   let out = PROBES.filter((p) => p.shell !== 'embed');
+  out = out.filter((p) => toolAllows([row.v2?.action, row.v2?.testid], p, roles));
   if (settingsLocal.has(row.id)) out = out.filter((p) => LOCAL_PROBES.includes(p.id));
   const a = row.v2?.action && actions.get(row.v2.action);
   if (a) out = out.filter((p) => isVisible(a, ctxFor(p)));
@@ -133,14 +181,17 @@ export function rowProbes(row, { settingsLocal, actions, isVisible }) {
 }
 
 /** Probes where a kept registry action must be reachable: wherever the registry shows it. */
-export function actionProbes(action, isVisible) {
-  return PROBES.filter((p) => p.shell !== 'embed' && isVisible(action, ctxFor(p))).map((p) => p.id);
+export function actionProbes(action, isVisible, roles) {
+  return PROBES.filter(
+    (p) => p.shell !== 'embed' && isVisible(action, ctxFor(p)) && toolAllows([action.id], p, roles)
+  ).map((p) => p.id);
 }
 
 /** Probes where a kept hook must be reachable: every shell v1 showed it in, else the local probes. */
-export function hookProbes(hook, v1Seen) {
+export function hookProbes(hook, v1Seen, roles) {
   const seen = v1Seen.get(hook);
-  return seen?.size ? PROBE_IDS.filter((p) => seen.has(p)) : LOCAL_PROBES;
+  const base = seen?.size ? PROBE_IDS.filter((p) => seen.has(p)) : LOCAL_PROBES;
+  return base.filter((id) => toolAllows([hook], PROBES.find((p) => p.id === id), roles));
 }
 
 /**
@@ -205,6 +256,10 @@ export function summarize({ evidence, subjects, hooksByName, taken, bundle }) {
     if (surface) return `${surface} (${ACTION_SURFACE[id]})`;
     for (const [opener, ev] of Object.entries(evidence[probe] ?? {}))
       if (ev.palette?.[id]) return `${opener} (⌘K)`;
+    // ⌘K deliberately leaves out the keyboard-only actions (nudge, annotation keys, holds); the "?" sheet
+    // lists every action that has a key, as `shortcuts-row-<id>` — that is where a person finds them.
+    const sheet = findHook(probe, `shortcuts-row-${id}`);
+    if (sheet) return `${sheet} ("?" sheet)`;
     return null;
   };
   const perShell = Object.fromEntries(PROBE_IDS.map((p) => [p, { rows: {}, targets: {} }]));
