@@ -7,9 +7,10 @@
 // file is the keyboard, the fetch and the markup. A row runs the function the shell already has for
 // it (`menuRunner`, via `row.run`) — there is no second dispatcher.
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Kbd, STICONS, StIcon } from '../shell/icons.jsx';
 import { getPaletteEnv } from '../v2/search/search-env.js';
+import { useModalFocus } from '../v2/shell/modal-focus.js';
 import { REMOTE_DEBOUNCE_MS, searchIndex } from '../v2/search/search-remote.js';
 import {
   assemble,
@@ -66,6 +67,12 @@ export function CommandPalette({ open, onClose, actions }) {
   const [active, setActive] = useState(0);
   const [remote, setRemote] = useState({ q: '', rows: [] });
   const listRef = useRef(null);
+  const inputRef = useRef(null);
+  // V2-4 gate (a11y B2/W3): Tab stays inside, esc closes from any row, focus goes back to the opener.
+  const dialogRef = useModalFocus({ open, onClose, initialRef: inputRef });
+  const baseId = useId();
+  const listId = `${baseId}-list`;
+  const optionId = (i) => `${baseId}-opt-${i}`;
   const env = open ? getPaletteEnv() : null;
   const canAskAI = env ? env.canAskAI() : false;
   const clean = sanitizeQuery(q);
@@ -146,6 +153,8 @@ export function CommandPalette({ open, onClose, actions }) {
   const close = () => onClose();
   const go = (item) => runItem(item, { env, query: q, close });
   let at = -1;
+  // V2-4 gate (a11y B1): the WAI-ARIA combobox pattern — rows are `option`s of the `listbox`, focus stays
+  // in the input and `aria-activedescendant` names the active row (so a screen reader hears it).
   const rowButton = (item, group) => {
     at += 1;
     const i = at;
@@ -153,6 +162,11 @@ export function CommandPalette({ open, onClose, actions }) {
       <button
         type="button"
         key={item.id}
+        id={optionId(i)}
+        role="option"
+        aria-selected={i === active}
+        aria-disabled={item.disabled ? true : undefined}
+        tabIndex={-1}
         data-testid={`palette-row-${item.id}`}
         className={`st-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}`}
         onMouseEnter={() => setActive(i)}
@@ -178,59 +192,72 @@ export function CommandPalette({ open, onClose, actions }) {
   };
 
   let body;
+  let note = null;
   if (view.short) {
-    body = view.rows.map((item, i) => {
-      const header =
-        item.heading && (i === 0 || view.rows[i - 1].heading !== item.heading) ? (
-          <div className="st-pal-group" key={`g-${item.heading}`}>
-            {item.heading}
+    // One `group` per heading run (the short list is flat — arrow keys index straight across groups).
+    const runs = [];
+    for (const item of view.rows) {
+      const tail = runs[runs.length - 1];
+      if (tail && tail.heading === (item.heading ?? null)) tail.rows.push(item);
+      else runs.push({ heading: item.heading ?? null, rows: [item] });
+    }
+    body = runs.map((run, r) => {
+      const hd = `${baseId}-short-${r}`;
+      return run.heading ? (
+        <div key={hd} role="group" aria-labelledby={hd}>
+          <div className="st-pal-group" id={hd} role="presentation">
+            {run.heading}
           </div>
-        ) : null;
-      return (
-        <Fragment key={item.id}>
-          {header}
-          {rowButton(item, 'short')}
-        </Fragment>
+          {run.rows.map((item) => rowButton(item, 'short'))}
+        </div>
+      ) : (
+        run.rows.map((item) => rowButton(item, 'short'))
       );
     });
   } else if (view.empty) {
     const copy = emptyCopy(q, canAskAI);
     body = (
-      <div className="st-pal-none" data-testid="palette-empty" role="status">
+      <div
+        className="st-pal-none"
+        data-testid="palette-empty"
+        role={items.length > 0 ? 'presentation' : 'status'}
+      >
         <strong className="st-pal-sit">{copy.headline}</strong>
         <span className="st-pal-next">{copy.next}</span>
       </div>
     );
   } else {
-    body = (
-      <>
-        {view.closeOnly ? (
-          <div className="st-pal-note" data-testid="palette-close-note" role="status">
-            Nothing called “{q.trim()}”.
-            {view.closeWord ? (
-              <>
-                {' '}
-                Showing close matches for <strong>{view.closeWord}</strong>.
-              </>
-            ) : null}
-          </div>
+    // The close-matches note is a status line, not an option: it sits above the listbox.
+    note = view.closeOnly ? (
+      <div className="st-pal-note" data-testid="palette-close-note" role="status">
+        Nothing called “{q.trim()}”.
+        {view.closeWord ? (
+          <>
+            {' '}
+            Showing close matches for <strong>{view.closeWord}</strong>.
+          </>
         ) : null}
-        {view.groups.map((g) => (
-          <div key={g.id} data-testid={`palette-group-${g.id}`}>
-            <div className="st-pal-group">
-              {g.title}
-              {g.aside ? <span className="st-pal-aside">{g.aside}</span> : null}
-            </div>
-            {g.rows.map((row) => rowButton(row, g.id))}
-          </div>
-        ))}
-      </>
-    );
+      </div>
+    ) : null;
+    body = view.groups.map((g) => (
+      <div
+        key={g.id}
+        data-testid={`palette-group-${g.id}`}
+        role="group"
+        aria-labelledby={`${baseId}-g-${g.id}`}
+      >
+        <div className="st-pal-group" id={`${baseId}-g-${g.id}`} role="presentation">
+          {g.title}
+          {g.aside ? <span className="st-pal-aside">{g.aside}</span> : null}
+        </div>
+        {g.rows.map((row) => rowButton(row, g.id))}
+      </div>
+    ));
   }
 
   // Ask AI is the LAST row (after the body, so its arrow-key index is the last one too).
   const askRow = view.ask ? (
-    <div className="st-pal-ask" data-testid="palette-ask-ai">
+    <div className="st-pal-ask" data-testid="palette-ask-ai" role="presentation">
       {rowButton(view.ask, 'ask-ai')}
     </div>
   ) : null;
@@ -248,22 +275,27 @@ export function CommandPalette({ open, onClose, actions }) {
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
+        ref={dialogRef}
+        tabIndex={-1}
       >
         <div className="st-pal-search">
           <StIcon name="search" size={18} />
           <input
-            // biome-ignore lint/a11y/noAutofocus: command palette opens on an explicit ⌘K.
-            autoFocus
+            ref={inputRef}
             data-testid="palette-input"
             placeholder="Search canvases, actions, or ask AI…"
             value={q}
             aria-label="Command search"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-expanded={items.length > 0}
+            aria-controls={listId}
+            aria-activedescendant={items[active] ? optionId(active) : undefined}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                onClose();
-              } else if (e.key === 'ArrowDown') {
+              // esc is useModalFocus's (it closes from any row too)
+              if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 setActive((i) => Math.min(items.length - 1, i + 1));
               } else if (e.key === 'ArrowUp') {
@@ -289,7 +321,15 @@ export function CommandPalette({ open, onClose, actions }) {
           />
           <Kbd>⌘K</Kbd>
         </div>
-        <div className="st-pal-list" ref={listRef} data-testid="palette-list">
+        {note}
+        <div
+          className="st-pal-list"
+          ref={listRef}
+          id={listId}
+          data-testid="palette-list"
+          role={items.length > 0 ? 'listbox' : undefined}
+          aria-label={items.length > 0 ? 'Results' : undefined}
+        >
           {body}
           {askRow}
         </div>
@@ -303,7 +343,7 @@ export function CommandPalette({ open, onClose, actions }) {
               <Kbd>↵</Kbd> open
             </span>
           </span>
-          <span data-testid="palette-count">
+          <span data-testid="palette-count" role="status" aria-live="polite">
             {view.short ? 'Type to search' : resultsCount(view.total)}
           </span>
         </div>

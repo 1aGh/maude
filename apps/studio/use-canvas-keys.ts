@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'react';
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import type { ActionId } from './actions/types.ts';
+import { canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { isEditableTarget } from './input-router.tsx';
 
 export type CanvasKeyHandlers = Readonly<Record<ActionId, (e: KeyboardEvent) => void>>;
@@ -35,7 +36,13 @@ export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOp
     const t: Window | Document = target === 'document' ? document : window;
     const onKey = (e: Event) => {
       const ke = e as KeyboardEvent;
-      const id = resolveCanvasKey(index, ke, isEditableTarget(ke.target));
+      const id = resolveCanvasKey(
+        index,
+        ke,
+        isEditableTarget(ke.target),
+        undefined,
+        canvasSingleKeys()
+      );
       if (id) handlersRef.current[id]?.(ke);
     };
     t.addEventListener('keydown', onKey, capture);

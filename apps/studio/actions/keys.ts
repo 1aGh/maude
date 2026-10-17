@@ -148,6 +148,12 @@ export function chordFromEvent(e: KeyEventLike): Chord {
     /* F1…F12 */
   } else if (/^[\x21-\x7e]$/.test(key)) {
     if (/^[a-z]$/i.test(key)) key = key.toUpperCase();
+    // ⇧ on the US-position slash key is '?' (V2-4 gate, design blocker 5). A real US layout reports
+    // `e.key === '?'` already; a synthetic event (agent-browser's Shift+Slash) and some remapped layouts
+    // report '/' with ⇧ held, which fell through to "/" (Search canvases) instead of "?" (the sheet).
+    // Read from `e.code`, so a layout that types '/' with ⇧ on ANOTHER key (Czech: ⇧ú, German: ⇧7)
+    // still gets '/'.
+    else if (key === '/' && e.shiftKey && e.code === 'Slash' && !e.altKey) key = '?';
   } else if (e.code) {
     const m = /^Key([A-Z])$/.exec(e.code) ?? /^Digit(\d)$/.exec(e.code);
     key = m ? m[1] : (CODE_KEY[e.code] ?? key);
@@ -160,6 +166,19 @@ export function chordFromEvent(e: KeyEventLike): Chord {
     !!shiftDigit || /^[A-Z]$/.test(key) || NAMED_KEYS.has(key) || /^F\d/.test(key);
   if (e.shiftKey && shiftSignificant) mods.add('⇧');
   return MOD_ORDER.filter((m) => mods.has(m)).join('') + key;
+}
+
+/**
+ * A chord made of one character key — a letter, digit, punctuation or symbol, with ⇧ or nothing, never
+ * ⌘ / ⌃ / ⌥ (WCAG 2.1.4 "Character Key Shortcuts"). Named keys (esc, arrows, Space, ⌫, ↵, tab) and
+ * F-keys are not characters. With the per-Mac "Single-key shortcuts" switch off these chords are not
+ * resolved at all (`KeyCtx.singleKeys === false`, resolve.ts).
+ */
+export function isCharacterChord(c: Chord): boolean {
+  const { mods, key } = splitChord(c);
+  if (mods.some((m) => m !== '⇧')) return false;
+  if (NAMED_KEYS.has(key) || /^F\d{1,2}$/.test(key)) return false;
+  return key.length === 1;
 }
 
 export function hasCommandMod(c: Chord): boolean {

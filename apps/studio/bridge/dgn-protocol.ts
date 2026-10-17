@@ -268,6 +268,10 @@ export interface ShellToCanvas {
   };
   'occluded-insets': { seq: number; insets: Insets };
   'present-step': { to: number | 'next' | 'prev' };
+  // V2-4 gate (WCAG 2.1.4) — the per-Mac "Single-key shortcuts" switch: `false` → the canvas resolves no
+  // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
+  // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
+  'key-prefs': { singleKeys: boolean };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -1046,6 +1050,12 @@ const s2c: S2C = {
     status: 'proposed',
     owner: 'S3 present',
     parse: p({ to: (v) => (v === 'next' || v === 'prev' ? v : num(v)) }),
+  },
+  'key-prefs': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'bridge/canvas-mode-store (V2-4 gate)',
+    parse: p({ singleKeys: bool }),
   },
 };
 

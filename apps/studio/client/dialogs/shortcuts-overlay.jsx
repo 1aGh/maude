@@ -6,12 +6,13 @@
 // Diagnostics keys with their path, then "Keys and tools that moved" (old → new). A key is read from
 // the registry here, never typed, so a re-binding shows up on the next "?".
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { isNativeApp } from '../github.js';
 import { Kbd, StIcon } from '../shell/icons.jsx';
 import { AdvancedFold } from '../v2/fold/advanced-fold.jsx';
 import { useFold } from '../v2/fold/use-fold.js';
 import { buildHelpSheet, filterHelpSheet } from '../v2/search/help-model.js';
+import { useModalFocus } from '../v2/shell/modal-focus.js';
 import { menuCtx } from '../v2/shell/project-menu-model.js';
 
 /** The "?" sheet's Advanced fold in prefs.json `fold` (open at first look: it lists the keys that moved). */
@@ -47,20 +48,12 @@ export function ShortcutCombo({ keys, alt = [], path }) {
 export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
   const [find, setFind] = useState('');
   const [fold, setFold] = useFold(HELP_FOLD);
+  const findRef = useRef(null);
   useEffect(() => {
     if (open) setFind('');
   }, [open]);
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  // V2-4 gate (a11y B2/W3): esc closes, Tab stays inside, focus goes back to the opener.
+  const sheetRef = useModalFocus({ open, onClose, initialRef: findRef });
   // Built each time it opens: the registry may have been re-bound since the last "?".
   const sheet = useMemo(
     () =>
@@ -87,14 +80,15 @@ export function ShortcutsOverlay({ open, onClose, readOnly = false }) {
         aria-modal="true"
         aria-label="Keyboard shortcuts"
         data-testid="shortcuts-sheet"
+        ref={sheetRef}
+        tabIndex={-1}
       >
         <div className="so-overlay-hd">
           <span className="so-title">Keyboard shortcuts</span>
           <label className="so-find">
             <StIcon name="search" size={14} />
             <input
-              // biome-ignore lint/a11y/noAutofocus: "?" opens on an explicit key press.
-              autoFocus
+              ref={findRef}
               data-testid="shortcuts-find"
               aria-label="Find a shortcut"
               placeholder="Find a shortcut"

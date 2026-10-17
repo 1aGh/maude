@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { notify } from '../notifications.tsx';
+import { restoreFocus, trapTab } from './v2/shell/modal-focus.js';
 
 /** Modal keyboard handling shared by the share and file-link decisions. */
 export function useLinkDialogFocus(onClose) {
@@ -18,29 +19,14 @@ export function useLinkDialogFocus(onClose) {
         event.preventDefault();
         event.stopImmediatePropagation();
         closeRef.current();
-      } else if (event.key === 'Tab') {
-        const items = controls();
-        const first = items[0];
-        const last = items.at(-1);
-        if (
-          event.shiftKey &&
-          (document.activeElement === first || !el.contains(document.activeElement))
-        ) {
-          event.preventDefault();
-          last?.focus();
-        } else if (
-          !event.shiftKey &&
-          (document.activeElement === last || !el.contains(document.activeElement))
-        ) {
-          event.preventDefault();
-          first?.focus();
-        }
+      } else {
+        trapTab(event, el); // the shell's one trap (v2/shell/modal-focus.js)
       }
     };
     document.addEventListener('keydown', key, true);
     return () => {
       document.removeEventListener('keydown', key, true);
-      previous?.focus?.();
+      restoreFocus(previous); // the opener, or the shell's landmark when it is gone — never BODY
     };
   }, []);
   return ref;

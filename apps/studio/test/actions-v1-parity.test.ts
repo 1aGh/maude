@@ -114,7 +114,11 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['⇧⌘R', shell('text'), 'canvases.refresh'],
     ['⌘R', shell('text'), 'canvas.reload'],
     ['⇧⌘M', shell('chrome'), 'view.comments'],
-    ['⇧⌘G', shell('chrome'), 'history.open'],
+    // V2-4 gate approved delta (rule 13): Version history moved ⇧⌘G → ⌥⌘H (CONTRACT §1); ⇧⌘G is Remove
+    // frame in Edit (the canvas's) and Ungroup annotations in Preview.
+    ['⇧⌘G', shell('chrome'), null],
+    ['⌥⌘H', shell('chrome'), 'history.open'],
+    ['⌥⌘H', shell('text'), 'history.open'],
     ['⇧⌘I', shell('text'), 'view.inspector'],
     // V2-4.5b approved delta (rule 13): Assistant moved ⇧⌘A → ⌘/ (CONTRACT §2 "Ask AI"); v2's ⇧⌘A is
     // Select all annotations. The ⌘/ alias of Search canvases died with it.
@@ -265,7 +269,8 @@ describe('canvas document', () => {
       ['⇧⌘E', inCanvas, 'export.open'],
       ['⇧⌘H', inCanvas, 'handoff.open'],
       ['⇧⌘T', inCanvas, 'view.timeline-keep-open'],
-      ['⇧⌘G', inCanvas, 'history.open'],
+      ['⇧⌘G', inCanvas, null], // V2-4 gate: moved to ⌥⌘H
+      ['⌥⌘H', inCanvas, 'history.open'],
       ['⇧⌘A', inCanvas, null],
       ['⌘,', inCanvas, null],
       ['?', inCanvas, null],

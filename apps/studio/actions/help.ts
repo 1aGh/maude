@@ -80,4 +80,11 @@ export const MOVED_KEYS: readonly MovedKey[] = [
   // ⇧⌘A is Select all annotations in v2
   { was: 'Assistant ⇧⌘A', now: '⌘/', note: 'Ask AI, the AI chat panel', to: 'ai.chat' },
   { was: 'Search canvases ⌘/', now: '/', note: '⌘/ asks AI', to: 'canvases.search' },
+  // V2-4 gate (design blocker 6) — CONTRACT §1 Version history ⌥⌘H
+  {
+    was: 'Changes ⇧⌘G',
+    now: 'Version history ⌥⌘H',
+    note: '⇧⌘G is Remove frame in Edit',
+    to: 'history.open',
+  },
 ];

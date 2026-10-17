@@ -7,6 +7,8 @@
 // consumers read `insets` when they compute (Fit, reveal); an inset change alone never moves the
 // camera (I1).
 //
+// It also keeps the shell's `key-prefs` (V2-4 gate: the "Single-key shortcuts" switch) in `singleKeys`.
+//
 // The same listener applies the shell's `set-mode` (V2-4.3b — the governed path, §5.4): parent-gated,
 // an older `seq` dropped, the mode clamped by the caps (and by a `?ro=1` canvas). The first applied
 // `set-mode` makes the document GOVERNED; from then on the `ToolProvider`s adopt `mode` from here and
@@ -42,6 +44,8 @@ export interface CanvasModeSnapshot {
   readonly prevMode: CanvasModeV2 | null;
   /** The requested mode was clamped (echo cause `clamp`). */
   readonly clamped: boolean;
+  /** V2-4 gate — the shell's "Single-key shortcuts" switch (`key-prefs`); on until the shell says off. */
+  readonly singleKeys: boolean;
 }
 
 export interface CanvasModeStore {
@@ -72,6 +76,7 @@ export function canvasModeStore(win: Window): CanvasModeStore {
     tool: null,
     prevMode: null,
     clamped: false,
+    singleKeys: true,
   };
   let echoed = -1;
   let asked = new Map<string, number>(); // key → when (a denied request may be asked again later)
@@ -121,6 +126,12 @@ export function canvasModeStore(win: Window): CanvasModeStore {
       for (const fn of subs) fn(snap);
       return;
     }
+    if (m?.dgn === 'key-prefs') {
+      if (m.singleKeys === snap.singleKeys) return;
+      snap = { ...snap, singleKeys: m.singleKeys };
+      for (const fn of subs) fn(snap);
+      return;
+    }
     if (m?.dgn !== 'occluded-insets') return;
     if (m.seq <= snap.insetsSeq) return; // I4 — an older (or repeated) seq is dropped
     snap = { ...snap, insets: Object.freeze({ ...m.insets }), insetsSeq: m.seq };
@@ -134,6 +145,11 @@ export function canvasModeStore(win: Window): CanvasModeStore {
 /** The insets the camera consumers honour right now (zero outside a browser document). */
 export function canvasInsets(): Readonly<Insets> {
   return typeof window === 'undefined' ? ZERO_INSETS : canvasModeStore(window).get().insets;
+}
+
+/** V2-4 gate — may a character-key chord fire in this canvas? (true outside a browser document.) */
+export function canvasSingleKeys(): boolean {
+  return typeof window === 'undefined' ? true : canvasModeStore(window).get().singleKeys;
 }
 
 /**

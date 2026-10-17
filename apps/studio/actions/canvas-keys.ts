@@ -25,10 +25,15 @@ export function resolveCanvasKey(
   index: KeyIndex<KeyedAction>,
   e: KeyEventLike,
   typing: boolean,
-  mode?: Mode
+  mode?: Mode,
+  /** The shell's "Single-key shortcuts" switch (bridge `key-prefs`, canvas-mode-store); absent = on. */
+  singleKeys?: boolean
 ): ActionId | null {
   return (
-    resolveChord(index, chordFromEvent(e), canvasKeyCtx({ typing, readOnly: false, mode }))?.action
-      .id ?? null
+    resolveChord(
+      index,
+      chordFromEvent(e),
+      canvasKeyCtx({ typing, readOnly: false, mode, singleKeys })
+    )?.action.id ?? null
   );
 }

@@ -61,6 +61,8 @@ export interface UiPrefs {
   seen?: Record<string, true>;
   canvases?: { showHidden?: boolean };
   panelsHidden?: boolean;
+  /** V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts. Absent = on. */
+  singleKeyShortcuts?: boolean;
   migratedFrom?: number;
   /**
    * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
@@ -234,6 +236,11 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
   if ('panelsHidden' in body) {
     if (typeof body.panelsHidden !== 'boolean') return fail('panelsHidden must be a boolean');
     patch.panelsHidden = body.panelsHidden;
+  }
+  if ('singleKeyShortcuts' in body) {
+    if (typeof body.singleKeyShortcuts !== 'boolean')
+      return fail('singleKeyShortcuts must be a boolean');
+    patch.singleKeyShortcuts = body.singleKeyShortcuts;
   }
   if ('canvases' in body) {
     const c = body.canvases;

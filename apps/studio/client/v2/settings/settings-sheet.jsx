@@ -21,12 +21,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import { MDCC_VERSION } from '../../shell/constants.js';
 import AdvancedSection from './advanced-section.jsx';
+import { restoreFocus, trapTab } from '../shell/modal-focus.js';
 import ConnectionsSection from './connections-section.jsx';
 import GeneralSection from './general-section.jsx';
 import { railTarget, resolveTab, SETTINGS_TAB_STORE, sectionsFor } from './settings-model.js';
-
-const FOCUSABLE =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function remembered() {
   try {
@@ -74,7 +72,7 @@ export default function SettingsSheet({
     const opener = document.activeElement;
     tabRefs.current[current]?.focus();
     return () => {
-      if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
+      restoreFocus(opener); // the opener, or the shell's landmark when it is gone — never BODY
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -100,22 +98,10 @@ export default function SettingsSheet({
     tabRefs.current[to]?.focus();
   }
 
-  // Keep Tab inside the sheet while it is the topmost thing.
+  // Keep Tab inside the sheet while it is the topmost thing (the shell's one trap, v2/shell/modal-focus.js).
   function onSheetKey(e) {
-    if (e.key !== 'Tab' || document.querySelector('.gi-modal, .cp-modal')) return;
-    const nodes = [...sheetRef.current.querySelectorAll(FOCUSABLE)].filter(
-      (n) => !n.closest('[hidden]')
-    );
-    if (nodes.length === 0) return;
-    const first = nodes[0];
-    const last = nodes[nodes.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
+    if (document.querySelector('.gi-modal, .cp-modal')) return;
+    trapTab(e, sheetRef.current);
   }
 
   return (
