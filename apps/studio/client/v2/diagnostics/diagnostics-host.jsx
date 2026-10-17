@@ -59,10 +59,12 @@ export default function DiagnosticsHost({ toast }) {
     if (open) load();
   }, [open, load]);
 
-  const folder = cfg?.cloud ? '' : (cfg?.projectFolder ?? '');
   const info = useMemo(
-    () => diagnosticsInfo(data, { host: globalThis.location?.host ?? '', folder }),
-    [data, folder]
+    () =>
+      diagnosticsInfo(cfg?.cloud ? { ...data, projectFolder: '' } : data, {
+        host: globalThis.location?.host ?? '',
+      }),
+    [data, cfg?.cloud]
   );
   const projectName = cfg?.cloud?.projectName || project;
   const words = useMemo(

@@ -72,14 +72,29 @@ export function helpGroupOf(def) {
   return 'canvas';
 }
 
-/** The chords a row shows: the live primaries first, then aliases ("or"). */
+const uniq = (xs) => [...new Set(xs)];
+const MODS = /^[⌃⌥⇧⌘]+/;
+const baseOf = (chord) => chord.replace(MODS, '');
+
+/**
+ * The chords a row shows: the live primaries first, then aliases ("or"). One chord bound in two
+ * focus lanes is one key, and a v1 "any modifier" alias set (three or more modifier spellings of
+ * a primary's key — Step back on ⌥⇧⌘Esc) is not a shortcut anyone learns, so it is not listed.
+ */
 function chordsOf(def, ctx) {
   const live = (def.keys ?? []).filter(
     (b) => !b.hold && holds({ ...b.when, focus: undefined, selection: undefined }, ctx)
   );
+  const main = uniq(live.filter((b) => !b.alias).map((b) => b.chord));
+  const alt = uniq(live.filter((b) => b.alias).map((b) => b.chord)).filter(
+    (c) => !main.includes(c)
+  );
+  const perBase = new Map();
+  for (const c of alt) perBase.set(baseOf(c), (perBase.get(baseOf(c)) ?? 0) + 1);
+  const mainBases = new Set(main.map(baseOf));
   return {
-    main: live.filter((b) => !b.alias).map((b) => b.chord),
-    alt: live.filter((b) => b.alias).map((b) => b.chord),
+    main,
+    alt: alt.filter((c) => !(mainBases.has(baseOf(c)) && perBase.get(baseOf(c)) >= 3)),
   };
 }
 
@@ -129,11 +144,27 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
       .get('file')
       .push({ id: 'tab.select', label: 'Show tab 1–9', keys: ['⌘1–9'], alt: [], order: 2000 });
   }
+  // Two actions that read the same and take the same keys (Nudge for objects and for
+  // annotations) are one row on a sheet that says what a key does, not which handler runs it.
+  // The row keeps the merged ids in `also`, so "every visible key is on the sheet" still holds.
+  const merged = (rows) => {
+    const first = new Map();
+    return rows.filter((r) => {
+      const k = `${r.label}\u0000${r.keys.join(' ')}\u0000${r.alt.join(' ')}`;
+      const kept = first.get(k);
+      if (kept) {
+        kept.also = [...(kept.also ?? []), r.id];
+        return false;
+      }
+      first.set(k, r);
+      return true;
+    });
+  };
   const groups = HELP_GROUPS.map((g) => ({
     id: g.id,
     label: g.label,
     ...(g.note ? { note: g.note } : {}),
-    rows: (byGroup.get(g.id) ?? []).sort((a, b) => a.order - b.order),
+    rows: merged((byGroup.get(g.id) ?? []).sort((a, b) => a.order - b.order)),
   })).filter((g) => g.rows.length > 0);
   const keyOf = (id) => {
     const def = byId.get(id);

@@ -2134,9 +2134,6 @@ export function createHttp(
         formatVersion: projectFormat(ctx).value,
         formatGate: gateNow(),
         readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
-        // V2-4.7b — Diagnostics › Advanced › Project folder (a copy-value row). This Mac's own
-        // path, so a cloud tab (somebody else's machine) never gets it.
-        ...(!isWorkspaceMode() ? { projectFolder: ctx.paths.repoRoot } : {}),
         // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
         // embed view posts its status ONLY to a parent on this list, never to
         // '*'. Public already: the same origins ride in the page's CSP header.
@@ -2224,7 +2221,13 @@ export function createHttp(
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      return Response.json(diagnostics(), { headers: { 'Cache-Control': 'no-store' } });
+      // V2-4.7b — Diagnostics › Advanced › Project folder (a copy-value row). This Mac's own path
+      // (it names the user), so it rides here behind the rebinding guard and never on /_config
+      // (unguarded); a cloud tab (somebody else's machine) never gets it (Phase 4 gate review D1).
+      return Response.json(
+        { ...diagnostics(), ...(!isWorkspaceMode() ? { projectFolder: ctx.paths.repoRoot } : {}) },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
     },
     '/_api/diagnostics/report': (req: Request) => {
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });

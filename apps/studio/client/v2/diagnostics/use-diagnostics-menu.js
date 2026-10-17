@@ -18,12 +18,13 @@ export function useDiagnosticsMenu({ syncStatus, project, wsConnected, cfg, fetc
   const [info, setInfo] = useState(null);
   const [unreachable, setUnreachable] = useState(false);
   const host = globalThis.location?.host ?? '';
-  const folder = cfg?.cloud ? '' : (cfg?.projectFolder ?? '');
+  const cloud = !!cfg?.cloud;
 
-  // The Advanced rows copy these; the address and folder are known without asking the server.
+  // The Advanced rows copy these; the address is known without asking the server, the folder only
+  // from the guarded `/_api/diagnostics` answer (filled in when the menu opens).
   useEffect(() => {
-    setDiagnosticsFacts({ address: host, folder });
-  }, [host, folder]);
+    setDiagnosticsFacts({ address: host });
+  }, [host]);
 
   const onMenuOpen = useCallback(() => {
     if (armed) refresh();
@@ -33,13 +34,13 @@ export function useDiagnosticsMenu({ syncStatus, project, wsConnected, cfg, fetc
       .then(() => f('/_api/diagnostics'))
       .then((r) => r.json())
       .then((j) => {
-        const next = diagnosticsInfo(j, { host, folder });
+        const next = diagnosticsInfo(cloud ? { ...j, projectFolder: '' } : j, { host });
         setInfo(next);
         setUnreachable(false);
         setDiagnosticsFacts(next);
       })
       .catch(() => setUnreachable(true));
-  }, [armed, refresh, host, folder, fetchFn]);
+  }, [armed, refresh, host, cloud, fetchFn]);
 
   const status = useMemo(
     () =>
@@ -49,9 +50,9 @@ export function useDiagnosticsMenu({ syncStatus, project, wsConnected, cfg, fetc
         wsConnected,
         report,
         unreachable,
-        info: info ?? { address: host, folder },
+        info: info ?? { address: host, folder: '' },
       }),
-    [syncStatus, project, wsConnected, report, unreachable, info, host, folder]
+    [syncStatus, project, wsConnected, report, unreachable, info, host]
   );
   const hidden = useMemo(
     () => hiddenMenuIds({ cloud: cfg?.cloud ?? null, syncStatus }),

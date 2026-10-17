@@ -303,7 +303,10 @@ describe('"?" — the shortcuts sheet', () => {
 
   test('every registry key that is visible to the person is on the sheet', () => {
     const onSheet = new Set(
-      [...sheet.groups.flatMap((g) => g.rows), ...sheet.advanced].map((r) => r.id)
+      [...sheet.groups.flatMap((g) => g.rows), ...sheet.advanced].flatMap((r) => [
+        r.id,
+        ...((r as { also?: string[] }).also ?? []),
+      ])
     );
     const expected = ACTIONS.filter(
       (a) =>
@@ -317,6 +320,23 @@ describe('"?" — the shortcuts sheet', () => {
     expect(expected.length).toBeGreaterThan(40);
     for (const a of expected) expect(onSheet.has(a.id), `"?" lists ${a.id}`).toBe(true);
     expect(onSheet.has('tab.select')).toBe(true);
+  });
+
+  test('a key is listed once: no repeats across focus lanes, no "any modifier" spellings, one row per meaning', () => {
+    const rows = sheet.groups.flatMap((g) => g.rows);
+    for (const r of rows) {
+      const all = [...r.keys, ...r.alt];
+      expect(new Set(all).size, `${r.id} repeats a key: ${all.join(' ')}`).toBe(all.length);
+    }
+    const stepBack = rows.find((r) => r.id === 'ui.step-back');
+    expect(stepBack?.keys).toEqual(['esc']);
+    expect(stepBack?.alt).toEqual([]);
+    expect(rows.find((r) => r.id === 'object.remove')?.alt).toEqual([]);
+    // A meaningful one-modifier variant stays: ⇧-arrows nudge further.
+    expect(rows.find((r) => r.id === 'object.nudge')?.alt).toEqual(['⇧←', '⇧→', '⇧↑', '⇧↓']);
+    const objects = sheet.groups.find((g) => g.id === 'objects')?.rows ?? [];
+    expect(objects.filter((r) => r.label === 'Nudge')).toHaveLength(1);
+    expect(objects.find((r) => r.label === 'Nudge')).toMatchObject({ also: ['annotation.nudge'] });
   });
 
   test('chords are read from the registry when the sheet is built', () => {

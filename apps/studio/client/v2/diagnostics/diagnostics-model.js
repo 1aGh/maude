@@ -96,14 +96,17 @@ export function hiddenMenuIds({ cloud = null, syncStatus = null } = {}) {
   return hidden;
 }
 
-/** What `GET /_api/diagnostics` (+ the page's own address) says about this server. */
+/**
+ * What `GET /_api/diagnostics` (+ the page's own address) says about this server. The project folder
+ * comes from that guarded payload (`projectFolder`, absent in a cloud tab), never from `/_config`.
+ */
 export function diagnosticsInfo(payload, { host = '', folder = '' } = {}) {
   const st = payload?.sources?.server?.status ?? {};
   return {
     address: host || '',
     pid: Number.isFinite(st.pid) ? st.pid : null,
     version: typeof st.version === 'string' ? st.version : '',
-    folder: folder || '',
+    folder: folder || (typeof payload?.projectFolder === 'string' ? payload.projectFolder : ''),
     uptimeSeconds: Number.isFinite(st.uptimeSeconds) ? st.uptimeSeconds : null,
   };
 }
