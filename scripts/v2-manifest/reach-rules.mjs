@@ -135,7 +135,9 @@ export function toolRoles(modeTools, slotActionId) {
 
 /** The tool a row / hook / action points at, if any: a `tool.*` action or a concrete `toolbar-slot-*` hook. */
 const toolRef = (ref) =>
-  typeof ref === 'string' && (/^tool\./.test(ref) || /^toolbar-slot-[\w-]+$/.test(ref)) ? ref : null;
+  typeof ref === 'string' && (/^tool\./.test(ref) || /^toolbar-slot-[\w-]+$/.test(ref))
+    ? ref
+    : null;
 
 /** Is `probe` allowed to need this tool? Anything that is not a tool, or has no toolbar data, passes. */
 function toolAllows(refs, probe, roles) {
@@ -194,11 +196,23 @@ export function actionProbes(action, isVisible, roles) {
  * was seen in the named shell and absent from the other by the probe itself.
  */
 export const HOOK_SHELLS = Object.freeze([
-  [/^settings-github-sign(in|out)$/, ['desktop'], 'IdentityBar draws GitHub only in the native shell'],
+  [
+    /^settings-github-sign(in|out)$/,
+    ['desktop'],
+    'IdentityBar draws GitHub only in the native shell',
+  ],
   [/^team-/, ['desktop'], 'TeamProjectsDialog is native-only (needs the shell for a keychain)'],
   [/^palette-ask-ai$/, ['desktop'], 'Ask AI is desktop only (palette-ask-ai meaning)'],
-  [/^(chat-|acp-|dock-ai-|\.chat-|\.btn--danger \(permission|\[aria-label="(Send message|Stop|Reopen)"\])/, ['desktop'], 'the ACP chat panel exists only in the desktop app'],
-  [/^share-open-app$/, ['browser', 'cloud-owner', 'cloud-member', 'cloud-viewer', 'viewer'], 'no "Open in app" inside the app (share-open-app meaning)'],
+  [
+    /^(chat-|acp-|dock-ai-|\.chat-|\.btn--danger \(permission|\[aria-label="(Send message|Stop|Reopen)"\])/,
+    ['desktop'],
+    'the ACP chat panel exists only in the desktop app',
+  ],
+  [
+    /^share-open-app$/,
+    ['browser', 'cloud-owner', 'cloud-member', 'cloud-viewer', 'viewer'],
+    'no "Open in app" inside the app (share-open-app meaning)',
+  ],
 ]);
 
 /** Probes where a kept hook must be reachable: every shell v1 showed it in, else the local probes. */
@@ -206,7 +220,13 @@ export function hookProbes(hook, v1Seen, roles) {
   const seen = v1Seen.get(hook);
   const named = HOOK_SHELLS.find(([re]) => re.test(hook));
   const base = named ? named[1] : seen?.size ? PROBE_IDS.filter((p) => seen.has(p)) : LOCAL_PROBES;
-  return base.filter((id) => toolAllows([hook], PROBES.find((p) => p.id === id), roles));
+  return base.filter((id) =>
+    toolAllows(
+      [hook],
+      PROBES.find((p) => p.id === id),
+      roles
+    )
+  );
 }
 
 /**

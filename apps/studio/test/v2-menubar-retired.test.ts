@@ -39,6 +39,18 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** A pattern hook (`toolbar-slot-<toolId>`) names a family; `toolbar-slot-browse` is one of it. */
+function patternHook(h: { hook: string; pattern?: boolean }, id: string): boolean {
+  if (!h.pattern) return false;
+  const re = new RegExp(
+    `^${h.hook
+      .split(/<[^>]+>/)
+      .map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('[\\w.-]+')}$`
+  );
+  return re.test(id);
+}
+
 describe('the in-app menubar is deleted', () => {
   test('the component file is gone and nothing imports it', () => {
     expect(existsSync(join(STUDIO, 'client/menus/menubar.jsx'))).toBe(false);
@@ -88,7 +100,7 @@ describe('every v1 menubar entry resolves to a reachable v2 target', () => {
         expect(ACTIONS_BY_ID.has(row.v2.action), `${id}: ${row.v2.action}`).toBe(true);
       if (row.v2.testid)
         expect(
-          hooks.some((h) => h.hook === row.v2.testid),
+          hooks.some((h) => h.hook === row.v2.testid || patternHook(h, row.v2.testid)),
           `${id}: ${row.v2.testid} is in testids.json`
         ).toBe(true);
     }

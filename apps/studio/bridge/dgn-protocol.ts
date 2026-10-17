@@ -888,7 +888,15 @@ const s2c: S2C = {
     owner: CS,
     parse: p({ message: str }),
   },
-  'tool-set': { gate: 'parent', status: 'live', owner: 'use-tool-mode', parse: p({ tool: str }) },
+  'tool-set': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'use-tool-mode',
+    // V2-4.8a: its shell sender was the in-app menubar's Tools menu; tools are armed by the canvas's
+    // own toolbar and keys now (V2-4.5). The parent-gated handler stays until V2-8.0 retires the row.
+    orphan: 'no-sender',
+    parse: p({ tool: str }),
+  },
   'insert-sticker': {
     gate: 'parent',
     status: 'live',

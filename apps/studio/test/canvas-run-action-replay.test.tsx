@@ -33,10 +33,12 @@ afterAll(async () => {
 const sibling = { name: 'sibling-canvas-frame' };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
 
-test('the replayed chords are exactly the three canvas actions with only a key handler', () => {
+test('the replayed chords are exactly the canvas actions with only a key handler', () => {
+  // + V2-4.5 mode.preview: ⌥⌘P with the shell focused — the canvas router asks for Preview / back.
   expect(Object.keys(REPLAY_KEYS).sort()).toEqual([
     'edit.copy-properties',
     'edit.paste-properties',
+    'mode.preview',
     'select.all',
   ]);
   expect(replayActionKey('object.remove')).toBe(false);

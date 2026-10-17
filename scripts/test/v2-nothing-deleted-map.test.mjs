@@ -23,7 +23,18 @@ const labelFiles = [/menubar\.jsx$/];
 const e = (id, extra) => ({ id, file: `apps/${id.split(':')[1].split('#')[0]}`, ...extra });
 
 function run(frozen, late = [], live = new Set(), infra = {}) {
-  return mapEntries({ frozen, late, live, rows, actions, hooks, hand: {}, rules, labelFiles, infra });
+  return mapEntries({
+    frozen,
+    late,
+    live,
+    rows,
+    actions,
+    hooks,
+    hand: {},
+    rules,
+    labelFiles,
+    infra,
+  });
 }
 
 test('a hook re-emitted in v2 maps to itself, or to the row that names it', () => {
@@ -112,7 +123,9 @@ test('a rule pointing at an unknown row / action / hook is reported, not written
 
 test('a named infrastructure entry is excluded with its reason, frozen or late, ahead of every rule', () => {
   const id = 'contextmenu:studio/client/context-menu.tsx#App/div';
-  const infra = { [id]: "infrastructure: suppresses the browser's own context menu; not a feature" };
+  const infra = {
+    [id]: "infrastructure: suppresses the browser's own context menu; not a feature",
+  };
   const frozen = e(id, { kind: 'contextmenu', label: 'right-click on <div>' });
   // a rule that would map it to a row must lose to the named exclusion
   const viaFrozen = run([frozen], [], new Set([id]), infra);

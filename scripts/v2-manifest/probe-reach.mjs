@@ -114,7 +114,12 @@ for (const t of [...new Set(Object.values(nd.map ?? {}))].filter((x) => x.includ
   if (t.startsWith('action:')) {
     const a = ACTIONS_BY_ID.get(t.slice(7));
     if (a)
-      subjects.targets.push({ id: t, need: actionProbes(a, isVisible, TOOL_ROLES), action: a.id, hook: null });
+      subjects.targets.push({
+        id: t,
+        need: actionProbes(a, isVisible, TOOL_ROLES),
+        action: a.id,
+        hook: null,
+      });
   } else
     subjects.targets.push({
       id: t,
@@ -315,7 +320,9 @@ async function runOpener(browser, srv, probe, opener) {
   try {
     const page = await ctx.newPage();
     if (process.env.PROBE_DEBUG)
-      page.on('pageerror', (e) => console.log(`  [pageerror ${opener.id}] ${String(e).slice(0, 300)}`));
+      page.on('pageerror', (e) =>
+        console.log(`  [pageerror ${opener.id}] ${String(e).slice(0, 300)}`)
+      );
     await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     const world = resolveOpener(opener);
     const config = { ...probe.config, ...world.config };
@@ -535,4 +542,5 @@ console.log(
   `reachability: rows ${okRows}/${Object.keys(doc.rows).length} · kept targets ${okT}/${Object.keys(doc.targets).length} → apps/studio/client/v2/reachability.json`
 );
 if (!existsSync(OUT)) process.exit(2);
-if (PARTIAL && !args.includes('--write')) console.log('partial run: reachability.json NOT written (add --write)');
+if (PARTIAL && !args.includes('--write'))
+  console.log('partial run: reachability.json NOT written (add --write)');

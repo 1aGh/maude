@@ -142,6 +142,14 @@ function charPoint(sel: string, i: number) {
  * element, with IFRAME-LOCAL client coords. Exercises the app's capture-phase
  * dblclick handlers exactly like a user gesture (minus native caret motion —
  * the app places the caret itself via caretRangeFromPoint). */
+/** V2-4.3/4.5 — the shell owns the mode: click the Share cluster's segment and let `set-mode` land. */
+async function setMode(mode: 'edit' | 'preview') {
+  const seg = await $(`[data-testid="palette-mode-${mode}"]`);
+  await seg.waitForExist({ timeout: 10_000 });
+  await seg.click();
+  await browser.pause(400);
+}
+
 function synthDblclick(sel: string, cx: number, cy: number) {
   return browser.execute(
     (q, x, y) => {
@@ -715,7 +723,10 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     const strokesBefore = await countStrokes();
     expect(strokesBefore).toBeGreaterThanOrEqual(2); // seeded sticky + text
 
-    // Arm the Text tool (its palette shortcut) and click the sticky THROUGH
+    // V2-4.5: the annotation Text tool is Preview's (in Edit, T adds a design text element) — switch
+    // with the Share cluster's mode switch first, and back to Edit at the end.
+    await setMode('preview');
+    // Arm the Text tool (its toolbar key) and click the sticky THROUGH
     // the tool's input-capture overlay — the editor must open on the EXISTING
     // sticky (click-through), not drop a new standalone text over it.
     await synthKeyOnDoc('t');
@@ -749,6 +760,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await browser.pause(200);
     expect((await annotEditorProbe()).exists).toBe(false);
     expect(await countStrokes()).toBe(strokesBefore);
+    await setMode('edit');
   });
 
   // ── Phase 5 — keyboard unification ────────────────────────────────────────

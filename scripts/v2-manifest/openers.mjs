@@ -11,6 +11,7 @@
 // state by name (`state: 'linked-project'`) or for single routes (`routes: { <path>: <answer> }`).
 
 const tid = (t) => `[data-testid="${t}"]`;
+
 export { tid };
 
 /** ⌘K as V2-4.6 draws it (client/dialogs/command-palette.jsx): the input, the row label text, and the
@@ -67,7 +68,9 @@ export const ROUTE_ANSWERS = {
       conflicts: 1,
       failed: 0,
       rateLimited: { waiting: 2 },
-      held: [{ kind: 'mass-delete', detail: '12 files vanished.', count: 2, paths: ['a.png', 'b.png'] }],
+      held: [
+        { kind: 'mass-delete', detail: '12 files vanished.', count: 2, paths: ['a.png', 'b.png'] },
+      ],
       delivery: { 'a.png': 'stuck', 'b.png': 'durable' },
       progress: {
         tracked: 10,
@@ -103,7 +106,14 @@ export const ROUTE_ANSWERS = {
     trackedCount: 3,
     hubUrl: HUB,
   },
-  ownershipHub: { ok: true, mode: 'hub-owned', linked: true, git: true, trackedCount: 0, hubUrl: HUB },
+  ownershipHub: {
+    ok: true,
+    mode: 'hub-owned',
+    linked: true,
+    git: true,
+    trackedCount: 0,
+    hubUrl: HUB,
+  },
   syncTrash: {
     ok: true,
     entries: [
@@ -134,8 +144,20 @@ export const ROUTE_ANSWERS = {
     ok: true,
     projects: [
       { id: 'studio', name: 'Studio site', url: HUB, role: 'owner', stateLabel: 'ready' },
-      { id: 'docs', name: 'Docs', url: 'https://hub2.example.com', role: 'member', stateLabel: 'ready' },
-      { id: 'brand', name: 'Brand', url: 'https://hub3.example.com', role: 'viewer', stateLabel: '' },
+      {
+        id: 'docs',
+        name: 'Docs',
+        url: 'https://hub2.example.com',
+        role: 'member',
+        stateLabel: 'ready',
+      },
+      {
+        id: 'brand',
+        name: 'Brand',
+        url: 'https://hub3.example.com',
+        role: 'viewer',
+        stateLabel: '',
+      },
     ],
   },
   cloudSigninStart: {
@@ -193,7 +215,10 @@ export const STATES = {
 /** WebSocket frames the studio's own server would send (client/app.jsx `m.type` branches). */
 export const WS_PUSH = {
   // a branch switch / pull mid-session: Diagnostics › Server offers a reload
-  'git-lifecycle': { type: 'git-lifecycle', payload: { kind: 'branch-switch', from: 'main', to: 'next' } },
+  'git-lifecycle': {
+    type: 'git-lifecycle',
+    payload: { kind: 'branch-switch', from: 'main', to: 'next' },
+  },
 };
 
 /** An opener with its state folded in (a state may extend another): the one shape the browser driver reads. */

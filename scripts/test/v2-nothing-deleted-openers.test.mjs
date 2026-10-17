@@ -5,8 +5,8 @@ import { test } from 'node:test';
 import {
   OPENERS,
   PALETTE,
-  resolveOpener,
   ROUTE_ANSWERS,
+  resolveOpener,
   STATES,
   WS_PUSH,
 } from '../v2-manifest/openers.mjs';
@@ -26,7 +26,10 @@ test('a state that extends another overrides only what it names', () => {
   const w = resolveOpener(opener('settings-advanced-detach'));
   assert.equal(w.routes['/_api/sync/ownership'].mode, 'hub-owned'); // overridden
   assert.equal(w.routes['/_api/sync/settings'].ok, true); // inherited
-  assert.equal(resolveOpener(opener('diag-sync-files')).routes['/_sync-status'].aiAction.state, 'held');
+  assert.equal(
+    resolveOpener(opener('diag-sync-files')).routes['/_sync-status'].aiAction.state,
+    'held'
+  );
 });
 
 test('the signed-in cloud state answers the account and its projects, nothing else', () => {
@@ -51,5 +54,8 @@ test('every opener resolves, every pushed frame exists, ids are unique, ⌘K is 
 
 test('an unknown state or answer is a loud error, not a silent empty world', () => {
   assert.throws(() => resolveOpener({ id: 'x', state: 'nope', steps: [] }), /unknown state/);
-  assert.throws(() => resolveOpener({ id: 'x', routes: { '/a': 'nope' }, steps: [] }), /no route answer/);
+  assert.throws(
+    () => resolveOpener({ id: 'x', routes: { '/a': 'nope' }, steps: [] }),
+    /no route answer/
+  );
 });

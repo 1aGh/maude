@@ -152,7 +152,12 @@ test('evidence collected before a failed step still counts', () => {
 // ── tool reach: a tool is required only where its slot's minRole lets the role in ────────────────
 const slotId = (s) => (s.tool === 'move' ? 'tool.select' : `tool.${s.tool ?? s.panel}`);
 const modeTools = {
-  edit: { slots: [{ tool: 'move', minRole: 'edit' }, { tool: 'hand', minRole: 'edit' }] },
+  edit: {
+    slots: [
+      { tool: 'move', minRole: 'edit' },
+      { tool: 'hand', minRole: 'edit' },
+    ],
+  },
   preview: {
     slots: [
       { tool: 'browse', minRole: 'view' },
@@ -187,7 +192,9 @@ test('toolRoles: the lowest minRole across modes; tips inherit; an unlisted tool
 test('a tool action is required only in the shells whose role reaches its slot', () => {
   const need = (id) => actionProbes(toolActions.get(id), isVisible, roles);
   assert.ok(need('tool.select').includes('cloud-member'));
-  assert.ok(!need('tool.select').includes('viewer') && !need('tool.select').includes('cloud-viewer'));
+  assert.ok(
+    !need('tool.select').includes('viewer') && !need('tool.select').includes('cloud-viewer')
+  );
   assert.ok(need('tool.browse').includes('viewer') && need('tool.browse').includes('cloud-viewer'));
   assert.ok(need('tool.comment').includes('viewer'));
   assert.ok(!need('tool.highlighter').includes('viewer'));
@@ -201,7 +208,10 @@ test('a row whose action or hook is a tool follows the same rule', () => {
   assert.ok(!sel.includes('viewer') && !sel.includes('cloud-viewer'));
   const hand = rowProbes({ id: 'A-b', home: 'menu', v2: { action: 'tool.browse' } }, toolDeps);
   assert.ok(hand.includes('viewer'));
-  const hook = rowProbes({ id: 'A-h', home: 'menu', v2: { testid: 'toolbar-slot-move' } }, toolDeps);
+  const hook = rowProbes(
+    { id: 'A-h', home: 'menu', v2: { testid: 'toolbar-slot-move' } },
+    toolDeps
+  );
   assert.ok(hook.includes('cloud-owner') && !hook.includes('viewer'));
 });
 
