@@ -83,9 +83,9 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('a remembered section this shell does not have cannot select nothing', () => {
     // Open Advanced on the desktop, then open Settings in the cloud.
     expect(SHEET).toContain('resolveTab(cloud, initialTab, remembered(), readOnly)');
-    expect(SETTINGS_MODEL).toContain('sectionsFor(cloud).map((s) => s.id)');
+    expect(SETTINGS_MODEL).toContain('sectionsFor(cloud, readOnly).map((s) => s.id)');
     // …and the local sections need `cloud === null`, never mere falsiness.
-    expect(SETTINGS_MODEL).toMatch(/!s\.local \|\| cloud === null/);
+    expect(SETTINGS_MODEL).toMatch(/!s\.local \|\| \(cloud === null/);
   });
 
   test('the cloud sign-in is not offered inside the cloud', () => {
