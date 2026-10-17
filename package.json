@@ -96,6 +96,7 @@
     "!apps/studio/client/v2/contracts",
     "!apps/studio/client/v2/v1-manifest.json",
     "!apps/studio/client/v2/nothing-deleted.json",
+    "!apps/studio/client/v2/reachability.json",
     "plugins/design/dependencies.json",
     "plugins/design/dependencies.schema.json",
     "plugins/design/templates",
