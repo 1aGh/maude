@@ -45,6 +45,7 @@ import { IconChevronDown, SHAPE_KIND_ICONS, TOOL_ICONS } from './canvas-icons.ts
 import type { Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { isMarkerTip, lastMarkerTip, rememberMarkerTip } from './toolbars/marker-tip.ts';
+import { openToolPanel } from './toolbars/tool-panel.ts';
 import { ensureToolbarStyles } from './toolbars/toolbar-css.ts';
 import { SLOT_ICONS } from './toolbars/toolbar-icons.tsx';
 import { createRectPoster, wholeRect } from './toolbars/toolbar-rect.ts';
@@ -314,7 +315,8 @@ export function ToolPalette() {
       );
     }
 
-    // Panel-only: Stickers keeps today's picker (V2-4.5b retires `open-sticker-picker`).
+    // Panel-only slot (Stickers): the SHELL draws the panel — `tool-panel-open` (V2-4.5c), anchored to this
+    // button and the reported `toolbar-rect`. No tool is armed.
     if (s.tool === null) {
       const Icon = glyphFor(id);
       return (
@@ -324,7 +326,7 @@ export function ToolPalette() {
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
           title={`${s.label}${keyHint} — searchable sticker picker`}
-          onClick={() => postShell({ dgn: 'open-sticker-picker' })}
+          onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}
         </button>

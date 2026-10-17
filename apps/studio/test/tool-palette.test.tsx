@@ -583,12 +583,12 @@ describe('the Preview toolbar (ungoverned, an editor)', () => {
     expect(ctx?.sticky.locked).toBe(false);
   });
 
-  test('Stickers keeps today’s picker reachable (open-sticker-picker); it arms no tool', () => {
+  test('Stickers asks the shell for its panel (tool-panel-open, not the retired open-sticker-picker); it arms no tool', () => {
     mountBar();
     act(() => ctx?.setMode('preview'));
     const before = ctx?.tool;
     click(q('toolbar-slot-stickers'));
-    expect(verbs()).toEqual([{ dgn: 'open-sticker-picker' }]);
+    expect(verbs()).toEqual([{ dgn: 'tool-panel-open', panel: 'stickers', anchor: null }]);
     expect(ctx?.tool).toBe(before);
     expect(q('toolbar-slot-stickers')?.hasAttribute('aria-pressed')).toBe(false);
   });

@@ -3,7 +3,8 @@
 // Searchable, pack-grouped picker for MAUDE's bundled whiteboard sticker packs
 // (GET /_api/stickers — main-origin only, DDR-054/DDR-088; mirrors AssetPicker's
 // shell/scrim treatment in app.jsx). Triggered from the canvas-side tool
-// palette's Stickers button via `postMessage({dgn:'open-sticker-picker'})`;
+// toolbar's Stickers button via `postMessage({dgn:'tool-panel-open', panel:'stickers'})` (V2-4.5c;
+// it was `open-sticker-picker` until the palette retired);
 // `onPick(sticker)` hands the caller `{ file, keywords, url }` — app.jsx
 // re-uploads the picked PNG's bytes through the existing /_api/asset lane
 // (content-addressed, canvas-origin-allowlisted) and relays the resulting
@@ -28,7 +29,20 @@ function StIcon({ name, size = 15 }) {
   return null;
 }
 
-export default function StickerPicker({ onPick, onClose }) {
+/** `placePanel`'s output → fixed-position CSS. */
+function anchoredStyle(a) {
+  const st = { left: a.left, width: a.width, maxHeight: a.maxHeight };
+  if (a.top != null) st.top = a.top;
+  if (a.bottom != null) st.bottom = a.bottom;
+  return st;
+}
+
+/**
+ * @param anchor V2-4.5c — a `placePanel` placement (`{left, width, maxHeight, top | bottom}`) that pins
+ *   the picker above/below the canvas toolbar; null = today's centred dialog. Either way the scrim
+ *   stays (an outside click closes, and an open modal dialog is what the mode lane's M4 check reads).
+ */
+export default function StickerPicker({ onPick, onClose, anchor = null }) {
   const [packs, setPacks] = useState(null); // null = loading
   const [query, setQuery] = useState('');
 
@@ -74,14 +88,21 @@ export default function StickerPicker({ onPick, onClose }) {
 
   return (
     <div
-      className="st-scrim"
+      className={anchor ? 'st-scrim st-scrim--anchored' : 'st-scrim'}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="st-dialog st-sticker-picker"
+        className={
+          anchor
+            ? 'st-dialog st-sticker-picker st-sticker-picker--anchored'
+            : 'st-dialog st-sticker-picker'
+        }
+        data-testid="tool-panel-stickers"
+        data-placement={anchor?.placement}
+        style={anchor ? anchoredStyle(anchor) : undefined}
         role="dialog"
         aria-modal="true"
         aria-label="Stickers"

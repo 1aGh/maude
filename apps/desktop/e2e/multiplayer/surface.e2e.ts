@@ -434,6 +434,25 @@ async function gesture(p: Surface, q: string, op: string, value: ProbeArgument =
   if (!result || result.error)
     throw new Error(`DOM gesture ${op} on ${q}: ${result?.error ?? 'target absent'}`);
 }
+/** The toolbar slot's testid for an annotation tool (V2-4.5c: the Preview toolbar; Highlighter and Eraser
+ *  are Marker tips, so they share the `pen` slot). */
+const annotationSlot = (tool: string) =>
+  `[data-testid="toolbar-slot-${tool === 'highlighter' || tool === 'eraser' ? 'pen' : tool}"]`;
+/** The slot with `tool` armed (a Marker tip also names itself in `data-tip`). */
+const annotationArmed = (tool: string) =>
+  `${annotationSlot(tool)}[aria-pressed="true"]${
+    tool === 'pen' || tool === 'highlighter' || tool === 'eraser' ? `[data-tip="${tool}"]` : ''
+  }`;
+/** Arm an annotation tool in the Preview toolbar (the caller clicked `palette-mode-preview`). Marker tips
+ *  (C14): the first click arms the remembered tip, a second opens the tips and a tip arms it. */
+async function armAnnotationTool(p: Surface, tool: string) {
+  await gesture(p, annotationSlot(tool), 'click');
+  if (tool !== 'pen' && tool !== 'highlighter' && tool !== 'eraser') return;
+  if ((await p.probe(annotationArmed(tool)))?.visible) return;
+  if (!(await p.probe('[data-testid="toolbar-popover-marker-tips"]'))?.visible)
+    await gesture(p, annotationSlot(tool), 'click');
+  await gesture(p, `[data-testid="toolbar-tip-${tool}"]`, 'click');
+}
 async function openCanvas(p: Surface, rel: string) {
   if ((await p.read(`[data-testid="canvas-frame"][data-path=".design/${rel}"]`)) === null)
     await p.click(selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`));
@@ -1732,8 +1751,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               await until(async () => (await p.read('h1', true)) === 'Surface shapes baseline');
               await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             }
-            await from.click(selector('palette-mode-edit'));
-            const shapeButton = '[aria-label^="Shape (R)"]';
+            // V2-4.5c: annotation tools live only in the Preview toolbar (Edit's Shape R draws a design shape).
+            await from.click(selector('palette-mode-preview'));
+            const shapeButton = '[data-testid="toolbar-slot-shape"]';
             await gesture(from, shapeButton, 'click');
             await until(
               async () => !!(await from.probe(`${shapeButton}[aria-pressed="true"]`))?.visible
@@ -1863,7 +1883,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         }
       }
       for (const from of all) {
-        for (const [kind, label, tool] of [
+        for (const [kind, , tool] of [
           ['pen', 'Pen', 'pen'],
           ['highlighter', 'Highlighter', 'pen'],
           ['arrow', 'Arrow', 'arrow'],
@@ -1897,12 +1917,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               await until(async () => (await p.read('h1', true)) === 'Surface drawing baseline');
               await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
             }
-            await from.click(selector('palette-mode-edit'));
-            const button = `[aria-label^="${label} ("]`;
-            await gesture(from, button, 'click');
-            await until(
-              async () => !!(await from.probe(`${button}[aria-pressed="true"]`))?.visible
-            );
+            await from.click(selector('palette-mode-preview'));
+            await armAnnotationTool(from, kind);
+            await until(async () => !!(await from.probe(annotationArmed(kind)))?.visible);
             const before = new Set(
               (await from.probe('[data-tool][data-id]'))?.matches?.map((m) => m.id)
             );
@@ -2070,12 +2087,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // strokes under the next direction's resize/selection gestures.
             await openCanvas(p, `ui/${notesCanvas}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface media baseline');
-            await p.click(selector('palette-mode-edit'));
+            await p.click(selector('palette-mode-preview'));
           }
           const before = new Set(
             (await from.probe('[data-tool="sticky"][data-id]'))?.matches?.map((m) => m.id)
           );
-          await gesture(from, '[aria-label^="Sticky ("]', 'click');
+          await armAnnotationTool(from, 'sticky');
           await until(async () => !!(await from.probe('.dc-annot-input'))?.visible);
           const start = performance.now();
           await gesture(from, '.dc-annot-input', 'pointer', { x: 0.3, y: 0.3, dx: 130, dy: 100 });
@@ -2267,11 +2284,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => (await p.read('h1', true)) === 'Surface drawing baseline');
             await until(async () => (await p.read(selector('palette-mode-edit'))) !== null);
           }
-          await from.click(selector('palette-mode-edit'));
-          await gesture(from, '[aria-label^="Pen ("]', 'click');
-          await until(
-            async () => !!(await from.probe('[aria-label^="Pen ("][aria-pressed="true"]'))?.visible
-          );
+          await from.click(selector('palette-mode-preview'));
+          await armAnnotationTool(from, 'pen');
+          await until(async () => !!(await from.probe(annotationArmed('pen')))?.visible);
           await gesture(from, '.dc-annot-input', 'pointer', { x: 0.35, y: 0.3, dx: 110, dy: 80 });
           await until(async () => {
             eraseId =
@@ -2286,11 +2301,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 sameRecord(drawingDisk(p, eraseId), originalRecord)
             );
           const stroke = (await from.probe(q()))?.rect;
-          await gesture(from, '[aria-label^="Eraser ("]', 'click');
-          await until(
-            async () =>
-              !!(await from.probe('[aria-label^="Eraser ("][aria-pressed="true"]'))?.visible
-          );
+          await armAnnotationTool(from, 'eraser');
+          await until(async () => !!(await from.probe(annotationArmed('eraser')))?.visible);
           const input = (await from.probe('.dc-annot-input'))?.rect;
           if (!stroke || !input?.width || !input.height)
             throw new Unexercised('Eraser target geometry unavailable');
@@ -3231,7 +3243,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             controls.push({ selector: q, writable });
             if (writable) throw new Error(`Viewer offered a writable control: ${q}`);
           }
-          if ((await viewer.probe('[aria-label^="Sticky ("]'))?.visible)
+          if ((await viewer.probe(annotationSlot('sticky')))?.visible)
             throw new Error('Viewer offered a writable annotation tool');
           const before = bytes(viewer.root, 'ui/SurfaceMedia.tsx');
           // The frame may re-render between the read above and the gesture
@@ -3679,7 +3691,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L11.comment.create', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Comments ${from.name}`));
           await openSeeded(rel, `Comments ${from.name}`, `L11-${from.name}`);
-          await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+          // Comment is a Preview / Viewing tool (V2-4.5c): Edit has none.
+          await from.click(selector('palette-mode-preview'));
+          await gesture(from, annotationSlot('comment'), 'click');
           await gesture(from, 'h1', 'pointer');
           await until(
             async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible
@@ -3864,7 +3878,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const onSticky = `On the sticky from ${from.name}`;
         const onCanvas = `On the canvas from ${from.name}`;
         const composeAt = async (q: string, where: Record<string, number> | null, text: string) => {
-          await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+          await from.click(selector('palette-mode-preview'));
+          await gesture(from, annotationSlot('comment'), 'click');
           await gesture(from, q, 'pointer', where);
           await until(async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible);
           await gesture(from, '[aria-label="Comment body"]', 'fill', text);
@@ -5245,8 +5260,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               async () => (await peer.read('h1', true)) === 'Edited offline by peer',
               30000
             );
-            await peer.click(selector('palette-mode-edit'));
-            await gesture(peer, '[aria-label^="Sticky ("]', 'click');
+            await peer.click(selector('palette-mode-preview'));
+            await armAnnotationTool(peer, 'sticky');
             await until(async () => !!(await peer.probe('.dc-annot-input'))?.visible, 30000);
             await gesture(peer, '.dc-annot-input', 'pointer', { x: 0.3, y: 0.3, dx: 130, dy: 100 });
             await until(async () => {
@@ -5281,7 +5296,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 return '';
               }
             };
-            await gesture(peer, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+            await gesture(peer, annotationSlot('comment'), 'click');
             await gesture(peer, 'h1', 'pointer');
             await until(
               async () => !!(await peer.probe('[aria-label="Comment body"]'))?.visible,
@@ -6142,11 +6157,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L10.sticker.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Stickers ${from.name}`));
           await openSeeded(rel, `Stickers ${from.name}`, `L10-${from.name}`);
-          await from.click(selector('palette-mode-edit'));
+          await from.click(selector('palette-mode-preview'));
           const before = new Set(
             (await from.probe('[data-tool="image"][data-id]'))?.matches?.map((m) => m.id)
           );
-          await gesture(from, '.dc-tool-palette button[aria-label="Stickers"]', 'click');
+          // V2-4.5c: the Stickers slot asks the shell (`tool-panel-open`); the picker is a shell panel
+          // pinned next to the toolbar (`tool-panel-stickers`), same dialog label and cells.
+          await gesture(from, '[data-testid="toolbar-slot-stickers"]', 'click');
           const firstSticker =
             '[aria-label="Stickers"] .st-sp-body > div:first-child .st-sp-cell:first-child';
           await until(async () => (await from.read(firstSticker)) !== null, 15000);
@@ -6393,13 +6410,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           const texts = (p: Surface) => count(p, rel, '<p\\b');
           const before = all.map((p) => texts(p));
           await from.click(selector('palette-mode-edit'));
-          await gesture(from, '[aria-label="Insert element — Div, Text, or Image"]', 'click');
+          // V2-4.5c: Edit's Text slot is momentary — one click adds a text at its default size
+          // (the old "+ Insert element" menu's second item).
           await until(
-            async () =>
-              !!(await from.probe('[aria-label="Insert element"] [role="menuitem"]'))?.visible
+            async () => !!(await from.probe('[data-testid="toolbar-slot-el-text"]'))?.visible
           );
           const start = performance.now();
-          await gesture(from, '.dc-tp-insert-popover button:nth-of-type(2)', 'click');
+          await gesture(from, '[data-testid="toolbar-slot-el-text"]', 'click');
           return observeAll(
             all,
             `L07-insert-${from.name}`,

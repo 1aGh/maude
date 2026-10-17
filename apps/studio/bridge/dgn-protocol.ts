@@ -129,7 +129,7 @@ export interface CanvasToShell {
   // annotations / media
   'replace-annotation-media-request': { id: Id; before?: string };
   'edit-annotation-photo-request': { id: Id; asset: string };
-  'open-sticker-picker': Empty;
+  // (`open-sticker-picker` retired in V2-4.5c: the Stickers slot posts `tool-panel-open {panel:'stickers'}`)
   // comments
   'comment-compose': { selection: Selection };
   'comment-submit': { payload: CommentDraft };
@@ -612,7 +612,6 @@ const c2s: C2S = {
     owner: BR,
     parse: p({ id: str, asset: str }),
   },
-  'open-sticker-picker': { gate: 'active', status: 'legacy', owner: BR, parse: none },
   'comment-compose': {
     gate: 'active',
     status: 'live',
@@ -745,14 +744,13 @@ const c2s: C2S = {
   'toolbar-rect': {
     gate: 'active',
     status: 'live',
-    owner: 'tool-palette (V2-4.5a); shell tool panels (V2-4.5b)',
-    orphan: 'no-handler', // the shell side lands with V2-4.5b; drop this line there
+    owner: 'tool-palette (V2-4.5a); shell tool panels (V2-4.5c)',
     parse: p({ mode, rect: nul(rect) }),
   },
   'tool-panel-open': {
     gate: 'active',
-    status: 'new',
-    owner: 'shell tool panels (V2-4.5)',
+    status: 'live',
+    owner: 'tool-palette (V2-4.5c); shell tool panels (V2-4.5c)',
     parse: p({
       panel: lit('stickers', 'components', 'templates', 'assets'),
       anchor: nul(rect),

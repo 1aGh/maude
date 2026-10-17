@@ -6295,7 +6295,7 @@
     "hook": "[aria-label=\"Stickers\"]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Sticker picker dialog (shell) and the palette Stickers button (iframe) share this label.",
+    "meaning": "Sticker picker dialog (shell) and the toolbar Stickers button (iframe) share this label.",
     "producer": {
       "file": "apps/studio/client/panels/StickerPicker.jsx",
       "symbol": "StickerPicker"
@@ -6358,6 +6358,19 @@
     },
     "region": "canvas iframe chrome",
     "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "tool-panel-<panel>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). Today `stickers` (the Stickers picker pinned above/below the toolbar island; `data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Assets opens the left panel's Assets tab; Templates and the Component picker have no surface yet (S2).",
+    "producer": {
+      "file": "apps/studio/client/panels/StickerPicker.jsx",
+      "symbol": "StickerPicker"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/v2-tool-panels.test.tsx"],
     "v2": "new"
   },
   {

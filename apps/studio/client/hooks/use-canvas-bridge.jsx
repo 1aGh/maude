@@ -627,14 +627,6 @@ export function useCanvasBridge({
           openRightPanel('inspector');
           setInspectorTab('photo');
         }
-      } else if (m.dgn === 'open-sticker-picker') {
-        // Phase 4 (whiteboard-improvements) — the toolbar's Stickers button.
-        // Confused-deputy gated + pinned to the active canvas like the other
-        // request verbs above.
-        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin) {
-          openStickerPickerRef.current?.({ canvas: activePath });
-        }
       } else if (m.dgn === 'insert-artboard-request') {
         // Stage I4 — insert a new empty artboard from a screen-size preset.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
@@ -2023,15 +2015,11 @@ export function useCanvasBridge({
     openAssetPickerRef.current = (req) => setAssetPickerReq(req);
   }, []);
 
-  // Phase 4 (whiteboard-improvements) — { canvas: activePath } when open, null
-  // when closed. Mirrors assetPickerReq's ref-indirection (the message
-  // listener below is set up with a minimal dep array, so it reaches a FRESH
-  // opener via a ref rather than needing setStickerPickerReq in its own deps).
+  // Phase 4 (whiteboard-improvements) — { canvas: activePath, anchor } when open, null when closed.
+  // V2-4.5c: opened by the shell's `tool-panel-open` handler (client/v2/shell/use-tool-panels.js),
+  // which hands app.jsx `setStickerPickerReq`; `anchor` is the panel's placement above/below the
+  // toolbar island (null = the centred dialog).
   const [stickerPickerReq, setStickerPickerReq] = useState(null);
-  const openStickerPickerRef = useRef(null);
-  useEffect(() => {
-    openStickerPickerRef.current = (req) => setStickerPickerReq(req);
-  }, []);
   const onAssetPicked = useCallback(
     (pickedPath) => {
       const req = assetPickerReq;
