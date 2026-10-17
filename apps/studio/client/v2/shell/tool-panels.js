@@ -9,14 +9,56 @@
 
 /** The panel a slot opens → how the shell serves it today (V2-4.5c). */
 export const PANEL_HOSTS = Object.freeze({
-  stickers: 'popover', // today's StickerPicker, anchored
+  stickers: 'popover', // the Stickers gallery (S4.3), anchored
   assets: 'left-panel', // the Canvases panel's Assets tab (V2-4.4a)
   components: null, // no surface yet (the Component picker is S2)
-  templates: null, // no surface yet (AI templates are S2)
+  // The Templates panel is S4's (canvas 15 owns it; S4.4 builds it). The host exists from S4.3 so a
+  // `tool-panel-open {panel:'templates'}` is placed like Stickers; with no opener wired it opens nothing.
+  templates: 'popover',
 });
+
+/** A panel's preferred width (shell px); absent = `placePanel`'s default. The Stickers island is 440 (canvas 15). */
+export const PANEL_SIZE = Object.freeze({ stickers: { w: 440 } });
 
 export const PANEL_GAP = 10;
 export const PANEL_MARGIN = 8;
+
+// EH-P4-2 (Phase 4 security): the canvas is untrusted and these panels are the shell's. The shell opens
+// one only for a canvas that has focus, at most once per PANEL_MIN_GAP_MS, anchored on the toolbar the
+// canvas reported (± ANCHOR_SLACK) and never over the top chrome band (title row, project pill, warn/error
+// callouts), so a planted canvas cannot paint a trusted-looking panel over them.
+export const PANEL_MIN_GAP_MS = 500;
+export const ANCHOR_SLACK = 16;
+export const TOP_CHROME_BAND = 64;
+
+/**
+ * The quiet period between two opens. `admit(now)` is true (and starts the period) only when at least
+ * `minGap` ms have passed since the last ADMITTED call, so a refused burst never extends its own ban.
+ */
+export function createPanelGate({ minGap = PANEL_MIN_GAP_MS } = {}) {
+  let last = Number.NEGATIVE_INFINITY;
+  return {
+    admit(now) {
+      if (!Number.isFinite(now) || now - last < minGap) return false;
+      last = now;
+      return true;
+    },
+  };
+}
+
+/**
+ * Is `anchor` (the opening button's box) on the toolbar the canvas reported? Both are in the iframe's
+ * viewport px. No reported toolbar = no anchor is believed.
+ */
+export function anchorWithinToolbar(anchor, toolbar, slack = ANCHOR_SLACK) {
+  if (!anchor || !toolbar) return false;
+  return (
+    anchor.x >= toolbar.x - slack &&
+    anchor.y >= toolbar.y - slack &&
+    anchor.x + anchor.w <= toolbar.x + toolbar.w + slack &&
+    anchor.y + anchor.h <= toolbar.y + toolbar.h + slack
+  );
+}
 
 const num = (v) => (Number.isFinite(v) ? v : 0);
 
@@ -85,7 +127,7 @@ export function placePanel({ toolbar, anchor }, viewport, size = { w: 640 }) {
   );
   const below = box.y + box.h / 2 < vh / 2;
   if (below) {
-    const top = Math.round(box.y + box.h + PANEL_GAP);
+    const top = Math.max(TOP_CHROME_BAND, Math.round(box.y + box.h + PANEL_GAP));
     return {
       left,
       width,
@@ -99,7 +141,8 @@ export function placePanel({ toolbar, anchor }, viewport, size = { w: 640 }) {
     left,
     width,
     bottom,
-    maxHeight: Math.max(160, vh - bottom - PANEL_MARGIN),
+    // capped so the panel's top edge stays under the chrome band (a window too short for 160 px wins)
+    maxHeight: Math.max(160, vh - bottom - TOP_CHROME_BAND),
     placement: 'above',
   };
 }

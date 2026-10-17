@@ -6047,10 +6047,10 @@
     "hook": ".st-sp-body / .st-sp-cell",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Sticker picker body and one sticker cell.",
+    "meaning": "The Stickers gallery body and one sticker cell (S4.3; the V2-4.5c picker's hooks, re-emitted).",
     "producer": {
-      "file": "apps/studio/client/panels/StickerPicker.jsx",
-      "symbol": "StickerPicker"
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
     },
     "region": "other",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
@@ -6060,10 +6060,10 @@
     "hook": "[aria-label=\"Stickers\"]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Sticker picker dialog (shell) and the toolbar Stickers button (iframe) share this label.",
+    "meaning": "The Stickers gallery dialog (shell, S4.3) and the toolbar Stickers button (iframe) share this label.",
     "producer": {
-      "file": "apps/studio/client/panels/StickerPicker.jsx",
-      "symbol": "StickerPicker"
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
     },
     "alsoProducedBy": [
       {
@@ -6074,6 +6074,162 @@
     "region": "other",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
+  },
+  {
+    "hook": "stickers-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Stickers gallery search field (\"Search stickers…\").",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-stamps",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Stamps row at the top of the Stickers gallery (six vote stamps).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-stamp-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One vote stamp in the gallery (`yes`, `no`, `star`, `heart`, `ask`, `plus`); disabled until the canvas can place stamps (S4.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-recent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The gallery's Recent section (the last 12 stickers or fewer this person placed); absent until one was placed.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-pack-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One bundled pack's section in the gallery (`figjam-doodle`, `life-style`, `opposing-thoughts`, `project-status`), in browse and in search.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-more-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A pack's \"+N\" cell: opens the rest of that pack in place.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sticker-<pack>-<file>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One sticker cell in the gallery (Recent, a pack, or a search hit).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-chips",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The word chips of a gallery search (\"All · 6\", \"done · 4\", …).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-chip-<word>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One word chip of a gallery search; `aria-pressed` while it narrows the hits.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The gallery's no-match state: \"No stickers match “…”\" with English suggestions.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under a gallery search naming the packs (and stamps) with no hit.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-credits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The gallery's credits line: \"Packs from the Figma Community: …\" with each pack's source link.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": ".maude[data-theme]",
@@ -6129,10 +6285,10 @@
     "hook": "tool-panel-<panel>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). Today `stickers` (the Stickers picker pinned above/below the toolbar island; `data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Assets opens the left panel's Assets tab; Templates and the Component picker have no surface yet (S2).",
+    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). `stickers` is the Stickers gallery (S4.3) pinned above/below the toolbar island (`data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Only a focused canvas opens it, once per 500 ms, on the toolbar it reported (EH-P4-2). Assets opens the left panel's Assets tab; Templates has its host from S4.3 and its panel from S4.4; the Component picker has no surface yet (S2).",
     "producer": {
-      "file": "apps/studio/client/panels/StickerPicker.jsx",
-      "symbol": "StickerPicker"
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
     },
     "region": "other",
     "consumers": ["apps/studio/test/v2-tool-panels.test.tsx"],
