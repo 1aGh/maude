@@ -2918,6 +2918,7 @@ function ShellTree() {
       tourSteps,
       updateReady,
       usageNudge,
+      viewerMode,
       whatsNew,
     },
     local: { querySelectionFromCanvas },

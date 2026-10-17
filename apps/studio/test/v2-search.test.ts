@@ -404,3 +404,24 @@ describe('"?" — the shortcuts sheet', () => {
     expect(filterHelpSheet(sheet, 'pen b').moved.map((m) => m.was)).toContain('Pen B');
   });
 });
+
+describe('Ask AI reaches the composer (V2-4.6, lead)', () => {
+  test('a parked query is taken once on mount, a later one by event; text only, capped, never sent', async () => {
+    const { sendToAskAI, subscribeAskAI, ASK_AI_MAX, ASK_AI_PENDING_KEY } = await import(
+      '../client/v2/search/search-env.js'
+    );
+    const target = new EventTarget() as EventTarget & Record<string, unknown>;
+    sendToAskAI('make the hero calmer', target);
+    const got: string[] = [];
+    const off = subscribeAskAI((t: string) => got.push(t), target);
+    expect(got).toEqual(['make the hero calmer']);
+    expect(target[ASK_AI_PENDING_KEY]).toBeUndefined();
+    sendToAskAI('x'.repeat(ASK_AI_MAX + 50), target);
+    expect(got[1]?.length).toBe(ASK_AI_MAX);
+    sendToAskAI('   ', target);
+    expect(got.length).toBe(2);
+    off();
+    sendToAskAI('after unsubscribe', target);
+    expect(got.length).toBe(2);
+  });
+});

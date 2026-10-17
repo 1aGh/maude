@@ -168,7 +168,11 @@
           },
           "correctness": {
             "noEmptyPattern": "warn",
-            "noSelfAssign": "warn"
+            "noSelfAssign": "warn",
+            // V2-4.7b and V2-4.6 each shipped a render-time ReferenceError to the merge (a prop read
+            // a store field the component never destructured) that only the release boot gate saw.
+            // An undeclared identifier is always a bug in this bundle — an error, caught at lint.
+            "noUndeclaredVariables": "error"
           },
           "suspicious": {
             "noAssignInExpressions": "warn",

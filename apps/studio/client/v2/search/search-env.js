@@ -45,3 +45,22 @@ export function sendToAskAI(text, target = globalThis) {
   target[ASK_AI_PENDING_KEY] = text;
   target.dispatchEvent?.(new CustomEvent(ASK_AI_EVENT, { detail: { text } }));
 }
+
+/** Longest query the composer takes from ⌘K (a search box line, not a document). */
+export const ASK_AI_MAX = 2000;
+
+/**
+ * The AI chat composer's side: take a parked query (the panel mounted after ⌘K fired) and every
+ * later one, hand each to `onText` once. Only fills the composer — the person still sends it.
+ * @returns unsubscribe
+ */
+export function subscribeAskAI(onText, target = globalThis) {
+  const take = (text) => {
+    target[ASK_AI_PENDING_KEY] = undefined;
+    if (typeof text === 'string' && text.trim()) onText(text.slice(0, ASK_AI_MAX));
+  };
+  if (target[ASK_AI_PENDING_KEY]) take(target[ASK_AI_PENDING_KEY]);
+  const on = (e) => take(e?.detail?.text);
+  target.addEventListener?.(ASK_AI_EVENT, on);
+  return () => target.removeEventListener?.(ASK_AI_EVENT, on);
+}

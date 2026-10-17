@@ -154,9 +154,7 @@ export function CommandPalette({ open, onClose, actions }) {
         type="button"
         key={item.id}
         data-testid={`palette-row-${item.id}`}
-        className={
-          `st-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}`
-        }
+        className={`st-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}`}
         onMouseEnter={() => setActive(i)}
         onClick={() => go(item)}
       >

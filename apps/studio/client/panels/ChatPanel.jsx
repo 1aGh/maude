@@ -19,6 +19,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { subscribeAskAI } from '../v2/search/search-env.js';
 
 import {
   ActionBarPrimitive,
@@ -1318,6 +1319,9 @@ function Composer({
       conn.warm(chatId, p.model, p.effort, p.mode);
     }
   }, [menuOpen, conn, chatId, picksRef]);
+
+  // V2-4.6 — ⌘K "Ask AI": the query lands in the composer; the person still sends it.
+  useEffect(() => subscribeAskAI((t) => composerRuntime.setText(t)), [composerRuntime]);
 
   const pick = useCallback(
     (cmd) => {
