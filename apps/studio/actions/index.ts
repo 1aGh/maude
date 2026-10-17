@@ -4,6 +4,7 @@
 import { ANNOTATION_ACTIONS } from './defs/annotation.ts';
 import { APP_ACTIONS } from './defs/app.ts';
 import { CANVAS_ACTIONS } from './defs/canvas.ts';
+import { DIAGNOSTICS_ACTIONS } from './defs/diagnostics.ts';
 import { EDIT_ACTIONS } from './defs/edit.ts';
 import { EXPORT_ACTIONS } from './defs/export.ts';
 import { NATIVE_ACTIONS } from './defs/native.ts';
@@ -24,6 +25,7 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...TIMELINE_ACTIONS,
   ...EXPORT_ACTIONS,
   ...APP_ACTIONS,
+  ...DIAGNOSTICS_ACTIONS,
   ...ANNOTATION_ACTIONS,
   ...NATIVE_ACTIONS,
 ]);

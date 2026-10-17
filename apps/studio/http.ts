@@ -2134,6 +2134,9 @@ export function createHttp(
         formatVersion: projectFormat(ctx).value,
         formatGate: gateNow(),
         readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
+        // V2-4.7b — Diagnostics › Advanced › Project folder (a copy-value row). This Mac's own
+        // path, so a cloud tab (somebody else's machine) never gets it.
+        ...(!isWorkspaceMode() ? { projectFolder: ctx.paths.repoRoot } : {}),
         // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
         // embed view posts its status ONLY to a parent on this list, never to
         // '*'. Public already: the same origins ride in the page's CSP header.

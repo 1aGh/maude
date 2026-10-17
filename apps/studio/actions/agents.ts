@@ -56,6 +56,35 @@ const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comment
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
+  // ── diagnostics (V2-4.7b) ──
+  'diag.sync': { effect: 'none', agent: cli('maude design status') },
+  'diag.server': { effect: 'none', agent: cli('maude design status') },
+  'diag.ai': { effect: 'none', agent: cli('maude design preflight') },
+  'diag.ai-recheck': { effect: 'none', agent: cli('maude design preflight') },
+  'diag.logs': {
+    effect: 'none',
+    agent: human('view-pref', 'opens the log sheet; the files sit in ~/.maude/logs'),
+  },
+  'diag.address': {
+    effect: 'none',
+    agent: human('view-pref', 'copies a value the agent already has from `maude design status`'),
+  },
+  'diag.process': {
+    effect: 'none',
+    agent: human('view-pref', 'copies a value the agent already has from `maude design status`'),
+  },
+  'diag.project-folder': {
+    effect: 'none',
+    agent: human('view-pref', 'copies the project path the agent already works in'),
+  },
+  'sync.resync': {
+    effect: 'shared',
+    agent: human('hub-link', 'restarts the sync link; read its state with `maude design status`'),
+  },
+  'sync.download-all': {
+    effect: 'none',
+    agent: human('hub-link', 'pulls every file of a linked project onto this Mac'),
+  },
   // ── search ──
   'search.open': { effect: 'none', agent: cli('maude design index') },
   'canvases.search': { effect: 'none', agent: cli('maude design index') },

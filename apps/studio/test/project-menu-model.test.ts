@@ -28,8 +28,8 @@ describe('the registry half of the menu', () => {
     expect(PENDING_MENU_IDS['view.exports']).toBeUndefined(); // V2-4.3a registered it
     expect(PENDING_MENU_IDS['view.layers-panel']).toBeUndefined(); // V2-4.4a registered it
     expect(PENDING_MENU_IDS['view.assets']).toBeUndefined(); // V2-4.4a registered it
-    expect(PENDING_MENU_IDS['diag.logs']).toBe('V2-4.7');
-    expect(PENDING_MENU_IDS['sync.resync']).toBe('V2-4.7');
+    expect(PENDING_MENU_IDS['diag.logs']).toBeUndefined(); // V2-4.7b registered it
+    expect(PENDING_MENU_IDS['sync.resync']).toBeUndefined(); // V2-4.7b registered it
   });
 
   test('the nine ids this task registers are registered, with the contract’s words', () => {

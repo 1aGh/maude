@@ -1567,10 +1567,8 @@ function ShellMenubar() {
       toggleRightPanel,
       toggleTimeline,
       unsavedCount,
-      syncStatus,
       viewerMode,
       whatsNew,
-      wsConnected,
       zoomCtlVisible,
     },
     photoAndTimeline: {
@@ -1725,8 +1723,10 @@ function ShellProjectPill() {
       timelineOpen,
       toggleRightPanel,
       toggleTimeline,
+      syncStatus,
       viewerMode,
       whatsNew,
+      wsConnected,
       zoomCtlVisible,
     },
     photoAndTimeline: {

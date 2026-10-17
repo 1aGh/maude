@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ae56c1c9623d",
+  "manifestVersion": "bd6b30441d52",
   "actions": [
     {
       "id": "search.open",
@@ -1314,6 +1314,122 @@
       "agent": {
         "path": "human",
         "because": "report-bug"
+      }
+    },
+    {
+      "id": "diag.sync",
+      "label": "Sync",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design status"
+      }
+    },
+    {
+      "id": "diag.server",
+      "label": "Server",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design status"
+      }
+    },
+    {
+      "id": "diag.ai",
+      "label": "AI setup",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design preflight"
+      }
+    },
+    {
+      "id": "diag.logs",
+      "label": "Logs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "opens the log sheet; the files sit in ~/.maude/logs"
+      }
+    },
+    {
+      "id": "diag.ai-recheck",
+      "label": "Check AI setup again",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design preflight"
+      }
+    },
+    {
+      "id": "diag.address",
+      "label": "Address",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "copies a value the agent already has from `maude design status`"
+      }
+    },
+    {
+      "id": "diag.process",
+      "label": "Process",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "copies a value the agent already has from `maude design status`"
+      }
+    },
+    {
+      "id": "diag.project-folder",
+      "label": "Project folder",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "copies the project path the agent already works in"
+      }
+    },
+    {
+      "id": "sync.resync",
+      "label": "Resync now",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "restarts the sync link; read its state with `maude design status`"
+      }
+    },
+    {
+      "id": "sync.download-all",
+      "label": "Download all",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "hub-link",
+        "note": "pulls every file of a linked project onto this Mac"
       }
     },
     {

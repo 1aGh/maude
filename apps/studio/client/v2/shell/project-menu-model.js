@@ -21,16 +21,6 @@ import { holds, isEnabled, isVisible } from '../../../actions/resolve.ts';
  *  until they are taken off this list). */
 export const PENDING_MENU_IDS = Object.freeze({
   'edit.undo-history': 'S2 (undo history)',
-  'diag.sync': 'V2-4.7',
-  'diag.server': 'V2-4.7',
-  'diag.ai': 'V2-4.7',
-  'diag.logs': 'V2-4.7',
-  'diag.ai-recheck': 'V2-4.7',
-  'diag.address': 'V2-4.7',
-  'diag.process': 'V2-4.7',
-  'diag.project-folder': 'V2-4.7',
-  'sync.resync': 'V2-4.7',
-  'sync.download-all': 'V2-4.7',
 });
 
 /** The label a state-dependent row shows. CONTRACT §1: "Hide panels / Show panels". */

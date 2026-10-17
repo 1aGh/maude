@@ -499,6 +499,8 @@ export function useShellCore({}) {
           // V2-3.4 — the account profile this tab's server runs as ({ id, label? }); the
           // profile chip (V2-3.x) reads it. Older servers send none ⇒ the default profile.
           profile: data.profile ?? { id: 'default' },
+          // V2-4.7b — Diagnostics › Advanced › Project folder; absent in a cloud tab.
+          projectFolder: data.projectFolder ?? null,
           // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
           // canvas origin. `canvasUrl()` appends it to every iframe URL. Absent
           // on a desktop, where the canvas origin is loopback and needs none.

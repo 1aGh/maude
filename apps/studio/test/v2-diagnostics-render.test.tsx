@@ -3,32 +3,23 @@
 //    left out for a cloud member, every row reachable by keyboard and running through run(id);
 //  · the sheet: Logs · Server · AI setup · Sync (today's Sync panel, whole), each control with its testid;
 //  · every nothing-deleted row homed on `diag` resolves to a rendered control in the v2 UI.
-// The registry rows for the ten ids are the lead's patch (client/v2/diagnostics/registry-patch.ts); this
-// file puts them into the in-process registry for its own run and takes them out again.
+// The ten ids are registered in actions/defs/diagnostics.ts.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
-import { ACTIONS_BY_ID } from '../actions/index.ts';
-import { DIAG_ACTIONS } from '../client/v2/diagnostics/registry-patch.ts';
-
-const added: string[] = [];
 beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  for (const def of DIAG_ACTIONS)
-    if (!ACTIONS_BY_ID.has(def.id)) {
-      ACTIONS_BY_ID.set(def.id, def);
-      added.push(def.id);
-    }
 });
 afterAll(() => {
-  for (const id of added) ACTIONS_BY_ID.delete(id);
   GlobalRegistrator.unregister();
 });
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { DIAGNOSTICS_ACTIONS as DIAG_ACTIONS } from '../actions/defs/diagnostics.ts';
+import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { hiddenMenuIds, menuStatuses } from '../client/v2/diagnostics/diagnostics-model.js';
 import DiagnosticsSheet from '../client/v2/diagnostics/diagnostics-sheet.jsx';
 import { createMenuHandlers, runnableIds } from '../client/v2/shell/menu-runner.js';

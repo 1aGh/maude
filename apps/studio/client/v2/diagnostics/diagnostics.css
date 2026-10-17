@@ -226,6 +226,9 @@
   .dg-seg {
     display: inline-flex;
     gap: 2px;
+    margin: 0;
+    min-inline-size: 0;
+    border: 0;
     padding: 2px;
     background: var(--bg-2);
     border-radius: var(--radius-md, 8px);

@@ -8218,9 +8218,7 @@
       "symbol": "Level"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8233,9 +8231,7 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8248,9 +8244,7 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8263,9 +8257,7 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8278,9 +8270,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8293,9 +8283,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8308,9 +8296,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8323,9 +8309,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8338,9 +8322,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8353,9 +8335,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8368,9 +8348,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8383,9 +8361,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8398,9 +8374,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8413,9 +8387,7 @@
       "symbol": "Row"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8428,9 +8400,7 @@
       "symbol": "CopyBtn"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8443,9 +8413,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8458,9 +8426,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8473,9 +8439,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8488,9 +8452,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8503,9 +8465,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8518,9 +8478,7 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8533,9 +8491,7 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8548,9 +8504,7 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8563,9 +8517,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8578,9 +8530,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8593,9 +8543,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8608,9 +8556,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8623,9 +8569,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -8638,9 +8582,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   }
 ]

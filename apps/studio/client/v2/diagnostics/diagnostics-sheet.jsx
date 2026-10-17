@@ -66,7 +66,7 @@ function LogsView({ data, error, onRefresh, onCopyReport }) {
     <div className="dg-card dg-logs" data-testid="diag-logs">
       <div className="dg-logs-hd">
         <strong>Logs</strong>
-        <div className="dg-seg" role="group" aria-label="Source">
+        <fieldset className="dg-seg" aria-label="Source">
           {LOG_FILTERS.map((f) => (
             <button
               type="button"
@@ -79,7 +79,7 @@ function LogsView({ data, error, onRefresh, onCopyReport }) {
               {filterLabel(f)}
             </button>
           ))}
-        </div>
+        </fieldset>
         <input
           type="search"
           className="dg-find"
