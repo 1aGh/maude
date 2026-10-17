@@ -74,6 +74,13 @@
 // dock tab strip (panel-tab-*), Canvases/Assets tabs, the pinned DS row + Trash + Advanced, and the
 // Inspector now appears on selection — so selection cases send one more `occluded-insets` (its island
 // covers part of the canvas). No key or write changed.
+// Approved delta (V2-4 gate polish-a/b + roles, decision:maude/v2-4-gate-polish-b, decision:maude/v2-4-gate-role-gated-actions,
+// decision:maude/v2-4-gate-help-keys-once): ⇧⌘G no longer opens the Changes/history panel in any lane (Version
+// history is ⌥⌘H; ⇧⌘G is Remove frame in Edit, S2), so `*/Meta+Shift+G` is `default` with no panel; in the viewer
+// ⌘Z is a denied edit — the shell shows the denial notice and sends the canvas neither `run-action edit.undo` nor
+// `undo-barrier-ok`; ⌘K rows are `role=option` with `aria-selected` and `tabindex=-1` (combobox/listbox); the
+// shortcuts sheet takes `tabindex=-1` (focus helper) and lists a key once (fewer rows); Hide panels says its state
+// by its label, not `aria-pressed`; Settings › General gains the Keyboard group. No write changed.
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
