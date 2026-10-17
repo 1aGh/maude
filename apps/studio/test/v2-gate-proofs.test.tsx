@@ -3,6 +3,9 @@
 //   · [data-photo-bgremove-status]   a local harness canvas the CLI drives (`maude design photo-bg-remove`), never
 //                                    a surface a person opens, so no probe state reaches it
 //   · readiness-autosetup-where      the AI-readiness dialog, opened only from the desktop menu's native item
+//   · .dc-participants / .dc-participant   the canvas's own participant stack: the shell hosts the faces (the Share
+//                                    cluster) so a canvas inside it draws none; a standalone canvas still does
+//   · [data-section-chip]            a section's label chip: the probe fixture draws no section
 // Each test renders the hook and asserts it is on screen; `proofHolds` only checks this file still says so.
 
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
@@ -18,8 +21,11 @@ afterAll(() => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { ElementNode } from '../annotations/ui/element-node.tsx';
 import { PhotoBgRemoveHarness } from '../canvas-lib.tsx';
 import { ReadinessDialog } from '../client/panels/ReadinessList.jsx';
+import { ParticipantsChrome } from '../participants-chrome.tsx';
+import { AgentPresenceProvider } from '../use-agent-presence.tsx';
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -40,7 +46,7 @@ afterEach(() => {
   root = null;
   host = null;
   globalThis.fetch = realFetch;
-  delete (window as unknown as { __TAURI__?: unknown }).__TAURI__;
+  (window as unknown as { __TAURI__?: unknown }).__TAURI__ = undefined;
 });
 
 const flush = () => act(async () => new Promise((r) => setTimeout(r, 20)));
@@ -78,5 +84,56 @@ describe('V2-4.gate proofs: the AI-readiness dialog', () => {
     mount(<ReadinessDialog open onClose={() => {}} />);
     await flush();
     expect(document.querySelector('[data-testid="readiness-autosetup-where"]')).toBeNull();
+  });
+});
+
+describe('V2-4.gate proofs: the canvas participant stack', () => {
+  test('.dc-participants draws the working agent as a participant when the canvas is not hosted by the shell', () => {
+    mount(
+      <AgentPresenceProvider
+        initialAgent={{
+          id: 'claude:1',
+          name: 'Bouncy Otter',
+          color: 'oklch(0.7 0.19 322)',
+          author: 'Claude acting for Tereza',
+          startedAt: 1,
+        }}
+      >
+        <ParticipantsChrome />
+      </AgentPresenceProvider>
+    );
+    const stack = document.querySelector('.dc-participants');
+    expect(stack).not.toBeNull();
+    expect(stack?.querySelectorAll('.dc-participant').length).toBeGreaterThan(0);
+  });
+});
+
+describe('V2-4.gate proofs: a section on a board', () => {
+  test('[data-section-chip] is the section label chip, drawn from the section element', () => {
+    mount(
+      <svg width="400" height="300" viewBox="0 0 400 300">
+        <title>board</title>
+        <ElementNode
+          el={
+            {
+              id: 's1',
+              type: 'section',
+              index: 'a0',
+              x: 10,
+              y: 40,
+              w: 300,
+              h: 200,
+              label: 'Ideas',
+            } as never
+          }
+          interactive={false}
+          edit={null}
+          resolveAsset={(href: string) => href}
+        />
+      </svg>
+    );
+    const chip = document.querySelector('[data-section-chip]');
+    expect(chip).not.toBeNull();
+    expect(chip?.textContent).toContain('Ideas');
   });
 });

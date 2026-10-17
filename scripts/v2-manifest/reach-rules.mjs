@@ -257,6 +257,21 @@ export const HOOK_PROOFS = Object.freeze({
     name: 'soft HMR announces only committed replacement DOM',
     needles: ['dc-hmr-holding'],
   },
+  // the canvas's own participant stack: the Share cluster hosts the faces inside the shell, so only a standalone
+  // canvas (or an embed) draws it
+  '.dc-participants / .dc-participant(--agent)': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/v2-gate-proofs.test.tsx',
+    name: 'draws the working agent as a participant',
+    needles: ['.dc-participants', '.dc-participant'],
+  },
+  // a section's label chip; the probe fixture draws no section
+  '[data-section-chip] / [data-edit-notice]': {
+    container: 'canvas-frame',
+    test: 'apps/studio/test/v2-gate-proofs.test.tsx',
+    name: 'is the section label chip',
+    needles: ['data-section-chip'],
+  },
   // the local harness canvas `maude design photo-bg-remove` drives; nobody opens it
   '[data-photo-bgremove-status]': {
     container: 'canvas-frame',
