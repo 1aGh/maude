@@ -241,6 +241,12 @@ export async function readPickedMediaBlob(ref, type) {
 export const onUpdateReady = (cb) => listen('update-ready', cb);
 /** Apply the staged update by relaunching the app (kills the sidecar first). */
 export const restartToUpdate = () => invoke('restart_to_update');
+/**
+ * V2-4.7c — Settings › Advanced › Check for updates: the menu's Maude ▸ Check for Updates… path
+ * (signed feed, native "up to date" / "failed" dialogs, a found build stages → `update-ready`).
+ * No arguments by design; the shell throttles repeat calls.
+ */
+export const checkForUpdates = () => invoke('check_for_updates');
 
 // ── Tauri shell: opt-in crash reporting (Phase 32 / Task 4) ─────────────────────
 // Local-file-only, default OFF. The first-run wizard's opt-in checkbox flips it.

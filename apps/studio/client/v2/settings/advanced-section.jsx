@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 
 import {
+  checkForUpdates,
   getClaudeAutoSetup,
   isNativeApp,
   restartToUpdate,
@@ -35,9 +36,15 @@ export const COMMANDS = Object.freeze({
   brand: '/design:setup-ds --from-brand ',
 });
 
-/** Update: the staged build and the two answers the banner gives (Restart now · Later). */
+/**
+ * Update: the staged build and the two answers the banner gives (Restart now · Later), plus — in the
+ * desktop app only — Check for updates, the native menu's own check (V2-4.7c). A browser tab on the
+ * desktop server has no updater, so the button is absent there, not disabled.
+ */
 function UpdateRow({ update, onLater }) {
   const [restarting, setRestarting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const native = isNativeApp();
   const staged = !!update;
   return (
     <Row
@@ -65,6 +72,24 @@ function UpdateRow({ update, onLater }) {
         >
           {restarting ? 'Restarting…' : 'Restart now'}
         </button>
+        {native && !staged && (
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            disabled={checking}
+            onClick={() => {
+              // The answer comes as a native dialog (or the update banner); the button only
+              // says it asked. The shell ignores a second ask within a few seconds.
+              setChecking(true);
+              checkForUpdates()
+                .catch(() => {})
+                .finally(() => setTimeout(() => setChecking(false), 3000));
+            }}
+            data-testid="settings-check-updates"
+          >
+            {checking ? 'Checking…' : 'Check for updates'}
+          </button>
+        )}
         {staged && (
           <button
             type="button"

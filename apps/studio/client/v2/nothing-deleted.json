@@ -1857,8 +1857,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": "settings-update-restart",
-        "where": "Native menu unchanged (CONTRACT §1: About, Check for Updates…, Quit, Help › Report a Bug); Settings › Advanced › This Mac › Update shows the staged build (Restart now · Later) — a “Check for updates” button there needs a Tauri command (patch request)"
+        "testid": "settings-check-updates",
+        "where": "Native menu unchanged (CONTRACT §1: About, Check for Updates…, Quit, Help › Report a Bug); Settings › Advanced › This Mac › Update › Check for updates runs the menu's own check (desktop app only, Tauri `check_for_updates`) beside the staged build's Restart now · Later"
       }
     },
     {

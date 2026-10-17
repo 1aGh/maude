@@ -32,6 +32,11 @@ import { waitForSidecar } from '../helpers/sidecar';
  *   6. a link naming an unrelated project warns, demotes connecting to "Connect
  *      anyway", and is still refused server-side by the claimed↔actual check.
  *
+ * V2-4.7a moved the account (sign-in, the email, the projects) from the left panel's footer into
+ * Settings › Connections — the footer's CloudBar is now an invisible `cloud-host` that only answers
+ * maude:// links. So every account step first opens Settings (the project pill → Settings…) and
+ * its Connections section (V2-4.7c); the deep-link dialogs still come from the host.
+ *
  * Note what makes scenario 4 quiet: the stub's handoff exchange returns the
  * fixture folder's own name, an EXACT match. That is the only name-based verdict
  * allowed to pass without a warning — every stub address is
@@ -44,6 +49,40 @@ const FIXTURE_CONFIG = join(HERE, '..', 'fixtures', 'project', '.design', 'confi
 const STUB_CODE = `mhc_${'a'.repeat(64)}`;
 
 const fixtures = createFixtureGuard('cloud-attach', [FIXTURE_CONFIG]);
+
+/** Settings › Connections, opened from the one menu (project pill → Settings…) unless it is up. */
+async function openConnections() {
+  const panel = await $(tid('settings-panel-connections'));
+  if (await panel.isDisplayed().catch(() => false)) return;
+  if (!(await (await $(tid('settings-sheet'))).isExisting())) {
+    await (await $(tid('project-pill'))).click();
+    const row = await $(tid('project-menu-row-settings.open'));
+    await row.waitForDisplayed({ timeout: 10_000 });
+    await row.click();
+    await (await $(tid('settings-sheet'))).waitForDisplayed({ timeout: 10_000 });
+  }
+  await (await $(tid('settings-tab-connections'))).click();
+  await panel.waitForDisplayed({ timeout: 10_000 });
+}
+
+/** Close the sheet so a deep-link dialog (from the footer's host) is the top layer. */
+async function closeSettings() {
+  const close = await $(tid('settings-close'));
+  if (await close.isExisting()) await close.click();
+}
+
+/**
+ * The connect / refusal sentence wherever this build says it: the Settings instance's account
+ * block (`cloud-bar`) or the footer host (`cloud-host`) that answered the deep link.
+ */
+async function cloudText() {
+  let text = '';
+  for (const id of ['cloud-bar', 'cloud-host']) {
+    const el = await $(tid(id));
+    if (await el.isExisting()) text += ` ${await el.getText()}`;
+  }
+  return text;
+}
 
 describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)', () => {
   before(async function () {
@@ -94,13 +133,15 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     fixtures.restore();
   });
 
-  it('1 · signed out: the rail offers Maude Cloud sign-in', async () => {
+  it('1 · signed out: Settings › Connections offers Maude Cloud sign-in', async () => {
+    await openConnections();
     const signin = await $(tid('cloud-signin'));
     await signin.waitForDisplayed({ timeout: 30_000 });
-    await capture('signed-out rail');
+    await capture('signed-out, Settings › Connections');
   });
 
   it('2 · sign-in completes without a human — the stub approves the first poll', async () => {
+    await openConnections();
     await (await $(tid('cloud-signin'))).click();
     // The dialog may flash (the stub approves in one interval tick) — what
     // must hold is the END state: the account chip with the stub email.
@@ -111,7 +152,8 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
   });
 
   it('3 · the picker: member → Connect, viewer → View in the browser; Connect writes linkedHub', async () => {
-    await (await $(tid('cloud-account'))).click();
+    // Settings lists the projects inline under the account — no menu to open.
+    await openConnections();
 
     const viewer = await $(tid('cloud-project-stub-gallery'));
     await viewer.waitForDisplayed({ timeout: 15_000 });
@@ -157,6 +199,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     invokeTauri('e2e_deliver_deep_link', { url: `maude://open/${project}?code=${STUB_CODE}` });
 
   it('4 · a maude:// deep link explains both sides, then the one-time code attaches', async () => {
+    await closeSettings();
     // The fixture folder IS `project` — an exact identity match, the only
     // name-based verdict allowed to pass without a warning.
     await arrive('project');
@@ -182,7 +225,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await browser
       .waitUntil(
         async () => {
-          seen = await (await $(tid('cloud-bar'))).getText();
+          seen = await cloudText();
           return /Connecting to|Syncing with|Connected to/.test(seen);
         },
         { timeout: 20_000 }
@@ -239,10 +282,10 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await capture('deep-link mismatch warning');
 
     await connect.click();
-    await browser.waitUntil(
-      async () => (await (await $(tid('cloud-bar'))).getText()).includes('Nothing was connected'),
-      { timeout: 20_000, timeoutMsg: 'the claimed↔actual refusal never surfaced' }
-    );
+    await browser.waitUntil(async () => (await cloudText()).includes('Nothing was connected'), {
+      timeout: 20_000,
+      timeoutMsg: 'the claimed↔actual refusal never surfaced',
+    });
     // The link that was already there is untouched — a refused attach writes
     // nothing.
     const cfg = JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8'));
@@ -261,7 +304,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // WS upgrade goes nowhere. So the honest terminal state here is
     // "unreachable", and reaching it is the proof the sentence is live: an
     // intention-derived string could never have arrived at it.
-    await (await $(tid('cloud-account'))).click();
+    await openConnections();
     const member = await $(tid('cloud-project-stub-project'));
     await member.waitForDisplayed({ timeout: 15_000 });
     await member.click();
@@ -292,7 +335,7 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // And the terminal state names the move. `title` carries it (the rail
     // truncates), so an empty one means the person was told a state and left to
     // work out the next step themselves — the whole complaint.
-    const title = await note.getAttribute('title');
+    const title = (await note.getAttribute('title')) ?? '';
     expect(title.length).toBeGreaterThan(text.length - 1);
     expect(/—|resumes by itself|Reconnect|Open one|Create a canvas/.test(title)).toBe(true);
     await capture('connect note, terminal state');
