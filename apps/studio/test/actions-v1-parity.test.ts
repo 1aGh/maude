@@ -77,7 +77,7 @@ const ROUTER_ALL = documentIndex(
   'canvas',
   (id) =>
     (id.startsWith('tool.') && id !== 'tool.hand-hold') ||
-    ['ui.step-back', 'edit.undo', 'edit.redo'].includes(id)
+    ['mode.preview', 'ui.step-back', 'edit.undo', 'edit.redo'].includes(id)
 );
 // inspect.ts: what the canvas forwards to the shell.
 const FORWARD = documentIndex(
@@ -111,9 +111,13 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['⇧⌘M', shell('chrome'), 'view.comments'],
     ['⇧⌘G', shell('chrome'), 'history.open'],
     ['⇧⌘I', shell('text'), 'view.inspector'],
+    // V2-4.5b approved delta (rule 13): Assistant moved ⇧⌘A → ⌘/ (CONTRACT §2 "Ask AI"); v2's ⇧⌘A is
+    // Select all annotations. The ⌘/ alias of Search canvases died with it.
     ['⇧⌘A', shell('chrome'), null],
-    ['⇧⌘A', shell('chrome', { native: true }), 'ai.chat'],
-    ['⇧⌘A', shell('chrome', { native: true, readOnly: true }), 'ai.chat'], // swallowed, handler no-ops
+    ['⇧⌘A', shell('chrome', { native: true }), null],
+    ['⌘/', shell('chrome', { native: true }), 'ai.chat'],
+    ['⌘/', shell('text', { native: true }), 'ai.chat'],
+    ['⌘/', shell('chrome', { native: true, readOnly: true }), 'ai.chat'], // swallowed, handler no-ops
     ['⇧⌘E', shell('chrome'), 'export.open'],
     ['⇧⌘H', shell('chrome'), 'handoff.open'],
     ['⌘,', shell('text'), 'settings.open'],
@@ -121,7 +125,7 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['⇧⌘T', shell('chrome'), 'view.timeline-keep-open'],
     ['⌘C', shell('chrome'), 'edit.copy'],
     ['/', shell('chrome'), 'canvases.search'],
-    ['⌘/', shell('chrome'), 'canvases.search'],
+    ['⌘/', shell('chrome'), null], // the browser shell has no AI chat key
     ['/', shell('text'), null],
     ['/', shell('range'), null],
     ['⌘F', shell('chrome'), 'canvases.find'],
@@ -137,10 +141,12 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['T', shell('textarea'), null],
     ['T', shell('editable'), null],
     ['⇧T', shell('chrome'), null], // v1 bailed on ⇧
-    ['H', shell('button'), 'view.hidden-files'],
-    ['S', shell('chrome'), 'view.design-system'],
-    ['S', shell('chrome', { canvasOpen: false }), 'view.design-system'],
-    ['N', shell('chrome'), 'canvas.new'],
+    // V2-4.5b approved delta (rule 13, CONTRACT §2 D4): the shell's H / S / N died with the keys that
+    // took them (Hand, Section, Sticky — tool letters, which the shell posts as `set-mode`).
+    ['H', shell('button'), null],
+    ['S', shell('chrome'), null],
+    ['S', shell('chrome', { canvasOpen: false }), null],
+    ['N', shell('chrome'), null],
     ['?', shell('chrome'), 'help.shortcuts'],
     ['⌘?', shell('chrome'), 'help.shortcuts'],
     ['?', shell('text'), null],
@@ -183,23 +189,48 @@ describe('canvas document', () => {
   const inCanvas = canvasKeyCtx({ typing: false, readOnly: false });
   const inText = canvasKeyCtx({ typing: true, readOnly: false });
   const viewer = canvasKeyCtx({ typing: false, readOnly: true });
+  const inPreview = canvasKeyCtx({ typing: false, readOnly: false, mode: 'preview' });
+  const inViewing = canvasKeyCtx({ typing: false, readOnly: true, mode: 'viewing' });
+  const inPresent = canvasKeyCtx({ typing: false, readOnly: false, mode: 'present' });
   describe('input-router (classify)', () => {
+    // V2-4.5b approved delta (rule 13): the letters are the two toolbars' (MODE_TOOLS), bound per
+    // mode; B I E O ⇧S and the ⇧-letter aliases are gone (help.ts MOVED_KEYS). Edit's own keys and
+    // its crossing N C M A E S; what a crossing DOES is toolKeyAction's (test/tool-keys.test.ts).
     const rows: [string, KeyCtx, string | null][] = [
       ['V', inCanvas, 'tool.select'],
-      ['⇧V', inCanvas, 'tool.select'], // classify lower-cased e.key: ⇧ ignored
+      ['⇧V', inCanvas, null],
       ['H', inCanvas, 'tool.hand'],
+      ['F', inCanvas, 'tool.frame'],
+      ['R', inCanvas, null], // Edit's Shape is S2's: no key before its tool, and never Preview's R
+      ['P', inCanvas, null], // S2's Pen
+      ['T', inCanvas, 'tool.el-text'],
+      ['I', inCanvas, 'tool.image'],
+      ['⇧I', inCanvas, null], // S2's Component
       ['C', inCanvas, 'tool.comment'],
-      ['C', viewer, 'tool.comment'], // still swallowed; setTool refuses it
-      ['B', inCanvas, 'tool.pen'],
-      ['I', inCanvas, 'tool.highlighter'],
-      ['R', inCanvas, 'tool.shape'],
-      ['O', inCanvas, 'tool.shape'],
-      ['A', inCanvas, 'tool.arrow'],
+      ['C', viewer, 'tool.comment'], // the shell decides (the denial line)
       ['N', inCanvas, 'tool.sticky'],
-      ['T', inCanvas, 'tool.text'],
-      ['S', inCanvas, null],
-      ['⇧S', inCanvas, 'tool.section'],
-      ['E', inCanvas, 'tool.eraser'],
+      ['M', inCanvas, 'tool.pen'],
+      ['A', inCanvas, 'tool.arrow'],
+      ['E', inCanvas, 'tool.stickers'],
+      ['S', inCanvas, 'tool.section'],
+      ['B', inCanvas, null],
+      ['O', inCanvas, null],
+      ['⇧S', inCanvas, null],
+      ['H', inPreview, 'tool.browse'],
+      ['R', inPreview, 'tool.shape'],
+      ['T', inPreview, 'tool.text'],
+      ['V', inPreview, 'tool.select'],
+      ['F', inPreview, 'tool.frame'],
+      ['I', inPreview, 'tool.image'],
+      ['P', inPreview, null],
+      ['H', inViewing, 'tool.inspect'],
+      ['C', inViewing, 'tool.comment'],
+      ['N', inViewing, 'tool.sticky'], // → the denial line
+      ['H', inPresent, null],
+      ['N', inPresent, null],
+      ['⌥⌘P', inCanvas, 'mode.preview'],
+      ['⌥⌘P', inPreview, 'mode.preview'],
+      ['⌥⌘P', inPresent, null],
       ['T', inText, null],
       ['⌘T', inCanvas, null],
       ['⌥V', inCanvas, null],

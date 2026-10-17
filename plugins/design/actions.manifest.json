@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "bd6b30441d52",
+  "manifestVersion": "1f7b68d2a5f3",
   "actions": [
     {
       "id": "search.open",
@@ -443,6 +443,17 @@
       }
     },
     {
+      "id": "mode.preview",
+      "label": "Preview",
+      "kind": "toggle",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode preview"
+      }
+    },
+    {
       "id": "view.panels",
       "label": "Hide panels",
       "kind": "toggle",
@@ -763,8 +774,47 @@
       }
     },
     {
-      "id": "tool.hand-hold",
-      "label": "Hand (hold Space)",
+      "id": "tool.frame",
+      "label": "Frame",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a frame (a <div>) to the artboard in the canvas .tsx"
+      }
+    },
+    {
+      "id": "tool.el-text",
+      "label": "Text",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a text element to the artboard in the canvas .tsx"
+      }
+    },
+    {
+      "id": "tool.image",
+      "label": "Image",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add an <img> (a project asset) to the artboard in the canvas .tsx"
+      }
+    },
+    {
+      "id": "tool.browse",
+      "label": "Browse",
       "kind": "tool",
       "exec": "canvas",
       "effect": "none",
@@ -772,69 +822,6 @@
         "path": "human",
         "because": "view-pref",
         "note": "a pointer mode"
-      }
-    },
-    {
-      "id": "tool.comment",
-      "label": "Comment",
-      "kind": "tool",
-      "exec": "canvas",
-      "effect": "none",
-      "agent": {
-        "path": "cli",
-        "verb": "maude design comments list"
-      }
-    },
-    {
-      "id": "tool.pen",
-      "label": "Pen",
-      "kind": "tool",
-      "exec": "canvas",
-      "effect": "project",
-      "agent": {
-        "path": "file",
-        "format": "annotations",
-        "skill": "design:whiteboard",
-        "how": "Add a pen element to the canvas’s .annotations.json"
-      }
-    },
-    {
-      "id": "tool.highlighter",
-      "label": "Highlighter",
-      "kind": "tool",
-      "exec": "canvas",
-      "effect": "project",
-      "agent": {
-        "path": "file",
-        "format": "annotations",
-        "skill": "design:whiteboard",
-        "how": "Add a highlighter element to the canvas’s .annotations.json"
-      }
-    },
-    {
-      "id": "tool.shape",
-      "label": "Shape",
-      "kind": "tool",
-      "exec": "canvas",
-      "effect": "project",
-      "agent": {
-        "path": "file",
-        "format": "annotations",
-        "skill": "design:whiteboard",
-        "how": "Add a shape element to the canvas’s .annotations.json"
-      }
-    },
-    {
-      "id": "tool.arrow",
-      "label": "Arrow",
-      "kind": "tool",
-      "exec": "canvas",
-      "effect": "project",
-      "agent": {
-        "path": "file",
-        "format": "annotations",
-        "skill": "design:whiteboard",
-        "how": "Add an arrow element (with binds) to the .annotations.json"
       }
     },
     {
@@ -851,6 +838,56 @@
       }
     },
     {
+      "id": "tool.comment",
+      "label": "Comment",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list"
+      }
+    },
+    {
+      "id": "tool.pen",
+      "label": "Marker",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a pen element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.arrow",
+      "label": "Arrow",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add an arrow element (with binds) to the .annotations.json"
+      }
+    },
+    {
+      "id": "tool.shape",
+      "label": "Shape",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a shape element to the canvas’s .annotations.json"
+      }
+    },
+    {
       "id": "tool.text",
       "label": "Text",
       "kind": "tool",
@@ -861,6 +898,19 @@
         "format": "annotations",
         "skill": "design:whiteboard",
         "how": "Add a text element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.stickers",
+      "label": "Stickers",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a sticker element to the canvas’s .annotations.json"
       }
     },
     {
@@ -877,6 +927,43 @@
       }
     },
     {
+      "id": "tool.inspect",
+      "label": "Inspect",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.hand-hold",
+      "label": "Hand (hold Space)",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.highlighter",
+      "label": "Highlighter",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a highlighter element to the canvas’s .annotations.json"
+      }
+    },
+    {
       "id": "tool.eraser",
       "label": "Eraser",
       "kind": "tool",
@@ -887,18 +974,6 @@
         "format": "annotations",
         "skill": "design:whiteboard",
         "how": "Remove the elements from the canvas’s .annotations.json"
-      }
-    },
-    {
-      "id": "tool.browse",
-      "label": "Browse",
-      "kind": "tool",
-      "exec": "canvas",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "a pointer mode"
       }
     },
     {

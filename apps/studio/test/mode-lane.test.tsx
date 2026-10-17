@@ -17,7 +17,7 @@ afterAll(async () => {
   if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();
 });
 
-import { act, type ReactNode } from 'react';
+import { act, type ReactNode, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import { acceptFromCanvas, DGN_TABLE, PEER_NAME_MAX, PEERS_MAX } from '../bridge/dgn-protocol.ts';
@@ -28,6 +28,7 @@ import {
   decideModeRequest,
 } from '../client/v2/shell/canvas-mode.js';
 import { createPanelLayout } from '../client/v2/shell/panel-layout.js';
+import { type RouterAction, type Tool, useInputRouter } from '../input-router.tsx';
 import { peersPayload } from '../participants-chrome.tsx';
 import { _resetReadOnlyCache } from '../read-only-mode.ts';
 import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
@@ -450,5 +451,165 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
       );
       _resetReadOnlyCache();
     }
+  });
+});
+
+// ── V2-4.5b: the toolbar keys, governed (V2-1.2 §5.4 rows "edit · N C M A E S", "preview · esc",
+//    the governed ToolProvider table; Q7) ─────────────────────────────────────────────────────────
+
+/** One provider's router, as canvas-shell (all actions) or the comment-mount layer (a narrow claim
+ *  set) mounts it: tool keys arm through the provider, esc steps back to the mode's rest. */
+function KeyRouter({
+  claims,
+  onCtx,
+}: {
+  claims?: ReadonlySet<RouterAction['kind']>;
+  onCtx: (c: ReturnType<typeof useToolMode>) => void;
+}) {
+  const ctx = useToolMode();
+  onCtx(ctx);
+  const host = useRef<HTMLDivElement | null>(null);
+  const toolRef = useRef<Tool>(ctx.tool);
+  toolRef.current = ctx.tool;
+  useInputRouter({
+    hostRef: host,
+    getActiveTool: () => toolRef.current,
+    claimableActions: claims,
+    callbacks: {
+      onTool: ({ tool: t }) => ctx.setTool(t),
+      onEscape: () => {
+        ctx.clearSticky();
+        ctx.resetTool();
+      },
+    },
+  });
+  return <div ref={host} />;
+}
+const COMMENT_LIKE = new Set<RouterAction['kind']>(['drop-comment', 'tool', 'escape', 'hover']);
+const press = (key: string, init: KeyboardEventInit = {}) =>
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
+  });
+const requests = () => shellPosts.filter((m) => m.dgn === 'mode-request');
+
+describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
+  beforeAll(asIframe);
+  afterAll(restoreParent);
+
+  const mountBoth = () => {
+    mount(
+      <ToolProvider initial="browse">
+        <KeyRouter
+          claims={COMMENT_LIKE}
+          onCtx={(c) => {
+            ctxA = c;
+          }}
+        />
+      </ToolProvider>
+    );
+    mount(
+      <ToolProvider governed>
+        <KeyRouter
+          onCtx={(c) => {
+            ctxB = c;
+          }}
+        />
+      </ToolProvider>
+    );
+  };
+
+  test('Edit · N: exactly one mode-request {preview, sticky, key}; neither provider arms it (M3)', () => {
+    mountBoth();
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit');
+    shellPosts.length = 0;
+    press('n');
+    expect(requests()).toEqual([
+      { dgn: 'mode-request', mode: 'preview', tool: 'sticky', cause: 'key' },
+    ]);
+    expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']);
+    expect(ctxA?.tool).not.toBe('sticky');
+    // the shell grants it: Preview with the tool
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'preview', { tool: 'sticky' });
+    expect([ctxB?.mode, ctxB?.tool]).toEqual(['preview', 'sticky']);
+  });
+
+  test('Edit · E: asks for Preview, then for the Stickers panel; arms no tool', () => {
+    mountBoth();
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit');
+    shellPosts.length = 0;
+    press('e');
+    expect(shellPosts).toEqual([
+      { dgn: 'mode-request', mode: 'preview', cause: 'key' },
+      { dgn: 'tool-panel-open', panel: 'stickers', anchor: null },
+    ]);
+    expect(DGN_TABLE.c2s['tool-panel-open'].parse(shellPosts[1])).not.toBeNull();
+    expect(ctxB?.tool).toBe('move');
+  });
+
+  test('Preview · esc: the tool first, then one mode-request back (two steps, 04 md-esc)', () => {
+    mountBoth();
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'preview', { tool: 'pen' });
+    expect(ctxB?.tool).toBe('pen');
+    shellPosts.length = 0;
+    press('Escape');
+    expect(ctxB?.tool).toBe('browse');
+    expect(requests()).toEqual([]);
+    press('Escape');
+    expect(requests()).toEqual([{ dgn: 'mode-request', mode: 'back', cause: 'esc' }]);
+    expect(ctxB?.mode).toBe('preview'); // the shell moves it, not the canvas
+  });
+
+  test('Preview · V: one request for Edit; the comment-mount sibling never drives the mode', () => {
+    mountBoth();
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'preview', { tool: 'browse' });
+    shellPosts.length = 0;
+    press('v');
+    expect(requests()).toEqual([{ dgn: 'mode-request', mode: 'edit', tool: 'move', cause: 'key' }]);
+    // the sibling's own v1 esc arms `move` in Preview: not a request, and it converges back
+    shellPosts.length = 0;
+    act(() => ctxA?.setTool('move'));
+    expect(requests()).toEqual([]);
+    expect([ctxB?.mode, ctxB?.tool, ctxA?.tool]).toEqual(['preview', 'browse', 'browse']);
+  });
+
+  test('Edit · setTool(pen) (the menubar lane) is a request, not a local arm', () => {
+    mount(
+      <ToolProvider governed>
+        <CapB />
+      </ToolProvider>
+    );
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit');
+    shellPosts.length = 0;
+    act(() => ctxB?.setTool('pen'));
+    expect(ctxB?.tool).toBe('move');
+    expect(requests()).toEqual([
+      { dgn: 'mode-request', mode: 'preview', tool: 'pen', cause: 'toolbar' },
+    ]);
+  });
+
+  test('set-mode naming a tool this canvas cannot arm (S2’s Frame) lands on the mode’s rest', () => {
+    mount(
+      <ToolProvider governed>
+        <CapB />
+      </ToolProvider>
+    );
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'preview');
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'frame' });
+    expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']);
+  });
+
+  test('Q7 — a sticky lock clears on a mode change, survives a seed of the same mode', () => {
+    mount(
+      <ToolProvider governed>
+        <CapB />
+      </ToolProvider>
+    );
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'preview');
+    act(() => ctxB?.toggleSticky('pen'));
+    expect(ctxB?.sticky).toEqual({ tool: 'pen', locked: true });
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'preview');
+    expect(ctxB?.sticky).toEqual({ tool: 'pen', locked: true });
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit');
+    expect(ctxB?.sticky).toEqual({ tool: null, locked: false });
   });
 });

@@ -29,8 +29,27 @@
 
 import { type RefObject, useEffect } from 'react';
 
-import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
+import { canvasKeyIndex } from './actions/canvas-keys.ts';
+import { canvasKeyCtx } from './actions/ctx.ts';
+import { CANVAS_KEYMAP } from './actions/keymap.gen.ts';
+import { chordFromEvent } from './actions/keys.ts';
+import { resolveChord } from './actions/resolve.ts';
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import {
+  ALL_CAPS,
+  armTarget,
+  type CanvasModeV2,
+  escStep,
+  type InsertKind,
+  MODE_TOOLS,
+  type ModeCaps,
+  type SlotPanel,
+  type ToolId,
+  toolKeyAction,
+  V1_TOOL_IDS,
+} from './bridge/canvas-modes.ts';
 import { isEmbedCanvas } from './read-only-mode.ts';
+import { lastMarkerTip } from './toolbars/marker-tip.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Drag-vs-click threshold (T25)
@@ -136,7 +155,22 @@ export type RouterAction =
   | { kind: 'drop-comment'; clientX: number; clientY: number }
   | { kind: 'context-menu'; clientX: number; clientY: number }
   | { kind: 'tool'; tool: Tool }
-  | { kind: 'escape' }
+  /** V2-4.5b — a governed key that belongs to another mode (or the role may not use): the shell
+   *  decides (M3/M4). `panel` opens once the mode switched (Edit's E → Preview's Stickers). */
+  | {
+      kind: 'mode-request';
+      mode: CanvasModeV2 | 'back';
+      tool?: ToolId;
+      panel?: SlotPanel;
+      cause: 'key' | 'esc';
+    }
+  /** V2-4.5b — a momentary slot's key (Edit's F / T / I add one at the default size). */
+  | { kind: 'insert'; insert: InsertKind }
+  /** V2-4.5b — a panel-only slot's key (Preview's E → the shell's Stickers panel). */
+  | { kind: 'panel'; panel: SlotPanel }
+  /** `back` (V2-4.5b, governed): after the local step back, the canvas asks the shell for the
+   *  previous mode — Preview at rest → Edit, Present → where it was entered from (escStep). */
+  | { kind: 'escape'; back?: true }
   | { kind: 'undo' }
   | { kind: 'redo' };
 
@@ -158,45 +192,106 @@ export interface ClassifyInput {
   /** Event target is editable (input/textarea/contentEditable) — caller computes. */
   isEditable?: boolean;
   activeTool: Tool;
+  /** V2-4.5b — the shell's mode (bridge/canvas-mode-store.ts); null/absent = ungoverned (v1). */
+  mode?: CanvasModeV2 | null;
+  /** The governed caps (null = ungoverned: every tool, `setTool` still refuses a read-only one). */
+  caps?: Readonly<ModeCaps> | null;
+  /** The Marker's last-used tip (Q4); `pen` when absent. */
+  markerTip?: ToolId;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Keys (V2-2.4 step 5) — the router's keys are registry actions (actions/defs/tool.ts, ui.ts,
-// edit.ts), resolved against the canvas keymap instead of matched by hand: the bare tool letters
-// (⇧ ignored except ⇧S; no ⌘ ⌃ ⌥; never in a text field), esc with any modifier, ⌘Z / ⇧⌘Z / ⌘Y.
+// Keys (V2-2.4 step 5; V2-4.5b) — the router's keys are registry actions (actions/defs/tool.ts,
+// view.ts, ui.ts, edit.ts), resolved against the canvas keymap with the mode in the context: the
+// toolbar letters per mode (`modeKeys`), ⌥⌘P, esc with any modifier, ⌘Z / ⇧⌘Z / ⌘Y. What a tool
+// key DOES is `toolKeyAction` (bridge/canvas-modes.ts): arm it here, add one (a momentary slot),
+// open a panel, or — governed — ask the shell for the other mode (M3) or for the denial line.
+//
+// Ungoverned (no `set-mode` yet — a standalone canvas) keeps v1's local behaviour: the keys resolve
+// against the posture the tool implies (`browse` → Preview, else Edit) and a crossing applies
+// locally, as v1's mode-neutral tools did.
 
-const ROUTER_KEY_ACTIONS: Readonly<Record<string, RouterAction>> = {
-  'tool.select': { kind: 'tool', tool: 'move' },
-  'tool.hand': { kind: 'tool', tool: 'hand' },
-  'tool.comment': { kind: 'tool', tool: 'comment' },
-  'tool.pen': { kind: 'tool', tool: 'pen' },
-  'tool.highlighter': { kind: 'tool', tool: 'highlighter' },
-  'tool.shape': { kind: 'tool', tool: 'shape' },
-  'tool.arrow': { kind: 'tool', tool: 'arrow' },
-  'tool.sticky': { kind: 'tool', tool: 'sticky' },
-  'tool.text': { kind: 'tool', tool: 'text' },
-  'tool.section': { kind: 'tool', tool: 'section' },
-  'tool.eraser': { kind: 'tool', tool: 'eraser' },
+const ROUTER_FIXED: Readonly<Record<string, RouterAction>> = {
   'ui.step-back': { kind: 'escape' },
   'edit.undo': { kind: 'undo' },
   'edit.redo': { kind: 'redo' },
 };
-const ROUTER_KEYS = canvasKeyIndex(Object.keys(ROUTER_KEY_ACTIONS));
+const ROUTER_KEYS = canvasKeyIndex(
+  CANVAS_KEYMAP.filter(
+    (a) => (a.id.startsWith('tool.') && a.id !== 'tool.hand-hold') || a.id === 'mode.preview'
+  )
+    .map((a) => a.id)
+    .concat(Object.keys(ROUTER_FIXED))
+);
+
+const V1_TOOLS: ReadonlySet<string> = new Set(V1_TOOL_IDS);
+/** A v2 slot tool as the v1 `Tool` the canvas arms (Viewing's `inspect` rides `move` until S3). */
+const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) as Tool | null;
+
+function classifyToolKey(chord: string, mode: CanvasModeV2, input: ClassifyInput): RouterAction {
+  const governed = !!input.mode;
+  const hit = toolKeyAction(mode, chord, input.caps ?? ALL_CAPS, input.markerTip ?? 'pen');
+  if (!hit) return { kind: 'no-op' };
+  if (hit.kind === 'insert') return { kind: 'insert', insert: hit.insert };
+  if (hit.kind === 'panel') return { kind: 'panel', panel: hit.panel };
+  if (hit.kind === 'arm') {
+    const t = v1Tool(hit.tool);
+    return t ? { kind: 'tool', tool: t } : { kind: 'no-op' };
+  }
+  if (governed) {
+    // A panel-only slot the role may not use asks for the panel; the shell refuses it by role.
+    if (hit.kind === 'deny' && hit.panel) return { kind: 'panel', panel: hit.panel };
+    const out: Extract<RouterAction, { kind: 'mode-request' }> = {
+      kind: 'mode-request',
+      mode: hit.mode,
+      cause: 'key',
+    };
+    if (hit.tool) out.tool = hit.tool;
+    if (hit.kind === 'request' && hit.panel) out.panel = hit.panel;
+    return out;
+  }
+  // Ungoverned: the crossing is local (V2-1.2 §5.4 "standalone: apply locally").
+  if (hit.kind === 'request' && hit.panel) return { kind: 'panel', panel: hit.panel };
+  const t = v1Tool(hit.tool ?? MODE_TOOLS[hit.mode].rest);
+  return t ? { kind: 'tool', tool: t } : { kind: 'no-op' };
+}
 
 function classifyKey(input: ClassifyInput): RouterAction {
-  const id = resolveCanvasKey(
+  const chord = chordFromEvent({
+    key: input.key ?? '',
+    code: input.code,
+    metaKey: input.metaKey,
+    ctrlKey: input.ctrlKey,
+    altKey: input.altKey,
+    shiftKey: input.shiftKey,
+  });
+  const governed = input.mode ?? null;
+  const mode: CanvasModeV2 = governed ?? (input.activeTool === 'browse' ? 'preview' : 'edit');
+  const r = resolveChord(
     ROUTER_KEYS,
-    {
-      key: input.key ?? '',
-      code: input.code,
-      metaKey: input.metaKey,
-      ctrlKey: input.ctrlKey,
-      altKey: input.altKey,
-      shiftKey: input.shiftKey,
-    },
-    !!input.isEditable
+    chord,
+    canvasKeyCtx({ typing: !!input.isEditable, readOnly: false, mode })
   );
-  return id ? { ...ROUTER_KEY_ACTIONS[id] } : { kind: 'no-op' };
+  if (!r) return { kind: 'no-op' };
+  const id = r.action.id;
+  if (id === 'mode.preview') {
+    // Q1 — ⌥⌘P toggles: in Preview it steps back to baseMode, anywhere else it enters Preview.
+    if (governed)
+      return {
+        kind: 'mode-request',
+        mode: governed === 'preview' ? 'back' : 'preview',
+        cause: 'key',
+      };
+    return { kind: 'tool', tool: input.activeTool === 'browse' ? 'move' : 'browse' };
+  }
+  if (id.startsWith('tool.')) return classifyToolKey(r.binding.chord, mode, input);
+  const fixed = ROUTER_FIXED[id];
+  if (!fixed) return { kind: 'no-op' };
+  // DDR-247 — an embed's esc belongs to its relay; it never asks the embed's shell for a mode.
+  if (fixed.kind === 'escape' && governed && !isEmbedCanvas()) {
+    if (escStep(governed, input.activeTool) === 'back') return { kind: 'escape', back: true };
+  }
+  return { ...fixed };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -502,6 +597,41 @@ export function yieldsClickToArtboardChrome(
   );
 }
 
+/** V2-4.5b — a momentary slot's key asks the toolbar (tool-palette.tsx owns the insert anchor). */
+export const TOOLBAR_INSERT_EVENT = 'maude:toolbar-insert';
+
+/** V2-4.5b — a key's `mode-request` (M3: no local change). Both routers of a document can see one
+ *  keydown (the comment-mount ancestor claims esc too), so the document asks once (claimRequest).
+ *  Literal posts, so the dgn inventory sees the send sites. */
+function postModeRequest(r: {
+  mode: CanvasModeV2 | 'back';
+  tool?: ToolId;
+  cause: 'key' | 'esc';
+}): void {
+  if (typeof window === 'undefined' || window.parent === window) return;
+  if (!canvasModeStore(window).claimRequest(`${r.mode}|${r.tool ?? ''}`)) return;
+  try {
+    window.parent.postMessage(
+      r.tool
+        ? { dgn: 'mode-request', mode: r.mode, tool: r.tool, cause: r.cause }
+        : { dgn: 'mode-request', mode: r.mode, cause: r.cause },
+      '*'
+    );
+  } catch {
+    /* detached */
+  }
+}
+
+/** V2-4.5b — the shell renders the tool panels (V2-1.2 §5.5); it anchors them to `toolbar-rect`. */
+function postPanelOpen(panel: SlotPanel): void {
+  if (typeof window === 'undefined' || window.parent === window) return;
+  try {
+    window.parent.postMessage({ dgn: 'tool-panel-open', panel, anchor: null }, '*');
+  } catch {
+    /* detached */
+  }
+}
+
 export function useInputRouter(opts: UseInputRouterOptions): void {
   const { hostRef, getActiveTool, isSpaceHeld, callbacks, enabled = true, claimableActions } = opts;
 
@@ -537,6 +667,21 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           break;
         case 'escape':
           callbacks.onEscape?.();
+          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep).
+          if (action.back) postModeRequest({ mode: 'back', cause: 'esc' });
+          break;
+        case 'mode-request':
+          postModeRequest(action);
+          if (action.panel) postPanelOpen(action.panel);
+          break;
+        case 'insert':
+          if (typeof document !== 'undefined')
+            document.dispatchEvent(
+              new CustomEvent(TOOLBAR_INSERT_EVENT, { detail: { kind: action.insert } })
+            );
+          break;
+        case 'panel':
+          postPanelOpen(action.panel);
           break;
         case 'undo':
           callbacks.onUndo?.();
@@ -722,6 +867,8 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
     };
 
     const onKeyDown = (e: KeyboardEvent): void => {
+      // V2-4.5b — the governed mode + caps, read at keydown (the shell may have switched since).
+      const gov = typeof window !== 'undefined' ? canvasModeStore(window).get() : null;
       const action = claim(
         classify({
           type: 'keydown',
@@ -733,10 +880,16 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           altKey: e.altKey,
           isEditable: isEditableTarget(e.target),
           activeTool: getActiveTool(),
+          mode: gov?.mode ?? null,
+          caps: gov?.caps ?? null,
+          markerTip: lastMarkerTip(),
         })
       );
       if (
         action.kind === 'tool' ||
+        action.kind === 'mode-request' ||
+        action.kind === 'insert' ||
+        action.kind === 'panel' ||
         // DDR-247 — in an embed, the router's catch-all Escape (drop the
         // selection) does not CONSUME the key: left unprevented, it reaches
         // the embed's relay and closes the app's dialog around it. Anything

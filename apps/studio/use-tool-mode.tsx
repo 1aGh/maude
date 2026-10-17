@@ -26,7 +26,7 @@ import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import {
   baseMode,
   type CanvasModeV2,
-  governedModeOfTool,
+  homeModeOfTool,
   type ModeCaps,
   REST_TOOL,
   V1_POSTURE,
@@ -229,11 +229,12 @@ export function ToolProvider({
       if (!tools.some((d) => d.id === t)) return;
       const gov = govRef.current;
       if (gov) {
-        // Governed: a tool whose posture is another mode's is a request to the shell, never a local
-        // mode change. Present keeps its posture: a stray resting-tool arm there (an Esc ladder, a
-        // letter key) neither leaves Present nor asks to — esc out of Present is the shell's.
-        const m = governedModeOfTool(t, gov.caps);
-        if (m && V1_POSTURE[m] !== V1_POSTURE[gov.mode]) {
+        // Governed: a tool another mode's toolbar owns (V2-4.5b: an editor's annotation tools are
+        // Preview's, Select is Edit's) is a request to the shell, never a local mode change (M3).
+        // Present keeps its posture: a stray resting-tool arm there (an Esc ladder, a letter key)
+        // neither leaves Present nor asks to — esc out of Present is the shell's.
+        const m = homeModeOfTool(t, gov.caps, gov.mode);
+        if (m && m !== gov.mode) {
           if (gov.mode !== 'present') requestMode(m, t);
           return;
         }
@@ -307,9 +308,11 @@ export function ToolProvider({
       const posture = V1_POSTURE[s.mode];
       const changed = lastMode === null ? modeRef.current !== posture : lastMode !== s.mode;
       lastMode = s.mode;
-      const want: Tool | null =
-        (s.tool as Tool | null) ?? (changed ? (REST_TOOL[s.mode] as Tool) : null);
-      const arm = want && tools.some((d) => d.id === want) ? want : null;
+      const rest = REST_TOOL[s.mode] as Tool;
+      const offered = (t: Tool | null): t is Tool => !!t && tools.some((d) => d.id === t);
+      const want: Tool | null = (s.tool as Tool | null) ?? (changed ? rest : null);
+      // A tool this canvas cannot arm (S2's Frame before it is a tool) lands on the mode's rest.
+      const arm = offered(want) ? want : changed && offered(rest) ? rest : null;
       setModeState(posture);
       if (arm) {
         setToolState(arm);
@@ -385,6 +388,21 @@ export function ToolProvider({
       // Already there: nothing to do, and — for a sticky-locked tool — not
       // touching it keeps the lock.
       if (d.tool === toolRef.current) return;
+      // V2-4.5b — the ungoverned sibling (comment-mount) never drives the mode: a tool it armed that
+      // another mode owns (its v1 esc arms `move` in Preview) is not a request. Say our tool back
+      // so it converges on it.
+      const gov = govRef.current;
+      if (gov) {
+        const m = homeModeOfTool(d.tool, gov.caps, gov.mode);
+        if (m && m !== gov.mode) {
+          document.dispatchEvent(
+            new CustomEvent(TOOL_SYNC_EVENT, {
+              detail: { tool: toolRef.current, from: syncId.current },
+            })
+          );
+          return;
+        }
+      }
       setTool(d.tool as Tool);
     };
     document.addEventListener(TOOL_SYNC_EVENT, onSync);

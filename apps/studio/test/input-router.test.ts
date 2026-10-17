@@ -271,40 +271,43 @@ describe('input-router / keydown — tool letters', () => {
   });
 });
 
-describe('input-router / keydown — Phase 5 draw tools', () => {
-  test('B → tool pen', () => {
-    expect(classify(base({ type: 'keydown', key: 'b' }))).toEqual({
-      kind: 'tool',
-      tool: 'pen',
-    });
+// V2-4.5b — the letters are the two toolbars' (MODE_TOOLS), rewritten deliberately: B I E O ⇧S and the
+// ⇧-letter aliases died with the keys that took them (rule 13). These rows are UNGOVERNED (no
+// `set-mode` — a standalone canvas): the keys resolve against the posture the tool implies and a
+// crossing applies locally, as v1's mode-neutral tools did. The governed half is tool-keys.test.ts.
+describe('input-router / keydown — the toolbar letters, ungoverned', () => {
+  const key = (k: string, extra: Partial<ClassifyInput> = {}) =>
+    classify(base({ type: 'keydown', key: k, ...extra }));
+  const preview = { activeTool: 'browse' as Tool };
+
+  test('B, O, ⇧S, ⇧B → no-op (Pen → Marker M, Ellipse → Edit › More, Section → S)', () => {
+    expect(key('b').kind).toBe('no-op');
+    expect(key('o').kind).toBe('no-op');
+    expect(key('S', { shiftKey: true }).kind).toBe('no-op');
+    expect(key('B', { shiftKey: true }).kind).toBe('no-op');
   });
 
-  test('R → tool shape (Phase 24 — single Shape tool)', () => {
-    expect(classify(base({ type: 'keydown', key: 'r' }))).toEqual({
-      kind: 'tool',
-      tool: 'shape',
-    });
+  test("R in Edit's posture → no-op (the design Shape is S2's); in Preview's → annotation shape", () => {
+    expect(key('r').kind).toBe('no-op');
+    expect(key('r', preview)).toEqual({ kind: 'tool', tool: 'shape' });
   });
 
-  test('A → tool arrow', () => {
-    expect(classify(base({ type: 'keydown', key: 'a' }))).toEqual({
-      kind: 'tool',
-      tool: 'arrow',
-    });
+  test('N A S M → the annotation tool, locally (standalone)', () => {
+    expect(key('n')).toEqual({ kind: 'tool', tool: 'sticky' });
+    expect(key('a')).toEqual({ kind: 'tool', tool: 'arrow' });
+    expect(key('s')).toEqual({ kind: 'tool', tool: 'section' });
+    expect(key('m')).toEqual({ kind: 'tool', tool: 'pen' });
+    expect(key('m', { markerTip: 'highlighter' })).toEqual({ kind: 'tool', tool: 'highlighter' });
   });
 
-  test('E → tool eraser', () => {
-    expect(classify(base({ type: 'keydown', key: 'e' }))).toEqual({
-      kind: 'tool',
-      tool: 'eraser',
-    });
+  test('E → the Stickers panel (no tool); I → Image (an insert), not the highlighter', () => {
+    expect(key('e')).toEqual({ kind: 'panel', panel: 'stickers' });
+    expect(key('i')).toEqual({ kind: 'insert', insert: 'image' });
   });
 
-  test('O → tool shape (Phase 24 — legacy ellipse key now arms Shape)', () => {
-    expect(classify(base({ type: 'keydown', key: 'o' }))).toEqual({
-      kind: 'tool',
-      tool: 'shape',
-    });
+  test("T: Edit's posture adds a text element; Preview's arms annotation Text", () => {
+    expect(key('t')).toEqual({ kind: 'insert', insert: 'text' });
+    expect(key('t', preview)).toEqual({ kind: 'tool', tool: 'text' });
   });
 
   test('shape tool owns bare pointer events (SVG overlay claims)', () => {
@@ -314,29 +317,8 @@ describe('input-router / keydown — Phase 5 draw tools', () => {
     expect(classify(base({ type: 'pointermove', activeTool: 'shape' })).kind).toBe('no-op');
   });
 
-  test('N → tool sticky (Phase 21)', () => {
-    expect(classify(base({ type: 'keydown', key: 'n' }))).toEqual({
-      kind: 'tool',
-      tool: 'sticky',
-    });
-  });
-
-  test('T → tool text (Phase 21)', () => {
-    expect(classify(base({ type: 'keydown', key: 't' }))).toEqual({
-      kind: 'tool',
-      tool: 'text',
-    });
-  });
-
-  test('uppercase B (shift held) — still maps to pen (lowercased)', () => {
-    expect(classify(base({ type: 'keydown', key: 'B', shiftKey: true }))).toEqual({
-      kind: 'tool',
-      tool: 'pen',
-    });
-  });
-
   test('Cmd+B (modifier-held) → no-op so the browser keeps it', () => {
-    expect(classify(base({ type: 'keydown', key: 'b', metaKey: true })).kind).toBe('no-op');
+    expect(key('b', { metaKey: true }).kind).toBe('no-op');
   });
 });
 

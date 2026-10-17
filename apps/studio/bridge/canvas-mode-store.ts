@@ -17,7 +17,7 @@ import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import {
   type CanvasModeV2,
   clampMode,
-  governedModeOfTool,
+  homeModeOfTool,
   type ModeCaps,
   type PresentSpec,
   type ToolId,
@@ -106,7 +106,7 @@ export function canvasModeStore(win: Window): CanvasModeStore {
         ? { edit: false, annotate: false, comment: m.caps.comment }
         : { ...m.caps };
       const mode = clampMode(m.mode, caps);
-      const toolMode = m.tool ? governedModeOfTool(m.tool, caps) : null;
+      const toolMode = m.tool ? homeModeOfTool(m.tool, caps, mode) : null;
       const tool = m.tool && (toolMode === null || toolMode === mode) ? m.tool : null;
       snap = {
         ...snap,

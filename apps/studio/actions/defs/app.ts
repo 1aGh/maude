@@ -31,9 +31,9 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     icon: 'sparkle',
     exec: 'shell',
-    // v1 Assistant (desktop only; a viewer's ⇧⌘A is swallowed). v2's ⇧⌘A is Select all
-    // annotations — Phase 4 moves this one (rule 13).
-    keys: [kb('⇧⌘A', 'global', { inText: true, when: { focus: SHELL_FOCI, facts: ['native'] } })],
+    // CONTRACT §2: ⌘/ is Ask AI (the AI chat panel, selection attached). v1's ⇧⌘A Assistant moved
+    // here with V2-4.5b (rule 13; v2's ⇧⌘A is Select all annotations). Desktop only, as v1.
+    keys: [kb('⌘/', 'global', { inText: true, when: { focus: SHELL_FOCI, facts: ['native'] } })],
     legacy: { menu: 'Assistant' },
   },
   {

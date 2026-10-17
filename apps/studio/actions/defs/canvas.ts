@@ -1,7 +1,7 @@
 // actions/defs/canvas.ts — canvas lifecycle (V2-2.4: v1 bindings under their v2 ids).
 
 import type { ActionDef } from '../types.ts';
-import { kb, SHELL_NOT_TYPING } from './_v1.ts';
+import { kb } from './_v1.ts';
 
 export const CANVAS_ACTIONS: ActionDef[] = [
   {
@@ -10,13 +10,10 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
-    // v1: bare N opens the new-brief-board composer (the browser never delivers ⌘N). The v2 key
-    // is ⌘N: the desktop File ▸ New Canvas accelerator (C3, V2-3.4 — primary, so the menu takes
-    // it; AppKit owns it, the menu sends `menu://action`). Phase 4 retires bare N under rule 13.
-    keys: [
-      kb('⌘N', 'global', { inText: true, when: { shell: ['desktop'] } }),
-      kb('N', 'global', { inText: false, when: SHELL_NOT_TYPING }),
-    ],
+    // The v2 key is ⌘N: the desktop File ▸ New Canvas accelerator (C3, V2-3.4 — AppKit owns it, the
+    // menu sends `menu://action`). v1's bare N (the browser never delivers ⌘N) died with V2-4.5b,
+    // which bound N to Sticky (rule 13; help.ts MOVED_KEYS).
+    keys: [kb('⌘N', 'global', { inText: true, when: { shell: ['desktop'] } })],
     legacy: { palette: 'New canvas…', menu: 'New canvas…', sheet: 'New brief board' },
   },
   {

@@ -4,13 +4,27 @@
 // action it names (or a recorded v1 defect), and every row names a registered action.
 import { describe, expect, test } from 'bun:test';
 
+import { MOVED_KEYS } from '../actions/help.ts';
 import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { chord } from '../actions/keys.ts';
 import { V1_MENUBAR, V1_PALETTE, V1_SHEET, type V1MenuItem } from '../actions/legacy.ts';
 
-const chordsOf = (id: string) => new Set((ACTIONS_BY_ID.get(id)?.keys ?? []).map((b) => b.chord));
 /** The canonical chord a v1 display string spells ('⌘ ⇧ M', '⇧⌘E', 'Esc', '⌘ +'). */
 const shown = (s: string) => chord(s.replace(/\s+/g, ' '));
+/** Rule 13 (V2-1.3 invariant 2): a v1 key is still bound to its action, or listed as moved —
+ *  a MOVED_KEYS row for that action whose `was` spells the key (V2-4.5b retired B I E O ⇧S, the
+ *  shell's H S N, ⇧⌘A, ⌘/ and ⌘E). */
+const movedFrom = (id: string) =>
+  new Set(
+    MOVED_KEYS.filter((m) => m.to === id).flatMap((m) =>
+      m.was
+        .split(/\s+/)
+        .map((t) => chord(t))
+        .filter((c): c is string => c !== null && !/^[A-Z][a-z]/.test(c))
+    )
+  );
+const boundTo = (id: string) => new Set((ACTIONS_BY_ID.get(id)?.keys ?? []).map((b) => b.chord));
+const chordsOf = (id: string) => new Set([...boundTo(id), ...movedFrom(id)]);
 
 describe('"?" sheet (V1_SHEET)', () => {
   test('every row names registered actions', () => {
@@ -84,9 +98,10 @@ describe('menubar (V1_MENUBAR)', () => {
       const owner = r.keyOf ?? r.id;
       const bound = c !== null && chordsOf(owner).has(c);
       if (r.dead) {
+        const live = c !== null && boundTo(owner).has(c);
         // A recorded v1 defect: the key is shown, nothing binds it to THIS action. Pin it, so the
         // day it gets bound (Phase 4) this row's `dead` has to go.
-        expect(`${r.menu}/${r.id} ${r.kbd} dead:${bound}`).toBe(
+        expect(`${r.menu}/${r.id} ${r.kbd} dead:${live}`).toBe(
           `${r.menu}/${r.id} ${r.kbd} dead:false`
         );
         continue;

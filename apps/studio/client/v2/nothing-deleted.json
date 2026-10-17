@@ -1622,9 +1622,9 @@
       "home": "Preview mode (Hand + click uses the design); \"?\" sheet lists it under \"Keys and tools that moved\"",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "tool.browse",
+        "testid": "toolbar-slot-browse",
+        "where": "Preview toolbar › Hand (H) — a click uses the design, a drag pans; “?” › Keys and tools that moved"
       }
     },
     {
@@ -1635,9 +1635,9 @@
       "home": "P · Shape R · Edit › More › Ellipse · Marker tip · Marker option · S — all listed in \"?\" › moved",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "tool.pen",
+        "testid": "toolbar-slot-pen",
+        "where": "Preview toolbar › Marker M (tips toolbar-tip-highlighter · toolbar-tip-eraser) · Shape R (toolbar-slot-shape) · Section S (toolbar-slot-section); Pen P and Ellipse are Edit’s (S2: Edit › More › Ellipse); “?” › Keys and tools that moved"
       }
     },
     {
@@ -1648,9 +1648,9 @@
       "home": "One sheet ⇧⌘E; \"Export again\" on every Exports row; ⌘E unbound",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "export.open",
+        "testid": "export-submit",
+        "where": "Menu › File › Export… ⇧⌘E (the one sheet; “Export again” on every Recent row, export-recent); ⌘E is unbound"
       }
     },
     {

@@ -6,7 +6,7 @@
 // "timeline open with a comp, focus in the shell" (v1's transport listened on window); S7
 // tightens it to focus-within the timeline island (C26).
 
-import type { Fact, KeyCtx, SelKind } from './types.ts';
+import type { Fact, KeyCtx, Mode, SelKind } from './types.ts';
 
 /** What the shell sees of `document.activeElement`. */
 export interface FocusProbe {
@@ -30,6 +30,8 @@ export interface ShellKeyState {
   artboardSelected: boolean;
   /** A comment pin is focused. */
   commentFocused: boolean;
+  /** V2-4.5b — the shell's canvas mode (V2-1.2), when it has one; Present wins while presenting. */
+  mode?: Mode;
 }
 
 /** The shell document's KeyCtx for a keydown it received. */
@@ -51,7 +53,7 @@ export function shellKeyCtx(probe: FocusProbe, s: ShellKeyState): KeyCtx {
   return {
     role: s.readOnly ? 'comment' : 'owner',
     shell: s.native ? 'desktop' : 'browser',
-    mode: s.presenting ? 'present' : 'edit',
+    mode: s.presenting ? 'present' : (s.mode ?? 'edit'),
     focus: typing ? 'text' : s.timelineVisible ? 'timeline' : 'chrome',
     selection,
     facts,
@@ -63,6 +65,9 @@ export interface CanvasKeyState {
   typing: boolean;
   readOnly: boolean;
   selection?: SelKind;
+  /** V2-4.5b — the governed mode (bridge/canvas-mode-store.ts); v1's 'edit' when the shell has not
+   *  spoken (a standalone canvas). The tool letters are bound per mode (defs/tool.ts). */
+  mode?: Mode;
 }
 
 /** The canvas iframe's KeyCtx for a keydown it received. */
@@ -70,7 +75,7 @@ export function canvasKeyCtx(s: CanvasKeyState): KeyCtx {
   return {
     role: s.readOnly ? 'comment' : 'owner',
     shell: 'browser',
-    mode: 'edit',
+    mode: s.mode ?? 'edit',
     focus: s.typing ? 'text' : 'canvas',
     selection: s.selection ?? 'none',
     facts: new Set<Fact>(),
