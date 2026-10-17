@@ -55,27 +55,19 @@ describe('the dirty COUNT is withheld wherever saving is managed', () => {
   });
 
   test('every changesCount consumer is fed the gated value', () => {
+    // (None may be left at all: V2-4.8b removed the status-bar chip, V2-4.8a removes the menubar.)
     const feeds = clientMatches(/changesCount=\{[^}]+\}/g);
-    expect(feeds.length).toBeGreaterThan(0);
     for (const feed of feeds) expect(feed).toBe('changesCount={unsavedCount}');
   });
 });
 
-describe('the status-bar chip names the mechanism instead of a count', () => {
-  test('it receives the posture', () => {
-    expect(APP).toContain('savingIsManaged={savingIsManaged}');
-    expect(APP).toMatch(/savingIsManaged = false,/);
-  });
-
-  test('managed saving short-circuits the whole unsaved / to-publish ladder', () => {
-    expect(APP).toMatch(/\{savingIsManaged\s*\?/);
-    expect(APP).toContain("'cloud saving'");
-  });
-
-  test('"N to publish" is withheld too — Publish is withdrawn in that posture', () => {
-    // A gated count alone would fall through to the unpushed branch, which is
-    // the same local-git offer wearing a different label.
-    expect(APP).toContain('unpushed={savingIsManaged ? 0 : gitStatus?.unpushed || 0}');
+describe('no surface re-derives a save count the posture withdrew', () => {
+  // The status-bar chip ("N unsaved" / "N to publish" / "cloud saving") left with the bar in
+  // V2-4.8b. What it said lives on: a project somebody else saves reads Saved / Syncing… in the
+  // Share cluster (save-status.js), and the Changes panel itself names the mechanism (below).
+  test('the chip and its posture props are gone', () => {
+    expect(APP).not.toContain("'cloud saving'");
+    expect(APP).not.toMatch(/unpushed=\{/);
   });
 });
 

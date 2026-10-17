@@ -1345,6 +1345,8 @@ export function Sidebar({
             trash={trash}
             showTrash={!readOnly}
             onOpenTrash={() => setTrashOpen(true)}
+            activePath={activePath === SYSTEM_TAB ? null : activePath}
+            isSystem={activePath === SYSTEM_TAB}
           >
             {dsGroup && !search ? (
               <FileTree aria-label="Design system files" data-testid="canvases-ds-files">

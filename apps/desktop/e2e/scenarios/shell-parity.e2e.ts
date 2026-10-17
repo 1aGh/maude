@@ -37,7 +37,7 @@ describe(`shell parity (${target()})`, () => {
     expect(await isNativeShell()).toBe(target() === 'native');
 
     // ---- the shared chrome ------------------------------------------------
-    for (const testId of ['canvas-list', 'menubar', 'statusbar', 'canvas-search']) {
+    for (const testId of ['canvas-list', 'menubar', 'share-cluster', 'canvas-search']) {
       const el = await $(`[data-testid="${testId}"]`);
       await el.waitForExist({ timeout: 60_000 });
       expect(await el.isExisting()).toBe(true);

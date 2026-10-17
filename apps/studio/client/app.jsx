@@ -233,9 +233,8 @@ import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { Menubar } from './menus/menubar.jsx';
 import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
-import { StatusBar } from './shell/status-bar.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
-import { CloudRoleBanner, FormatGateBanner, SyncBanner, UpdateBanner } from './shell/banners.jsx';
+import { ShellCallouts } from './v2/shell/callouts-host.jsx';
 import {
   CSS_ALIGN_SELF,
   CSS_ASPECT_RATIO,
@@ -1160,6 +1159,7 @@ function ShellState({ children }) {
     rightHostsAssistant,
     rightIds,
   } = usePaletteAndPanels({
+    activeArtboards,
     groups,
     treeLoaded,
     treeLoadFailures,
@@ -1915,69 +1915,6 @@ function ShellProjectPill() {
         onPickDestination={(dest) => activePath && moveCanvasReq(activePath, dest)}
       />
     </>
-  );
-}
-
-// V2-2.3: the StatusBar surface reads the shell store directly instead of being drilled through ShellTree.
-function ShellStatusBar() {
-  const {
-    shellCore: {
-      activePath,
-      cfg,
-      changesOpen,
-      gitStatus,
-      openRightPanel,
-      project,
-      savingIsManaged,
-      selected,
-      syncPanelOpen,
-      syncStatus,
-      theme,
-      toggleRightPanel,
-      unsavedCount,
-      wsConnected,
-    },
-    projectData: { toggleTheme },
-    tabs: { clearSelected },
-    keyboardShortcuts: { totalOpen },
-  } = useShellStore();
-  return (
-    <StatusBar
-      activePath={activePath}
-      selected={selected}
-      wsConnected={wsConnected}
-      openCount={totalOpen}
-      theme={theme}
-      onToggleTheme={toggleTheme}
-      onClearSelected={clearSelected}
-      syncStatus={syncStatus}
-      syncProject={cfg?.cloud?.projectName || project}
-      syncOpen={syncPanelOpen}
-      // Toggle through the dock helpers so the one-panel-per-side invariant
-      // holds (opening Sync closes whatever else the right slot shows).
-      onOpenSync={syncStatus ? () => toggleRightPanel('sync') : undefined}
-      changesCount={unsavedCount}
-      // `unpushed` is a LOCAL-git offer ("N to publish"), and the panel has
-      // withdrawn Publish under either managed posture — so the chip must
-      // not keep advertising it either.
-      unpushed={savingIsManaged ? 0 : gitStatus?.unpushed || 0}
-      savingIsManaged={savingIsManaged}
-      changesOpen={changesOpen}
-      // A REPO IS NOT THE ONLY REASON THIS PANEL HAS SOMETHING TO SHOW.
-      // Under managed saving the panel IS the project's history — every
-      // accepted action with its author, and Undo on the ones that are
-      // yours — and it comes from the hub, not from git. A managed copy on
-      // a designer's machine has no `.git`, so gating the chip on a repo
-      // left the invited designer with no visible way in at all: the View
-      // menu and ⌘⇧G worked, and nothing on screen said so. The chip's own
-      // `savingIsManaged` branch below was already written for this case
-      // and was simply unreachable here. Found running S20 against a live
-      // deployment; asserted in `team-project.e2e.ts` step 4b.
-      onOpenChanges={
-        gitStatus?.repo || savingIsManaged ? () => openRightPanel('changes') : undefined
-      }
-      version={cfg?.version}
-    />
   );
 }
 
@@ -3021,10 +2958,10 @@ function ShellTree() {
       onContextMenu={onShellContextMenu}
     >
       {firstRun && <OnboardingWizard />}
-      <CloudRoleBanner cloud={cfg.cloud} />
-      <FormatGateBanner />
-      <UpdateBanner update={updateReady} onDismiss={() => setUpdateReady(null)} />
-      <SyncBanner status={syncStatus} />
+      {/* V2-4.8b — the top banners (sync diverged / rejected, role, update, repo changed, format gate) are
+          callouts now, ONE stack. A child of `.maude`, not of `.st-body`: Presentation mode must not hide a
+          fail-closed sync warning (DDR-102, phase-28 audit F-1). */}
+      <ShellCallouts />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that
           only appears if you happen to open the Sync panel is not consent.
           Skipped during first-run onboarding so two flows don't stack. */}
@@ -3035,30 +2972,6 @@ function ShellTree() {
       />
       <WhatsNewToast wn={whatsNew} />
       <ExportToast center={exportCenter} />
-      {gitLifecycle && (
-        <div role="status" aria-live="polite" className="st-banner st-banner--info">
-          <span className="st-banner-dot" aria-hidden="true" />
-          <span>Repo state changed — reload to sync?</span>
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            onClick={() => {
-              try {
-                window.location.reload();
-              } catch {}
-            }}
-          >
-            Reload
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => setGitLifecycle(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
       <div className="st-shell">
         <ShellMenubar />
         {/* V2-4.1 — the canvas is the whole window body. Floating (default): the dock slots are
@@ -3171,7 +3084,6 @@ function ShellTree() {
         {/* DDR-148 — Timeline is a BOTTOM dock (full-width strip below the stage,
             above the status bar) — video timelines are horizontal. */}
         {timelineOpen && <ShellTimelinePanel />}
-        <ShellStatusBar />
       </div>
       {presentMode && (
         <button

@@ -60,11 +60,13 @@ try {
   await until(() => A.read(rel) === src, 'desktop pulled the canvas', 90000);
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   await page.goto(A.url);
-  const chip = page.locator('.st-sb-sync');
+  // V2-4.8b: the status bar's sync chip is the Share cluster's word now; its short label rides on
+  // `data-sync-label` and its sentence on `title`.
+  const chip = page.locator('[data-testid="share-cluster-status"]');
   await chip.waitFor({ timeout: 60000 });
   const read = async () => ({
-    label: (await chip.locator('.val').textContent())?.trim(),
-    title: (await chip.locator('.val').getAttribute('title')) ?? '',
+    label: ((await chip.getAttribute('data-sync-label')) ?? '').trim(),
+    title: (await chip.getAttribute('title')) ?? '',
   });
   const capture = async (key, want, ms = 90000) => {
     const seen = await until(async () => {

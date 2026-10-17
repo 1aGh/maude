@@ -67,9 +67,9 @@ export const DOCK_RAIL_HOMES = [
   },
   {
     was: 'Tab › Sync',
-    home: "The status bar's sync chip opens the Sync panel as the main right island",
-    file: 'client/shell/status-bar.jsx',
-    testid: 'open-sync',
+    home: "Menu › Diagnostics › Sync opens the Sync panel whole (a sync callout's Details does the same); the Share cluster's word says the state",
+    file: 'client/v2/diagnostics/diagnostics-handlers.js',
+    actionId: 'diag.sync',
   },
   {
     was: 'Tab › Assistant',

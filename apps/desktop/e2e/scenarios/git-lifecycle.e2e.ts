@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { $, browser, expect } from '@wdio/globals';
 
+import { openHistory } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -132,7 +133,7 @@ describe('git-lifecycle (native-desktop)', () => {
     // not arbitrary working-tree writes), so reload to force a fresh status read.
     await browser.refresh();
     await waitForShell();
-    await $(tid('open-changes')).click();
+    await openHistory();
     await $(tid('git-panel')).waitForDisplayed({ timeout: 20_000 });
     const msg = await $(tid('git-commit-message'));
     await msg.waitForDisplayed({ timeout: 20_000 });
@@ -219,7 +220,7 @@ describe('git-lifecycle (native-desktop)', () => {
       '-f',
       'branch=main'
     );
-    await $(tid('open-changes')).click();
+    await openHistory();
     await $(tid('git-panel')).waitForDisplayed({ timeout: 20_000 });
     let pulled = false;
     try {

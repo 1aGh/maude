@@ -41,6 +41,8 @@ export function CanvasesAdvanced({
   trash,
   onOpenTrash,
   showTrash = true,
+  activePath = null,
+  isSystem = false,
   children,
 }) {
   const count = trashRowCount(trash);
@@ -66,6 +68,17 @@ export function CanvasesAdvanced({
           aria-labelledby="lp-hidden-k"
           onClick={onToggleHidden}
         />
+      </div>
+      {/* V2-4.8b — where the open canvas lives (was the status bar's "active" slot). */}
+      <div className="lp-adv-row">
+        <span className="lp-adv-k">Open canvas</span>
+        <span
+          className="lp-adv-v lp-adv-path"
+          data-testid="canvases-active-path"
+          title={activePath || undefined}
+        >
+          {isSystem ? 'Design system' : activePath || 'Nothing open'}
+        </span>
       </div>
       {children}
       {showTrash ? (

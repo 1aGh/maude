@@ -20,6 +20,7 @@ import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
 
 export function usePaletteAndPanels({
+  activeArtboards,
   groups,
   treeLoaded,
   treeLoadFailures,
@@ -527,6 +528,7 @@ export function usePaletteAndPanels({
           // in BOTH shells, so each needs a name a spec can ask for.
           testId={id === 'layers' ? 'layers-panel' : 'inspector-panel'}
           layersOnly={id === 'layers'}
+          artboardCount={id === 'layers' ? activeArtboards : undefined}
           hideLayersTab={layersMode === 'separate'}
           cpMode={cpMode}
           onSetCpMode={setCpMode}

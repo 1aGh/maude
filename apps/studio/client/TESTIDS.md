@@ -52,21 +52,18 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 
 ### status bar
 
-| Hook | Kind | Meaning | Producer | Consumers | v2 |
-| --- | --- | --- | --- | --- | --- |
-| `statusbar` | testid | The bottom status bar `footer.st-statusbar`. | `client/app.jsx` · `StatusBar` | e2e:shell-parity | moves — map in Phase 4 |
-| `statusbar-sync` | testid | Value text of the hub-sync chip (`data-phase` carries the sync phase, `title` the detail). Linked projects only. | `client/app.jsx` · `StatusBar` | — | moves — map in Phase 4 |
-| `open-changes` | testid | Status-bar Changes chip; toggles the Changes (git) panel. `aria-pressed` = panel open. | `client/app.jsx` · `StatusBar` | runner:reliable-project-multiplayer/f3/s11-browser.mjs, runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e-mp:surface, e2e:git-lifecycle, e2e:team-project | moves — map in Phase 4 |
-| `open-sync` | testid | Status-bar hub-sync chip in its button form; toggles the Sync panel. `aria-pressed` = panel open. Linked projects only. | `client/app.jsx` · `StatusBar` | e2e-mp:surface, e2e:cloud-attach, e2e:team-project, whats-new, test:sync-panel-surface (source text) | moves — map in Phase 4 |
-| `statusbar-version` | testid | The `v<version>` text in the status bar (absent when `/_config` has no version). | `client/app.jsx` · `StatusBar` | — | moves — map in Phase 4 |
-| `.st-sb-sync` | selector | The hub-sync chip (button or span form); its text is read as the sync status word; `title`/`data-tip` carry detail; `.val` holds the value. | `client/app.jsx` · `StatusBar` | runner:reliable-project-multiplayer/f3/s18-desktop.mjs, e2e-mp:surface, e2e:team-project | moves — map in Phase 4 |
-| `.st-sb-sel` | selector | The status-bar selection chip; `.st-sb-sel .val` = the selected element's name. | `client/app.jsx` · `StatusBar` | e2e-mp:surface | moves — map in Phase 4 |
-| `.st-sb-theme` | selector | The theme toggle button in the status bar. | `client/app.jsx` · `StatusBar` | e2e:team-project | moves — map in Phase 4 |
-| `.st-sb-slot` | selector | A status-bar slot; the `.st-sb-slot .lbl` rule is contrast-tested. *CSS consumer.* | `client/app.jsx` · `StatusBar` | test:shell-text-contrast | moves — map in Phase 4 |
-| `.st-sb-version` | selector | The version slot; the `.st-sb-version .val` rule is contrast-tested. *CSS consumer.* | `client/app.jsx` · `StatusBar` | test:shell-text-contrast | moves — map in Phase 4 |
-| `[aria-label="Selected element"]` | selector | The selection chip group; `[aria-label="Selected element"] .val` = selected element name. | `client/app.jsx` · `StatusBar` | e2e-mp:surface | moves — map in Phase 4 |
-| `[aria-label="Clear selection"]` | selector | Clear-selection button in the selection chip. | `client/app.jsx` · `StatusBar` | e2e-mp:surface | moves — map in Phase 4 |
-| button "Switch to &lt;theme&gt; theme" | selector | The theme toggle by accessible name (same element as `.st-sb-theme`). *Playwright `getByRole('button', { name: 'Switch to <theme> theme' })`.* | `client/app.jsx` · `StatusBar` | runner:reliable-project-multiplayer/f3/s19-browser.mjs | moves — map in Phase 4 |
+Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statusbar`, `statusbar-sync`, `statusbar-version`, `open-changes`, `open-sync`, `.st-sb-sync`, `.st-sb-sel`, `.st-sb-theme`, `.st-sb-slot`, `.st-sb-version`, `[aria-label="Selected element"]`, `[aria-label="Clear selection"]` and the theme button. Where each slot went:
+
+| Slot | v2 home | Hook |
+| --- | --- | --- |
+| active file path | Canvases panel › Advanced › Open canvas | `canvases-active-path` |
+| selected element | Inspector header (selector + text) | `inspector-selection`, `inspector-selection-text` |
+| open comments | Share cluster Comments badge | `share-cluster-comments-count` |
+| changes chip (N unsaved) | Menu › Version history (opens the Changes panel; `git-panel` is its root) | `project-menu-row-history.open`, `git-panel` |
+| live / reconnecting dot | Menu › Diagnostics › Server | `diag-live` |
+| hub sync chip | Share cluster word (`data-status`) and Menu › Diagnostics › Sync | `share-cluster-status`, `project-menu-status-diag.sync` |
+| `v<version>` | Settings › Advanced › This Mac › Version | `settings-app-version` |
+| light / dark toggle | Settings › General › Look › Theme | `settings-theme` |
 
 ### sidebar/tree
 
@@ -204,8 +201,10 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `cloud-role-banner` | testid | Cloud shell banner that states what your role (owner / member / viewer) can do in this project. | `client/app.jsx` · `CloudRoleBanner` | — | moves — map in Phase 4 |
-| `cloud-role-banner-dismiss` | testid | Dismiss button on the cloud role banner. | `client/app.jsx` · `CloudRoleBanner` | — | moves — map in Phase 4 |
+| `callouts` | testid | The callout stack (V2-4.8b) that replaced the top banners: sync diverged / rejected / long offline, the cloud role line, update ready, repo changed, the format-gate notice. A child of `.maude`, so Presentation mode does not hide it. | `client/v2/shell/callouts.jsx` · `CalloutStack` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `callout-<kind>` | testid (pattern) | One callout; `<kind>` = `sync-diverged`, `sync-rejected`, `sync-offline-long`, `sync-back`, `role`, `update`, `repo-changed`. `data-tone` = ok / info / warn / error. A short offline spell has no callout: `share-cluster-status` says it. | `client/v2/shell/callouts.jsx` · `Callout` | test:v2-callouts, e2e-mp:surface | new in v2 (V2-4.8b) |
+| `callout-<kind>-action` | testid (pattern) | The callout's one action: Details (→ Diagnostics › Sync), Restart now, Reload, Got it. | `client/v2/shell/callouts.jsx` · `Callout` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `callout-<kind>-dismiss` | testid (pattern) | The × on a callout (absent on `role`, whose Got it closes it). | `client/v2/shell/callouts.jsx` · `Callout` | test:v2-callouts | new in v2 (V2-4.8b) |
 | `notice-<id>` | testid (pattern) | One notification card in the shared notification stack (`<id>` = notice id). *Canvas hints land here too: an embedded canvas posts `{dgn:'canvas-notice'}` and the shell shows it through `notifyCanvasText` as `notice-canvas-notice-<slot>` (two reused slots). `e2e:canvas-text-editing` matches that prefix for the mixed-text `/design:edit` hint (it replaced the in-frame `.dc-media-toast`, removed in `d50954df2`).* | `notifications.tsx` · `NoticeCard` | e2e:canvas-text-editing, test:notifications | stable — re-emit |
 | `.maude-notice / -action / -summary` | selector | A notification card, its action button and its summary line. | `notifications.tsx` · `NoticeCard`<br>`client/export-center.jsx` · `ExportJobNotice` | test:notifications | stable — re-emit |
 | button "Got it" / "Dismiss" | selector | Onboarding-hint and banner dismiss buttons, clicked by accessible name before timed actions. *`surface.e2e.ts` clicks every visible match; there is no single producer.* | `client/app.jsx` · `App` | e2e-mp:surface | moves — map in Phase 4 |
@@ -749,6 +748,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `diag-row-<key>` | testid (pattern) | One labelled row of the Server card; `<key>` ∈ mode, live, address, version, process, folder (and `hub` in the Sync tab's hints). | `client/v2/diagnostics/diagnostics-sheet.jsx` · `Row` | test:v2-diagnostics-render | new in v2 (V2-4.7b) |
 | `diag-copy-<key>` | testid (pattern) | The Copy button beside a mono row; `<key>` as in `diag-row-<key>`. | `client/v2/diagnostics/diagnostics-sheet.jsx` · `CopyBtn` | test:v2-diagnostics-render | new in v2 (V2-4.7b) |
 | `diag-mode-stamp` | testid | Was the menu bar's IDLE · CANVAS · SYSTEM stamp; `data-mode` ∈ idle, canvas, system. | `client/v2/diagnostics/diagnostics-sheet.jsx` · `ServerView` | test:v2-diagnostics-render | new in v2 (V2-4.7b) |
+| `canvases-active-path` | testid | Canvases panel › Advanced › Open canvas: the open canvas's path (the status bar's "active" slot); `title` = the full path. | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `layers-artboard-count` | testid | The Layers panel header's "N artboards" for the open canvas. | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | test:v2-callouts | new in v2 (V2-4.8b) |
+| `inspector-selection` | testid | The Inspector header: the selection's selector (the status bar's "selected" chip); `title` = the DOM path. | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | e2e-mp:surface | new in v2 (V2-4.8b) |
+| `inspector-selection-text` | testid | The element's own text beside the selector in the Inspector header (first 60 characters). | `client/inspector/inspector-panel.jsx` · `InspectorPanel` | e2e-mp:surface | new in v2 (V2-4.8b) |
 | `diag-live` | testid | Was the status bar's live / reconnecting dot: Connected or Reconnecting…. | `client/v2/diagnostics/diagnostics-sheet.jsx` · `ServerView` | test:v2-diagnostics-render | new in v2 (V2-4.7b) |
 | `diag-repo-changed` | testid | "Repo state changed — reload?" (the git lifecycle notice) in the Server card. | `client/v2/diagnostics/diagnostics-sheet.jsx` · `ServerView` | test:v2-diagnostics-render | new in v2 (V2-4.7b) |
 | `diag-repo-reload` | testid | Reload the page from the repo-changed notice. | `client/v2/diagnostics/diagnostics-sheet.jsx` · `ServerView` | test:v2-diagnostics-render | new in v2 (V2-4.7b) |
@@ -783,7 +786,7 @@ Every `tour[].target` in `apps/studio/whats-new.json`. The tour overlay (`client
 | # | Entry (version) | Target | Resolves today | v2 |
 | --- | --- | --- | --- | --- |
 | 1 | `share-link-deeplink` step 0 (1.3.0) | `[data-testid="share-btn"]` | live — menubar; `canvas: true` opens a canvas first | moves — map in Phase 4 |
-| 2 | `sync-panel-per-file` step 0 (0.59.0) | `[data-testid="open-sync"]` | needs state — only in a hub-linked project (the status bar renders no sync chip otherwise) | moves — map in Phase 4 |
+| 2 | `sync-panel-per-file` step 0 (0.59.0) | `[data-testid="open-sync"]` | historical — the chip is gone (V2-4.8b); the Sync panel opens from Menu › Diagnostics › Sync | historical |
 | 3 | `report-a-bug-from-the-app` step 0 (0.52.0) | `[data-tour="help"]` | live | moves — map in Phase 4 |
 | 4 | `acp-ask-user-question` step 0 (0.45.2) | `[data-testid="chat-elicit-prompt"]` | needs state — only while Claude is asking a question; no setup directive, so the step usually shows centred | stable — re-emit |
 | 5 | `acp-live-capabilities` step 0 (0.45.2) | `[data-testid="chat-mode-picker"]` | needs state — only with the Assistant panel open and connected (native app); no setup directive | stable — re-emit |
@@ -828,7 +831,7 @@ These tests read a source file and assert that a hook appears in it. They pin th
 | Test | Reads | Hooks it pins |
 | --- | --- | --- |
 | `test/cloud-shell-surfaces.test.ts` | `client/app.jsx` | `cloud-back`, then `cloud-project-name` in the same block |
-| `test/sync-panel-surface.test.ts` | `client/app.jsx`, `client/panels/SyncPanel.jsx` | `open-sync` (app.jsx); `sync-assets`, `sync-resync`, `sync-assets-cancel`, `` data-testid={`sync-held-${h.kind}`} `` (SyncPanel.jsx) |
+| `test/sync-panel-surface.test.ts` | `client/app.jsx`, `client/panels/SyncPanel.jsx` | `sync-assets`, `sync-resync`, `sync-assets-cancel`, `` data-testid={`sync-held-${h.kind}`} `` (SyncPanel.jsx) |
 | `test/cloud-history-posture.test.ts` | `client/panels/GitPanel.jsx` | `git-history-unreachable`, `git-history-retry` |
 | `test/cloud-managed-save-surfaces.test.ts` | `client/panels/GitPanel.jsx` | `git-cloud-managed` |
 | `test/git-cloud-posture.test.ts` | `client/panels/GitPanel.jsx` | `git-cloud-managed`, `className="gp-tabs"` under `!withdrawn`, `className="gp-cloud-note"` under `cloudManaged` |

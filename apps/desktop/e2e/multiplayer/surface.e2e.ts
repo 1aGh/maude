@@ -32,6 +32,17 @@ let notesSidecar = 'ui-surfacemedia.annotations.json';
 let currentCase: Record<string, unknown> | null = null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const selector = (id: string) => `[data-testid="${id}"]`;
+
+// The v1 status bar is gone (V2-4.8b). Where its controls went:
+//   · the sync chip's text         → the Share cluster word `share-cluster-status` (+ `data-sync-label`, `title`)
+//   · the sync chip button         → Menu › Diagnostics › Sync (the Sync panel, whole)
+//   · the Changes chip             → Menu › Version history (`git-panel` is its root)
+//   · the selection chip           → the Inspector header `inspector-selection`
+const SYNC_WORD = selector('share-cluster-status');
+const SYNC_CHIP_JS = `(() => {
+  const el = document.querySelector('${SYNC_WORD}');
+  return el ? [el.textContent, el.getAttribute('data-sync-label'), el.getAttribute('title')].filter(Boolean).join(' · ') : null;
+})()`;
 const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 type ProbeResult = {
   text: string | null;
@@ -110,6 +121,27 @@ type Surface = {
    *  shell's own handlers receive — never a store or API mutation). */
   shell: (script: string) => Promise<unknown>;
 };
+
+/** Menu › Version history on one surface: the pill, then the row (the action toggles the panel). */
+async function toggleHistoryOf(p: Surface): Promise<void> {
+  await p.click(selector('project-pill'));
+  await p.click(selector('project-menu-row-history.open'));
+}
+async function openHistoryPanelOf(p: Surface): Promise<void> {
+  if ((await p.read(selector('git-panel'))) === null) await toggleHistoryOf(p);
+}
+/** Menu › Diagnostics › Sync on one surface: today's Sync panel inside the Diagnostics sheet. */
+async function openSyncDetailsOf(p: Surface): Promise<void> {
+  if ((await p.read(selector('diag-sync'))) !== null) return;
+  await p.click(selector('project-pill'));
+  await p.click(selector('project-menu-row-sub-diagnostics'));
+  await p.click(selector('project-menu-row-diag.sync'));
+  const end = Date.now() + 15000;
+  while ((await p.read(selector('diag-sync'))) === null) {
+    if (Date.now() > end) throw new Error(`Diagnostics › Sync did not open on ${p.name}`);
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
 // Read browser code verbatim: TS function serialization can capture esbuild's
 // Node-side __name helper, which does not exist inside Chromium/WKWebView.
 const treeDragSource = readFileSync(new URL('./tree-drag.js', import.meta.url), 'utf8');
@@ -3183,7 +3215,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               innerWidth: window.innerWidth,
               scrollWidth: document.documentElement.scrollWidth,
               canvasRowVisible: visible('[data-testid^="canvas-row-"]'),
-              syncStatusVisible: visible('.st-sb-sync'),
+              syncStatusVisible: visible(SYNC_WORD),
             };
           })()`)) as {
             innerWidth: number;
@@ -5357,7 +5389,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // "synced", but offline with the change kept.
             let statusWhileOffline = '';
             await until(async () => {
-              statusWhileOffline = (await peer.read('.st-sb-sync')) ?? '';
+              statusWhileOffline = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
               return /offline|saving|queued|not reachable/i.test(statusWhileOffline);
             }, 30000);
             if (/\bsynced\b/i.test(statusWhileOffline))
@@ -5452,7 +5484,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await sleep(3000);
             const copies = all.map((p) => ({ receiver: p.name, present: text(p, rel) !== null }));
             const told = notices(peer);
-            const shown = (await peer.read('.st-sb-sync')) ?? '';
+            const shown = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
             for (const p of all) {
               await p.screenshot(join(run.out, `L21-del-edit-${p.name}.png`));
               const sync = join(p.root, '.design', '_sync.json');
@@ -5520,7 +5552,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             }, 60000).catch(() => {});
             await sleep(3000);
             const told = notices(peer);
-            const shown = (await peer.read('.st-sb-sync')) ?? '';
+            const shown = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
             const layout = all.map((p) => ({
               receiver: p.name,
               old: text(p, rel) === null ? 'absent' : text(p, rel) === edited ? 'edited' : 'other',
@@ -5713,15 +5745,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             }
           }, 120000);
           // Hop 3 — the shell says it, where the person looks.
-          if ((await peer.read(selector('open-sync'))) !== null) {
-            const pressed = await peerPage
-              .locator(selector('open-sync'))
-              .getAttribute('aria-pressed')
-              .catch(() => null);
-            if (pressed !== 'true') await peer.click(selector('open-sync'));
-          }
+          await openSyncDetailsOf(peer);
           await until(async () => (await peer.read('.sp-note-dot.is-refused')) !== null, 60000);
-          const statusWhileRefused = (await peer.read('.st-sb-sync')) ?? '';
+          const statusWhileRefused = ((await peer.shell(SYNC_CHIP_JS)) as string | null) ?? '';
           if (/\bsynced\b/i.test(statusWhileRefused))
             throw new Error(`A refused peer claimed synced: ${statusWhileRefused}`);
           // Hop 4 — nothing from the refused peer reached anyone.
@@ -5861,7 +5887,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           let shown = '';
           let toldByName = false;
           await until(async () => {
-            shown = (await from.read('.st-sb-sync')) ?? '';
+            shown = ((await from.shell(SYNC_CHIP_JS)) as string | null) ?? '';
             toldByName = named();
             return HELD_STATUS.test(shown) && toldByName;
           }, 30000).catch(() => {});
@@ -5898,13 +5924,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       {
         const statusTitle = async (p: Surface) =>
           ((await p.shell(
-            `document.querySelector('.st-sb-sync')?.getAttribute('title') || document.querySelector('.st-sb-sync')?.getAttribute('data-tip') || ''`
+            `document.querySelector('${SYNC_WORD}')?.getAttribute('title') || ''`
           )) as string) ?? '';
-        const openSyncPanel = async (p: Surface) => {
-          const button = selector('open-sync');
-          await until(async () => (await p.read(button)) !== null, 10000);
-          if ((await p.read(`${button}[aria-pressed="true"]`)) === null) await p.click(button);
-        };
+        const openSyncPanel = async (p: Surface) => openSyncDetailsOf(p);
         for (const from of all.filter((p) => p.name !== 'hub')) {
           const rel = `ui/SurfaceHuge-${from.name}.mp4`;
           await check('L22.blocked-file', `${from.name}-to-peers`, async () => {
@@ -5924,7 +5946,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                   told = true;
                 })
                 .catch(() => {});
-              const status = (await from.read('.st-sb-sync')) ?? '';
+              const status = ((await from.shell(SYNC_CHIP_JS)) as string | null) ?? '';
               await sleep(3000);
               const leaked = all
                 .filter((p) => p !== from && existsSync(join(p.root, '.design', rel)))
@@ -5973,7 +5995,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             try {
               writeFileSync(join(from.root, '.design', file), readFileSync(input.path));
               await until(async () => {
-                waitingShown = (await from.read('.st-sb-sync')) ?? '';
+                waitingShown = ((await from.shell(SYNC_CHIP_JS)) as string | null) ?? '';
                 const n = /(\d+)\s*\/\s*(\d+) files/.exec(waitingShown);
                 return HELD_STATUS.test(waitingShown) || (!!n && Number(n[1]) < Number(n[2]));
               }, 60000).catch(() => {});
@@ -6433,7 +6455,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // The insert above left its new text selected: pick the heading.
           for (
             let n = 0;
-            n < 6 && !((await from.read('.st-sb-sel .val')) ?? '').includes(`Element ${from.name}`);
+            n < 6 &&
+            !((await from.read(selector('inspector-selection'))) ?? '').includes(
+              `Element ${from.name}`
+            );
             n++
           ) {
             await gesture(from, 'h1', n === 0 ? 'click' : 'doubleClick');
@@ -6442,11 +6467,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // Act on what the designer sees: the heading named in the selection
           // chip, on a canvas that has stopped re-rendering the duplicate.
           await until(async () => {
-            const chip = await from.read('.st-sb-sel .val');
+            const chip = await from.read(selector('inspector-selection'));
             if (!chip?.includes(`Element ${from.name}`) || (await headings(from)) !== 2)
               return false;
             await sleep(300);
-            return (await headings(from)) === 2 && !!(await from.read('.st-sb-sel .val'));
+            return (
+              (await headings(from)) === 2 && !!(await from.read(selector('inspector-selection')))
+            );
           });
           // The drill above double-clicks, which can open the heading's text
           // editor (`plaintext-only`): Delete then edits text at the caret
@@ -6461,7 +6488,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await sleep(150);
           }
           const before = {
-            chip: await from.read('.st-sb-sel .val').catch(() => null),
+            chip: await from.read(selector('inspector-selection')).catch(() => null),
             textEditing: await editing(),
           };
           const start = performance.now();
@@ -6480,7 +6507,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 ...result,
                 beforeDelete: before,
                 afterDelete: {
-                  chip: await from.read('.st-sb-sel .val').catch(() => null),
+                  chip: await from.read(selector('inspector-selection')).catch(() => null),
                   authorHeadings: await headings(from).catch(() => null),
                   authorSourceHeadings: count(from, rel, '<h1'),
                 },
@@ -6543,7 +6570,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await selectHeading(from);
           // The heading ALONE — the inspector also offers weight on the
           // section around it, and dragging that moves the whole section.
-          const chip = async () => (await from.read('.st-sb-sel .val')) ?? '';
+          const chip = async () => (await from.read(selector('inspector-selection'))) ?? '';
           for (
             let n = 0;
             n < 6 &&
@@ -6585,7 +6612,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (!(await from.canvasDrag?.('h1', 0, dy, 700)))
             await gesture(from, 'h1', 'pointer', { dx: 0, dy, hold: 600 });
           await from.screenshot(join(run.out, `L07-reorder-dropped-${from.name}.png`));
-          const selText = await from.read('.st-sb-sel');
+          const selText = await from.read(selector('inspector-selection'));
           const h1 = await from.probe('h1');
           writeFileSync(
             join(run.out, `L07-reorder-diag-${from.name}.json`),
@@ -6723,7 +6750,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       const selectEl = async (p: Surface, q: string) => {
         await p.click(selector('palette-mode-edit'));
         for (let level = 0; level < 6; level++) {
-          const chip = (await p.read('.st-sb-sel .val')) ?? '';
+          const chip = (await p.read(selector('inspector-selection'))) ?? '';
           if ((await p.read(weight)) !== null && chip.includes('Kept paragraph')) return;
           await gesture(p, q, level === 0 ? 'click' : 'doubleClick');
           await sleep(150);
@@ -7172,12 +7199,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               )
             ).json()) as { history: Array<{ kind: string; label: string; effects: unknown[] }> }
           ).history;
-        // The toolbar's Sync button (it toggles; pressed = the panel shows).
-        const openSync = async (p: Surface) => {
-          const button = selector('open-sync');
-          await until(async () => (await p.read(button)) !== null, 10000);
-          if ((await p.read(`${button}[aria-pressed="true"]`)) === null) await p.click(button);
-        };
+        // Menu › Diagnostics › Sync (the status bar's chip is gone — V2-4.8b).
+        const openSync = async (p: Surface) => openSyncDetailsOf(p);
         for (const from of all.filter((p) => p.name !== 'hub')) {
           const a = `ui/SurfaceAi-${from.name}-a.tsx`;
           const b = `ui/SurfaceAi-${from.name}-b.tsx`;
@@ -7388,10 +7411,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
         const rowsQ = '[data-testid^="project-history-row-"]';
         const openHistory = async (p: Surface) => {
-          // The dock tabs do not exist until a panel is open. The status-bar
-          // button also works in an isolated history-only run (no prior L07).
-          if ((await p.read(`${selector('open-changes')}[aria-pressed="true"]`)) === null)
-            await p.click(selector('open-changes'));
+          // The dock tabs do not exist until a panel is open. Menu › Version history
+          // also works in an isolated history-only run (no prior L07).
+          await openHistoryPanelOf(p);
           await until(
             async () =>
               ((await p.probe('body'))?.visible ?? false) && (await p.read(rowsQ)) !== null,
@@ -7450,7 +7472,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 heading: await p.probe('h1'),
                 weight: await inspectedWeight(p),
                 inspectorSelected: await p.read(selector('inspector-panel')),
-                historySelected: await p.read(`${selector('open-changes')}[aria-pressed="true"]`),
+                historySelected: await p.read(selector('git-panel')),
                 previewOpen: (await p.read(selector('history-preview-version'))) !== null,
                 previewHeadings,
                 previewBodies: await p.shell(previewFrameProbe('body')).catch((e) => String(e)),
@@ -7480,8 +7502,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               // (V2-4.4b: one main right island at a time). Establish this case's
               // Inspector precondition explicitly after the previous direction
               // left History open: close it, so the selection below opens the Inspector.
-              if ((await p.read(`${selector('open-changes')}[aria-pressed="true"]`)) !== null)
-                await p.click(selector('open-changes'));
+              if ((await p.read(selector('git-panel'))) !== null) await toggleHistoryOf(p);
               await selectHeading(p);
               await until(async () => (await inspectedWeight(p)) === '700').catch((error) =>
                 failedStep('current-inspector', p, error)
