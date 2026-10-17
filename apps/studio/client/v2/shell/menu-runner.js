@@ -15,6 +15,7 @@ import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
+import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { requestTrash } from '../left-panel/left-panel-bus.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -138,6 +139,13 @@ export function createMenuHandlers(d) {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
     },
+    // S2.2 — Inspector › Advanced: Copy CSS · Copy element id · Edit element id… (the mounted frame binds them)
+    ...Object.fromEntries(
+      INSPECTOR_ACTION_IDS.map((id) => [
+        id,
+        () => runInspectorAction(id).then((said) => (said ? d.toast?.(said) : undefined)),
+      ])
+    ),
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),
     'view.timeline-keep-open': () => d.onToggleTimeline(),

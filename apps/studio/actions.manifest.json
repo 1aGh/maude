@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9ea92eb9a01f",
+  "manifestVersion": "d338d5fa919c",
   "actions": [
     {
       "id": "search.open",
@@ -440,6 +440,45 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the element’s position props"
+      }
+    },
+    {
+      "id": "inspector.copy-css",
+      "label": "Copy CSS",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s style={{…}} in the .tsx"
+      }
+    },
+    {
+      "id": "element.copy-id",
+      "label": "Copy element id",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s data-cd-id in the .tsx"
+      }
+    },
+    {
+      "id": "element.set-id",
+      "label": "Edit element id…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
       }
     },
     {
