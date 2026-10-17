@@ -246,6 +246,7 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `settings-server-build` | testid | Advanced › This Mac › Server build (MAUDE-DEV-SRV). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
 | `settings-keys-store` | testid | Advanced › This Mac › where provider keys are kept (keychain / keys.json). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
 | `settings-claude-autosetup` | testid | Advanced › Claude Code › Install and sign in automatically (Tauri pref; desktop app only). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-check-updates` | testid | Advanced › This Mac › Update › Check for updates (desktop app only; hidden while a build is staged). | `client/v2/settings/advanced-section.jsx` · `UpdateRow` | — | new |
 | `settings-copy-draw` | testid | Advanced › Claude Code › Draw a mark with the SVG agent › Copy command. | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
 | `settings-copy-brand` | testid | Advanced › Claude Code › Import a brand from the terminal › Copy command. | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
 | `settings-transcription` | testid | Advanced › Engines › Subtitles (engine + whisper model cards). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
@@ -263,6 +264,7 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `acp-setup-install` | testid | Readiness row action: install Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 | `acp-setup-signin` | testid | Readiness row action: sign in to Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | — | stable — re-emit |
 | `rdy-row-<id>` | testid (pattern) | One readiness check row (e.g. `rdy-row-claude`). Also rendered in onboarding and the readiness dialog. | `client/panels/ReadinessList.jsx` · `Row` | e2e:acp-cold-start | stable — re-emit |
+| `readiness-autosetup-where` | testid | Readiness dialog: the one line saying the Claude Code auto-setup switch lives in Settings › Advanced. | `client/panels/ReadinessList.jsx` · `ReadinessDialog` | — | new |
 | `chat-composer` | testid | The chat composer (input area). | `client/panels/ChatPanel.jsx` · `Composer` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
 | `chat-context-chip` | testid | The context chip in the composer (what the agent will see). | `client/panels/ChatPanel.jsx` · `Composer` | — | stable — re-emit |
 | `chat-mode-banner` | testid | Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan). | `client/panels/ChatPanel.jsx` · `ModeBanner` | e2e:acp-capability-picker | stable — re-emit |
@@ -454,16 +456,16 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `sync-trash-prune` | testid | Empty-trash button. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
 | `sync-trash-prune-confirm` | testid | Empty-trash confirmation. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
 | `sync-trash-prune-yes` | testid | Confirm empty-trash. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-settings` | testid | Sync settings section. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-setting-syncFiles` | testid | Setting: sync project files (camelCase id, breaks the kebab-case convention). | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-setting-propagateDeletes` | testid | Setting: propagate deletes (camelCase id). | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-setting-firstAnchor` | testid | Setting: first-link anchor (camelCase id). | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-ownership` | testid | Ownership section. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-ownership-mode` | testid | Current ownership mode line. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-ownership-adopt` | testid | Adopt ownership button. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-ownership-detach` | testid | Detach ownership button. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-ownership-confirm` | testid | Ownership change confirmation. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
-| `sync-ownership-confirm-yes` | testid | Confirm ownership change. | `client/panels/SyncPanel.jsx` · `SyncPanel` | — | stable — re-emit |
+| `sync-settings` | testid | Sync settings section. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-setting-syncFiles` | testid | Setting: sync project files (camelCase id, breaks the kebab-case convention). | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-setting-propagateDeletes` | testid | Setting: propagate deletes (camelCase id). | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-setting-firstAnchor` | testid | Setting: first-link anchor (camelCase id). | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-ownership` | testid | Ownership section. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-ownership-mode` | testid | Current ownership mode line. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-ownership-adopt` | testid | Adopt ownership button. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-ownership-detach` | testid | Detach ownership button. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-ownership-confirm` | testid | Ownership change confirmation. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
+| `sync-ownership-confirm-yes` | testid | Confirm ownership change. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable — re-emit |
 | `sync-consent` | testid | First-link sync consent dialog. | `client/panels/SyncConsentDialog.jsx` · `SyncConsentDialog` | — | stable — re-emit |
 | `sync-consent-limit` | testid | Size-limit line in the consent dialog. | `client/panels/SyncConsentDialog.jsx` · `SyncConsentDialog` | — | stable — re-emit |
 | `sync-consent-accept` | testid | Accept button in the consent dialog. | `client/panels/SyncConsentDialog.jsx` · `SyncConsentDialog` | e2e-mp:cloud-entry, e2e-mp:selfhost-entry | stable — re-emit |

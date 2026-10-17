@@ -186,6 +186,17 @@
     display: contents;
   }
 
+  /* A deep-link Connect's outcome sentence / refusal, started with Settings closed (V2-4.7c). */
+  .cb-host-out {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--type-xs);
+    line-height: 1.5;
+    color: var(--fg-1);
+  }
+
   /* ── rows Connections draws from CloudBar / IdentityBar ("settings" variant) ── */
   .cb-settings,
   .gi-settings {

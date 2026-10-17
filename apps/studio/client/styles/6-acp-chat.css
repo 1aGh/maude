@@ -2055,24 +2055,6 @@
     font-size: var(--type-sm);
     line-height: var(--lh-md);
   }
-  /* DDR-166 Decision 5 — auto-setup opt-out, mirrors .ob-crash-optin. */
-  .rdy-autosetup-toggle {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
-    color: var(--fg-2);
-    font-size: var(--type-xs);
-    line-height: var(--lh-md);
-    cursor: pointer;
-    text-align: left;
-  }
-  .rdy-autosetup-toggle input {
-    margin-top: 2px;
-    flex: 0 0 auto;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
 }
 
 /* DDR-166 plan, Phase 2 (T7/T8) — design-setup checklist (SetupChecklist.jsx).

@@ -635,6 +635,28 @@ describe('the left panel footer only hosts', () => {
     expect(statusReads()).toBeGreaterThan(before);
   });
 
+  test('a deep-link Connect started with Settings closed shows its refusal in the footer host', async () => {
+    installFetch({
+      '/_api/cloud/attach/code': {
+        ok: false,
+        error: 'Nothing was connected — that code has expired.',
+      },
+    });
+    (window as unknown as { __TAURI__: unknown }).__TAURI__ = {
+      core: {
+        invoke: async (cmd: string) =>
+          cmd === 'take_pending_deep_link' ? 'maude://open/acme?code=mhc_0123456789abcdef' : null,
+      },
+    };
+    await mountEls(<CloudBar variant="host" />);
+    await settle(60);
+    await click(q('cloud-deeplink-connect'));
+    await settle(60);
+    expect(q('cloud-host')?.textContent).toContain(
+      'Nothing was connected — that code has expired.'
+    );
+  });
+
   test('only the host answers a maude:// link — the settings instance never listens for one', async () => {
     let listened = 0;
     (window as unknown as { __TAURI__: unknown }).__TAURI__ = {

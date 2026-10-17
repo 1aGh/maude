@@ -1214,6 +1214,28 @@ export default function CloudBar({
           </div>
         </div>
       )}
+      {/* V2-4.7c — the footer host draws no rail, but a deep-link Connect (or its refusal) is started
+          with Settings closed: its outcome sentence and error show here, where the person looks. */}
+      {variant === 'host' && (note || error) && (
+        <div className="cb-host-out">
+          {note && (
+            <span
+              className="gi-rail-hint"
+              title={note.title}
+              role="status"
+              aria-live="polite"
+              data-testid="cloud-connect-note"
+            >
+              {note.text}
+            </span>
+          )}
+          {error && (
+            <span className="gi-rail-err" title={error}>
+              {error}
+            </span>
+          )}
+        </div>
+      )}
       {variant !== 'host' && state === 'out' && (
         <>
           <button

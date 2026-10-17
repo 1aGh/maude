@@ -8500,18 +8500,12 @@
     "pattern": false,
     "meaning": "Sync settings section.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-setting-syncFiles",
@@ -8519,18 +8513,12 @@
     "pattern": false,
     "meaning": "Setting: sync project files (camelCase id, breaks the kebab-case convention).",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-setting-propagateDeletes",
@@ -8538,18 +8526,12 @@
     "pattern": false,
     "meaning": "Setting: propagate deletes (camelCase id).",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-setting-firstAnchor",
@@ -8557,18 +8539,12 @@
     "pattern": false,
     "meaning": "Setting: first-link anchor (camelCase id).",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-ownership",
@@ -8576,18 +8552,12 @@
     "pattern": false,
     "meaning": "Ownership section.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-ownership-mode",
@@ -8595,18 +8565,12 @@
     "pattern": false,
     "meaning": "Current ownership mode line.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-ownership-adopt",
@@ -8614,18 +8578,12 @@
     "pattern": false,
     "meaning": "Adopt ownership button.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-ownership-detach",
@@ -8633,18 +8591,12 @@
     "pattern": false,
     "meaning": "Detach ownership button.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-ownership-confirm",
@@ -8652,18 +8604,12 @@
     "pattern": false,
     "meaning": "Ownership change confirmation.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "sync-ownership-confirm-yes",
@@ -8671,18 +8617,12 @@
     "pattern": false,
     "meaning": "Confirm ownership change.",
     "producer": {
-      "file": "apps/studio/client/panels/SyncPanel.jsx",
-      "symbol": "SyncPanel"
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
     },
-    "region": "sync/cloud",
+    "region": "settings",
     "consumers": [],
-    "v2": "stable",
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
-        "symbol": "ProjectSyncSettings"
-      }
-    ]
+    "v2": "stable"
   },
   {
     "hook": "panel-side-<id>",
@@ -9190,5 +9130,31 @@
     "region": "settings",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "settings-check-updates",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Settings › Advanced › This Mac › Update: Check for updates (desktop app only; hidden while a build is staged).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "UpdateRow"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "readiness-autosetup-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Readiness dialog: the one line saying the Claude Code auto-setup switch lives in Settings › Advanced.",
+    "producer": {
+      "file": "apps/studio/client/panels/ReadinessList.jsx",
+      "symbol": "ReadinessDialog"
+    },
+    "region": "chat/ACP",
+    "consumers": [],
+    "v2": "new"
   }
 ]
