@@ -151,6 +151,52 @@ describe('the menu: one tree, per-shell rows derived from the registry', () => {
     expect(absent['sync.resync']).toMatch(/hub refuses/);
   });
 
+  // V2-4 gate (roles): the rows V2-4.9 found a Can comment viewer still offered. Editors keep every one.
+  const VIEWER_ABSENT: [string, string][] = [
+    ['canvas.new', 'creates a canvas in this project (V2-1.7 §5.9)'],
+    ['video.assemble', 'writes a new video canvas'],
+    ['select.all-annotations', 'annotations are selected to change them; annotate is Can edit'],
+    ['artboard.new-desktop', 'inserts into the open canvas'],
+    ['artboard.new-laptop', 'inserts into the open canvas'],
+    ['artboard.new-tablet', 'inserts into the open canvas'],
+    ['artboard.new-mobile', 'inserts into the open canvas'],
+    ['artboard.new-a4', 'inserts into the open canvas'],
+    ['artboard.new-letter', 'inserts into the open canvas'],
+  ];
+  const VIEWER_GREYED: [string, string][] = [
+    ['edit.undo', 'the stack holds edits only; ⌘Z says the denial line'],
+    ['edit.redo', 'as Undo'],
+    [
+      'edit.cut',
+      'its canvas branch cuts annotations (⌘X stays WebKit’s, for the comment composer)',
+    ],
+    ['edit.paste', 'its canvas branch pastes annotations (⌘V stays WebKit’s)'],
+    ['edit.paste-properties', 'writes styles'],
+  ];
+  const VIEWER_KEPT = ['project.new', 'project.open', 'edit.copy', 'edit.copy-properties'];
+  test('a Can comment viewer is not offered an edit (V2-4 gate roles pass)', () => {
+    for (const id of VIEWERS) {
+      const m = COMMITTED.shells[id].parts.menu;
+      const absent = (m.absent ?? {}) as Record<string, string>;
+      for (const [r, why] of VIEWER_ABSENT) {
+        expect(m.rows, `${id} ${r}: ${why}`).not.toContain(r);
+        expect(absent[r], `${id} ${r}`).toMatch(/needs edit rights/);
+      }
+      for (const [r, why] of VIEWER_GREYED) {
+        expect(m.rows, `${id} ${r}`).toContain(r);
+        expect(m.disabled, `${id} ${r}: ${why}`).toContain(r);
+      }
+      for (const r of VIEWER_KEPT) expect(m.rows, `${id} ${r}`).toContain(r);
+    }
+    for (const id of EDITORS) {
+      const m = COMMITTED.shells[id].parts.menu;
+      for (const [r] of [...VIEWER_ABSENT, ...VIEWER_GREYED]) {
+        expect(m.rows, `${id} ${r}`).toContain(r);
+        expect(m.disabled, `${id} ${r}`).not.toContain(r);
+      }
+    }
+  });
+
   test('the table’s rows are what the pill’s own model builds', () => {
     for (const id of NOT_EMBED) {
       const by = parityFor(id).by as {

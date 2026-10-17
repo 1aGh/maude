@@ -141,15 +141,22 @@ function warnIfWorldOrGroupReadable(path: string): void {
  * knows at BOOT rather than discovering it from the first refused write —
  * which would mean showing somebody an editor and then taking it away.
  *
- * Unknown, unreadable, or absent all answer FALSE, matching every credential
- * written before this shipped. This flag decides what the UI OFFERS; it is
- * never the thing that stops a write. That is the cell (Phase 25 C1) and the
- * gate in http.ts, both of which hold whatever this returns.
+ * An ABSENT role, or an unreadable file, answers FALSE, matching every
+ * credential written before this shipped. A role that IS stored but is not one
+ * that edits answers TRUE (V2-1.7 R1: an unknown role holds nothing) — this is
+ * what the http.ts gate on a hub-linked desktop refuses writes from
+ * (`roleReadOnly`), so `role === 'viewer'` alone failed OPEN for `observer`
+ * (Can view, S9), a renamed or mis-cased role, or anything a newer hub vouches
+ * (V2-4 gate, test/access-role-matrix.test.ts). The edit roles are the project
+ * roles that hold `edit` plus the self-hosted account role `admin`, which the
+ * hub maps to `owner` (`projectRoleForAccount`, apps/hub/src/role-matrix.mjs).
  */
+const EDIT_ROLES: ReadonlySet<unknown> = new Set(['owner', 'member', 'admin']);
+
 export function isHubReadOnly(url: string): boolean {
   try {
     const record = loadHubsConfig().hubs[normalizeUrl(url)];
-    return record?.role === 'viewer';
+    return record?.role !== undefined && !EDIT_ROLES.has(record.role);
   } catch {
     return false;
   }

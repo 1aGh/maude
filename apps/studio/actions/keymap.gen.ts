@@ -14,6 +14,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'canvas.new',
     exec: 'shell',
+    visible: { minRole: 'edit' },
     keys: [{ chord: '⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
@@ -25,11 +26,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'edit.undo',
     exec: 'canvas',
+    enabled: { minRole: 'edit' },
     keys: [{ chord: '⌘Z', layer: 'global', when: { focus: ['canvas'] } }],
   },
   {
     id: 'edit.redo',
     exec: 'canvas',
+    enabled: { minRole: 'edit' },
     keys: [
       { chord: '⇧⌘Z', layer: 'global', when: { focus: ['canvas'] } },
       { chord: '⌘Y', layer: 'global', alias: true, when: { focus: ['canvas'] } },
@@ -64,6 +67,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'edit.paste-properties',
     exec: 'canvas',
+    enabled: { minRole: 'edit' },
     keys: [
       { chord: '⌥⌘V', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {

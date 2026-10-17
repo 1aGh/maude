@@ -96,6 +96,11 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['⇧⌘K', shell('chrome'), 'search.open'],
     ['⌘Z', shell('chrome'), 'edit.undo'],
     ['⌘Z', shell('chrome', { canvasOpen: false }), null],
+    // V2-4 gate (roles), approved delta: v1 ran a commenter's ⌘Z (posted `undo` to a canvas with
+    // nothing of theirs on the stack). It still resolves here — the disabled winner swallows the key —
+    // and the shell answers with the denial line instead of running it (role-gate.js keyOutcome).
+    ['⌘Z', shell('chrome', { readOnly: true }), 'edit.undo'],
+    ['⇧⌘Z', shell('chrome', { readOnly: true }), 'edit.redo'],
     ['⌘Z', shell('text'), null],
     ['⌘Z', shell('range'), null],
     ['⌘Z', shell('select'), 'edit.undo'], // v1's global handler never counted <select> as typing

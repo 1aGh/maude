@@ -1383,10 +1383,8 @@
           ],
           "rows": [
             "nav.home",
-            "canvas.new",
             "project.new",
             "project.open",
-            "video.assemble",
             "export.open",
             "handoff.open",
             "canvas.close",
@@ -1400,13 +1398,6 @@
             "edit.paste-properties",
             "select.all",
             "select.none",
-            "select.all-annotations",
-            "artboard.new-desktop",
-            "artboard.new-laptop",
-            "artboard.new-tablet",
-            "artboard.new-mobile",
-            "artboard.new-a4",
-            "artboard.new-letter",
             "view.panels",
             "view.comments",
             "view.assets",
@@ -1447,12 +1438,13 @@
             "diag.project-folder",
             "settings.open"
           ],
-          "disabled": [],
+          "disabled": ["edit.undo", "edit.redo", "edit.cut", "edit.paste", "edit.paste-properties"],
           "ctx": {
             "shell": "cloud",
             "role": "comment"
           },
           "absent": {
+            "canvas.new": "New canvas needs edit rights",
             "project.pull-copy": "Pull a local copy… is for desktop only",
             "project.share-github": "Share on GitHub… is for desktop only",
             "canvas.duplicate": "Duplicate canvas needs edit rights",
@@ -1460,6 +1452,14 @@
             "canvas.move": "Move to… needs edit rights",
             "import.figma": "Import from Figma… needs edit rights",
             "import.brand": "Import a brand… needs edit rights",
+            "video.assemble": "Assemble clips into a video needs edit rights",
+            "select.all-annotations": "Select all annotations needs edit rights",
+            "artboard.new-desktop": "New artboard: Desktop needs edit rights",
+            "artboard.new-laptop": "New artboard: Laptop needs edit rights",
+            "artboard.new-tablet": "New artboard: Tablet needs edit rights",
+            "artboard.new-mobile": "New artboard: Mobile needs edit rights",
+            "artboard.new-a4": "New artboard: A4 needs edit rights",
+            "artboard.new-letter": "New artboard: Letter needs edit rights",
             "sync.resync": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)",
             "sync.download-all": "a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)"
           }
@@ -1628,10 +1628,8 @@
             "settings.open"
           ],
           "rows": [
-            "canvas.new",
             "project.new",
             "project.open",
-            "video.assemble",
             "export.open",
             "handoff.open",
             "canvas.close",
@@ -1644,13 +1642,6 @@
             "edit.paste-properties",
             "select.all",
             "select.none",
-            "select.all-annotations",
-            "artboard.new-desktop",
-            "artboard.new-laptop",
-            "artboard.new-tablet",
-            "artboard.new-mobile",
-            "artboard.new-a4",
-            "artboard.new-letter",
             "view.panels",
             "view.comments",
             "view.assets",
@@ -1693,13 +1684,14 @@
             "sync.download-all",
             "settings.open"
           ],
-          "disabled": [],
+          "disabled": ["edit.undo", "edit.redo", "edit.cut", "edit.paste", "edit.paste-properties"],
           "ctx": {
             "shell": "browser",
             "role": "comment"
           },
           "absent": {
             "nav.home": "Back to Home is for desktop and cloud only",
+            "canvas.new": "New canvas needs edit rights",
             "project.pull-copy": "Pull a local copy… is for desktop only",
             "project.share-github": "Share on GitHub… is for desktop only",
             "canvas.duplicate": "Duplicate canvas needs edit rights",
@@ -1707,7 +1699,15 @@
             "canvas.move": "Move to… needs edit rights",
             "import.figma": "Import from Figma… needs edit rights",
             "import.brand": "Import a brand… needs edit rights",
-            "account.switch": "Sign in as another account… is for desktop and cloud only"
+            "video.assemble": "Assemble clips into a video needs edit rights",
+            "account.switch": "Sign in as another account… is for desktop and cloud only",
+            "select.all-annotations": "Select all annotations needs edit rights",
+            "artboard.new-desktop": "New artboard: Desktop needs edit rights",
+            "artboard.new-laptop": "New artboard: Laptop needs edit rights",
+            "artboard.new-tablet": "New artboard: Tablet needs edit rights",
+            "artboard.new-mobile": "New artboard: Mobile needs edit rights",
+            "artboard.new-a4": "New artboard: A4 needs edit rights",
+            "artboard.new-letter": "New artboard: Letter needs edit rights"
           }
         },
         "share-cluster": {

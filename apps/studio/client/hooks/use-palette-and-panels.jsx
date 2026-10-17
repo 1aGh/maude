@@ -7,12 +7,14 @@ import { copyShareLink } from '../share-dialog.jsx';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
+import { roleRefuses } from '../v2/shell/role-gate.js';
+import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
 import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
-import { openCount } from '../shell/util.js';
+import { openCount, shellToast } from '../shell/util.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
@@ -299,9 +301,20 @@ export function usePaletteAndPanels({
   // id. `project.new` is IdentityBar's (its dialog state lives there).
   const paletteRef = useRef(paletteActions);
   paletteRef.current = paletteActions;
+  const viewerRef = useRef(viewerMode);
+  viewerRef.current = viewerMode;
   useEffect(() => {
     if (!isNativeApp()) return undefined;
-    const p = onMenuAction((id) => paletteRef.current.find((a) => a.id === id)?.run?.());
+    const p = onMenuAction((id) => {
+      // V2-4 gate (roles): AppKit draws File ▸ New Canvas ⌘N without knowing the hub role, so a
+      // Can comment person's press is answered here with the one denial line (role-gate.js).
+      const ctx = menuCtx({ native: true, readOnly: !!viewerRef.current, canvasOpen: true });
+      if (roleRefuses(ACTIONS_BY_ID.get(id), ctx)) {
+        shellToast(ROLE_DENIAL);
+        return;
+      }
+      paletteRef.current.find((a) => a.id === id)?.run?.();
+    });
     return () => {
       p?.then?.((fn) => fn?.());
     };

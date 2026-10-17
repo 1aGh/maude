@@ -19,6 +19,14 @@ const SHELL_REDO_Y = {
   notFacts: ['rangeFocused' as const],
 };
 
+// V2-4 gate (roles): the Edit menu's verbs that change the canvas are GREYED below Can edit, the
+// macOS Edit-menu idiom (`enabled`, not `visible`). Undo / Redo keep their shell ⌘Z / ⇧⌘Z binding
+// live, so a viewer's press resolves to the disabled winner and the shell swallows it with the one
+// denial line (use-action-keys.jsx + role-gate.js) instead of falling through to WebKit's undo.
+// The canvas document's own bindings are untouched: the canvas KeyCtx is always 'owner' and its
+// read-only gate is the mode lane's (decision:maude/v2-tool-keys-resolve-for-every-role).
+const EDITS = { minRole: 'edit' as const };
+
 // v1 use-keyboard-discipline: canvas focus, not typing (the handler also skips the browse tool and
 // needs a selection — v1 checks kept in the handler).
 const OBJ = IN_CANVAS;
@@ -29,6 +37,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Undo',
     kind: 'command',
     exec: 'canvas',
+    enabled: EDITS,
     keys: [
       kb('⌘Z', 'global', { inText: false, when: SHELL_UNDO }), // shell → posts `undo` to the canvas
       kb('⌘Z', 'global', { when: IN_CANVAS }), // canvas input-router
@@ -40,6 +49,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Redo',
     kind: 'command',
     exec: 'canvas',
+    enabled: EDITS,
     keys: [
       kb('⇧⌘Z', 'global', { inText: false, when: SHELL_UNDO }),
       kb('⌘Y', 'global', { inText: false, alias: true, when: SHELL_REDO_Y }),
@@ -66,6 +76,9 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Cut',
     kind: 'command',
     exec: 'shell',
+    // Greyed below Can edit: the row's canvas branch cuts annotations. ⌘X / ⌘V are WebKit's own
+    // (no shell handler), so a commenter still cuts and pastes in the comment composer.
+    enabled: EDITS,
     keys: [kb('⌘X', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
   },
   {
@@ -73,6 +86,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Paste',
     kind: 'command',
     exec: 'shell',
+    enabled: EDITS,
     keys: [kb('⌘V', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
   },
   {
@@ -99,6 +113,9 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Select all annotations',
     kind: 'command',
     exec: 'canvas',
+    // V2-4 gate (roles): annotations are selected to change them, and `annotate` is Can edit's
+    // (V2-1.7 §5.2). No key, so absent rather than greyed.
+    visible: EDITS,
     legacy: { menu: 'Select all annotations' },
   },
   {
@@ -120,6 +137,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Paste properties',
     kind: 'command',
     exec: 'canvas',
+    enabled: EDITS, // V2-4 gate (roles): writes styles; Copy properties is a read and stays
     keys: mods('⌥⌘V', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
   },
   {
