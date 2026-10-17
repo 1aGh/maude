@@ -6569,10 +6569,62 @@
     "v2": "stable"
   },
   {
+    "hook": "toolbar-<mode>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The canvas toolbar island for the current mode: `toolbar-edit`, `toolbar-preview`, `toolbar-viewing` (`role=\"toolbar\"`, also `.dc-tool-palette`). Absent in Present and for Can view. `data-morph` is set while ToolbarMorph runs.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-slot-<toolId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Frame / Text / Image and the panel-only Stickers have none). `<toolId>`: `move`, `hand`, `frame`, `el-text`, `image` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-popover-<which>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\") or `marker-tips`.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-tip-<tool>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Marker tip in its popover: `pen` (Marker), `highlighter`, `eraser`.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": ".dc-tool-palette",
     "kind": "selector",
     "pattern": false,
-    "meaning": "The in-canvas tool palette (bottom toolbar, `role=\"toolbar\"`).",
+    "meaning": "The in-canvas toolbar island (bottom, `role=\"toolbar\"`); one per mode since V2-4.5a, class kept for the chrome selectors.",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -6588,26 +6640,13 @@
       "apps/studio/test/input-router.test.ts",
       "apps/studio/whats-new.json"
     ],
-    "v2": "moves"
-  },
-  {
-    "hook": ".dc-tp-insert-popover",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "Insert (Div/Text/Image) popover of the palette.",
-    "producer": {
-      "file": "apps/studio/tool-palette.tsx",
-      "symbol": "ToolPalette"
-    },
-    "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "Tool palette buttons",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Palette buttons by `aria-label` = \"<Tool> (<key>)\" from `TOOLS` in `use-tool-mode.tsx` (Select (V), Hand (H), Comment (C), Pen (B), Shape (R), Sticky (N), Section (⇧S), Eraser (E), Browse); plus \"Insert element\", \"Insert element — Div, Text, or Image\", \"Shape type\", \"Stickers\", \"Presentation mode\".",
+    "meaning": "Toolbar buttons by `aria-label` = \"<Tool> (<key>)\" from `MODE_TOOLS` (CONTRACT §2/§3): Edit — Select (V), Hand (H), Frame (F), Text (T), Image (I); Preview — Hand (H), Sticky (N), Comment (C), Marker (M) (tips Highlighter, Eraser in its popover), Arrow (A), Shape (R), Text (T), Stickers (E), Section (S); \"Shape type\" popover. Retired with the v1 palette: \"Pen (B)\", \"Highlighter (I)\", \"Eraser (E)\", \"Section (⇧S)\", \"Browse\", \"Insert element…\", \"Export (⌘E)\".",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"

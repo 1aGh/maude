@@ -162,12 +162,15 @@ describe('mode-toggle / mode⇄tool invariant', () => {
 });
 
 // V2-4.3b (V2-1.2 §8 step 7) — REWRITTEN on purpose: the mode switch left the canvas palette for the
-// Share cluster (CONTRACT §7, A7). The palette keeps the tools; the cluster's segments carry the old
-// `palette-mode-*` testids (rule 5) plus `palette-mode-viewing`, and send `set-mode` (mode-lane.test).
-// The boot and invariant sections above still hold: they are the ungoverned v1 path, which every canvas
-// runs until the shell's first `set-mode` (and a bare specimen or an embed runs for good).
-describe('mode-toggle / the palette no longer switches modes', () => {
-  test('no mode segments, no Present button; the tools and the edit-only insert stay', () => {
+// Share cluster (CONTRACT §7, A7). The cluster's segments carry the old `palette-mode-*` testids
+// (rule 5) plus `palette-mode-viewing`, and send `set-mode` (mode-lane.test).
+// V2-4.5a — the toolbar assertions below were re-pointed from the v1 palette to the two toolbars:
+// "Insert element" and "Pen (B)" are gone (Frame / Text / Image and Marker replace them); the claim
+// itself — no mode segments, no Present button in the canvas — is unchanged. The boot and invariant
+// sections above still hold: they are the ungoverned v1 path, which every canvas runs until the shell's
+// first `set-mode` (and a bare specimen or an embed runs for good).
+describe('mode-toggle / the toolbar no longer switches modes', () => {
+  test('no mode segments, no Present button; Edit has its tools and the insert-backed slots, Preview its annotation tools', () => {
     mount(
       <ToolProvider>
         <Capture />
@@ -178,16 +181,15 @@ describe('mode-toggle / the palette no longer switches modes', () => {
     expect(document.querySelector('.dc-tp-mode')).toBeNull();
     expect(document.querySelector('[aria-label^="Presentation mode"]')).toBeNull();
     expect(document.querySelector('[aria-label="Canvas mode"]')).toBeNull();
+    expect(document.querySelector('[data-testid="toolbar-edit"]')).not.toBeNull();
     expect(document.querySelector('[aria-label^="Hand (H)"]')).not.toBeNull();
-    expect(
-      document.querySelector('[aria-label="Insert element — Div, Text, or Image"]')
-    ).not.toBeNull();
-    // Preview (from anywhere — the cluster, a key) still drops the edit-only insert.
+    expect(document.querySelector('[data-testid="toolbar-slot-frame"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label^="Marker (M)"]')).toBeNull();
+    // Preview (from anywhere — the cluster, a key) swaps in the annotation toolbar.
     act(() => ctx?.setMode('preview'));
-    expect(
-      document.querySelector('[aria-label="Insert element — Div, Text, or Image"]')
-    ).toBeNull();
-    expect(document.querySelector('[aria-label^="Pen (B)"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="toolbar-preview"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="toolbar-slot-frame"]')).toBeNull();
+    expect(document.querySelector('[aria-label^="Marker (M)"]')).not.toBeNull();
   });
 });
 
