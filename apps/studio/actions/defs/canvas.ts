@@ -10,6 +10,10 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    // V2-4 gate (roles): a canvas is created IN this project — Can comment / Can view have no New
+    // canvas (V2-1.7 §5.9: `can('edit', null)` is false). Absent, not greyed; the native ⌘N still
+    // reaches the shell as `menu://action`, which says the one denial line (role-gate.js).
+    visible: { minRole: 'edit' },
     // The v2 key is ⌘N: the desktop File ▸ New Canvas accelerator (C3, V2-3.4 — AppKit owns it, the
     // menu sends `menu://action`). v1's bare N (the browser never delivers ⌘N) died with V2-4.5b,
     // which bound N to Sticky (rule 13; help.ts MOVED_KEYS).
@@ -33,6 +37,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'plus',
     exec: 'shell',
+    visible: { minRole: 'edit' }, // V2-4 gate (roles): creates a canvas, like New canvas
     legacy: { palette: 'New video…' },
   },
   {
@@ -89,6 +94,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     label: 'Assemble clips into a video',
     kind: 'command',
     exec: 'shell',
+    visible: { minRole: 'edit' }, // V2-4 gate (roles): writes a new video canvas
     legacy: { menu: 'Assemble dropped clips → video' },
   },
   ...(
@@ -106,6 +112,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
       label: `New artboard: ${name.replace(' (print)', '')}`,
       kind: 'command',
       exec: 'shell',
+      visible: { minRole: 'edit' }, // V2-4 gate (roles): inserts into the open canvas
       legacy: { menu: `New artboard: ${name}` },
     })
   ),

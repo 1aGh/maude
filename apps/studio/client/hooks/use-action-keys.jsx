@@ -20,7 +20,9 @@ import { documentIndex } from '../../actions/documents.ts';
 import { SHELL_KEY_HANDLERS } from '../actions/shell-key-handlers.js';
 import { isNativeApp } from '../github.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
-import { totalCounts } from '../shell/util.js';
+import { shellToast, totalCounts } from '../shell/util.js';
+import { keyOutcome } from '../v2/shell/role-gate.js';
+import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 
 /** The shell resolves over the actions it has a handler for (the canvas runs its own). */
 const SHELL_KEY_INDEX = documentIndex(ACTIONS, 'shell', (id) => id in SHELL_KEY_HANDLERS);
@@ -56,6 +58,14 @@ export function useActionKeys(deps) {
       );
       const r = resolveChord(SHELL_KEY_INDEX, chordFromEvent(e), ctx);
       if (!r) return;
+      // A disabled winner swallows the key (resolve.ts); when the ROLE disabled it, the press hears
+      // the one denial line (V2-4 gate — role-gate.js), e.g. a commenter's ⌘Z.
+      const outcome = keyOutcome(r.action, ctx);
+      if (outcome !== 'run') {
+        e.preventDefault();
+        if (outcome === 'deny') shellToast(ROLE_DENIAL);
+        return;
+      }
       SHELL_KEY_HANDLERS[r.action.id](d, { event: e, ctx });
     }
     window.addEventListener('keydown', onKey);
