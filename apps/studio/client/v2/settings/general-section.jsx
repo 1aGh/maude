@@ -39,6 +39,7 @@ function useCloudAccount(enabled) {
 
 export default function GeneralSection({
   cloud,
+  readOnly = false,
   theme,
   onSetTheme,
   cpMode,
@@ -57,17 +58,20 @@ export default function GeneralSection({
   layersMode,
   onSetLayersMode,
 }) {
-  const acct = useCloudAccount(cloud === null);
+  // The Mac's own cloud account is the owner's business: a read-only link asks for none of it (V2-4.9).
+  const ownAccount = cloud === null && !readOnly;
+  const acct = useCloudAccount(ownAccount);
   // The dashboard this person manages their account on: the cloud tab was configured with one; the
   // desktop asks the server for the address it signs in against. Never a hard-coded vendor URL.
-  const dashboardUrl = cloud === null ? acct?.url : (cloud?.dashboardUrl ?? null);
+  const dashboardUrl =
+    cloud === null ? (ownAccount ? acct?.url : null) : (cloud?.dashboardUrl ?? null);
   const canvasReason = !hasCanvas ? 'Open a canvas to use this.' : undefined;
 
   return (
     <>
       {dashboardUrl && (
         <Group title="Account" testid="settings-account">
-          {cloud === null && (
+          {ownAccount && (
             <Row
               label="Maude Cloud"
               hint={acct?.connected ? undefined : 'Sign in under Connections to sync projects.'}

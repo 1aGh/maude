@@ -2583,6 +2583,7 @@ function ShellSettingsPanel() {
       syncStatus,
       theme,
       updateReady,
+      viewerMode,
       zoomCtlVisible,
     },
     photoAndTimeline: { toggleAnnotations, toggleMinimap, toggleZoomCtl },
@@ -2590,6 +2591,7 @@ function ShellSettingsPanel() {
   return (
     <SettingsSheet
       cloud={cfg.cloud}
+      readOnly={viewerMode}
       onClose={() => setSettingsOpen(false)}
       initialTab={typeof settingsOpen === 'string' ? settingsOpen : undefined}
       update={updateReady}

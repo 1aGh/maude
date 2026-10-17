@@ -12,9 +12,11 @@
 // nothing from it.
 import { useEffect, useRef, useState } from 'react';
 
+import { NO_CAPS } from '../bridge/canvas-modes.ts';
 import { canvasTokenRefreshDelay, canvasUrl, setLiveCanvasToken } from './canvas-url.js';
 import { postToEmbedder, readEmbedParams } from './embed.js';
 import { normalizeOpenPath } from './share-link.js';
+import { setModeMessage } from './v2/shell/canvas-mode.js';
 
 const CANVAS_EXT_RE = /\.(tsx|html?)$/i;
 // DDR-247 — every config read this view makes says it is the embed, so a hub
@@ -162,6 +164,11 @@ export default function EmbedView() {
     const timers = [];
     let ready = false;
     let giveUp = null;
+    // V2-4.9 (shell parity): the embed is a shell like the others, so the canvas mode is governed here too —
+    // Preview with no capability (looking, nothing else), over the one `set-mode` lane (V2-4.3b). `seq`
+    // only grows (I4), so no seed of the ladder is dropped as stale, however often the frame reloads;
+    // each one is idempotent.
+    let modeSeq = 0;
     const seed = () => {
       const win = frameRef.current?.contentWindow;
       if (!win || !canvasOrigin) return;
@@ -170,6 +177,7 @@ export default function EmbedView() {
         { dgn: 'comments-set', comments: [] },
         { dgn: 'theme', theme },
         { dgn: 'view-chrome', minimap: false, zoom: false, present: true },
+        setModeMessage({ seq: ++modeSeq, mode: 'preview', caps: NO_CAPS }),
         // V2-2.4 — the canvas zoom rides the `run-action` lane (V2-1.3 §5.7).
         view.artboard
           ? { dgn: 'run-action', v: 1, id: 'view.zoom-to-artboard', params: { id: view.artboard } }

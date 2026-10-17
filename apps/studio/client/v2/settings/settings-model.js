@@ -6,6 +6,11 @@
 // The rows test walks it against `nothing-deleted.json`, so a v1 setting cannot lose its home
 // without a red test.
 //
+// A READ-ONLY session (a Can view / Can comment link or a cloud viewer, V2-4.9) gets Settings too, but only
+// the part that is about the person: General's Look, Canvas and view, Layout (theme, Inspector words,
+// panel positions — all kept in this browser). Connections and Advanced configure the Mac the project
+// lives on, and the account row is about the Mac's owner, so a local read-only link has none of them.
+//
 // The shell flag (`cloud`) is tri-state and stays that way here: `undefined` = /_config has not
 // answered, `null` = the desktop, an object = a cloud tab. Local-machine rows need `cloud === null`
 // (never "not truthy"): a browser tab has no keychain, no ffmpeg and no whisper, and the routes behind
@@ -39,6 +44,9 @@ export const SETTINGS_ROWS = Object.freeze([
     section: 'general',
     testid: 'settings-open-dashboard',
     where: 'Settings › General › Account › Open the cloud dashboard',
+    // The Mac's own account (a local project): a read-only link is somebody else's Mac, so it has none.
+    // A cloud viewer keeps it — the hub told its tab where the dashboard is.
+    account: true,
   },
   {
     nd: null,
@@ -218,14 +226,22 @@ export const SETTINGS_ROWS = Object.freeze([
   },
 ]);
 
-/** Which sections a shell offers. Local-machine sections need `cloud === null` (see the file head). */
-export function sectionsFor(cloud) {
-  return SECTIONS.filter((s) => !s.local || cloud === null);
+/** Which sections a shell offers. Local-machine sections need `cloud === null` and an owner's session
+ *  (`!readOnly`, see the file head). */
+export function sectionsFor(cloud, readOnly = false) {
+  return SECTIONS.filter((s) => !s.local || (cloud === null && !readOnly));
+}
+
+/** Is a Settings row in this shell? The one rule the sheet, ⌘K and the parity table share. */
+export function rowShown(row, { cloud = null, readOnly = false } = {}) {
+  if (row.local && (cloud !== null || readOnly)) return false;
+  if (row.account && cloud === null && readOnly) return false;
+  return true;
 }
 
 /** The section to open on: an explicit one, else the remembered one — never one this shell lacks. */
-export function resolveTab(cloud, initial, remembered) {
-  const ids = sectionsFor(cloud).map((s) => s.id);
+export function resolveTab(cloud, initial, remembered, readOnly = false) {
+  const ids = sectionsFor(cloud, readOnly).map((s) => s.id);
   if (initial && ids.includes(initial)) return initial;
   if (remembered && ids.includes(remembered)) return remembered;
   return 'general';

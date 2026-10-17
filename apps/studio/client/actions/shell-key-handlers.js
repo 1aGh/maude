@@ -151,13 +151,14 @@ export const SHELL_KEY_HANDLERS = {
     e.preventDefault();
     d.setExportDialog({ mode: 'handoff' });
   },
-  // Cmd+, — Settings (Cloud Phase 25 C2 — settings mutate project config; absent for a viewer,
-  // key still swallowed). With the timeline transport live, v1's transport also took ⌘, as its
-  // `,` (previous keyframe) — it ran first.
+  // Cmd+, — Settings. V2-4.9: a read-only session opens it too — the sheet then holds only General (theme,
+  // Inspector words, panel positions: kept in this browser), never the Mac-level sections that
+  // mutate project config (Cloud Phase 25 C2). With the timeline transport live, v1's transport also
+  // took ⌘, as its `,` (previous keyframe) — it ran first.
   'settings.open': (d, { event: e, ctx }) => {
     if (transportLive(ctx)) prevKeyframe(d, e);
     e.preventDefault();
-    if (!d.viewerMode) d.setSettingsOpen(true);
+    d.setSettingsOpen(true);
   },
   'view.timeline-keep-open': (d, { event: e }) => {
     e.preventDefault();

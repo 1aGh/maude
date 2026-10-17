@@ -13,8 +13,9 @@
 // tablist (arrows / Home / End rove); each section is a tabpanel. A section that was opened stays
 // mounted (hidden) so a model download's poll survives a section switch.
 //
-// Connections and Advanced are the desktop's (`cloud === null`): a browser tab has no keychain,
-// ffmpeg or whisper, so those sections are ABSENT there, not disabled (settings-model.js).
+// Connections and Advanced are the desktop's (`cloud === null`, and an owner's session): a browser tab
+// has no keychain, ffmpeg or whisper, and a read-only link must not touch the Mac's config, so those
+// sections are ABSENT there, not disabled (settings-model.js).
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -38,6 +39,8 @@ function remembered() {
 export default function SettingsSheet({
   /** Tri-state shell flag (see settings-model.js): undefined = unknown, null = desktop, object = cloud tab. */
   cloud,
+  /** A read-only session (V2-4.9): General only — the preferences of the person, none of the Mac's. */
+  readOnly = false,
   onClose,
   initialTab,
   /** The staged auto-update (`{ version }`) or null, and the “Later” answer. */
@@ -48,9 +51,9 @@ export default function SettingsSheet({
   onLocalProject,
   ...general
 }) {
-  const sections = sectionsFor(cloud);
+  const sections = sectionsFor(cloud, readOnly);
   const ids = sections.map((s) => s.id);
-  const [tab, setTab] = useState(() => resolveTab(cloud, initialTab, remembered()));
+  const [tab, setTab] = useState(() => resolveTab(cloud, initialTab, remembered(), readOnly));
   // A section the shell lost between renders (cloud answered late) must not stay selected.
   const current = ids.includes(tab) ? tab : 'general';
   const [visited, setVisited] = useState(() => new Set([current]));
@@ -187,7 +190,9 @@ export default function SettingsSheet({
                   className="v2s-panel"
                   data-testid={`settings-panel-${s.id}`}
                 >
-                  {s.id === 'general' && <GeneralSection cloud={cloud} {...general} />}
+                  {s.id === 'general' && (
+                    <GeneralSection cloud={cloud} readOnly={readOnly} {...general} />
+                  )}
                   {s.id === 'connections' && (
                     <ConnectionsSection
                       syncStatus={syncStatus}
