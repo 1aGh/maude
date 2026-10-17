@@ -267,6 +267,82 @@ home is a control in a sheet got an `ACTION_SURFACE` entry: `export.rerun-last` 
   the `/_ws/acp` JSON-RPC handshake: initialize, session/new with config options, a canned turn with a tool call
   and a permission request). The rows are homed; only the state is missing.
 
+## V2-4.gate-d: the audit's last mile
+
+**Numbers (2026-10-17, full probe, 7 shells):** 
+
+| Check | After gate-c | After gate-d |
+| --- | --- | --- |
+| entries mapped | 0 open (1422) | **0 open (1418; 63 excluded)** |
+| rows with a home | 2 / 144 open | **0 open** |
+| rows reachable | 134 / 144 | **144 / 144** |
+| kept targets reachable | 228 / 377 | **377 / 377** (6 by named render test, the rest by the probe) |
+
+`node scripts/check-v2-nothing-deleted.mjs` exits 0. `reachability.json` is one full 7-shell run plus a `--merge` re-run
+of the 15 openers added after it started (`bundle` says so); the merge overlays evidence, it never invents any.
+
+**The ACP chat has a stub bridge** (`scripts/v2-manifest/acp-stub.mjs`, data + two pure functions). The desktop chat
+speaks the dev server's bridge frames over `/_ws/acp` (`client/panels/acp-runtime.js` `onFrame`: `ready`, `commands`,
+`caps`, `usage`, `session-info`, `update`, `permission-request`, `elicitation-request`, `turn-end`, `error`), not raw
+ACP JSON-RPC. The probe plays that server from a script: `ACP_SCRIPTS[name] = { open, warm, prompt }`. An opener names a
+state (`acp-chat`, `acp-connecting`, `acp-plan`, `acp-elicit`, `acp-error`, `acp-done`, `acp-missing`); the state names
+the script and the `/_api/acp/status` answer. The `chat` turn is two reads (a tool group), a thought, a reply and an
+edit that waits on the person: an out-of-project write refused by the path gate (the "outside the project" card with
+its resolved path) and an ordinary one queued behind it ("+1 more waiting"). The turn is left open so Stop and both
+cards stay on screen. `acp-missing` stubs `/_api/preflight` so the explainer's "Set up AI editing" shows. The key
+that opens the chat is **⌘/** (`ai.chat`'s key since V2-4.5b; ⇧⌘A is Select all annotations now); the old `ai-chat`
+opener pressed ⇧⌘A and never opened it.
+
+**State openers added** (all data; the driver gained `hover`, `frameDown`/`mouseMove`/`mouseUp` (a held gesture,
+evidence collected mid-drag), `frameDblclick`, `post`, and route answers `__hang` / `__abort` / `__status` / `__png`):
+the canvas under gesture (artboard dragged to a snap, a drawn shape dragged, a heading edited in place, an artboard
+renamed, a standalone note and a shape's text edited, the minimap and zoom toolbar switched on and the stored
+prefs restored); the preview toolbar's Shape / Marker popovers (they open on the SECOND click of a lit slot) and the
+Stickers and "Replace image…" panels; a print artboard (its guides); the welcome canvas; the Canvases tree before
+the index arrives and a canvas that never loads (a `canvas-shell` request that hangs: the opening card, then the
+failure card after the 15 s cap); Version history on a project that saves through accepted revisions (rows, Preview,
+Restore, Undo, the preview's version bar), on a cloud-managed project whose history cannot be read (Retry), on a clean
+repo that is behind (Get latest, Pull), and Compare; Diagnostics › Sync with the offline download and the open conflict
+body (original draft, starting version, diff); the bug-report dialog with its shots, a window shot still pending, a
+filed report and a failed one; Figma's token test (ok / refused) and import (summary / error); a `maude://` connect
+link and file links (not on this Mac / on this Mac); the team-server dialog from the draft switcher (signed out with the
+device code, recents, an empty cloud list, an open that starts, one that fails); the sign-in address and its refusal;
+Comments (the panel with a resolved comment, the chat's "Implement N comments", a pin's thread with the author's own
+Edit / Save); a row's own menu; the shell prompt (New video); ⌘K with nothing found and with close matches; the "?"
+sheet with nothing found.
+
+**Two harness defects found on the way** (both fixed in the probe, not in the product): a stubbed `/_api/git/status`
+was overwritten by the real server's own `git-status` WebSocket push (a state now lists `dropFrames: ['git-status']`),
+and the stub matched `/_api/git/status` exactly while the app also asks `?remote=1` (the key is a glob now).
+
+**Hooks that are only drawn in one kind of shell** (`HOOK_SHELLS`): the Changes panel's save / publish / pull
+controls (`GitPanel readOnly = !isNativeApp()`, so a browser tab shows its read-only form), `maude://` link dialogs,
+the sign-in refusal and "Sign in again", the readiness dialog's note (all `isNativeApp()`), and the embed shell's two
+roots. `app.check-updates` is `visible: { shell: ['desktop'] }` in the registry now: the updater is the app's, and a
+browser, cloud tab or read-only link has no Settings › Update row for the registry to promise.
+
+**Prose hooks resolve to selectors** (`CSS_ALIASES`): "Annotation node labels", "Annotation toolbar labels", "Photo tab
+field labels", "menuitem by name (row menu)", "[aria-expanded] on tree rows" and the like were never machine-checkable
+(`hookMatcher` returned null or an invalid selector); each now names the concrete `aria-label` / role set. `cloud-host`
+is a host that draws no box and counts when it is in the document (`PRESENCE_ONLY`).
+
+### State-internal proofs: `HOOK_PROOFS` (lead decision)
+
+A kept hook that only exists mid-gesture or in a transient state a probe would have to fake (a second person's cursor,
+a holding card during a hot reload, a harness canvas nobody opens, the canvas's own participant stack that the Share
+cluster replaces inside the shell, a section's label chip) may be proved by a **named render test** instead of a probe
+state. `HOOK_PROOFS[hook] = { container, test, name, needles? }` in `reach-rules.mjs`: the audit counts the hook reached
+in a shell when `container` (a hook the probe reaches there) is on screen AND `test` exists AND contains the title
+`name` AND contains the hook (or every `needles` string — a hook written as several selectors is found by its own
+spellings). The test must render the hook; the audit only checks the test still says so. Two layers keep it honest:
+the probe records `ok: proof(<test> › <title>)` per shell, and `scripts/check-v2-nothing-deleted.mjs` re-reads every
+credited proof when it runs, so deleting or renaming the test turns the line red without a new probe. A hook the probe
+CAN reach never needs one (the probe seeing it wins), and `scripts/test/v2-nothing-deleted-gate-d.test.mjs` checks
+every table entry against the repo. Today: `.dc-cursor / .dc-peer-selection / [data-peer-gesture]`
+(`peer-selection-follows-camera.test.tsx`), `.dc-hmr-holding` (`canvas-hmr-loaded.test.tsx`), and in
+`apps/studio/test/v2-gate-proofs.test.tsx`: the background-removal harness, the readiness dialog's note, the
+participant stack and the section chip.
+
 ## Tests
 
 - `scripts/test/v2-nothing-deleted-map.test.mjs` (8 tests): precedence, historical exclusion, label-file scope,
@@ -274,6 +350,9 @@ home is a control in a sheet got an `ACTION_SURFACE` entry: `export.rerun-last` 
 - `scripts/test/v2-nothing-deleted-reach.test.mjs` (14 tests): settings-local, registry predicate, editor-only
   homes, explicit reach / §B defaults, kept action and kept hook rules, hook matchers, evidence → doc,
   failed-step evidence, tool reach by slot minRole (3), the "?" sheet, native-only hooks.
+- `scripts/test/v2-nothing-deleted-gate-d.test.mjs` (9 tests): proofHolds, proof crediting (container, probe wins, decayed proof),
+  every HOOK_PROOFS entry against the repo, prose selectors, native-only hooks, the ACP stub, opener scopes.
+  `apps/studio/test/v2-gate-proofs.test.tsx` (5 render tests) is the proof for four hooks.
 - `scripts/test/v2-nothing-deleted-openers.test.mjs` (5 tests): a state folds into routes and `/_config`, `extends`
   overrides only what it names, every opener resolves, an unknown state or answer is a loud error.
 

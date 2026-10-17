@@ -290,6 +290,24 @@ export const ROUTE_ANSWERS = {
   viewerIdentity: { name: 'Tereza', email: 'tereza@example.com' },
   // ── routes that never answer / fail (a slow start, a canvas that does not load) ───────────────────
   pngImage: { __png: true },
+  brandImportOk: { ok: true, path: 'assets/logo.svg' },
+  brandExtracted: {
+    ok: true,
+    palette: ['#336699', '#ffcc00'],
+    fonts: ['Inter'],
+    logoRef: 'assets/ab12cd34.png',
+    logoRasterRef: 'assets/ab12cd34.png',
+    hadWordmarkText: false,
+  },
+  brandExtractFailed: { __status: 422, ok: false, error: 'That file has no readable shapes.' },
+  sourceConflictGone: { ok: false, error: 'This conflict is already resolved.' },
+  cloudSigninBadUrl: {
+    ok: true,
+    deviceCode: 'probe-device-code',
+    userCode: 'ABCD-1234',
+    verificationUrl: 'https://not-the-cloud.example/device',
+    interval: 60,
+  },
   hang: { __hang: true },
   abort: { __abort: true },
   serverError: { __status: 500, error: 'probe: the server answered 500' },
@@ -452,6 +470,27 @@ export const STATES = {
     extends: 'cloud-signing-in',
     invoke: { open_cloud_url: { __reject: 'Refusing to open that address' } },
   },
+  'brand-extracted': {
+    routes: { '/_api/import-asset': 'brandImportOk', '/_api/import-brand': 'brandExtracted' },
+  },
+  // the desktop's native picker hands back the file's bytes
+  'brand-extracted-desktop': {
+    extends: 'brand-extracted',
+    invoke: { pick_media_file: { bytes: [60, 115, 118, 103, 62] } },
+  },
+  'brand-failed': {
+    routes: { '/_api/import-asset': 'brandImportOk', '/_api/import-brand': 'brandExtractFailed' },
+  },
+  // a conflict somebody else already resolved
+  'linked-rich-conflict-gone': {
+    extends: 'linked-rich',
+    routes: { '/_api/project/conflict*': 'sourceConflictGone' },
+  },
+  // the sign-in address the cloud sent is not the cloud's own
+  'cloud-signin-bad-url': {
+    extends: 'cloud-signing-in',
+    routes: { '/_api/cloud/signin/start': 'cloudSigninBadUrl' },
+  },
   'github-in': {
     invoke: { github_is_signed_in: true },
     routes: { '/_api/github/identity': 'githubIdentity' },
@@ -547,6 +586,7 @@ const diagView = (v) => [
  *  run (⌘K, pick one action by id) · push (a WS frame) · type (into the focused field) · fill
  *  ([selector, text]) · `optional`
  *  skips a click whose target is not on screen. */
+const LOCAL_SHELLS = ['desktop', 'browser'];
 export const OPENERS = [
   { id: 'shell', canvas: false, steps: [] },
   { id: 'canvas', steps: [] },
@@ -867,6 +907,8 @@ export const OPENERS = [
       { wait: 500 },
       // a second double-click drills one more level when the first only moved the selection
       { frameDblclick: '[data-cd-id="home-hero-title"]' },
+      { wait: 500 },
+      { frameClick: '[data-cd-id="home-hero-title"]' },
       { wait: 700 },
     ],
   },
@@ -1076,6 +1118,65 @@ export const OPENERS = [
       { click: tid('cloud-signin-link'), optional: true },
       { wait: 500 },
     ],
+  },
+  // ── the brand upload panel (File › Bring my existing brand): a browser picks a file, the desktop asks its shell ──
+  {
+    id: 'brand-up',
+    state: 'brand-extracted',
+    steps: [
+      { run: 'import.brand' },
+      { upload: ['input[type="file"]', 'logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'] },
+      { wait: 800 },
+    ],
+    probes: ['browser'],
+  },
+  {
+    id: 'brand-up-failed',
+    state: 'brand-failed',
+    steps: [
+      { run: 'import.brand' },
+      { upload: ['input[type="file"]', 'logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'] },
+      { wait: 800 },
+    ],
+    probes: ['browser'],
+  },
+  {
+    id: 'brand-up-desktop',
+    state: 'brand-extracted-desktop',
+    steps: [{ run: 'import.brand' }, { click: tid('brand-up-pick-file') }, { wait: 1000 }],
+    probes: ['desktop'],
+  },
+  // the desktop's native picker is not there in the probe: the panel says so
+  {
+    id: 'brand-up-native',
+    steps: [{ run: 'import.brand' }, { click: tid('brand-up-pick-file') }, { wait: 600 }],
+    probes: ['desktop'],
+  },
+  {
+    id: 'diag-sync-conflict-gone',
+    state: 'linked-rich-conflict-gone',
+    steps: [
+      ...diagView('sync'),
+      { click: tid('sync-resolve-ui-home'), optional: true },
+      { wait: 600 },
+    ],
+    probes: LOCAL_SHELLS,
+  },
+  {
+    id: 'settings-cloud-signin-bad-url',
+    state: 'cloud-signin-bad-url',
+    steps: [...settingsTab('connections'), { click: tid('cloud-signin') }, { wait: 600 }],
+    probes: LOCAL_SHELLS,
+  },
+  // two boards selected together: the multi-artboard toolbar
+  {
+    id: 'artboards-multi',
+    steps: [
+      { frameClick: '[data-dc-screen="home-hero"] .dc-artboard-label' },
+      { frameClick: '[data-dc-screen="home-pricing"] .dc-artboard-label', modifiers: ['Shift'] },
+      { wait: 500 },
+    ],
+    probes: LOCAL_SHELLS,
   },
   // ── the desktop's AI chat (⌘/), against the stub bridge of acp-stub.mjs ──────────────────────
   { id: 'acp-missing', state: 'acp-missing', steps: [{ key: 'Meta+Slash' }] },

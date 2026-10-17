@@ -269,6 +269,7 @@ function makeFixture(project) {
     '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">' +
       '<rect data-id="r1" data-tool="rect" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#fff4d6" x="500" y="260" width="160" height="90"/>' +
       '<text data-id="t1" data-tool="text" data-anchor-id="r1" data-font-size="14" fill="#1a1a1a" text-anchor="middle" dominant-baseline="middle">needs work</text>' +
+      '<g data-id="mr1" data-tool="mediaref" data-src="assets/ab12cd34.mp4" data-media-kind="video" data-title="b-roll.mp4"><rect x="500" y="20" width="240" height="120" rx="8" ry="8" fill="#ffffff" stroke="#d4d4d8" stroke-width="1"/><text x="548" y="80" font-size="13" fill="#18181b" dominant-baseline="hanging">b-roll.mp4</text></g>' +
       '<text data-id="t2" data-tool="text" x="520" y="400" data-font-size="14" fill="#1a1a1a">Standalone note</text>' +
       '<g data-id="a1" data-tool="arrow" stroke="#1a8f3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="420" y1="300" x2="500" y2="300"/><polyline points="485.6,306.9 500,300 485.6,293.1" fill="#1a8f3e"/></g>' +
       '</svg>'
@@ -561,6 +562,16 @@ async function runOpener(browser, srv, probe, opener) {
           await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
+      } else if (step.upload) {
+        const [selector, name, text] = step.upload;
+        await page
+          .locator(selector)
+          .first()
+          .setInputFiles({
+            name,
+            mimeType: 'image/svg+xml',
+            buffer: Buffer.from(text),
+          });
       } else if (step.post) {
         const [path, body] = step.post;
         await page.evaluate(
