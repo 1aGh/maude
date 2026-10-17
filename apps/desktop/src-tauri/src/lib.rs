@@ -662,6 +662,7 @@ pub fn run() {
             app_state::app_set_last_project,
             app_state::app_recent_projects,
             updater::restart_to_update,
+            updater::check_for_updates,
             prefs::prefs_get_crash_reporting,
             prefs::prefs_set_crash_reporting,
             prefs::prefs_get_claude_auto_setup,
