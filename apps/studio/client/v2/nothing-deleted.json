@@ -257,9 +257,9 @@
       "home": "canv",
       "drawnAt": "ad-left",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "canvases.refresh",
+        "testid": "canvases-refresh",
+        "where": "Canvases › Advanced › Refresh (⇧⌘R); ⌘K “Refresh canvases”"
       }
     },
     {
@@ -271,8 +271,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvases-count",
+        "where": "Canvases › Advanced — the foot line “N of M shown” with the live dot (green = live, grey = reconnecting)"
       }
     },
     {
@@ -296,9 +296,9 @@
       "home": "canv",
       "drawnAt": "ad-left",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.hidden-files",
+        "testid": "canvases-hidden-files",
+        "where": "Canvases › Advanced › Show hidden files — each canvas row then gets a chevron that lists its .meta.json and .css sidecars (Menu › View › Advanced › Hidden files does the same)"
       }
     },
     {
@@ -309,9 +309,9 @@
       "home": "canv",
       "drawnAt": "ad-left",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.hidden-files",
+        "testid": "canvases-hidden-files",
+        "where": "Canvases › Advanced › Show hidden files — adds the RUNTIME · GITIGNORED group (views, state, history) to the list"
       }
     },
     {
@@ -323,8 +323,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "tree-row-menu-<slug>",
+        "where": "Canvases › Advanced › Show hidden files, then a supporting file’s ⋯ (or right-click) › Rename… (the extension stays)"
       }
     },
     {
@@ -336,8 +336,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvases-ds-files",
+        "where": "Canvases › Advanced › the design system’s files — its folder path heads the group (the Design system row itself opens the system canvas)"
       }
     },
     {
@@ -348,9 +348,9 @@
       "home": "canv",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.hidden-files",
+        "testid": "canvases-hidden-files",
+        "where": "Canvases › Advanced › Show hidden files, then click a supporting file (md, font, audio…) — it opens a preview in the canvas area"
       }
     },
     {
@@ -362,8 +362,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-list",
+        "where": "Canvases — a canvas row carries the badge after its name (fig = imported from Figma, exp = experimental); shown only for canvases that have the flag"
       }
     },
     {
@@ -375,8 +375,12 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-row-unsaved",
+        "where": "Canvases — a changed canvas or file row carries an M / A / D / U badge until its version is saved (a project under git, local shells)",
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -388,8 +392,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "repo-switcher-trigger",
+        "where": "Canvases panel foot (desktop) — the project / draft switcher; a browser tab shows a read-only “branch: X” badge; a project somebody else saves keeps only the project half",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -414,8 +421,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "switcher-resume",
+        "where": "Canvases panel foot (desktop) — on the shared version, with a draft you worked on, a “Continue on <draft>?” strip sits above the switcher (Dismiss hides it for the session)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -465,9 +475,9 @@
       "home": "menu",
       "drawnAt": "02 · ob-adv-sheets",
       "v2": {
-        "action": null,
+        "action": "project.new",
         "testid": null,
-        "where": null
+        "where": "Menu › File › New project… (desktop) — the dialog: name, GitHub or this computer only, Private / Public, description"
       }
     },
     {
@@ -492,8 +502,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-menu-item-copy-css",
+        "where": "Right-click an element in the canvas › Copy CSS ⌘⇧C (the canvas menu, until the v2 object menu in S2)"
       }
     },
     {
@@ -505,8 +515,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-menu-item-copy-id",
+        "where": "Right-click an element in the canvas › Copy data-cd-id (until S2)"
       }
     },
     {
@@ -518,8 +528,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-menu-item-copy-style",
+        "where": "Right-click an element in the canvas › Copy style · Paste style (⌥⌘C / ⌥⌘V as Copy / Paste properties; until S2)"
       }
     },
     {
@@ -531,8 +541,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-menu-item-convert-to-absolute",
+        "where": "Right-click an element in the canvas › Convert layout to absolute… (an artboard’s menu has the same row; until S2)"
       }
     },
     {
@@ -544,8 +554,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-menu-item-theme",
+        "where": "Right-click an artboard’s label › Theme › DS default · Follow chrome · Light · Dark (until S2)"
       }
     },
     {
@@ -557,8 +567,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvas-menu-item-fit-one",
+        "where": "Right-click an artboard’s label › Fit just this artboard (⌘K “Zoom to artboard”; until S2)"
       }
     },
     {
@@ -621,9 +631,9 @@
       "home": "assets",
       "drawnAt": "12 · ia-assets-panel",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.assets",
+        "testid": "assets-add",
+        "where": "Left panel › Assets — Upload…, the thumbnails; the Image tool and Replace media still open the Choose-media dialog with Insert (until S10)"
       }
     },
     {
@@ -647,9 +657,9 @@
       "home": "ds",
       "drawnAt": "13 · ds-advanced",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.design-system",
+        "testid": "canvases-ds-row",
+        "where": "Canvases › Design system (the pinned row; ⌘K “Design system”) — the system canvas with its colour, type and spacing ladders and preview specimens (until S10)"
       }
     },
     {
@@ -661,8 +671,8 @@
       "drawnAt": "13 · ds-advanced",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvases-ds-files",
+        "where": "Canvases › Advanced › the design system’s files — the raw system folder (colors_and_type.css, README, preview/*) (until S10)"
       }
     },
     {
@@ -674,8 +684,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "css-panel",
+        "where": "Select an element → Inspector › the CSS panel; the Advanced vocabulary lists the raw properties (until S2)"
       }
     },
     {
@@ -687,8 +697,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": ".st-cp-idtag",
+        "where": "Select an element → Inspector › CSS panel header — the tag then its first class (until S2)"
       }
     },
     {
@@ -700,8 +710,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "inspector-custom-css",
+        "where": "Select an element → Inspector › Advanced section — custom CSS properties, with a “property / value” row to add one (until S2)"
       }
     },
     {
@@ -713,8 +723,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "inspector-html-attrs",
+        "where": "Select an element → Inspector › Advanced section — custom HTML attributes, with a “data-… / value” row to add one (until S2)"
       }
     },
     {
@@ -726,8 +736,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": ".st-cp-tokbtn",
+        "where": "Select an element → Inspector › a value’s token button opens the design system’s token list (Variables · Custom; until S2)"
       }
     },
     {
@@ -739,8 +749,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "inspector-grid-tracks",
+        "where": "Select a grid element → Inspector › Layout — the columns / rows track editor (+ Track, remove; until S2)"
       }
     },
     {
@@ -752,8 +762,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "inspector-body-layout",
+        "where": "Click an artboard’s label → Inspector › the artboard’s Body layout select (until S2)"
       }
     },
     {
@@ -765,8 +775,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": ".st-scope",
+        "where": "Select an element in a shared component → Inspector header — the Local / Shared pill, and Detach on a shared instance (until S2)"
       }
     },
     {
@@ -778,8 +788,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "layers-panel",
+        "where": "Left panel › Layers — each row leads with the element’s tag"
       }
     },
     {
@@ -791,8 +801,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "layers-panel",
+        "where": "Left panel › Layers — the DOM tree of the open canvas, each row with its id / class"
       }
     },
     {
@@ -803,9 +813,9 @@
       "home": "view",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.layers-panel",
+        "testid": "panel-tab-layers",
+        "where": "Left panel › Layers tab (the default home); Menu › View › Advanced › Layers as a panel gives it its own island"
       }
     },
     {
@@ -817,8 +827,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "switcher-new-branch",
+        "where": "Canvases panel foot (desktop) › switcher › New draft… (name it, Create); drafts list by name",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -830,8 +843,12 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": ".gp-version",
+        "where": "Menu › Version history › History — every saved version reads “author · short sha” (until S1)",
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -843,8 +860,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "switcher-fetch",
+        "where": "Canvases panel foot (desktop) › switcher › Refresh (fetches the remote drafts)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -856,8 +876,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "switcher-merge",
+        "where": "Canvases panel foot (desktop) › switcher, on a draft › Add to shared (a GitHub project opens a pull request)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -869,8 +892,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "git-commit-message",
+        "where": "Menu › Version history ⇧⌘G › Changes — describe what changed, then Save version / Save all (desktop; until S1)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -882,8 +908,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "git-publish",
+        "where": "Menu › Version history ⇧⌘G › Changes › Publish changes (desktop, shown with saved versions to send; until S1)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -895,8 +924,11 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "git-discard",
+        "where": "Menu › Version history ⇧⌘G › Changes › the discard button on a changed file (desktop; until S1)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -909,7 +941,11 @@
       "v2": {
         "action": null,
         "testid": "diag-get-latest",
-        "where": "Menu > Diagnostics > Sync > Get latest (shown while the team has new versions)"
+        "where": "Menu > Diagnostics > Sync > Get latest (shown while the team has new versions)",
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1037,9 +1073,15 @@
       "home": "canv",
       "drawnAt": "ad-left",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.trash",
+        "testid": "canvases-trash-clear",
+        "where": "Canvases › Trash (the last row; ⌘K “Trash”) › Clear out… — removes what has been in the trash 30 days or more; Restore brings a thing back",
+        "reach": [
+          "desktop",
+          "browser",
+          "cloud-owner",
+          "cloud-member"
+        ]
       }
     },
     {
@@ -1103,8 +1145,12 @@
       "drawnAt": "ad-share",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "share-local-url",
+        "where": "Share cluster › Share… › Local link (this Mac only), with Copy",
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1116,8 +1162,12 @@
       "drawnAt": "ad-share",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "share-app-url",
+        "where": "Share cluster › Share… › Open in Maude app, with Copy",
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1142,8 +1192,11 @@
       "drawnAt": "ad-ai",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "chat-caps-bar",
+        "where": "AI chat (⇧⌘A) › the capability bar under the composer — model, effort, fast mode (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1155,8 +1208,11 @@
       "drawnAt": "ad-ai",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "chat-mode-picker",
+        "where": "AI chat (⇧⌘A) › the capability bar › Permission mode (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1168,8 +1224,11 @@
       "drawnAt": "ad-ai",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "chat-transcript-menu",
+        "where": "AI chat (⇧⌘A) › the transcript view menu — thinking, verbose (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1181,8 +1240,11 @@
       "drawnAt": "ad-ai",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "chat-foot-info-btn",
+        "where": "AI chat (⇧⌘A) › the info button in the chat foot — context % and token counts (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1194,8 +1256,11 @@
       "drawnAt": "ad-ai",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "chat-cmd-menu",
+        "where": "AI chat (⇧⌘A) › type “/” in the composer — the slash-command list (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1207,8 +1272,11 @@
       "drawnAt": "ad-ai",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "chat-tool-group",
+        "where": "AI chat (⇧⌘A) › the feed — one card per group of tool calls (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1233,8 +1301,8 @@
       "drawnAt": "ad-timeline",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "timeline-readout",
+        "where": "Open a video canvas → Timeline (⇧⌘T) › the current-time readout (until S7)"
       }
     },
     {
@@ -1246,8 +1314,8 @@
       "drawnAt": "ad-timeline",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "timeline-long-badge",
+        "where": "Open a long video canvas (over 900 frames) → Timeline › the “long” badge (until S7)"
       }
     },
     {
@@ -1259,8 +1327,8 @@
       "drawnAt": "ad-timeline",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "timeline-kf-<i>-<k>",
+        "where": "Open a video canvas → Timeline › a marker on a clip for each animation window (click seeks to it; until S7)"
       }
     },
     {
@@ -1272,8 +1340,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "export-png-resolution",
+        "where": "Menu › File › Export… ⇧⌘E › PNG › Resolution (1× – 3×, 150 · 300 · 600 dpi; until S8)"
       }
     },
     {
@@ -1285,8 +1353,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "export-pdf-quality",
+        "where": "Menu › File › Export… ⇧⌘E › PDF › Quality (dpi) and Text (selectable · outlines; until S8)"
       }
     },
     {
@@ -1298,8 +1366,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "export-pdf-marks",
+        "where": "Menu › File › Export… ⇧⌘E › PDF › Marks (crop, registration; until S8)"
       }
     },
     {
@@ -1311,8 +1379,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "export-format-shadcn",
+        "where": "Menu › File › Export… ⇧⌘E › AI handoff (copies /design:handoff); Menu › File › Handoff to production ⇧⌘H opens the same (until S8)"
       }
     },
     {
@@ -1324,8 +1392,8 @@
       "drawnAt": "09 · ex-formats",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "export-format-html",
+        "where": "Menu › File › Export… ⇧⌘E › the HTML · PPTX · Canva cards (Canva needs the desktop app; until S8)"
       }
     },
     {
@@ -1337,8 +1405,8 @@
       "drawnAt": "09 · ex-advanced",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "export-lane-note",
+        "where": "Menu › File › Export… ⇧⌘E — a note under the cards when this workspace has no render service (PNG / SVG of the active artboard only; until S8)"
       }
     },
     {
@@ -1350,8 +1418,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-inspector-vocabulary",
+        "where": "Settings › General › Look › Inspector vocabulary (Advanced · Designer); the Inspector’s CSS panel corner toggle (cp-mode) flips it too (until S2)"
       }
     },
     {
@@ -1688,8 +1756,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": ".dc-context-menu / [data-action]",
+        "where": "Right-click in the canvas — the element menu on an element, the artboard menu on an artboard’s label, the world menu on empty canvas; ⌘K lists the same rows (until the v2 object menus, S2)"
       }
     },
     {
@@ -1701,8 +1769,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": ".dc-elem-ctx-tb / [data-on]",
+        "where": "Select an element — the contextual toolbar floats beside it (copy selector / id, inspect, align, Tidy up); a multi-selection gets the align bar (until S2)"
       }
     },
     {
@@ -1713,9 +1781,9 @@
       "home": "Comments panel (C7); Reopen in a resolved thread; \"Delete comment\" for your own comments; grouping by canvas",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.comments",
+        "testid": "comment-filter-all",
+        "where": "Share cluster › Comments → the Comments panel: the All / Open / Resolved filters, Reopen, Delete on your own, file group headers"
       }
     },
     {
@@ -1726,9 +1794,12 @@
       "home": "03 equivalents (suggestion chips, chat list menu with Move to trash, inline permission/choice cards, \"used up until HH:MM\", Needs you)",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "ai.chat",
+        "testid": "chat-overflow-menu",
+        "where": "AI chat (⇧⌘A) › the chat’s ⋯ menu: Rename, Archive, Delete, Copy transcript; the empty state’s buttons and “Implement N comments” sit in the feed (until S5)",
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1739,9 +1810,9 @@
       "home": "Version history (11) + its Advanced (06 ad-history); pixel compare under Version history › Advanced › \"Compare pictures\"",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "history.open",
+        "testid": "git-panel",
+        "where": "Menu › Version history ⇧⌘G → today’s Changes / History panel: empty states, “Cloud is saving”, result banners, Undo a restore, Retry (until S1)"
       }
     },
     {
@@ -1778,9 +1849,9 @@
       "home": "Help › Take the tour (tours rewritten for v2) · Help › \"Set up Maude…\" (checklist) · Home first-run line · Help › What's new + quiet dot · Help › Report a bug… (unchanged flow) · Help › Help and guides",
       "drawnAt": null,
       "v2": {
-        "action": null,
+        "action": "help.tour",
         "testid": null,
-        "where": null
+        "where": "Menu › Help › Take the tour · Set up Maude… (the checklist) · What’s new · Report a bug… · Help and guides (F1); a first-run line on Home"
       }
     },
     {
@@ -1805,8 +1876,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "timeline-inspector",
+        "where": "Open a video canvas → Timeline (⇧⌘T) › click a clip: its inspector (Speed, Audio, Crop, Grade, Text, Transition); the clip’s right-click menu keeps all 17 rows (until S7)"
       }
     },
     {
@@ -1818,8 +1889,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "photo-knobs",
+        "where": "Select a photo on the canvas → Inspector › Photo tab: the eight adjustment sliders, Duotone, Grain, Pattern, Mask, Remove background (until S2)"
       }
     },
     {
@@ -1844,8 +1915,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "inspector-section-advanced",
+        "where": "Select an element → Inspector › the Advanced vocabulary keeps the full raw editor (about 33 properties, custom CSS rows, HTML attribute rows); Advanced section at the foot (until S2)"
       }
     },
     {
@@ -1870,8 +1941,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-sheet",
+        "where": "Not a control: client/prefs-migrate.js runs once at boot and re-keys the v1 prefs (theme, panel positions, fold state, “seen” flags); the migrated values show in Settings › General and Layout"
       }
     }
   ],
@@ -1905,9 +1976,7 @@
     "button:studio/client/app.jsx#ShellTree/cancel": "D15",
     "button:studio/client/app.jsx#ShellTree/dismiss": "A-repo-state-changed-reload",
     "button:studio/client/app.jsx#ShellTree/dismiss~2": "D13",
-    "button:studio/client/app.jsx#ShellTree/dismiss~3": "D13",
     "button:studio/client/app.jsx#ShellTree/exit-presentation-mode": "action:present.canvas",
-    "button:studio/client/app.jsx#ShellTree/reload": "A-repo-state-changed-reload",
     "button:studio/client/app.jsx#ShellTree/shell-prompt-ok": "D15",
     "button:studio/client/app.jsx#ShellTree/start": "D13",
     "button:studio/client/app.jsx#ShellTree/start~2": "D13",
@@ -1923,6 +1992,7 @@
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/cancel": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/close": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-format-c-id": "action:export.open",
+    "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-pdf-marks": "A-crop-and-registration-marks",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-recent-again-i": "action:export.rerun-last",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-submit": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/marks": "A-crop-and-registration-marks",
@@ -1979,11 +2049,10 @@
     "button:studio/client/menus/menubar.jsx#DropdownMenu/onclick-if-it-disabled-return-onaction-it-id-onc": "A-six-menus-file-edit-view-selection-tools-help",
     "button:studio/client/menus/menubar.jsx#Menubar/assistant-toggle": "action:ai.chat",
     "button:studio/client/menus/menubar.jsx#Menubar/menu-key": "A-six-menus-file-edit-view-selection-tools-help",
-    "button:studio/client/menus/menubar.jsx#Menubar/report-bug-toggle": "action:help.report-bug",
+    "button:studio/client/menus/menubar.jsx#Menubar/report-bug-toggle": "A-report-a-bug-icon",
     "button:studio/client/menus/menubar.jsx#Menubar/share-btn": "action:share.open",
     "button:studio/client/menus/menubar.jsx#Menubar/what-s-new-whatsnewcount-0-whatsnewcount-unseen": "A-what-s-new-megaphone",
     "button:studio/client/menus/menubar.jsx#ViewDropdown/onclick-cloud-phase-27-c2-a-row-that-states-an-a": "A-six-menus-file-edit-view-selection-tools-help",
-    "button:studio/client/menus/menubar.jsx#ViewDropdown/onclick-if-hascanvas-return-onzoom-z-id-onclose": "A-six-menus-file-edit-view-selection-tools-help",
     "button:studio/client/menus/menubar.jsx#ViewDropdown/onclick-if-hascanvas-return-onzoom-z-op-onclose": "A-six-menus-file-edit-view-selection-tools-help",
     "button:studio/client/panels/BrandUploadPanel.jsx#BrandUploadPanel/brand-up-again": "action:import.brand",
     "button:studio/client/panels/BrandUploadPanel.jsx#BrandUploadPanel/brand-up-copy-command": "A-brand-upload-copy-command",
@@ -2095,6 +2164,8 @@
     "button:studio/client/panels/GitPanel.jsx#GitPanel/view-history~2": "D10",
     "button:studio/client/panels/GitPanel.jsx#renderUnit/compare-name": "D10",
     "button:studio/client/panels/GitPanel.jsx#renderUnit/discard-changes-to-name": "A-discard-a-file-s-changes",
+    "button:studio/client/panels/GitPanel.jsx#renderUnit/git-compare": "D10",
+    "button:studio/client/panels/GitPanel.jsx#renderUnit/git-discard": "A-discard-a-file-s-changes",
     "button:studio/client/panels/GitPanel.jsx#renderUnit/onclick-onopencanvas-f-path": "D10",
     "button:studio/client/panels/GitPanel.jsx#renderUnit/onclick-toggleexpand-u-key": "D10",
     "button:studio/client/panels/IdentityBar.jsx#IdentityBar/cancel": "A-sign-in-with-github",
@@ -2310,6 +2381,9 @@
     "button:studio/comments-overlay.tsx#CommentThread/reopen": "D8",
     "button:studio/comments-overlay.tsx#CommentThread/resolve": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
     "button:studio/comments-overlay.tsx#CommentThread/send": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
+    "button:studio/context-menu.tsx#MenuItemRow/canvas-menu-item-item-id": "D6",
+    "button:studio/context-menu.tsx#MenuItemRow/canvas-menu-item-item-id~2": "D6",
+    "button:studio/context-menu.tsx#MenuItemRow/canvas-menu-item-sub-id": "D6",
     "button:studio/context-menu.tsx#MenuItemRow/onclick-if-disabled-return-item-onselect-target-": "D6",
     "button:studio/context-menu.tsx#MenuItemRow/onclick-if-subdisabled-return-sub-onselect-targe": "D6",
     "button:studio/context-menu.tsx#MenuItemRow/x": "D6",
@@ -2419,24 +2493,24 @@
     "item:studio/client/dialogs/shortcuts-overlay.jsx#SHORTCUT_GROUPS/view": "action:help.shortcuts",
     "item:studio/client/hooks/use-canvas-bridge.jsx#useCanvasBridge.reorderLayer/reorder": "action:object.nudge",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.leftRows/canvases-refresh": "A-refresh-tree-r",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.leftRows/view-trash": "action:view.trash",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/comments": "action:view.comments",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.leftRows/view-trash": "A-trash-clear-out-old-files",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/comments": "A-open-comments-count",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/draw": "action:ai.draw-mark",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/export": "D3",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/generate": "action:ai.generate",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/handoff": "action:handoff.open",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/help": "action:help.guides",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/export": "A-export-project-zip-canvas-as-separate",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/generate": "A-generate-with-ai-provider-model-aspect",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/handoff": "A-handoff-to-production-h",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/help": "A-help-slash-commands-opt-out-critic-loop",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/inspector": "action:view.inspector",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/new": "action:canvas.new",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/new-video": "D17",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/reload": "A-reload-canvas-r",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/report-bug": "action:help.report-bug",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/report-bug": "A-report-a-bug-icon",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/settings": "action:settings.open",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/share-link": "action:share.copy-link",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/shortcuts": "action:help.shortcuts",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/system": "action:view.design-system",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/system": "A-design-system-view-s-key-picker",
     "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/theme": "A-light-dark-toggle",
-    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/whatsnew": "action:help.whats-new",
+    "item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/whatsnew": "A-what-s-new-megaphone",
     "item:studio/client/inspector/artboard-knobs.jsx#ArtboardKnobs/fixed": "action:view.inspector",
     "item:studio/client/inspector/artboard-knobs.jsx#ArtboardKnobs/hug": "action:view.inspector",
     "item:studio/client/inspector/artboard-knobs.jsx#ArtboardKnobs/landscape": "action:view.inspector",
@@ -2480,11 +2554,11 @@
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/assemble": "action:video.assemble",
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/close": "action:canvas.close",
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/close~2": "action:canvas.close",
-    "item:studio/client/menus/menubar.jsx#FileDropdown.items/export": "D3",
-    "item:studio/client/menus/menubar.jsx#FileDropdown.items/export~2": "D3",
-    "item:studio/client/menus/menubar.jsx#FileDropdown.items/generate": "action:ai.generate",
-    "item:studio/client/menus/menubar.jsx#FileDropdown.items/handoff": "action:handoff.open",
-    "item:studio/client/menus/menubar.jsx#FileDropdown.items/handoff~2": "action:handoff.open",
+    "item:studio/client/menus/menubar.jsx#FileDropdown.items/export": "A-export-project-zip-canvas-as-separate",
+    "item:studio/client/menus/menubar.jsx#FileDropdown.items/export~2": "A-export-project-zip-canvas-as-separate",
+    "item:studio/client/menus/menubar.jsx#FileDropdown.items/generate": "A-generate-with-ai-provider-model-aspect",
+    "item:studio/client/menus/menubar.jsx#FileDropdown.items/handoff": "A-handoff-to-production-h",
+    "item:studio/client/menus/menubar.jsx#FileDropdown.items/handoff~2": "A-handoff-to-production-h",
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/new": "action:canvas.new",
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/reload": "A-reload-canvas-r",
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/reload~2": "A-reload-canvas-r",
@@ -2492,28 +2566,28 @@
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/share": "action:share.open",
     "item:studio/client/menus/menubar.jsx#FileDropdown.items/share~2": "action:share.open",
     "item:studio/client/menus/menubar.jsx#HelpDropdown/collab-tour": "action:help.sharing",
-    "item:studio/client/menus/menubar.jsx#HelpDropdown/help": "action:help.guides",
-    "item:studio/client/menus/menubar.jsx#HelpDropdown/quick-setup": "action:help.setup",
+    "item:studio/client/menus/menubar.jsx#HelpDropdown/help": "A-help-slash-commands-opt-out-critic-loop",
+    "item:studio/client/menus/menubar.jsx#HelpDropdown/quick-setup": "A-quick-setup-brand-figma-import",
     "item:studio/client/menus/menubar.jsx#HelpDropdown/readiness": "action:help.ai-readiness",
-    "item:studio/client/menus/menubar.jsx#HelpDropdown/report-bug": "action:help.report-bug",
+    "item:studio/client/menus/menubar.jsx#HelpDropdown/report-bug": "A-report-a-bug-icon",
     "item:studio/client/menus/menubar.jsx#HelpDropdown/shortcuts": "action:help.shortcuts",
-    "item:studio/client/menus/menubar.jsx#HelpDropdown/tour": "action:help.tour",
+    "item:studio/client/menus/menubar.jsx#HelpDropdown/tour": "D13",
     "item:studio/client/menus/menubar.jsx#HelpDropdown/watch-intro": "action:help.intro",
-    "item:studio/client/menus/menubar.jsx#HelpDropdown/whatsnew": "action:help.whats-new",
+    "item:studio/client/menus/menubar.jsx#HelpDropdown/whatsnew": "A-what-s-new-megaphone",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/annotate": "action:view.annotations",
-    "item:studio/client/menus/menubar.jsx#Menubar.panels/assistant": "action:ai.chat",
+    "item:studio/client/menus/menubar.jsx#Menubar.panels/assistant": "D9",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/assistant~2": "action:ai.chat",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/autoopen": "A-auto-open-inspector-on-select",
-    "item:studio/client/menus/menubar.jsx#Menubar.panels/comments": "action:view.comments",
-    "item:studio/client/menus/menubar.jsx#Menubar.panels/hidden": "action:view.hidden-files",
+    "item:studio/client/menus/menubar.jsx#Menubar.panels/comments": "A-open-comments-count",
+    "item:studio/client/menus/menubar.jsx#Menubar.panels/hidden": "A-show-hidden-files-h",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/inspector": "action:view.inspector",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/layers": "action:view.layers",
-    "item:studio/client/menus/menubar.jsx#Menubar.panels/minimap": "action:view.minimap",
+    "item:studio/client/menus/menubar.jsx#Menubar.panels/minimap": "A-minimap",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/present": "action:present.canvas",
-    "item:studio/client/menus/menubar.jsx#Menubar.panels/print-guides": "action:view.print-guides",
+    "item:studio/client/menus/menubar.jsx#Menubar.panels/print-guides": "A-print-guides",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/timeline": "action:view.timeline-keep-open",
     "item:studio/client/menus/menubar.jsx#Menubar.panels/tree": "A-six-menus-file-edit-view-selection-tools-help",
-    "item:studio/client/menus/menubar.jsx#Menubar.panels/zoomctl": "action:view.zoom-controls",
+    "item:studio/client/menus/menubar.jsx#Menubar.panels/zoomctl": "A-zoom-controls",
     "item:studio/client/menus/menubar.jsx#SelectionDropdown/deselect-all": "action:select.none",
     "item:studio/client/menus/menubar.jsx#SelectionDropdown/select-all-annotations": "action:select.all-annotations",
     "item:studio/client/menus/menubar.jsx#ToolsDropdown.items/arrow": "action:tool.arrow",
@@ -2709,13 +2783,15 @@
     "keydown:studio/context-menu.tsx#ContextMenuView/listener": "D6",
     "keydown:studio/context-menu.tsx#MenuItemRow/button": "D6",
     "keydown:studio/context-menu.tsx#MenuItemRow/button~2": "D6",
+    "keydown:studio/context-menu.tsx#MenuItemRow/canvas-menu-item-item-id": "D6",
+    "keydown:studio/context-menu.tsx#MenuItemRow/canvas-menu-item-sub-id": "D6",
     "keydown:studio/participants-chrome.tsx#AgentAvatar/div": "testid:share-cluster-faces",
     "keydown:studio/participants-chrome.tsx#Avatar/div": "testid:share-cluster-faces",
     "keydown:studio/tool-palette.tsx#ToolPalette/listener": "testid:toolbar-slot-<toolId>",
     "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-check-updates": "action:app.check-updates",
-    "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-new-project": "action:project.new",
-    "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-open-project": "action:project.open",
-    "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-report-bug": "action:help.report-bug",
+    "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-new-project": "A-new-github-project-visibility-description",
+    "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-open-project": "A-open-another-folder-or-team-project",
+    "native-menu:desktop/src-tauri/src/menu.rs#menu/menu-report-bug": "A-report-a-bug-icon",
     "native-menu:desktop/src-tauri/src/menu.rs#predefined/about": "D19",
     "native-menu:desktop/src-tauri/src/menu.rs#predefined/copy": "action:edit.copy",
     "native-menu:desktop/src-tauri/src/menu.rs#predefined/cut": "action:edit.cut",
@@ -2797,7 +2873,7 @@
     "testid:studio/client/app.jsx#banners/cloud-role-banner": "D12",
     "testid:studio/client/app.jsx#banners/cloud-role-banner-dismiss": "D12",
     "testid:studio/client/app.jsx#comments panel/aria-label-reopen": "testid:[aria-label=\"Reopen\"]",
-    "testid:studio/client/app.jsx#comments panel/comment-filter-all": "testid:comment-filter-all",
+    "testid:studio/client/app.jsx#comments panel/comment-filter-all": "D8",
     "testid:studio/client/app.jsx#comments panel/comment-filter-open": "testid:comment-filter-open",
     "testid:studio/client/app.jsx#comments panel/comment-filter-resolved": "testid:comment-filter-resolved",
     "testid:studio/client/app.jsx#comments panel/comment-item-id": "testid:comment-item-<id>",
@@ -2830,7 +2906,7 @@
     "testid:studio/client/app.jsx#inspector/st-rpanel-st-rp-tab": "action:view.inspector",
     "testid:studio/client/app.jsx#inspector/st-scope": "A-edit-scope-local-shared-detach",
     "testid:studio/client/app.jsx#menubar/assistant-toggle": "action:ai.chat",
-    "testid:studio/client/app.jsx#menubar/brand": "testid:project-pill",
+    "testid:studio/client/app.jsx#menubar/brand": "testid:brand",
     "testid:studio/client/app.jsx#menubar/cloud-account": "A-cloud-account-email-and-sign-out",
     "testid:studio/client/app.jsx#menubar/cloud-back": "A-browser-dashboard-link",
     "testid:studio/client/app.jsx#menubar/cloud-project-name": "testid:project-pill",
@@ -2839,7 +2915,7 @@
     "testid:studio/client/app.jsx#menubar/menu-key": "A-six-menus-file-edit-view-selection-tools-help",
     "testid:studio/client/app.jsx#menubar/menubar": "A-six-menus-file-edit-view-selection-tools-help",
     "testid:studio/client/app.jsx#menubar/menuitem-by-name-menubar": "A-six-menus-file-edit-view-selection-tools-help",
-    "testid:studio/client/app.jsx#menubar/menus": "A-six-menus-file-edit-view-selection-tools-help",
+    "testid:studio/client/app.jsx#menubar/menus": "testid:menus",
     "testid:studio/client/app.jsx#menubar/report-bug-toggle": "A-report-a-bug-icon",
     "testid:studio/client/app.jsx#menubar/share-btn": "action:share.open",
     "testid:studio/client/app.jsx#menubar/st-cloudwho-out": "A-cloud-account-email-and-sign-out",
@@ -2847,7 +2923,7 @@
     "testid:studio/client/app.jsx#menubar/st-mb-proj": "testid:project-pill",
     "testid:studio/client/app.jsx#menubar/st-menubar": "A-six-menus-file-edit-view-selection-tools-help",
     "testid:studio/client/app.jsx#menubar/st-menus": "A-six-menus-file-edit-view-selection-tools-help",
-    "testid:studio/client/app.jsx#menubar/status": "testid:share-cluster",
+    "testid:studio/client/app.jsx#menubar/status": "testid:status",
     "testid:studio/client/app.jsx#menubar/view-only-stamp": "testid:share-cluster-status",
     "testid:studio/client/app.jsx#menubar/whatsnew": "A-what-s-new-megaphone",
     "testid:studio/client/app.jsx#other/aria-label-choose-media-st-ap-cell": "testid:[aria-label=\"Choose media\"] / .st-ap-cell",
@@ -2868,7 +2944,7 @@
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-blank-brief-board": "testid:[aria-label=\"New blank brief board\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-brief-board-name": "testid:[aria-label=\"New brief board name\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-folder-name": "testid:[aria-label=\"New folder name\"]",
-    "testid:studio/client/app.jsx#sidebar/tree/canvas-list": "D5",
+    "testid:studio/client/app.jsx#sidebar/tree/canvas-list": "A-imported-from-figma-and-experimental-badges",
     "testid:studio/client/app.jsx#sidebar/tree/canvas-row-slug": "testid:canvas-row-<slug>",
     "testid:studio/client/app.jsx#sidebar/tree/canvas-search": "testid:canvas-search",
     "testid:studio/client/app.jsx#sidebar/tree/file-row-slug": "testid:file-row-<slug>",
@@ -2880,7 +2956,7 @@
     "testid:studio/client/app.jsx#sidebar/tree/tree-folder-slug": "testid:tree-folder-<slug>",
     "testid:studio/client/app.jsx#sidebar/tree/tree-loading": "testid:tree-loading",
     "testid:studio/client/app.jsx#sidebar/tree/tree-new-folder": "testid:tree-new-folder",
-    "testid:studio/client/app.jsx#sidebar/tree/tree-row-menu-slug": "testid:tree-row-menu-<slug>",
+    "testid:studio/client/app.jsx#sidebar/tree/tree-row-menu-slug": "A-rename-a-supporting-file",
     "testid:studio/client/app.jsx#sidebar/tree/tree-section-label": "testid:tree-section-<label>",
     "testid:studio/client/app.jsx#status bar/aria-label-clear-selection": "A-selected-element-s-selector",
     "testid:studio/client/app.jsx#status bar/aria-label-selected-element": "A-selected-element-s-selector",
@@ -2909,9 +2985,12 @@
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-count": "testid:palette-count",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-empty": "testid:palette-empty",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-group-id": "testid:palette-group-<id>",
-    "testid:studio/client/dialogs/command-palette.jsx#palette/palette-input": "testid:palette-input",
+    "testid:studio/client/dialogs/command-palette.jsx#palette/palette-input": "A-generate-with-ai-provider-model-aspect",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-list": "testid:palette-list",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-row-id": "testid:palette-row-<id>",
+    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-marks": "A-crop-and-registration-marks",
+    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-quality": "A-pdf-quality-and-text-outlines",
+    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution": "A-png-at-150-300-600-dpi",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-advanced": "testid:shortcuts-advanced",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-advanced-toggle": "testid:shortcuts-advanced-toggle",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-find": "testid:shortcuts-find",
@@ -2925,9 +3004,16 @@
     "testid:studio/client/embed-view.jsx#other/embed-view": "testid:embed-view",
     "testid:studio/client/export-center.jsx#export dialog/export-degraded-note": "A-export-jobs-badge",
     "testid:studio/client/export-center.jsx#export dialog/export-job-id": "A-export-jobs-badge",
-    "testid:studio/client/export-center.jsx#menubar/exports": "A-export-jobs-badge",
+    "testid:studio/client/export-center.jsx#menubar/exports": "testid:exports",
     "testid:studio/client/file-tree.jsx#sidebar/tree/role-tree-role-treeitem": "testid:[role=\"tree\"] / [role=\"treeitem\"]",
     "testid:studio/client/file-tree.jsx#sidebar/tree/st-tree": "testid:.st-tree",
+    "testid:studio/client/inspector/artboard-knobs.jsx#inspector/inspector-body-layout": "A-body-layout-select",
+    "testid:studio/client/inspector/css-knobs.jsx#inspector/inspector-custom-css": "A-custom-css-property-rows",
+    "testid:studio/client/inspector/css-knobs.jsx#inspector/inspector-html-attrs": "A-html-attribute-rows",
+    "testid:studio/client/inspector/grid-tracks-editor.jsx#inspector/inspector-grid-tracks": "A-grid-tracks-editor",
+    "testid:studio/client/inspector/inspector-panel.jsx#other/inspector-selection": "A-selected-element-s-selector",
+    "testid:studio/client/inspector/inspector-panel.jsx#other/inspector-selection-text": "testid:inspector-selection-text",
+    "testid:studio/client/inspector/inspector-panel.jsx#other/layers-artboard-count": "A-n-artboards-count",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-again": "testid:brand-up-again",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-copy-command": "testid:brand-up-copy-command",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-error": "testid:brand-up-error",
@@ -2935,27 +3021,27 @@
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-palette": "testid:brand-up-palette",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-pick-file": "testid:brand-up-pick-file",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-result": "testid:brand-up-result",
-    "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-caps-bar": "testid:chat-caps-bar",
+    "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-caps-bar": "A-model-effort-fast-mode",
     "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-caps-connecting": "testid:chat-caps-connecting",
-    "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-mode-picker": "testid:chat-mode-picker",
+    "testid:studio/client/panels/CapabilityBar.jsx#chat/ACP/chat-mode-picker": "A-permission-mode",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/acp-not-connected": "testid:acp-not-connected",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/aria-label-send-message": "testid:[aria-label=\"Send message\"]",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/aria-label-stop": "testid:[aria-label=\"Stop\"]",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-cmd-item-name": "testid:chat-cmd-item-<name>",
-    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-cmd-menu": "testid:chat-cmd-menu",
+    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-cmd-menu": "A-slash-command-quick-actions",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-composer": "testid:chat-composer",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-context-chip": "testid:chat-context-chip",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-error-card": "testid:chat-error-card",
-    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-foot-info-btn": "testid:chat-foot-info-btn",
+    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-foot-info-btn": "A-context-and-token-counts",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-foot-popover": "testid:chat-foot-popover",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-input": "testid:.chat-input",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-mode-banner": "testid:chat-mode-banner",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-mode-banner-switch": "testid:chat-mode-banner-switch",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-msg-actions": "testid:chat-msg-actions",
-    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-overflow-menu": "testid:chat-overflow-menu",
+    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-overflow-menu": "D9",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-qa-implement-comments": "testid:chat-qa-implement-comments",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-tool-row": "testid:chat-tool-row",
-    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-transcript-menu": "testid:chat-transcript-menu",
+    "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-transcript-menu": "A-transcript-view-thinking-verbose",
     "testid:studio/client/panels/ChatPanel.jsx#chat/ACP/chat-usage-banner": "testid:chat-usage-banner",
     "testid:studio/client/panels/ClipInspector.jsx#timeline/timeline-detach-audio": "D15",
     "testid:studio/client/panels/ClipInspector.jsx#timeline/timeline-grade-name": "D15",
@@ -2969,6 +3055,7 @@
     "testid:studio/client/panels/ClipInspector.jsx#timeline/timeline-transition-p": "D15",
     "testid:studio/client/panels/ClipInspector.jsx#timeline/timeline-transition-remove": "D15",
     "testid:studio/client/panels/ClipInspector.jsx#timeline/tlci-x": "D15",
+    "testid:studio/client/panels/CloudBar.jsx#menubar/cloud-account": "A-cloud-account-email-and-sign-out",
     "testid:studio/client/panels/CloudBar.jsx#settings/cloud-host": "testid:cloud-host",
     "testid:studio/client/panels/CloudBar.jsx#settings/cloud-sign-out": "testid:cloud-sign-out",
     "testid:studio/client/panels/CloudBar.jsx#settings/settings-cloud-projects": "D11",
@@ -3017,17 +3104,19 @@
     "testid:studio/client/panels/file-deep-link-dialog.jsx#sync/cloud/file-deeplink-dismiss": "testid:file-deeplink-dismiss",
     "testid:studio/client/panels/file-deep-link-dialog.jsx#sync/cloud/file-deeplink-open": "testid:file-deeplink-open",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-cloud-managed": "testid:git-cloud-managed",
-    "testid:studio/client/panels/GitPanel.jsx#git/history/git-commit-message": "testid:git-commit-message",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/git-commit-message": "A-save-version-with-a-message",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/git-compare": "testid:git-compare",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/git-discard": "A-discard-a-file-s-changes",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-get-latest": "testid:git-get-latest",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-history-retry": "testid:git-history-retry",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-history-unreachable": "testid:git-history-unreachable",
-    "testid:studio/client/panels/GitPanel.jsx#git/history/git-panel": "testid:git-panel",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/git-panel": "D10",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-panel-repo": "testid:git-panel-repo",
-    "testid:studio/client/panels/GitPanel.jsx#git/history/git-publish": "testid:git-publish",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/git-publish": "A-publish-changes",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-save-all": "testid:git-save-all",
     "testid:studio/client/panels/GitPanel.jsx#git/history/gp-panel": "testid:.gp-panel",
     "testid:studio/client/panels/GitPanel.jsx#git/history/gp-tabs-gp-cloud-note": "testid:.gp-tabs / .gp-cloud-note",
-    "testid:studio/client/panels/GitPanel.jsx#git/history/gp-version": "testid:.gp-version",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/gp-version": "A-sha-on-every-version",
     "testid:studio/client/panels/GitPanel.jsx#git/history/project-history-preview-revision": "testid:project-history-preview-<revision>",
     "testid:studio/client/panels/GitPanel.jsx#git/history/project-history-restore-revision": "testid:project-history-restore-<revision>",
     "testid:studio/client/panels/GitPanel.jsx#git/history/project-history-row-revision": "testid:project-history-row-<revision>",
@@ -3086,7 +3175,7 @@
     "testid:studio/client/panels/SettingsPanel.jsx#settings/figma-connected-as": "testid:figma-connected-as",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/figma-disconnect": "testid:figma-disconnect",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/figma-test": "testid:figma-test",
-    "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-inspector-vocabulary": "testid:settings-inspector-vocabulary",
+    "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-inspector-vocabulary": "A-inspector-vocabulary-advanced-designer",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-keyframe-engine": "testid:settings-keyframe-engine",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-theme": "A-light-dark-toggle",
     "testid:studio/client/panels/SettingsPanel.jsx#settings/settings-transcription-engine": "D14",
@@ -3217,8 +3306,8 @@
     "testid:studio/client/panels/TimelinePanel.jsx#timeline/tl-beat": "D15",
     "testid:studio/client/panels/TimelinePanel.jsx#timeline/tl-panel": "D15",
     "testid:studio/client/panels/TimelinePanel.jsx#timeline/tl-seq-block": "D15",
-    "testid:studio/client/panels/ToolGroup.jsx#chat/ACP/chat-tool-group": "testid:chat-tool-group",
-    "testid:studio/client/photo-knobs.jsx#inspector/photo-knobs": "testid:photo-knobs",
+    "testid:studio/client/panels/ToolGroup.jsx#chat/ACP/chat-tool-group": "A-tool-call-cards-in-the-feed",
+    "testid:studio/client/photo-knobs.jsx#inspector/photo-knobs": "D16",
     "testid:studio/client/photo-knobs.jsx#inspector/photo-remove-bg": "testid:photo-remove-bg",
     "testid:studio/client/photo-knobs.jsx#inspector/photo-tab-field-labels": "testid:Photo tab field labels",
     "testid:studio/client/report-bug.jsx#other/st-dialog-hd-st-iconbtn": "testid:.st-dialog-hd / .st-iconbtn",
@@ -3246,14 +3335,17 @@
     "testid:studio/client/shell/dock.jsx#other/panel-grip-side": "A-dock-resize-grips-and-tab-strips",
     "testid:studio/client/shell/dock.jsx#other/panel-head-side": "testid:panel-head-<side>",
     "testid:studio/client/shell/dock.jsx#other/panel-tab-id": "testid:panel-tab-<id>",
-    "testid:studio/client/tree/tree.jsx#sidebar/tree/canvases-ds-files": "testid:canvases-ds-files",
+    "testid:studio/client/tree-row-menu.jsx#menubar/st-dd-item": "D5",
+    "testid:studio/client/tree/tree.jsx#sidebar/tree/canvas-row-unsaved": "A-unsaved-badges-m-a-d-u",
+    "testid:studio/client/tree/tree.jsx#sidebar/tree/canvases-ds-files": "A-design-system-folder-path",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/cm-composer-cm-mention-popup": "testid:.cm-composer / .cm-mention-popup",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/cm-layer-cm-pin-data-comment-pin": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/cm-thread-actions-reply-actions-cm-btn-primary-c": "testid:.cm-thread (+ __actions, __reply-actions) / .cm-btn--primary / .cm-btn--danger",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-edit": "testid:comment-edit",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-edit-save": "testid:comment-edit-save",
-    "testid:studio/context-menu.tsx#canvas iframe chrome/dc-context-menu-data-action": "testid:.dc-context-menu / [data-action]",
-    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "testid:.dc-elem-ctx-tb / [data-on]",
+    "testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-id": "testid:canvas-menu-item-<id>",
+    "testid:studio/context-menu.tsx#canvas iframe chrome/dc-context-menu-data-action": "D6",
+    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "D7",
     "testid:studio/cursors-overlay.tsx#canvas iframe chrome/dc-cursor-dc-peer-selection-data-peer-gesture": "testid:.dc-cursor / .dc-peer-selection / [data-peer-gesture]",
     "testid:studio/figma/to-artboard.ts#canvas iframe chrome/data-dc-element": "testid:[data-dc-element]",
     "testid:studio/measure-overlay.tsx#canvas iframe chrome/dc-cv-measure-line-dc-cv-measure-pill": "testid:.dc-cv-measure-line / .dc-cv-measure-pill",

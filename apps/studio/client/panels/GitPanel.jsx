@@ -328,6 +328,7 @@ export default function GitPanel({
             <button
               type="button"
               className="gp-discard"
+              data-testid="git-compare"
               title="Compare before / after"
               aria-label={`Compare ${name}`}
               onClick={() => onOpenDiff?.(f.path)}
@@ -339,6 +340,7 @@ export default function GitPanel({
             <button
               type="button"
               className="gp-discard"
+              data-testid="git-discard"
               title={
                 hasKids ? 'Discard this canvas and its supporting files' : 'Discard this change'
               }

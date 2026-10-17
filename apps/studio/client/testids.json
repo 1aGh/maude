@@ -9333,5 +9333,161 @@
     "region": "other",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "new"
+  },
+  {
+    "hook": "canvases-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"N of M shown\" readout with the live dot in the foot of Canvases > Advanced (the status bar's files count and live dot, moved).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-unsaved",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The unsaved-change badge (M / A / D / U) on a canvas or file row in Canvases (`data-kind` carries the letter).",
+    "producer": {
+      "file": "apps/studio/client/tree/tree.jsx",
+      "symbol": "FileRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "git-compare",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The compare-before/after button on a changed canvas in the Changes list.",
+    "producer": {
+      "file": "apps/studio/client/panels/GitPanel.jsx",
+      "symbol": "GitPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "git-discard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The discard button on a changed file (or canvas with its supporting files) in the Changes list. Desktop only (read-only elsewhere).",
+    "producer": {
+      "file": "apps/studio/client/panels/GitPanel.jsx",
+      "symbol": "GitPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "export-png-resolution",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The PNG resolution select (1x-3x and 150 / 300 / 600 dpi). Shown once the PNG card is picked.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/export-dialog.jsx",
+      "symbol": "ExportDialog"
+    },
+    "region": "export dialog",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "export-pdf-quality",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The PDF raster-quality (dpi) select. Shown once the PDF card is picked.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/export-dialog.jsx",
+      "symbol": "ExportDialog"
+    },
+    "region": "export dialog",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "export-pdf-marks",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The PDF \"Marks\" disclosure (crop and registration marks). Shown once the PDF card is picked.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/export-dialog.jsx",
+      "symbol": "ExportDialog"
+    },
+    "region": "export dialog",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-custom-css",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The custom CSS property row (name + value) in the Inspector > Advanced section.",
+    "producer": {
+      "file": "apps/studio/client/inspector/css-knobs.jsx",
+      "symbol": "RawKnob"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-html-attrs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The custom HTML attribute row (name + value) in the Inspector > Advanced section.",
+    "producer": {
+      "file": "apps/studio/client/inspector/css-knobs.jsx",
+      "symbol": "AttrKnob"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-grid-tracks",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The grid columns / rows track editor in the Inspector, for an element whose display is grid.",
+    "producer": {
+      "file": "apps/studio/client/inspector/grid-tracks-editor.jsx",
+      "symbol": "GridTracksEditor"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-body-layout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The artboard body-layout select in the artboard Inspector.",
+    "producer": {
+      "file": "apps/studio/client/inspector/artboard-knobs.jsx",
+      "symbol": "ArtboardKnobs"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-menu-item-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the canvas right-click menu; `<id>` is the registry item id (copy-css, copy-id, copy-style, paste-style, convert-to-absolute, theme, fit-one, ...).",
+    "producer": {
+      "file": "apps/studio/context-menu.tsx",
+      "symbol": "MenuItemRow"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "v2": "new"
   }
 ]

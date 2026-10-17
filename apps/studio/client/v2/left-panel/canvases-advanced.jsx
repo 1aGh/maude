@@ -102,6 +102,7 @@ export function CanvasesAdvanced({
       <div className="lp-adv-row lp-adv-foot">
         <span
           className="lp-adv-k"
+          data-testid="canvases-count"
           data-tip={wsConnected ? 'live · file index synced' : 'reconnecting…'}
         >
           <span className={`lp-live${wsConnected ? ' is-connected' : ''}`} aria-hidden="true" />

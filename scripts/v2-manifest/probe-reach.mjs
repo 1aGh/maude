@@ -176,6 +176,11 @@ ${boards
           <main style={{ padding: 40, fontFamily: 'system-ui' }}>
             <h1 data-cd-id="${id}-title">${label}</h1>
             <p data-cd-id="${id}-body">Reachability fixture.</p>
+            <div data-cd-id="${id}-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <span>A</span>
+              <span>B</span>
+            </div>
+            <img data-cd-id="${id}-photo" src="assets/ab12cd34.png" width={60} height={30} alt="" />
           </main>
         </DCArtboard>`
   )
@@ -222,6 +227,15 @@ function makeFixture(project) {
     '.demo { --bg-0: #fff; --fg-0: #111; --accent: #36c; }\n'
   );
   put('.design/system/demo/README.md', '# demo\n');
+  // a content-addressed photo (assets/<8 hex>.<ext>): selecting it opens the Inspector's Photo tab
+  mkdirSync(join(project, '.design/assets'), { recursive: true });
+  writeFileSync(
+    join(project, '.design/assets/ab12cd34.png'),
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
   put('.design/system/demo/preview/colors.tsx', CANVAS('Colors', [['colors', 'Colors']]));
   put(
     '.design/ui/Home.tsx',
@@ -231,6 +245,36 @@ function makeFixture(project) {
     ])
   );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
+  // a video comp (two 20 s sequences = long, each animates its title): the Timeline and its clip inspector
+  put(
+    '.design/ui/Reel.tsx',
+    `import { DCArtboard, DesignCanvas, VideoComp } from '@maude/canvas-lib';
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from 'remotion';
+
+const Title = () => {
+  const frame = useCurrentFrame();
+  const o = interpolate(frame, [0, 20], [0, 1]);
+  return <h1 style={{ opacity: o }}>Reel</h1>;
+};
+
+const ReelCut = () => (
+  <AbsoluteFill style={{ background: '#000' }}>
+    <Sequence from={0} durationInFrames={600}><Title /></Sequence>
+    <Sequence from={600} durationInFrames={600}><Title /></Sequence>
+  </AbsoluteFill>
+);
+
+export default function Reel() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="reel" kind="video" label="Reel" width={1080} height={1920}>
+        <VideoComp component={ReelCut} durationInFrames={1200} fps={30} width={1080} height={1920} />
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`
+  );
 }
 async function bootServer() {
   const project = join(runDir, 'project');
@@ -402,6 +446,18 @@ async function runOpener(browser, srv, probe, opener) {
         const target = fr.locator(step.frameClick).first();
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
+      } else if (step.dblclick) {
+        const el = page.locator(step.dblclick).first();
+        if (step.optional && !(await el.isVisible().catch(() => false))) continue;
+        await el.dblclick({ timeout: 4000 });
+      } else if (step.wait) {
+        await sleep(step.wait);
+      } else if (step.frameContext) {
+        // a right-click inside the canvas iframe: the canvas's own context menu
+        const fr = page.frameLocator(tid('canvas-frame'));
+        const target = fr.locator(step.frameContext).first();
+        if (step.optional && !(await target.isVisible().catch(() => false))) continue;
+        await target.click({ button: 'right', timeout: 10_000 });
       } else if (step.expandMenu) {
         const subs = await page
           .locator('[data-testid^="project-menu-row-sub-"]')
