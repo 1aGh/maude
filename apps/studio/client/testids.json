@@ -9515,5 +9515,200 @@
     "region": "canvas iframe chrome",
     "consumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "canvases-head-pinned",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Pinned group's heading row in the Canvases list (its aside is the number pinned). Absent while nothing is pinned.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelHead"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-head-project",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The project's row in the Canvases list: its name, the Sort button, and the drop target for \"move back to the top level\".",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelHead"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-sort",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Sort button on the project row (shows Recent / Name / Kind); opens the Sort menu (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelHead"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-sort-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Sort menu: Recently opened · Name · Kind, then Folders on top.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-sort-<by>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One order in the Sort menu (`role=menuitemradio`, `aria-checked`); `<by>` is recent, name or kind. Choosing it saves the order for this project.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-sort-folders",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Folders on top\" in the Sort menu (`role=menuitemcheckbox`).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pin-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The hover Pin button on a canvas row (`aria-pressed=false`); `<slug>` as `canvas-row-<slug>`. POSTs `/_api/pins`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-unpin-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Unpin button on a pinned canvas row (`aria-pressed=true`); a pinned canvas's copy under Pinned adds a `-pinned` suffix.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A canvas's copy under the Pinned group (the same canvas also keeps its `canvas-row-<slug>` row in its folder).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-menu-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The ⋯ button on a canvas's copy under Pinned (the folder copy keeps `tree-row-menu-<slug>`).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-empty-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The empty-folder card (\"Nothing in 2027 yet.\") under an open folder with nothing in it; `<slug>` from the folder path.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelEmptyFolder"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-empty-new",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"New canvas in <folder>\" on the empty-folder card (hidden for a viewer). Opens the new-canvas composer aimed at that folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelEmptyFolder"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the Canvases list: \"93 canvases · ⌘K searches every project\" (\"3 results · …\" while searching).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-nothing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Nothing called …\" line when the panel search finds nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-other-files",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "While searching: the other groups' hits (Design system, project and runtime files) under the canvases list.",
+    "producer": {
+      "file": "apps/studio/client/tree/tree.jsx",
+      "symbol": "Sidebar"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
   }
 ]
