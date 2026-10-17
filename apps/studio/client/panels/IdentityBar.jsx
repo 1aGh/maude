@@ -108,7 +108,17 @@ function Avatar({ identity, size = 26 }) {
   );
 }
 
-export default function IdentityBar() {
+// V2-4.7a — `variant`:
+//   'rail'     (default) the sidebar-footer avatar + menu, as before;
+//   'host'     the left panel's footer: NO visible rail. It stays mounted for what must work from
+//              anywhere — File › New project… (the create dialog) and a sign-in's code sheet;
+//   'settings' Settings › Connections › GitHub: signed-in state, Sign in / Sign out, as one row.
+//              It owns no create dialog and no menu listener (the host answers those once).
+// Sign-in reaches every instance through the shell's own `github://signed-in`; sign-out has no such
+// event, so it is announced on the window.
+export const GITHUB_SIGNED_OUT_EVENT = 'maude:github-signed-out';
+
+export default function IdentityBar({ variant = 'rail' }) {
   const native = isNativeApp();
   const [state, setState] = useState('loading'); // loading | out | in
   const [identity, setIdentity] = useState(null);
@@ -177,7 +187,7 @@ export default function IdentityBar() {
   // when signed out, since it offers a local-only project (no GitHub needed); the dialog
   // gates the GitHub option itself.
   useEffect(() => {
-    if (!native) return undefined;
+    if (!native || variant === 'settings') return undefined;
     const p = onMenuAction((id) => {
       if (id === 'project.new' && stateRef.current !== 'loading') setView('new');
     });
@@ -190,7 +200,17 @@ export default function IdentityBar() {
       window.removeEventListener(MENU_ACTION_EVENT, onLocal);
       p?.then?.((fn) => fn?.());
     };
-  }, [native]);
+  }, [native, variant]);
+
+  useEffect(() => {
+    const onOut = (e) => {
+      if (e.detail?.from === railRef) return;
+      setIdentity(null);
+      setState('out');
+    };
+    window.addEventListener(GITHUB_SIGNED_OUT_EVENT, onOut);
+    return () => window.removeEventListener(GITHUB_SIGNED_OUT_EVENT, onOut);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -234,6 +254,11 @@ export default function IdentityBar() {
     }
     setIdentity(null);
     setState('out');
+    try {
+      window.dispatchEvent(new CustomEvent(GITHUB_SIGNED_OUT_EVENT, { detail: { from: railRef } }));
+    } catch {
+      /* no window — nobody to tell */
+    }
   }
 
   function copyCode() {
@@ -247,13 +272,74 @@ export default function IdentityBar() {
     );
   }
 
-  if (!native) return null;
+  if (!native) {
+    // A browser tab has no keychain to hold a token. Settings still says so, in the row where
+    // the sign-in would be, instead of leaving a hole where the setting should be.
+    return variant === 'settings' ? (
+      <div className="gi-settings" data-testid="settings-github">
+        <div className="cb-settings-row">
+          <span className="cb-settings-t">
+            <strong>GitHub</strong>
+            <span>Signing in with GitHub needs the Maude desktop app.</span>
+          </span>
+        </div>
+      </div>
+    ) : null;
+  }
+
+  const visible = variant === 'rail';
 
   return (
-    <div className="gi-rail" ref={railRef}>
-      {state === 'loading' && <span className="gi-rail-hint">Checking GitHub…</span>}
+    <div
+      className={
+        variant === 'settings' ? 'gi-settings' : variant === 'host' ? 'gi-host' : 'gi-rail'
+      }
+      ref={railRef}
+      data-testid={variant === 'settings' ? 'settings-github' : undefined}
+    >
+      {variant === 'settings' && (
+        <div className="cb-settings-row">
+          <span className="cb-settings-t">
+            <strong>GitHub</strong>
+            <span>
+              {state === 'in'
+                ? `Connected as @${identity?.login}`
+                : state === 'loading'
+                  ? 'Checking GitHub…'
+                  : 'GitHub projects and invites by username.'}
+            </span>
+          </span>
+          {state === 'out' && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={handleSignIn}
+              disabled={signing}
+              data-testid="settings-github-signin"
+            >
+              {signing ? 'Starting…' : 'Sign in'}
+            </button>
+          )}
+          {state === 'in' && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={handleSignOut}
+              data-testid="settings-github-signout"
+            >
+              Disconnect
+            </button>
+          )}
+        </div>
+      )}
+      {variant === 'settings' && error && (
+        <span className="gi-rail-err" role="alert" title={error}>
+          {error}
+        </span>
+      )}
+      {visible && state === 'loading' && <span className="gi-rail-hint">Checking GitHub…</span>}
 
-      {state === 'out' && (
+      {visible && state === 'out' && (
         <>
           <button
             type="button"
@@ -271,7 +357,7 @@ export default function IdentityBar() {
         </>
       )}
 
-      {state === 'in' && (
+      {visible && state === 'in' && (
         <>
           <button
             type="button"
@@ -412,7 +498,7 @@ export default function IdentityBar() {
         </div>
       )}
 
-      {view && (
+      {view && variant !== 'settings' && (
         <CreateProject
           view={view}
           identity={identity}

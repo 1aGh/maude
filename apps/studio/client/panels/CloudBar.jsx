@@ -12,7 +12,7 @@
 //   • "Connect" attaches THIS project to the chosen cloud workspace — the
 //     exact state `maude design link` writes, minus the terminal.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { localIdentityMatches, parseMaudeLink } from '../share-link.js';
 import FileDeepLinkDialog from './file-deep-link-dialog.jsx';
@@ -406,12 +406,25 @@ function Icon({ name, size = 15 }) {
 // GitPanel's cloud-managed posture turns on the same `linkedHub.credentialed`
 // fact this panel's Connected row does, and CloudBar owns every action that
 // changes it (status resolve, attach, detach) — so it reports, the app decides.
+//
+// V2-4.7a — `variant` says where this instance lives:
+//   'rail'     (default) the sidebar-footer account button + menu, as before;
+//   'host'     the left panel's footer: NO visible rail — it only hosts what must be reachable at
+//              any moment (the maude:// deep-link dialogs, the file-link dialog);
+//   'settings' Settings › Connections: the account row, sign-in / sign-out and the cloud projects
+//              on this Mac as an inline list (the menu's rows, same handlers). It never consumes a
+//              deep link — the host does — so a link can't be answered twice.
+// A link change made in one instance tells the others (CLOUD_CHANGED_EVENT) so none keeps a stale
+// idea of what this folder is linked to: the deep-link dialog's warning is computed from it.
+export const CLOUD_CHANGED_EVENT = 'maude:cloud-changed';
+
 export default function CloudBar({
   syncStatus,
   onLinkedHub,
   onLocalProject,
   onOpenFile,
   filesReady,
+  variant = 'rail',
 }) {
   const [state, setState] = useState('loading'); // loading | out | in
   const [email, setEmail] = useState(null);
@@ -446,8 +459,11 @@ export default function CloudBar({
   // said before, never to nothing.
   const note = connected ? connectOutcomeNote(connected.project, connected.sync, syncStatus) : null;
 
-  useEffect(() => {
-    api('/_api/cloud/status')
+  // Who changed it last — an instance ignores its own broadcast.
+  const selfRef = useRef({});
+
+  const loadStatus = useCallback(() => {
+    return api('/_api/cloud/status')
       .then((r) => {
         if (r.json?.url) setCloudUrl(r.json.url);
         // Resolved even on an error body — what must never happen is staying
@@ -474,14 +490,39 @@ export default function CloudBar({
         setLocal((l) => ({ ...l, resolved: true }));
         setState('out');
       });
-    return () => clearInterval(pollRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadStatus();
+    return () => clearInterval(pollRef.current);
+  }, [loadStatus]);
+
+  const announce = useCallback(() => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent(CLOUD_CHANGED_EVENT, { detail: { from: selfRef.current } })
+      );
+    } catch {
+      /* no window (a test) — nobody to tell */
+    }
+  }, []);
+
+  useEffect(() => {
+    const onChanged = (e) => {
+      if (e.detail?.from === selfRef.current) return;
+      setProjects(null);
+      loadStatus();
+    };
+    window.addEventListener(CLOUD_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(CLOUD_CHANGED_EVENT, onChanged);
+  }, [loadStatus]);
 
   // maude:// deep links (Phase 17) — native shell only. The link that LAUNCHED
   // the app is parked in the shell (take once); links while running arrive as
   // events. Either way: ask, never auto-connect.
   useEffect(() => {
-    if (!isNativeApp()) return undefined;
+    if (!isNativeApp() || variant === 'settings') return undefined;
     const consume = (url) => {
       const parsed = parseMaudeLink(url);
       if (!parsed) return;
@@ -502,7 +543,7 @@ export default function CloudBar({
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, []);
+  }, [variant]);
 
   const fileMatches =
     pending?.kind === 'file' && local.resolved && localIdentityMatches(local, pending.project);
@@ -561,6 +602,7 @@ export default function CloudBar({
     if (typeof url === 'string' && url) {
       setLocal((l) => ({ ...l, linkedHub: { url, credentialed: true } }));
       onLinkedHub?.({ url, credentialed: true });
+      announce();
     }
   }
 
@@ -616,6 +658,7 @@ export default function CloudBar({
           setState('in');
           setDevice(null);
           cloudSignedIn().catch(() => undefined); // V2-3.8: may move it to its own profile
+          announce();
         } else {
           setDevice(null);
           setError(p.json?.error || 'The sign-in did not finish. Try again.');
@@ -630,19 +673,27 @@ export default function CloudBar({
     setDevice(null);
   }
 
+  async function loadProjects() {
+    const r = await api('/_api/cloud/projects');
+    setProjects(r.ok && r.json?.ok ? r.json.projects : []);
+    if (!r.ok && r.status === 401) {
+      setMenuOpen(false);
+      setState('out');
+      setEmail(null);
+    }
+  }
+
   async function openMenu() {
     const next = !menuOpen;
     setMenuOpen(next);
-    if (next && projects === null) {
-      const r = await api('/_api/cloud/projects');
-      setProjects(r.ok && r.json?.ok ? r.json.projects : []);
-      if (!r.ok && r.status === 401) {
-        setMenuOpen(false);
-        setState('out');
-        setEmail(null);
-      }
-    }
+    if (next && projects === null) await loadProjects();
   }
+
+  // The settings list is always open: read the projects as soon as there is an account to read them with.
+  useEffect(() => {
+    if (variant === 'settings' && state === 'in' && projects === null) loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, state, projects]);
 
   async function connect(projectId) {
     setBusy(projectId);
@@ -674,6 +725,7 @@ export default function CloudBar({
       setLocal((l) => ({ ...l, linkedHub: null }));
       setConnected(null);
       onLinkedHub?.(null);
+      announce();
     } else {
       setError(r.json?.error || 'The workspace could not be disconnected.');
     }
@@ -685,6 +737,7 @@ export default function CloudBar({
     setEmail(null);
     setProjects(null);
     setState('out');
+    announce();
   }
 
   // One clipboard write, one 1.5 s "Copied" flash. The code and the link are the
@@ -720,8 +773,284 @@ export default function CloudBar({
   // a demoted Connect. Silence is reserved for the two cases we can vouch for.
   const reassured = hint === 'linked' || hint === 'match';
 
+  // The device-code sign-in sheet — the rail and the settings row open the same one.
+  const deviceDialog = device ? (
+    <div
+      className="gi-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sign in to Maude Cloud"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') cancelSignIn();
+      }}
+    >
+      <div className="gi-scrim" aria-hidden="true" onClick={cancelSignIn} />
+      <div className="gi-dialog gi-dialog--code" data-testid="cloud-device-dialog">
+        <div className="gi-dc-head">
+          <span className="gi-dc-marks">
+            <Spark size={26} />
+          </span>
+          <h2>Sign in to Maude Cloud</h2>
+          {/* Says what to DO, not what supposedly already happened. The old
+                  copy claimed the browser had opened — a claim this surface
+                  cannot make, since the shell's open is best-effort and the
+                  person is the one who finds out it didn't. */}
+          <p>Confirm this code on your Maude Cloud dashboard to connect.</p>
+        </div>
+        <div className="gi-code">
+          <span className="gi-code-val" data-testid="cloud-user-code">
+            {device.userCode}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost gi-code-copy"
+            onClick={copyCode}
+            aria-label="Copy the code"
+          >
+            <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        {/* The manual path, always present — never conditional on whether the
+                open "worked". It is the only thing standing between an older
+                shell / a drifted self-host origin / a blocked popup and a dead
+                end. The address already carries the code (`/activate?code=…`),
+                so following it is one click, not a re-type. */}
+        {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloudUrl) && (
+          <div className="gi-dc-link">
+            <span className="gi-dc-link-lbl">
+              {openFailed === 'failed'
+                ? 'Maude couldn’t open your browser. Open this address yourself:'
+                : 'If your browser didn’t open, go to:'}
+            </span>
+            <div className="gi-dc-link-row">
+              <a
+                className="gi-dc-url gi-dc-link-a"
+                href={device.verificationUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+                data-testid="cloud-signin-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openExternal(device.verificationUrl).then((s) =>
+                    setOpenFailed(s === 'ok' ? '' : s)
+                  );
+                }}
+              >
+                {device.verificationUrl}
+              </a>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={copyLink}
+                aria-label="Copy the link"
+              >
+                <Icon name="copy" size={14} /> {copiedLink ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+          </div>
+        )}
+        {openFailed === 'refused' && (
+          // A REFUSAL is not "your browser didn't open" — it is Maude saying
+          // that address isn't Maude Cloud. Saying so, and NOT offering to
+          // help open it, is the whole difference (attacker re-review NEW-2).
+          <div className="gi-dl-warn" data-testid="cloud-signin-refused">
+            <strong>Maude wouldn’t open that address.</strong>
+            <span>It isn’t a Maude Cloud address. Sign in on your dashboard instead.</span>
+          </div>
+        )}
+        {device.verificationUrl && !isDisplayableUrl(device.verificationUrl, cloudUrl) && (
+          // An address we won't put behind a link or a copy button. Naming it
+          // is the point — silently dropping it would look like a bug.
+          <div className="gi-dl-warn" data-testid="cloud-signin-badurl">
+            <strong>Maude Cloud sent an address that doesn’t look right.</strong>
+            <span>
+              Nothing was opened. Sign in on your dashboard directly instead of following it.
+            </span>
+          </div>
+        )}
+        <div className="gi-dc-status" aria-live="polite">
+          <span className="gi-pulse" aria-hidden="true" />
+          <span>Waiting for you to confirm in the browser…</span>
+        </div>
+        <div className="gi-dc-foot">
+          <button type="button" className="btn btn--ghost" onClick={cancelSignIn}>
+            Cancel
+          </button>
+          <span className="gi-dc-foot-note">Nothing is stored until you confirm.</span>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  // The cloud projects, one row each — the rail's menu and Settings › Connections draw the same rows
+  // with the same handlers (Connect · Disconnect · View in the browser).
+  const projectRows = (
+    <>
+      {projects === null && (
+        <div className="gi-menu-item" aria-disabled="true">
+          Loading projects…
+        </div>
+      )}
+      {Array.isArray(projects) && projects.length === 0 && (
+        <div className="gi-menu-item" aria-disabled="true">
+          No projects yet — start one on the dashboard.
+        </div>
+      )}
+      {Array.isArray(projects) &&
+        projects.map((p) =>
+          p.role === 'viewer' ? (
+            // Viewer dignity (Phase 17 T4): no dead Connect that would
+            // 403 at the workspace — viewing has a first-class home in
+            // the browser, and the label says why.
+            <button
+              key={p.id}
+              type="button"
+              className="gi-menu-item"
+              role="menuitem"
+              onClick={() => openExternal(shareViewUrl(p.url, p.id))}
+              title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
+              data-testid={`cloud-project-${p.id}`}
+            >
+              <Icon name="external" size={15} /> View {p.name || p.id} in the browser
+              <span className="gi-menu-login" style={{ marginLeft: 'auto' }}>
+                viewer
+              </span>
+            </button>
+          ) : isLinkedProjectRow({
+              projectUrl: p.url,
+              linkedHubUrl: local.linkedHub?.url,
+              linkedHubCredentialed: local.linkedHub?.credentialed,
+              cloudUrl,
+            }) ? (
+            // The project this folder is ALREADY linked to. Connected is
+            // a state, not an action — the one action left is leaving.
+            // (Same wrapper shape as the "Loading projects…" row; the
+            // button is the focusable menu entry.)
+            <div
+              key={p.id}
+              className="gi-menu-item is-connected"
+              data-testid={`cloud-project-${p.id}`}
+            >
+              <Icon name="check" size={15} /> {p.name || p.id}
+              <span className="gi-menu-login" style={{ marginLeft: 'auto' }}>
+                Connected
+              </span>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                role="menuitem"
+                disabled={busy === 'disconnect'}
+                onClick={disconnect}
+                aria-label={`Disconnect this folder from ${p.name || p.id}`}
+                data-testid={`cloud-disconnect-${p.id}`}
+              >
+                {busy === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+            </div>
+          ) : (
+            <button
+              key={p.id}
+              type="button"
+              className="gi-menu-item"
+              role="menuitem"
+              disabled={busy === p.id}
+              onClick={() => connect(p.id)}
+              title={`Connect this project to ${p.url} (${p.role})`}
+              data-testid={`cloud-project-${p.id}`}
+            >
+              <Icon name="link" size={15} />{' '}
+              {busy === p.id ? 'Connecting…' : `Connect ${p.name || p.id}`}
+              <span className="gi-menu-login" style={{ marginLeft: 'auto' }}>
+                {p.stateLabel}
+              </span>
+            </button>
+          )
+        )}
+    </>
+  );
+
+  // ── Settings › Connections (V2-4.7a): the account as an inline row, the projects as an open list.
+  if (variant === 'settings') {
+    return (
+      <div className="cb-settings" data-testid="cloud-bar">
+        {state === 'out' && (
+          <div className="cb-settings-row">
+            <span className="cb-settings-t">
+              <strong>Maude Cloud</strong>
+              <span>Where your projects live. Not signed in.</span>
+            </span>
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={startSignIn}
+              data-testid="cloud-signin"
+            >
+              Sign in
+            </button>
+          </div>
+        )}
+        {state === 'in' && (
+          <>
+            <div className="cb-settings-row" data-testid="cloud-account">
+              <span className="cb-settings-t">
+                <strong>Maude Cloud</strong>
+                <span>Signed in as {email ?? 'your account'}</span>
+              </span>
+              <button
+                type="button"
+                className="btn btn--sm"
+                disabled={busy === 'disconnect'}
+                onClick={signOut}
+                data-testid="cloud-sign-out"
+              >
+                Sign out
+              </button>
+            </div>
+            {note && (
+              <span
+                className="gi-rail-hint"
+                title={note.title}
+                role="status"
+                aria-live="polite"
+                data-testid="cloud-connect-note"
+              >
+                {note.text}
+              </span>
+            )}
+            <p className="cb-settings-h">Cloud projects on this Mac</p>
+            <div className="cb-settings-list" data-testid="settings-cloud-projects">
+              {projectRows}
+            </div>
+          </>
+        )}
+        {local.linkedHub?.url && (
+          <div className="cb-settings-adv" data-testid="settings-hub-address">
+            <span className="cb-settings-k">Address</span>
+            <code className="cb-settings-v">{local.linkedHub.url}</code>
+            <span className="cb-settings-k">Access token</span>
+            <span className="cb-settings-v">
+              {local.linkedHub.credentialed
+                ? 'Kept in the keychain — never shown'
+                : 'None saved for this folder'}
+            </span>
+          </div>
+        )}
+        {error && (
+          <span className="gi-rail-err" role="alert" title={error}>
+            {error}
+          </span>
+        )}
+        {deviceDialog}
+      </div>
+    );
+  }
+
   return (
-    <div className="gi-rail cb-rail" ref={railRef} data-testid="cloud-bar">
+    <div
+      className={variant === 'host' ? 'cb-host' : 'gi-rail cb-rail'}
+      ref={railRef}
+      data-testid={variant === 'host' ? 'cloud-host' : 'cloud-bar'}
+    >
       {/* Not until `local` has resolved: the launch-path deep link can beat the
           status fetch, and a modal rendered without the local half showed no
           warning and a primary Connect — failing OPEN in the one scenario with
@@ -885,7 +1214,7 @@ export default function CloudBar({
           </div>
         </div>
       )}
-      {state === 'out' && (
+      {variant !== 'host' && state === 'out' && (
         <>
           <button
             type="button"
@@ -903,7 +1232,7 @@ export default function CloudBar({
         </>
       )}
 
-      {state === 'in' && (
+      {variant !== 'host' && state === 'in' && (
         <>
           <button
             type="button"
@@ -953,86 +1282,7 @@ export default function CloudBar({
                   <span className="gi-menu-login">{email ?? 'connected'}</span>
                 </span>
               </div>
-              {projects === null && (
-                <div className="gi-menu-item" aria-disabled="true">
-                  Loading projects…
-                </div>
-              )}
-              {Array.isArray(projects) && projects.length === 0 && (
-                <div className="gi-menu-item" aria-disabled="true">
-                  No projects yet — start one on the dashboard.
-                </div>
-              )}
-              {Array.isArray(projects) &&
-                projects.map((p) =>
-                  p.role === 'viewer' ? (
-                    // Viewer dignity (Phase 17 T4): no dead Connect that would
-                    // 403 at the workspace — viewing has a first-class home in
-                    // the browser, and the label says why.
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="gi-menu-item"
-                      role="menuitem"
-                      onClick={() => openExternal(shareViewUrl(p.url, p.id))}
-                      title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
-                      data-testid={`cloud-project-${p.id}`}
-                    >
-                      <Icon name="external" size={15} /> View {p.name || p.id} in the browser
-                      <span className="gi-menu-login" style={{ marginLeft: 'auto' }}>
-                        viewer
-                      </span>
-                    </button>
-                  ) : isLinkedProjectRow({
-                      projectUrl: p.url,
-                      linkedHubUrl: local.linkedHub?.url,
-                      linkedHubCredentialed: local.linkedHub?.credentialed,
-                      cloudUrl,
-                    }) ? (
-                    // The project this folder is ALREADY linked to. Connected is
-                    // a state, not an action — the one action left is leaving.
-                    // (Same wrapper shape as the "Loading projects…" row; the
-                    // button is the focusable menu entry.)
-                    <div
-                      key={p.id}
-                      className="gi-menu-item is-connected"
-                      data-testid={`cloud-project-${p.id}`}
-                    >
-                      <Icon name="check" size={15} /> {p.name || p.id}
-                      <span className="gi-menu-login" style={{ marginLeft: 'auto' }}>
-                        Connected
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        role="menuitem"
-                        disabled={busy === 'disconnect'}
-                        onClick={disconnect}
-                        aria-label={`Disconnect this folder from ${p.name || p.id}`}
-                        data-testid={`cloud-disconnect-${p.id}`}
-                      >
-                        {busy === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="gi-menu-item"
-                      role="menuitem"
-                      disabled={busy === p.id}
-                      onClick={() => connect(p.id)}
-                      title={`Connect this project to ${p.url} (${p.role})`}
-                      data-testid={`cloud-project-${p.id}`}
-                    >
-                      <Icon name="link" size={15} />{' '}
-                      {busy === p.id ? 'Connecting…' : `Connect ${p.name || p.id}`}
-                      <span className="gi-menu-login" style={{ marginLeft: 'auto' }}>
-                        {p.stateLabel}
-                      </span>
-                    </button>
-                  )
-                )}
+              {projectRows}
               <div className="gi-menu-sep" />
               <button
                 type="button"
@@ -1055,113 +1305,7 @@ export default function CloudBar({
         </>
       )}
 
-      {device && (
-        <div
-          className="gi-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Sign in to Maude Cloud"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') cancelSignIn();
-          }}
-        >
-          <div className="gi-scrim" aria-hidden="true" onClick={cancelSignIn} />
-          <div className="gi-dialog gi-dialog--code" data-testid="cloud-device-dialog">
-            <div className="gi-dc-head">
-              <span className="gi-dc-marks">
-                <Spark size={26} />
-              </span>
-              <h2>Sign in to Maude Cloud</h2>
-              {/* Says what to DO, not what supposedly already happened. The old
-                  copy claimed the browser had opened — a claim this surface
-                  cannot make, since the shell's open is best-effort and the
-                  person is the one who finds out it didn't. */}
-              <p>Confirm this code on your Maude Cloud dashboard to connect.</p>
-            </div>
-            <div className="gi-code">
-              <span className="gi-code-val" data-testid="cloud-user-code">
-                {device.userCode}
-              </span>
-              <button
-                type="button"
-                className="btn btn--ghost gi-code-copy"
-                onClick={copyCode}
-                aria-label="Copy the code"
-              >
-                <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            {/* The manual path, always present — never conditional on whether the
-                open "worked". It is the only thing standing between an older
-                shell / a drifted self-host origin / a blocked popup and a dead
-                end. The address already carries the code (`/activate?code=…`),
-                so following it is one click, not a re-type. */}
-            {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloudUrl) && (
-              <div className="gi-dc-link">
-                <span className="gi-dc-link-lbl">
-                  {openFailed === 'failed'
-                    ? 'Maude couldn’t open your browser. Open this address yourself:'
-                    : 'If your browser didn’t open, go to:'}
-                </span>
-                <div className="gi-dc-link-row">
-                  <a
-                    className="gi-dc-url gi-dc-link-a"
-                    href={device.verificationUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                    data-testid="cloud-signin-link"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      openExternal(device.verificationUrl).then((s) =>
-                        setOpenFailed(s === 'ok' ? '' : s)
-                      );
-                    }}
-                  >
-                    {device.verificationUrl}
-                  </a>
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    onClick={copyLink}
-                    aria-label="Copy the link"
-                  >
-                    <Icon name="copy" size={14} /> {copiedLink ? 'Copied' : 'Copy link'}
-                  </button>
-                </div>
-              </div>
-            )}
-            {openFailed === 'refused' && (
-              // A REFUSAL is not "your browser didn't open" — it is Maude saying
-              // that address isn't Maude Cloud. Saying so, and NOT offering to
-              // help open it, is the whole difference (attacker re-review NEW-2).
-              <div className="gi-dl-warn" data-testid="cloud-signin-refused">
-                <strong>Maude wouldn’t open that address.</strong>
-                <span>It isn’t a Maude Cloud address. Sign in on your dashboard instead.</span>
-              </div>
-            )}
-            {device.verificationUrl && !isDisplayableUrl(device.verificationUrl, cloudUrl) && (
-              // An address we won't put behind a link or a copy button. Naming it
-              // is the point — silently dropping it would look like a bug.
-              <div className="gi-dl-warn" data-testid="cloud-signin-badurl">
-                <strong>Maude Cloud sent an address that doesn’t look right.</strong>
-                <span>
-                  Nothing was opened. Sign in on your dashboard directly instead of following it.
-                </span>
-              </div>
-            )}
-            <div className="gi-dc-status" aria-live="polite">
-              <span className="gi-pulse" aria-hidden="true" />
-              <span>Waiting for you to confirm in the browser…</span>
-            </div>
-            <div className="gi-dc-foot">
-              <button type="button" className="btn btn--ghost" onClick={cancelSignIn}>
-                Cancel
-              </button>
-              <span className="gi-dc-foot-note">Nothing is stored until you confirm.</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {deviceDialog}
     </div>
   );
 }

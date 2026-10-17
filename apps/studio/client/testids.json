@@ -1026,7 +1026,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "figma-connect-input",
@@ -1039,7 +1039,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "figma-connect-save",
@@ -1052,7 +1052,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "figma-disconnect",
@@ -1065,7 +1065,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "figma-connected-as",
@@ -1078,7 +1078,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "figma-connect-error",
@@ -1091,7 +1091,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "v2": "moves"
+    "v2": "stable"
   },
   {
     "hook": "acp-not-connected",
@@ -3355,7 +3355,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-setting-syncFiles",
@@ -3368,7 +3374,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-setting-propagateDeletes",
@@ -3381,7 +3393,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-setting-firstAnchor",
@@ -3394,7 +3412,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-ownership",
@@ -3407,7 +3431,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-ownership-mode",
@@ -3420,7 +3450,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-ownership-adopt",
@@ -3433,7 +3469,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-ownership-detach",
@@ -3446,7 +3488,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-ownership-confirm",
@@ -3459,7 +3507,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-ownership-confirm-yes",
@@ -3472,7 +3526,13 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+        "symbol": "ProjectSyncSettings"
+      }
+    ]
   },
   {
     "hook": "sync-consent",
@@ -5003,7 +5063,7 @@
     "hook": "panel-side-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Settings › Layout › Panel positions: the Left / Right radio group of one panel (`<id>` ∈ tree, layers, assets, inspector, comments, changes, assistant). Persisted as prefs `panelSides`.",
+    "meaning": "Settings › General › Layout › Panel positions: the Left / Right radio group of one panel (`<id>` ∈ tree, layers, assets, inspector, comments, changes, assistant). Persisted as prefs `panelSides`.",
     "producer": {
       "file": "apps/studio/client/panels/SettingsPanel.jsx",
       "symbol": "SideToggle"
@@ -8205,6 +8265,500 @@
       "symbol": "AssetsPanel"
     },
     "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The veil behind the Settings sheet; a pointer-down on it closes the sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-sheet.jsx",
+      "symbol": "SettingsSheet"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Settings sheet itself (role=dialog): a vertical tablist of sections beside the open section’s groups.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-sheet.jsx",
+      "symbol": "SettingsSheet"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-tab-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A section tab on the sheet’s rail; `<id>` ∈ general, connections, advanced. Connections and Advanced exist only on the desktop.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-sheet.jsx",
+      "symbol": "SettingsSheet"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-panel-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The tabpanel of one section (`<id>` as above); a section opened once stays mounted, hidden.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-sheet.jsx",
+      "symbol": "SettingsSheet"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s Done button.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/settings-sheet.jsx",
+      "symbol": "SettingsSheet"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-account",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Account group (shown when a dashboard address is known).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-open-dashboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Account › Open the cloud dashboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-theme",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Look › the Light / Dark radio group.",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "AppearanceTab"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-inspector-vocabulary",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Look › the Inspector words radio group (Advanced / Designer).",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "AppearanceTab"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-canvas-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-layout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "General › Layout group (panel positions, Layers mode).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/general-section.jsx",
+      "symbol": "GeneralSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-cloud",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › Maude Cloud group.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-cloud-projects",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › Maude Cloud › the cloud projects on this Mac (Connect · Disconnect · View in the browser rows).",
+    "producer": {
+      "file": "apps/studio/client/panels/CloudBar.jsx",
+      "symbol": "CloudBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-hub-address",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › Maude Cloud › the linked workspace’s address; the access token stays in the keychain and is never shown.",
+    "producer": {
+      "file": "apps/studio/client/panels/CloudBar.jsx",
+      "symbol": "CloudBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "cloud-sign-out",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › Maude Cloud › Sign out.",
+    "producer": {
+      "file": "apps/studio/client/panels/CloudBar.jsx",
+      "symbol": "CloudBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "cloud-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The left panel footer’s CloudBar host: no visible rail, it only hosts the maude:// deep-link dialogs.",
+    "producer": {
+      "file": "apps/studio/client/panels/CloudBar.jsx",
+      "symbol": "CloudBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-team-server-add",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › Your team’s own server › Add a team server… (opens the address / email / password form).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-github",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › GitHub row (sign-in state).",
+    "producer": {
+      "file": "apps/studio/client/panels/IdentityBar.jsx",
+      "symbol": "IdentityBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-github-signin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › GitHub › Sign in.",
+    "producer": {
+      "file": "apps/studio/client/panels/IdentityBar.jsx",
+      "symbol": "IdentityBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-github-signout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › GitHub › Disconnect.",
+    "producer": {
+      "file": "apps/studio/client/panels/IdentityBar.jsx",
+      "symbol": "IdentityBar"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-ai-keys",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › AI images, video and voice row (the provider keys, masked).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-ai-keys-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › AI keys › Manage / Hide.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/connections-section.jsx",
+      "symbol": "ConnectionsSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "figma-test",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Connections › Figma › Test connection.",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "FigmaConnectCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-app-version",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Version.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Update row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-update-restart",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Update › Restart now (idle until a build is staged).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-update-later",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Update › Later (only while a build is staged).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-server-build",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Server build (MAUDE-DEV-SRV).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-keys-store",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › where provider keys are kept (keychain / keys.json).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-claude-autosetup",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Claude Code › Install and sign in automatically (Tauri pref; desktop app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-copy-draw",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Claude Code › Draw a mark with the SVG agent › Copy command.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-copy-brand",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Claude Code › Import a brand from the terminal › Copy command.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-transcription",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Engines › Subtitles (engine + whisper model cards).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-transcription-engine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Engines › the transcription engine radio group (Auto / whisper.cpp / Scribe / Groq).",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "TranscriptionEngineCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-keyframes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Engines › Video keyframes (engine + Gemma model cards).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-keyframe-engine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Engines › the keyframe engine radio group (Auto / Gemma / ffmpeg / Blind).",
+    "producer": {
+      "file": "apps/studio/client/panels/SettingsPanel.jsx",
+      "symbol": "KeyframeEngineCard"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-this-project",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This project group (sync switches, .design/ ownership).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "settings-project-unlinked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This project › the one-line note shown when the project is not linked to a workspace.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/project-sync-settings.jsx",
+      "symbol": "ProjectSyncSettings"
+    },
+    "region": "settings",
     "consumers": [],
     "v2": "stable"
   }
