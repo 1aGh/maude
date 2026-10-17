@@ -4,7 +4,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { AGENT_PATHS } from '../actions/agents.ts';
+import { ACTIONS_BY_ID } from '../actions/index.ts';
 import { renameElementId } from '../client/v2/inspector/element-id.js';
+import { INSPECTOR_ACTION_IDS } from '../client/v2/inspector/inspector-actions.js';
 import {
   ARTBOARD_KIND_CHIPS,
   KIND_FALLBACK,
@@ -26,6 +29,7 @@ import {
 } from '../client/v2/inspector/model.js';
 import { SECTION_IDS, SECTIONS, sectionById } from '../client/v2/inspector/sections.js';
 import { hasAnySlot, registerSlot, slotsFor } from '../client/v2/inspector/slots.js';
+import { createMenuHandlers } from '../client/v2/shell/menu-runner.js';
 import {
   COMPUTED_ID_RE as SERVER_COMPUTED,
   ELEMENT_ID_MAX as SERVER_MAX,
@@ -314,6 +318,41 @@ describe('renameElementId asks the dispatch route (S2.1) and says the answer in 
     expect((down as { message: string }).message).toContain('try again');
     for (const r of [held, locked, none, down])
       expect((r as { message: string }).message).not.toContain('!');
+  });
+});
+
+describe('the registry carries the three inspector actions (rule 14: each with its AI path)', () => {
+  test('registered as shell commands, greyed without an object, each with an agent path', () => {
+    expect([...INSPECTOR_ACTION_IDS]).toEqual([
+      'inspector.copy-css',
+      'element.copy-id',
+      'element.set-id',
+    ]);
+    for (const id of INSPECTOR_ACTION_IDS) {
+      const def = ACTIONS_BY_ID.get(id);
+      expect(def, id).toBeTruthy();
+      expect(def?.exec).toBe('shell');
+      expect(def?.enabled?.selection).toEqual(['object']);
+      expect(AGENT_PATHS[id], id).toBeTruthy();
+    }
+    expect(ACTIONS_BY_ID.get('element.set-id')?.enabled?.minRole).toBe('edit');
+    expect(ACTIONS_BY_ID.get('inspector.copy-css')?.label).toBe('Copy CSS');
+    // writing an id is a project write by the file path (the TSX); the copies write nothing
+    expect(AGENT_PATHS['element.set-id'].effect).toBe('project');
+    expect(AGENT_PATHS['element.set-id'].agent).toMatchObject({
+      path: 'file',
+      format: 'canvas-tsx',
+    });
+    expect(AGENT_PATHS['inspector.copy-css'].effect).toBe('none');
+  });
+
+  test('the menu runner has a handler for each, and shows the line they answer', async () => {
+    const toasts: string[] = [];
+    const handlers = createMenuHandlers({ toast: (m: string) => toasts.push(m) } as never);
+    for (const id of INSPECTOR_ACTION_IDS) expect(typeof handlers[id], id).toBe('function');
+    await handlers['inspector.copy-css']();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(toasts).toEqual(['Select an object first.']);
   });
 });
 

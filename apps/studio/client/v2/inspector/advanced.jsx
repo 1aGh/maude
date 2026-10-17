@@ -65,7 +65,7 @@ export function InspectFacts({ el }) {
 }
 
 /** Copy to the clipboard; resolves true when it worked (a browser tab without the permission says no). */
-async function copyText(text) {
+export async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -277,11 +277,16 @@ export function useAdvancedOpen(hasSections) {
   const [stored, setStored] = useFold('inspector');
   const [chosen, setChosen] = useState(null);
   const open = chosen ?? (stored || !hasSections);
-  return [
+  return {
     open,
-    () => {
+    toggle: () => {
       setChosen(!open);
       setStored(!open);
     },
-  ];
+    /** open it (⌘K "Edit element id…" needs the field on screen) */
+    show: () => {
+      setChosen(true);
+      setStored(true);
+    },
+  };
 }

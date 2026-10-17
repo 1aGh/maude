@@ -356,6 +356,55 @@ describe('copy', () => {
   });
 });
 
+describe('the three registry actions (⌘K) run on the element the frame shows', () => {
+  const written: string[] = [];
+  beforeEach(() => {
+    written.length = 0;
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: async (t: string) => void written.push(t) },
+      configurable: true,
+    });
+  });
+
+  test('Copy CSS and Copy element id copy and say so', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    await frame();
+    expect(await runInspectorAction('inspector.copy-css')).toBe('Copied the CSS.');
+    expect(written[0]).toContain('display: inline-flex;');
+    expect(await runInspectorAction('element.copy-id')).toBe('Copied the element id.');
+    expect(written[1]).toBe('book-call');
+  });
+
+  test('Edit element id… opens Advanced and puts the cursor in the field', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    const { registerSlot } = await import('../client/v2/inspector/slots.js');
+    offs.push(registerSlot('size', { id: 'size.test', Body: () => <i /> }));
+    const host = await frame(); // a section exists, so Advanced starts folded
+    expect(q(host, 'fold-inspector-body')).toBeNull();
+    await act(async () => {
+      await runInspectorAction('element.set-id');
+    });
+    await act(async () => new Promise((r) => setTimeout(r, 30)));
+    expect(q(host, 'fold-inspector-body')).not.toBeNull();
+    expect(document.activeElement).toBe(q(host, 'inspector-element-id'));
+  });
+
+  test('a computed id has nothing to copy yet, and says how to get one', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    await frame({ selected: { ...BUTTON, id: '0a1b2c3d' } });
+    expect(await runInspectorAction('element.copy-id')).toContain('Edit element id');
+    expect(written).toEqual([]);
+  });
+
+  test('several objects ask for one; with no frame mounted the answer is one plain line', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    await frame({ selected: [BUTTON, { ...BUTTON, id: 'b', index: 1 }] });
+    expect(await runInspectorAction('inspector.copy-css')).toBe('Select one object first.');
+    for (const r of roots.splice(0)) await act(async () => r.unmount());
+    expect(await runInspectorAction('inspector.copy-css')).toBe('Select an object first.');
+  });
+});
+
 describe('inside the Inspector island', () => {
   async function panel(over: Record<string, unknown> = {}) {
     const { InspectorPanel } = await import('../client/inspector/inspector-panel.jsx');

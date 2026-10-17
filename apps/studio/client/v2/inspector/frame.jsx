@@ -9,12 +9,13 @@
 // The frame owns no write. A section body gets `ctx` (the panel's edit channels) and writes through the
 // existing /_api/edit-* routes; the frame only lays them out, names them and folds the raw layer away.
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
-import { InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
+import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
+import { bindInspectorActions } from './inspector-actions.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
-import { crumbsOf, titleOf } from './model.js';
+import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { SECTIONS } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
 
@@ -98,7 +99,31 @@ export function InspectorFrame({
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
   const el = Array.isArray(selected) ? selected[0] : selected;
-  const [advOpen, toggleAdv] = useAdvancedOpen(hasAnySlot());
+  const adv = useAdvancedOpen(hasAnySlot());
+  const el1 = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
+  // the three registry actions (⌘K) run on what this frame shows; with several objects they say so
+  useEffect(() => {
+    const only = (fn) => () => (el1 ? fn(el1) : 'Select one object first.');
+    return bindInspectorActions({
+      'inspector.copy-css': only(async (e) =>
+        (await copyText(cssTextOf(e))) ? 'Copied the CSS.' : 'Not copied; try again.'
+      ),
+      'element.copy-id': only(async (e) =>
+        hasUsableId(e)
+          ? (await copyText(e.id))
+            ? 'Copied the element id.'
+            : 'Not copied; try again.'
+          : 'This element has no id yet. Edit element id… gives it one.'
+      ),
+      'element.set-id': only(() => {
+        adv.show();
+        requestAnimationFrame(() =>
+          document.querySelector('[data-testid="inspector-element-id"]')?.focus()
+        );
+        return null;
+      }),
+    });
+  }, [el1, adv.show]);
   if (!el) return null;
 
   const kind = resolveKind(selected);
@@ -161,8 +186,8 @@ export function InspectorFrame({
         layersTree={layersTree}
         cfg={cfg}
         canvasFile={canvasFile}
-        open={advOpen}
-        onToggle={toggleAdv}
+        open={adv.open}
+        onToggle={adv.toggle}
         onRenameElementId={onRenameElementId}
         edit={edit}
         artboard={artboard}
