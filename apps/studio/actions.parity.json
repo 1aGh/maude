@@ -1,9 +1,10 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 86,
+  "humanMax": 92,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
+    "ai-chat": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
     "accounts": "decision:maude/v2-4-gate-github-doors",
     "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
     "keys": "decision:maude/v2-2.4b-undo-keys-human",
@@ -15,9 +16,9 @@
     "view-pref": "decision:maude/v2-V2-1.11-ai-operability"
   },
   "humanMaxRaised": {
-    "to": 86,
-    "from": 84,
-    "by": "decision:maude/v2-4-gate-github-doors",
-    "why": "File › Pull a local copy… and Share on GitHub… (the removed sidebar avatar menu's doors) act under the person's GitHub account — human (accounts) by design."
+    "to": 92,
+    "from": 86,
+    "by": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
+    "why": "S5.7 registers the AI chat list's row commands (New chat, Rename…, Archive, Move to trash, Copy transcript: human 'ai-chat', the conversation is the person's to drive) and Open in terminal (human 'native-window', a Tauri command that spawns Terminal). Six human rows. Before it: 84 to 86 by decision:maude/v2-4-gate-github-doors (File › Pull a local copy… and Share on GitHub…, human 'accounts')."
   }
 }
