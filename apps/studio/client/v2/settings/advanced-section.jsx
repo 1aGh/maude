@@ -25,6 +25,7 @@ import {
   WhisperModelCard,
 } from '../../panels/SettingsPanel.jsx';
 import { MDCC_VERSION } from '../../shell/constants.js';
+import { foldStore } from '../fold/use-fold.js';
 import { Group, Row, SwitchRow } from './parts.jsx';
 import ProjectSyncSettings from './project-sync-settings.jsx';
 
@@ -138,6 +139,34 @@ function AutoSetupRow() {
   );
 }
 
+/**
+ * Reset › Reset Advanced sections (06 ad-settings, ad-edge-remember): every panel's "› Advanced" fold
+ * goes back to how a fresh Mac shows it. A command, not a mode — nothing is left switched on, and ⌘Z
+ * does not undo it (Open all in ⌘K does the reverse).
+ */
+function ResetFoldsRow() {
+  const [done, setDone] = useState(false);
+  return (
+    <Row
+      label="Reset Advanced sections"
+      hint="Fold every panel’s Advanced section again. Each panel remembers its own choice until then."
+      testid="settings-reset-folds"
+    >
+      <button
+        type="button"
+        className="btn btn--sm"
+        data-testid="settings-reset-folds-btn"
+        onClick={() => {
+          foldStore.reset();
+          setDone(true);
+        }}
+      >
+        {done ? 'Folded' : 'Reset'}
+      </button>
+    </Row>
+  );
+}
+
 export default function AdvancedSection({ update, onUpdateLater }) {
   // The engine cards stay mounted once opened: a model download polls from inside them.
   const port = typeof location !== 'undefined' ? location.port : '';
@@ -192,6 +221,10 @@ export default function AdvancedSection({ update, onUpdateLater }) {
 
       <Group title="This project" testid="settings-this-project">
         <ProjectSyncSettings cloud={null} />
+      </Group>
+
+      <Group title="Reset">
+        <ResetFoldsRow />
       </Group>
     </>
   );

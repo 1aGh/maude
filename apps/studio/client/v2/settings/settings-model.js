@@ -207,6 +207,15 @@ export const SETTINGS_ROWS = Object.freeze([
     where: 'Settings › Advanced › This project › Who keeps .design/ › Hand over…',
     local: true,
   },
+  {
+    // V2-4.10 (06 ad-settings › Reset, ad-edge-remember): the Advanced folds are remembered per panel per
+    // Mac; this folds them all again. Its ⌘K twin is "Close all Advanced sections" (view.advanced-close-all).
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-reset-folds',
+    where: 'Settings › Advanced › Reset › Reset Advanced sections',
+    local: true,
+  },
 ]);
 
 /** Which sections a shell offers. Local-machine sections need `cloud === null` (see the file head). */

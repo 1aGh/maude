@@ -12,8 +12,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import SyncPanel from '../../panels/SyncPanel.jsx';
+import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import ReadinessList from '../../panels/ReadinessList.jsx';
 import { filterLabel, LOG_FILTERS, logLines, modeStamp, tilde } from './diagnostics-model.js';
+
+/** Diagnostics' Advanced fold (Sync › Hub, commands) in prefs.json `fold`. */
+export const DIAGNOSTICS_FOLD = 'diagnostics';
+const DG_FOLD_CLASSES = Object.freeze({
+  root: 'dg-fold',
+  btn: 'dg-fold-btn',
+  ch: 'dg-fold-ch',
+  body: 'dg-fold-body',
+});
 
 export const TABS = Object.freeze([
   ['logs', 'Logs'],
@@ -287,8 +297,13 @@ function SyncView({ sync, onClose }) {
         onClose={onClose}
       />
       {/* The terminal hints the old banners and Help named (ad-syncd "Hub, commands"). */}
-      <details className="dg-fold" data-testid="diag-sync-hints">
-        <summary>Hub, commands</summary>
+      <AdvancedFold
+        panel={DIAGNOSTICS_FOLD}
+        label="Hub, commands"
+        classes={DG_FOLD_CLASSES}
+        testid="diag-sync-hints"
+        buttonTestid="diag-sync-hints-toggle"
+      >
         {hubHost(sync.status) ? (
           <Row id="hub" k="Hub" mono copy={hubHost(sync.status)} onCopy={sync.onCopy}>
             {hubHost(sync.status)}
@@ -298,7 +313,7 @@ function SyncView({ sync, onClose }) {
         <code className="dg-cmd">maude design status</code>
         <p className="dg-hint">Claude Code — undo a canvas from its history</p>
         <code className="dg-cmd">/design:rollback &lt;canvas&gt;</code>
-      </details>
+      </AdvancedFold>
     </div>
   );
 }

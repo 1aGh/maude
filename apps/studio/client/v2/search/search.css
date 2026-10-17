@@ -195,6 +195,13 @@
     font-size: var(--type-sm);
     cursor: pointer;
   }
+  .so-adv-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+  }
+  .so-adv[data-open] .so-adv-ch {
+    transform: rotate(90deg);
+  }
   .so-adv-count {
     color: var(--fg-3);
     font-size: var(--type-xs);

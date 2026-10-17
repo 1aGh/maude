@@ -303,9 +303,30 @@
     margin-top: var(--space-3, 12px);
     font-size: var(--type-sm, 13px);
   }
-  .dg-fold > summary {
+  .dg-fold-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
     color: var(--fg-2);
     font-size: var(--type-xs, 12px);
+    cursor: pointer;
+  }
+  .dg-fold-btn:hover {
+    color: var(--fg-1);
+  }
+  .dg-fold-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .dg-fold-ch {
+    display: inline-grid;
+  }
+  .dg-fold[data-open] .dg-fold-ch {
+    transform: rotate(90deg);
   }
   .dg-cmd {
     display: block;
