@@ -224,3 +224,13 @@ test('a key-only action ⌘K leaves out is reached through the "?" sheet row', (
   assert.equal(doc.perShell.browser.targets['action:object.nudge'], 'ok: shortcuts ("?" sheet)');
   assert.match(doc.targets['action:ai.draw-mark'], /not reached in browser/);
 });
+
+test('a hook that only one kind of shell draws is required there, whatever v1 showed', () => {
+  const seen = new Map([['team-projects', new Set(['browser'])]]);
+  assert.deepEqual(hookProbes('settings-github-signin', seen), ['desktop']);
+  assert.deepEqual(hookProbes('team-projects', seen), ['desktop']); // the name beats the golden
+  assert.deepEqual(hookProbes('chat-composer', seen), ['desktop']);
+  assert.deepEqual(hookProbes('.chat-input', seen), ['desktop']);
+  assert.ok(!hookProbes('share-open-app', seen).includes('desktop'));
+  assert.deepEqual(hookProbes('sync-offline', seen), LOCAL_PROBES); // an unnamed hook keeps the default
+});

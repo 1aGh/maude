@@ -178,7 +178,11 @@ export const STATES = {
   'cloud-in': {
     routes: { '/_api/cloud/status': 'cloudIn', '/_api/cloud/projects': 'cloudProjects' },
   },
-  'cloud-signing-in': { routes: { '/_api/cloud/signin/start': 'cloudSigninStart' } },
+  'cloud-signing-in': {
+    // the desktop asks its shell before the device flow (client/github.js cloudSignInPrepare)
+    invoke: { cloud_sign_in_prepare: false, cloud_signed_in: false },
+    routes: { '/_api/cloud/signin/start': 'cloudSigninStart' },
+  },
   'github-in': {
     invoke: { github_is_signed_in: true },
     routes: { '/_api/github/identity': 'githubIdentity' },
