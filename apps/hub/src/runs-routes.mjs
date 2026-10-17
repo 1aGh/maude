@@ -125,11 +125,26 @@ export function sanitizeHoldingAwareness({ context, connection, states }) {
 export function createRunsRoutes({ store, docNameFor = async () => null, poke = null }) {
   const scoped = (who) => typeof who?.scope === 'string' && who.scope !== '*' && who.scope !== '';
 
+  // One answer per canvas per request (`who` is minted per request): a GET of
+  // many runs over a cell's store is one lookup per distinct canvas, not per key.
+  const verdicts = new WeakMap();
+
   /** Fail closed: a key whose document cannot be named is outside every scope. */
   async function inScope(who, canvas) {
     if (!scoped(who)) return true;
-    const name = await docNameFor(canvas);
-    return typeof name === 'string' && name.length > 0 && matchesScope(who.scope, name);
+    let memo = verdicts.get(who);
+    if (!memo) {
+      memo = new Map();
+      verdicts.set(who, memo);
+    }
+    if (!memo.has(canvas)) {
+      const name = await docNameFor(canvas);
+      memo.set(
+        canvas,
+        typeof name === 'string' && name.length > 0 && matchesScope(who.scope, name)
+      );
+    }
+    return memo.get(canvas);
   }
 
   async function allInScope(who, keys) {
@@ -144,11 +159,7 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
   /** A run as a scoped member may see it: only their canvases; null when none is. */
   async function projectRun(who, run) {
     if (!scoped(who)) return run;
-    const cache = new Map();
-    const ok = async (canvas) => {
-      if (!cache.has(canvas)) cache.set(canvas, await inScope(who, canvas));
-      return cache.get(canvas);
-    };
+    const ok = (canvas) => inScope(who, canvas);
     const keep = async (list) => {
       const out = [];
       for (const k of list ?? []) if (await ok(k.canvas)) out.push(k);
