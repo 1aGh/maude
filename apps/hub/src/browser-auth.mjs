@@ -19,7 +19,8 @@
 // for both surfaces. A separate browser session type would be a second place
 // for the role model to drift, which is exactly what Track C exists to stop.
 
-import { authenticateForMode } from './cloud-identity.mjs';
+import { ACCESS_VERSION, peerTokenDoor } from '../../studio/access/scope.ts';
+import { authenticateForMode, claimOf, peerSessionFields } from './cloud-identity.mjs';
 import {
   authorizeUrl,
   createTransaction,
@@ -483,7 +484,9 @@ export async function handleBrowserAuth({
   try {
     const res = await fetchImpl(`${controlPlane}/auth/handoff/exchange`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      // This cell understands v2 claims (V2-1.7 §5.4): it is the browser door
+      // an observer is sent to, so it must be able to receive one.
+      headers: { 'content-type': 'application/json', 'x-maude-access': String(ACCESS_VERSION) },
       body: JSON.stringify({ code }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -523,15 +526,22 @@ export async function handleBrowserAuth({
     ) - Date.now()
   );
   // The role the control plane vouched for, in the PROJECT vocabulary — the
-  // same translation /auth/login makes (C1).
-  const projectRole = projectRoleForAccount(user.role);
+  // same translation and the same mint door /auth/login uses (C1, V2-1.7
+  // §5.4). This IS the browser door, so an observer mints here (no 409), and
+  // the cell itself always understands a v2 claim.
+  const door = peerTokenDoor(claimOf(result), {
+    declaredAccess: ACCESS_VERSION,
+    browserLane: true,
+  });
+  if (door.outcome !== 'mint') {
+    page(response, 403, 'You do not have access', 'Ask whoever runs this project to invite you.');
+    return true;
+  }
   const minted = addToken(dataDir, {
     label: `studio-${Math.random().toString(36).slice(2, 10)}`,
-    scope: user.scope ?? '*',
     owner: user.email,
     expiresAt: Date.now() + ttlMs,
-    role: projectRole,
-    readOnly: isReadOnlyRole(projectRole),
+    ...peerSessionFields(door, { scope: user.scope ?? '*' }),
   });
   setSessionCookie(response, minted.value, ttlMs / 1000);
   redirect(response, takeReturnTo(request, response));

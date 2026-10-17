@@ -23,8 +23,8 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { GRANT_ROLES, MAX_GRANTS } from '../../studio/access/scope.ts';
-import { ROLES } from './role-matrix.mjs';
+import { GRANT_ROLES, legacyClaim, MAX_GRANTS } from '../../studio/access/scope.ts';
+import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 
 /**
  * The v2 token prefix (V2-1.7 §5.4). `m2.<body>.<sig>` has THREE parts, so every
@@ -242,6 +242,36 @@ export function accessClaims(
     ...(grants?.length ? { grants } : {}),
     iat: now,
     exp: now + ttlMs,
+  };
+}
+
+/**
+ * The claim a verified sign-in carries, in the PROJECT vocabulary: a v2 token's
+ * own claim, else the v1 role translated at the one boundary (`admin` → owner).
+ */
+export function claimOf(result) {
+  return result?.access ?? legacyClaim(result?.user?.role ?? null);
+}
+
+/**
+ * The `addToken` fields for a session the mint door (`peerTokenDoor`) allowed.
+ *
+ * INTERIM, FAIL CLOSED (S9.2 → S9.4/S9.5): no door on this hub reads `access`
+ * yet, so the stored fields must not let an old door widen a v2 claim.
+ *  - `readOnly` is the PROJECT role's projection only — a grant never lifts it
+ *    here, because every existing door reads `read_only` for every document.
+ *  - A canvas-only session (`role: null`) gets no wildcard `scope` (DDR-053's
+ *    label-bound default), so every scope-checking door refuses it until
+ *    `access-files` / `access-docs` answer from the claim.
+ * Unreachable until the control plane mints `m2.` for this cell (`roles-v2`).
+ */
+export function peerSessionFields(door, { scope = '*' } = {}) {
+  const role = door.claim.role;
+  return {
+    role,
+    readOnly: isReadOnlyRole(role),
+    ...(role === null ? {} : { scope }),
+    ...(door.v2 ? { access: door.claim } : {}),
   };
 }
 
