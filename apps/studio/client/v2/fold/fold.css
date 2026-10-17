@@ -46,7 +46,7 @@
   }
   .v2-fold-hint {
     margin-left: auto;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .v2-fold-body {
     display: grid;

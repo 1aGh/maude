@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { canvasUrl } from '../canvas-url.js';
-import { MDCC_VERSION, SYSTEM_TAB } from './constants.js';
+import { SYSTEM_TAB } from './constants.js';
 import { FilePreview, sanitizeDisplayText } from '../panels/file-preview.jsx';
 import { basename, previewKind } from './util.js';
-import { Kbd } from './icons.jsx';
-import { isNativeApp } from '../github.js';
 import { SystemView } from '../system/system-view.jsx';
 
 export function Viewport({
@@ -94,38 +92,9 @@ export function Viewport({
       )}
       {tabs.length === 0 && !previewPath && (
         <div className="st-empty">
-          <div className="st-empty-brand">
-            <span className="st-brand-mark">
-              <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true">
-                <path
-                  d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <span className="st-empty-wm">maude</span>
-            <span className="st-empty-sub st-mono">
-              CANVAS · {(project || 'MAUDE').toUpperCase()} / v{MDCC_VERSION} / localhost:
-              {typeof window !== 'undefined' ? window.location.port : '4399'}
-            </span>
-          </div>
-          <div className="st-empty-title">Nothing open yet</div>
+          <div className="st-empty-title">No canvas open</div>
           <div className="st-empty-body">
-            ← Pick a screen from the list on the left, or open <strong>Design system</strong> above
-            it to see your colors, type, and components.
-            <br />
-            <br />
-            <strong>To select something on the canvas:</strong> hold <Kbd>⌘</Kbd> and hover to
-            preview an element, click to select it — <Kbd>⌘⇧</Kbd>+click selects more than one.
-            Right-click for more options.
-            {isNativeApp() ? (
-              <>
-                <br />
-                <br />
-                Claude can see whatever's selected when you ask for a change in the Assistant panel,
-                so pointing is often faster than describing it.
-              </>
-            ) : null}
+            Open a canvas from the Canvases panel, or start a new one.
           </div>
           {showQuickSetup && (
             <button

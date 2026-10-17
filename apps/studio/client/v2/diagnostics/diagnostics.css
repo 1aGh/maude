@@ -36,7 +36,9 @@
   /* ── the sheet ── */
   .dg-sheet {
     position: absolute;
-    z-index: 40;
+    /* Above the informational callout stack (8990) so the tour never covers the tabs, still below modal
+       scrims (9000) and above-the-scrim warnings (9100) that must stay readable. */
+    z-index: 8995;
     top: calc(var(--float-gap, 16px) + 52px);
     right: var(--float-gap, 16px);
     width: min(760px, calc(100% - 2 * var(--float-gap, 16px)));
@@ -90,7 +92,7 @@
   }
   .dg-tab[aria-selected="true"] {
     background: var(--accent-muted, var(--bg-3));
-    color: var(--fg-1);
+    color: var(--fg-0);
   }
   .dg-x {
     appearance: none;

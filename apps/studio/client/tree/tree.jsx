@@ -740,12 +740,12 @@ export function Tree({
 // project / DS identity; the mock keeps these tight (1 line). Labels are
 // keyed by the server-provided `kind` (PROJECT / DS / UI / RUNTIME).
 export const SECTION_META = {
-  project: { title: 'PROJECT', pillFromCount: false },
+  project: { title: 'Project', pillFromCount: false },
   // Design-system group: pill shows the number of DSes (one row per DS folder
   // inside). Computed in Sidebar from `g.dsFolders.length`.
-  ds: { title: 'DESIGN SYSTEM', pillFromDsCount: true },
-  canvas: { title: 'UI CANVASES', pillFromCount: true },
-  runtime: { title: 'RUNTIME · GITIGNORED', pillFromCount: true },
+  ds: { title: 'Design system', pillFromDsCount: true },
+  canvas: { title: 'UI canvases', pillFromCount: true },
+  runtime: { title: 'Runtime files', pillFromCount: true },
 };
 
 export function sectionMetaFor(g) {
@@ -754,7 +754,7 @@ export function sectionMetaFor(g) {
   // canvas-kind groups: "Design system" → ds, anything else → canvas label
   if (g.label === 'Design system') return SECTION_META.ds;
   if (g.label === 'UI kit') return SECTION_META.canvas;
-  return { title: g.label.toUpperCase(), pillFromCount: true };
+  return { title: g.label, pillFromCount: true };
 }
 
 // The file tree before its first index arrives. A large project — above all a
@@ -827,7 +827,6 @@ export function Sidebar({
   // V2-4.4a — Canvases › Advanced › Hidden files runs the same function as ⌘K / Menu › View.
   onToggleShowHidden,
   collapsed,
-  onCollapse,
   width,
   resizing,
   dirtyByPath,
@@ -1141,7 +1140,7 @@ export function Sidebar({
               size={13}
             />
             <span className="st-sec-name">{meta.title}</span>
-            {pill && <span className="st-pill">{pill}</span>}
+            {pill && <span className="st-sec-count">{pill}</span>}
           </button>
         }
       >
@@ -1185,6 +1184,8 @@ export function Sidebar({
       aria-label="Canvases"
       data-tour="sidebar"
     >
+      {/* The panel's tab row already names it and owns the one fold control, so this row carries only the
+          create actions; the title stays for screen readers and for the e2e that clicks it. */}
       <div className="st-sb-hd">
         <span className="st-sb-title">Canvases</span>
         <div className="st-sb-hd-actions">
@@ -1219,17 +1220,6 @@ export function Sidebar({
               }}
             >
               <StIcon name="folder-plus" size={15} />
-            </button>
-          )}
-          {onCollapse && (
-            <button
-              type="button"
-              className="st-iconbtn"
-              aria-label="Collapse sidebar"
-              data-tip="Close panel · ⌘\ hides every panel"
-              onClick={onCollapse}
-            >
-              <StIcon name="panel-left" size={15} />
             </button>
           )}
         </div>

@@ -19,7 +19,7 @@
     font-family: var(--font-body);
     letter-spacing: 0;
     text-transform: none;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-pal-label {
     display: flex;
@@ -36,7 +36,7 @@
   .st-pal-meta {
     flex: none;
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   /* where it lives — the path a person learns the way back by */
   .st-pal-where {
@@ -100,8 +100,9 @@
     gap: var(--space-4);
     padding: var(--space-2) var(--space-4);
     border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-body);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-pal-hints {
     display: flex;
@@ -115,8 +116,10 @@
 
   /* ── "?" ── */
   .so-overlay--v2 {
+    font-family: var(--font-body);
     max-width: 880px;
     max-height: 86vh;
+    overflow-x: hidden;
     overflow-y: auto;
   }
   .so-overlay--v2 .so-overlay-hd {
@@ -132,7 +135,7 @@
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-md);
     background: var(--bg-2);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .so-find input {
     flex: 1;
@@ -160,13 +163,36 @@
     background: var(--bg-3);
     color: var(--fg-0);
   }
+  /* A bare `1fr` track is `minmax(auto, 1fr)`: a long key list (the Step back row) stretched the grid to
+     2707px inside an 830px sheet and pushed two columns off-screen. `minmax(0, 1fr)` + `min-width: 0` on
+     the items keeps three columns inside the sheet and lets the combos wrap instead. */
   .so-columns--3 {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .so-columns > .so-section {
+    min-width: 0;
+  }
+  /* The label keeps a floor (a word never breaks mid-letter); the combos take what is left and wrap. */
+  .so-overlay--v2 .so-pair {
+    grid-template-columns: minmax(7.5rem, 1fr) minmax(0, auto);
+    align-items: start;
+  }
+  .so-overlay--v2 .so-pair dd {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .so-overlay--v2 .so-combos {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: var(--space-1);
+  }
+  .so-overlay--v2 .so-pair--adv {
+    grid-template-columns: minmax(7.5rem, 1fr) auto auto;
   }
   .so-note {
     margin: calc(-1 * var(--space-2)) 0 var(--space-2);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .so-path {
     font-size: var(--type-xs);
@@ -203,7 +229,7 @@
     transform: rotate(90deg);
   }
   .so-adv-count {
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-xs);
   }
   .so-adv-body {
@@ -211,24 +237,19 @@
     gap: var(--space-1);
     margin-top: var(--space-2);
   }
-  .so-pair--adv {
-    grid-template-columns: 1fr auto auto;
-  }
   .so-adv-label {
     font-size: var(--type-sm);
     color: var(--fg-1);
   }
   .so-adv-path {
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .so-sub {
     margin: var(--space-3) 0 var(--space-1);
-    font-family: var(--font-mono);
+    font-family: var(--font-body);
     font-size: var(--type-xs);
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
+    font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
   }
   .so-moved {

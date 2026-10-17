@@ -271,17 +271,18 @@
   .st-sb-hd {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border-subtle);
+    padding: var(--space-2) var(--space-3) 0;
   }
+  /* Visually hidden, not removed: the tab row above already says "Canvases". */
   .st-sb-title {
-    font-family: var(--font-mono);
-    font-size: var(--type-xs);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--fg-2);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .st-sb-hd-actions {
     display: flex;
@@ -309,7 +310,7 @@
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     padding: var(--space-2) var(--space-3);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-search-box svg {
     flex: none;
@@ -325,7 +326,7 @@
     min-width: 0;
   }
   .st-search-box input::placeholder {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-search-box .kbd {
     margin-left: auto;
@@ -416,26 +417,28 @@
     color: var(--fg-0);
     box-shadow: inset 2px 0 0 var(--accent);
   }
+  /* The eyebrow is the island title (CONTRACT section 5): sans, xs, semibold, --fg-2, as the user wrote it. */
   .st-tree-sec-hd .st-sec-name {
-    font-family: var(--font-mono);
+    font-family: var(--font-body);
     font-size: var(--type-xs);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-  }
-  /* --fg-2, not --fg-3: a 10px count is text, and --fg-3 is 3.0:1 on the
-   sidebar — below WCAG AA (axe on the cloud cell, F3 S19, 2026-09-24). */
-  .st-tree-sec-hd .st-pill {
-    margin-left: auto;
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-weight: var(--w-semibold, 600);
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--fg-2);
-    padding: 0 6px;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-pill);
+  }
+  /* The count is a plain right-aligned tabular numeral in the header row. It used to be the class
+   `st-pill`, which collided with the project pill's absolutely positioned island of the same name and
+   floated over the header (design-critic blocker 1). */
+  .st-tree-sec-hd .st-sec-count {
+    margin-left: auto;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-2);
   }
   .st-tree-empty {
     padding: var(--space-2) var(--space-5);
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-xs);
     font-style: italic;
   }
@@ -589,6 +592,7 @@
   }
   /* Kept in the a11y tree (opacity, not display:none) so keyboard users reach it. */
   .st-row-wrap:hover .st-row-del,
+  .st-row-wrap:has(:focus-visible) .st-row-del,
   .st-row-del:focus-visible {
     opacity: 1;
   }
@@ -627,6 +631,7 @@
     transition: opacity var(--dur-soft) var(--ease-out);
   }
   .st-row-wrap:hover .st-row-menu-btn,
+  .st-row-wrap:has(:focus-visible) .st-row-menu-btn,
   .st-row-menu-btn:focus-visible {
     opacity: 1;
   }
@@ -712,24 +717,6 @@
   .st-empty .kbd,
   .st-empty strong {
     pointer-events: auto;
-  }
-  .st-empty-brand {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
-  }
-  .st-empty-wm {
-    font-family: var(--font-display);
-    font-size: var(--type-2xl);
-    font-weight: 600;
-    letter-spacing: var(--tracking-tight);
-    color: var(--fg-0);
-  }
-  .st-empty-sub {
-    font-size: var(--type-xs);
-    color: var(--fg-3);
-    letter-spacing: var(--tracking-wide);
   }
   .st-empty-title {
     font-family: var(--font-display);
@@ -1325,7 +1312,7 @@
     gap: var(--space-3);
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--border-subtle);
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-pal-search input {
     flex: 1;
@@ -1338,7 +1325,7 @@
     font-family: var(--font-body);
   }
   .st-pal-search input::placeholder {
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
   .st-pal-search .kbd {
     margin-left: auto;
@@ -1349,17 +1336,16 @@
     padding: var(--space-2);
   }
   .st-pal-group {
-    font-family: var(--font-mono);
+    font-family: var(--font-body);
     font-size: var(--type-xs);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--fg-3);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
     padding: var(--space-3) var(--space-3) var(--space-1);
   }
   .st-pal-empty {
     padding: var(--space-5);
     text-align: center;
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: var(--type-sm);
   }
   .st-pal-item {
@@ -1616,7 +1602,7 @@
   }
   .st-pref-note {
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
     line-height: 1.45;
   }
   /* Switch — styled checkbox; compositor-only transition (transform/background). */
@@ -2156,7 +2142,7 @@
     justify-content: center;
     background: transparent;
     border: 0;
-    color: var(--fg-3);
+    color: var(--fg-2);
     font-size: 9px;
     line-height: 1;
     cursor: pointer;
@@ -2170,7 +2156,7 @@
   .st-layer-type {
     flex: none;
     font-size: 9px;
-    color: var(--fg-3);
+    color: var(--fg-2);
     text-transform: uppercase;
     letter-spacing: var(--tracking-wide);
   }
@@ -2321,7 +2307,7 @@
   .st-rp-hint {
     font-family: var(--font-mono);
     font-size: 10px;
-    color: var(--fg-3);
+    color: var(--fg-2);
     padding: 4px var(--space-2) 6px;
     letter-spacing: var(--tracking-wide);
   }
@@ -5419,11 +5405,9 @@
   }
   .so-section-hd {
     margin: 0 0 var(--space-3);
-    font-family: var(--font-mono);
+    font-family: var(--font-body);
     font-size: var(--type-xs);
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
+    font-weight: var(--w-semibold, 600);
     color: var(--fg-2);
     padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--border-subtle);
@@ -5471,7 +5455,7 @@
   .so-or {
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
     padding: 0 1px;
   }
   .so-overlay-ft {
@@ -8432,9 +8416,7 @@
     border: 1px solid var(--border-default);
     border-radius: var(--radius-pill);
     box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
-    opacity: 0.72;
     transition:
-      opacity var(--dur-soft) var(--ease-out),
       background var(--dur-soft) var(--ease-out),
       color var(--dur-soft) var(--ease-out);
   }
@@ -8455,7 +8437,7 @@
   .st-present-exit-kbd {
     font-family: var(--font-mono);
     font-size: var(--type-xs);
-    color: var(--fg-3);
+    color: var(--fg-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-xs);
     padding: 1px 5px;

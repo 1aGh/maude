@@ -1008,12 +1008,20 @@ const LAYOUT_PANELS = [
   { id: 'inspector', label: 'Inspector' },
   { id: 'comments', label: 'Comments' },
   { id: 'changes', label: 'Changes' },
-  { id: 'assistant', label: 'Assistant' },
+  { id: 'assistant', label: 'AI chat panel' },
 ];
 
-function SideToggle({ value, disabled, onChange, testId }) {
+// `labelledBy` is the id of the row's visible label, so each group is announced by the panel it moves
+// ("Canvases, Left") instead of seven identical "Panel side" groups.
+function SideToggle({ value, disabled, onChange, testId, labelledBy }) {
   return (
-    <span className="st-sidetoggle" role="radiogroup" aria-label="Panel side" data-testid={testId}>
+    <span
+      className="st-sidetoggle"
+      role="radiogroup"
+      aria-labelledby={labelledBy}
+      aria-label={labelledBy ? undefined : 'Panel side'}
+      data-testid={testId}
+    >
       {['left', 'right'].map((s) => (
         <button
           key={s}
@@ -1078,7 +1086,9 @@ export function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMo
           return (
             <div key={p.id} className={'st-pref-row' + (disabled ? ' is-disabled' : '')}>
               <span className="st-pref-body">
-                <span className="st-pref-label">{p.label}</span>
+                <span className="st-pref-label" id={`panel-side-label-${p.id}`}>
+                  {p.label}
+                </span>
                 {disabled && (
                   <span className="st-pref-note">
                     Layers is inside the Inspector — choose “Separate panel” above to dock it.
@@ -1087,6 +1097,7 @@ export function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMo
               </span>
               <SideToggle
                 testId={`panel-side-${p.id}`}
+                labelledBy={`panel-side-label-${p.id}`}
                 value={panelSide?.[p.id] || 'left'}
                 disabled={disabled}
                 onChange={(s) => onSetPanelSide(p.id, s)}
@@ -1154,8 +1165,8 @@ export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
           <span className="st-provider-name">Theme</span>
         </div>
         <div className="st-provider-notes">
-          Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards
-          keep their own design-system theme.
+          Sets the look of the panels, toolbar and canvas background. Artboards keep their own
+          design system.
         </div>
         <div
           className="st-engine-radios"

@@ -1825,7 +1825,7 @@
   /* ── Settings — AI generation (feature-ai-media-generation, DDR-16x) ─────── */
   .st-settings-intro {
     font-size: var(--type-xs, 12px);
-    color: var(--fg-3);
+    color: var(--fg-2);
     line-height: 1.5;
     margin: 6px 0 12px;
   }
@@ -1884,7 +1884,7 @@
   }
   .st-provider-notes {
     font-size: 11px;
-    color: var(--fg-3);
+    color: var(--fg-2);
     line-height: 1.5;
     margin-top: 6px;
   }
@@ -2011,7 +2011,7 @@
   }
   .st-engine-radio-note {
     font-size: 11px;
-    color: var(--fg-3);
+    color: var(--fg-2);
   }
 
   /* ── Local whisper model download (Task 2.7) ────────────────────────────── */

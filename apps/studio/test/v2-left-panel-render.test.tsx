@@ -134,6 +134,27 @@ describe('Canvases tab', () => {
     expect(host.querySelector('.st-sb-hd .st-live')).toBeNull();
   });
 
+  // V2-4.gate (design-critic blockers 1 + warnings): the group count was `.st-pill`, which the project
+  // pill's `position:absolute` island rule also matched — it floated over the header. The header row
+  // repeated the tab name and carried a second fold control.
+  test('the group count is a plain numeral in the header row (not an `.st-pill`), the eyebrow is sentence case', async () => {
+    installFetch({ '/_api/sync/trash': TRASH });
+    const { host } = await sidebar();
+    const hd = host.querySelector('.st-tree-sec-hd') as HTMLElement;
+    expect(hd.querySelector('.st-pill')).toBeNull();
+    expect(hd.querySelector('.st-sec-count')?.textContent).toBe('1');
+    expect(hd.querySelector('.st-sec-name')?.textContent).toBe('UI canvases');
+  });
+
+  test('the header row keeps + and New folder but no second fold control', async () => {
+    installFetch({ '/_api/sync/trash': TRASH });
+    const { host } = await sidebar();
+    const hd = host.querySelector('.st-sb-hd') as HTMLElement;
+    expect(hd.querySelector('[aria-label="New blank brief board"]')).toBeTruthy();
+    expect(hd.querySelector('[aria-label="Collapse sidebar"]')).toBeNull();
+    expect(hd.querySelectorAll('button').length).toBeLessThanOrEqual(2);
+  });
+
   test('the Design system row is pinned above the list; Trash is the last row, Advanced under it', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
     const { host } = await sidebar();

@@ -50,6 +50,11 @@
     --status-warn: oklch(0.8 0.13 78);
     --status-error: oklch(0.66 0.19 25);
     --status-info: oklch(0.72 0.12 238);
+    /* a status colour used AS TEXT (same names as the v2 ladder); dark fills already clear 4.5:1 on --bg-1..3,
+       the error fill needs a step up (4.41:1 on --bg-3) */
+    --status-success-text: oklch(0.76 0.15 162);
+    --status-warn-text: oklch(0.8 0.13 78);
+    --status-error-text: oklch(0.72 0.17 25);
 
     /* Presence (collaborators + AI agent) */
     --presence-online: oklch(0.74 0.16 145);
@@ -154,6 +159,10 @@
     --status-warn: oklch(0.64 0.14 70);
     --status-error: oklch(0.56 0.2 25);
     --status-info: oklch(0.53 0.15 238);
+    /* a status colour used AS TEXT: the light fills are 3.0-4.2:1 on white, these are 5.2:1+ on --bg-1..3 */
+    --status-success-text: oklch(0.46 0.11 162);
+    --status-warn-text: oklch(0.5 0.11 70);
+    --status-error-text: oklch(0.52 0.19 25);
 
     --presence-online: oklch(0.56 0.16 145);
     --presence-away: oklch(0.64 0.14 70);

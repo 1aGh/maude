@@ -137,39 +137,42 @@ export default function SettingsSheet({
         ref={sheetRef}
         onKeyDown={onSheetKey}
       >
-        <div
-          className="v2s-rail"
-          role="tablist"
-          aria-orientation="vertical"
-          aria-label="Settings sections"
-          onKeyDown={onRailKey}
-        >
+        {/* The rail is a plain wrapper: the tablist inside holds ONLY tabs (WCAG 1.3.1 / aria-required-children),
+            the title, version line and Done sit beside it. */}
+        <div className="v2s-rail">
           <p className="v2s-title">Settings</p>
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              id={`v2s-tab-${s.id}`}
-              aria-controls={`v2s-panel-${s.id}`}
-              aria-selected={current === s.id}
-              tabIndex={current === s.id ? 0 : -1}
-              className="v2s-tab"
-              data-testid={`settings-tab-${s.id}`}
-              ref={(n) => {
-                tabRefs.current[s.id] = n;
-              }}
-              onClick={() => setTab(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
+          <div
+            className="v2s-tabs"
+            role="tablist"
+            aria-orientation="vertical"
+            aria-label="Settings sections"
+            onKeyDown={onRailKey}
+          >
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                id={`v2s-tab-${s.id}`}
+                aria-controls={`v2s-panel-${s.id}`}
+                aria-selected={current === s.id}
+                tabIndex={current === s.id ? 0 : -1}
+                className="v2s-tab"
+                data-testid={`settings-tab-${s.id}`}
+                ref={(n) => {
+                  tabRefs.current[s.id] = n;
+                }}
+                onClick={() => setTab(s.id)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
           <span className="v2s-rail-sp" />
           <span className="v2s-foot">Maude {MDCC_VERSION}</span>
           <button
             type="button"
             className="v2s-close"
-            aria-label="Close settings"
             data-testid="settings-close"
             onClick={onClose}
           >
