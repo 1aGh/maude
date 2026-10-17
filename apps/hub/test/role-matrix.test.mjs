@@ -223,7 +223,14 @@ test('the mint site translates rather than passing the account role through', ()
   // projecting without storing produced sessions browserSession refuses).
   // Behaviour is pinned end-to-end in auth-login-role.test.mjs; this guard
   // only keeps the raw account role out of the role matrix.
-  assert.match(src, /const projectRole = projectRoleForAccount\(user\.role\)/);
+  //
+  // S9.2: /auth/login decides through the one mint door. `claimOf` translates
+  // a v1 role with `legacyClaim` → `projectRoleForAccount`, and the stored role
+  // and its projection both come from `peerSessionFields(door)`.
+  assert.match(src, /const door = peerTokenDoor\(claimOf\(result\)/);
+  assert.match(src, /\.\.\.peerSessionFields\(door,/);
+  // The invite-redeem door still translates inline.
+  assert.match(src, /const projectRole = projectRoleForAccount\(result\.user\.role\)/);
   assert.match(src, /role: projectRole/);
   assert.match(src, /isReadOnlyRole\(projectRole\)/);
   assert.ok(
