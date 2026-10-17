@@ -163,9 +163,6 @@
     "apps/studio/client/shell/icons.jsx": {
       "lint/a11y/noSvgWithoutTitle": 1
     },
-    "apps/studio/client/shell/status-bar.jsx": {
-      "lint/a11y/useSemanticElements": 6
-    },
     "apps/studio/client/shell/viewport.jsx": {
       "lint/a11y/noNoninteractiveTabindex": 1,
       "lint/a11y/useSemanticElements": 1

@@ -318,7 +318,7 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-testid=\"share-btn\"]",
+          "target": "[data-testid=\"share-cluster-share\"]",
           "title": "Share this file",
           "body": "Copy a web link, an app link, or a link for this Mac. You can also share another file from its row menu.",
           "placement": "bottom",
@@ -947,9 +947,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour=\"help\"]",
+          "target": "[data-tour=\"menus\"]",
           "title": "Report a bug",
-          "body": "Open Help › Report a bug… whenever something breaks — a screenshot and the details maintainers need are gathered for you, and nothing is sent until you approve it.",
+          "body": "Open the menu at the top left › Help › Report a bug… whenever something breaks — a screenshot and the details maintainers need are gathered for you.",
           "placement": "bottom"
         }
       ]
@@ -1116,9 +1116,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour=\"help\"]",
+          "target": "[data-tour=\"menus\"]",
           "title": "Watch the intro",
-          "body": "Help → Watch the intro plays the full showreel without leaving Maude."
+          "body": "Menu › Help › Watch the intro plays the full showreel without leaving Maude."
         }
       ]
     },
@@ -1159,9 +1159,9 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour=\"menubar-file\"]",
+          "target": "[data-tour=\"menus\"]",
           "title": "AI generation settings",
-          "body": "Open File → Settings — AI generation (⌘,) to add your provider key, then Generate with AI from the ⌘K palette.",
+          "body": "Open Settings (⌘,) › Connections to add your provider key, then Generate with AI from the ⌘K palette.",
           "placement": "bottom"
         }
       ]
@@ -1683,14 +1683,14 @@
       "surface": "design-ui",
       "tour": [
         {
-          "target": "[data-tour='whatsnew']",
+          "target": "[data-tour=\"menus\"]",
           "title": "Your What's New badge",
-          "body": "This ✦ badge lights up when a new maude version ships features. Click it any time to reopen this panel."
+          "body": "Menu › Help › What's new says how many new things shipped since you last looked. Open it any time to reopen this panel."
         },
         {
-          "target": "[data-tour='help']",
+          "target": "[data-tour=\"menus\"]",
           "title": "Tours live in Help too",
-          "body": "Open Help to replay the full \"how Maude works\" walkthrough whenever you want."
+          "body": "Menu › Help replays the full \"how Maude works\" walkthrough whenever you want."
         }
       ]
     },
