@@ -104,6 +104,9 @@ export function InspectorPanel({
   // when Layers has been split into its own panel.
   layersOnly = false,
   hideLayersTab = false,
+  // V2-4.8b — the open canvas's artboard count (was the status bar's "N artboards"), shown in the
+  // standalone Layers panel's header; undefined elsewhere.
+  artboardCount,
   // DDR-171 — CSS-panel vocabulary mode ('advanced' | 'designer'), owned by App
   // (single source of truth shared with Settings → Appearance).
   cpMode,
@@ -631,7 +634,22 @@ export function InspectorPanel({
           </div>
         ) : el && effTab === 'inspect' ? (
           <>
-            <div className="st-rp-hd">{el.selector || el.tag || 'element'}</div>
+            {/* V2-4.8b — the selection chip the status bar carried: the selector, then the element's own
+                text, and the DOM path on hover. */}
+            <div
+              className="st-rp-hd"
+              data-testid="inspector-selection"
+              title={
+                Array.isArray(el.dom_path) ? el.dom_path.join(' > ') : el.selector || undefined
+              }
+            >
+              {el.selector || el.tag || 'element'}
+              {el.text ? (
+                <span className="st-rp-hd-count" data-testid="inspector-selection-text">
+                  — “{String(el.text).slice(0, 60)}”
+                </span>
+              ) : null}
+            </div>
             <div className="st-insp-row">
               <span className="st-insp-label">Pos</span>
               <div className="st-insp-fields">
@@ -680,7 +698,14 @@ export function InspectorPanel({
           </>
         ) : effTab === 'layers' ? (
           <>
-            <div className="st-rp-hd">Layers{layersTree?.nodes?.length ? '' : ' · ancestry'}</div>
+            <div className="st-rp-hd">
+              Layers{layersTree?.nodes?.length ? '' : ' · ancestry'}
+              {Number.isFinite(artboardCount) && artboardCount > 0 ? (
+                <span className="st-rp-hd-count" data-testid="layers-artboard-count">
+                  {artboardCount === 1 ? '1 artboard' : `${artboardCount} artboards`}
+                </span>
+              ) : null}
+            </div>
             {layersTree?.nodes?.length ? (
               <>
                 {handleReorder ? (

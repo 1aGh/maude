@@ -6,17 +6,17 @@ import { clientSource, fileContaining } from './_client-source.ts';
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const app = clientSource();
 
-// Actual-cloud reproduction: select Inspector, then press the status-bar
-// Changes button. Directly setting changesOpen leaves Inspector open too;
-// its earlier dock precedence hides History although aria-pressed is true.
-test('the status-bar history button opens its panel exclusively, like a dock tab', () => {
-  // The <StatusBar …> USAGE (App's render), sliced inside the file that holds it.
-  const shell = fileContaining('<StatusBar\n').src;
-  const statusBar = shell.slice(shell.indexOf('<StatusBar\n'));
-  const callback = statusBar.match(/onOpenChanges=\{([\s\S]*?)\n\s*\}/)?.[1];
-  expect(callback).toBeDefined();
-  expect(callback).toMatch(/=>\s*openRightPanel\('changes'\)/);
-  expect(callback).not.toContain('setChangesOpen');
+// Actual-cloud reproduction: select Inspector, then press the Changes entry. Directly setting
+// changesOpen leaves Inspector open too; its earlier dock precedence hides History although the
+// entry looks pressed. The entry is Menu › Version history now (the status-bar chip is gone,
+// V2-4.8b) — it must open its panel exclusively, like a dock tab.
+test('Version history opens its panel exclusively, like a dock tab', () => {
+  const handler = app.match(/'history\.open':\s*\(\)\s*=>\s*([^,\n]+)/)?.[1];
+  expect(handler).toBeDefined();
+  expect(handler).toMatch(/toggleRightPanel\('changes'\)/);
+  expect(handler).not.toContain('setChangesOpen');
+  // ... and nothing reaches past the dock helpers for it
+  expect(app).not.toMatch(/onOpenChanges=\{[^}]*setChangesOpen/);
 });
 
 // Wiring guard: the rendered DiffView's selected revision must reach the same

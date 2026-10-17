@@ -1,4 +1,4 @@
-// feature-sync-progress-modal — the Sync panel + HUB SYNC chip surface.
+// feature-sync-progress-modal — the Sync panel surface (the HUB SYNC chip left with the status bar, V2-4.8b).
 //
 // Source-level assertions (cloud-shell-surfaces style): what these pin is
 // exactly what would regress — someone dropping the linked-only gate (a solo
@@ -35,21 +35,14 @@ describe('the Sync panel exists only where a hub link exists', () => {
     expect(APP).toContain("if (id === 'sync') return !!syncStatus;");
   });
 
-  test('the chip toggles through the dock helpers, not a raw setState', () => {
-    // toggleRightPanel keeps the one-panel-per-side invariant; a bare
-    // setSyncPanelOpen(true) here would let Sync render behind an open sibling.
-    expect(APP).toMatch(/onOpenSync=\{syncStatus \? \(\) => toggleRightPanel\('sync'\)/);
-  });
-
-  test('the chip is a real button with pressed-state semantics', () => {
-    expect(APP).toContain('data-testid="open-sync"');
-    expect(APP).toMatch(/aria-pressed=\{syncOpen\}/);
-  });
-
-  test('the span fallback remains for sessions without a handler', () => {
-    // Older wiring / no-handler renders must keep the passive chip rather
-    // than a dead button.
-    expect(APP).toMatch(/onOpenSync \? \(/);
+  test('the status-bar chip is gone — Details and Menu › Diagnostics › Sync are the way in (V2-4.8b)', () => {
+    // The chip was the one button that toggled the dock's Sync panel. Its message moved: the Share
+    // cluster word says the state, a sync callout's one action (Details) and the Diagnostics row open
+    // today's Sync panel, whole, through the Diagnostics sheet.
+    expect(APP).not.toContain('data-testid="open-sync"');
+    expect(APP).not.toContain("onOpenSync={syncStatus ? () => toggleRightPanel('sync')");
+    expect(APP).toContain("openDiagnostics('sync')");
+    expect(APP).toContain("'diag.sync': () => open('sync')");
   });
 });
 

@@ -239,83 +239,6 @@
     "notes": "Mounted by `Menubar` only when the export center exists."
   },
   {
-    "hook": "statusbar",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The bottom status bar `footer.st-statusbar`.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
-    "v2": "moves"
-  },
-  {
-    "hook": "statusbar-sync",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Value text of the hub-sync chip (`data-phase` carries the sync phase, `title` the detail). Linked projects only.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": [],
-    "v2": "moves"
-  },
-  {
-    "hook": "open-changes",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Status-bar Changes chip; toggles the Changes (git) panel. `aria-pressed` = panel open.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s11-browser.mjs",
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs",
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts",
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts",
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
-    "v2": "moves"
-  },
-  {
-    "hook": "open-sync",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Status-bar hub-sync chip in its button form; toggles the Sync panel. `aria-pressed` = panel open. Linked projects only.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts",
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts",
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts",
-      "apps/studio/whats-new.json"
-    ],
-    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
-    "v2": "moves"
-  },
-  {
-    "hook": "statusbar-version",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The `v<version>` text in the status bar (absent when `/_config` has no version).",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": [],
-    "v2": "moves"
-  },
-  {
     "hook": "canvas-list",
     "kind": "testid",
     "pattern": false,
@@ -971,32 +894,6 @@
     "region": "comments panel",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
-  },
-  {
-    "hook": "cloud-role-banner",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Cloud shell banner that states what your role (owner / member / viewer) can do in this project.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "CloudRoleBanner"
-    },
-    "region": "banners",
-    "consumers": [],
-    "v2": "moves"
-  },
-  {
-    "hook": "cloud-role-banner-dismiss",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Dismiss button on the cloud role banner.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "CloudRoleBanner"
-    },
-    "region": "banners",
-    "consumers": [],
-    "v2": "moves"
   },
   {
     "hook": "notice-<id>",
@@ -5248,117 +5145,6 @@
     "notes": "`surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
   },
   {
-    "hook": ".st-sb-sync",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "The hub-sync chip (button or span form); its text is read as the sync status word; `title`/`data-tip` carry detail; `.val` holds the value.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs",
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts",
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
-    "v2": "moves"
-  },
-  {
-    "hook": ".st-sb-sel",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "The status-bar selection chip; `.st-sb-sel .val` = the selected element's name.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
-    "v2": "moves"
-  },
-  {
-    "hook": ".st-sb-theme",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "The theme toggle button in the status bar.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
-    "v2": "moves"
-  },
-  {
-    "hook": ".st-sb-slot",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "A status-bar slot; the `.st-sb-slot .lbl` rule is contrast-tested.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
-    "v2": "moves",
-    "notes": "CSS consumer."
-  },
-  {
-    "hook": ".st-sb-version",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "The version slot; the `.st-sb-version .val` rule is contrast-tested.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
-    "v2": "moves",
-    "notes": "CSS consumer."
-  },
-  {
-    "hook": "[aria-label=\"Selected element\"]",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "The selection chip group; `[aria-label=\"Selected element\"] .val` = selected element name.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
-    "v2": "moves"
-  },
-  {
-    "hook": "[aria-label=\"Clear selection\"]",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "Clear-selection button in the selection chip.",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
-    "v2": "moves"
-  },
-  {
-    "hook": "button \"Switch to <theme> theme\"",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "The theme toggle by accessible name (same element as `.st-sb-theme`).",
-    "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "StatusBar"
-    },
-    "region": "status bar",
-    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
-    "v2": "moves",
-    "notes": "Playwright `getByRole('button', { name: 'Switch to <theme> theme' })`."
-  },
-  {
     "hook": ".st-tree",
     "kind": "selector",
     "pattern": false,
@@ -9460,6 +9246,113 @@
     "region": "help/shortcuts",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "callouts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The callout stack (V2-4.8b) that replaced the top banners: sync diverged / rejected / long offline, the cloud role line, update ready, repo changed, and the format-gate notice. A child of `.maude`, so Presentation mode does not hide it. Empty when there is nothing to say.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/callouts.jsx",
+      "symbol": "CalloutStack"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "callout-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One callout; `<kind>` is `sync-diverged`, `sync-rejected`, `sync-offline-long`, `sync-back` (the reconnect flash), `role`, `update` or `repo-changed`. `data-tone` is `ok`, `info`, `warn` or `error`. A short offline spell has NO callout: the Share cluster word `share-cluster-status` says it.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/callouts.jsx",
+      "symbol": "Callout"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/v2-callouts.test.tsx",
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "callout-<kind>-action",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The callout's ONE action: Details (sync kinds → Menu › Diagnostics › Sync), Restart now (`update`), Reload (`repo-changed`), Got it (`role`, which is also its dismissal).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/callouts.jsx",
+      "symbol": "Callout"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "callout-<kind>-dismiss",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The × on a callout (absent on `role`, whose \"Got it\" closes it). Closing `update` is \"Later\"; closing `repo-changed` clears the flag; the others hide that event only.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/callouts.jsx",
+      "symbol": "Callout"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-active-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases panel › Advanced › Open canvas: the open canvas's path (the status bar's \"active\" slot, moved); \"Design system\" or \"Nothing open\" otherwise. `title` carries the full path.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-artboard-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The standalone Layers panel header's \"N artboards\" for the open canvas (the status bar's artboard count, moved).",
+    "producer": {
+      "file": "apps/studio/client/inspector/inspector-panel.jsx",
+      "symbol": "InspectorPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-selection",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspector header: the selection's selector (the status bar's \"selected\" chip, moved); `title` is the DOM path. Its text half is `inspector-selection-text`.",
+    "producer": {
+      "file": "apps/studio/client/inspector/inspector-panel.jsx",
+      "symbol": "InspectorPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-selection-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The element's own text beside the selector in the Inspector header (first 60 characters), as the status-bar chip showed it.",
+    "producer": {
+      "file": "apps/studio/client/inspector/inspector-panel.jsx",
+      "symbol": "InspectorPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "new"
   }
 ]

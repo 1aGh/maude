@@ -37,8 +37,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "canvases-active-path",
+        "where": "Canvases panel › Advanced › Open canvas — the open canvas's path (mono, one line; the full path on hover); “Design system” while the system is open, “Nothing open” otherwise"
       }
     },
     {
@@ -50,8 +50,8 @@
       "drawnAt": "ad-left",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "layers-artboard-count",
+        "where": "Layers panel header — “N artboards” (the open canvas; “1 artboard” for one)"
       }
     },
     {
@@ -88,9 +88,9 @@
       "home": "exp",
       "drawnAt": "ad-export",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.exports",
+        "testid": "share-cluster-exports",
+        "where": "Share cluster › Exports icon — appears once an export exists, a ring shows the running jobs' progress; opens the Exports list"
       }
     },
     {
@@ -142,7 +142,7 @@
       "v2": {
         "action": null,
         "testid": "settings-update-restart",
-        "where": "Settings › Advanced › This Mac › Update (Restart now · Later) — the banner says the same"
+        "where": "Settings › Advanced › This Mac › Update (Restart now · Later) — the banner says the same — and a callout (callout-update: “Maude updated (vX)”, Restart now, × = Later) says it where you work"
       }
     },
     {
@@ -153,9 +153,9 @@
       "home": "ai",
       "drawnAt": "ad-ai",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "ai.generate",
+        "testid": "palette-input",
+        "where": "⌘K › Generate with AI… opens the dialog (provider · model · aspect) — the same dialog the menubar row opened"
       }
     },
     {
@@ -167,8 +167,8 @@
       "drawnAt": "ad-inspector",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "inspector-selection",
+        "where": "Inspector header — the selection's selector then the element's own text (inspector-selection-text), the DOM path on hover; Esc inside the canvas clears it. Layers › Advanced select-by-selector is S2's"
       }
     },
     {
@@ -179,9 +179,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.comments",
+        "testid": "share-cluster-comments-count",
+        "where": "Share cluster › Comments icon — the count of open comments on its badge (hidden at 0); opens the Comments panel"
       }
     },
     {
@@ -192,9 +192,9 @@
       "home": "vh",
       "drawnAt": "ad-history",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "history.open",
+        "testid": "project-menu-row-history.open",
+        "where": "Menu › Version history opens today's Changes / history panel (its header carries the unsaved count) until S1; a project somebody else saves reads Saved / Syncing… in the Share cluster instead of “cloud saving”"
       }
     },
     {
@@ -1026,7 +1026,7 @@
       "v2": {
         "action": null,
         "testid": "diag-repo-changed",
-        "where": "Menu > Diagnostics > Server — Repo state changed — reload? with Reload (diag-repo-reload) and Dismiss"
+        "where": "Menu > Diagnostics > Server — Repo state changed — reload? with Reload (diag-repo-reload) and Dismiss — and a callout (callout-repo-changed, Reload, ×) says it where you work"
       }
     },
     {
@@ -1767,7 +1767,7 @@
       "v2": {
         "action": null,
         "testid": "settings-team-server-add",
-        "where": "Settings › Connections › Your team’s own server › Add a team server… (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list, SyncBanner and the status words are V2-4.7b / status-word packages"
+        "where": "Settings › Connections › Your team’s own server › Add a team server… (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list, SyncBanner and the status words are V2-4.7b / status-word packages — V2-4.8b: SyncBanner diverged / rejected / long offline → callouts (callout-sync-diverged · callout-sync-rejected · callout-sync-offline-long, one action Details → Diagnostics › Sync; the reconnect flash is callout-sync-back; a short offline spell is the Share cluster word “Offline — kept on this Mac”); CloudRoleBanner → callout-role (once per role) + the always-visible access word (Can view / Can comment)"
       }
     },
     {
