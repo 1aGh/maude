@@ -14,8 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import * as oneTable from '../../studio/access/roles.ts';
-import * as roleMatrix from '../src/role-matrix.mjs';
+
 import {
   ACCOUNT_ROLES,
   CAPABILITIES,
@@ -26,6 +25,10 @@ import {
   projectRoleForAccount,
   ROLES,
 } from '../src/role-matrix.mjs';
+
+// Namespaces as plain objects, so the test can compare every export by name.
+const oneTable = { ...(await import('../../studio/access/roles.ts')) };
+const roleMatrix = { ...(await import('../src/role-matrix.mjs')) };
 
 const HERE = join(import.meta.dirname, '..');
 

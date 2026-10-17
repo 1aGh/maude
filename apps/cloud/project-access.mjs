@@ -12,9 +12,20 @@
 // The token shape is IMPORTED from the hub side rather than re-declared, so
 // the two ends agree by construction. Two carefully-written copies of a claim
 // format is how a signature check starts passing on the wrong thing.
+//
+// The same goes for what a role MEANS: this module used to carry its own role
+// list and capability table (with no `export` row) beside the cell's. Since
+// S9.1 both come from THE matrix, `apps/studio/access/roles.ts` (V2-1.7 §5.2).
 
-/** Roles, weakest first. A role's powers are a superset of the ones before it. */
-export const ROLES = ['viewer', 'member', 'owner'];
+import { can as matrixCan, V1_ROLES } from '../studio/access/roles.ts';
+
+/**
+ * The roles the control plane STORES, weakest first: the matrix's pre-v2 roles.
+ * D1 pins them (`project_members.role CHECK (role IN ('viewer','member','owner'))`,
+ * migrate.mjs v4/v5), so `observer` (Can view) is offered and accepted here only
+ * once the V2-1.7 §5.8 migration rebuilds those tables.
+ */
+export const ROLES = V1_ROLES;
 
 /**
  * Decide access from facts, not from a query.
@@ -59,23 +70,35 @@ export const ACCESS_MESSAGES = {
 };
 
 /**
- * Whether a role may do a thing.
- *
- * A table rather than scattered `role === 'owner'` checks: the interesting
- * question is "what can a viewer NOT do", and that is only answerable at a
- * glance if the answers are in one place.
+ * The control plane's words, translated at ONE boundary (decision
+ * d_39bd12253f8ee17739312974) into the matrix capability that decides each.
+ * `share` is inviting (links, people); `billing` sits with `delete` — the one
+ * who pays for a project is the one who may delete it, its owner. Both are
+ * project-only: a canvas grant never confers them (PROJECT_ONLY).
  */
-export const CAPABILITIES = {
-  view: ['viewer', 'member', 'owner'],
-  edit: ['member', 'owner'],
-  comment: ['viewer', 'member', 'owner'],
-  invite: ['owner'],
-  billing: ['owner'],
-  mirror: ['owner'],
-  share: ['owner'],
-  delete: ['owner'],
-};
+const WORDS = Object.freeze({
+  view: 'read',
+  edit: 'edit',
+  comment: 'comment',
+  invite: 'invite',
+  billing: 'delete',
+  mirror: 'mirror',
+  share: 'invite',
+  delete: 'delete',
+});
 
+/**
+ * Whether a role may do a thing — answered by the matrix, never a local table.
+ * The interesting question is "what can a viewer NOT do"; `CAPABILITIES` is the
+ * same answer as rows (word → stored roles holding it), derived, for a page.
+ */
 export function can(role, capability) {
-  return (CAPABILITIES[capability] ?? []).includes(role);
+  if (!Object.hasOwn(WORDS, capability) || !ROLES.includes(role)) return false;
+  return matrixCan(role, WORDS[capability]);
 }
+
+export const CAPABILITIES = Object.freeze(
+  Object.fromEntries(
+    Object.keys(WORDS).map((word) => [word, Object.freeze(ROLES.filter((r) => can(r, word)))])
+  )
+);
