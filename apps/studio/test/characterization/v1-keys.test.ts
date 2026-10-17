@@ -65,6 +65,11 @@
 // mode=viewing`) instead of a local tool switch. The I2 boot re-fit no longer persists the camera
 // (decision:maude/v2-4.3b-boot-refit-does-not-persist), so the reload cases write nothing — before it
 // they added a PATCH canvas-meta in some runs. Refreshed once and verified identical in two more runs.
+// Lead refresh (V2-4.5–4.8 + 4.10, decision:maude/v2-4.5b-ai-chat-cmd-slash, decision:maude/v2-4.5b-key-crossing-in-router,
+// decision:maude/v2-4.8a-menubar-removed): rule-13 keys moved (Pen B → Marker M, Highlighter I / Eraser E →
+// Marker tips, O → Edit › More, ⇧S → S, ⌘E → ⇧⌘E, shell H/S/N unbound, ⇧⌘A → ⌘/, ⌘/ → /), crossing keys post
+// `mode-request`, the canvas posts `toolbar-rect`, the toolbars replace the palette (`toolbar-slot-*`), Settings
+// is the v2 sheet and ⌘K the v2 search; no write changed.
 // Lead refresh (V2-4.4a+b, decision:maude/v2-4.4b-right-islands): the left panel's own header replaces the
 // dock tab strip (panel-tab-*), Canvases/Assets tabs, the pinned DS row + Trash + Advanced, and the
 // Inspector now appears on selection — so selection cases send one more `occluded-insets` (its island
@@ -944,9 +949,11 @@ async function clearRec(target: Page | Frame | null) {
 
 // Messages that tick on their own (no key involved) and would make the record flaky. The selection
 // mirror (select-set ⇄ select-by-id, layers-tree) echoes at its own pace; a selection a key changes
-// still shows in the canvas DOM diff (the halo) and the shell's inspector.
+// still shows in the canvas DOM diff (the halo) and the shell's inspector. `toolbar-rect` (V2-4.5a) is the
+// toolbar island's geometry, posted at most once a frame after layout, so where it lands in the stream is
+// frame timing; a key that changes the toolbar still shows in the canvas DOM diff (`toolbar-slot-*`).
 const NOISE =
-  /^(child|parent|self) (presence|cursor|camera|viewport-state|hover|perf|heartbeat|canvas-rects|select-set|select-by-id|layers-tree|request-layers)\b/;
+  /^(child|parent|self) (presence|cursor|camera|viewport-state|hover|perf|heartbeat|canvas-rects|select-set|select-by-id|layers-tree|request-layers|toolbar-rect)\b/;
 
 async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
   if (resetFixture(lane)) await sleep(2500); // let the watcher fire before the page loads

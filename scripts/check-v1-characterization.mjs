@@ -13,6 +13,16 @@
 // A move-only refactor must leave every snapshot byte-identical. Any diff is a behaviour
 // change and fails the check with a unified diff of the first differing lines.
 //
+// Approved delta (V2-4.5–4.8 + 4.10, decision:maude/v2-4.8a-menubar-removed, decision:maude/v2-4.8b-callout-stack,
+// decision:maude/v2-4.6-search-is-a-render-model, decision:maude/v2-4.7a-settings-model-is-the-gate,
+// decision:maude/v2-4.10-fold-in-prefs-json-fold-map): all 30 states — the in-app menubar and the status bar are
+// gone (every shell state gains the always-present `callouts` stack, the menu-* states open the project pill's
+// menu), the left-panel footer cloud rail becomes `cloud-host`, the Settings dialog becomes the three-section
+// sheet (`settings-sheet`, `settings-tab-*`), ⌘K is the v2 search (`palette-input`, `palette-list`, new
+// placeholder), the cloud role banner becomes `callout-role`, the long-offline banner `callout-sync-offline-long`,
+// Canvases › Advanced gains "Open canvas", the canvas toolbar slots carry `toolbar-slot-*`. Verified identical on
+// a second run.
+//
 // Approved delta (V2-4.4a+b, decision:maude/v2-4.4a-left-panel-tabs, decision:maude/v2-4.4b-right-islands):
 // 21 states — the dock tab strip becomes the left panel's own header (`panel-head-left`, `panel-tab-*`,
 // `panel-fold-left`), grips gain testids, Settings › Layout reads Canvases/Assets with `panel-side-*` and a new

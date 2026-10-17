@@ -1,49 +1,19 @@
 # browser/system-view
 div
   div .maude
+    div .st-callouts [data-testid="callouts"]
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
     div .st-shell
-      header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
-        span .st-brand [data-tour="brand"]
-          span .st-brand-mark
-            svg [aria-hidden="true"]
-          span .st-brand-name "maude"
-        nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
-          button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
-          button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
-          button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
-          button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
-          button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
-          button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
-        div .st-mb-right [data-tour="status"]
-          div .st-presence
-            span .st-avatar [aria-label="You"] "YO"
-          button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
-            svg [aria-hidden="true"]
-          button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
-            span [aria-hidden="true"] "⬇"
-          button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
-            svg [aria-hidden="true"]
-          button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
-            svg [aria-hidden="true"]
-          span .st-stamp "SYSTEM"
-          span .st-mb-file [title="__system__"]
-            b "design system"
-          span .st-mb-sep
-          span .st-mb-count "0 ARTBOARDS"
-            span .st-dot
-          span .st-mb-sep
-          span .st-mb-proj "characterization"
       div .st-body.st-body--float
         span .island.st-pill
-          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [title="Project menu"] [type="button"]
-            span .st-pill-mark
+          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+            span .st-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
             span .st-pill-name "characterization"
             span .st-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
-        div .island.st-share [data-testid="share-cluster"]
+        div .island.st-share [data-testid="share-cluster"] [data-tour="status"]
           ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
             li .st-face [aria-label="You"] [title="You"] "YO"
           span .st-saved [data-testid="share-cluster-status"] [role="status"]
@@ -90,7 +60,7 @@ div
                   input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"] [value]
                   span .kbd "/"
               div .lp-pinned [data-testid="canvases-pinned"]
-                button .is-sel.lp-ds.lp-row [data-testid="canvases-ds-row"] [aria-current="true"] [title="Open the design system"] [type="button"]
+                button .lp-ds.lp-row [data-testid="canvases-ds-row"] [title="Open the design system"] [type="button"]
                   span .lp-ds-ic
                     svg [aria-hidden="true"]
                   span .lp-name "Design system"
@@ -109,155 +79,28 @@ div
                 button .lp-adv-btn [data-testid="canvases-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
                   span .lp-adv-ch
                     svg [aria-hidden="true"]
-              div .cb-rail.gi-rail [data-testid="cloud-bar"]
-                button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
-                  svg [aria-hidden="true"]
+              div .cb-host [data-testid="cloud-host"]
         div .st-grip.st-grip--l [data-testid="panel-grip-left"] [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
           svg .st-grip-dots [aria-hidden="true"]
         div .main
           div .st-stage.viewport [data-tour="viewport"]
-            div .active.system-view
-              div .sv
-                header .sv-header
-                  span .sv-sku "MAUDE-DSN/01"
-                  span .sv-title "design system view"
-                  span .sv-loc
-                    code ".design/system/demo"
-                section .sv-section.sv-section-color.sv-section-tokens
-                  h2 "tokens · colors"
-                    span .sv-h-num "14"
-                  div .sv-tokens-ladder
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--bg-0"
-                        span .sv-tok-value "oklch(0.99 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--bg-1"
-                        span .sv-tok-value "oklch(0.97 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--bg-2"
-                        span .sv-tok-value "oklch(0.94 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--fg-0"
-                        span .sv-tok-value "oklch(0.2 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--fg-1"
-                        span .sv-tok-value "oklch(0.35 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--fg-2"
-                        span .sv-tok-value "oklch(0.5 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--accent"
-                        span .sv-tok-value "oklch(0.6 0.15 250)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--bg-0"
-                        span .sv-tok-value "oklch(0.18 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--bg-1"
-                        span .sv-tok-value "oklch(0.22 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--bg-2"
-                        span .sv-tok-value "oklch(0.26 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--fg-0"
-                        span .sv-tok-value "oklch(0.96 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--fg-1"
-                        span .sv-tok-value "oklch(0.8 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--fg-2"
-                        span .sv-tok-value "oklch(0.65 0 0)"
-                    div .sv-tok-cell
-                      div .sv-tok-swatch
-                      div .sv-tok-meta
-                        code .sv-tok-name "--accent"
-                        span .sv-tok-value "oklch(0.7 0.15 250)"
-                section .sv-section.sv-section-space.sv-section-tokens
-                  h2 "tokens · spacing"
-                    span .sv-h-num "1"
-                  div .sv-tokens-ladder
-                    div .sv-tok-cell
-                      div .sv-tok-meta
-                        code .sv-tok-name "--space-4"
-                        span .sv-tok-value "16px"
-                section .sv-section.sv-section-radius.sv-section-tokens
-                  h2 "tokens · radii"
-                    span .sv-h-num "1"
-                  div .sv-tokens-ladder
-                    div .sv-tok-cell
-                      div .sv-tok-meta
-                        code .sv-tok-name "--radius-md"
-                        span .sv-tok-value "8px"
-                section .sv-section.sv-section-font.sv-section-tokens
-                  h2 "tokens · font stacks"
-                    span .sv-h-num "1"
-                  div .sv-tokens-ladder
-                    div .sv-tok-cell
-                      div .sv-tok-meta
-                        code .sv-tok-name "--font-body"
-                        span .sv-tok-value "system-ui"
-                section .sv-section.sv-section-other.sv-section-tokens
-                  h2 "tokens · other"
-                    span .sv-h-num "1"
-                  div .sv-tokens-ladder
-                    div .sv-tok-cell
-                      div .sv-tok-meta
-                        code .sv-tok-name "--type-base"
-                        span .sv-tok-value "14px"
-                section .sv-section
-                  h2 "preview"
-                    span .sv-count "1"
-                  div .sv-previews.sv-previews-preview
-                    article .sv-preview-card
-                      div .sv-preview-frame
-                        iframe [title="colors"]
-                      div .sv-preview-foot
-                        strong "colors"
-                        code ".design/system/demo/preview/colors.tsx"
+            div .st-empty
+              div .st-empty-brand
+                span .st-brand-mark
+                  svg [aria-hidden="true"]
+                span .st-empty-wm "maude"
+                span .st-empty-sub.st-mono "CANVAS · CHARACTERIZATION / <ver> / localhost:<port>"
+              div .st-empty-title "Nothing open yet"
+              div .st-empty-body "← Pick a screen from the list on the left, or open above it to see your colors, type, and components. hold and hover to preview an element, "
+                strong "Design system"
+                br
+                br
+                strong "To select something on the canvas:"
+                span .kbd "⌘"
+                span .kbd "⌘⇧"
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]
-      footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
-        span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
-          span .lead [aria-hidden="true"]
-          span .lbl "active"
-          span .val [title="__system__"] "▦ design system"
-        span .st-sb-slot [role="group"] [aria-label="Open comments"]
-          span .lbl "comments"
-          span .val "0 open"
-        span .st-sb-spacer
-        span .st-sb-slot [role="group"] [aria-label="Connection"]
-          span .is-connected.st-live-dot [aria-hidden="true"]
-          span .lbl "live"
-        span .st-sb-slot.st-sb-version [role="group"] [aria-label="Maude version"]
-          span .val [data-testid="statusbar-version"] "<ver>"
-        button .st-sb-theme [aria-label="Switch to light theme"] [type="button"] "light"
-          svg [aria-hidden="true"]
     div .mdcc-tour-nudge [role="status"]
       div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
       button .mdcc-tour-nudge__cta [type="button"] "Start"

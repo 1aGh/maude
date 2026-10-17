@@ -1,62 +1,26 @@
 # cloud/shell-empty
 div
   div .maude
-    div .st-banner.st-banner--info [data-testid="cloud-role-banner"] [role="status"]
-      span .st-banner-dot [aria-hidden="true"]
-      span "You own this project — edit, invite and export."
-      button .btn.btn--ghost.btn--sm [data-testid="cloud-role-banner-dismiss"] [type="button"] "Got it"
+    div .st-callouts [data-testid="callouts"]
+      div .st-callout.st-callout--info [data-testid="callout-role"] [role="status"]
+        span .st-callout-ic [aria-hidden="true"]
+          svg [aria-hidden="true"]
+        span .st-callout-t "You own this project — edit, invite and export."
+        button .btn.btn--primary.btn--sm [data-testid="callout-role-action"] [type="button"] "Got it"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
     div .st-shell
-      header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
-        span .st-brand [data-tour="brand"]
-          span .st-brand-mark
-            svg [aria-hidden="true"]
-          span .st-brand-name "maude"
-        span .st-cloudback [data-testid="cloud-back"]
-          a .st-cloudback-link [title="Back to your projects"] [href="https://cloud.example/dashboard"] "← Dashboard"
-          span .st-cloudback-project [data-testid="cloud-project-name"] "Studio site"
-        nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
-          button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
-          button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
-          button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
-          button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
-          button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
-          button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
-        div .st-mb-right [data-tour="status"]
-          div .st-presence
-            span .st-avatar [aria-label="You"] "YO"
-          span .st-cloudwho [data-testid="cloud-account"]
-            span .st-cloudwho-email [title="Signed in as tereza@example.com — owner"] "tereza@example.com"
-            form .st-cloudwho-form
-              button .st-cloudwho-out [data-testid="cloud-signout"] [title="Sign out of this project"] [type="submit"] "Sign out"
-          button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"]
-            svg [aria-hidden="true"]
-          button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
-            span [aria-hidden="true"] "⬇"
-          button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
-            svg [aria-hidden="true"]
-          button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
-            svg [aria-hidden="true"]
-          span .st-stamp "CANVAS"
-          span .st-mb-file [title=".design/ui/Broken.tsx"] ".design/ui/"
-            b "Broken"
-          span .st-mb-sep
-          span .st-mb-count "0 ARTBOARDS"
-            span .st-dot
-          span .st-mb-sep
-          span .st-mb-proj "characterization"
       div .st-body.st-body--float
         span .island.st-pill
-          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [title="Project menu"] [type="button"]
-            span .st-pill-mark
+          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+            span .st-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
             span .st-pill-name "characterization"
             span .st-pill-sep [aria-hidden="true"] "/"
             span .st-pill-canvas "Broken"
             span .st-pill-caret [aria-hidden="true"]
               svg [aria-hidden="true"]
-        div .island.st-share [data-testid="share-cluster"]
+        div .island.st-share [data-testid="share-cluster"] [data-tour="status"]
           ul .st-faces [data-testid="share-cluster-faces"] [aria-label="People here"]
             li .st-face [aria-label="You"] [title="You"] "YO"
           span .st-saved [data-testid="share-cluster-status"] [role="status"]
@@ -130,26 +94,6 @@ div
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]
-      footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
-        span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
-          span .lead [aria-hidden="true"]
-          span .lbl "active"
-          span .val [title=".design/ui/Broken.tsx"] ".design/ui/Broken.tsx"
-        span .st-sb-slot [role="group"] [aria-label="Open comments"]
-          span .lbl "comments"
-          span .val "0 open"
-        button .st-sb-changes.st-sb-slot [data-testid="open-changes"] [aria-label="Open Changes panel"] [aria-pressed="false"] [type="button"]
-          span .st-sb-changes-dot [aria-hidden="true"]
-          span .lbl "changes"
-          span .val "cloud saving"
-        span .st-sb-spacer
-        span .st-sb-slot [role="group"] [aria-label="Connection"]
-          span .is-connected.st-live-dot [aria-hidden="true"]
-          span .lbl "live"
-        span .st-sb-slot.st-sb-version [role="group"] [aria-label="Maude version"]
-          span .val [data-testid="statusbar-version"] "<ver>"
-        button .st-sb-theme [aria-label="Switch to light theme"] [type="button"] "light"
-          svg [aria-hidden="true"]
     div .mdcc-tour-nudge [role="status"]
       div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
       button .mdcc-tour-nudge__cta [type="button"] "Start"
