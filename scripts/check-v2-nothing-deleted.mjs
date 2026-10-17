@@ -109,9 +109,10 @@ if (args.includes('--sync')) {
   const doc = {
     schema: 'maude.nothing-deleted/1',
     about:
-      'Every v1 feature and its v2 home. rows = §A (06 Advanced ITEMS) + §B (G0-D); v2 = registry action id / testid / where-path, filled by the package that builds the home; map = v1-manifest entry id → row id. Audited by scripts/check-v2-nothing-deleted.mjs.',
+      'Every v1 feature and its v2 home. rows = §A (06 Advanced ITEMS) + §B (G0-D); v2 = registry action id / testid / where-path, filled by the package that builds the home; map = v1-manifest entry id → row id, action:<registry id> or testid:<hook> (scripts/v2-manifest/map-entries.mjs); excluded = entry id → why it is not a v1 feature. Audited by scripts/check-v2-nothing-deleted.mjs.',
     rows,
     map: old.map ?? {},
+    excluded: old.excluded ?? {},
   };
   writeFileSync(ND, `${JSON.stringify(doc, null, 2)}\n`);
   console.log(
@@ -130,26 +131,50 @@ try {
   process.exit(2);
 }
 
-// v1 entry points that appeared in the code after the freeze count as unmapped too
+// v1 entry points that appeared in the code after the freeze count as unmapped too — unless they
+// are v2 code (map-rules.mjs V2_CODE_PATHS / V2_CODE_IDS) or already `excluded` by the mapper
 const { scan } = await import('./v2-manifest/scan-v1.mjs');
+const { isV2Code } = await import('./v2-manifest/map-entries.mjs');
 const frozen = new Set(manifest.entries.map((e) => e.id));
-const late = scan().filter((e) => !frozen.has(e.id) && !e.file.includes('/client/v2/'));
+const late = scan().filter(
+  (e) => !frozen.has(e.id) && !e.file.includes('/client/v2/') && !isV2Code(e)
+);
+const excluded = nd.excluded ?? {};
 
 const rowIds = new Set(nd.rows.filter((r) => !r.orphaned).map((r) => r.id));
-const entries = [...manifest.entries, ...late];
-const unmapped = entries.filter((e) => !rowIds.has(nd.map?.[e.id]));
+const { ACTIONS_BY_ID } = await import('../apps/studio/actions/index.ts');
+const hookSet = new Set(
+  JSON.parse(readFileSync(join(ROOT, 'apps/studio/client/testids.json'), 'utf8')).map((h) => h.hook)
+);
+const validTarget = (t) =>
+  !!t &&
+  (t.startsWith('action:')
+    ? ACTIONS_BY_ID.has(t.slice(7))
+    : t.startsWith('testid:')
+      ? hookSet.has(t.slice(7))
+      : rowIds.has(t));
+const entries = [...manifest.entries, ...late].filter((e) => !excluded[e.id]);
+const unmapped = entries.filter((e) => !validTarget(nd.map?.[e.id]));
+const kept = [
+  ...new Set(entries.map((e) => nd.map?.[e.id]).filter((t) => validTarget(t) && t.includes(':'))),
+];
 const live = nd.rows.filter((r) => !r.orphaned);
 const unhomed = live.filter((r) => !r.v2?.where || !(r.v2?.action || r.v2?.testid));
 let unreached = live;
+let unreachedKept = kept;
 let reachNote = 'reachability probe not run yet (Phase 4 headless boot per shell and role)';
 if (existsSync(REACH)) {
   const reach = JSON.parse(readFileSync(REACH, 'utf8'));
-  const ok = new Set(
-    Object.entries(reach.rows ?? {})
-      .filter(([, v]) => v === true)
-      .map(([k]) => k)
-  );
+  const okIn = (o) =>
+    new Set(
+      Object.entries(o ?? {})
+        .filter(([, v]) => v === true)
+        .map(([k]) => k)
+    );
+  const ok = okIn(reach.rows);
+  const okT = okIn(reach.targets);
   unreached = live.filter((r) => !ok.has(r.id));
+  unreachedKept = kept.filter((t) => !okT.has(t));
   reachNote = `reachability from ${reach.taken ?? 'unknown run'}`;
 }
 
@@ -157,6 +182,7 @@ const pct = (open, total) => (total ? ((100 * (total - open)) / total).toFixed(1
 const result = {
   manifest: {
     total: entries.length,
+    excluded: Object.keys(excluded).length,
     addedAfterFreeze: late.length,
     unmapped: unmapped.length,
     pct: pct(unmapped.length, entries.length),
@@ -168,20 +194,28 @@ const result = {
     pct: pct(unreached.length, live.length),
     note: reachNote,
   },
+  keptReachable: {
+    total: kept.length,
+    unreached: unreachedKept.length,
+    pct: pct(unreachedKept.length, kept.length),
+  },
 };
-const green = !unmapped.length && !unhomed.length && !unreached.length;
+const green = !unmapped.length && !unhomed.length && !unreached.length && !unreachedKept.length;
 
 if (args.includes('--json')) {
   console.log(JSON.stringify({ ...result, green }, null, 2));
 } else {
   console.log(
-    `v1 entry points mapped to a row   ${result.manifest.pct} %  (${unmapped.length} of ${entries.length} open${late.length ? `, ${late.length} added after the freeze` : ''})`
+    `v1 entry points mapped to a row   ${result.manifest.pct} %  (${unmapped.length} of ${entries.length} open${late.length ? `, ${late.length} added after the freeze` : ''}; ${result.manifest.excluded} excluded as not v1 features)`
   );
   console.log(
     `rows with a v2 home (where + id)  ${result.homes.pct} %  (${unhomed.length} of ${live.length} open)`
   );
   console.log(
     `rows reachable in a headless boot ${result.reachable.pct} %  (${unreached.length} of ${live.length} open — ${reachNote})`
+  );
+  console.log(
+    `kept actions/hooks reachable      ${result.keptReachable.pct} %  (${unreachedKept.length} of ${kept.length} open)`
   );
   console.log(
     green
