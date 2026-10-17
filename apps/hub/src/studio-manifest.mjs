@@ -271,6 +271,11 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/acp/attachment': REFUSED,
   '/_api/acp/chat': REFUSED,
   '/_api/acp/chats': REFUSED,
+  '/_api/acp/chat/session': REFUSED, // S5.7: chats are per Mac, never a cell's
+  '/_api/acp/chats/clear': REFUSED,
+  '/_api/acp/chats/restore': REFUSED,
+  '/_api/acp/chats/search': REFUSED,
+  '/_api/acp/chats/trash': REFUSED,
   '/_api/acp/focus': REFUSED,
   '/_api/acp/status': REFUSED,
   '/_api/claude/install': REFUSED,
