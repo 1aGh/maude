@@ -5,15 +5,15 @@ button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — 
   svg .st-mode-g [aria-hidden="true"]
 button .st-mode-hit [data-testid="palette-mode-present"] [aria-label="Present"] [aria-pressed="false"] [title="Present"] [type="button"] [disabled]
   svg .st-mode-g [aria-hidden="true"]
-div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"] [aria-modal="true"] [tabindex="-1"]
   div .st-pal-search
     svg [aria-hidden="true"]
-    input [data-testid="palette-input"] [aria-label="Command search"] [placeholder="Search canvases, actions, or ask AI…"] [value="export"] {value="export"}
+    input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value="export"] {value="export"}
     span .kbd "⌘K"
-  div .st-pal-list [data-testid="palette-list"]
-    div [data-testid="palette-group-actions"]
-      div .st-pal-group "Actions"
-      button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [type="button"]
+  div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
+    div [data-testid="palette-group-actions"] [role="group"]
+      div .st-pal-group [role="presentation"] "Actions"
+      button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
@@ -22,14 +22,14 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
         span .st-pal-where "Menu › File"
         span .st-pal-kbd
           span .kbd "⇧⌘E"
-      button .st-pal-item [data-testid="palette-row-action:view.exports"] [type="button"]
+      button .st-pal-item [data-testid="palette-row-action:view.exports"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
           span .st-pal-ltxt "s"
             mark .st-pal-mark "Export"
         span .st-pal-where "Menu › View"
-      button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [type="button"]
+      button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
         span .st-pal-icon
           svg [aria-hidden="true"]
         span .st-pal-label
@@ -41,12 +41,12 @@ div .st-palette.st-palette--search [role="dialog"] [aria-label="Command palette"
         span .kbd "↓"
       span "open"
         span .kbd "↵"
-    span [data-testid="palette-count"] "3 results"
-input [data-testid="palette-input"] [aria-label="Command search"] [placeholder="Search canvases, actions, or ask AI…"] [value="export"] {value="export"}
-div .st-pal-list [data-testid="palette-list"]
-  div [data-testid="palette-group-actions"]
-    div .st-pal-group "Actions"
-    button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [type="button"]
+    span [data-testid="palette-count"] [role="status"] "3 results"
+input [data-testid="palette-input"] [role="combobox"] [aria-label="Command search"] [aria-expanded="true"] [aria-haspopup="listbox"] [placeholder="Search canvases, actions, or ask AI…"] [value="export"] {value="export"}
+div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
+  div [data-testid="palette-group-actions"] [role="group"]
+    div .st-pal-group [role="presentation"] "Actions"
+    button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
@@ -55,21 +55,21 @@ div .st-pal-list [data-testid="palette-list"]
       span .st-pal-where "Menu › File"
       span .st-pal-kbd
         span .kbd "⇧⌘E"
-    button .st-pal-item [data-testid="palette-row-action:view.exports"] [type="button"]
+    button .st-pal-item [data-testid="palette-row-action:view.exports"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
         span .st-pal-ltxt "s"
           mark .st-pal-mark "Export"
       span .st-pal-where "Menu › View"
-    button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [type="button"]
+    button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
       span .st-pal-icon
         svg [aria-hidden="true"]
       span .st-pal-label
         span .st-pal-ltxt "Open all Advanced sections"
-div [data-testid="palette-group-actions"]
-  div .st-pal-group "Actions"
-  button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [type="button"]
+div [data-testid="palette-group-actions"] [role="group"]
+  div .st-pal-group [role="presentation"] "Actions"
+  button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
     span .st-pal-icon
       svg [aria-hidden="true"]
     span .st-pal-label
@@ -78,19 +78,19 @@ div [data-testid="palette-group-actions"]
     span .st-pal-where "Menu › File"
     span .st-pal-kbd
       span .kbd "⇧⌘E"
-  button .st-pal-item [data-testid="palette-row-action:view.exports"] [type="button"]
+  button .st-pal-item [data-testid="palette-row-action:view.exports"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
     span .st-pal-icon
       svg [aria-hidden="true"]
     span .st-pal-label
       span .st-pal-ltxt "s"
         mark .st-pal-mark "Export"
     span .st-pal-where "Menu › View"
-  button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [type="button"]
+  button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
     span .st-pal-icon
       svg [aria-hidden="true"]
     span .st-pal-label
       span .st-pal-ltxt "Open all Advanced sections"
-button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [type="button"]
+button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
@@ -99,16 +99,16 @@ button .is-active.st-pal-item [data-testid="palette-row-action:export.open"] [ty
   span .st-pal-where "Menu › File"
   span .st-pal-kbd
     span .kbd "⇧⌘E"
-button .st-pal-item [data-testid="palette-row-action:view.exports"] [type="button"]
+button .st-pal-item [data-testid="palette-row-action:view.exports"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
     span .st-pal-ltxt "s"
       mark .st-pal-mark "Export"
   span .st-pal-where "Menu › View"
-button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [type="button"]
+button .st-pal-item [data-testid="palette-row-action:view.advanced-open-all"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
   span .st-pal-icon
     svg [aria-hidden="true"]
   span .st-pal-label
     span .st-pal-ltxt "Open all Advanced sections"
-span [data-testid="palette-count"] "3 results"
+span [data-testid="palette-count"] [role="status"] "3 results"

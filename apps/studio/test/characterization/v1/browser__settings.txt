@@ -2,12 +2,18 @@
 div
   div .maude
     div .st-callouts [data-testid="callouts"]
+      div .st-callout.st-callout--info [data-testid="callout-tour-usage"] [role="status"]
+        span .st-callout-ic [aria-hidden="true"]
+          svg [aria-hidden="true"]
+        span .st-callout-t "New here? Take a 60-second tour of the canvas browser."
+        button .btn.btn--primary.btn--sm [data-testid="callout-tour-usage-action"] [type="button"] "Start"
+        button .st-callout-x [data-testid="callout-tour-usage-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
     div .st-shell
       div .st-body.st-body--float
         span .island.st-pill
-          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+          button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
             span .st-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
             span .st-pill-name "characterization"
@@ -31,17 +37,17 @@ div
                 svg .st-mode-g [aria-hidden="true"]
               button .st-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [disabled]
                 svg [aria-hidden="true"]
-          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [aria-pressed="false"] [title="Hide panels ⌘\\"] [type="button"]
+          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
             svg [aria-hidden="true"]
           button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [aria-disabled="true"] [title="Open a canvas to share it"] [type="button"] "Share"
             svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .lp-head [data-testid="panel-head-left"]
-              div .lp-tabs [role="tablist"] [aria-label="left panels"]
-                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
-                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+              div .lp-tabs [role="tablist"] [aria-label="left panels"] [tabindex="-1"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Assets"
               button .lp-fold.st-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
                 svg [aria-hidden="true"]
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
@@ -51,8 +57,6 @@ div
                   button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
                     svg [aria-hidden="true"]
                   button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
-                    svg [aria-hidden="true"]
-                  button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
                     svg [aria-hidden="true"]
               div .st-search
                 div .st-search-box
@@ -65,12 +69,12 @@ div
                     svg [aria-hidden="true"]
                   span .lp-name "Design system"
               div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="0"]
+                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI canvases"] [aria-expanded="false"] [tabindex="0"]
                   div .st-row-wrap
                     button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
                       svg .st-chev [aria-hidden="true"]
-                      span .st-sec-name "UI CANVASES"
-                      span .st-pill "3"
+                      span .st-sec-name "UI canvases"
+                      span .st-sec-count "3"
               button .lp-row.lp-trashrow [data-testid="canvases-trash-row"] [type="button"]
                 span .lp-trash-ic
                   svg [aria-hidden="true"]
@@ -85,32 +89,22 @@ div
         div .main
           div .st-stage.viewport [data-tour="viewport"]
             div .st-empty
-              div .st-empty-brand
-                span .st-brand-mark
-                  svg [aria-hidden="true"]
-                span .st-empty-wm "maude"
-                span .st-empty-sub.st-mono "CANVAS · CHARACTERIZATION / <ver> / localhost:<port>"
-              div .st-empty-title "Nothing open yet"
-              div .st-empty-body "← Pick a screen from the list on the left, or open above it to see your colors, type, and components. hold and hover to preview an element, "
-                strong "Design system"
-                br
-                br
-                strong "To select something on the canvas:"
-                span .kbd "⌘"
-                span .kbd "⌘⇧"
+              div .st-empty-title "No canvas open"
+              div .st-empty-body "Open a canvas from the Canvases panel, or start a new one."
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]
     div .v2s-scrim [data-testid="settings-scrim"] [role="presentation"]
       div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
-        div .v2s-rail [role="tablist"] [aria-label="Settings sections"]
+        div .v2s-rail
           p .v2s-title "Settings"
-          button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
-          button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
-          button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
+          div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
+            button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
+            button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
+            button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
           span .v2s-rail-sp
           span .v2s-foot "Maude <ver>"
-          button .v2s-close [data-testid="settings-close"] [aria-label="Close settings"] [type="button"] "Done"
+          button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
         div .v2s-main
           section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"]
             section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
@@ -131,7 +125,7 @@ div
               div .st-provider-card
                 div .st-provider-hd
                   span .st-provider-name "Theme"
-                div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+                div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
                 div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
                   label .st-engine-radio
                     input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
@@ -180,6 +174,14 @@ div
                   span .st-pref-label "Auto-open Inspector on select"
                   span .st-pref-note "Open the Inspector automatically when you select an element."
                 input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+            section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+              h3 .v2s-group-t "Keyboard"
+              div [data-testid="settings-single-keys"]
+                label .st-pref-row
+                  span .st-pref-body
+                    span .st-pref-label "Single-key shortcuts"
+                    span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+                  input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
             section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
               h3 .v2s-group-t "Layout"
               div .st-provider-card
@@ -204,46 +206,42 @@ div
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Canvases"
-                  span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Layers"
-                  span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Assets"
-                  span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Inspector"
-                  span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Comments"
-                  span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
                     span .st-pref-label "Changes"
-                  span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
+                  span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
                 div .st-pref-row
                   span .st-pref-body
-                    span .st-pref-label "Assistant"
-                  span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
+                    span .st-pref-label "AI chat panel"
+                  span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
                     button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
                     button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
-    div .mdcc-tour-nudge [role="status"]
-      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
-      button .mdcc-tour-nudge__cta [type="button"] "Start"
-      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"

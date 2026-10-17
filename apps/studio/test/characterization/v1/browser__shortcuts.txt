@@ -2,12 +2,18 @@
 div
   div .maude
     div .st-callouts [data-testid="callouts"]
+      div .st-callout.st-callout--info [data-testid="callout-tour-usage"] [role="status"]
+        span .st-callout-ic [aria-hidden="true"]
+          svg [aria-hidden="true"]
+        span .st-callout-t "New here? Take a 60-second tour of the canvas browser."
+        button .btn.btn--primary.btn--sm [data-testid="callout-tour-usage-action"] [type="button"] "Start"
+        button .st-callout-x [data-testid="callout-tour-usage-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
     div .st-shell
       div .st-body.st-body--float
         span .island.st-pill
-          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+          button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
             span .st-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
             span .st-pill-name "characterization"
@@ -31,17 +37,17 @@ div
                 svg .st-mode-g [aria-hidden="true"]
               button .st-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] [disabled]
                 svg [aria-hidden="true"]
-          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [aria-pressed="false"] [title="Hide panels ⌘\\"] [type="button"]
+          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
             svg [aria-hidden="true"]
           button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [aria-disabled="true"] [title="Open a canvas to share it"] [type="button"] "Share"
             svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .lp-head [data-testid="panel-head-left"]
-              div .lp-tabs [role="tablist"] [aria-label="left panels"]
-                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
-                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+              div .lp-tabs [role="tablist"] [aria-label="left panels"] [tabindex="-1"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Assets"
               button .lp-fold.st-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
                 svg [aria-hidden="true"]
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
@@ -51,8 +57,6 @@ div
                   button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
                     svg [aria-hidden="true"]
                   button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
-                    svg [aria-hidden="true"]
-                  button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
                     svg [aria-hidden="true"]
               div .st-search
                 div .st-search-box
@@ -65,12 +69,12 @@ div
                     svg [aria-hidden="true"]
                   span .lp-name "Design system"
               div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="0"]
+                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI canvases"] [aria-expanded="false"] [tabindex="0"]
                   div .st-row-wrap
                     button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
                       svg .st-chev [aria-hidden="true"]
-                      span .st-sec-name "UI CANVASES"
-                      span .st-pill "3"
+                      span .st-sec-name "UI canvases"
+                      span .st-sec-count "3"
               button .lp-row.lp-trashrow [data-testid="canvases-trash-row"] [type="button"]
                 span .lp-trash-ic
                   svg [aria-hidden="true"]
@@ -85,24 +89,13 @@ div
         div .main
           div .st-stage.viewport [data-tour="viewport"]
             div .st-empty
-              div .st-empty-brand
-                span .st-brand-mark
-                  svg [aria-hidden="true"]
-                span .st-empty-wm "maude"
-                span .st-empty-sub.st-mono "CANVAS · CHARACTERIZATION / <ver> / localhost:<port>"
-              div .st-empty-title "Nothing open yet"
-              div .st-empty-body "← Pick a screen from the list on the left, or open above it to see your colors, type, and components. hold and hover to preview an element, "
-                strong "Design system"
-                br
-                br
-                strong "To select something on the canvas:"
-                span .kbd "⌘"
-                span .kbd "⌘⇧"
+              div .st-empty-title "No canvas open"
+              div .st-empty-body "Open a canvas from the Canvases panel, or start a new one."
         span .island.st-corner.st-corner--right
           button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Open Inspector"] [title="Inspector"] [type="button"]
             svg [aria-hidden="true"]
     div .st-scrim [role="presentation"]
-      div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
+      div .so-overlay.so-overlay--v2 [data-testid="shortcuts-sheet"] [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"] [tabindex="-1"]
         div .so-overlay-hd
           span .so-title "Keyboard shortcuts"
           label .so-find
@@ -180,7 +173,7 @@ div
                 dt "Version history"
                 dd
                   span .so-combos
-                    span .kbd "⇧⌘G"
+                    span .kbd "⌥⌘H"
               div .so-pair [data-testid="shortcuts-row-export.open"]
                 dt "Export…"
                 dd
@@ -209,19 +202,15 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘Z"
-                    span .kbd "⌘Z"
               div .so-pair [data-testid="shortcuts-row-edit.redo"]
                 dt "Redo"
                 dd
                   span .so-combos
                     span .kbd "⇧⌘Z"
-                    span .kbd "⇧⌘Z"
                     span .so-or "or"
                     span .kbd "⌘Y"
                     span .so-or "or"
                     span .kbd "⇧⌘Y"
-                    span .so-or "or"
-                    span .kbd "⌘Y"
               div .so-pair [data-testid="shortcuts-row-mode.preview"]
                 dt "Preview"
                 dd
@@ -280,35 +269,6 @@ div
                 dd
                   span .so-combos
                     span .kbd "esc"
-                    span .kbd "esc"
-                    span .so-or "or"
-                    span .kbd "⌥esc"
-                    span .so-or "or"
-                    span .kbd "⇧esc"
-                    span .so-or "or"
-                    span .kbd "⌥⇧esc"
-                    span .so-or "or"
-                    span .kbd "⌘esc"
-                    span .so-or "or"
-                    span .kbd "⌥⌘esc"
-                    span .so-or "or"
-                    span .kbd "⇧⌘esc"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘esc"
-                    span .so-or "or"
-                    span .kbd "⌥esc"
-                    span .so-or "or"
-                    span .kbd "⇧esc"
-                    span .so-or "or"
-                    span .kbd "⌥⇧esc"
-                    span .so-or "or"
-                    span .kbd "⌘esc"
-                    span .so-or "or"
-                    span .kbd "⌥⌘esc"
-                    span .so-or "or"
-                    span .kbd "⇧⌘esc"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘esc"
           section .so-section.so-section--panels-ai [data-testid="shortcuts-group-panels-ai"]
             h3 .so-section-hd "Panels and AI"
             dl .so-list
@@ -358,20 +318,6 @@ div
                 dd
                   span .so-combos
                     span .kbd "F1"
-                    span .so-or "or"
-                    span .kbd "⌥F1"
-                    span .so-or "or"
-                    span .kbd "⇧F1"
-                    span .so-or "or"
-                    span .kbd "⌥⇧F1"
-                    span .so-or "or"
-                    span .kbd "⌘F1"
-                    span .so-or "or"
-                    span .kbd "⌥⌘F1"
-                    span .so-or "or"
-                    span .kbd "⇧⌘F1"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘F1"
           section .so-section.so-section--objects [data-testid="shortcuts-group-objects"]
             h3 .so-section-hd "Objects"
             dl .so-list
@@ -438,40 +384,6 @@ div
                   span .so-combos
                     span .kbd "⌫"
                     span .kbd "⌦"
-                    span .kbd "⌫"
-                    span .kbd "⌦"
-                    span .so-or "or"
-                    span .kbd "⇧⌫"
-                    span .so-or "or"
-                    span .kbd "⇧⌦"
-                    span .so-or "or"
-                    span .kbd "⌘⌫"
-                    span .so-or "or"
-                    span .kbd "⇧⌘⌫"
-                    span .so-or "or"
-                    span .kbd "⌥⌫"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌫"
-                    span .so-or "or"
-                    span .kbd "⌥⌘⌫"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘⌫"
-                    span .so-or "or"
-                    span .kbd "⌘⌦"
-                    span .so-or "or"
-                    span .kbd "⇧⌘⌦"
-                    span .so-or "or"
-                    span .kbd "⌥⌦"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌦"
-                    span .so-or "or"
-                    span .kbd "⌥⌘⌦"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘⌦"
-                    span .so-or "or"
-                    span .kbd "⇧⌫"
-                    span .so-or "or"
-                    span .kbd "⇧⌦"
               div .so-pair [data-testid="shortcuts-row-object.nudge"]
                 dt "Nudge"
                 dd
@@ -503,11 +415,6 @@ div
                 dd
                   span .so-combos
                     span .kbd "⇧⌘L"
-              div .so-pair [data-testid="shortcuts-row-annotation.duplicate"]
-                dt "Duplicate"
-                dd
-                  span .so-combos
-                    span .kbd "⌘D"
               div .so-pair [data-testid="shortcuts-row-annotation.to-front"]
                 dt "Bring to front"
                 dd
@@ -528,16 +435,6 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘["
-              div .so-pair [data-testid="shortcuts-row-annotation.copy"]
-                dt "Copy"
-                dd
-                  span .so-combos
-                    span .kbd "⌘C"
-              div .so-pair [data-testid="shortcuts-row-annotation.cut"]
-                dt "Cut"
-                dd
-                  span .so-combos
-                    span .kbd "⌘X"
               div .so-pair [data-testid="shortcuts-row-annotation.chain"]
                 dt "Add the next one"
                 dd
@@ -548,22 +445,6 @@ div
                 dd
                   span .so-combos
                     span .kbd "↵"
-              div .so-pair [data-testid="shortcuts-row-annotation.nudge"]
-                dt "Nudge"
-                dd
-                  span .so-combos
-                    span .kbd "←"
-                    span .kbd "→"
-                    span .kbd "↑"
-                    span .kbd "↓"
-                    span .so-or "or"
-                    span .kbd "⇧←"
-                    span .so-or "or"
-                    span .kbd "⇧→"
-                    span .so-or "or"
-                    span .kbd "⇧↑"
-                    span .so-or "or"
-                    span .kbd "⇧↓"
               div .so-pair [data-testid="shortcuts-row-annotation.remove"]
                 dt "Remove"
                 dd
@@ -582,92 +463,22 @@ div
                 dd
                   span .so-combos
                     span .kbd "Space"
-                    span .so-or "or"
-                    span .kbd "⌥Space"
-                    span .so-or "or"
-                    span .kbd "⇧Space"
-                    span .so-or "or"
-                    span .kbd "⌥⇧Space"
-                    span .so-or "or"
-                    span .kbd "⌘Space"
-                    span .so-or "or"
-                    span .kbd "⌥⌘Space"
-                    span .so-or "or"
-                    span .kbd "⇧⌘Space"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘Space"
               div .so-pair [data-testid="shortcuts-row-timeline.step"]
                 dt "Step a frame"
                 dd
                   span .so-combos
                     span .kbd "←"
                     span .kbd "→"
-                    span .so-or "or"
-                    span .kbd "⌥←"
-                    span .so-or "or"
-                    span .kbd "⇧←"
-                    span .so-or "or"
-                    span .kbd "⌥⇧←"
-                    span .so-or "or"
-                    span .kbd "⌘←"
-                    span .so-or "or"
-                    span .kbd "⌥⌘←"
-                    span .so-or "or"
-                    span .kbd "⇧⌘←"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘←"
-                    span .so-or "or"
-                    span .kbd "⌥→"
-                    span .so-or "or"
-                    span .kbd "⇧→"
-                    span .so-or "or"
-                    span .kbd "⌥⇧→"
-                    span .so-or "or"
-                    span .kbd "⌘→"
-                    span .so-or "or"
-                    span .kbd "⌥⌘→"
-                    span .so-or "or"
-                    span .kbd "⇧⌘→"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘→"
               div .so-pair [data-testid="shortcuts-row-timeline.to-start"]
                 dt "Go to start"
                 dd
                   span .so-combos
                     span .kbd "Home"
-                    span .so-or "or"
-                    span .kbd "⌥Home"
-                    span .so-or "or"
-                    span .kbd "⇧Home"
-                    span .so-or "or"
-                    span .kbd "⌥⇧Home"
-                    span .so-or "or"
-                    span .kbd "⌘Home"
-                    span .so-or "or"
-                    span .kbd "⌥⌘Home"
-                    span .so-or "or"
-                    span .kbd "⇧⌘Home"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘Home"
               div .so-pair [data-testid="shortcuts-row-timeline.to-end"]
                 dt "Go to end"
                 dd
                   span .so-combos
                     span .kbd "End"
-                    span .so-or "or"
-                    span .kbd "⌥End"
-                    span .so-or "or"
-                    span .kbd "⇧End"
-                    span .so-or "or"
-                    span .kbd "⌥⇧End"
-                    span .so-or "or"
-                    span .kbd "⌘End"
-                    span .so-or "or"
-                    span .kbd "⌥⌘End"
-                    span .so-or "or"
-                    span .kbd "⇧⌘End"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘End"
               div .so-pair [data-testid="shortcuts-row-timeline.prev-keyframe"]
                 dt "Previous keyframe"
                 dd
@@ -807,7 +618,7 @@ div
               li .so-mv
                 span .so-mv-was "Changes ⇧⌘G"
                 svg [aria-hidden="true"]
-                span .so-mv-now "Version history ⇧⌘G"
+                span .so-mv-now "Version history ⌥⌘H — ⇧⌘G is Remove frame in Edit"
               li .so-mv
                 span .so-mv-was "Files tree T"
                 svg [aria-hidden="true"]
@@ -859,8 +670,4 @@ div
         div .so-overlay-ft
           span "close with"
             span .kbd "esc"
-          span .so-count "76 keys"
-    div .mdcc-tour-nudge [role="status"]
-      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
-      button .mdcc-tour-nudge__cta [type="button"] "Start"
-      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"
+          span .so-count "72 keys"

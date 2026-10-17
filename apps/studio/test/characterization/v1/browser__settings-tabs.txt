@@ -1,14 +1,15 @@
 # browser/settings-tabs
 ## tab 0
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
-  div .v2s-rail [role="tablist"] [aria-label="Settings sections"]
+  div .v2s-rail
     p .v2s-title "Settings"
-    button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
-    button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
-    button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
+    div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
+      button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "General"
+      button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
+      button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
     span .v2s-rail-sp
     span .v2s-foot "Maude <ver>"
-    button .v2s-close [data-testid="settings-close"] [aria-label="Close settings"] [type="button"] "Done"
+    button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
   div .v2s-main
     section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"]
       section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
@@ -29,7 +30,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Theme"
-          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
           div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
             label .st-engine-radio
               input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
@@ -78,6 +79,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .st-pref-label "Auto-open Inspector on select"
             span .st-pref-note "Open the Inspector automatically when you select an element."
           input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+        h3 .v2s-group-t "Keyboard"
+        div [data-testid="settings-single-keys"]
+          label .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Single-key shortcuts"
+              span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
         div .st-provider-card
@@ -102,55 +111,56 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Canvases"
-            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assets"
-            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Assistant"
-            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "AI chat panel"
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
 ## tab 1
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
-  div .v2s-rail [role="tablist"] [aria-label="Settings sections"]
+  div .v2s-rail
     p .v2s-title "Settings"
-    button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
-    button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Connections"
-    button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
+    div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
+      button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
+      button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Connections"
+      button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Advanced"
     span .v2s-rail-sp
     span .v2s-foot "Maude <ver>"
-    button .v2s-close [data-testid="settings-close"] [aria-label="Close settings"] [type="button"] "Done"
+    button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
   div .v2s-main
     section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"] [hidden]
       section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
@@ -171,7 +181,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Theme"
-          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
           div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
             label .st-engine-radio
               input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
@@ -220,6 +230,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .st-pref-label "Auto-open Inspector on select"
             span .st-pref-note "Open the Inspector automatically when you select an element."
           input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+        h3 .v2s-group-t "Keyboard"
+        div [data-testid="settings-single-keys"]
+          label .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Single-key shortcuts"
+              span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
         div .st-provider-card
@@ -244,43 +262,43 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Canvases"
-            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assets"
-            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Assistant"
-            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "AI chat panel"
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"]
@@ -328,14 +346,15 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
 ## tab 2
 div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
-  div .v2s-rail [role="tablist"] [aria-label="Settings sections"]
+  div .v2s-rail
     p .v2s-title "Settings"
-    button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
-    button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
-    button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Advanced"
+    div .v2s-tabs [role="tablist"] [aria-label="Settings sections"]
+      button .v2s-tab [data-testid="settings-tab-general"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "General"
+      button .v2s-tab [data-testid="settings-tab-connections"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Connections"
+      button .v2s-tab [data-testid="settings-tab-advanced"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Advanced"
     span .v2s-rail-sp
     span .v2s-foot "Maude <ver>"
-    button .v2s-close [data-testid="settings-close"] [aria-label="Close settings"] [type="button"] "Done"
+    button .v2s-close [data-testid="settings-close"] [type="button"] "Done"
   div .v2s-main
     section .v2s-panel [data-testid="settings-panel-general"] [role="tabpanel"] [hidden]
       section .v2s-group [data-testid="settings-account"] [aria-label="Account"]
@@ -356,7 +375,7 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
         div .st-provider-card
           div .st-provider-hd
             span .st-provider-name "Theme"
-          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-provider-notes "Sets the look of the panels, toolbar and canvas background. Artboards keep their own design system."
           div .st-engine-radios [data-testid="settings-theme"] [role="radiogroup"] [aria-label="Theme"]
             label .st-engine-radio
               input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
@@ -405,6 +424,14 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
             span .st-pref-label "Auto-open Inspector on select"
             span .st-pref-note "Open the Inspector automatically when you select an element."
           input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section .v2s-group [data-testid="settings-keyboard"] [aria-label="Keyboard"]
+        h3 .v2s-group-t "Keyboard"
+        div [data-testid="settings-single-keys"]
+          label .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Single-key shortcuts"
+              span .st-pref-note "Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
       section .v2s-group [data-testid="settings-layout"] [aria-label="Layout"]
         h3 .v2s-group-t "Layout"
         div .st-provider-card
@@ -429,43 +456,43 @@ div .v2s-sheet [data-testid="settings-sheet"] [role="dialog"] [aria-label="Setti
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Canvases"
-            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-tree"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Layers"
-            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-layers"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Assets"
-            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-assets"] [role="radiogroup"]
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Inspector"
-            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-inspector"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Comments"
-            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-comments"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
               span .st-pref-label "Changes"
-            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"] [aria-label="Panel side"]
+            span .st-sidetoggle [data-testid="panel-side-changes"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
           div .st-pref-row
             span .st-pref-body
-              span .st-pref-label "Assistant"
-            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"] [aria-label="Panel side"]
+              span .st-pref-label "AI chat panel"
+            span .st-sidetoggle [data-testid="panel-side-assistant"] [role="radiogroup"]
               button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
               button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
     section .v2s-panel [data-testid="settings-panel-connections"] [role="tabpanel"] [hidden]

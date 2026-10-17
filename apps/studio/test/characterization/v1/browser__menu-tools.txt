@@ -1,6 +1,6 @@
 # browser/menu-tools
 span .island.st-pill
-  button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+  button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization, project menu"] [aria-expanded="true"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
     span .st-pill-mark [data-tour="brand"]
       svg [aria-hidden="true"]
     span .st-pill-name "characterization"
@@ -36,7 +36,7 @@ span .island.st-pill
         button .st-pm-row [data-testid="project-menu-row-history.open"] [role="menuitemcheckbox"] [aria-checked="false"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]
           span .st-pm-lab "Version history"
-          span .kbd "⇧⌘G"
+          span .kbd "⌥⌘H"
       div .st-pm-li [role="none"]
         button .st-pm-row [data-testid="project-menu-row-share.open"] [role="menuitem"] [type="button"] [tabindex="-1"]
           span .st-pm-ic [aria-hidden="true"]
@@ -57,4 +57,3 @@ span .island.st-pill
           span .st-pm-ic [aria-hidden="true"]
           span .st-pm-lab "Settings…"
           span .kbd "⌘,"
-span .st-pill "3"

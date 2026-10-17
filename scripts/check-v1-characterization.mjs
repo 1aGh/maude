@@ -13,6 +13,16 @@
 // A move-only refactor must leave every snapshot byte-identical. Any diff is a behaviour
 // change and fails the check with a unified diff of the first differing lines.
 //
+// Approved delta (V2-4 gate polish-a + polish-b, decision:maude/v2-4-gate-polish-a, decision:maude/v2-4-gate-polish-b):
+// 20 shell states gain the tour as a `callout-tour-usage` row in the callouts stack (the old floating nudge is
+// gone) and the Toaster region moves after the shell (bottom-center); the project pill's accessible name reads
+// "<project>, project menu"; ⌘K is an ARIA combobox (`role=combobox`, `aria-expanded`, `aria-haspopup=listbox`)
+// over a `listbox` labelled Results, its dialog takes `tabindex=-1` for the focus helper; the Settings rail's tabs
+// sit in their own `.v2s-tabs` tablist. Then `browser/shortcuts` alone (V2-4 gate, decision:maude/v2-4-gate-help-keys-once):
+// the "?" sheet lists a key once (⌘Z was shown twice for Undo, Esc twice for Step back), drops v1 "any modifier"
+// alias sets (⌥⇧⌘Esc, ⌘⌫ …) and merges same-label same-key rows (Nudge / Remove for objects and annotations).
+// Verified identical on a second run.
+//
 // Approved delta (V2-4.5–4.8 + 4.10, decision:maude/v2-4.8a-menubar-removed, decision:maude/v2-4.8b-callout-stack,
 // decision:maude/v2-4.6-search-is-a-render-model, decision:maude/v2-4.7a-settings-model-is-the-gate,
 // decision:maude/v2-4.10-fold-in-prefs-json-fold-map): all 30 states — the in-app menubar and the status bar are

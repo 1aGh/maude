@@ -2,6 +2,12 @@
 div
   div .maude
     div .st-callouts [data-testid="callouts"]
+      div .st-callout.st-callout--info [data-testid="callout-tour-usage"] [role="status"]
+        span .st-callout-ic [aria-hidden="true"]
+          svg [aria-hidden="true"]
+        span .st-callout-t "New here? Take a 60-second tour of the canvas browser."
+        button .btn.btn--primary.btn--sm [data-testid="callout-tour-usage-action"] [type="button"] "Start"
+        button .st-callout-x [data-testid="callout-tour-usage-dismiss"] [aria-label="Dismiss"] [title="Dismiss"] [type="button"] "×"
     div .maude-notifications
       section [aria-label="Notifications alt+T"] [tabindex="-1"]
         ol [tabindex="-1"]
@@ -15,7 +21,7 @@ div
     div .st-shell
       div .st-body.st-body--float
         span .island.st-pill
-          button .st-pill-btn [data-testid="project-pill"] [aria-label="Project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
+          button .st-pill-btn [data-testid="project-pill"] [aria-label="characterization / Home, project menu"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="menus"] [title="Project menu"] [type="button"]
             span .st-pill-mark [data-tour="brand"]
               svg [aria-hidden="true"]
             span .st-pill-name "characterization"
@@ -41,17 +47,17 @@ div
                 svg .st-mode-g [aria-hidden="true"]
               button .st-mode-ch [data-testid="mode-present-menu"] [aria-label="Present options"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"]
                 svg [aria-hidden="true"]
-          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [aria-pressed="false"] [title="Hide panels ⌘\\"] [type="button"]
+          button .st-share-ic [data-testid="share-cluster-panels"] [aria-label="Hide panels"] [title="Hide panels ⌘\\"] [type="button"]
             svg [aria-hidden="true"]
           button .btn.btn--primary.btn--sm.st-share-btn [data-testid="share-cluster-share"] [type="button"] "Share"
             svg [aria-hidden="true"]
         div .st-dockslot.st-dockslot--left
           div .island.st-dockslot-inner [data-testid="dock-slot-left"]
             div .lp-head [data-testid="panel-head-left"]
-              div .lp-tabs [role="tablist"] [aria-label="left panels"]
-                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Canvases"
-                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
-                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] "Assets"
+              div .lp-tabs [role="tablist"] [aria-label="left panels"] [tabindex="-1"]
+                button .is-active.lp-tab [data-testid="panel-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Canvases"
+                button .lp-tab [data-testid="panel-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layers"
+                button .lp-tab [data-testid="panel-tab-assets"] [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Assets"
               button .lp-fold.st-iconbtn [data-testid="panel-fold-left"] [aria-label="Hide Canvases"] [title="Hide Canvases"] [type="button"]
                 svg [aria-hidden="true"]
             nav .st-sidebar [aria-label="Canvases"] [data-tour="sidebar"]
@@ -61,8 +67,6 @@ div
                   button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
                     svg [aria-hidden="true"]
                   button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
-                    svg [aria-hidden="true"]
-                  button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
                     svg [aria-hidden="true"]
               div .st-search
                 div .st-search-box
@@ -75,12 +79,12 @@ div
                     svg [aria-hidden="true"]
                   span .lp-name "Design system"
               div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
-                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="true"] [tabindex="-1"]
+                div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI canvases"] [aria-expanded="true"] [tabindex="-1"]
                   div .st-row-wrap
                     button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
                       svg .is-open.st-chev [aria-hidden="true"]
-                      span .st-sec-name "UI CANVASES"
-                      span .st-pill "3"
+                      span .st-sec-name "UI canvases"
+                      span .st-sec-count "3"
                   div [role="group"]
                     div .st-tree-item [role="treeitem"] [aria-label="Broken"] [aria-selected="false"] [tabindex="-1"]
                       div .st-row-wrap
@@ -152,7 +156,3 @@ div
                   p "Press , then click an element to select it — or -click straight from Browse."
                     span .kbd "V"
                     span .kbd "⌘"
-    div .mdcc-tour-nudge [role="status"]
-      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
-      button .mdcc-tour-nudge__cta [type="button"] "Start"
-      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"
