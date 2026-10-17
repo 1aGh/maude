@@ -3310,7 +3310,11 @@ function ShellTree() {
           }}
         />
       )}
-      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <ShortcutsOverlay
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+        readOnly={viewerMode}
+      />
       <HelpModal
         open={helpOpen}
         onClose={() => setHelpOpen(false)}

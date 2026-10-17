@@ -6,6 +6,8 @@ import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
+import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
+import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
 import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
@@ -199,14 +201,25 @@ export function usePaletteAndPanels({
     // V2-4.2 — ⌘K finds every row of the project menu too: typing a word finds the menu's row for it
     // (the list with nothing typed stays v1's). Same runner as the pill, so a row and its ⌘K twin
     // are one function.
-    const menuRows = menuPaletteRows(
-      menuCtx({
-        native: isNativeApp(),
-        readOnly: viewerMode,
-        canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
+    const searchCtx = menuCtx({
+      native: isNativeApp(),
+      readOnly: viewerMode,
+      canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
+    });
+    const menuRows = menuPaletteRows(searchCtx, { existing: v1, run: (id) => menuRunner.run(id) });
+    // V2-4.6 — Search ⌘K: the registry's visible actions + the toolbars' tools + the Settings rows, each
+    // with its where-path (v2/search). A row runs through the one menu runner; the few v1 palette
+    // closures the runner has no handler for (theme, New video, Generate…) are its fallback, not a
+    // second dispatcher. Runnable is asked when the list opens: the runner binds after this first render.
+    const runAction = (id) => (menuRunner.canRun(id) ? menuRunner.run(id) : run[id]?.());
+    const searchRows = [
+      ...actionSearchRows(searchCtx, {
+        eager: false,
+        isRunnable: (id) => menuRunner.canRun(id) || typeof run[id] === 'function',
+        run: runAction,
       }),
-      { existing: v1, run: (id) => menuRunner.run(id) }
-    );
+      ...settingsSearchRows({ cloud: cfg.cloud, run: (section) => setSettingsOpen(section) }),
+    ].map((r) => ({ ...r, onlyWhenSearched: true }));
     // V2-4.4a — ⌘K "Trash" and "Refresh tree" (CONTRACT §1 C10, §2 ⇧⌘R). Neither is a menu row; both are
     // the left panel's. Same runner as the panel's own controls.
     const leftRows = [
@@ -234,8 +247,9 @@ export function usePaletteAndPanels({
             },
           ]),
     ];
-    return [...v1, ...menuRows, ...leftRows];
+    return [...v1, ...menuRows, ...leftRows, ...searchRows];
   }, [
+    cfg.cloud,
     viewerMode,
     activePath,
     openSystem,
@@ -250,6 +264,28 @@ export function usePaletteAndPanels({
     cfg.designRel,
     refreshTree,
   ]);
+
+  // V2-4.6 — what ⌘K needs from the shell besides rows: open a canvas (and its artboard), hand a query to
+  // the AI chat (desktop only — the chat panel is native), where the design root is.
+  useEffect(
+    () =>
+      bindPaletteEnv({
+        designRel: cfg.designRel,
+        canAskAI: () => isNativeApp() && !viewerMode,
+        askAI: (text) => {
+          openPanelExclusive('assistant');
+          sendToAskAI(text);
+        },
+        openCanvas: (path, artboardId) => {
+          openTab(path);
+          // the canvas mounts a moment later; select the artboard the way a tree click settles one
+          if (artboardId)
+            for (const delay of [400, 1200, 2800])
+              setTimeout(() => postToActiveCanvas({ dgn: 'select-by-id', artboardId }), delay);
+        },
+      }),
+    [cfg.designRel, viewerMode, openPanelExclusive, openTab, postToActiveCanvas]
+  );
 
   // Native menu items whose registry action runs in the webview (`menu://action {id}`,
   // V2-1.3 §5.8 — File ▸ New Canvas, Help ▸ Report a Bug…) run the palette's row for that

@@ -167,6 +167,14 @@ export const menuRunner = (() => {
     get bound() {
       return handlers !== null;
     },
+    /** V2-4.6: would `run(id)` do something? ⌘K lists only rows that can (no dead row). */
+    canRun(id) {
+      if (!handlers) return false;
+      if (handlers[id]) return true;
+      const def = ACTIONS_BY_ID.get(id);
+      if (def?.exec === 'canvas') return true;
+      return def?.exec === 'native' && !!NATIVE_COMMANDS[id] && invoke !== null;
+    },
     /** @returns true when something ran */
     run(id) {
       if (!handlers) return false;

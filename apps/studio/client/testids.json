@@ -9177,5 +9177,226 @@
     "region": "settings",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "palette-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ⌘K search box (placeholder “Search canvases, actions, or ask AI…”).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ⌘K result list (scroll container).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One ⌘K row; <id> is `action:<registry id>`, `tool:<id>`, `setting:<section>:<testid>:<n>`, `canvas:<rel>`, `artboard:<rel>#<id>`, `ask-ai`, or a short-list action id. The active row also has `.is-active`.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-group-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-ask-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The wrapper of the last row, Ask AI (desktop only; ⌘↵ runs it).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Nothing called …” empty state.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-close-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Showing close matches for …” note when every hit is a typo match.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The ⌘K footer: “Type to search” or “N results”.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “?” sheet dialog.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-find",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s “Find a shortcut” box.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-group-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A sheet group (`edit-tools`, `preview-tools`, `file`, `canvas`, `panels-ai`, `objects`, `timeline`, `present`).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One sheet row; <id> is the registry action id (also in the Advanced fold).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s Advanced fold (View › Advanced / Diagnostics keys, then the moved keys).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-advanced-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced fold’s disclosure button (`aria-expanded`; remembered).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-moved-hd",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Keys and tools that moved” heading.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-moved",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list of moved keys and tools (old → new).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "shortcuts-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s “Nothing called …” line.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
+      "symbol": "ShortcutsOverlay"
+    },
+    "region": "help/shortcuts",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
   }
 ]
