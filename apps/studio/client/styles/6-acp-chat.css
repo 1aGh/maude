@@ -8,49 +8,6 @@
  * (`.chat-thread`, `.st-rp-body--chat`, `.chat-tool-path`) the live panel needs.
  */
 @layer components {
-  /* Menubar Assistant button (sparkle) — mirrors .st-whatsnew; the ✦ now opens
-     the Assistant and What's New moved to a megaphone. Busy = pulse while a turn
-     runs; unseen = a violet dot when a reply landed while the panel was hidden. */
-  .st-assistant {
-    position: relative;
-    appearance: none;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    width: 26px;
-    height: 26px;
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-sm);
-    color: var(--fg-1);
-  }
-  .st-assistant:hover {
-    background: var(--bg-3);
-    color: var(--fg-0);
-  }
-  .st-assistant[data-active="true"] {
-    background: var(--bg-3);
-    color: var(--accent);
-  }
-  .st-assistant[data-busy="true"] {
-    color: var(--presence-agent);
-    animation: chat-pip 1.2s var(--ease-out) infinite;
-  }
-  .st-assistant[data-unseen="true"] {
-    color: var(--presence-agent);
-  }
-  .st-assistant[data-unseen="true"]::after {
-    content: "";
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    width: 7px;
-    height: 7px;
-    border-radius: var(--radius-pill);
-    background: var(--presence-agent);
-    border: 1.5px solid var(--bg-1);
-  }
-
   .st-rp-body--chat {
     padding: 0;
     display: flex;
@@ -1830,7 +1787,6 @@
     .chat-status-dot--working,
     .chat-tool-dot--run,
     .chat-activity-spin,
-    .st-assistant[data-busy="true"],
     .chat-dot--busy,
     .chat-msg,
     .chat-lightbox {

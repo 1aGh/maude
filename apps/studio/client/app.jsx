@@ -152,7 +152,7 @@ import { USAGE_TOUR } from './tour/usage-tour.js';
 import { dismissNotice, NotificationHost, notify, notifyCanvasText } from '../notifications.tsx';
 import { uploadAsset } from '../asset-upload.ts';
 import { acceptCanvasNotice } from '../canvas-notice-message.ts';
-import { ExportBadge, ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
+import { ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
 import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
 import {
@@ -206,7 +206,7 @@ import {
   timeAgo,
   totalCounts,
 } from './shell/util.js';
-import { Icon, Kbd, Lu, StAvatar, StIcon, initialsOf } from './shell/icons.jsx';
+import { Icon, Kbd, Lu, StIcon } from './shell/icons.jsx';
 import {
   DOCK_PANELS,
   DockSlot,
@@ -230,7 +230,6 @@ import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
-import { Menubar } from './menus/menubar.jsx';
 import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { StatusBar } from './shell/status-bar.jsx';
@@ -1517,171 +1516,6 @@ function ShellState({ children }) {
   return <ShellStoreContext.Provider value={shellStore}>{children}</ShellStoreContext.Provider>;
 }
 
-// V2-2.3: the Menubar surface reads the shell store directly instead of being drilled through ShellTree.
-function ShellMenubar() {
-  const {
-    shellCore: {
-      activeArtboards,
-      activeComps,
-      activePath,
-      agentActive,
-      annotationsVisible,
-      assistantBusy,
-      assistantOpen,
-      assistantUnseen,
-      autoOpenInspector,
-      cfg,
-      changesOpen,
-      commentsPanelOpen,
-      exportCenter,
-      gitUser,
-      inspectorOpen,
-      inspectorTab,
-      layersMode,
-      minimapVisible,
-      openMenu,
-      openPanelExclusive,
-      postToActiveCanvas,
-      presentMode,
-      printGuidesVisible,
-      project,
-      setAutoOpenInspector,
-      setExportDialog,
-      setGenerateOpen,
-      setHelpOpen,
-      setInspectorOpen,
-      setInspectorTab,
-      setIntroOpen,
-      setOpenMenu,
-      setQuickSetupOpen,
-      setReadinessOpen,
-      setReportBugOpen,
-      setSettingsOpen,
-      setShortcutsOpen,
-      setShowHidden,
-      showHidden,
-      sidebarOpen,
-      startTour,
-      tabs,
-      timelineOpen,
-      togglePanel,
-      toggleRightPanel,
-      toggleTimeline,
-      unsavedCount,
-      viewerMode,
-      whatsNew,
-      zoomCtlVisible,
-    },
-    photoAndTimeline: {
-      toggleAnnotations,
-      toggleMinimap,
-      togglePresent,
-      togglePrintGuides,
-      toggleZoomCtl,
-    },
-    tabs: { assembleVideo, closeTab, openSystem, reloadActive, sharePath, showShare },
-    canvasBridge: { onInsertArtboard },
-  } = useShellStore();
-  return (
-    <Menubar
-      sharePath={sharePath}
-      onShare={() => showShare()}
-      readOnly={viewerMode}
-      // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared chrome
-      // takes. A prop, not the whole `cfg`: the Menubar needs to know it is
-      // in a browser tab on somebody else's machine, and nothing else.
-      cloud={cfg.cloud}
-      activePath={activePath}
-      project={project}
-      tabsCount={tabs.length}
-      openMenu={openMenu}
-      setOpenMenu={setOpenMenu}
-      commentsPanelOpen={commentsPanelOpen}
-      onToggleComments={() => toggleRightPanel('comments')}
-      changesOpen={changesOpen}
-      changesCount={unsavedCount}
-      onToggleChanges={() => toggleRightPanel('changes')}
-      onOpenSystem={openSystem}
-      showHidden={showHidden}
-      onToggleShowHidden={() => setShowHidden((v) => !v)}
-      onOpenHelp={() => setHelpOpen(true)}
-      onOpenShortcuts={() => setShortcutsOpen(true)}
-      onReportBug={() => setReportBugOpen(true)}
-      onStartTour={() => startTour(USAGE_TOUR)}
-      onStartCollabTour={() => startTour(COLLAB_TOUR)}
-      annotationsVisible={annotationsVisible}
-      onToggleAnnotations={toggleAnnotations}
-      minimapVisible={minimapVisible}
-      onToggleMinimap={toggleMinimap}
-      zoomCtlVisible={zoomCtlVisible}
-      onToggleZoomCtl={toggleZoomCtl}
-      presentMode={presentMode}
-      onTogglePresent={togglePresent}
-      printGuidesVisible={printGuidesVisible}
-      onTogglePrintGuides={togglePrintGuides}
-      postToActiveCanvas={postToActiveCanvas}
-      onOpenReadiness={() => setReadinessOpen(true)}
-      onOpenQuickSetup={() => setQuickSetupOpen(true)}
-      onWatchIntro={() => setIntroOpen(true)}
-      onOpenWhatsNew={whatsNew.openPanel}
-      whatsNewCount={whatsNew.unseen.length}
-      exportCenter={exportCenter}
-      artboardCount={activeArtboards}
-      inspectorOpen={inspectorOpen}
-      inspectorTab={inspectorTab}
-      onToggleInspector={() => toggleRightPanel('inspector')}
-      autoOpenInspector={autoOpenInspector}
-      onToggleAutoOpenInspector={() => setAutoOpenInspector((v) => !v)}
-      onInsertArtboard={onInsertArtboard}
-      timelineOpen={timelineOpen}
-      onToggleTimeline={toggleTimeline}
-      hasComps={activeComps.length > 0}
-      assistantOpen={assistantOpen}
-      onToggleAssistant={() => toggleRightPanel('assistant')}
-      assistantBusy={assistantBusy}
-      assistantUnseen={assistantUnseen}
-      onOpenLayers={() => {
-        // feature-configurable-panel-docking — Layers is its own dockable
-        // panel when layersMode==='separate' (toggle it), else it's the
-        // Inspector's Layers tab (open the inspector on that tab).
-        if (layersMode === 'separate') {
-          togglePanel('layers');
-        } else if (inspectorOpen && inspectorTab === 'layers') {
-          setInspectorOpen(false);
-        } else {
-          setInspectorTab('layers');
-          openPanelExclusive('inspector');
-        }
-      }}
-      onNewCanvas={() => {
-        openPanelExclusive('tree');
-        setTimeout(
-          () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-          60
-        );
-      }}
-      onAssembleVideo={assembleVideo}
-      onOpenExport={(mode) => setExportDialog({ mode })}
-      onOpenSettings={() => setSettingsOpen(true)}
-      onOpenGenerate={() => setGenerateOpen(true)}
-      onReload={reloadActive}
-      onCloseCanvas={() => activePath && closeTab(activePath)}
-      presence={
-        <>
-          <StAvatar
-            initials={initialsOf(gitUser || 'you')}
-            hue="var(--accent)"
-            title={gitUser ? `${gitUser} (you)` : 'You'}
-          />
-          {agentActive && (
-            <StAvatar initials="C" hue="var(--presence-agent)" title="Claude · editing" pulse />
-          )}
-        </>
-      }
-    />
-  );
-}
-
 // V2-4.2: the project pill and the one menu. Every row runs the shell's own function for that action
 // (v2/shell/menu-runner.js) — this component hands the runner this render's closures (through a ref, so
 // the handler map is built once), binds it (⌘K's twin rows call the same runner) and renders
@@ -1817,6 +1651,17 @@ function ShellProjectPill() {
     // V2-3.8: this project signs in as someone else — it moves onto a profile of its own and the
     // page reloads signed out. A project with no cloud sign-in has nothing to move.
     onSwitchAccount: () => {
+      // V2-4.8a: in a cloud tab this is the menubar's "Sign out": a FORM POST, not a link — signing out
+      // revokes the token server-side, so it is a write (no GET can force it on you).
+      if (cfg?.cloud) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = '/auth/browser/signout';
+        form.hidden = true;
+        document.body.appendChild(form);
+        form.submit();
+        return;
+      }
       cloudSignInPrepare().then(
         (moved) => {
           if (!moved) shellToast('Sign in from the Share panel to use another account.');
@@ -1825,6 +1670,12 @@ function ShellProjectPill() {
       );
     },
     onCutPaste: (kind) => cutCopyPaste(kind, openerRef.current, { postToActiveCanvas }),
+    // V2-4.8a: a cloud tab's "Back to Home" — the v1 menubar's "← Dashboard" link, same tab.
+    onOpenDashboard: () => {
+      const url = cfg?.cloud?.dashboardUrl;
+      if (url) window.location.assign(url);
+      else shellToast('This workspace has no dashboard to go back to.');
+    },
   };
   const d = useMemo(() => new Proxy({}, { get: (_t, k) => live.current[k] }), []);
   const handlers = useMemo(() => createMenuHandlers(d), [d]);
@@ -1843,13 +1694,41 @@ function ShellProjectPill() {
     return () => menuRunner.unbind(handlers);
   }, [handlers, native]);
 
+  const isCloudTab = !!cfg?.cloud;
   const ctx = useMemo(
-    () => menuCtx({ native, readOnly: viewerMode, canvasOpen, presenting: presentMode }),
-    [native, viewerMode, canvasOpen, presentMode]
+    () =>
+      menuCtx({
+        native,
+        cloudTab: isCloudTab,
+        readOnly: viewerMode,
+        canvasOpen,
+        presenting: presentMode,
+      }),
+    [native, isCloudTab, viewerMode, canvasOpen, presentMode]
   );
+  // V2-4.8a: the megaphone's unseen dot, as a word on the Help row; and no "Back to Home" in a hub that
+  // serves one project (no dashboard to go back to — the v1 link was absent there too).
+  const unseenNews = whatsNew.unseen.length;
+  const noDashboard = isCloudTab && !cfg.cloud.dashboardUrl;
+  // …and who you are, with the way to stop being them: the account row carries the account's email.
+  const cloudUser = isCloudTab ? cfg.cloud.user || null : null;
   const state = useMemo(
     () => ({
       ...diag.state,
+      hidden: [
+        ...(diag.state.hidden ?? []),
+        ...(noDashboard ? ['nav.home'] : []),
+        ...(isCloudTab && !cloudUser ? ['account.switch'] : []),
+      ],
+      status: {
+        ...diag.state.status,
+        ...(unseenNews > 0
+          ? { 'help.whats-new': { word: `${unseenNews} new`, tone: 'neutral' } }
+          : {}),
+        ...(cloudUser
+          ? { 'account.switch': { word: cloudUser, tone: 'neutral', mono: true } }
+          : {}),
+      },
       panelsHidden,
       checked: {
         'view.pin-panels': pinned,
@@ -1871,6 +1750,10 @@ function ShellProjectPill() {
     }),
     [
       diag.state,
+      noDashboard,
+      isCloudTab,
+      cloudUser,
+      unseenNews,
       panelsHidden,
       pinned,
       annotationsVisible,
@@ -3060,7 +2943,6 @@ function ShellTree() {
         </div>
       )}
       <div className="st-shell">
-        <ShellMenubar />
         {/* V2-4.1 — the canvas is the whole window body. Floating (default): the dock slots are
             `.island`s over it and the folded corner icons are the way back; pinned (View › Advanced):
             today's docked columns. ⌘\ hides every panel either way. Every island root carries

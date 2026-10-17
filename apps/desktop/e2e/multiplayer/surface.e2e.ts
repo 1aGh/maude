@@ -3168,7 +3168,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             },
           ]);
           await page.goto(`${run.hub}/`);
-          await page.waitForSelector('[data-testid="menubar"]', { timeout: 60000 });
+          await page.waitForSelector('[data-testid="project-pill"]', { timeout: 60000 });
           await page.waitForTimeout(1500);
           // A string, not a function: esbuild's __name helper does not exist in
           // the page (the same reason tree-drag.js is read verbatim).
@@ -5086,7 +5086,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             ).catch(() => {
               throw new Unexercised('not everyone was on the canvas before leaving');
             });
-            await from.click(selector('menu-file'));
+            // V2-4.8a: File is a submenu of the project pill's menu (the in-app menubar is gone).
+            await from.click(selector('project-pill'));
+            await from.menu('File');
             const start = performance.now();
             await from.menu('Close canvas');
             return observeAll(
@@ -6298,7 +6300,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L08.artboard.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, boardsCanvas(`Boards ${from.name}`));
           await openSeeded(rel, `Boards ${from.name}`, `L08-${from.name}`);
+          // V2-4.8a: Edit › Advanced › New artboard — the project pill's menu (no in-app menubar).
+          await from.click(selector('project-pill'));
           await from.menu('Edit');
+          await from.menu('Advanced');
+          await from.menu('New artboard');
           const start = performance.now();
           await from.menu('New artboard: Mobile');
           return observeAll(

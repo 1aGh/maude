@@ -18,12 +18,14 @@ export const APP_ACTIONS: ActionDef[] = [
   {
     // V2-4.2 / V2-3.8: this project signs in as someone else. The shell moves the project onto a
     // profile of its own (`cloud_sign_in_prepare`) and reloads signed out; the person then signs in
-    // from the Share panel as usual. Desktop only — profiles are the app's.
+    // from the Share panel as usual. V2-4.8a: a CLOUD tab has it too — there it ends the browser session
+    // (the v1 menubar's account chip + "Sign out", Cloud Phase 27 C4: who you are, and how to stop
+    // being them) and the hub asks for a sign-in again; the row shows the account's email.
     id: 'account.switch',
     label: 'Sign in as another account…',
     kind: 'command',
     exec: 'shell',
-    visible: { shell: ['desktop'] },
+    visible: { shell: ['desktop', 'cloud'] },
   },
   {
     id: 'ai.chat',

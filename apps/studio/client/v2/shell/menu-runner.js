@@ -52,7 +52,7 @@ const noop = () => {};
  *   onTogglePresent(), onTogglePrintGuides(), onToggleTimeline(), onToggleAutoOpenInspector(),
  *   onToggleLayersMode(), onInsertArtboard(preset), onImportFigma(), onImportBrand(), onDuplicate(path),
  *   onRename(path, name), onPickMoveDestination() (opens the folder list), onSwitchAccount(),
- *   onCutPaste(kind)
+ *   onOpenDashboard() (a cloud tab's Back to Home), onCutPaste(kind)
  */
 export function createMenuHandlers(d) {
   const h = {
@@ -147,6 +147,9 @@ export function createMenuHandlers(d) {
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);
+  // V2-4.8a: outside the desktop app "Back to Home" is the cloud dashboard (the v1 menubar's
+  // "← Dashboard" link). In the desktop app it stays the native Home tab (NATIVE_COMMANDS).
+  if (!d.native) h['nav.home'] = () => d.onOpenDashboard?.();
   return h;
 }
 

@@ -11,8 +11,8 @@
       "drawnAt": "ad-menus",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "project-pill",
+        "where": "Project pill (top-left) > the one menu: File, Edit (Selection lives here), View and Help are submenus; Tools are the toolbar slots on the canvas (⌘K lists every row)"
       }
     },
     {
@@ -62,9 +62,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "help.whats-new",
         "testid": null,
-        "where": null
+        "where": "Menu > Help > What's new (the Help row says how many are unseen)"
       }
     },
     {
@@ -75,9 +75,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "help.report-bug",
         "testid": null,
-        "where": null
+        "where": "Menu > Help > Report a bug…"
       }
     },
     {
@@ -88,9 +88,9 @@
       "home": "exp",
       "drawnAt": "ad-export",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.exports",
+        "testid": "share-cluster-exports",
+        "where": "Share cluster (top-right) > Exports (a progress ring while a job runs); Menu > View > Exports"
       }
     },
     {
@@ -101,9 +101,9 @@
       "home": "setc",
       "drawnAt": "ad-edge-hub",
       "v2": {
-        "action": null,
+        "action": "account.switch",
         "testid": "cloud-account",
-        "where": "Settings › Connections › Maude Cloud (email, Sign out)"
+        "where": "Cloud tab: Menu > File > Sign in as another account… (the row shows the account email; it ends the session). Desktop: Settings > Connections > Maude Cloud (email, Sign out)"
       }
     },
     {
@@ -114,9 +114,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "nav.home",
         "testid": null,
-        "where": null
+        "where": "Menu > Back to Home (a cloud tab: opens the cloud dashboard; the desktop app: the Home tab)"
       }
     },
     {
@@ -153,9 +153,9 @@
       "home": "ai",
       "drawnAt": "ad-ai",
       "v2": {
-        "action": null,
+        "action": "ai.generate",
         "testid": null,
-        "where": null
+        "where": "⌘K > Generate with AI… (provider, model and aspect are in the dialog)"
       }
     },
     {
@@ -179,9 +179,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "view.comments",
+        "testid": "share-cluster-comments-count",
+        "where": "Share cluster (top-right) > Comments, with the open-comment count on it; Menu > View > Comments"
       }
     },
     {
@@ -192,9 +192,9 @@
       "home": "vh",
       "drawnAt": "ad-history",
       "v2": {
-        "action": null,
+        "action": "history.open",
         "testid": null,
-        "where": null
+        "where": "Menu > Version history ⇧⌘G (the unsaved count is the Share cluster status word)"
       }
     },
     {
@@ -283,9 +283,9 @@
       "home": "canv",
       "drawnAt": "ad-left",
       "v2": {
-        "action": null,
+        "action": "view.hidden-files",
         "testid": null,
-        "where": null
+        "where": "Menu > View > Advanced > Hidden files"
       }
     },
     {
@@ -426,9 +426,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "project.open",
         "testid": null,
-        "where": null
+        "where": "Menu > File > Open project… ⌘O (the desktop app; Home lists team projects)"
       }
     },
     {
@@ -569,9 +569,9 @@
       "home": "view",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "view.minimap",
         "testid": null,
-        "where": null
+        "where": "Menu > View > Advanced > Minimap"
       }
     },
     {
@@ -582,9 +582,9 @@
       "home": "view",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "view.zoom-controls",
         "testid": null,
-        "where": null
+        "where": "Menu > View > Advanced > Zoom controls"
       }
     },
     {
@@ -595,9 +595,9 @@
       "home": "view",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "view.print-guides",
         "testid": null,
-        "where": null
+        "where": "Menu > View > Advanced > Print guides"
       }
     },
     {
@@ -608,9 +608,9 @@
       "home": "exp",
       "drawnAt": "09 · ex-formats",
       "v2": {
-        "action": null,
+        "action": "export.open",
         "testid": null,
-        "where": null
+        "where": "Menu > File > Export… ⇧⌘E (scope: Project ZIP, Canvas as separate)"
       }
     },
     {
@@ -634,9 +634,9 @@
       "home": "ds",
       "drawnAt": "13 · ds-advanced",
       "v2": {
-        "action": null,
+        "action": "view.design-system",
         "testid": null,
-        "where": null
+        "where": "Canvases panel > Design system (the pinned row); ⌘K > Design system"
       }
     },
     {
@@ -1466,9 +1466,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "help.guides",
         "testid": null,
-        "where": null
+        "where": "Menu > Help > Help and guides (F1): slash commands, opt-out, the critic loop"
       }
     },
     {
@@ -1479,9 +1479,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "help.setup",
         "testid": null,
-        "where": null
+        "where": "Menu > Help > Set up Maude…"
       }
     },
     {
@@ -1492,9 +1492,9 @@
       "home": "menu",
       "drawnAt": "ad-menus",
       "v2": {
-        "action": null,
+        "action": "handoff.open",
         "testid": null,
-        "where": null
+        "where": "Menu > File > Handoff to production ⇧⌘H"
       }
     },
     {

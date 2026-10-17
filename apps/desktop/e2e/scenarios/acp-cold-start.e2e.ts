@@ -1,5 +1,5 @@
 import { $, browser, expect } from '@wdio/globals';
-
+import { openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -35,8 +35,9 @@ describe('acp-cold-start (native-desktop)', () => {
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
 
-    await (await $(tid('assistant-toggle'))).waitForDisplayed({ timeout: 30_000 });
-    await (await $(tid('assistant-toggle'))).click();
+    // V2-4.8a: the menubar's Assistant toggle is the AI chat's own island (its header, or the spark
+    // corner icon when it is folded) — reach "open" from either start.
+    await openAssistant();
 
     const notConnected = await $(tid('acp-not-connected'));
     await notConnected.waitForDisplayed({ timeout: 30_000 });

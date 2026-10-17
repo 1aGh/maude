@@ -7,8 +7,8 @@
 // "#root has children" gate just as quietly. PROBE is an in-page async expression, so both gate
 // engines run the very same steps and get one JSON verdict back:
 //   mounted      #root has children
-//   menubar      the menubar row is there
-//   menuOpens    clicking the File trigger opens its dropdown (role="menu")
+//   menubar      the project pill (the in-app menubar's v2 home, V2-4.8a) is there
+//   menuOpens    clicking the pill opens the one menu (role="menu")
 //   menuCloses   Escape closes it again
 //   paletteOpens ⌘K opens the command palette
 //   paletteCloses Escape closes it
@@ -32,14 +32,14 @@ export const PROBE = `(async () => {
     (document.activeElement || document.body).dispatchEvent(ev);
   };
   const v = { mounted: (document.getElementById('root')?.childElementCount ?? 0) > 0 };
-  v.menubar = !!q('[data-testid="menubar"]');
-  const file = q('[data-testid="menu-file"]');
-  if (file) {
-    file.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    file.click();
-    v.menuOpens = await waitFor(() => !!q('.st-dropdown[role="menu"]'));
+  const pill = q('[data-testid="project-pill"]');
+  v.menubar = !!pill;
+  if (pill) {
+    pill.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+    pill.click();
+    v.menuOpens = await waitFor(() => !!q('[data-testid="project-menu"][role="menu"]'));
     key('Escape');
-    v.menuCloses = v.menuOpens ? await waitFor(() => !q('.st-dropdown[role="menu"]')) : false;
+    v.menuCloses = v.menuOpens ? await waitFor(() => !q('[data-testid="project-menu"]')) : false;
   } else {
     v.menuOpens = false;
     v.menuCloses = false;

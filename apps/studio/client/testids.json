@@ -9,11 +9,9 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts",
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The shell now starts with the project pill (`project-pill`) and the Share cluster (`share-cluster`)."
   },
   {
     "hook": "menu-<key>",
@@ -25,9 +23,9 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
-    "v2": "moves",
-    "notes": "Menubar itself focuses `[data-testid=\"menu-file\"]` when the Share shortcut fires."
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. File · Edit · View · Help are submenu rows of the project pill's menu (`project-menu-row-sub-<name>`); Selection's two rows are in Edit, Tools are the canvas toolbar's slots. Was: Menubar itself focuses `[data-testid=\"menu-file\"]` when the Share shortcut fires."
   },
   {
     "hook": "cloud-back",
@@ -40,8 +38,8 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/cloud-shell-surfaces.test.ts"],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. A cloud tab's \"Back to Home\" row of the project menu (`project-menu-row-nav.home`) opens the dashboard; a hub without one leaves the row out."
   },
   {
     "hook": "cloud-project-name",
@@ -54,8 +52,8 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/cloud-shell-surfaces.test.ts"],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill carries the project name (`project-pill`, `.st-pill-name`)."
   },
   {
     "hook": "view-only-stamp",
@@ -68,27 +66,22 @@
     },
     "region": "menubar",
     "consumers": [],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The Share cluster says it as the access word (`share-cluster-status`, `data-status=\"access\"`: \"Can view\" / \"Can comment\")."
   },
   {
     "hook": "cloud-account",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Signed-in cloud account control. Emitted by TWO different elements: the menubar account chip in the cloud shell (`Menubar`) and the account menu button in the sidebar cloud rail (`CloudBar`). Scenarios reach the CloudBar one.",
+    "meaning": "Signed-in cloud account control: the account menu button in the sidebar cloud rail (`CloudBar`). V2-4.8a: the menubar's account chip is gone; a cloud tab's account is the email on project menu › File › \"Sign in as another account…\".",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "Menubar"
+      "file": "apps/studio/client/panels/CloudBar.jsx",
+      "symbol": "CloudBar"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/panels/CloudBar.jsx",
-        "symbol": "CloudBar"
-      }
-    ],
     "region": "menubar",
     "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves",
-    "notes": "Duplicate testid across two components."
+    "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted."
   },
   {
     "hook": "cloud-signout",
@@ -101,7 +94,8 @@
     },
     "region": "menubar",
     "consumers": [],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. A cloud tab's project menu › File › \"Sign in as another account…\" (`project-menu-row-account.switch`) ends the session; its status word is the account's email."
   },
   {
     "hook": "assistant-toggle",
@@ -113,13 +107,9 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/helpers/assistant.ts",
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts",
-      "apps/studio/client/tour/quick-setup-tour.js"
-    ],
-    "v2": "moves",
-    "notes": "`data-active` = panel open, `data-busy` = a chat turn or its background tools are running; `e2e-helper:assistant` reads both (open without toggling shut, turn settled)."
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The AI chat is its own island: `ai-chat-header` while it shows, the spark corner icon `panel-icon-assistant` while it is folded (⌘/ and the `ai.chat` action bring it back). Was: `data-active` = panel open, `data-busy` = a chat turn or its background tools are running; `e2e-helper:assistant` reads both (open without toggling shut, turn settled)."
   },
   {
     "hook": "share-btn",
@@ -131,8 +121,9 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts", "apps/studio/whats-new.json"],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The Share cluster's primary button (`share-cluster-share`)."
   },
   {
     "hook": "report-bug-toggle",
@@ -145,33 +136,36 @@
     },
     "region": "menubar",
     "consumers": [],
-    "v2": "moves"
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. Menu › Help › Report a bug… (`project-menu-row-help.report-bug`)."
   },
   {
     "hook": "brand",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The maude wordmark at the left of the menubar.",
+    "meaning": "The maude mark in the project pill.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "Menubar"
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "ProjectPill"
     },
     "region": "menubar",
     "consumers": ["apps/studio/whats-new.json"],
-    "v2": "moves"
+    "v2": "stable",
+    "notes": "Re-emitted V2-4.8a on the pill's mark (was the menubar wordmark)."
   },
   {
     "hook": "menus",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The `nav.st-menus` group holding the six menu triggers (`role=\"menubar\"`).",
+    "meaning": "The project pill button that opens the one menu.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "Menubar"
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "ProjectPill"
     },
     "region": "menubar",
     "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
-    "v2": "moves"
+    "v2": "stable",
+    "notes": "Re-emitted V2-4.8a on the pill (was the six-menu group of the menubar)."
   },
   {
     "hook": "help",
@@ -183,26 +177,23 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts",
-      "apps/studio/client/tour/usage-tour.js",
-      "apps/studio/whats-new.json"
-    ],
-    "v2": "moves"
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. Help is a submenu of the project pill's menu (`project-menu-row-sub-help`)."
   },
   {
     "hook": "status",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The right-hand menubar cluster `.st-mb-right` (presence, view-only stamp, cloud account, Assistant, Exports, Share, bug, What's New).",
+    "meaning": "The Share cluster (faces, status word, comments, mode switch, Exports, Hide panels, Share).",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "Menubar"
+      "file": "apps/studio/client/v2/shell/share-cluster.jsx",
+      "symbol": "ShareCluster"
     },
     "region": "menubar",
     "consumers": ["apps/studio/client/tour/collab-tour.js", "apps/studio/whats-new.json"],
-    "v2": "moves",
-    "notes": "Despite its name this anchor is in the menubar, not the status bar."
+    "v2": "stable",
+    "notes": "Re-emitted V2-4.8a on the cluster root (was the menubar's right-hand cluster; despite its name it was never the status bar)."
   },
   {
     "hook": "whatsnew",
@@ -220,23 +211,23 @@
       }
     ],
     "region": "menubar",
-    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
-    "v2": "moves",
-    "notes": "`WhatsNewBadge` also emits this anchor but is exported and never mounted."
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. Menu › Help › What's new (`project-menu-row-help.whats-new`); the Help row carries the unseen count as its status word. Was: `WhatsNewBadge` also emits this anchor but is exported and never mounted."
   },
   {
     "hook": "exports",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The Exports badge in the menubar (`.st-exports`, `data-busy`); opens the export job list.",
+    "meaning": "The Exports icon in the Share cluster (`data-busy`); opens the export job list.",
     "producer": {
-      "file": "apps/studio/client/export-center.jsx",
-      "symbol": "ExportBadge"
+      "file": "apps/studio/client/v2/shell/share-cluster.jsx",
+      "symbol": "ShareCluster"
     },
     "region": "menubar",
     "consumers": ["apps/studio/whats-new.json"],
-    "v2": "moves",
-    "notes": "Mounted by `Menubar` only when the export center exists."
+    "v2": "stable",
+    "notes": "Re-emitted V2-4.8a on the Share cluster's Exports icon (`share-cluster-exports`), present once any export exists (the v1 badge was always there). Was the menubar badge (`ExportBadge`, deleted)."
   },
   {
     "hook": "statusbar",
@@ -5153,9 +5144,8 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
-    "v2": "moves",
-    "notes": "Source-text consumer only: `test/shell-accessibility.test.ts` parses `app.jsx` and finds these by className."
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. There is no menubar landmark; the project menu is a popup `role=menu` (test:shell-accessibility pins that). Was: Source-text consumer only: `test/shell-accessibility.test.ts` parses `app.jsx` and finds these by className."
   },
   {
     "hook": ".st-menubar",
@@ -5168,31 +5158,20 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
-    "v2": "moves",
-    "notes": "Source-text consumer only (see `.st-menus`)."
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. See `menubar`. Was: Source-text consumer only (see `.st-menus`)."
   },
   {
     "hook": ".st-dd-item",
     "kind": "selector",
     "pattern": false,
-    "meaning": "A dropdown menu item in the menubar dropdowns and the tree row menu. `report-bug-dialog` uses `button.st-dd-item*=Report a bug` (Help menu item by text).",
+    "meaning": "A dropdown row in the tree row menu (`.st-dropdown`). The menubar dropdowns that shared it are deleted (V2-4.8a).",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "DropdownMenu"
+      "file": "apps/studio/client/tree-row-menu.jsx",
+      "symbol": "TreeRowMenu"
     },
-    "alsoProducedBy": [
-      {
-        "file": "apps/studio/client/app.jsx",
-        "symbol": "ViewDropdown"
-      },
-      {
-        "file": "apps/studio/client/tree-row-menu.jsx",
-        "symbol": "TreeRowMenu"
-      }
-    ],
     "region": "menubar",
-    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
+    "consumers": [],
     "v2": "moves"
   },
   {
@@ -5205,9 +5184,9 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
-    "v2": "moves",
-    "notes": "CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in `styles/3-shell-maude.css`, not the DOM."
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The project pill's name is `.st-pill-name`. Was: CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in `styles/3-shell-maude.css`, not the DOM."
   },
   {
     "hook": ".st-cloudwho-out",
@@ -5219,9 +5198,9 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
-    "v2": "moves",
-    "notes": "CSS consumer (rule in `styles/4-components.css`)."
+    "consumers": [],
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. See `cloud-signout`. Was: CSS consumer (rule in `styles/4-components.css`)."
   },
   {
     "hook": "menuitem by name (menubar)",
@@ -5244,8 +5223,8 @@
     ],
     "region": "menubar",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
-    "v2": "moves",
-    "notes": "`surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
+    "v2": "retired",
+    "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The same rows are reached in the project pill's menu by role=menuitem and name: \"File\", \"Edit\", \"Advanced\", \"New artboard\" (submenus), \"Close canvas\", \"New artboard: Mobile\" (rows) — `surface.e2e.ts` `Surface.menu(text)`. Was: `surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
   },
   {
     "hook": ".st-sb-sync",

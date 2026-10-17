@@ -17,12 +17,18 @@ import { $, browser } from '@wdio/globals';
 const tid = (s: string) => `[data-testid="${s}"]`;
 
 /** Open the Assistant panel if it is closed — never toggles an open one shut.
- *  `assistant-toggle[data-active]` is the panel's own open state. */
+ *  V2-4.8a: the panel's own open state is its island — `ai-chat-header` is on screen while it shows, and
+ *  the spark corner icon `panel-icon-assistant` stands in its place while it is folded (⌘\ hides every
+ *  panel, which also shows the icon). The menubar's `assistant-toggle` is gone. */
 export async function openAssistant(): Promise<void> {
-  const toggle = await $(tid('assistant-toggle'));
-  await toggle.waitForDisplayed({ timeout: 30_000 });
-  if ((await toggle.getAttribute('data-active')) !== 'true') await toggle.click();
-  await browser.waitUntil(async () => (await toggle.getAttribute('data-active')) === 'true', {
+  const header = await $(tid('ai-chat-header'));
+  const shown = async () => header.isDisplayed().catch(() => false);
+  if (!(await shown())) {
+    const icon = await $(tid('panel-icon-assistant'));
+    await icon.waitForDisplayed({ timeout: 30_000 });
+    await icon.click();
+  }
+  await browser.waitUntil(shown, {
     timeout: 10_000,
     timeoutMsg: 'the Assistant panel never opened',
   });
@@ -103,14 +109,14 @@ export async function setPermissionMode(id: string): Promise<string> {
 }
 
 /** One sample of the panel's turn state, from hooks the product already has:
- *  the menubar busy pulse, the composer's Stop button (rendered only while the
+ *  the header's running-chats count (and the folded icon's dot), the composer's Stop button (rendered only while the
  *  thread is running) and the per-message action rows (one per message, user
  *  AND assistant). */
 async function turnState() {
   return browser.execute(() => ({
     busy:
-      document.querySelector('[data-testid="assistant-toggle"]')?.getAttribute('data-busy') ===
-      'true',
+      !!document.querySelector('[data-testid="ai-chat-count"]') ||
+      !!document.querySelector('[data-testid="panel-icon-assistant"] .st-corner-dot'),
     stop: !!document.querySelector('[data-testid="chat-composer"] [aria-label="Stop"]'),
     messages: document.querySelectorAll('[data-testid="chat-msg-actions"]').length,
   }));

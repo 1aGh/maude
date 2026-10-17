@@ -22,11 +22,13 @@ describe('report-bug-dialog', () => {
   });
 
   it('1 · Help menu opens the dialog on its describe step', async () => {
-    const helpBtn = await $('[data-tour="help"]');
-    await helpBtn.waitForDisplayed({ timeout: 30_000 });
-    await helpBtn.click();
+    // V2-4.8a: the in-app menubar is gone — Help is a submenu of the project pill's menu.
+    const pill = await $(tid('project-pill'));
+    await pill.waitForDisplayed({ timeout: 30_000 });
+    await pill.click();
+    await (await $(tid('project-menu-row-sub-help'))).click();
 
-    const item = await $('button.st-dd-item*=Report a bug');
+    const item = await $(tid('project-menu-row-help.report-bug'));
     await item.waitForDisplayed({ timeout: 5_000 });
     await item.click();
 
@@ -58,7 +60,7 @@ describe('report-bug-dialog', () => {
 
   it('3 · closing the dialog leaves no residue', async () => {
     await browser.keys(['Escape']);
-    // Esc closes menubar dropdowns; the dialog closes via its × button.
+    // The menu closed when the row ran; the dialog closes via its × button.
     const dialog = await $(tid('report-bug-dialog'));
     if (await dialog.isDisplayed().catch(() => false)) {
       await (await $('[data-testid="report-bug-dialog"] .st-dialog-hd .st-iconbtn')).click();

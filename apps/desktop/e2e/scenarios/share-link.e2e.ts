@@ -38,10 +38,10 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     });
   });
 
-  it('copies an app link from the topbar and shares a different row without opening it', async () => {
+  it('copies an app link from the Share cluster and shares a different row without opening it', async () => {
     await (await canvasRow('canvas-row-ui-smoke')).click();
     await active('.design/ui/Smoke.tsx');
-    await (await $(tid('share-btn'))).click();
+    await (await $(tid('share-cluster-share'))).click();
     await (await $(tid('share-dialog'))).waitForDisplayed();
     expect(await (await $(tid('share-app-url'))).getValue()).toBe(
       'maude://open/project?open=ui/Smoke.tsx'

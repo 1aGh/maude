@@ -329,6 +329,9 @@ export function ProjectPill({
         aria-expanded={open}
         title="Project menu"
         data-testid="project-pill"
+        // The tours' anchors for "the menus" (usage tour) and "the brand" (the 0.2x What's New tour) —
+        // both were on the in-app menubar (V2-4.8a).
+        data-tour="menus"
         onPointerDown={noteOpener}
         onKeyDown={(e) => {
           // ↵ / Space / ↓ open it; handled here (and the synthesized click cancelled) so a key press
@@ -350,7 +353,7 @@ export function ProjectPill({
           else openMenu();
         }}
       >
-        <span className="st-pill-mark">
+        <span className="st-pill-mark" data-tour="brand">
           <Mark />
         </span>
         <span className="st-pill-name">{project || 'maude'}</span>

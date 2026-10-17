@@ -18,7 +18,7 @@ import { canvasRow } from '../helpers/tree';
  *                                         # MAUDE_E2E_CLOUD_URL for a real one
  *
  * WHAT IS ASSERTED IS DELIBERATELY THE SHARED SURFACE. Everything the design is
- * MADE of: the file tree, search, the menubar, the status bar, opening a canvas
+ * MADE of: the file tree, search, the project pill, the status bar, opening a canvas
  * and getting that canvas, the Inspector and Layers panels (C1 — read-only
  * means cannot change, not cannot see). What legitimately differs lives in
  * `helpers/target.ts` behind a name, not as a branch in here.
@@ -37,7 +37,7 @@ describe(`shell parity (${target()})`, () => {
     expect(await isNativeShell()).toBe(target() === 'native');
 
     // ---- the shared chrome ------------------------------------------------
-    for (const testId of ['canvas-list', 'menubar', 'statusbar', 'canvas-search']) {
+    for (const testId of ['canvas-list', 'project-pill', 'statusbar', 'canvas-search']) {
       const el = await $(`[data-testid="${testId}"]`);
       await el.waitForExist({ timeout: 60_000 });
       expect(await el.isExisting()).toBe(true);

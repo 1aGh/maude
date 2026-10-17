@@ -203,6 +203,7 @@ export function usePaletteAndPanels({
     // are one function.
     const searchCtx = menuCtx({
       native: isNativeApp(),
+      cloudTab: !!cfg.cloud, // V2-4.8a: "Back to Home" and "Sign out" are a cloud tab's rows
       readOnly: viewerMode,
       canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
     });

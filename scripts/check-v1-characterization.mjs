@@ -69,6 +69,11 @@
 // "Advanced" (`aria-expanded="false"`). Nothing else in the 20 states moved. Refreshed with `--update`, then a second
 // run green (`--repeat`).
 //
+// Approved delta (V2-4.8a, decision:maude/v2-4.8a-menubar-removed): the in-app menubar (`header.st-menubar`: brand,
+// six menus, presence, Assistant / Share / bug / What's new buttons, stamp, path, artboard count, project name) is
+// deleted. Every shell state loses that row (the shell body starts at the top of the window) and the `menu-*`
+// states open the project pill's menu instead (see `MENU_SECTION`). Goldens are refreshed by the lead.
+//
 // Usage (from the repo root):
 //   node scripts/check-v1-characterization.mjs [--update] [--only <state-prefix>]
 //                                              [--build] [--shots <dir>] [--repeat]
@@ -607,6 +612,28 @@ const afterKeys =
     return sel;
   };
 
+// V2-4.8a — the in-app menubar is gone; the six `menu-*` states now open the SAME sections in the project
+// pill's one menu (its snapshot root is the pill, `.st-pill`, which holds the open menu). Selection and
+// Tools are not menus any more: Selection's two rows ("Deselect all", "Select all annotations") are rows of
+// Edit, and Tools are the canvas toolbar's slots — so `menu-selection` shows Edit (the section that holds
+// them) and `menu-tools` shows the menu's top level with no section open (the old Tools position has no
+// menu to open; the tools are on the toolbar over a canvas, see `browser/canvas-open`).
+const MENU_SECTION = {
+  file: 'File',
+  edit: 'Edit',
+  view: 'View',
+  selection: 'Edit',
+  tools: null,
+  help: 'Help',
+};
+async function openProjectMenu(page, section) {
+  await page.locator('[data-testid="project-pill"]').click();
+  await page.locator('[data-testid="project-menu"]').waitFor();
+  if (section)
+    await page.locator(`[data-testid="project-menu-row-sub-${section.toLowerCase()}"]`).click();
+  await settle(page);
+}
+
 // Each state: [name, shell, async (page) => selector-to-snapshot]
 const STATES = [
   ['browser/shell-empty', 'browser', async () => '#root'],
@@ -614,9 +641,8 @@ const STATES = [
     `browser/menu-${m}`,
     'browser',
     async (page) => {
-      await page.locator(`[data-testid="menu-${m}"]`).click();
-      await settle(page);
-      return '.st-menubar';
+      await openProjectMenu(page, MENU_SECTION[m]);
+      return '.st-pill';
     },
   ]),
   [
@@ -726,9 +752,8 @@ const STATES = [
     'tauri/menu-file',
     'tauri',
     async (page) => {
-      await page.locator('[data-testid="menu-file"]').click();
-      await settle(page);
-      return '.st-menubar';
+      await openProjectMenu(page, MENU_SECTION.file);
+      return '.st-pill';
     },
   ],
   ['viewer/shell-empty', 'viewer', async () => '#root'],

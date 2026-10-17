@@ -2,7 +2,7 @@
 //
 // Targets stable [data-tour] anchors (redesign-proof — styling classes get
 // renamed, these don't) on elements that exist at first load: the sidebar, the
-// viewport, the menus, the Inspector, the What's New badge, and Help. The
+// viewport, the project menu and the Inspector. The
 // Inspector step carries `inspector: true` so the engine opens the panel before
 // spotlighting it. Steps whose target is missing are shown centered by the
 // overlay, so this stays resilient to chrome changes. Reached from Help →
@@ -22,8 +22,8 @@ export const USAGE_TOUR = [
   },
   {
     target: "[data-tour='menus']",
-    title: 'Menus & tools',
-    body: 'View toggles panels (tree, comments, Inspector); Selection and Tools act on the active canvas. Press ? for every shortcut.',
+    title: 'The project menu',
+    body: 'Everything that used to live in the menu bar is in this one menu: File, Edit, View, Help, version history and Settings. Tools sit on the toolbar over the canvas. Press ⌘K to find any of it by name.',
     placement: 'bottom',
   },
   {
@@ -34,15 +34,8 @@ export const USAGE_TOUR = [
     placement: 'left',
   },
   {
-    target: "[data-tour='whatsnew']",
-    title: 'What’s new',
-    body: 'New features land here. Click the ✦ badge any time to catch up on what shipped — some entries come with a guided tour like this one.',
-    placement: 'bottom',
-  },
-  {
-    target: "[data-tour='help']",
-    title: 'Help is one key away',
-    body: 'Press ? for the full keyboard cheat-sheet — and you can restart this tour from the Help menu whenever you like.',
-    placement: 'bottom',
+    // Centered: What's new and Help are rows of the project menu (Menu › Help), not a button of their own.
+    title: 'What’s new, and Help',
+    body: 'New features land under Menu › Help › What’s new — some entries come with a guided tour like this one. Press ? for the full keyboard cheat-sheet, and restart this tour from the Help menu whenever you like.',
   },
 ];

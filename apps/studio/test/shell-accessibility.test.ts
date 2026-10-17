@@ -41,12 +41,19 @@ function byClass(name: string): Node[] {
   return nodes;
 }
 
-// The actual-cloud axe scan found menuitems below a navigation landmark,
-// while the outer menubar owned unrelated project/account controls instead.
-test('only the menu trigger group has the menubar role', () => {
+// V2-4.8a: the in-app menubar is gone — the one menu is a popup `role=menu` opened from the project pill,
+// so no element of the shell is a `menubar` (a menubar needs the horizontal arrow-key model it never had).
+test('the shell has no menubar landmark; the project menu is a popup menu', () => {
   for (const { path, parsed } of parsedFiles) expect(parsed.errors, path).toHaveLength(0);
-  for (const node of byClass('st-menus')) expect(attribute(node, 'role')?.value).toBe('menubar');
-  for (const node of byClass('st-menubar')) expect(attribute(node, 'role')).toBeUndefined();
+  const roles = openings
+    .map(({ node }) => attribute(node, 'role')?.value)
+    .filter((v) => v === 'menubar');
+  expect(roles).toHaveLength(0);
+  const pill = openings.filter(
+    ({ node }) => attribute(node, 'data-testid')?.value === 'project-pill'
+  );
+  expect(pill.length).toBeGreaterThan(0);
+  for (const { node } of pill) expect(attribute(node, 'aria-haspopup')?.value).toBe('menu');
 });
 
 test('studio declares the language of its English interface', () => {
