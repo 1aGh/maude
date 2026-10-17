@@ -11,7 +11,7 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'sliders',
     exec: 'shell',
-    // v1: shell only (never forwarded); a viewer's ⌘, is swallowed and does nothing.
+    // v1: shell only (never forwarded). V2-4.9: a read-only session opens Settings too — General only.
     keys: [kb('⌘,', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
     legacy: { palette: 'Settings…', menu: 'Settings…' },
   },
@@ -33,8 +33,13 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     icon: 'sparkle',
     exec: 'shell',
-    // The chat runs Claude Code on this Mac — the desktop app only (V2-4 gate probe).
-    visible: { shell: ['desktop'] },
+    // The chat runs Claude Code on this Mac — the desktop app only (V2-4 gate probe). A cloud tab SAYS so
+    // (V2-4.9, the shell parity contract): the row is there, greyed, and ⌘K names where it lives —
+    // absence with a notice, never a silent hole. A browser tab on the desktop server and a read-only
+    // link have no cloud story to tell, so for them the row is absent.
+    visible: { shell: ['desktop', 'cloud'] },
+    enabled: { shell: ['desktop'] },
+    search: { note: 'in the desktop app' },
     // CONTRACT §2: ⌘/ is Ask AI (the AI chat panel, selection attached). v1's ⇧⌘A Assistant moved
     // here with V2-4.5b (rule 13; v2's ⇧⌘A is Select all annotations). Desktop only, as v1.
     keys: [kb('⌘/', 'global', { inText: true, when: { focus: SHELL_FOCI, facts: ['native'] } })],

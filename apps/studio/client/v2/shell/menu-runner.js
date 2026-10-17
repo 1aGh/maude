@@ -137,6 +137,15 @@ export function createMenuHandlers(d) {
     'help.intro': () => d.onIntro(),
     'help.sharing': () => d.onCollabTour(),
     'help.report-bug': () => d.setReportBugOpen(true),
+    // ── the AI chat (V2-4.9) ── a cloud tab lists it greyed (registry `enabled`), and a click says where it
+    // lives instead of doing nothing — the same line "New project…" gives a browser tab.
+    'ai.chat': () => {
+      if (!d.native) {
+        d.toast('AI chat is in the Maude desktop app.');
+        return;
+      }
+      d.toggleRightPanel('assistant');
+    },
     // ── top level ──
     'history.open': () => d.toggleRightPanel('changes'),
     'share.open': () => d.onShare(),

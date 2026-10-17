@@ -5,6 +5,7 @@ import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
 import { menuRunner } from '../v2/shell/menu-runner.js';
+import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
@@ -220,7 +221,11 @@ export function usePaletteAndPanels({
         isRunnable: (id) => menuRunner.canRun(id) || typeof run[id] === 'function',
         run: runAction,
       }),
-      ...settingsSearchRows({ cloud: cfg.cloud, run: (section) => setSettingsOpen(section) }),
+      ...settingsSearchRows({
+        cloud: cfg.cloud,
+        readOnly: viewerMode,
+        run: (section) => setSettingsOpen(section),
+      }),
     ].map((r) => ({ ...r, onlyWhenSearched: true }));
     // V2-4.4a — ⌘K "Trash" and "Refresh tree" (CONTRACT §1 C10, §2 ⇧⌘R). Neither is a menu row; both are
     // the left panel's. Same runner as the panel's own controls.
@@ -305,21 +310,10 @@ export function usePaletteAndPanels({
   // feature-configurable-panel-docking — resolve, for each slot, the panels
   // assigned to it and which one is active (the open one). Layers is only a
   // dockable panel in `separate` mode; Assistant is native-only.
-  const panelAvailable = (id) => {
-    // The AGENT is genuinely absent for a viewer (it edits; Phase 25 C2).
-    //
-    // Inspector and Layers are NOT — Cloud Phase 27 C1 reversed that, and this
-    // line had been left behind: `viewerHiddenPanels` stopped hiding them in
-    // the View menu while this still refused to give them a dock slot, so the
-    // menu offered a panel that could never appear. Read-only means cannot
-    // CHANGE, not cannot SEE: a reviewer needs structure and measured values,
-    // which is the whole reason C1 exists.
-    if (viewerMode && id === 'assistant') return false;
-    // feature-sync-progress-modal — the Sync panel only exists for a linked
-    // project (solo has no hub, so the tab would open onto nothing).
-    if (id === 'sync') return !!syncStatus;
-    return id === 'assistant' ? isNativeApp() : id === 'layers' ? layersMode === 'separate' : true;
-  };
+  // The rule — what a read-only session lacks, and why Inspector and Layers are NOT among it (Cloud
+  // Phase 27 C1) — is panel-availability.js; the shell parity table (V2-4.9) reads the same one.
+  const panelAvailable = (id) =>
+    panelAvailableIn(id, { viewerMode, native: isNativeApp(), layersMode, hasSync: !!syncStatus });
   const idsForSide = (side) =>
     DOCK_PANELS.filter(
       (p) => panelAvailable(p.id) && (panelSide[p.id] || PANEL_SIDES_DEFAULTS[p.id]) === side

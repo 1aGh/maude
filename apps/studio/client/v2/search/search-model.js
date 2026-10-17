@@ -19,7 +19,7 @@ import { holds, isVisible } from '../../../actions/resolve.ts';
 import { MODE_TOOLS } from '../../../bridge/canvas-modes.ts';
 import { fold, scoreRow, withinOneEdit } from '../../../index/match.ts';
 import { keyHint } from '../shell/project-menu-model.js';
-import { SETTINGS_ROWS } from '../settings/settings-model.js';
+import { rowShown, SETTINGS_ROWS } from '../settings/settings-model.js';
 import { ACTION_KEYWORDS, SETTINGS_SEARCH } from './search-keywords.js';
 
 /** Group order on screen. Ask AI is not a group: it is the last row (CONTRACT §4, S5). */
@@ -147,7 +147,9 @@ export function actionSearchRows(
       group: isTool ? 'tools' : 'actions',
       id: `${isTool ? 'tool' : 'action'}:${def.id}`,
       actionId: def.id,
-      name: def.label,
+      // A greyed row says where the thing lives (V2-4.9: "AI chat — in the desktop app").
+      name:
+        def.search?.note && disabledIn(def, ctx) ? `${def.label} — ${def.search.note}` : def.label,
       keys: keyHint(def, ctx),
       where,
       advanced,
@@ -181,14 +183,19 @@ function settingsWhere(parts, name) {
 }
 
 /**
- * The Settings sheet's rows as results. A local-machine row (`local`) is absent from a cloud tab, as it
- * is in the sheet (`cloud !== null`); `open` is the section the sheet opens on.
+ * The Settings sheet's rows as results. A local-machine row (`local`) is absent from a cloud tab and from a
+ * read-only session, as it is in the sheet (`rowShown`); `open` is the section the sheet opens on.
  */
-export function settingsSearchRows({ cloud = null, rows = SETTINGS_ROWS, run = () => {} } = {}) {
+export function settingsSearchRows({
+  cloud = null,
+  readOnly = false,
+  rows = SETTINGS_ROWS,
+  run = () => {},
+} = {}) {
   const out = [];
   const seen = new Set();
   for (const r of rows) {
-    if (r.local && cloud !== null) continue;
+    if (!rowShown(r, { cloud, readOnly })) continue;
     const extra = SETTINGS_SEARCH[r.testid] ?? {};
     const derived = settingsPathOf(r.where);
     const name = extra.label ?? derived.name;

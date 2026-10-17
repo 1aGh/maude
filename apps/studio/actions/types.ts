@@ -135,7 +135,8 @@ export interface ActionDef {
   /** Old ids that still resolve here (append-only). */
   aliases?: ActionId[];
   /** ⌘K matching. */
-  search?: { keywords?: string[]; hidden?: boolean };
+  /** `note`: said after the label when ⌘K shows the row greyed ("AI chat — in the desktop app"). */
+  search?: { keywords?: string[]; hidden?: boolean; note?: string };
   /** v1 display strings — deleted in V2-8.0. */
   legacy?: { palette?: string; menu?: string; sheet?: string };
   // V2-1.11 / V2-2.4b: the AI fields (`ActionDefAI` below) live in actions/agents.ts, keyed by id.

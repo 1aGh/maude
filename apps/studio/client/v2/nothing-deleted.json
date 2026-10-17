@@ -454,7 +454,9 @@
       "v2": {
         "action": null,
         "testid": "settings-open-dashboard",
-        "where": "Settings › General › Account › Open the cloud dashboard"
+        "where": "Settings › General › Account › Open the cloud dashboard",
+        "reach": ["desktop", "browser", "cloud-owner", "cloud-member", "cloud-viewer"],
+        "reachNote": "V2-4.9: the local read-only link (viewer) has no account row — it is the Mac owner’s account, and that link is somebody else’s Mac. A cloud viewer keeps it (its hub told the tab where the dashboard is)."
       }
     },
     {
