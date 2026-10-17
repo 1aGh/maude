@@ -23,6 +23,8 @@ import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast, totalCounts } from '../shell/util.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
+import { installFocusRescue } from '../v2/shell/modal-focus.js';
+import { singleKeysStore, useSingleKeysLane } from '../v2/shell/use-single-keys.js';
 
 /** The shell resolves over the actions it has a handler for (the canvas runs its own). */
 const SHELL_KEY_INDEX = documentIndex(ACTIONS, 'shell', (id) => id in SHELL_KEY_HANDLERS);
@@ -41,6 +43,8 @@ function shellState(d) {
     clipSelected: tl.selected != null,
     artboardSelected: !!(one?.artboardId && !one.id),
     commentFocused: !!d.focusedCommentId,
+    // V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts.
+    singleKeys: singleKeysStore.get(),
   };
 }
 
@@ -69,10 +73,17 @@ export function useActionKeys(deps) {
       SHELL_KEY_HANDLERS[r.action.id](d, { event: e, ctx });
     }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // V2-4 gate (a11y W3): a key that hides what had focus (⌘\, Present) never leaves focus on BODY.
+    const uninstallRescue = installFocusRescue(document);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      uninstallRescue();
+    };
   }, []);
 
   const { commentsByFile, iframesRef } = deps;
+  // The canvas resolves its own keys: it hears the switch over the bridge (`key-prefs`).
+  useSingleKeysLane(iframesRef);
   const registerIframe = useCallback(
     (path, el) => {
       if (el) iframesRef.current.set(path, el);

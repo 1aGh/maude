@@ -10,7 +10,8 @@
 //
 // Mono and raw words are allowed here: this is the Advanced side of the app.
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { rovingTabKey, useModalFocus } from '../shell/modal-focus.js';
 import SyncPanel from '../../panels/SyncPanel.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import ReadinessList from '../../panels/ReadinessList.jsx';
@@ -345,18 +346,9 @@ export default function DiagnosticsSheet({
   ai,
   sync,
 }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    ref.current?.focus({ preventScroll: true });
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+  // V2-4 gate (a11y W3): a floating, NON-modal sheet — esc closes it, focus goes back to the opener (it
+  // used to drop to BODY); Tab is not trapped (the shell stays usable beside it).
+  const ref = useModalFocus({ onClose, modal: false });
   return (
     <section
       ref={ref}
@@ -370,7 +362,20 @@ export default function DiagnosticsSheet({
     >
       <header className="dg-top">
         <strong className="dg-title">Diagnostics</strong>
-        <div className="dg-tabs" role="tablist" aria-label="Diagnostics">
+        <div
+          className="dg-tabs"
+          role="tablist"
+          aria-label="Diagnostics"
+          tabIndex={-1}
+          onKeyDown={(e) =>
+            rovingTabKey(
+              e,
+              TABS.map(([id]) => id),
+              view,
+              onView
+            )
+          }
+        >
           {TABS.map(([id, label]) => (
             <button
               type="button"
@@ -378,6 +383,7 @@ export default function DiagnosticsSheet({
               role="tab"
               className="dg-tab"
               aria-selected={view === id}
+              tabIndex={view === id ? 0 : -1}
               data-testid={`diag-tab-${id}`}
               onClick={() => onView(id)}
             >

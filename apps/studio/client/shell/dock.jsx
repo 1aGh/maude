@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { rovingTabKey } from '../v2/shell/modal-focus.js';
 import { StIcon } from './icons.jsx';
 
 // feature-configurable-panel-docking — the dockable shell panels. Each can live
@@ -56,7 +57,14 @@ export function PanelTabs({ side, ids, activeId, onPick, onFold, labels = null }
   const label = (id) => labels?.[id] || (DOCK_PANELS.find((p) => p.id === id) || {}).label || id;
   return (
     <div className="lp-head" data-testid={`panel-head-${side}`}>
-      <div className="lp-tabs" role="tablist" aria-label={side + ' panels'}>
+      {/* V2-4 gate (a11y W4): WAI-ARIA tabs — one tab stop, ←/→ Home / End move and pick. */}
+      <div
+        className="lp-tabs"
+        role="tablist"
+        aria-label={side + ' panels'}
+        tabIndex={-1}
+        onKeyDown={(e) => rovingTabKey(e, ids, ids.includes(activeId) ? activeId : ids[0], onPick)}
+      >
         {ids.map((id) => (
           <button
             key={id}
@@ -64,6 +72,7 @@ export function PanelTabs({ side, ids, activeId, onPick, onFold, labels = null }
             role="tab"
             data-testid={`panel-tab-${id}`}
             aria-selected={activeId === id}
+            tabIndex={activeId === id || (!ids.includes(activeId) && id === ids[0]) ? 0 : -1}
             className={'lp-tab' + (activeId === id ? ' is-active' : '')}
             onClick={() => onPick(id)}
           >
