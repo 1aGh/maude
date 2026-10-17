@@ -22,6 +22,15 @@ export const V2_CODE_IDS = new Set([
   'keydown:studio/client/hooks/use-action-keys.jsx#useActionKeys/listener', // V2-2.4 registry keys
 ]);
 
+/** Entries that are infrastructure, not features (lead decision, V2-4.gate-b): id → reason. Excluded
+ *  by name, never by pattern — a new entry of the same shape stays an open gap until someone signs it. */
+const NO_BROWSER_MENU =
+  "infrastructure: suppresses the browser's own context menu; not a feature";
+export const INFRA_IDS = Object.freeze({
+  'contextmenu:studio/client/app.jsx#App/div': NO_BROWSER_MENU,
+  'contextmenu:studio/client/app.jsx#ShellTree/div': NO_BROWSER_MENU, // the same handler, renamed
+});
+
 /** Menu / palette / native-menu files whose rows are matched to registry actions by label. */
 export const LABEL_FILES = [
   /client\/menus\/menubar\.jsx$/,

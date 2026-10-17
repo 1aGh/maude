@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { OPENERS, PALETTE, resolveOpener, tid, WS_PUSH } from './openers.mjs';
 import {
   ACTION_SURFACE,
   actionProbes,
@@ -43,6 +44,7 @@ import {
   PROBES,
   rowProbes,
   summarize,
+  toolRoles,
 } from './reach-rules.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -54,93 +56,16 @@ const opt = (n) => {
   return i >= 0 ? args[i + 1] : null;
 };
 const ONLY = opt('--only')?.split(',') ?? null;
+const ONLY_OPENERS = opt('--openers')?.split(',') ?? null;
+// a partial run (some probes or some openers) only prints; --write lets it replace reachability.json
+const PARTIAL = Boolean(ONLY || ONLY_OPENERS);
 const BUILD = args.includes('--build');
 const die = (m) => {
   console.error(`probe-reach: ${m}`);
   process.exit(2);
 };
 
-// ── openers: a short path from boot, as data ───────────────────────────────────────────────
-const tid = (t) => `[data-testid="${t}"]`;
-/** step kinds: click (main frame) · frameClick (canvas iframe) · key · expandMenu · expand (every
- *  aria-expanded=false inside a root, bounded) · palette (⌘K + type each needed action label) */
-export const OPENERS = [
-  { id: 'shell', canvas: false, steps: [] },
-  { id: 'canvas', steps: [] },
-  { id: 'menu', steps: [{ click: tid('project-pill') }, { expandMenu: true }] },
-  ...['general', 'connections', 'advanced'].map((s) => ({
-    id: `settings-${s}`,
-    steps: [
-      { key: 'Meta+Comma' },
-      { click: tid(`settings-tab-${s}`) },
-      { expand: tid('settings-sheet') },
-    ],
-  })),
-  // a linked project (the characterization's sync-offline answer): the Sync view and This project's
-  // sync settings only exist then
-  {
-    id: 'diag-sync-linked',
-    routes: { '/_sync-status': 'linked' },
-    steps: [
-      { click: tid('project-pill') },
-      { click: tid('project-menu-row-sub-diagnostics') },
-      { click: tid('project-menu-row-diag.sync') },
-      { expand: tid('diagnostics-sheet') },
-    ],
-  },
-  {
-    id: 'settings-advanced-linked',
-    routes: { '/_sync-status': 'linked' },
-    steps: [
-      { key: 'Meta+Comma' },
-      { click: tid('settings-tab-advanced') },
-      { expand: tid('settings-sheet') },
-    ],
-  },
-  ...['server', 'logs', 'ai', 'sync'].map((v) => ({
-    id: `diag-${v}`,
-    steps: [
-      { click: tid('project-pill') },
-      { click: tid('project-menu-row-sub-diagnostics') },
-      { click: tid(`project-menu-row-diag.${v}`) },
-      { expand: tid('diagnostics-sheet') },
-    ],
-  })),
-  {
-    id: 'left-canvases',
-    steps: [
-      // Canvases is the default tab (clicking the active tab folds the panel)
-      { click: tid('canvases-advanced') },
-      { expand: tid('dock-slot-left') },
-    ],
-  },
-  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }] },
-  { id: 'left-assets', steps: [{ click: tid('panel-tab-assets') }] },
-  { id: 'inspector', steps: [{ frameClick: '[data-cd-id="home-hero-title"]' }] },
-  { id: 'preview', steps: [{ click: tid('palette-mode-preview') }] },
-  { id: 'palette', steps: [{ palette: true }] },
-  { id: 'shortcuts', steps: [{ key: 'Shift+Slash' }] },
-  { id: 'export', steps: [{ key: 'Shift+Meta+E' }] },
-  { id: 'share', steps: [{ click: tid('share-cluster-share') }] },
-  { id: 'comments', steps: [{ click: tid('share-cluster-comments') }] },
-  { id: 'ai-chat', steps: [{ key: 'Shift+Meta+A' }] },
-  { id: 'history', steps: [{ key: 'Shift+Meta+G' }] },
-  { id: 'inspector-panel', steps: [{ key: 'Shift+Meta+I' }] },
-];
-const PALETTE = { key: 'Meta+k', input: '[aria-label="Command search"]', row: '.st-pal-label' };
-/** Canned server answers an opener may ask for (`routes: { <path>: <name> }`). */
-const ROUTE_ANSWERS = {
-  linked: {
-    linked: true,
-    state: 'offline-long',
-    queuedOps: 3,
-    hub: 'https://hub.example.com',
-    docs: { total: 4, synced: 3, rejected: 1 },
-    conflicts: [
-      { kind: 'cold-start-diverged', path: '.design/ui/Home.tsx', at: '2026-01-01T00:00:00Z' },
-    ],
-  },
-};
+// ── openers + states: scripts/v2-manifest/openers.mjs (data) ───────────────────────────────
 
 // ── inputs ─────────────────────────────────────────────────────────────────────────────────
 const nd = JSON.parse(readFileSync(join(STUDIO, 'client/v2/nothing-deleted.json'), 'utf8'));
@@ -149,6 +74,9 @@ const hooksByName = new Map(hooks.map((h) => [h.hook, h]));
 const { ACTIONS_BY_ID } = await import(join(STUDIO, 'actions/index.ts'));
 const { isVisible } = await import(join(STUDIO, 'actions/resolve.ts'));
 const { SETTINGS_ROWS } = await import(join(STUDIO, 'client/v2/settings/settings-model.js'));
+const { MODE_TOOLS } = await import(join(STUDIO, 'bridge/canvas-modes.ts'));
+const { slotActionId } = await import(join(STUDIO, 'actions/defs/tool.ts'));
+const TOOL_ROLES = toolRoles(MODE_TOOLS, slotActionId);
 const settingsLocal = new Set(SETTINGS_ROWS.filter((r) => r.nd && r.local).map((r) => r.nd));
 
 // Where v1 showed each hook: the committed characterization goldens, one file per <shell>__<state>.
@@ -176,7 +104,7 @@ const live = nd.rows.filter((r) => !r.orphaned);
 const subjects = {
   rows: live.map((r) => ({
     id: r.id,
-    need: rowProbes(r, { settingsLocal, actions: ACTIONS_BY_ID, isVisible }),
+    need: rowProbes(r, { settingsLocal, actions: ACTIONS_BY_ID, isVisible, toolRoles: TOOL_ROLES }),
     hook: r.v2?.testid ?? null,
     action: r.v2?.action ?? null,
   })),
@@ -186,11 +114,11 @@ for (const t of [...new Set(Object.values(nd.map ?? {}))].filter((x) => x.includ
   if (t.startsWith('action:')) {
     const a = ACTIONS_BY_ID.get(t.slice(7));
     if (a)
-      subjects.targets.push({ id: t, need: actionProbes(a, isVisible), action: a.id, hook: null });
+      subjects.targets.push({ id: t, need: actionProbes(a, isVisible, TOOL_ROLES), action: a.id, hook: null });
   } else
     subjects.targets.push({
       id: t,
-      need: hookProbes(t.slice(7), v1Seen),
+      need: hookProbes(t.slice(7), v1Seen, TOOL_ROLES),
       hook: t.slice(7),
       action: null,
     });
@@ -366,7 +294,12 @@ function collectInFrame(css) {
 }
 
 const TAURI_STUB = `window.__TAURI__ = {
-  core: { invoke: (cmd) => Promise.reject(new Error('reachability probe: ' + cmd)) },
+  core: {
+    invoke: (cmd) =>
+      cmd in (window.__PROBE_INVOKE__ || {})
+        ? Promise.resolve(window.__PROBE_INVOKE__[cmd])
+        : Promise.reject(new Error('reachability probe: ' + cmd)),
+  },
   event: { listen: () => Promise.resolve(() => {}) },
   window: {}, path: {}, app: {},
 };`;
@@ -381,18 +314,31 @@ async function runOpener(browser, srv, probe, opener) {
   const ev = { ok: true, testids: new Set(), tours: new Set(), css: new Set(), palette: {} };
   try {
     const page = await ctx.newPage();
+    if (process.env.PROBE_DEBUG)
+      page.on('pageerror', (e) => console.log(`  [pageerror ${opener.id}] ${String(e).slice(0, 300)}`));
     await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
-    if (probe.config)
+    const world = resolveOpener(opener);
+    const config = { ...probe.config, ...world.config };
+    if (Object.keys(config).length)
       await page.route(`${srv.origin}/_config`, async (route) => {
         const res = await route.fetch();
         const body = await res.json();
-        await route.fulfill({ response: res, json: { ...body, ...probe.config } });
+        await route.fulfill({ response: res, json: { ...body, ...config } });
       });
-    for (const [path, name] of Object.entries(opener.routes ?? {}))
-      await page.route(`${srv.origin}${path}`, (route) =>
-        route.fulfill({ json: ROUTE_ANSWERS[name] })
-      );
-    if (probe.tauri) await page.addInitScript(TAURI_STUB);
+    for (const [path, json] of Object.entries(world.routes))
+      await page.route(`${srv.origin}${path}`, (route) => route.fulfill({ json }));
+    // the studio's own WebSocket, passed through; a `push` step injects a frame the server would send
+    const sockets = [];
+    await page.routeWebSocket(/\/_ws(\?|$)/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((m) => server.send(m));
+      server.onMessage((m) => ws.send(m));
+      sockets.push(ws);
+    });
+    if (probe.tauri) {
+      await page.addInitScript(`window.__PROBE_INVOKE__ = ${JSON.stringify(world.invoke)};`);
+      await page.addInitScript(TAURI_STUB);
+    }
     const q = probe.query ? `${probe.query}&open=${encodeURIComponent('.design/ui/Home.tsx')}` : '';
     await page.goto(`${srv.url}${q}`, { waitUntil: 'load', timeout: 60_000 });
     await page.waitForFunction(
@@ -430,7 +376,12 @@ async function runOpener(browser, srv, probe, opener) {
       }
       const row = page.locator(tid('canvas-row-ui-home')).first();
       await row.waitFor({ timeout: 15_000 });
-      await row.click();
+      try {
+        await row.click({ timeout: 5000 });
+      } catch {
+        // a banner / dialog from the state under test covers the tree: a DOM click reaches the same onClick
+        await row.evaluate((n) => n.click(), null, { timeout: 2000 });
+      }
       await sleep(2500);
     }
     await collect();
@@ -448,7 +399,9 @@ async function runOpener(browser, srv, probe, opener) {
         await page.locator('body').press(step.key);
       } else if (step.frameClick) {
         const fr = page.frameLocator(tid('canvas-frame'));
-        await fr.locator(step.frameClick).first().click({ timeout: 10_000 });
+        const target = fr.locator(step.frameClick).first();
+        if (step.optional && !(await target.isVisible().catch(() => false))) continue;
+        await target.click({ timeout: 10_000, modifiers: step.modifiers });
       } else if (step.expandMenu) {
         const subs = await page
           .locator('[data-testid^="project-menu-row-sub-"]')
@@ -479,6 +432,24 @@ async function runOpener(browser, srv, probe, opener) {
           await sleep(200);
           await collect();
         }
+      } else if (step.push) {
+        for (const ws of sockets) ws.send(JSON.stringify(WS_PUSH[step.push]));
+      } else if (step.fill) {
+        await page.locator(step.fill[0]).first().fill(step.fill[1], { timeout: 4000 });
+      } else if (step.type) {
+        await page.keyboard.type(step.type);
+      } else if (step.run) {
+        // ⌘K, then the one row for this action: `palette-row-action:<id>` (or `-tool:`)
+        const a = ACTIONS_BY_ID.get(step.run);
+        await page.locator('body').press(PALETTE.key);
+        const input = page.locator(PALETTE.input).first();
+        await input.waitFor({ timeout: 5000 });
+        await input.fill(a.label);
+        await sleep(200);
+        const row = page
+          .locator(`${tid(`palette-row-action:${a.id}`)}, ${tid(`palette-row-tool:${a.id}`)}`)
+          .first();
+        await row.click({ timeout: 4000 });
       } else if (step.palette) {
         await page.locator('body').press(PALETTE.key);
         const input = page.locator(PALETTE.input).first();
@@ -487,9 +458,15 @@ async function runOpener(browser, srv, probe, opener) {
         for (const a of neededActions) {
           await input.fill(a.label);
           await sleep(120);
-          const labels = await page.locator(PALETTE.row).allInnerTexts();
+          const rows = await page
+            .locator(PALETTE.rowTestid)
+            .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
+          const names = await page.locator(PALETTE.label).allInnerTexts();
           const want = a.label.toLowerCase();
-          ev.palette[a.id] = labels.some((l) => l.trim().toLowerCase() === want);
+          ev.palette[a.id] =
+            rows.includes(`palette-row-action:${a.id}`) ||
+            rows.includes(`palette-row-tool:${a.id}`) ||
+            names.some((l) => l.trim().toLowerCase() === want);
         }
       }
       await sleep(400);
@@ -520,7 +497,9 @@ const evidence = {};
 try {
   for (const probe of PROBES.filter((p) => !ONLY || ONLY.includes(p.id))) {
     evidence[probe.id] = {};
-    const openers = probe.query ? OPENERS.filter((o) => o.id === 'shell') : OPENERS;
+    const openers = (probe.query ? OPENERS.filter((o) => o.id === 'shell') : OPENERS).filter(
+      (o) => !ONLY_OPENERS || ONLY_OPENERS.includes(o.id)
+    );
     for (const o of openers) {
       const t0 = Date.now();
       const ev = await runOpener(browser, srv, probe, o);
@@ -548,7 +527,7 @@ const doc = summarize({
   taken: new Date().toISOString(),
   bundle: BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js',
 });
-writeFileSync(OUT, `${JSON.stringify(doc, null, 2)}\n`);
+if (!PARTIAL || args.includes('--write')) writeFileSync(OUT, `${JSON.stringify(doc, null, 2)}\n`);
 if (opt('--evidence')) writeFileSync(opt('--evidence'), JSON.stringify(evidence));
 const okRows = Object.values(doc.rows).filter((v) => v === true).length;
 const okT = Object.values(doc.targets).filter((v) => v === true).length;
@@ -556,3 +535,4 @@ console.log(
   `reachability: rows ${okRows}/${Object.keys(doc.rows).length} · kept targets ${okT}/${Object.keys(doc.targets).length} → apps/studio/client/v2/reachability.json`
 );
 if (!existsSync(OUT)) process.exit(2);
+if (PARTIAL && !args.includes('--write')) console.log('partial run: reachability.json NOT written (add --write)');

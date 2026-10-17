@@ -22,8 +22,8 @@ const rules = [{ file: /context-menu\.tsx$/, to: 'D6' }];
 const labelFiles = [/menubar\.jsx$/];
 const e = (id, extra) => ({ id, file: `apps/${id.split(':')[1].split('#')[0]}`, ...extra });
 
-function run(frozen, late = [], live = new Set()) {
-  return mapEntries({ frozen, late, live, rows, actions, hooks, hand: {}, rules, labelFiles });
+function run(frozen, late = [], live = new Set(), infra = {}) {
+  return mapEntries({ frozen, late, live, rows, actions, hooks, hand: {}, rules, labelFiles, infra });
 }
 
 test('a hook re-emitted in v2 maps to itself, or to the row that names it', () => {
@@ -108,4 +108,21 @@ test('a rule pointing at an unknown row / action / hook is reported, not written
   });
   assert.deepEqual(res.invalid, [{ id: x.id, target: 'action:nope' }]);
   assert.equal(res.map[x.id], undefined);
+});
+
+test('a named infrastructure entry is excluded with its reason, frozen or late, ahead of every rule', () => {
+  const id = 'contextmenu:studio/client/context-menu.tsx#App/div';
+  const infra = { [id]: "infrastructure: suppresses the browser's own context menu; not a feature" };
+  const frozen = e(id, { kind: 'contextmenu', label: 'right-click on <div>' });
+  // a rule that would map it to a row must lose to the named exclusion
+  const viaFrozen = run([frozen], [], new Set([id]), infra);
+  assert.match(viaFrozen.excluded[id], /^infrastructure:/);
+  assert.equal(viaFrozen.map[id], undefined);
+  assert.deepEqual(viaFrozen.unmapped, []);
+  const viaLate = run([], [frozen], new Set([id]), infra);
+  assert.match(viaLate.excluded[id], /^infrastructure:/);
+  assert.deepEqual(viaLate.unmapped, []);
+  // an unnamed twin stays open
+  const other = e('contextmenu:studio/client/other.jsx#B/div', { kind: 'contextmenu' });
+  assert.equal(run([], [other], new Set(), infra).unmapped.length, 1);
 });

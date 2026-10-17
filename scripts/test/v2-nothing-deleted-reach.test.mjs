@@ -12,6 +12,7 @@ import {
   rowProbes,
   seenIn,
   summarize,
+  toolRoles,
 } from '../v2-manifest/reach-rules.mjs';
 
 const ROLE_RANK = { view: 0, comment: 1, edit: 2, owner: 3 };
@@ -146,4 +147,90 @@ test('evidence collected before a failed step still counts', () => {
   });
   assert.equal(doc.targets['testid:canvases-advanced'], true);
   assert.equal(doc.openers.desktop['left-canvases'], 'failed: click timeout');
+});
+
+// ── tool reach: a tool is required only where its slot's minRole lets the role in ────────────────
+const slotId = (s) => (s.tool === 'move' ? 'tool.select' : `tool.${s.tool ?? s.panel}`);
+const modeTools = {
+  edit: { slots: [{ tool: 'move', minRole: 'edit' }, { tool: 'hand', minRole: 'edit' }] },
+  preview: {
+    slots: [
+      { tool: 'browse', minRole: 'view' },
+      { tool: 'comment', minRole: 'comment' },
+      { tool: 'pen', minRole: 'edit', tips: ['pen', 'highlighter', 'eraser'] },
+    ],
+  },
+  viewing: {
+    slots: [
+      { tool: 'inspect', minRole: 'view' },
+      { tool: 'comment', minRole: 'comment' },
+    ],
+  },
+};
+const roles = toolRoles(modeTools, slotId);
+const toolDeps = { ...deps, toolRoles: roles };
+const toolActions = new Map(
+  ['tool.select', 'tool.browse', 'tool.comment', 'tool.highlighter', 'tool.rect'].map((id) => [
+    id,
+    { id },
+  ])
+);
+
+test('toolRoles: the lowest minRole across modes; tips inherit; an unlisted tool is edit', () => {
+  assert.equal(roles.get('tool.comment'), 'comment');
+  assert.equal(roles.get('tool.browse'), 'view');
+  assert.equal(roles.get('tool.select'), 'edit');
+  assert.equal(roles.get('tool.highlighter'), 'edit'); // a Marker tip
+  assert.equal(roles.get('toolbar-slot-browse'), 'view');
+});
+
+test('a tool action is required only in the shells whose role reaches its slot', () => {
+  const need = (id) => actionProbes(toolActions.get(id), isVisible, roles);
+  assert.ok(need('tool.select').includes('cloud-member'));
+  assert.ok(!need('tool.select').includes('viewer') && !need('tool.select').includes('cloud-viewer'));
+  assert.ok(need('tool.browse').includes('viewer') && need('tool.browse').includes('cloud-viewer'));
+  assert.ok(need('tool.comment').includes('viewer'));
+  assert.ok(!need('tool.highlighter').includes('viewer'));
+  assert.ok(!need('tool.rect').includes('cloud-viewer')); // no slot: the rest are edit
+  assert.ok(need('tool.rect').includes('desktop'));
+});
+
+test('a row whose action or hook is a tool follows the same rule', () => {
+  const sel = rowProbes({ id: 'A-s', home: 'menu', v2: { action: 'tool.select' } }, toolDeps);
+  assert.ok(sel.includes('cloud-owner'));
+  assert.ok(!sel.includes('viewer') && !sel.includes('cloud-viewer'));
+  const hand = rowProbes({ id: 'A-b', home: 'menu', v2: { action: 'tool.browse' } }, toolDeps);
+  assert.ok(hand.includes('viewer'));
+  const hook = rowProbes({ id: 'A-h', home: 'menu', v2: { testid: 'toolbar-slot-move' } }, toolDeps);
+  assert.ok(hook.includes('cloud-owner') && !hook.includes('viewer'));
+});
+
+test('a key-only action ⌘K leaves out is reached through the "?" sheet row', () => {
+  const ev = (testids) => ({ ok: true, testids, tours: [], css: [], palette: {} });
+  const doc = summarize({
+    evidence: { browser: { shortcuts: ev(['shortcuts-row-object.nudge']), canvas: ev([]) } },
+    subjects: {
+      rows: [],
+      targets: [
+        { id: 'action:object.nudge', need: ['browser'], action: 'object.nudge', hook: null },
+        { id: 'action:ai.draw-mark', need: ['browser'], action: 'ai.draw-mark', hook: null },
+      ],
+    },
+    hooksByName: new Map(),
+    taken: 'now',
+    bundle: 'test',
+  });
+  assert.equal(doc.targets['action:object.nudge'], true);
+  assert.equal(doc.perShell.browser.targets['action:object.nudge'], 'ok: shortcuts ("?" sheet)');
+  assert.match(doc.targets['action:ai.draw-mark'], /not reached in browser/);
+});
+
+test('a hook that only one kind of shell draws is required there, whatever v1 showed', () => {
+  const seen = new Map([['team-projects', new Set(['browser'])]]);
+  assert.deepEqual(hookProbes('settings-github-signin', seen), ['desktop']);
+  assert.deepEqual(hookProbes('team-projects', seen), ['desktop']); // the name beats the golden
+  assert.deepEqual(hookProbes('chat-composer', seen), ['desktop']);
+  assert.deepEqual(hookProbes('.chat-input', seen), ['desktop']);
+  assert.ok(!hookProbes('share-open-app', seen).includes('desktop'));
+  assert.deepEqual(hookProbes('sync-offline', seen), LOCAL_PROBES); // an unnamed hook keeps the default
 });

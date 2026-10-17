@@ -143,68 +143,94 @@ The probe serves the committed `dist/client.bundle.js` by default. `--build` reb
 and dist/ is restored afterwards. It never touches this repo's `.design`: it uses a throwaway fixture and a
 throwaway HOME, with `NO_OPEN=1 MAUDE_NO_AUTOBUILD=1`.
 
-## Numbers (2026-10-17, feat/maude-v2 @ dc603470 + this task, committed bundle)
+## Numbers (2026-10-17, feat/maude-v2 @ ac1acf9a + V2-4.gate-b, committed bundle)
 
-| Check | Before | After |
+| Check | Spike | After V2-4.gate-b |
 | --- | --- | --- |
-| entries mapped | 0 / 1442 | 1379 mapped, 61 excluded, **2 open** |
-| rows with a home | 94 / 144 open | 94 / 144 open (unchanged: owned by V2-4.5–4.10) |
-| rows reachable | probe not built | **38 / 144** |
-| kept targets reachable | — | **133 / 384** |
+| entries mapped | 1379 mapped, 61 excluded, 2 open | 1401 mapped, 63 excluded, **0 open** |
+| rows with a home | 94 / 144 open | 91 / 144 open (rows are filled by V2-4.5–4.10 builders, not by this task) |
+| rows reachable | 38 / 144 | **50 / 144** (94 open: 91 without a home + 3 unreached) |
+| kept targets reachable | 133 / 384 | **231 / 401** (170 open) |
 
-The 61 excluded entries are 6 historical hooks and 55 late v2-code entries. Of the 1379 mapped entries, 781 go to a
-row, 241 to an action and 357 to a hook.
+The two `contextmenu` entries are `INFRA_IDS` (map-rules.mjs), excluded by name with the reason "infrastructure:
+suppresses the browser's own context menu; not a feature". A new entry of the same shape stays open until someone
+signs it. Every row that has a home is reached except three (below).
 
-## The gap
+## State openers (V2-4.gate-b)
 
-**A. Entries that fit nothing (2).** Both are `contextmenu …app.jsx#App/div` and its `ShellTree` continuation. They
-suppress the browser's own menu over the chrome, which is infrastructure, not a feature. Recommendation: an
-`excluded: "infra"` reason that the lead signs, or let it stay as the only known open entry.
+Openers and the worlds they run in are DATA in `scripts/v2-manifest/openers.mjs`; `probe-reach.mjs` only drives
+them. A state is `{ config, routes, invoke, extends }`: `/_config` keys, canned server answers, answers to the
+desktop's Tauri commands, and another state to build on. Stubs are the probe's own, never a real hub or cloud.
 
-**B. Rows with no home (94).** `v2.action` and `v2.testid` are both empty. These belong to V2-4.5–4.10. The probe
-already reaches the right element for 19 of them (see Patch requests).
+| State | What it makes appear |
+| --- | --- |
+| `linked-project` | Settings › Advanced › This project (sync switches, first-link rule, hand over / take back), Diagnostics › Sync |
+| `linked-rich` / `-failed` | the file plane: progress, rate limit or failure line, held deletion, delivery rows, trash, assets, notices, a held AI edit |
+| `cloud-in` / `cloud-signing-in` | Settings › Connections: account, sign out, cloud projects, the device-code dialog |
+| `github-in`, `figma-in` | GitHub identity rows (desktop), Figma connected card |
+| `git-dirty` | the repo status with files, `behind` and `unpushed` |
+| WS `git-lifecycle` | Diagnostics › Server "Repo state changed — reload?" |
 
-**C. Rows with a home that the probe does not reach (12).** They split into four groups:
+Other openers: `dialog-report-bug` (⌘K run → describe → preview), `dialog-figma-import(-in)`, `selection-multi`,
+`preview-shape-options`, `preview-comment`, `settings-team-server`, `diag-sync-files` (clicks Prune and Resolve).
+`run` steps use ⌘K to pick one action by its row testid.
 
-- **Settings in the viewer shells.** viewer and cloud-viewer have no Settings at all (the ⌘, opener fails). This
-  affects `A-light-dark-toggle`, `A-open-the-cloud-dashboard` and `A-panel-positions-left-right`.
-  Recommendation: either the viewer gets Settings › General, or those rows get `v2.reach` without the viewers.
-  This is a product decision.
-- **Linked-project settings.** `sync-setting-*` and `sync-ownership-adopt` do not appear in Settings › Advanced
-  even with a linked `/_sync-status`. This affects 4 rows (A-sync-*, A-first-link…, A-hand-design…). Either the
-  section needs `linkedHub` in `/_config` (a probe state opener), or it is a real gap in V2-4.7.
-- **Signed-in cloud account.** This needs a signed-in-cloud state opener: `cloud-account`,
-  `settings-hub-address`, `settings-cloud-projects` (A-cloud-account…, A-team-hub…, D11).
-- **Event state.** `diag-get-latest` needs "team has new versions" and `diag-repo-changed` needs a git lifecycle
-  event. Both need event-state openers.
+**⌘K as V2-4.6 draws it.** The probe types an action's label and looks for `palette-row-action:<id>` or
+`palette-row-tool:<id>` (the exact id), falling back to the row's `.st-pal-ltxt` text.
 
-**D. Kept targets not reached (251).** Most are state-dependent. Grouped by producer:
+**The "?" sheet is a surface for key-only actions.** ⌘K leaves out nudge, annotation, `object.*` and `*-hold`
+by design (search-model `NOT_SEARCHABLE`). Such an action is reached when its `shortcuts-row-<id>` row is on the
+"?" sheet. The lead decides whether that counts (default: yes, it is where a person finds the key).
 
-| Producer | Count | State it needs |
-| --- | --- | --- |
-| SyncPanel | 37 | held / conflict / transfer states |
-| app.jsx selectors | 20 | |
-| ChatPanel | 18 | a connected ACP agent |
-| GitPanel / TeamProjects / CloudBar / Elicitation / report-bug | 12–15 each | an open dialog or a flow state |
-| canvas-iframe selectors | | a selection, a drag, a comment, a video comp |
+**Tool reach.** The registry keeps every `tool.*` key resolvable for every role so a denied key reaches the shell's
+denial line, so its `visible` over-promises tools to viewers. `toolRoles()` derives who a tool is for from
+`MODE_TOOLS` `minRole` (Hand = view, Comment = comment, the rest = edit; a Marker tip inherits its slot). A
+`tool.*` action or `toolbar-slot-*` hook is required only where `PROBE_SLOT_ROLE` (owner/member = edit, hub viewer =
+comment) reaches that role. Result: no tool is a gap any more; the viewers reach Hand and Comment.
 
-A second group is real registry findings:
+**Native-only hooks.** `HOOK_SHELLS` (reach-rules.mjs) names hooks that one kind of shell draws, by what the code
+gates on and what the probe saw: GitHub sign-in, the team-server dialog, Ask AI and the ACP chat are desktop only;
+"Open in app" is not in the desktop shell. A match beats the v1-golden default. Reasons are in the table.
 
-- `tool.*` and `view.trash` have no `minRole`, so the registry says the viewers must reach them. Neither viewer
-  shell shows them.
-- `ai.chat` has no `shell: ['desktop']`, but the chat header only renders in the desktop app.
-- `ai.draw-mark`, `app.check-updates`, `export.rerun-last`, `share.copy-link` and `object.nudge` have neither a
-  menu row nor a ⌘K hit in any probe.
+## The gap after V2-4.gate-b
+
+**A. Owned by the builders in flight (V2-4.8a / 4.8b).** Their rows get a home and their hooks move; nothing to do
+here until they land, then re-run the mapper and the probe.
+
+**B. Rows with no home (91).** `v2.action` and `v2.testid` both empty. Owned by V2-4.5–4.10.
+
+**C. Rows with a home that the probe does not reach (3).**
+- `A-open-the-cloud-dashboard` and `A-panel-positions-left-right` need the viewers: **viewer and cloud-viewer
+  have no Settings at all** (⌘, does nothing, the sheet never opens). Lead decision: viewers get Settings › General (personal view
+  prefs). **Product gap for V2-4.9 (shells): not built.**
+- `A-get-latest` (`diag-get-latest`) is reached in the local shells, not in the three cloud shells: a cloud
+  project saves through the hub, so there is no git "behind". Needs `v2.reach: ['desktop','browser']` on the row
+  (a row field the owning package sets; patch request).
+
+**D. Kept targets not reached (170).**
+
+| Group | Count | What it needs | Owner |
+| --- | --- | --- | --- |
+| ACP chat (`chat-*`, `acp-*`, `.chat-input`, `dock-ai-*`) | 43 | a connected ACP agent: a stub agent transport in the probe | later package, interim home = the chat panel |
+| Canvas states (`.dc-annot-*`, `annot-*`, peers, `.dc-dragging`, snap guides, text editing, video comp, photo, brand-up, canvas-load-*) | 49 | a drawn annotation + selection, a peer, a drag, a video artboard in the fixture, an upload | next probe step (see Continue) |
+| Changes panel (`git-save-all`, `git-commit-message`, `publish`, `pull`, `save-local`, `git-history-*`, `project-history-*`) | 21 | ⇧⌘G now opens Version history; **nothing opens the old Changes panel** (GitPanel). Either a product gap or a state the probe has not found | V2-4.9 to confirm |
+| Dialog internals (`team-cloud-*`, `cloud-deeplink-*`, `file-deeplink-*`, `report-bug-error/-shot/-redact/-issue-link`, `source-conflict-*`, `comment-edit*`, `figma-*-error/-summary`) | ~40 | more states: a signed-in cloud inside the team dialog, a `maude://` deep link, a failing `/_api/report`, a source-conflict body, an existing comment | next probe step |
+| Tool options (`toolbar-popover-*`, `toolbar-tip-*`, `tool-panel-*`) | 3 | the preview toolbar's Shape/Marker/Sticker popovers did not open from `frameClick` in the probe | next probe step |
+| Actions | 3 | `app.check-updates`, `export.rerun-last`, `help.ai-readiness` have no menu row and no ⌘K row in any probe | **product gap** (registry says visible; no surface draws it) |
+| Viewers | 3 | `share-cluster-faces/-status`, `share-open-app` are not drawn in the viewer shells | V2-4.9 shells |
+| `cloud-owner`/`member` | 2 | `figma-connect-input/-save` hidden in a cell (local-only by design, DDR-209 D1): needs `HOOK_SHELLS` or the hook's `v2` note | decide |
 
 ## Tests
 
-- `scripts/test/v2-nothing-deleted-map.test.mjs` (7 tests): precedence, historical exclusion, label-file scope,
-  continuation, v2-code exclusion, invalid targets.
-- `scripts/test/v2-nothing-deleted-reach.test.mjs` (9 tests): settings-local, registry predicate, editor-only
+- `scripts/test/v2-nothing-deleted-map.test.mjs` (8 tests): precedence, historical exclusion, label-file scope,
+  continuation, v2-code exclusion, invalid targets, named infrastructure exclusion.
+- `scripts/test/v2-nothing-deleted-reach.test.mjs` (14 tests): settings-local, registry predicate, editor-only
   homes, explicit reach / §B defaults, kept action and kept hook rules, hook matchers, evidence → doc,
-  failed-step evidence.
+  failed-step evidence, tool reach by slot minRole (3), the "?" sheet, native-only hooks.
+- `scripts/test/v2-nothing-deleted-openers.test.mjs` (5 tests): a state folds into routes and `/_config`, `extends`
+  overrides only what it names, every opener resolves, an unknown state or answer is a loud error.
 
-Both files went red when the branches under test were disabled (continuation, v2-code, historical; settings-local,
+All three files went red when the branches under test were disabled (continuation, v2-code, historical; settings-local,
 editor-only, failed-step evidence).
 
 ## Open questions (default if unanswered)

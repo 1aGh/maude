@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HAND, LABEL_FILES, RULES, V2_CODE_IDS, V2_CODE_PATHS } from './map-rules.mjs';
+import { HAND, INFRA_IDS, LABEL_FILES, RULES, V2_CODE_IDS, V2_CODE_PATHS } from './map-rules.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const MANIFEST = join(REPO, 'apps/studio/client/v2/v1-manifest.json');
@@ -65,6 +65,7 @@ export function mapEntries({
   hand = HAND,
   rules = RULES,
   labelFiles = LABEL_FILES,
+  infra = INFRA_IDS,
 }) {
   const rowIds = new Set(rows.filter((r) => !r.orphaned).map((r) => r.id));
   const rowByAction = new Map();
@@ -114,6 +115,10 @@ export function mapEntries({
   }
 
   for (const e of frozen) {
+    if (infra[e.id]) {
+      excluded[e.id] = infra[e.id];
+      continue;
+    }
     const [t, how] = resolveOne(e);
     if (how === 'historical') excluded[e.id] = 'historical hook: no live element in v1';
     else if (!t) unmapped.push(e);
@@ -127,6 +132,10 @@ export function mapEntries({
   // frozen entry's target: same kind, file and key (or testid), and the frozen id is gone from code.
   const gone = frozen.filter((f) => !live.has(f.id));
   for (const e of late) {
+    if (infra[e.id]) {
+      excluded[e.id] = infra[e.id];
+      continue;
+    }
     if (isV2Code(e)) {
       excluded[e.id] = 'v2 code (added after the freeze)';
       continue;
