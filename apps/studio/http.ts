@@ -1743,6 +1743,88 @@ export function createHttp(
     patterns: [...READ_ONLY_ALLOWED_WRITE_PATTERNS, ...laneRoutes.readOnlyAllowed.patterns],
   };
 
+  // The client's config (see the '/_config' route below for the gate in front of it).
+  const configResponse = (req: Request) =>
+    Response.json({
+      ...ctx.cfg,
+      canvasOrigin: ctx.canvasOrigin,
+      // V2-1.12 §5.6 — readOnly is the role OR the format gate
+      // (projectReadOnly covers both); the client shows WHY, and
+      // `formatGate` drives the banner. Named one by one: the client
+      // projection names every computed field (config-projection.test.ts).
+      readOnly: projectReadOnly(req),
+      formatVersion: projectFormat(ctx).value,
+      formatGate: gateNow(),
+      readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
+      // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
+      // embed view posts its status ONLY to a parent on this list, never to
+      // '*'. Public already: the same origins ride in the page's CSP header.
+      ...(ctx.embedOrigins?.length ? { embedOrigins: ctx.embedOrigins } : {}),
+      // WHICH RELEASE THIS IS. `/_config` reaches the browser in cloud mode,
+      // so the bar for adding a field here is "would I publish it" — and a
+      // version is the git tag, which is public. Nothing else rides along.
+      //
+      // Resolved through `resolveMaudeVersion`, the same function the What's
+      // New feed uses: one answer, so the chip in the status bar and the feed
+      // can never name different versions.
+      version: resolveMaudeVersion(),
+      // feature-cloud-export-render-workers — which export lane this server
+      // holds (`local` | `remote` | `none`). The client gates the export
+      // dialogs on it so a cell without a render service says WHY a format
+      // is unavailable instead of firing a request the proxy 404s.
+      exportLane: resolveRenderLane(),
+      // V2-3.4 — WHICH account profile this server runs as (shell/profile.ts): set per tab by
+      // the desktop shell, validated + sanitized; absent env ⇒ { id: 'default' }.
+      profile: resolveProfile(),
+      // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
+      // canvas origin, minted per session by the proxy. Absent on a desktop,
+      // where the canvas origin is loopback and needs none. `canvasUrl()`
+      // appends it exactly the way it already appends `readOnly`, which is
+      // what keeps this a FLAG on the shared client rather than a fork of it.
+      ...(req.headers.get('x-maude-canvas-token')
+        ? { canvasToken: req.headers.get('x-maude-canvas-token') }
+        : {}),
+      // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared client
+      // takes. Its presence says "you are in a browser tab, on somebody
+      // else's machine", which is what lets the client state the agent's
+      // absence and offer a way back to the dashboard. A flag, not a fork:
+      // every other difference between the three shells stays zero.
+      ...(isWorkspaceMode()
+        ? {
+            cloud: {
+              // PRESENCE IS THE SWITCH — never a default. `HUB_DASHBOARD_URL`
+              // is written only by the managed fleet (cli/lib/cell-plan.mjs);
+              // a self-hosted `maude hub workspace` never sets it and has no
+              // multi-project dashboard to return to. Defaulting it to the
+              // SaaS put a `← Dashboard` link in every self-hoster's menubar
+              // that walked them off their own deployment onto cloud.maude.sh
+              // — a dead end for an account most of them do not have. Same
+              // rule the hub landing already keeps (server.mjs `isPlatform`)
+              // and the auth pages already keep (browser-auth.mjs): no URL,
+              // no link. Absent, not null, so the client's own check is the
+              // single one — exactly like `canvasToken` two fields down.
+              ...(process.env.HUB_DASHBOARD_URL
+                ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }
+                : {}),
+              projectName: process.env.MAUDE_PROJECT_NAME ?? ctx.cfg.name ?? null,
+              // WHO the tab is signed in as, and WHAT that makes them —
+              // per REQUEST, from the proxy's injected headers, never from
+              // this process's environment (one cell serves an owner and a
+              // viewer at the same time).
+              //
+              // The owner who could not edit his own project could not see
+              // why: the stamp said VIEW ONLY and nothing on screen said
+              // which account that verdict was about. Naming the account and
+              // the role turns "this is broken" into "I am signed in as the
+              // wrong person", which is a thing someone can act on — and the
+              // sign-out beside it is how they act on it.
+              user: req.headers.get('x-maude-user') || null,
+              role: req.headers.get('x-maude-role') || null,
+            },
+          }
+        : {}),
+    });
+
   // The LEGACY route literal (V2-2.5): every key here predates the table. A NEW route is a
   // `routes/<area>.ts` spec (routes/index.ts), not a new key — so work packages never edit the
   // same switch. Merged with the table's exact paths into `routes` below.
@@ -2122,86 +2204,15 @@ export function createHttp(
     // knows before it draws anything. It decides what the UI OFFERS and is
     // never what stops a write — the cell enforces that (Phase 25 C1),
     // whatever a patched client believes.
+    // Phase 4 gate security review (D1 / EH-P4-1): the same double gate as the /_api/* reads. The
+    // config names the project, its hub link and workspace, the canvas origin and port and the
+    // build — recon a DNS-rebound page must not read. The cell vouches with x-maude-role.
     '/_config': (req: Request) =>
-      Response.json({
-        ...ctx.cfg,
-        canvasOrigin: ctx.canvasOrigin,
-        // V2-1.12 §5.6 — readOnly is the role OR the format gate
-        // (projectReadOnly covers both); the client shows WHY, and
-        // `formatGate` drives the banner. Named one by one: the client
-        // projection names every computed field (config-projection.test.ts).
-        readOnly: projectReadOnly(req),
-        formatVersion: projectFormat(ctx).value,
-        formatGate: gateNow(),
-        readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
-        // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
-        // embed view posts its status ONLY to a parent on this list, never to
-        // '*'. Public already: the same origins ride in the page's CSP header.
-        ...(ctx.embedOrigins?.length ? { embedOrigins: ctx.embedOrigins } : {}),
-        // WHICH RELEASE THIS IS. `/_config` reaches the browser in cloud mode,
-        // so the bar for adding a field here is "would I publish it" — and a
-        // version is the git tag, which is public. Nothing else rides along.
-        //
-        // Resolved through `resolveMaudeVersion`, the same function the What's
-        // New feed uses: one answer, so the chip in the status bar and the feed
-        // can never name different versions.
-        version: resolveMaudeVersion(),
-        // feature-cloud-export-render-workers — which export lane this server
-        // holds (`local` | `remote` | `none`). The client gates the export
-        // dialogs on it so a cell without a render service says WHY a format
-        // is unavailable instead of firing a request the proxy 404s.
-        exportLane: resolveRenderLane(),
-        // V2-3.4 — WHICH account profile this server runs as (shell/profile.ts): set per tab by
-        // the desktop shell, validated + sanitized; absent env ⇒ { id: 'default' }.
-        profile: resolveProfile(),
-        // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
-        // canvas origin, minted per session by the proxy. Absent on a desktop,
-        // where the canvas origin is loopback and needs none. `canvasUrl()`
-        // appends it exactly the way it already appends `readOnly`, which is
-        // what keeps this a FLAG on the shared client rather than a fork of it.
-        ...(req.headers.get('x-maude-canvas-token')
-          ? { canvasToken: req.headers.get('x-maude-canvas-token') }
-          : {}),
-        // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared client
-        // takes. Its presence says "you are in a browser tab, on somebody
-        // else's machine", which is what lets the client state the agent's
-        // absence and offer a way back to the dashboard. A flag, not a fork:
-        // every other difference between the three shells stays zero.
-        ...(isWorkspaceMode()
-          ? {
-              cloud: {
-                // PRESENCE IS THE SWITCH — never a default. `HUB_DASHBOARD_URL`
-                // is written only by the managed fleet (cli/lib/cell-plan.mjs);
-                // a self-hosted `maude hub workspace` never sets it and has no
-                // multi-project dashboard to return to. Defaulting it to the
-                // SaaS put a `← Dashboard` link in every self-hoster's menubar
-                // that walked them off their own deployment onto cloud.maude.sh
-                // — a dead end for an account most of them do not have. Same
-                // rule the hub landing already keeps (server.mjs `isPlatform`)
-                // and the auth pages already keep (browser-auth.mjs): no URL,
-                // no link. Absent, not null, so the client's own check is the
-                // single one — exactly like `canvasToken` two fields down.
-                ...(process.env.HUB_DASHBOARD_URL
-                  ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }
-                  : {}),
-                projectName: process.env.MAUDE_PROJECT_NAME ?? ctx.cfg.name ?? null,
-                // WHO the tab is signed in as, and WHAT that makes them —
-                // per REQUEST, from the proxy's injected headers, never from
-                // this process's environment (one cell serves an owner and a
-                // viewer at the same time).
-                //
-                // The owner who could not edit his own project could not see
-                // why: the stamp said VIEW ONLY and nothing on screen said
-                // which account that verdict was about. Naming the account and
-                // the role turns "this is broken" into "I am signed in as the
-                // wrong person", which is a thing someone can act on — and the
-                // sign-out beside it is how they act on it.
-                user: req.headers.get('x-maude-user') || null,
-                role: req.headers.get('x-maude-role') || null,
-              },
-            }
-          : {}),
-      }),
+      !sameOriginRead(req)
+        ? new Response('cross-origin rejected', { status: 403 })
+        : !isTrustedRequestHost(req)
+          ? new Response('local request required (DNS-rebinding guard)', { status: 403 })
+          : configResponse(req),
 
     // What's New feed (DDR-A) — read-only product-update list surfaced in the
     // Maude UI chrome. Main-origin only by omission from the canvas-origin

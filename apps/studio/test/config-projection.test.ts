@@ -44,18 +44,23 @@ const clientConfigFile = () => fileContaining("fetch('/_config')").src;
  * The risk is in the COMPUTED fields — the ones the server decides per request.
  */
 function serverComputedConfigFields(): string[] {
-  const start = HTTP_TS.indexOf("'/_config':");
+  // The route (`'/_config':`) is the rebinding gate; the body is `configResponse` (Phase 4 gate
+  // security review EH-P4-1). Take that function to the next top-level statement.
+  const start = HTTP_TS.indexOf('const configResponse = (req: Request) =>');
   expect(start).toBeGreaterThan(0);
-  // The handler is short; take to the end of its `Response.json({...})`.
-  const body = HTTP_TS.slice(start, start + 2000);
-  const end = body.indexOf('\n    // ');
-  const src = end > 0 ? body.slice(0, end) : body;
+  expect(HTTP_TS.indexOf("'/_config':")).toBeGreaterThan(start);
+  const end = HTTP_TS.indexOf('\n\n  ', start);
+  const src = HTTP_TS.slice(start, end > start ? end : start + 4000);
 
   const fields = new Set<string>();
   // `canvasOrigin: ctx.canvasOrigin,` / `readOnly: projectReadOnly(req),`
-  for (const m of src.matchAll(/^\s{8}([a-zA-Z][a-zA-Z0-9]*):\s/gm)) fields.add(m[1]);
+  for (const m of src.matchAll(/^\s{6}([a-zA-Z][a-zA-Z0-9]*):\s/gm)) fields.add(m[1]);
   // Conditionally-spread fields: `? { canvasToken: … }` / `? { cloud: { … } }`
-  for (const m of src.matchAll(/\?\s*\{\s*([a-zA-Z][a-zA-Z0-9]*):/g)) fields.add(m[1]);
+  // Top-level only (the `? {` of a spread sits at 6–8 spaces); a field nested in one of them
+  // (`cloud.dashboardUrl`) rides inside the object the client copies whole.
+  for (const m of src.matchAll(/^\s{6}\.\.\.\(.*\?\s*\{\s*([a-zA-Z][a-zA-Z0-9]*):/gm))
+    fields.add(m[1]);
+  for (const m of src.matchAll(/^\s{8}\?\s*\{\s*([a-zA-Z][a-zA-Z0-9]*):/gm)) fields.add(m[1]);
   return [...fields].sort();
 }
 

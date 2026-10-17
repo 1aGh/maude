@@ -1,6 +1,6 @@
 // Phase 4 gate security review D1 — the project folder names this Mac's user and folder layout, so it
-// is served only behind the DNS-rebinding guard (`/_api/diagnostics`), never on `/_config`, which a
-// rebound attacker page can read (it carries no host check by design: the cloud cell serves it too).
+// is served only from `/_api/diagnostics`, never on `/_config`; and `/_config` itself (project, hub
+// link, canvas origin + port, build) sits behind the same rebinding + cross-site gate (EH-P4-1).
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { realpathSync, rmSync } from 'node:fs';
@@ -34,13 +34,24 @@ describe('a booted studio', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  test('/_config never carries the project folder, even to a rebound host', async () => {
-    for (const host of [`127.0.0.1:${port}`, `attacker.example:${port}`]) {
-      const r = await fetch(`http://127.0.0.1:${port}/_config`, { headers: { host } });
-      const text = await r.text();
-      expect(text).not.toContain('projectFolder');
-      expect(text).not.toContain(realpathSync(root));
-    }
+  test('/_config never carries the project folder', async () => {
+    const r = await fetch(`http://127.0.0.1:${port}/_config`);
+    expect(r.status).toBe(200);
+    const text = await r.text();
+    expect(text).not.toContain('projectFolder');
+    expect(text).not.toContain(realpathSync(root));
+  });
+
+  test('/_config refuses a rebound host and a cross-site read (EH-P4-1: the config is recon)', async () => {
+    const rebound = await fetch(`http://127.0.0.1:${port}/_config`, {
+      headers: { host: `attacker.example:${port}` },
+    });
+    expect(rebound.status).toBe(403);
+    const crossSite = await fetch(`http://127.0.0.1:${port}/_config`, {
+      headers: { 'sec-fetch-site': 'cross-site' },
+    });
+    expect(crossSite.status).toBe(403);
+    expect(await crossSite.text()).not.toContain('canvasOrigin');
   });
 
   test('/_api/diagnostics gives the folder to a loopback request and refuses a rebound host', async () => {
