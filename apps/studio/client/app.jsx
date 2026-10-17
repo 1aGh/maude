@@ -85,7 +85,7 @@ import { durationFramesForDrop, probeMediaDuration } from './panels/timeline-med
 import GenerateDialog from './generate-dialog.jsx';
 import RepoBranchSwitcher from './panels/RepoBranchSwitcher.jsx';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
-import StickerPicker from './panels/StickerPicker.jsx';
+import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import {
   AlignPad,
   AngleDial,
@@ -3085,7 +3085,7 @@ function ShellTree() {
         />
       )}
       {stickerPickerReq && (
-        <StickerPicker
+        <StickersGallery
           onPick={onStickerPicked}
           onClose={() => setStickerPickerReq(null)}
           anchor={stickerPickerReq.anchor ?? null}

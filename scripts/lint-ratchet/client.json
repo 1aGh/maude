@@ -121,10 +121,6 @@
       "lint/a11y/noNoninteractiveTabindex": 3,
       "lint/a11y/useSemanticElements": 3
     },
-    "apps/studio/client/panels/StickerPicker.jsx": {
-      "lint/a11y/noAutofocus": 1,
-      "lint/a11y/noStaticElementInteractions": 1
-    },
     "apps/studio/client/panels/TimelinePanel.jsx": {
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 11,
