@@ -313,6 +313,7 @@ export function FileRow({
       {dirty && (
         <span
           className="st-git-badge"
+          data-testid="canvas-row-unsaved"
           data-kind={dirty}
           title={`Unsaved (${dirty})`}
           aria-label={`Unsaved, ${dirty}`}
@@ -493,6 +494,7 @@ export function CanvasRow({
       {dirty && (
         <span
           className="st-git-badge"
+          data-testid="canvas-row-unsaved"
           data-kind={dirty}
           title={`Unsaved (${dirty})`}
           aria-label={`Unsaved, ${dirty}`}

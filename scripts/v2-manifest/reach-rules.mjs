@@ -99,6 +99,10 @@ export const ACTION_SURFACE = Object.freeze({
   'view.comments': 'share-cluster-comments',
   'view.panels': 'share-cluster-panels',
   'share.open': 'share-cluster-share',
+  // actions whose v2 home is a control inside a sheet rather than a menu / ⌘K row
+  'export.rerun-last': 'export-recent-again-0', // "Export again" on every Recent row of the Export sheet
+  'help.ai-readiness': 'project-menu-row-diag.ai-recheck', // the same words, under Menu › Diagnostics
+  'app.check-updates': 'settings-check-updates', // Settings › Advanced › This Mac › Update (the native menu keeps the row)
 });
 
 /** The slot role a probe's person holds (canvas-modes.ts roleOfCaps): owner and member edit, a hub viewer

@@ -455,6 +455,7 @@ function MenuItemRow({
       <button
         type="button"
         role="menuitem"
+        data-testid={`canvas-menu-item-${item.id}`}
         disabled={disabled}
         title={disabled ? item.disabledHint : undefined}
         className={`dc-menu-item${item.destructive ? ' is-destructive' : ''}`}
@@ -502,6 +503,7 @@ function MenuItemRow({
         role="menuitem"
         aria-haspopup="menu"
         aria-expanded={subOpen}
+        data-testid={`canvas-menu-item-${item.id}`}
         disabled={disabled}
         className="dc-menu-item"
         onClick={() => (subOpen ? setSubOpen(false) : open())}
@@ -543,6 +545,7 @@ function MenuItemRow({
                 key={sub.id}
                 type="button"
                 role="menuitem"
+                data-testid={`canvas-menu-item-${sub.id}`}
                 disabled={subDisabled}
                 title={subDisabled ? sub.disabledHint : undefined}
                 className={`dc-menu-item${sub.destructive ? ' is-destructive' : ''}`}

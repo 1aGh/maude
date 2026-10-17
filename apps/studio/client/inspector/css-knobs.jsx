@@ -1985,7 +1985,7 @@ export function RawKnob({ commit }) {
     }
   };
   return (
-    <div className="st-cp-kv">
+    <div className="st-cp-kv" data-testid="inspector-custom-css">
       <input
         className="st-cp-fin"
         aria-label="custom property name"
@@ -2020,7 +2020,7 @@ export function AttrKnob({ commit }) {
     }
   };
   return (
-    <div className="st-cp-kv">
+    <div className="st-cp-kv" data-testid="inspector-html-attrs">
       <input
         className="st-cp-fin"
         aria-label="custom attribute name"

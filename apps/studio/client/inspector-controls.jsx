@@ -504,11 +504,12 @@ export function Segmented({ value, options, onChange, ariaLabel }) {
 }
 
 // ── Select (styled native <select>, 6+ options) ──────────────────────────────
-export function Select({ value, options, onChange, ariaLabel, mini = false }) {
+export function Select({ value, options, onChange, ariaLabel, mini = false, testId }) {
   return (
     <select
       className={`st-cp-nsel${mini ? ' st-cp-nsel--mini' : ''}`}
       aria-label={ariaLabel}
+      data-testid={testId}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >

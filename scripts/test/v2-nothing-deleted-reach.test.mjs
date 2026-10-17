@@ -244,3 +244,26 @@ test('a hook that only one kind of shell draws is required there, whatever v1 sh
   assert.ok(!hookProbes('share-open-app', seen).includes('desktop'));
   assert.deepEqual(hookProbes('sync-offline', seen), LOCAL_PROBES); // an unnamed hook keeps the default
 });
+
+test('an action whose v2 home is a control inside a sheet is reached through ACTION_SURFACE', () => {
+  const ev = (testids) => ({ ok: true, testids, tours: [], css: [], palette: {} });
+  const doc = summarize({
+    evidence: {
+      desktop: { export: ev(['export-recent-again-0', 'settings-check-updates']), canvas: ev([]) },
+    },
+    subjects: {
+      rows: [],
+      targets: [
+        { id: 'action:export.rerun-last', need: ['desktop'], action: 'export.rerun-last', hook: null },
+        { id: 'action:app.check-updates', need: ['desktop'], action: 'app.check-updates', hook: null },
+        { id: 'action:help.ai-readiness', need: ['desktop'], action: 'help.ai-readiness', hook: null },
+      ],
+    },
+    hooksByName: new Map(),
+    taken: 'now',
+    bundle: 'test',
+  });
+  assert.equal(doc.targets['action:export.rerun-last'], true); // "Export again" on a Recent row
+  assert.equal(doc.targets['action:app.check-updates'], true); // Settings > Advanced > Update
+  assert.match(doc.targets['action:help.ai-readiness'], /not reached in desktop/); // its row is not on screen here
+});

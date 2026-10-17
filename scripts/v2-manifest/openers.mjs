@@ -126,10 +126,33 @@ export const ROUTE_ANSWERS = {
   gitBehind: {
     repo: true,
     branch: 'main',
-    files: [{ path: '.design/ui/Home.tsx', status: 'M' }],
+    files: [{ path: '.design/ui/Home.tsx', status: 'modified' }],
     unpushed: 1,
     behind: 2,
     remoteAhead: true,
+  },
+  // a saved-version list (GET /_api/git/log): each row carries a short sha
+  gitLog: {
+    entries: [
+      { sha: 'a1b2c3d4e5f6a7b8', author: 'Tereza', date: '2026-10-16T10:00:00Z', message: 'Tighten the hero' },
+      { sha: '0f9e8d7c6b5a4f3e', author: 'Ola', date: '2026-10-15T09:00:00Z', message: 'First pass at pricing' },
+    ],
+  },
+  // the branch list the draft switcher reads: the shared version and two drafts (one newer)
+  gitBranches: {
+    branches: [
+      { name: 'main', where: 'local', updatedAt: 1_760_000_000 },
+      { name: 'hero-pass', where: 'local', updatedAt: 1_759_900_000 },
+      { name: 'pricing-ideas', where: 'local', updatedAt: 1_759_000_000 },
+    ],
+  },
+  // the same repo with a draft checked out (the switcher offers "add to shared")
+  gitOnDraft: {
+    repo: true,
+    branch: 'hero-pass',
+    files: [{ path: '.design/ui/Home.tsx', status: 'modified' }],
+    unpushed: 1,
+    behind: 0,
   },
   // ── Maude Cloud (CloudBar) ─────────────────────────────────────────────────────────────────
   cloudIn: {
@@ -196,7 +219,15 @@ export const STATES = {
     extends: 'linked-project',
     routes: { '/_sync-status': 'linkedRichFailed', '/_api/sync/trash': 'syncTrash' },
   },
-  'git-dirty': { routes: { '/_api/git/status': 'gitBehind' } },
+  'git-dirty': {
+    routes: {
+      '/_api/git/status': 'gitBehind',
+      '/_api/git/log*': 'gitLog',
+      '/_api/git/branches': 'gitBranches',
+    },
+  },
+  'trash-full': { routes: { '/_api/sync/trash': 'syncTrash' } },
+  'git-on-draft': { extends: 'git-dirty', routes: { '/_api/git/status': 'gitOnDraft' } },
   'cloud-in': {
     routes: { '/_api/cloud/status': 'cloudIn', '/_api/cloud/projects': 'cloudProjects' },
   },
@@ -258,7 +289,7 @@ const diagView = (v) => [
   { expand: tid('diagnostics-sheet') },
 ];
 
-/** step kinds: click (main frame) · frameClick (canvas iframe) · key · expandMenu · expand (every
+/** step kinds: click (main frame) · frameClick (canvas iframe) · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
  *  aria-expanded=false inside a root, bounded) · palette (⌘K + type each needed action's label) ·
  *  run (⌘K, pick one action by id) · push (a WS frame) · type (into the focused field) · fill
  *  ([selector, text]) · `optional`
@@ -327,7 +358,7 @@ export const OPENERS = [
     id: 'left-canvases',
     steps: [{ click: tid('canvases-advanced') }, { expand: tid('dock-slot-left') }],
   },
-  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }] },
+  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }, { wait: 2500 }] },
   { id: 'left-assets', steps: [{ click: tid('panel-tab-assets') }] },
   // ── the canvas, with something on it ──────────────────────────────────────────────────────────
   { id: 'inspector', steps: [{ frameClick: '[data-cd-id="home-hero-title"]' }] },
@@ -363,5 +394,106 @@ export const OPENERS = [
   { id: 'ai-chat', steps: [{ key: 'Shift+Meta+A' }] },
   { id: 'history', steps: [{ key: 'Shift+Meta+G' }] },
   { id: 'history-dirty', state: 'git-dirty', steps: [{ key: 'Shift+Meta+G' }] },
+  // Version history on a repo with changes: the unsaved list, then the saved versions (a short sha each)
+  {
+    id: 'history-saved',
+    state: 'git-dirty',
+    steps: [{ key: 'Shift+Meta+G' }, { click: '.gp-tabs [role="tab"]:nth-child(2)' }],
+  },
+  // the draft switcher at the foot of Canvases (desktop): its menu, then a draft checked out
+  { id: 'switcher', state: 'git-dirty', steps: [{ click: tid('repo-switcher-trigger'), optional: true }] },
+  {
+    id: 'switcher-draft',
+    state: 'git-on-draft',
+    steps: [{ click: tid('repo-switcher-trigger'), optional: true }],
+  },
+  // Canvases > Advanced with hidden files on: sidecars, the runtime group, supporting-file previews
+  {
+    id: 'left-hidden-files',
+    steps: [
+      { click: tid('canvases-advanced'), unless: tid('canvases-hidden-files') },
+      { click: tid('canvases-hidden-files') },
+      { expand: tid('dock-slot-left') },
+    ],
+  },
+  // right-click in the canvas: the element menu (Copy CSS, Copy style, Convert layout…), then an artboard's
+  {
+    id: 'canvas-menu',
+    steps: [{ frameContext: '[data-cd-id="home-hero-title"]' }],
+  },
+  // …and on a container, where Convert layout to absolute is offered
+  { id: 'canvas-menu-container', steps: [{ frameContext: '[data-cd-id="home-hero-grid"]' }] },
+  {
+    id: 'canvas-menu-artboard',
+    steps: [{ frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true }],
+  },
+  // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector
+  {
+    id: 'inspector-advanced',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { click: tid('inspector-section-advanced'), optional: true },
+    ],
+  },
+  // a click selects and the Inspector opens on its CSS tab; Inspect (the selector header) and Layers (the
+  // DOM tree with its artboard count) are one tab away
+  {
+    id: 'inspector-inspect',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { click: 'button.st-rp-tab:has-text("Inspect")', optional: true },
+    ],
+  },
+  {
+    id: 'inspector-layers',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { click: 'button.st-rp-tab:has-text("Layers")', optional: true },
+      { wait: 1500 },
+    ],
+  },
+  {
+    id: 'inspector-grid',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-grid"]', modifiers: ['Meta'] },
+      { click: tid('inspector-section-grid'), optional: true },
+    ],
+  },
+  // a content-addressed photo: the Inspector offers a Photo tab (the knobs)
+  {
+    id: 'photo',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-photo"]' },
+      { click: 'button.st-rp-tab:has-text("Photo")', optional: true },
+    ],
+  },
+  { id: 'left-trash', state: 'trash-full', steps: [{ click: tid('canvases-trash-row') }] },
+  {
+    id: 'inspector-artboard',
+    steps: [{ frameClick: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true }],
+  },
+  // Export: the options each format opens, and the note a workspace with no render service gets
+  { id: 'export-png', steps: [{ key: 'Shift+Meta+E' }, { click: tid('export-format-png') }] },
+  {
+    id: 'export-pdf',
+    steps: [
+      { key: 'Shift+Meta+E' },
+      { click: tid('export-format-pdf') },
+      { click: tid('export-pdf-marks'), optional: true },
+    ],
+  },
+  // a video comp: open it, open the Timeline (⇧⌘T), pick the first clip (its inspector)
+  {
+    id: 'video-timeline',
+    steps: [
+      { click: tid('canvas-row-ui-reel') },
+      { wait: 5000 },
+      { key: 'Shift+Meta+T' },
+      { wait: 3000 },
+      { click: '[data-testid^="timeline-seq-"]', optional: true },
+      { dblclick: '[data-testid="timeline-seq-0"]', optional: true },
+    ],
+  },
+  { id: 'export-no-render', config: { exportLane: 'none' }, steps: [{ key: 'Shift+Meta+E' }] },
   { id: 'inspector-panel', steps: [{ key: 'Shift+Meta+I' }] },
 ];

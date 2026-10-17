@@ -116,6 +116,8 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `assets-empty` | testid | The Assets tab's empty state ("No images or footage yet."). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-nohits` | testid | The Assets tab's "Nothing called ..." state. | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
 | `assets-tile` | testid | One asset tile in the Assets tab (`aria-pressed` when picked). | `client/v2/left-panel/assets-panel.jsx` · `AssetsPanel` | — | stable — re-emit |
+| `canvases-count` | testid | The "N of M shown" readout with the live dot in the foot of Canvases > Advanced (the status bar's files count and live dot, moved). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | new |
+| `canvas-row-unsaved` | testid | The unsaved-change badge (M / A / D / U) on a canvas or file row in Canvases (`data-kind` carries the letter). | `client/tree/tree.jsx` · `FileRow` | — | new |
 
 ### viewport
 
@@ -161,6 +163,9 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-job-<id>` | testid (pattern) | One job row in the background Exports panel (`<id>` = job id). | `client/export-center.jsx` · `ExportPanel` | test:export-center | moves — map in Phase 4 |
 | `export-degraded-note` | testid | Note on an export job that finished in a degraded mode. | `client/export-center.jsx` · `DegradedNote` | test:exporters/degraded-propagation (source text) | moves — map in Phase 4 |
 | `[data-ok] on export-status` | selector | `data-ok="1"\|"0"` on `export-status` = last export succeeded/failed. | `client/app.jsx` · `ExportDialog` | test:export-e2e-lanes | moves — map in Phase 4 |
+| `export-png-resolution` | testid | The PNG resolution select (1x-3x and 150 / 300 / 600 dpi). Shown once the PNG card is picked. | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | new |
+| `export-pdf-quality` | testid | The PDF raster-quality (dpi) select. Shown once the PDF card is picked. | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | new |
+| `export-pdf-marks` | testid | The PDF "Marks" disclosure (crop and registration marks). Shown once the PDF card is picked. | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | new |
 
 ### inspector
 
@@ -187,6 +192,10 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `[aria-label="Inspector"]` | selector | The Inspector panel by accessible name. | `client/app.jsx` · `InspectorPanel` | spec:element-editing-resize-and-position | moves — map in Phase 4 |
 | Inspector field labels | selector | Inspector inputs reached by `aria-label`: "custom attribute name", "custom attribute value" (`AttrKnob`), "custom property name", "custom property value" (`RawKnob`), "font-weight". | `client/app.jsx` · `CssKnobs`<br>`client/app.jsx` · `AttrKnob`<br>`client/app.jsx` · `RawKnob` | e2e-mp:surface | moves — map in Phase 4 |
 | Photo tab field labels | selector | Photo tab inputs by `aria-label`: "Brightness", "Contrast", "Duotone on", "Grain on", "Mask preset", "Pattern on", "Pattern type", "Pattern blend", and "reset Adjustments section" (built as `reset ${title} section`). | `client/photo-knobs.jsx` · `PhotoKnobs`<br>`client/inspector-controls.jsx` · `PanelSection` | e2e-mp:surface, test:photo-knobs-state | stable — re-emit |
+| `inspector-custom-css` | testid | The custom CSS property row (name + value) in the Inspector > Advanced section. | `client/inspector/css-knobs.jsx` · `RawKnob` | — | new |
+| `inspector-html-attrs` | testid | The custom HTML attribute row (name + value) in the Inspector > Advanced section. | `client/inspector/css-knobs.jsx` · `AttrKnob` | — | new |
+| `inspector-grid-tracks` | testid | The grid columns / rows track editor in the Inspector, for an element whose display is grid. | `client/inspector/grid-tracks-editor.jsx` · `GridTracksEditor` | — | new |
+| `inspector-body-layout` | testid | The artboard body-layout select in the artboard Inspector. | `client/inspector/artboard-knobs.jsx` · `ArtboardKnobs` | — | new |
 
 ### comments panel
 
@@ -444,6 +453,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `.gp-tabs / .gp-cloud-note` | selector | Changes panel tab strip (hidden when withdrawn) and the cloud-managed note. *Source-text consumer only: `test/git-cloud-posture.test.ts` regex-matches `className="gp-tabs"` / `className="gp-cloud-note"` in `GitPanel.jsx`.* | `client/panels/GitPanel.jsx` · `GitPanel` | test:git-cloud-posture (source text) | stable — re-emit |
 | `.dv-frame` | selector | The canvas frame inside the history preview (diff) sheet. | `client/panels/DiffView.jsx` · `CanvasView` | e2e-mp:surface | stable — re-emit |
 | `.dv-zoom-sync` | selector | Zoom-sync label in the diff zoom bar. *CSS consumer.* | `client/panels/DiffView.jsx` · `ZoomBar` | test:shell-text-contrast | stable — re-emit |
+| `git-compare` | testid | The compare-before/after button on a changed canvas in the Changes list. | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
+| `git-discard` | testid | The discard button on a changed file (or canvas with its supporting files) in the Changes list. Desktop only (read-only elsewhere). | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
 
 ### sync/cloud
 
@@ -665,6 +676,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `.cm-thread (+ __actions, __reply-actions) / .cm-btn--primary / .cm-btn--danger` | selector | Comment thread popover, its action rows, primary and destructive buttons; "Edit comment", "Reply" by `aria-label`. | `comments-overlay.tsx` · `CommentThread` | runner:reliable-project-multiplayer/f3/s09-browser.mjs, e2e-mp:surface, test:comment-edit, test:input-router | stable — re-emit |
 | `.dc-participants / .dc-participant(--agent)` | selector | Participants chrome (avatars; `--agent` = the AI participant). | `participants-chrome.tsx` · `ParticipantsChrome` | e2e-mp:surface, test:canvas-hide-chrome | stable — re-emit |
 | `.dc-cursor / .dc-peer-selection / [data-peer-gesture]` | selector | Remote cursors, peer selection outlines, and peer gesture previews. | `cursors-overlay.tsx` · `Cursor`<br>`cursors-overlay.tsx` · `PeerSelection`<br>`cursors-overlay.tsx` · `PeerAnnotationGesture` | e2e-mp:surface, test-e2e:annotations-ui.e2e.mjs, test:peer-selection-follows-camera, test:presence-gesture-preview | stable — re-emit |
+| `canvas-menu-item-<id>` | testid (pattern) | One row of the canvas right-click menu; `<id>` is the registry item id (copy-css, copy-id, copy-style, paste-style, convert-to-absolute, theme, fit-one, ...). | `context-menu.tsx` · `MenuItemRow` | — | new |
 
 ### home
 

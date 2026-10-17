@@ -30,7 +30,7 @@ export function GridTracksEditor({ label, tracks, editable, onChange }) {
   const addTrack = () => onChange([...tracks, { value: 1, unit: 'fr' }]);
   const removeTrack = (idx) => onChange(tracks.filter((_, i) => i !== idx));
   return (
-    <div className="st-cp-gridtracks">
+    <div className="st-cp-gridtracks" data-testid="inspector-grid-tracks">
       <div className="st-cp-gridtracks-hd">
         <span className="st-cp-gridtracks-label">{label}</span>
         <button

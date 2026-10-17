@@ -58,7 +58,10 @@ const opt = (n) => {
 const ONLY = opt('--only')?.split(',') ?? null;
 const ONLY_OPENERS = opt('--openers')?.split(',') ?? null;
 // a partial run (some probes or some openers) only prints; --write lets it replace reachability.json
-const PARTIAL = Boolean(ONLY || ONLY_OPENERS);
+// --merge <evidence.json>: overlay this run's openers onto an earlier run's evidence (the file --evidence wrote), so a
+// re-run of a few openers or probes refreshes reachability.json without a full ~45 min pass
+const MERGE = opt('--merge');
+const PARTIAL = Boolean(ONLY || ONLY_OPENERS) && !MERGE;
 const BUILD = args.includes('--build');
 const die = (m) => {
   console.error(`probe-reach: ${m}`);
@@ -181,6 +184,11 @@ ${boards
           <main style={{ padding: 40, fontFamily: 'system-ui' }}>
             <h1 data-cd-id="${id}-title">${label}</h1>
             <p data-cd-id="${id}-body">Reachability fixture.</p>
+            <div data-cd-id="${id}-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <span>A</span>
+              <span>B</span>
+            </div>
+            <img data-cd-id="${id}-photo" src="assets/ab12cd34.png" width={60} height={30} alt="" />
           </main>
         </DCArtboard>`
   )
@@ -227,6 +235,15 @@ function makeFixture(project) {
     '.demo { --bg-0: #fff; --fg-0: #111; --accent: #36c; }\n'
   );
   put('.design/system/demo/README.md', '# demo\n');
+  // a content-addressed photo (assets/<8 hex>.<ext>): selecting it opens the Inspector's Photo tab
+  mkdirSync(join(project, '.design/assets'), { recursive: true });
+  writeFileSync(
+    join(project, '.design/assets/ab12cd34.png'),
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
   put('.design/system/demo/preview/colors.tsx', CANVAS('Colors', [['colors', 'Colors']]));
   put(
     '.design/ui/Home.tsx',
@@ -235,7 +252,42 @@ function makeFixture(project) {
       ['home-pricing', 'Pricing'],
     ])
   );
+  // the sidecar the Layers panel reads its artboard count from (GET /_api/canvas-meta)
+  put(
+    '.design/ui/Home.meta.json',
+    `${JSON.stringify({ artboards: [{ id: 'home-hero' }, { id: 'home-pricing' }] }, null, 2)}\n`
+  );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
+  // a video comp (two 20 s sequences = long, each animates its title): the Timeline and its clip inspector
+  put(
+    '.design/ui/Reel.tsx',
+    `import { DCArtboard, DesignCanvas, VideoComp } from '@maude/canvas-lib';
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from 'remotion';
+
+const Title = () => {
+  const frame = useCurrentFrame();
+  const o = interpolate(frame, [0, 20], [0, 1]);
+  return <h1 style={{ opacity: o }}>Reel</h1>;
+};
+
+const ReelCut = () => (
+  <AbsoluteFill style={{ background: '#000' }}>
+    <Sequence from={0} durationInFrames={600}><Title /></Sequence>
+    <Sequence from={600} durationInFrames={600}><Title /></Sequence>
+  </AbsoluteFill>
+);
+
+export default function Reel() {
+  return (
+    <DesignCanvas>
+      <DCArtboard id="reel" kind="video" label="Reel" width={1080} height={1920}>
+        <VideoComp component={ReelCut} durationInFrames={1200} fps={30} width={1080} height={1920} />
+      </DCArtboard>
+    </DesignCanvas>
+  );
+}
+`
+  );
 }
 async function bootServer() {
   const project = join(runDir, 'project');
@@ -393,6 +445,9 @@ async function runOpener(browser, srv, probe, opener) {
     }
     await collect();
     for (const step of opener.steps) {
+      // `unless`: skip the step when that selector is already on screen (a fold the Mac remembers open)
+      if (step.unless && (await page.locator(step.unless).first().isVisible().catch(() => false)))
+        continue;
       if (step.click) {
         const el = page.locator(step.click).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
@@ -407,8 +462,22 @@ async function runOpener(browser, srv, probe, opener) {
       } else if (step.frameClick) {
         const fr = page.frameLocator(tid('canvas-frame'));
         const target = fr.locator(step.frameClick).first();
+        if (step.optional) await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
+      } else if (step.dblclick) {
+        const el = page.locator(step.dblclick).first();
+        if (step.optional && !(await el.isVisible().catch(() => false))) continue;
+        await el.dblclick({ timeout: 4000 });
+      } else if (step.wait) {
+        await sleep(step.wait);
+      } else if (step.frameContext) {
+        // a right-click inside the canvas iframe: the canvas's own context menu
+        const fr = page.frameLocator(tid('canvas-frame'));
+        const target = fr.locator(step.frameContext).first();
+        if (step.optional) await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
+        if (step.optional && !(await target.isVisible().catch(() => false))) continue;
+        await target.click({ button: 'right', timeout: 10_000 });
       } else if (step.expandMenu) {
         const subs = await page
           .locator('[data-testid^="project-menu-row-sub-"]')
@@ -500,7 +569,7 @@ try {
 }
 const srv = await bootServer();
 const browser = await chromium.launch({ headless: true });
-const evidence = {};
+let evidence = {};
 try {
   for (const probe of PROBES.filter((p) => !ONLY || ONLY.includes(p.id))) {
     evidence[probe.id] = {};
@@ -527,12 +596,17 @@ try {
   }
 }
 
+if (MERGE) {
+  const base = JSON.parse(readFileSync(MERGE, 'utf8'));
+  for (const [p, byOpener] of Object.entries(evidence)) base[p] = { ...(base[p] ?? {}), ...byOpener };
+  evidence = base;
+}
 const doc = summarize({
   evidence,
   subjects,
   hooksByName,
   taken: new Date().toISOString(),
-  bundle: BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js',
+  bundle: `${BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js'}${MERGE ? ' (earlier run + re-run openers merged)' : ''}`,
 });
 if (!PARTIAL || args.includes('--write')) writeFileSync(OUT, `${JSON.stringify(doc, null, 2)}\n`);
 if (opt('--evidence')) writeFileSync(opt('--evidence'), JSON.stringify(evidence));

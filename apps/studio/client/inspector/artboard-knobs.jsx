@@ -435,6 +435,7 @@ export function ArtboardKnobs({
         <Select
           value={layoutMode}
           ariaLabel="artboard body layout"
+          testId="inspector-body-layout"
           options={ARTBOARD_LAYOUT_OPTIONS.map(([value, label]) => ({
             value,
             label,

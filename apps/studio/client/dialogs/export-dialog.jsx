@@ -611,6 +611,7 @@ export function ExportDialog({
               </label>
               <select
                 id="st-export-size"
+                data-testid="export-png-resolution"
                 className="st-select"
                 value={pngResId}
                 onChange={(e) => setPngResId(e.target.value)}
@@ -680,6 +681,7 @@ export function ExportDialog({
                 </label>
                 <select
                   id="st-export-pdf-dpi"
+                  data-testid="export-pdf-quality"
                   className="st-select"
                   value={pdfDpiId}
                   onChange={(e) => setPdfDpiId(e.target.value)}
@@ -735,6 +737,7 @@ export function ExportDialog({
                 <button
                   type="button"
                   className="st-dialog-lbl"
+                  data-testid="export-pdf-marks"
                   style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer' }}
                   onClick={() => setPdfMarksOpen((v) => !v)}
                   aria-expanded={pdfMarksOpen}
