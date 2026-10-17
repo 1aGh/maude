@@ -227,6 +227,7 @@ import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
+import { useToolPanels } from './v2/shell/use-tool-panels.js';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { Menubar } from './menus/menubar.jsx';
@@ -2981,6 +2982,18 @@ function ShellTree() {
     presenting: presentMode,
     layoutKey: `${pinned}|${panelsHidden}|${leftActive}|${rightActive}|${assistantOpen}|${sbSize.w}|${rpSize.w}`,
   });
+  // V2-4.5c — the canvas toolbar's panels (Stickers, Assets) are the shell's: `toolbar-rect` +
+  // `tool-panel-open`, active canvas only.
+  useToolPanels({
+    activePath,
+    iframesRef,
+    cfg,
+    openStickers: setStickerPickerReq,
+    openAssets: () => {
+      panelLayout.show();
+      openPanelExclusive('assets');
+    },
+  });
   // The AI chat island's body. Always mounted (the island is `hidden`, not removed), so its stream survives
   // a Hide (DDR-123).
   const renderAssistant = () => (
@@ -3276,7 +3289,11 @@ function ShellTree() {
         />
       )}
       {stickerPickerReq && (
-        <StickerPicker onPick={onStickerPicked} onClose={() => setStickerPickerReq(null)} />
+        <StickerPicker
+          onPick={onStickerPicked}
+          onClose={() => setStickerPickerReq(null)}
+          anchor={stickerPickerReq.anchor ?? null}
+        />
       )}
       {diffTarget && (
         <DiffView
