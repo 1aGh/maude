@@ -121,6 +121,16 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
                 {n.checked ? <StIcon name="check" size={13} /> : null}
               </span>
               <span className="st-pm-lab">{n.label}</span>
+              {n.status ? (
+                // V2-4.7b: Diagnostics rows say their state in one word (CONTRACT §1), or show a value.
+                <span
+                  className={`st-pm-status${n.status.mono ? ' st-pm-status--mono' : ''}`}
+                  data-tone={n.status.tone}
+                  data-testid={`project-menu-status-${n.id}`}
+                >
+                  {n.status.word}
+                </span>
+              ) : null}
               {n.keys ? <Kbd>{n.keys}</Kbd> : null}
             </button>
           </div>

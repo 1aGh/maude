@@ -1,0 +1,318 @@
+/* client/v2/diagnostics/diagnostics.css — V2-4.7b: Menu › Diagnostics (06 Advanced ad-diag · ad-logs ·
+ * ad-syncd). Two things: the status word / value a Diagnostics menu row carries (.st-pm-status), and the
+ * sheet it opens (.dg-*). The sheet is the POPOVER plane — opaque, the large shadow, no backdrop-filter
+ * (V2-1.8 M1) — laid over the canvas under the Share cluster. Mono is allowed here: this is the Advanced
+ * side of the app. No motion beyond what the shell already has. */
+
+@layer shell {
+  /* ── a menu row's status word / value ── */
+  .st-pm-status {
+    margin-left: auto;
+    padding-left: var(--space-3, 12px);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .st-pm-status--mono {
+    font-family: var(--font-mono);
+  }
+  .st-pm-status[data-tone="ok"] {
+    color: var(--status-success-text, var(--status-success));
+  }
+  .st-pm-status[data-tone="warn"] {
+    color: var(--status-warn-text, var(--status-warn));
+  }
+  .st-pm-status[data-tone="error"] {
+    color: var(--status-error-text, var(--status-error));
+  }
+  /* the key hint stays right of the word */
+  .st-pm-status + .kbd {
+    margin-left: var(--space-2, 8px);
+  }
+
+  /* ── the sheet ── */
+  .dg-sheet {
+    position: absolute;
+    z-index: 40;
+    top: calc(var(--float-gap, 16px) + 52px);
+    right: var(--float-gap, 16px);
+    width: min(760px, calc(100% - 2 * var(--float-gap, 16px)));
+    max-height: calc(100% - var(--float-gap, 16px) * 2 - 52px);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    outline: none;
+    font-family: var(--font-body);
+    color: var(--fg-1);
+  }
+  .dg-top {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .dg-title {
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-tabs {
+    display: flex;
+    gap: var(--space-1, 4px);
+    flex: 1;
+    min-width: 0;
+  }
+  .dg-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    cursor: default;
+  }
+  .dg-tab:hover,
+  .dg-tab:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  .dg-tab[aria-selected="true"] {
+    background: var(--accent-muted, var(--bg-3));
+    color: var(--fg-1);
+  }
+  .dg-x {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font-size: 18px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md, 8px);
+  }
+  .dg-x:hover,
+  .dg-x:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  .dg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--space-3, 12px);
+  }
+
+  /* ── cards, rows, words ── */
+  .dg-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+  }
+  .dg-hd,
+  .dg-logs-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    flex-wrap: wrap;
+  }
+  .dg-word {
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .dg-word[data-tone="ok"] {
+    color: var(--status-success-text, var(--status-success));
+  }
+  .dg-word[data-tone="warn"] {
+    color: var(--status-warn-text, var(--status-warn));
+  }
+  .dg-word[data-tone="error"] {
+    color: var(--status-error-text, var(--status-error));
+  }
+  .dg-when {
+    margin-left: auto;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .dg-row {
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-k {
+    color: var(--fg-2);
+  }
+  .dg-v {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dg-mono {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+  }
+  .dg-hint,
+  .dg-empty {
+    margin: var(--space-1, 4px) 0 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .dg-btn,
+  .dg-copy {
+    appearance: none;
+    border: 1px solid var(--border-default);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    min-height: 26px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    cursor: default;
+  }
+  .dg-btn:hover:not(:disabled),
+  .dg-copy:hover:not(:disabled),
+  .dg-btn:focus-visible,
+  .dg-copy:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  .dg-btn:disabled,
+  .dg-copy:disabled {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .dg-btn--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent, var(--bg-0));
+  }
+  .dg-btn--primary:hover:not(:disabled) {
+    background: var(--accent);
+    filter: brightness(1.06);
+  }
+  .dg-notice,
+  .dg-latest {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-notice > span:first-child,
+  .dg-latest > span:first-child {
+    flex: 1;
+  }
+  .dg-latest {
+    margin-bottom: var(--space-2, 8px);
+  }
+
+  /* ── logs ── */
+  .dg-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+  }
+  .dg-seg-b {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    min-height: 22px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: 6px;
+  }
+  .dg-seg-b[aria-pressed="true"] {
+    background: var(--bg-1);
+    color: var(--fg-1);
+  }
+  .dg-seg-b:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .dg-find {
+    flex: 1;
+    min-width: 90px;
+    min-height: 26px;
+    padding: 0 var(--space-2, 8px);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-0, var(--bg-1));
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+  }
+  .dg-lines {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-2, 8px);
+    max-height: 420px;
+    overflow: auto;
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+    line-height: 1.55;
+  }
+  .dg-line {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: var(--space-2, 8px);
+    overflow-wrap: anywhere;
+  }
+  .dg-line-s {
+    color: var(--fg-2);
+  }
+  .dg-line[data-level="warn"] .dg-line-m {
+    color: var(--status-warn-text, var(--status-warn));
+  }
+  .dg-line[data-level="error"] .dg-line-m {
+    color: var(--status-error-text, var(--status-error));
+  }
+
+  /* ── Sync: today's panel, whole, inside the sheet ── */
+  .dg-sync .st-rpanel {
+    border-left: 0;
+    animation: none;
+    background: transparent;
+    min-height: 0;
+  }
+  .dg-fold {
+    margin-top: var(--space-3, 12px);
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-fold > summary {
+    color: var(--fg-2);
+    font-size: var(--type-xs, 12px);
+  }
+  .dg-cmd {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+  }
+  .dg-sync .gp-x {
+    display: none;
+  }
+}

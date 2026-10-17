@@ -8207,5 +8207,440 @@
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "project-menu-status-<action-id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The status word or value on a Diagnostics row of the one menu (`data-tone` ∈ ok, warn, error, neutral): Sync · Server · AI setup carry a word, Address · Process · Project folder a mono value.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/project-pill.jsx",
+      "symbol": "Level"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diagnostics-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Diagnostics sheet (`role=dialog`, `data-view` ∈ logs, server, ai, sync) that Menu › Diagnostics opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "DiagnosticsSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diagnostics-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's × (Esc closes it too).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "DiagnosticsSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-tab-<view>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One tab of the sheet; `<view>` ∈ logs, server, ai, sync. Carries that source's status word.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "DiagnosticsSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Logs card: the four sources' ring buffers (sync · server · AI · export).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-filter-<source>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One source filter of the Logs card (`aria-pressed`); `<source>` ∈ all, sync, server, ai, export.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Logs card's substring filter.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-refresh",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Re-read `GET /_api/diagnostics`.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-copy-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy the scrubbed diagnostic report (`GET /_api/diagnostics/report`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-lines",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The log tail (`ol`; each `li` carries `data-source` and `data-level`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Logs card with nothing to show (no lines yet / still reading).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Logs card when `/_api/diagnostics` could not be read.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-server",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Server card: mode stamp, live connection, address, version, process, project folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ServerView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-row-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One labelled row of the Server card; `<key>` ∈ mode, live, address, version, process, folder (and `hub` in the Sync tab's hints).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "Row"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-copy-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Copy button beside a mono row; `<key>` as in `diag-row-<key>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "CopyBtn"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-mode-stamp",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Was the menu bar's IDLE · CANVAS · SYSTEM stamp; `data-mode` ∈ idle, canvas, system.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ServerView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Was the status bar's live / reconnecting dot: Connected or Reconnecting….",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ServerView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-repo-changed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Repo state changed — reload?\" (the git lifecycle notice) in the Server card.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ServerView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-repo-reload",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Reload the page from the repo-changed notice.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ServerView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-repo-dismiss",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Dismiss the repo-changed notice.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ServerView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI setup card: the readiness list whole (`rdy-row-<id>` rows, the claude binary path, Re-check).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-recheck",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Check AI setup again (re-probes `/_api/preflight`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-when",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Checking…\" / \"Checked just now\" beside the AI setup word.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Sync tab for a linked project: Get latest, today's Sync panel (`sync-panel`) whole, and the hints.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-solo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Sync tab for an unlinked project (\"nothing to sync\").",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-get-latest-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The row offering Get latest while the team has new versions.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-get-latest",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Get latest (the Version history panel's pull, reached from Sync details).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-get-latest-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sentence after Get latest ran.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-sync-hints",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Hub, commands\" fold: hub host, `maude design status`, `/design:rollback`.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "SyncView"
+    },
+    "region": "other",
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
+    "v2": "new"
   }
 ]

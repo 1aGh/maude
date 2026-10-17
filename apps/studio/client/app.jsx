@@ -220,6 +220,8 @@ import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx'
 import { Sidebar } from './tree/tree.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
 import { cutCopyPaste, createMenuHandlers, menuRunner } from './v2/shell/menu-runner.js';
+import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
+import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
@@ -1458,6 +1460,7 @@ function ShellState({ children }) {
     gitActions: {
       acceptedDiff,
       gitDiscard,
+      gitGetLatest,
       gitResolveConflict,
       loadDiffLog,
       restoreProjectVersion,
@@ -1564,8 +1567,10 @@ function ShellMenubar() {
       toggleRightPanel,
       toggleTimeline,
       unsavedCount,
+      syncStatus,
       viewerMode,
       whatsNew,
+      wsConnected,
       zoomCtlVisible,
     },
     photoAndTimeline: {
@@ -1822,6 +1827,13 @@ function ShellProjectPill() {
   };
   const d = useMemo(() => new Proxy({}, { get: (_t, k) => live.current[k] }), []);
   const handlers = useMemo(() => createMenuHandlers(d), [d]);
+  // V2-4.7b: the Diagnostics rows' status words (Sync · Server · AI setup) and the rows left out.
+  const diag = useDiagnosticsMenu({
+    syncStatus,
+    project: cfg?.cloud?.projectName || project,
+    wsConnected,
+    cfg,
+  });
   useEffect(() => {
     menuRunner.bind(handlers, {
       postToActiveCanvas: (m) => live.current.postToActiveCanvas(m),
@@ -1836,6 +1848,7 @@ function ShellProjectPill() {
   );
   const state = useMemo(
     () => ({
+      ...diag.state,
       panelsHidden,
       checked: {
         'view.pin-panels': pinned,
@@ -1856,6 +1869,7 @@ function ShellProjectPill() {
       },
     }),
     [
+      diag.state,
       panelsHidden,
       pinned,
       annotationsVisible,
@@ -1889,6 +1903,7 @@ function ShellProjectPill() {
         docked={pinned && !panelsHidden && !!leftActive}
         onOpen={(el) => {
           openerRef.current = el;
+          diag.onMenuOpen();
         }}
       />
       <TreeRowMenu
@@ -3032,6 +3047,8 @@ function ShellTree() {
           style={{ '--sb-w': `${sbSize.w}px`, '--rp-w': `${rpSize.w}px` }}
         >
           <ShellProjectPill />
+          {/* V2-4.7b — Menu › Diagnostics: Logs · Server · AI setup · Sync (today's Sync panel, whole). */}
+          <DiagnosticsHost toast={shellToast} />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a

@@ -51,6 +51,8 @@ export function keyHint(def, ctx) {
 function itemOf(id, ctx, state, byId) {
   const def = byId.get(id);
   if (!def || !isVisible(def, ctx)) return null;
+  // V2-4.7b: a row the shell knows is not offered here (Resync for a cloud member) leaves no row.
+  if (state?.hidden?.includes(id)) return null;
   const item = {
     type: 'item',
     id,
@@ -59,6 +61,9 @@ function itemOf(id, ctx, state, byId) {
     icon: def.icon ?? null,
     disabled: !isEnabled(def, ctx),
   };
+  // V2-4.7b: Diagnostics rows carry a status word / value ({ word, tone, mono? }) the shell computed.
+  const status = state?.status?.[id];
+  if (status?.word) item.status = status;
   if (def.kind === 'toggle') {
     item.toggle = true;
     const on = state?.checked?.[id];
@@ -98,7 +103,8 @@ function build(nodes, ctx, state, byId) {
 /**
  * The menu a person sees now.
  * @param ctx KeyCtx (actions/types.ts) — role, shell, mode, facts. Use `menuCtx()` to make one.
- * @param state `{ panelsHidden, checked: { <toggle id>: boolean } }` — what the labels / ticks show.
+ * @param state `{ panelsHidden, checked: { <toggle id>: boolean }, status: { <id>: { word, tone, mono? } },
+ *   hidden: [<id>] }` — what the labels / ticks / status words show, and the rows left out.
  */
 export function buildProjectMenu(
   ctx,

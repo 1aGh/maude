@@ -17,6 +17,7 @@ import { safeDetail, safeName, syncPresentation } from '../../sync/presentation.
 import { TeamProjectsDialog } from './TeamProjects.jsx';
 import SourceConflictPanel from './SourceConflictPanel.jsx';
 import { isNativeApp } from '../github.js';
+import { requestOffline, requestResync } from '../v2/diagnostics/sync-actions.js';
 
 /**
  * How long Resync stays disabled after a cycle finishes.
@@ -272,23 +273,8 @@ export default function SyncPanel({
   async function prepareOffline() {
     setOfflineBusy(true);
     setOffline('');
-    try {
-      const r = await fetch('/_api/sync/offline', { method: 'POST' });
-      const j = await r.json().catch(() => ({}));
-      if (!j.ok) setOffline(j.error || 'Could not download the project right now.');
-      else if (j.complete)
-        setOffline(
-          `Everything is on this device${j.pulled ? ` — ${j.pulled} file${j.pulled === 1 ? '' : 's'} came down` : ''}.`
-        );
-      else
-        setOffline(
-          `${j.pulled} file${j.pulled === 1 ? '' : 's'} came down; ${j.failed} still to come — Maude keeps trying.`
-        );
-    } catch {
-      setOffline('Maude isn’t reachable right now.');
-    } finally {
-      setOfflineBusy(false);
-    }
+    setOffline(await requestOffline());
+    setOfflineBusy(false);
   }
   // Plan T28 — the conflict being resolved (a canvas slug), or null.
   const [resolving, setResolving] = useState(null);
@@ -335,21 +321,9 @@ export default function SyncPanel({
     if (resyncing || cooling) return;
     setResyncing(true);
     setNote('');
-    let res = null;
-    let json = {};
-    try {
-      res = await fetch('/_api/sync/resync', { method: 'POST' });
-      json = await res.json().catch(() => ({}));
-    } catch {
-      /* the server went away — say so below rather than throwing into render */
-    }
+    const { note: said } = await requestResync();
     setResyncing(false);
-    if (!res) setNote('Maude could not reach the sync service.');
-    else if (res.status === 409) setNote('Already restarting — give it a moment.');
-    else if (!res.ok || !json.ok) setNote(json.detail || 'Resync could not start.');
-    // A restart that declined is not an error, but it IS the only thing worth
-    // saying — the panel's own header keeps reporting the live state.
-    else if (json.sync && !json.sync.syncing) setNote(json.sync.detail || '');
+    setNote(said);
     setCooling(true);
     timers.current.push(setTimeout(() => setCooling(false), RESYNC_COOLDOWN_MS));
   }, [resyncing, cooling]);
