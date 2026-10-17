@@ -56,6 +56,27 @@ async function mount(props: Props = {}) {
 }
 
 describe('the cluster', () => {
+  test('the old chip’s tooltip and short label ride on the status word (V2-4.8b)', async () => {
+    const { q } = await mount({
+      status: {
+        ...saveStatus({ ...linked, phase: 'attention' }),
+        title: '2 files need a look (a.tsx, b.tsx) — open Sync',
+        syncLabel: '2 to review',
+      },
+    });
+    const word = q('share-cluster-status');
+    expect(word?.getAttribute('title')).toContain('2 files need a look');
+    expect(word?.getAttribute('data-sync-label')).toBe('2 to review');
+  });
+
+  test('the disk-full sentence still wins the tooltip, and no label is invented', async () => {
+    const { q } = await mount({
+      status: saveStatus({ writeFailed: { kind: 'disk-full' }, linked: true }),
+    });
+    expect(q('share-cluster-status')?.getAttribute('title')).toContain('out of space');
+    expect(q('share-cluster-status')?.getAttribute('data-sync-label')).toBeNull();
+  });
+
   test('faces: you, then Claude while it works', async () => {
     const { q } = await mount({ faces: facesOf({ you: 'Michal Dovrtěl', agentActive: true }) });
     const faces = q('share-cluster-faces');

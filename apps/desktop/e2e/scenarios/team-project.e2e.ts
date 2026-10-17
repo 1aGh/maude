@@ -2,6 +2,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { $, $$, browser, expect } from '@wdio/globals';
 
+import {
+  closeHistory,
+  openHistory,
+  openSyncDetails,
+  syncStatusText,
+  toggleTheme,
+} from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -177,20 +184,17 @@ describe('team-project (native-desktop)', () => {
     await capture('06-designer-edit-arrived');
   });
 
-  it('4b · the status bar offers a way into the project’s history', async () => {
+  it('4b · the menu offers a way into the project’s history', async () => {
     // The designer's own history — and the Undo on their own actions — lives
     // in this panel. A managed team copy is NOT a Git repository, and the
-    // chip that opens the panel used to be gated on one, so on the single
-    // surface an invited designer uses there was no visible way in at all
-    // (found running S20 against a live deployment). The menu entry and ⌘⇧G
-    // still worked, which is why it stayed invisible rather than broken.
+    // status-bar chip that opened the panel used to be gated on one, so on the
+    // single surface an invited designer uses there was no visible way in at
+    // all (found running S20 against a live deployment). The chip is gone
+    // (V2-4.8b): Menu › Version history is the way in, ungated.
     await settleMotion();
-    const changes = await $(tid('open-changes'));
-    await changes.waitForDisplayed({ timeout: 30_000 });
-    if ((await changes.getAttribute('aria-pressed')) !== 'true') await changes.click();
-    await (await $(tid('git-panel'))).waitForDisplayed({ timeout: 30_000 });
-    await capture('06b-history-from-the-status-bar');
-    await (await $(tid('open-changes'))).click();
+    await openHistory();
+    await capture('06b-history-from-the-menu');
+    await closeHistory();
   });
 
   it('5 · the switcher names the project and offers team projects again', async () => {
@@ -241,14 +245,14 @@ describe('team-project (native-desktop)', () => {
       timeoutMsg: 'Escape did not close the team projects dialog',
     });
     // Dark theme: the same dialog, legible.
-    await (await $('.st-sb-theme')).click();
+    await toggleTheme();
     await trigger.click();
     await (await $(tid('switcher-open-team'))).click();
     await (await $(tid('team-projects-dialog'))).waitForDisplayed({ timeout: 10_000 });
     const theme = await browser.execute(() => document.documentElement.getAttribute('data-theme'));
     await capture(`07-team-projects-${theme ?? 'theme'}`);
     await browser.keys('Escape');
-    await (await $('.st-sb-theme')).click();
+    await toggleTheme();
   });
 
   it('7 · the server goes away: the app stops claiming "synced", keeps the edit, delivers it on return', async () => {
@@ -259,9 +263,9 @@ describe('team-project (native-desktop)', () => {
     try {
       writeFileSync(mine, canvas('Welcome, written while the server was away'));
       await eventually(
-        'the status bar to say the change is not shared yet',
+        'the Share cluster to say the change is not shared yet',
         async () => {
-          const text = ((await (await $('.st-sb-sync')).getText()) ?? '').toLowerCase();
+          const text = ((await syncStatusText()) ?? '').toLowerCase();
           return /offline|reconnect|saving|pending|waiting|not shared|unsaved/.test(text);
         },
         60_000
@@ -294,7 +298,7 @@ describe('team-project (native-desktop)', () => {
       await eventually(
         'the change to be waiting on this machine',
         async () => {
-          const text = ((await (await $('.st-sb-sync')).getText()) ?? '').toLowerCase();
+          const text = ((await syncStatusText()) ?? '').toLowerCase();
           return /offline|reconnect|saving|pending|waiting|not shared|unsaved/.test(text);
         },
         60_000
@@ -337,16 +341,15 @@ describe('team-project (native-desktop)', () => {
       });
     expect((await admin('/users/disable')).status).toBe(200);
     writeFileSync(mine, canvas('Welcome, after access was removed'));
-    // The status bar's sync slot opens the Sync panel (unless it already is).
-    const openSync = await $(tid('open-sync'));
-    if ((await openSync.getAttribute('aria-pressed')) !== 'true') await openSync.click();
+    // Menu › Diagnostics › Sync shows the Sync panel (the status bar's chip is gone — V2-4.8b).
+    await openSyncDetails();
     await settleMotion();
     const again = await $(tid('sync-signin-again'));
     await again.waitForDisplayed({ timeout: 90_000 }).catch(async (error) => {
       await capture('10-access-removed-no-sign-in-again');
       const seen = await browser.execute(() => ({
         note: document.querySelector('.sp-note')?.textContent ?? null,
-        status: document.querySelector('.st-sb-sync')?.textContent ?? null,
+        status: document.querySelector('[data-testid="share-cluster-status"]')?.textContent ?? null,
         panel: !!document.querySelector('.sp-note, [data-testid="sync-panel"]'),
       }));
       throw new Error(`${String(error)} — ${JSON.stringify(seen)}`);

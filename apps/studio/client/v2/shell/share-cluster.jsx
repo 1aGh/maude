@@ -142,9 +142,13 @@ export function ShareCluster({
             className={`st-saved${status.tone ? ` st-saved--${status.tone}` : ''}`}
             data-testid="share-cluster-status"
             data-status={status.kind}
+            // The old status-bar chip's detail (its tooltip and its short label — "3 to review",
+            // "1 refused", "12/40") rides on the word: hover for the sentence; `data-sync-label` is
+            // the short form for scenarios and scripts (V2-4.8b).
+            data-sync-label={status.syncLabel || undefined}
             role="status"
             aria-live="polite"
-            title={status.detail}
+            title={status.detail || status.title || undefined}
           >
             <StIcon name={status.icon} size={16} />
             <span className="st-saved-w">{status.word}</span>

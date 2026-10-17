@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 
+import { openSyncDetails } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { invokeTauri } from '../helpers/native';
@@ -360,9 +361,8 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     //     re-authenticates every document and re-fires the asset sweep — the
     //     exact sequence that used to take the dev server down with it. The
     //     canvas list still rendering afterwards IS the assertion.
-    const chip = await $(tid('open-sync'));
-    await chip.waitForDisplayed({ timeout: 30_000 });
-    await chip.click();
+    // (the status bar's sync chip is gone — V2-4.8b — the panel opens from Menu › Diagnostics › Sync)
+    await openSyncDetails();
 
     // `waitForExist`, not `waitForDisplayed` — the right dock in this harness's
     // window geometry is the same one `shell-parity` had to assert existence on.

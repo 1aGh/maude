@@ -62,13 +62,22 @@ try {
   await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-dc-screen]').first().waitFor({ timeout: 60000 });
   for (const theme of ['light', 'dark']) {
     const current = await page.evaluate(() => document.querySelector('.maude')?.dataset.theme);
-    if (current !== theme) await page.getByRole('button', { name: `Switch to ${theme} theme` }).click();
+    if (current !== theme) {
+      // V2-4.8b: the status-bar toggle is Settings › General › Look › Theme.
+      await page.locator('[data-testid="project-pill"]').click();
+      await page.locator('[data-testid="project-menu-row-settings.open"]').click();
+      await page.locator(`[data-testid="settings-theme"] input[value="${theme}"]`).evaluate((el) => el.click());
+      await page.locator('[data-testid="settings-close"]').click();
+    }
     await page.waitForTimeout(400);
     report.scans.push(await scan(page, `shell + open canvas (${theme})`));
     const frame = page.frames().find((f) => /_canvas-shell/.test(f.url()));
     if (frame) report.scans.push(await scan(frame, `canvas document (${theme})`));
-    if ((await page.locator('[data-testid="open-changes"][aria-pressed="true"]').count()) === 0)
-      await page.locator('[data-testid="open-changes"]').click();
+    if ((await page.locator('[data-testid="git-panel"]').count()) === 0) {
+      // V2-4.8b: Menu › Version history (the status-bar Changes chip is gone).
+      await page.locator('[data-testid="project-pill"]').click();
+      await page.locator('[data-testid="project-menu-row-history.open"]').click();
+    }
     try {
       await page.locator('[data-testid^="project-history-row-"]').first().waitFor({ timeout: 30000 });
     } catch (error) {

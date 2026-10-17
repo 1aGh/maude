@@ -90,11 +90,11 @@ export function ShellShareCluster() {
 
   const linked =
     !!cfg?.cloud || !!cloudLinkedHub?.credentialed || (!!syncStatus && syncStatus.linked !== false);
-  const phase = useMemo(
-    () =>
-      syncPresentation(syncStatus, { project: cfg?.cloud?.projectName || project })?.phase ?? null,
+  const presentation = useMemo(
+    () => syncPresentation(syncStatus, { project: cfg?.cloud?.projectName || project }),
     [syncStatus, cfg?.cloud?.projectName, project]
   );
+  const phase = presentation?.phase ?? null;
   const outbox = useOutboxPending(linked, syncStatus?.state);
   const pending = (Number(syncStatus?.queuedOps) || 0) + outbox;
 
@@ -106,6 +106,12 @@ export function ShellShareCluster() {
   const status = saveStatus({ linked, online, phase, pending, writeFailed: null });
   // "Show in Finder" has no reveal path in the shell yet (Diagnostics › Project folder, V2-4.7).
   const shown = { ...status, actions: status.actions.filter((a) => a.id !== 'show-in-finder') };
+  // The status-bar chip's tooltip + short label (V2-4.8b): the sentence on hover, the label as data.
+  if (presentation) {
+    const names = presentation.names.length ? ` (${presentation.names.join(', ')})` : '';
+    shown.title = `${presentation.title}${names}${presentation.next ? ` — ${presentation.next}` : ''}`;
+    shown.syncLabel = presentation.label;
+  }
 
   // V2-4.3b — the mode lane: the switch below sends `set-mode`; the active canvas reports its peers.
   const lane = useCanvasModeLane({
