@@ -71,7 +71,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
 
   test('the section rail renders the FILTERED list, not the raw table', () => {
     // Rendering SECTIONS directly is what would ship the wall of 404s.
-    expect(SHEET).toContain('const sections = sectionsFor(cloud);');
+    expect(SHEET).toContain('const sections = sectionsFor(cloud, readOnly);');
     expect(SHEET).toContain('{sections.map((s) => (');
     expect(SHEET).not.toContain('{SECTIONS.map(');
     // …and every keyboard path must walk the same list, or End/Home select a section that is
@@ -82,7 +82,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
 
   test('a remembered section this shell does not have cannot select nothing', () => {
     // Open Advanced on the desktop, then open Settings in the cloud.
-    expect(SHEET).toContain('resolveTab(cloud, initialTab, remembered())');
+    expect(SHEET).toContain('resolveTab(cloud, initialTab, remembered(), readOnly)');
     expect(SETTINGS_MODEL).toContain('sectionsFor(cloud).map((s) => s.id)');
     // …and the local sections need `cloud === null`, never mere falsiness.
     expect(SETTINGS_MODEL).toMatch(/!s\.local \|\| cloud === null/);

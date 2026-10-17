@@ -186,12 +186,8 @@ function settingsWhere(parts, name) {
  * The Settings sheet's rows as results. A local-machine row (`local`) is absent from a cloud tab and from a
  * read-only session, as it is in the sheet (`rowShown`); `open` is the section the sheet opens on.
  */
-export function settingsSearchRows({
-  cloud = null,
-  readOnly = false,
-  rows = SETTINGS_ROWS,
-  run = () => {},
-} = {}) {
+export function settingsSearchRows(opts = {}) {
+  const { cloud = null, readOnly = false, rows = SETTINGS_ROWS, run = () => {} } = opts;
   const out = [];
   const seen = new Set();
   for (const r of rows) {
