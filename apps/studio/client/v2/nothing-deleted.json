@@ -168,7 +168,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-selection",
-        "where": "Inspector header — the selection's selector then the element's own text (inspector-selection-text), the DOM path on hover; Esc inside the canvas clears it. Layers › Advanced select-by-selector is S2's"
+        "where": "Select an element → Inspector › Advanced — the selection's selector then the element's own text (inspector-selection-text), the DOM path on hover; Esc inside the canvas clears it. Layers › Advanced select-by-selector is S2's"
       }
     },
     {
@@ -681,7 +681,7 @@
       "v2": {
         "action": null,
         "testid": "css-panel",
-        "where": "Select an element → Inspector › the CSS panel; the Advanced vocabulary lists the raw properties (until S2)"
+        "where": "Select an element → Inspector › Advanced — the raw CSS panel, unchanged: about 33 properties in the raw vocabulary (S2.2)"
       }
     },
     {
@@ -694,7 +694,7 @@
       "v2": {
         "action": null,
         "testid": ".st-cp-idtag",
-        "where": "Select an element → Inspector › CSS panel header — the tag then its first class (until S2)"
+        "where": "Select an element → Inspector › Advanced — the raw CSS panel's header: the tag then its first class (S2.2)"
       }
     },
     {
@@ -707,7 +707,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-custom-css",
-        "where": "Select an element → Inspector › Advanced section — custom CSS properties, with a “property / value” row to add one (until S2)"
+        "where": "Select an element → Inspector › Advanced › the raw panel's Advanced section — custom CSS properties, with a “property / value” row to add one (S2.2)"
       }
     },
     {
@@ -720,7 +720,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-html-attrs",
-        "where": "Select an element → Inspector › Advanced section — custom HTML attributes, with a “data-… / value” row to add one (until S2)"
+        "where": "Select an element → Inspector › Advanced › the raw panel's Advanced section — custom HTML attributes, with a “data-… / value” row to add one (S2.2)"
       }
     },
     {
@@ -733,7 +733,7 @@
       "v2": {
         "action": null,
         "testid": ".st-cp-tokbtn",
-        "where": "Select an element → Inspector › a value’s token button opens the design system’s token list (Variables · Custom; until S2)"
+        "where": "Select an element → Inspector › Advanced › a value’s token button opens the design system’s token list (Variables · Custom; S2.2)"
       }
     },
     {
@@ -746,7 +746,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-grid-tracks",
-        "where": "Select a grid element → Inspector › Layout — the columns / rows track editor (+ Track, remove; until S2)"
+        "where": "Select a grid element → Inspector › Advanced › the raw panel's Grid section — the columns / rows track editor (+ Track, remove; S2.3 moves it under Layout)"
       }
     },
     {
@@ -759,7 +759,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-body-layout",
-        "where": "Click an artboard’s label → Inspector › the artboard’s Body layout select (until S2)"
+        "where": "Click an artboard’s label → Inspector › Advanced — the artboard’s own editor with its Body layout select (S2.8 moves it into the artboard sections)"
       }
     },
     {
@@ -1375,7 +1375,7 @@
       "v2": {
         "action": null,
         "testid": "settings-inspector-vocabulary",
-        "where": "Settings › General › Look › Inspector vocabulary (Advanced · Designer); the Inspector’s CSS panel corner toggle (cp-mode) flips it too (until S2)"
+        "where": "The switch became the Inspector's › Advanced fold (Designer is the only default; the raw editor is always in the fold, no corner toggle). Settings › General › Look › Inspector vocabulary stays until it is retired (S2.2)"
       }
     },
     {
@@ -1870,7 +1870,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-section-advanced",
-        "where": "Select an element → Inspector › the Advanced vocabulary keeps the full raw editor (about 33 properties, custom CSS rows, HTML attribute rows); Advanced section at the foot (until S2)"
+        "where": "Select an element → Inspector › Advanced (the fold at the foot) keeps the full raw editor unchanged (about 33 properties, custom CSS rows, HTML attribute rows); Designer is the only default (S2.2)"
       }
     },
     {

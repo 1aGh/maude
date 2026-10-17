@@ -54,6 +54,8 @@
 @import url("../v2/fold/fold.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
 @import url("../v2/search/search.css");
+/* S2.2 — the Inspector frame: name · kind chip · numbered sections · › Advanced (client/v2/inspector/). */
+@import url("../v2/inspector/inspector.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
 @import url("../home/home.css");
 @import url("./5-utilities.css");

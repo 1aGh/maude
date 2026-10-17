@@ -9515,5 +9515,187 @@
     "region": "canvas iframe chrome",
     "consumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "inspector-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspector's body for a selection: crumbs, name + kind chip, the numbered sections, › Advanced. `data-kind` = the kind id.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The selection's name (the layer name, else its own text, else its tag; `N objects` for several; the artboard id for an artboard).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind chip beside the name: an artboard shows its artboard kind (Web page · Fixed size · Print · Video), an object Button · Text · Image · Frame, several objects Mixed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-crumbs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The path above the name — artboard › parents › element. Absent for an artboard or a selection the layer tree has not got.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "Crumbs"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-uses",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Uses <design system>\": the system the open canvas is built on.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One numbered section of the frame; `<id>` ∈ position, size, layout, fill, corners, border, effects, type, interaction, export. `data-n` = its number. Drawn only when a slice registered a body for the selected kind.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "Section"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-add-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The \"+\" in a section header (Fill, Border, Effects, Interaction, Export), drawn only when the section's body can add.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "Section"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-element-id",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Element id: the id field. Enter or leaving it renames the id (and every reference to it); esc puts the old one back; a computed id shows as the placeholder.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "ElementId"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-id-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-line reason an id was not changed (invalid, taken, locked, held by AI). `role=alert`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "ElementId"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-copy-id",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy id: the element id on the clipboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "CopyButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-copy-css",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy CSS: the element's declarations (authored, then custom properties) on the clipboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "CopyButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-tokens-used",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Tokens it uses: one `li` per design-system token the element's CSS refers to; `title` = the variable.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "TokensUsed"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-facts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced: where it is, how big, its tag and class, the resolved fill / text / radius — what the Inspect tab showed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "InspectFacts"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
   }
 ]
