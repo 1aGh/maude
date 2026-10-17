@@ -271,3 +271,26 @@ describe('the old chrome is gone', () => {
     expect(at).toBeLessThan(app.indexOf('<div className="st-shell">'));
   });
 });
+
+describe('the first-run tour offers are callouts (V2-4.9 — the v1 corner box covered the left panel)', () => {
+  test('usage first, then collab; none while a tour runs; Start is the one action', async () => {
+    const { tourCallout, calloutStack } = await import('../client/v2/shell/callouts-model.js');
+    expect(tourCallout({ usage: true, collab: true })).toMatchObject({
+      kind: 'tour-usage',
+      tone: 'info',
+      action: { id: 'tour-usage', label: 'Start' },
+    });
+    expect(tourCallout({ collab: true })?.kind).toBe('tour-collab');
+    expect(tourCallout({ usage: true, running: true })).toBeNull();
+    expect(tourCallout({})).toBeNull();
+    const stack = calloutStack({ tour: { usage: true } });
+    expect(stack.map((c) => c.kind)).toEqual(['tour-usage']);
+    expect(calloutStack({ tour: { usage: true }, dismissed: new Set(['tour:usage']) })).toEqual([]);
+  });
+
+  test('the shell no longer draws the fixed .mdcc-tour-nudge box', async () => {
+    const { readFileSync } = await import('node:fs');
+    const app = readFileSync(new URL('../client/app.jsx', import.meta.url), 'utf8');
+    expect(app.includes('className="mdcc-tour-nudge"')).toBe(false);
+  });
+});

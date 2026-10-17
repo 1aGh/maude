@@ -156,6 +156,37 @@ export function roleCallout(cloud, seen = () => false) {
   };
 }
 
+/**
+ * V2-4.9 — the first-run tour offers. In v1 they were a fixed box in the window's bottom-left corner,
+ * which is where the v2 left panel floats: it covered the canvas rows. Now they are callouts — one
+ * action (Start), × marks them seen. Never while a tour is running; the usage offer first.
+ * @param t.usage  the usage-tour offer is due
+ * @param t.collab the team/collab-tour offer is due
+ * @param t.running a tour is on screen
+ */
+export function tourCallout({ usage = false, collab = false, running = false } = {}) {
+  if (running) return null;
+  if (usage)
+    return {
+      key: 'tour:usage',
+      kind: 'tour-usage',
+      tone: 'info',
+      icon: 'sparkle',
+      title: 'New here? Take a 60-second tour of the canvas browser.',
+      action: { id: 'tour-usage', label: 'Start' },
+    };
+  if (collab)
+    return {
+      key: 'tour:collab',
+      kind: 'tour-collab',
+      tone: 'info',
+      icon: 'sparkle',
+      title: 'New to working with a team? See how saving & sharing works — 60 seconds.',
+      action: { id: 'tour-collab', label: 'Start' },
+    };
+  return null;
+}
+
 /** Errors first, then what asks for you, then the news. */
 const ORDER = { error: 0, warn: 1, info: 2, ok: 3 };
 
@@ -165,6 +196,7 @@ const ORDER = { error: 0, warn: 1, info: 2, ok: 3 };
  * @param in.gitLifecycle non-null when the repo changed
  * @param in.cloud        `cfg.cloud` (role)
  * @param in.roleSeen     (role) => boolean
+ * @param in.tour         `{ usage, collab, running }` — the first-run tour offers (tourCallout)
  * @param in.dismissed    Set of callout keys the person closed
  * @returns the callouts to draw, most urgent first
  */
@@ -174,6 +206,7 @@ export function calloutStack({
   gitLifecycle = null,
   cloud: cloudCfg = null,
   roleSeen = () => false,
+  tour = null,
   dismissed = new Set(),
 } = {}) {
   return [
@@ -181,6 +214,7 @@ export function calloutStack({
     repoCallout(gitLifecycle),
     updateCallout(updateReady),
     roleCallout(cloudCfg, roleSeen),
+    tour ? tourCallout(tour) : null,
   ]
     .filter((c) => c && !dismissed.has(c.key))
     .sort((a, b) => ORDER[a.tone] - ORDER[b.tone]);

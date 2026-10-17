@@ -2684,7 +2684,6 @@ function ShellTree() {
       canvasActiveArtboard,
       captureFromCanvas,
       cfg,
-      collabNudge,
       diffTarget,
       dragSide,
       exportCenter,
@@ -2697,7 +2696,6 @@ function ShellTree() {
       handleAssistantFinished,
       helpOpen,
       introOpen,
-      markCollabSeen,
       markUsageSeen,
       openPanelExclusive,
       paletteOpen,
@@ -3163,57 +3161,7 @@ function ShellTree() {
       {figmaImportOpen && (
         <FigmaImportPanel onClose={() => setFigmaImportOpen(false)} onImported={() => loadTree()} />
       )}
-      {usageNudge && !tourSteps && !collabNudge && (
-        <div className="mdcc-tour-nudge" role="status" aria-live="polite">
-          <div className="mdcc-tour-nudge__body">
-            New here? Take a 60-second tour of the canvas browser.
-          </div>
-          <button
-            type="button"
-            className="mdcc-tour-nudge__cta"
-            onClick={() => {
-              markUsageSeen();
-              startTour(USAGE_TOUR);
-            }}
-          >
-            Start
-          </button>
-          <button
-            type="button"
-            className="mdcc-tour-nudge__skip"
-            aria-label="Dismiss"
-            onClick={markUsageSeen}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {/* Phase 29 (E4) — the collab "rychlý kurz", offered once after onboarding. */}
-      {collabNudge && !tourSteps && (
-        <div className="mdcc-tour-nudge" role="status" aria-live="polite">
-          <div className="mdcc-tour-nudge__body">
-            New to working with a team? See how saving &amp; sharing works — 60 seconds.
-          </div>
-          <button
-            type="button"
-            className="mdcc-tour-nudge__cta"
-            onClick={() => {
-              markCollabSeen();
-              startTour(COLLAB_TOUR);
-            }}
-          >
-            Start
-          </button>
-          <button
-            type="button"
-            className="mdcc-tour-nudge__skip"
-            aria-label="Dismiss"
-            onClick={markCollabSeen}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {/* V2-4.9 — the first-run tour offers are callouts now (client/v2/shell/callouts-model.js tourCallout). */}
       <TourOverlay
         steps={tourSteps ?? []}
         open={!!tourSteps}

@@ -14,6 +14,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { restartToUpdate } from '../../github.js';
 import { FormatGateBanner } from '../../shell/banners.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { COLLAB_TOUR } from '../../tour/collab-tour.js';
+import { USAGE_TOUR } from '../../tour/usage-tour.js';
 import { openDiagnostics } from '../diagnostics/diagnostics-bus.js';
 import { calloutStack, roleSeenKey } from './callouts-model.js';
 import { CalloutStack } from './callouts.jsx';
@@ -28,7 +30,20 @@ function roleSeen(role) {
 
 export function ShellCallouts() {
   const {
-    shellCore: { cfg, gitLifecycle, setGitLifecycle, setUpdateReady, syncStatus, updateReady },
+    shellCore: {
+      cfg,
+      collabNudge,
+      gitLifecycle,
+      markCollabSeen,
+      markUsageSeen,
+      setGitLifecycle,
+      setUpdateReady,
+      startTour,
+      syncStatus,
+      tourSteps,
+      updateReady,
+      usageNudge,
+    },
   } = useShellStore();
   const [dismissed, setDismissed] = useState(() => new Set());
   const [busyKey, setBusyKey] = useState(null);
@@ -43,9 +58,19 @@ export function ShellCallouts() {
         gitLifecycle,
         cloud: cfg?.cloud,
         roleSeen,
+        tour: { usage: !!usageNudge, collab: !!collabNudge, running: !!tourSteps },
         dismissed,
       }),
-    [syncStatus, updateReady, gitLifecycle, cfg?.cloud, dismissed]
+    [
+      syncStatus,
+      updateReady,
+      gitLifecycle,
+      cfg?.cloud,
+      usageNudge,
+      collabNudge,
+      tourSteps,
+      dismissed,
+    ]
   );
 
   const hide = useCallback(
@@ -73,6 +98,14 @@ export function ShellCallouts() {
             window.location.reload();
           } catch {}
           break;
+        case 'tour-usage':
+          markUsageSeen?.();
+          startTour?.(USAGE_TOUR);
+          break;
+        case 'tour-collab':
+          markCollabSeen?.();
+          startTour?.(COLLAB_TOUR);
+          break;
         case 'got-it': {
           const role = cfg?.cloud?.role;
           try {
@@ -85,16 +118,18 @@ export function ShellCallouts() {
           break;
       }
     },
-    [cfg?.cloud?.role, hide]
+    [cfg?.cloud?.role, hide, markUsageSeen, markCollabSeen, startTour]
   );
 
   const onDismiss = useCallback(
     (item) => {
       if (item.kind === 'update') setUpdateReady(null);
       else if (item.kind === 'repo-changed') setGitLifecycle(null);
+      else if (item.kind === 'tour-usage') markUsageSeen?.();
+      else if (item.kind === 'tour-collab') markCollabSeen?.();
       else hide(item.key);
     },
-    [hide, setGitLifecycle, setUpdateReady]
+    [hide, setGitLifecycle, setUpdateReady, markUsageSeen, markCollabSeen]
   );
 
   return (
