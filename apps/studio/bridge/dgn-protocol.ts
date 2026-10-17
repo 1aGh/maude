@@ -180,6 +180,8 @@ export interface CanvasToShell {
   'tool-panel-open': {
     panel: 'stickers' | 'components' | 'templates' | 'assets';
     anchor: Rect | null;
+    /** S4.3: the id of the sticker being replaced (Replace… on a selected sticker opens the gallery in replace mode) */
+    replace?: Id;
   };
   'viewport-zoom': { zoom: number };
   'present-position': { index: number; total: number; artboardId: Id };
@@ -230,7 +232,13 @@ export interface ShellToCanvas {
   'op-toast': { message: string };
   'tool-set': { tool: ToolId };
   // annotations / media
-  'insert-sticker': { path: string; follow?: boolean };
+  // `sticker` (S4.3): which bundled sticker the bytes at `path` came from, so Replace/Flip/Recent can
+  // name it (`pack` = the pack slug, `id` = its file); `path` alone (a pasted PNG) stays valid
+  'insert-sticker': {
+    path: string;
+    follow?: boolean;
+    sticker?: { pack: string; id: string; flip?: boolean };
+  };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -758,6 +766,7 @@ const c2s: C2S = {
     parse: p({
       panel: lit('stickers', 'components', 'templates', 'assets'),
       anchor: nul(rect),
+      replace: opt(str),
     }),
   },
   'viewport-zoom': {
@@ -905,7 +914,11 @@ const s2c: S2C = {
     gate: 'parent',
     status: 'live',
     owner: 'annotations-layer',
-    parse: p({ path: str, follow: opt(bool) }),
+    parse: p({
+      path: str,
+      follow: opt(bool),
+      sticker: opt(shape({ pack: str, id: str, flip: opt(bool) })),
+    }),
   },
   'insert-annotation-media': {
     gate: 'parent',
