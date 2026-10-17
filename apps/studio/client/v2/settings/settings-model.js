@@ -68,6 +68,13 @@ export const SETTINGS_ROWS = Object.freeze([
     testid: 'panel-side-<id>',
     where: 'Settings › General › Layout › Panel positions',
   },
+  {
+    // V2-4 gate (WCAG 2.1.4, a11y B8): one switch turns off every shortcut that is a single character key.
+    nd: null,
+    section: 'general',
+    testid: 'settings-single-keys',
+    where: 'Settings › General › Keyboard › Single-key shortcuts',
+  },
   // ── Connections ──────────────────────────────────────────────────────────────────────────────
   {
     nd: 'A-cloud-account-email-and-sign-out',

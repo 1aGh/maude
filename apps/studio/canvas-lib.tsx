@@ -124,6 +124,7 @@ import './web-overlay-content.tsx';
 import {
   canvasInsets,
   canvasModeStore,
+  canvasSingleKeys,
   onFirstInsets,
   shouldBootRefit,
 } from './bridge/canvas-mode-store.ts';
@@ -1649,7 +1650,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       if (e.altKey) return;
       // V2-3.11 — the zoom keys come from the registry (⌘= / ⌘+ / ⌘− / ⌘0 Fit / ⇧0 Actual size).
       // ⌘1…⌘9 are the native tab accelerators: this listener must never prevent them.
-      switch (resolveCanvasKey(CANVAS_ZOOM_KEYS, e, false)) {
+      switch (resolveCanvasKey(CANVAS_ZOOM_KEYS, e, false, undefined, canvasSingleKeys())) {
         case 'view.zoom-fit':
           e.preventDefault();
           fit();

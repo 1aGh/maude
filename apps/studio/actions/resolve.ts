@@ -3,7 +3,7 @@
 // (predicate half) and the tests. Works on the full registry (`ActionDef`) and on the slim
 // generated canvas keymap (`KeyedAction`) alike.
 
-import { hasCommandMod, TEXT_RESERVED } from './keys.ts';
+import { hasCommandMod, isCharacterChord, TEXT_RESERVED } from './keys.ts';
 import {
   type ActionDef,
   type Chord,
@@ -96,6 +96,8 @@ export function resolveChord<A extends KeyedAction = ActionDef>(
   ctx: KeyCtx,
   press: 'tap' | 'hold' = 'tap'
 ): Resolution<A> | null {
+  // WCAG 2.1.4 — single-key shortcuts switched off: a character key is never ours (it types, or nothing).
+  if (ctx.singleKeys === false && isCharacterChord(chord)) return null;
   const candidates = index.get(chord);
   if (!candidates?.length) return null;
   const live = candidates.filter(

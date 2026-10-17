@@ -6,7 +6,7 @@ import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
-import { menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
+import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
 import { roleRefuses } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
@@ -194,23 +194,30 @@ export function usePaletteAndPanels({
       'help.guides': () => setHelpOpen(true),
       'help.report-bug': () => setReportBugOpen(true),
     };
-    const v1 = V1_PALETTE.map((r) => ({
-      id: r.id,
-      group: r.group,
-      label: ACTIONS_BY_ID.get(r.id).legacy.palette,
-      icon: r.icon,
-      ...(r.kbd ? { kbd: r.kbd } : {}),
-      run: run[r.id],
-    }));
-    // V2-4.2 — ⌘K finds every row of the project menu too: typing a word finds the menu's row for it
-    // (the list with nothing typed stays v1's). Same runner as the pill, so a row and its ⌘K twin
-    // are one function.
     const searchCtx = menuCtx({
       native: isNativeApp(),
       cloudTab: !!cfg.cloud, // V2-4.8a: "Back to Home" and "Sign out" are a cloud tab's rows
       readOnly: viewerMode,
       canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
     });
+    // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
+    // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the
+    // design-system "S" retired, "⌘⇧M" the wrong modifier order).
+    const keyOf = (id) => keyHint(ACTIONS_BY_ID.get(id), searchCtx);
+    const v1 = V1_PALETTE.map((r) => {
+      const kbd = keyOf(r.id);
+      return {
+        id: r.id,
+        group: r.group,
+        label: ACTIONS_BY_ID.get(r.id).legacy.palette,
+        icon: r.icon,
+        ...(kbd ? { kbd } : {}),
+        run: run[r.id],
+      };
+    });
+    // V2-4.2 — ⌘K finds every row of the project menu too: typing a word finds the menu's row for it
+    // (the list with nothing typed stays v1's). Same runner as the pill, so a row and its ⌘K twin
+    // are one function.
     const menuRows = menuPaletteRows(searchCtx, { existing: v1, run: (id) => menuRunner.run(id) });
     // V2-4.6 — Search ⌘K: the registry's visible actions + the toolbars' tools + the Settings rows, each
     // with its where-path (v2/search). A row runs through the one menu runner; the few v1 palette
@@ -238,7 +245,7 @@ export function usePaletteAndPanels({
         group: 'Canvases',
         label: 'Refresh tree',
         icon: 'chevron-right',
-        kbd: '⇧⌘R',
+        kbd: keyOf('canvases.refresh'),
         run: () => refreshTree(),
         onlyWhenSearched: true,
       },

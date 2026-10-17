@@ -189,6 +189,7 @@ import {
   SNAP_THRESHOLD_PX,
   type SnapGuide,
 } from './annotations-snap.ts';
+import { canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
 import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
 import {
@@ -1794,6 +1795,8 @@ export function AnnotationsLayer() {
     const onKey = (e: KeyboardEvent) => {
       if (isEditable(e.target)) return;
       if (e.key === 'P' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // V2-4 gate (WCAG 2.1.4): ⇧P is a character key — off with the "Single-key shortcuts" switch.
+        if (!canvasSingleKeys()) return;
         e.preventDefault();
         setVisible((v) => !v);
       }

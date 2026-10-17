@@ -6,6 +6,7 @@ import { dismissNotice, notify } from '../../../notifications.tsx';
 import { persistUiPrefs } from '../../shell/util.js';
 import { foldStore } from '../fold/use-fold.js';
 import { createPanelLayout } from './panel-layout.js';
+import { singleKeysStore } from './use-single-keys.js';
 
 export const panelLayout = createPanelLayout({
   persist: persistUiPrefs,
@@ -31,6 +32,7 @@ export function useHydratePanelLayout() {
         if (live && p) {
           panelLayout.hydrate(p.prefs ?? p);
           foldStore.hydrate(p.prefs ?? p); // V2-4.10: the Advanced folds live in the same file
+          singleKeysStore.hydrate(p.prefs ?? p); // V2-4 gate: the "Single-key shortcuts" switch
         }
       })
       .catch(() => {});

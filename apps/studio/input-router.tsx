@@ -198,6 +198,8 @@ export interface ClassifyInput {
   caps?: Readonly<ModeCaps> | null;
   /** The Marker's last-used tip (Q4); `pen` when absent. */
   markerTip?: ToolId;
+  /** V2-4 gate — the shell's "Single-key shortcuts" switch (bridge `key-prefs`); absent = on. */
+  singleKeys?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -270,7 +272,12 @@ function classifyKey(input: ClassifyInput): RouterAction {
   const r = resolveChord(
     ROUTER_KEYS,
     chord,
-    canvasKeyCtx({ typing: !!input.isEditable, readOnly: false, mode })
+    canvasKeyCtx({
+      typing: !!input.isEditable,
+      readOnly: false,
+      mode,
+      singleKeys: input.singleKeys,
+    })
   );
   if (!r) return { kind: 'no-op' };
   const id = r.action.id;
@@ -883,6 +890,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           mode: gov?.mode ?? null,
           caps: gov?.caps ?? null,
           markerTip: lastMarkerTip(),
+          singleKeys: gov?.singleKeys ?? true,
         })
       );
       if (

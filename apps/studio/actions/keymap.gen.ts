@@ -202,7 +202,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'history.open',
     exec: 'shell',
     fromCanvas: true,
-    keys: [{ chord: '⇧⌘G', layer: 'global', inText: true }],
+    keys: [{ chord: '⌥⌘H', layer: 'global', inText: true }],
   },
   {
     id: 'view.inspector',

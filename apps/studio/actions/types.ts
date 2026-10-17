@@ -222,4 +222,10 @@ export interface KeyCtx {
   focus: Focus;
   selection: SelKind;
   facts: ReadonlySet<Fact>;
+  /**
+   * V2-4 gate (WCAG 2.1.4): the per-Mac "Single-key shortcuts" switch. `false` — a chord of one
+   * character key (keys.ts › isCharacterChord: V, /, ?, ⇧0 …) resolves to nothing, in the shell AND the
+   * canvas (bridge `key-prefs`); ⌘ / ⌥ chords and named keys are untouched. Absent = on.
+   */
+  singleKeys?: boolean;
 }

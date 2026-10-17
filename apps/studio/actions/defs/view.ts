@@ -113,9 +113,9 @@ export const VIEW_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     exec: 'shell',
     fromCanvas: true,
-    // v1: ⇧⌘G toggles the Changes panel — v2's Version history (⌥⌘H) is its successor; Phase 4
-    // moves the key (rule 13: ⇧⌘G becomes remove frame / ungroup).
-    keys: [kb('⇧⌘G', 'global', { inText: true })],
+    // CONTRACT §1–§2: ⌥⌘H. v1's ⇧⌘G (the Changes panel) died with the V2-4 gate (rule 13 — ⇧⌘G is
+    // Remove frame in Edit and Ungroup annotations in Preview); its row is in help.ts MOVED_KEYS.
+    keys: [kb('⌥⌘H', 'global', { inText: true })],
     legacy: { menu: 'Changes' },
   },
   {

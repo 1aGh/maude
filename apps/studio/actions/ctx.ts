@@ -32,6 +32,8 @@ export interface ShellKeyState {
   commentFocused: boolean;
   /** V2-4.5b — the shell's canvas mode (V2-1.2), when it has one; Present wins while presenting. */
   mode?: Mode;
+  /** V2-4 gate — the "Single-key shortcuts" switch (KeyCtx.singleKeys); absent = on. */
+  singleKeys?: boolean;
 }
 
 /** The shell document's KeyCtx for a keydown it received. */
@@ -57,6 +59,7 @@ export function shellKeyCtx(probe: FocusProbe, s: ShellKeyState): KeyCtx {
     focus: typing ? 'text' : s.timelineVisible ? 'timeline' : 'chrome',
     selection,
     facts,
+    ...(s.singleKeys === false ? { singleKeys: false } : {}),
   };
 }
 
@@ -68,6 +71,8 @@ export interface CanvasKeyState {
   /** V2-4.5b — the governed mode (bridge/canvas-mode-store.ts); v1's 'edit' when the shell has not
    *  spoken (a standalone canvas). The tool letters are bound per mode (defs/tool.ts). */
   mode?: Mode;
+  /** V2-4 gate — the shell's "Single-key shortcuts" switch, as the bridge's `key-prefs` delivered it. */
+  singleKeys?: boolean;
 }
 
 /** The canvas iframe's KeyCtx for a keydown it received. */
@@ -79,5 +84,6 @@ export function canvasKeyCtx(s: CanvasKeyState): KeyCtx {
     focus: s.typing ? 'text' : 'canvas',
     selection: s.selection ?? 'none',
     facts: new Set<Fact>(),
+    ...(s.singleKeys === false ? { singleKeys: false } : {}),
   };
 }

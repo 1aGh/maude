@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 
 import { CLOUD_CHANGED_EVENT, openExternal } from '../../panels/CloudBar.jsx';
 import { AppearanceTab, LayoutTab, PrefToggleRow } from '../../panels/SettingsPanel.jsx';
+import { useSingleKeys } from '../shell/use-single-keys.js';
 import { Group, Row } from './parts.jsx';
 
 /** The cloud account of THIS Mac (desktop only): `{ connected, email, url }`, kept current. */
@@ -66,6 +67,7 @@ export default function GeneralSection({
   const dashboardUrl =
     cloud === null ? (ownAccount ? acct?.url : null) : (cloud?.dashboardUrl ?? null);
   const canvasReason = !hasCanvas ? 'Open a canvas to use this.' : undefined;
+  const [singleKeys, setSingleKeys] = useSingleKeys();
 
   return (
     <>
@@ -130,6 +132,17 @@ export default function GeneralSection({
           checked={autoOpenInspector}
           onChange={() => onToggleAutoOpenInspector?.()}
         />
+      </Group>
+
+      <Group title="Keyboard" testid="settings-keyboard">
+        <div data-testid="settings-single-keys">
+          <PrefToggleRow
+            label="Single-key shortcuts"
+            note="Keys without ⌘ or ⌥ pick tools and open things: V, H, N, /, ?. Off, only shortcuts with ⌘ or ⌥ work."
+            checked={singleKeys}
+            onChange={(on) => setSingleKeys(on)}
+          />
+        </div>
       </Group>
 
       <Group title="Layout" testid="settings-layout">

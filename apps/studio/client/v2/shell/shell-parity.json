@@ -406,6 +406,10 @@
               "section": "general"
             },
             {
+              "testid": "settings-single-keys",
+              "section": "general"
+            },
+            {
               "testid": "cloud-account",
               "section": "connections"
             },
@@ -731,6 +735,10 @@
             },
             {
               "testid": "panel-side-<id>",
+              "section": "general"
+            },
+            {
+              "testid": "settings-single-keys",
               "section": "general"
             },
             {
@@ -1063,6 +1071,10 @@
             {
               "testid": "panel-side-<id>",
               "section": "general"
+            },
+            {
+              "testid": "settings-single-keys",
+              "section": "general"
             }
           ],
           "why": "a browser tab has no keychain, ffmpeg or whisper: Connections and Advanced configure the Mac the project lives on (DDR-209 D1)"
@@ -1313,6 +1325,10 @@
             {
               "testid": "panel-side-<id>",
               "section": "general"
+            },
+            {
+              "testid": "settings-single-keys",
+              "section": "general"
             }
           ],
           "why": "a browser tab has no keychain, ffmpeg or whisper: Connections and Advanced configure the Mac the project lives on (DDR-209 D1)"
@@ -1562,6 +1578,10 @@
             {
               "testid": "panel-side-<id>",
               "section": "general"
+            },
+            {
+              "testid": "settings-single-keys",
+              "section": "general"
             }
           ],
           "why": "a read-only session has the preferences of the person (General) — never the Mac’s keys, engines or sync (Connections, Advanced)"
@@ -1798,6 +1818,10 @@
             },
             {
               "testid": "panel-side-<id>",
+              "section": "general"
+            },
+            {
+              "testid": "settings-single-keys",
               "section": "general"
             }
           ],

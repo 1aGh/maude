@@ -8,7 +8,6 @@ import { chordFromEvent, type KeyEventLike } from '../actions/keys.ts';
 // What inspect.ts forwarded by hand before the swap (v1): ⌘K, ⌘R and ⇧⌘{I,M,E,H,T,G}.
 const V1_HAND_LIST = {
   '⇧⌘E': 'export.open',
-  '⇧⌘G': 'history.open',
   '⇧⌘H': 'handoff.open',
   '⇧⌘I': 'view.inspector',
   '⇧⌘M': 'view.comments',
@@ -17,6 +16,8 @@ const V1_HAND_LIST = {
   '⌘R': 'canvas.reload',
   // V2-4.1 approved delta: ⌘\ hides / shows all panels, from the canvas too (view.panels is fromCanvas).
   '⌘\\': 'view.panels',
+  // V2-4 gate approved delta (rule 13): Version history moved ⇧⌘G → ⌥⌘H (CONTRACT §1).
+  '⌥⌘H': 'history.open',
 };
 
 test('the generated forward table is exactly v1’s hand list', () => {
@@ -40,6 +41,7 @@ describe('the injected chord normaliser agrees with chordFromEvent', () => {
     ev('˚', 'KeyK', { metaKey: true, altKey: true }),
     ev('1', 'Digit1', { metaKey: true }),
     ev('е', 'KeyT', { metaKey: true, shiftKey: true }), // a non-Latin layout → e.code
+    ev('˙', 'KeyH', { metaKey: true, altKey: true }), // V2-4 gate ⌥⌘H (macOS ⌥H types '˙')
     ev('\\', 'Backslash', { metaKey: true }), // V2-4.1 ⌘\
     ev('\\', 'Backslash', { ctrlKey: true }),
     ev('«', 'Backslash', { metaKey: true }), // a layout whose backslash key types something else → e.code
