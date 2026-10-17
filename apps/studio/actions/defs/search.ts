@@ -26,10 +26,10 @@ export const SEARCH_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
     keys: [
-      // v1 `e.key === '/'` — ⌘/ produces '/' too. Fires with the canvas iframe active in v1 (before
-      // its inCanvasIframe bail), but that state never receives a key (see SHELL_FOCI).
+      // v1 `e.key === '/'` (⌘/ produced '/' too — that alias died with V2-4.5b: ⌘/ is Ask AI,
+      // CONTRACT §2). Fires with the canvas iframe active in v1 (before its inCanvasIframe bail), but
+      // that state never receives a key (see SHELL_FOCI).
       kb('/', 'global', { inText: false, when: SHELL_NOT_TYPING }),
-      kb('⌘/', 'global', { inText: false, alias: true, when: SHELL_NOT_TYPING }),
     ],
     legacy: { sheet: 'Search files' },
   },

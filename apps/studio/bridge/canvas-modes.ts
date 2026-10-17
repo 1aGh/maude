@@ -115,12 +115,8 @@ export const REST_TOOL: Readonly<Record<CanvasModeV2, ToolId>> = Object.freeze({
   present: 'browse',
 });
 
-/** The mode that arming `t` implies while governed — null for the mode-neutral annotation tools. */
-export function governedModeOfTool(t: string, caps: ModeCaps): CanvasModeV2 | null {
-  if (t === 'browse') return 'preview';
-  if (t === 'move') return caps.edit ? 'edit' : 'viewing';
-  return null;
-}
+// The mode arming a tool implies while governed is `homeModeOfTool` (below, V2-4.5b): with two
+// toolbars the annotation tools are no longer mode-neutral — they are Preview's.
 
 // ─── MODE_TOOLS — the two toolbars as data (§5.5; landed with V2-4.5a) ────────────────────────────
 //
@@ -320,4 +316,166 @@ export function visibleSlots(
     return armTarget(s.tool, armable) !== null;
   };
   return bar.slots.filter(live);
+}
+
+// ─── keys, the tool's home mode and the esc ladder (§5.4; landed with V2-4.5b) ────────────────────
+//
+// A key means what its slot does in the mode you are in. A key that is not in this mode's toolbar
+// but is in the other one crosses (Edit → Preview: N C M A E S; Preview → Edit: V F P I ⇧I; H R T
+// stay where they are): the canvas asks the shell (`mode-request`), never moves the mode itself (M3).
+// A role that may not use the slot gets the shell's denial line (Q2): the canvas asks anyway and the
+// shell, which owns the role, refuses. A pending slot has no key (rule 13: no key before its tool).
+
+/** The modes a key is looked up in, after the current one. Viewing borrows Preview's, then Edit's
+ *  keys, so a viewing role's N or V reaches the denial line instead of doing nothing. */
+const KEY_FALLBACK: Readonly<Record<CanvasModeV2, readonly CanvasModeV2[]>> = Object.freeze({
+  edit: ['preview'],
+  preview: ['edit'],
+  viewing: ['preview', 'edit'],
+  present: [],
+});
+
+/**
+ * Where a key lands from `mode`: the first toolbar (this mode's, then KEY_FALLBACK's) with a slot
+ * for it; null = not a tool key there. A pending slot still OWNS its key (Edit's R is the design
+ * Shape before S2 builds it — R never falls through to Preview's Shape); `toolKeyAction` answers null.
+ */
+export function keySlot(
+  mode: CanvasModeV2,
+  key: string
+): { mode: CanvasModeV2; slot: ToolSlot } | null {
+  for (const m of [mode, ...KEY_FALLBACK[mode]]) {
+    const s = MODE_TOOLS[m].slots.find((x) => x.key === key);
+    if (s) return { mode: m, slot: s };
+  }
+  return null;
+}
+
+export type ToolKeyAction =
+  /** Same mode: arm the tool here (a v2 id — the caller passes it through `armTarget`). */
+  | { kind: 'arm'; tool: ToolId }
+  /** Same mode, a momentary slot: add one at the default size (today's insert). */
+  | { kind: 'insert'; insert: InsertKind }
+  /** Same mode, a panel-only slot (Stickers): the shell opens the panel (`tool-panel-open`). */
+  | { kind: 'panel'; panel: SlotPanel }
+  /** Another mode's key: ask the shell to switch, then arm `tool` / open `panel` there. */
+  | { kind: 'request'; mode: CanvasModeV2; tool?: ToolId; panel?: SlotPanel }
+  /** The role may not: ask anyway — the shell owns the role and shows the one denial line (a
+   *  panel-only slot asks for its panel, which the shell refuses the same way). */
+  | { kind: 'deny'; mode: CanvasModeV2; tool?: ToolId; panel?: SlotPanel };
+
+/**
+ * What pressing `key` (a canonical chord: 'N', '⇧I') does in `mode` for `caps` (T8). Pure: the
+ * caller (input-router) arms, posts the request, opens the panel or runs the insert. `markerTip` is
+ * the session's last Marker tip (toolbars/marker-tip.ts, Q4).
+ */
+export function toolKeyAction(
+  mode: CanvasModeV2,
+  key: string,
+  caps: Readonly<ModeCaps>,
+  markerTip?: ToolId
+): ToolKeyAction | null {
+  const hit = keySlot(mode, key);
+  if (!hit || hit.slot.pending) return null;
+  const { slot } = hit;
+  // A momentary slot arms nothing (S2 makes Frame / Text / Image tools); the Marker arms its tip.
+  const tool = slot.insert
+    ? null
+    : slot.tips && markerTip && slot.tips.includes(markerTip)
+      ? markerTip
+      : slot.tool;
+  const role = roleOfCaps(caps);
+  if (ROLE_RANK[role] < ROLE_RANK[slot.minRole] || (hit.mode === 'edit' && !caps.edit)) {
+    if (tool) return { kind: 'deny', mode: hit.mode, tool };
+    return slot.tool === null && slot.panel
+      ? { kind: 'deny', mode: hit.mode, panel: slot.panel }
+      : { kind: 'deny', mode: hit.mode };
+  }
+  if (hit.mode !== mode) {
+    const out: { kind: 'request'; mode: CanvasModeV2; tool?: ToolId; panel?: SlotPanel } = {
+      kind: 'request',
+      mode: hit.mode,
+    };
+    if (tool) out.tool = tool;
+    if (slot.tool === null && slot.panel) out.panel = slot.panel;
+    return out;
+  }
+  if (slot.insert) return { kind: 'insert', insert: slot.insert };
+  if (tool) return { kind: 'arm', tool };
+  return slot.panel ? { kind: 'panel', panel: slot.panel } : null;
+}
+
+/** Every key `mode` answers, its own and the crossing ones, pending slots left out — the registry
+ *  binds exactly these (actions/defs/tool.ts). */
+export function modeKeys(mode: CanvasModeV2): string[] {
+  const keys: string[] = [];
+  for (const m of [mode, ...KEY_FALLBACK[mode]])
+    for (const s of MODE_TOOLS[m].slots) {
+      if (!s.key || keys.includes(s.key)) continue;
+      const hit = keySlot(mode, s.key);
+      if (hit?.slot === s && !s.pending) keys.push(s.key);
+    }
+  return keys;
+}
+
+/**
+ * May `caps` use `tool` in `mode`'s toolbar (M4, the shell's half of the denial line)? A tool the
+ * toolbar has no slot for is not this check's to refuse (a mode's rest, Hand) — `clampMode` and the
+ * server still are.
+ */
+export function slotAllows(mode: CanvasModeV2, tool: string, caps: Readonly<ModeCaps>): boolean {
+  if (!isToolId(tool)) return false;
+  const s = MODE_TOOLS[mode].slots.find(
+    (x) => x.tool === tool || !!x.tips?.includes(tool) || !!x.more?.some((c) => c.tool === tool)
+  );
+  return !s || ROLE_RANK[roleOfCaps(caps)] >= ROLE_RANK[s.minRole];
+}
+
+/** Hand pans in every toolbar (Preview's Hand slot lights it): it belongs to no one mode. */
+const MODE_NEUTRAL: ReadonlySet<ToolId> = new Set<ToolId>(['hand']);
+
+function barHas(mode: CanvasModeV2, t: ToolId): boolean {
+  return MODE_TOOLS[mode].slots.some(
+    (s) =>
+      s.tool === t ||
+      (s.tool !== null && V1_TOOL_BRIDGE[s.tool] === t) ||
+      !!s.tips?.includes(t) ||
+      !!s.lights?.includes(t) ||
+      !!s.more?.some((c) => c.tool === t)
+  );
+}
+
+/**
+ * The mode arming `t` belongs to while governed, seen from `current` (§5.4 "setTool(t) with t in
+ * another mode"): `current` when its toolbar has the tool, else the toolbar that does — `move` is
+ * Edit's for an editor and Viewing's otherwise, then Preview (an editor's annotation tools), then
+ * Edit. null = mode-neutral (Hand), or no toolbar has it.
+ */
+export function homeModeOfTool(
+  t: string,
+  caps: Readonly<ModeCaps>,
+  current: CanvasModeV2
+): CanvasModeV2 | null {
+  if (!isToolId(t) || MODE_NEUTRAL.has(t)) return null;
+  if (barHas(current, t)) return current;
+  if (t === 'move') return caps.edit ? 'edit' : 'viewing';
+  for (const m of ['preview', 'edit'] as const) if (barHas(m, t)) return m;
+  return null;
+}
+
+/** One esc press, after the canvas's own handler dropped the stroke, the menu and the selection. */
+export type EscStep =
+  /** An armed tool: back to the mode's resting tool. */
+  | 'rest'
+  /** At rest in Edit or Viewing: nothing more ("there's no Edit to return to"). */
+  | 'stay'
+  /** `mode-request {mode:'back', cause:'esc'}`: Preview at rest → `baseMode`; Present → `returnTo`. */
+  | 'back';
+
+/** 04 md-esc, one step per press: tool → resting tool → the previous mode. */
+export function escStep(mode: CanvasModeV2, tool: string): EscStep {
+  if (mode === 'present') return 'back';
+  const rest = MODE_TOOLS[mode].rest;
+  if (tool !== rest && V1_TOOL_BRIDGE[rest] !== tool) return 'rest';
+  return mode === 'preview' ? 'back' : 'stay';
 }

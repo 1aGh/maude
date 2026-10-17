@@ -42,7 +42,7 @@ import {
   visibleSlots,
 } from './bridge/canvas-modes.ts';
 import { IconChevronDown, SHAPE_KIND_ICONS, TOOL_ICONS } from './canvas-icons.tsx';
-import type { Tool } from './input-router.tsx';
+import { TOOLBAR_INSERT_EVENT, type Tool } from './input-router.tsx';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { isMarkerTip, lastMarkerTip, rememberMarkerTip } from './toolbars/marker-tip.ts';
 import { openToolPanel } from './toolbars/tool-panel.ts';
@@ -262,6 +262,16 @@ export function ToolPalette() {
   useEffect(() => setMounted(true), []);
   // The Marker remembers its last tip for the session (Q4); V2-4.5b's M key arms the same one.
   useEffect(() => rememberMarkerTip(tool), [tool]);
+  // V2-4.5b — Edit's F / T / I keys do what their momentary slot does (input-router resolves them).
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onInsert = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: unknown }>).detail?.kind;
+      if (kind === 'div' || kind === 'text' || kind === 'image') insertViaToolbar(kind);
+    };
+    document.addEventListener(TOOLBAR_INSERT_EVENT, onInsert);
+    return () => document.removeEventListener(TOOLBAR_INSERT_EVENT, onInsert);
+  }, []);
   // A popover belongs to its tool and its mode.
   // biome-ignore lint/correctness/useExhaustiveDependencies: closing on a mode change is the point
   useEffect(() => {

@@ -46,10 +46,12 @@ describe('registry: ⇧⌘E has one owner', () => {
     expect(a?.keys ?? []).toEqual([]);
   });
 
-  test('⌘E (the in-canvas export dialog) is untouched by this decision', () => {
+  // V2-4.5b (D3, rule 13) — rewritten deliberately: the toolbars replaced the palette, and ⌘E died
+  // with it. The action stays (ids are append-only); it has no key.
+  test('⌘E (the in-canvas export dialog) is unbound since V2-4.5b', () => {
     const a = ACTIONS_BY_ID.get('export.canvas-dialog');
     expect(a?.exec).toBe('canvas');
-    expect((a?.keys ?? []).map((b) => b.chord)).toEqual(['⌘E']);
+    expect((a?.keys ?? []).map((b) => b.chord)).toEqual([]);
   });
 });
 
@@ -160,14 +162,15 @@ describe('the iframe export dialog on ⇧⌘E', () => {
     expect(dlg?.hasAttribute('open') ?? false).toBe(false);
   });
 
-  test('⌘E still opens the in-canvas dialog (not part of this decision)', async () => {
+  // V2-4.5b (D3) — rewritten deliberately: ⌘E is unbound; ⇧⌘E is the one export sheet.
+  test('⌘E opens nothing in the canvas any more (D3: ⌘E is unbound)', async () => {
     stubFetch();
     await mountDialog();
     await act(async () => {
       press({ key: 'e', code: 'KeyE', metaKey: true });
       await tick();
     });
-    expect(calls.some((c) => c.url.endsWith('/_api/export-history'))).toBe(true);
+    expect(calls.some((c) => c.url.endsWith('/_api/export-history'))).toBe(false);
     expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
   });
 });

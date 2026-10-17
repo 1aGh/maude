@@ -171,6 +171,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'mode.preview',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: '⌥⌘P',
+        layer: 'global',
+        inText: true,
+        when: { mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
     id: 'view.panels',
     exec: 'shell',
     fromCanvas: true,
@@ -307,16 +319,145 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'tool.select',
     exec: 'canvas',
     keys: [
-      { chord: 'V', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧V', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
+      {
+        chord: 'V',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
     ],
   },
   {
     id: 'tool.hand',
     exec: 'canvas',
+    keys: [{ chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
+  },
+  {
+    id: 'tool.frame',
+    exec: 'canvas',
     keys: [
-      { chord: 'H', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧H', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
+      {
+        chord: 'F',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.el-text',
+    exec: 'canvas',
+    keys: [{ chord: 'T', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
+  },
+  {
+    id: 'tool.image',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'I',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.browse',
+    exec: 'canvas',
+    keys: [
+      { chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['preview'] } },
+    ],
+  },
+  {
+    id: 'tool.sticky',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'N',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.comment',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'C',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.pen',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'M',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.arrow',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'A',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.shape',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'R',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.text',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'T',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.stickers',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'E',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.section',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: 'S',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.inspect',
+    exec: 'canvas',
+    keys: [
+      { chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['viewing'] } },
     ],
   },
   {
@@ -331,77 +472,6 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       { chord: '⌥⌘Space', layer: 'tools', hold: true, when: { focus: ['canvas'] }, alias: true },
       { chord: '⇧⌘Space', layer: 'tools', hold: true, when: { focus: ['canvas'] }, alias: true },
       { chord: '⌥⇧⌘Space', layer: 'tools', hold: true, when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.comment',
-    exec: 'canvas',
-    keys: [
-      { chord: 'C', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧C', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.pen',
-    exec: 'canvas',
-    keys: [
-      { chord: 'B', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧B', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.highlighter',
-    exec: 'canvas',
-    keys: [
-      { chord: 'I', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧I', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.shape',
-    exec: 'canvas',
-    keys: [
-      { chord: 'R', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧R', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-      { chord: 'O', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-      { chord: '⇧O', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.arrow',
-    exec: 'canvas',
-    keys: [
-      { chord: 'A', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧A', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.sticky',
-    exec: 'canvas',
-    keys: [
-      { chord: 'N', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧N', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.text',
-    exec: 'canvas',
-    keys: [
-      { chord: 'T', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧T', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
-    ],
-  },
-  {
-    id: 'tool.section',
-    exec: 'canvas',
-    keys: [{ chord: '⇧S', layer: 'tools', when: { focus: ['canvas'] } }],
-  },
-  {
-    id: 'tool.eraser',
-    exec: 'canvas',
-    keys: [
-      { chord: 'E', layer: 'tools', when: { focus: ['canvas'] } },
-      { chord: '⇧E', layer: 'tools', when: { focus: ['canvas'] }, alias: true },
     ],
   },
   {
@@ -471,11 +541,6 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     exec: 'shell',
     fromCanvas: true,
     keys: [{ chord: '⇧⌘H', layer: 'global', inText: true }],
-  },
-  {
-    id: 'export.canvas-dialog',
-    exec: 'canvas',
-    keys: [{ chord: '⌘E', layer: 'tools', inText: true, when: { focus: ['canvas', 'text'] } }],
   },
   {
     id: 'annotation.group',

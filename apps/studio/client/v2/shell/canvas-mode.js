@@ -15,6 +15,7 @@ import {
   clampMode,
   initialMode,
   NO_CAPS,
+  slotAllows,
 } from '../../../bridge/canvas-modes.ts';
 
 const COMMENT_ONLY = Object.freeze({ edit: false, annotate: false, comment: true });
@@ -112,11 +113,19 @@ export function decideModeRequest(req, { caps, presenting, mode, modalOpen }) {
   if (req.mode === 'present') return presenting ? null : { kind: 'present' };
   if (req.mode === 'edit' && !caps.edit) return { kind: 'deny', reason: 'role' };
   const target = clampMode(req.mode, caps);
+  // V2-4.5b (Q2): a key the role may not use — a viewing role's N / M / A / S, or C without the
+  // comment cap — gets the denial line; the canvas asks anyway because the shell owns the role.
+  if (req.tool && !slotAllows(target, req.tool, caps)) return { kind: 'deny', reason: 'role' };
   const set = req.tool
     ? { kind: 'set', mode: target, tool: req.tool }
     : { kind: 'set', mode: target };
   return presenting ? { kind: 'exit-present', next: set } : set;
 }
+
+/** Q1 — ⌥⌘P (and Menu / ⌘K "Preview"): Preview toggles back to `baseMode`, anything else enters
+ *  Preview. The shell-focus key handler selects this; the canvas-focus key asks with `back`. */
+export const previewToggleTarget = (mode, caps) =>
+  mode === 'preview' ? baseMode(caps) : 'preview';
 
 /**
  * The one sender of `set-mode`. For a mode transition it sends the TARGET layout's insets first

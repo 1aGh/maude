@@ -1,9 +1,22 @@
 // actions/defs/view.ts — panels, view toggles and zoom (V2-2.4: v1 bindings under their v2 ids).
 
 import type { ActionDef } from '../types.ts';
-import { IN_CANVAS, IN_CANVAS_ANY, kb, SHELL_NOT_TYPING } from './_v1.ts';
+import { IN_CANVAS, IN_CANVAS_ANY, kb } from './_v1.ts';
 
 export const VIEW_ACTIONS: ActionDef[] = [
+  {
+    // V2-4.5b (CONTRACT §2 [A7], V2-1.2 §9 Q1): ⌥⌘P switches to Preview; in Preview it toggles back
+    // to Edit (Viewing for a viewing role). The shell owns the mode: in the canvas the key is a
+    // `mode-request` (input-router), in the shell its handler selects the mode (canvas-mode.js
+    // `previewToggleTarget`). Not in Present (esc leaves Present).
+    id: 'mode.preview',
+    label: 'Preview',
+    kind: 'toggle',
+    icon: 'eye',
+    exec: 'canvas',
+    keys: [kb('⌥⌘P', 'global', { inText: true, when: { mode: ['edit', 'preview', 'viewing'] } })],
+    search: { keywords: ['mode', 'live', 'interact', 'edit'] },
+  },
   {
     id: 'view.panels',
     label: 'Hide panels',
@@ -30,7 +43,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     label: 'Hidden files',
     kind: 'toggle',
     exec: 'shell',
-    keys: [kb('H', 'global', { inText: false, when: SHELL_NOT_TYPING })],
+    // v1's bare H died with V2-4.5b (H is Hand in every toolbar, rule 13): the Canvases › Advanced
+    // switch and View › Advanced, no key.
     legacy: { menu: 'Show hidden files', sheet: 'Hidden files' },
   },
   {
@@ -39,7 +53,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     icon: 'sliders',
     exec: 'shell',
-    keys: [kb('S', 'global', { inText: false, when: SHELL_NOT_TYPING })],
+    // v1's bare S died with V2-4.5b (S is Section, rule 13): the pinned Design system row and ⌘K.
     legacy: { palette: 'Open design system view', sheet: 'Design system view' },
   },
   {

@@ -172,6 +172,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.browse': PREF('a pointer mode'),
   'tool.rect': BOARD('Add a rect shape element to the canvas’s .annotations.json'),
   'tool.ellipse': BOARD('Add an ellipse shape element to the canvas’s .annotations.json'),
+  // V2-4.5b — the toolbar slots derived from MODE_TOOLS (defs/tool.ts)
+  'tool.frame': TSX('Add a frame (a <div>) to the artboard in the canvas .tsx'),
+  'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
+  'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
+  'tool.inspect': PREF('a pointer mode'),
+  'tool.stickers': BOARD('Add a sticker element to the canvas’s .annotations.json'),
+  'mode.preview': NAV('<canvas> --mode preview'),
   // ── ui / timeline ──
   'ui.step-back': PREF('the user’s navigation history'),
   'timeline.play': PREF('playback'),

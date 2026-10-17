@@ -12,7 +12,7 @@ import { documentIndex } from './documents.ts';
 import { CANVAS_KEYMAP } from './keymap.gen.ts';
 import { chordFromEvent, type KeyEventLike } from './keys.ts';
 import { type KeyIndex, resolveChord } from './resolve.ts';
-import type { ActionId, KeyedAction } from './types.ts';
+import type { ActionId, KeyedAction, Mode } from './types.ts';
 
 /** The canvas-document bindings of these actions. Build once per owner. */
 export function canvasKeyIndex(ids: Iterable<ActionId>): KeyIndex<KeyedAction> {
@@ -24,10 +24,11 @@ export function canvasKeyIndex(ids: Iterable<ActionId>): KeyIndex<KeyedAction> {
 export function resolveCanvasKey(
   index: KeyIndex<KeyedAction>,
   e: KeyEventLike,
-  typing: boolean
+  typing: boolean,
+  mode?: Mode
 ): ActionId | null {
   return (
-    resolveChord(index, chordFromEvent(e), canvasKeyCtx({ typing, readOnly: false }))?.action.id ??
-    null
+    resolveChord(index, chordFromEvent(e), canvasKeyCtx({ typing, readOnly: false, mode }))?.action
+      .id ?? null
   );
 }
