@@ -24,8 +24,8 @@
       "drawnAt": "ad-logs",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "diag-mode-stamp",
+        "where": "Menu > Diagnostics > Server (mode stamp: Idle, Canvas or System in the Showing row)"
       }
     },
     {
@@ -205,9 +205,9 @@
       "home": "diag",
       "drawnAt": "ad-logs",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "diag.server",
+        "testid": "diag-live",
+        "where": "Menu > Diagnostics > Server; the row's word is Running or Reconnecting…, the sheet's Live connection row says Connected or Reconnecting…"
       }
     },
     {
@@ -218,9 +218,9 @@
       "home": "diag",
       "drawnAt": "ad-diag",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "diag.sync",
+        "testid": "project-menu-status-diag.sync",
+        "where": "Menu > Diagnostics > Sync — the row's status word (Up to date · Syncing… · Offline · Needs you · Failed · Local project); opens Sync details"
       }
     },
     {
@@ -478,9 +478,9 @@
       "home": "diag",
       "drawnAt": "ad-diag",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "diag.address",
+        "testid": "diag-row-address",
+        "where": "Menu > Diagnostics > Advanced > Address (copies it) and the Server tab's Address and Version rows"
       }
     },
     {
@@ -908,8 +908,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "diag-get-latest",
+        "where": "Menu > Diagnostics > Sync > Get latest (shown while the team has new versions)"
       }
     },
     {
@@ -920,9 +920,9 @@
       "home": "diag",
       "drawnAt": "ad-diag",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "sync.resync",
+        "testid": "project-menu-row-sync.resync",
+        "where": "Menu > Diagnostics > Advanced > Resync now (also kept in the Sync details header; absent in a cloud project)"
       }
     },
     {
@@ -933,9 +933,9 @@
       "home": "diag",
       "drawnAt": "ad-diag",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "sync.download-all",
+        "testid": "project-menu-row-sync.download-all",
+        "where": "Menu > Diagnostics > Advanced > Download all (also kept in the Sync details header; absent in a cloud project)"
       }
     },
     {
@@ -947,8 +947,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-panel",
+        "where": "Menu > Diagnostics > Sync — the Sync panel, whole: Held, rate-limited and failed lists (sync-held-<kind>, sync-files-rate-limited, sync-files-failed)"
       }
     },
     {
@@ -960,8 +960,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-panel",
+        "where": "Menu > Diagnostics > Sync — Assets section, with Cancel (sync-assets-cancel)"
       }
     },
     {
@@ -973,8 +973,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-panel",
+        "where": "Menu > Diagnostics > Sync — Needs you: Keep mine · Use theirs · Keep both (sync-resolve-<slug>)"
       }
     },
     {
@@ -986,8 +986,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-panel",
+        "where": "Menu > Diagnostics > Sync — unfinished AI edit with Publish (sync-ai-publish) and Discard (sync-ai-discard)"
       }
     },
     {
@@ -999,8 +999,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-panel",
+        "where": "Menu > Diagnostics > Sync — Sign in again (sync-signin-again)"
       }
     },
     {
@@ -1012,8 +1012,8 @@
       "drawnAt": "ad-syncd",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "diag-sync-hints",
+        "where": "Menu > Diagnostics > Sync — Hub, commands fold: maude design status, /design:rollback <canvas>"
       }
     },
     {
@@ -1025,8 +1025,8 @@
       "drawnAt": "ad-diag",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "diag-repo-changed",
+        "where": "Menu > Diagnostics > Server — Repo state changed — reload? with Reload (diag-repo-reload) and Dismiss"
       }
     },
     {
@@ -1219,9 +1219,9 @@
       "home": "diag",
       "drawnAt": "ad-logs",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "diag.ai",
+        "testid": "diag-ai",
+        "where": "Menu > Diagnostics > AI setup — the readiness list, whole (rdy-row-<id>)"
       }
     },
     {
@@ -1544,9 +1544,9 @@
       "home": "diag",
       "drawnAt": "ad-diag",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "diag.ai-recheck",
+        "testid": "diag-ai-recheck",
+        "where": "Menu > Diagnostics > Check AI setup again (opens AI setup and re-checks)"
       }
     },
     {
@@ -1558,8 +1558,8 @@
       "drawnAt": "ad-logs",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "diag-ai",
+        "where": "Menu > Diagnostics > AI setup — the Installed by Maude / Found on your PATH line under the Claude Code row"
       }
     },
     {
@@ -1570,9 +1570,9 @@
       "home": "diag",
       "drawnAt": "ad-diag",
       "v2": {
-        "action": null,
+        "action": "canvas.reload",
         "testid": null,
-        "where": null
+        "where": "Menu > Diagnostics > Reload canvas ⌘R"
       }
     },
     {
@@ -1583,9 +1583,9 @@
       "home": "diag",
       "drawnAt": "ad-logs",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "diag.logs",
+        "testid": "diag-logs-lines",
+        "where": "Menu > Diagnostics > Logs — filter by source, search, Copy all"
       }
     },
     {

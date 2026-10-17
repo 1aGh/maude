@@ -13,6 +13,7 @@
 
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { requestTrash } from '../left-panel/left-panel-bus.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -130,6 +131,8 @@ export function createMenuHandlers(d) {
     'share.open': () => d.onShare(),
     'settings.open': () => d.setSettingsOpen(true),
     'canvas.reload': () => d.onReload(),
+    // ── Diagnostics (V2-4.7b) ──
+    ...createDiagnosticsHandlers(d),
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);

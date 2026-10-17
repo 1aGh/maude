@@ -42,6 +42,8 @@
 @import url("../v2/shell/share-cluster.css");
 /* V2-4.4a — the left panel: Canvases · Layers · Assets, the pinned Design system row, Trash, Advanced. */
 @import url("../v2/left-panel/left-panel.css");
+/* V2-4.7b — Menu › Diagnostics: the status words in the menu, the Logs · Server · AI setup · Sync sheet. */
+@import url("../v2/diagnostics/diagnostics.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
 @import url("../home/home.css");
 @import url("./5-utilities.css");

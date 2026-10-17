@@ -18,6 +18,12 @@ const STUDIO = join(import.meta.dir, '..');
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const APP = clientSource();
 const PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'SyncPanel.jsx'), 'utf8');
+// V2-4.7b: Resync and Download all moved into one module the panel AND Menu › Diagnostics › Advanced
+// both call; the route and the 409 wording are asserted there.
+const SYNC_ACTIONS = readFileSync(
+  join(STUDIO, 'client', 'v2', 'diagnostics', 'sync-actions.js'),
+  'utf8'
+);
 
 describe('the Sync panel exists only where a hub link exists', () => {
   test('sync is a dock panel with a right-side default', () => {
@@ -100,7 +106,8 @@ describe('the panel reads the off-disk payload fail-closed (DDR-102 discipline)'
 // reaches only the sweep.
 describe('the Resync control', () => {
   test('it calls the whole-sync route, not an asset-only one', () => {
-    expect(PANEL).toContain("fetch('/_api/sync/resync'");
+    expect(SYNC_ACTIONS).toContain("'/_api/sync/resync'");
+    expect(PANEL).toContain('requestResync()');
     expect(PANEL).toContain('data-testid="sync-resync"');
   });
 
@@ -112,7 +119,7 @@ describe('the Resync control', () => {
   });
 
   test('a 409 reads as "already restarting", never as a failure', () => {
-    expect(PANEL).toMatch(/res\.status === 409/);
+    expect(SYNC_ACTIONS).toMatch(/res\.status === 409/);
   });
 
   test('cancel is scoped to the sweep and only offered while one runs', () => {
