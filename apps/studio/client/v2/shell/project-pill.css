@@ -18,7 +18,10 @@
     --pill-gap: 12px;
   }
 
-  .st-pill {
+  /* `.st-pill.island`, not bare `.st-pill`: other surfaces use `st-pill` for a small badge (Settings'
+     provider cards; the tree's group count did until V2-4.gate) and must not inherit an absolutely
+     positioned island. */
+  .st-pill.island {
     position: absolute;
     left: var(--float-gap, 16px);
     top: var(--float-gap, 16px);

@@ -45,3 +45,91 @@ for (const theme of ['light', 'dark']) {
     });
   }
 }
+
+// V2-4.gate (design-critic blocker 3, a11y B6): `--fg-3` is the DISABLED grade (3.0:1 on the islands) and
+// had been used for real text — palette group labels and footer, Settings notes, Layers type labels, the
+// "?" sheet's "or" and notes, placeholders. Every rule below carries text, so each must resolve to a token
+// that holds 4.5:1 on the three surfaces text sits on (--bg-1 island, --bg-2 popover, --bg-3 well).
+const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+const components = read('../client/styles/4-components.css');
+const search = read('../client/v2/search/search.css');
+const fold = read('../client/v2/fold/fold.css');
+const diagnostics = read('../client/v2/diagnostics/diagnostics.css');
+
+const TEXT_RULES: [string, string, string][] = [
+  ['shell', '.st-search-box', shell],
+  ['shell', '.st-search-box input::placeholder', shell],
+  ['shell', '.st-tree-empty', shell],
+  ['shell', '.st-pal-search', shell],
+  ['shell', '.st-pal-search input::placeholder', shell],
+  ['shell', '.st-pal-group', shell],
+  ['shell', '.st-pal-empty', shell],
+  ['shell', '.st-pref-note', shell],
+  ['shell', '.st-layer-caret', shell],
+  ['shell', '.st-layer-type', shell],
+  ['shell', '.st-rp-hint', shell],
+  ['shell', '.so-or', shell],
+  ['shell', '.so-section-hd', shell],
+  ['shell', '.st-present-exit-kbd', shell],
+  ['shell', '.st-tree-sec-hd .st-sec-name', shell],
+  ['shell', '.st-tree-sec-hd .st-sec-count', shell],
+  ['components', '.st-settings-intro', components],
+  ['components', '.st-provider-notes', components],
+  ['components', '.st-engine-radio-note', components],
+  ['search', '.st-pal-aside', search],
+  ['search', '.st-pal-meta', search],
+  ['search', '.st-pal-foot', search],
+  ['search', '.so-find', search],
+  ['search', '.so-note', search],
+  ['search', '.so-sub', search],
+  ['search', '.so-adv-count', search],
+  ['search', '.so-adv-path', search],
+  ['fold', '.v2-fold-hint', fold],
+];
+
+for (const theme of ['light', 'dark']) {
+  const palette = block(tokens, `.maude[data-theme="${theme}"]`);
+  const color = (token: string) => {
+    const value = palette.match(new RegExp(`${token}:\\s*(oklch\\([^)]*\\))`))?.[1];
+    if (!value) throw new Error(`Missing ${theme} ${token}`);
+    return oklchToRgb(parseOklch(value));
+  };
+  const ratio = (fg: string, bg: string) => contrastRatio(color(fg), color(bg));
+  const SURFACES = ['--bg-1', '--bg-2', '--bg-3'];
+
+  for (const [label, selector, css] of TEXT_RULES) {
+    test(`${theme} ${label} ${selector} text is off the disabled --fg-3 and holds AA`, () => {
+      const token = block(css, selector).match(/(?:^|;)\s*color:\s*var\((--[^),]+)/)?.[1];
+      if (!token) throw new Error(`Missing text color for ${selector}`);
+      expect(token).not.toBe('--fg-3');
+      for (const surface of SURFACES) {
+        expect(ratio(token, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
+  for (const tone of ['success', 'warn', 'error']) {
+    test(`${theme} --status-${tone}-text holds AA on the surfaces (Diagnostics words, menu status)`, () => {
+      for (const surface of SURFACES) {
+        expect(ratio(`--status-${tone}-text`, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
+  test(`${theme} the selected Diagnostics tab reads on its accent-muted fill`, () => {
+    const token = block(diagnostics, '.dg-tab[aria-selected="true"]').match(
+      /(?:^|;)\s*color:\s*var\((--[^),]+)/
+    )?.[1];
+    if (!token) throw new Error('Missing selected tab colour');
+    expect(ratio(token, '--accent-muted')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test(`${theme} the Present exit pill is not faded and its label and Esc hint hold AA on it`, () => {
+    const pill = block(shell, '.st-present-exit');
+    expect(pill).not.toMatch(/(^|;)\s*opacity:/);
+    expect(ratio('--fg-1', '--bg-1')).toBeGreaterThanOrEqual(4.5);
+    const kbd = block(shell, '.st-present-exit-kbd').match(/color:\s*var\((--[^)]+)\)/)?.[1];
+    if (!kbd) throw new Error('Missing Esc hint colour');
+    expect(ratio(kbd, '--bg-1')).toBeGreaterThanOrEqual(4.5);
+  });
+}

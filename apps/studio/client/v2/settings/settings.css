@@ -26,6 +26,12 @@
     box-shadow: var(--shadow-lg);
     animation: st-pop var(--dur-route) var(--ease-out);
   }
+  /* Body copy is the body font; mono is for keys, paths, commands and tabular numbers only (CONTRACT §5). The
+     sheet's own classes inherit this; the v1 cards inside it set their own mono in the components layer,
+     so they are re-pointed below. */
+  .v2s-sheet {
+    font-family: var(--font-body);
+  }
   .v2s-rail {
     display: flex;
     flex-direction: column;
@@ -39,6 +45,11 @@
     font-size: var(--type-sm);
     font-weight: var(--w-semibold);
     color: var(--fg-0);
+  }
+  .v2s-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
   .v2s-tab {
     appearance: none;
@@ -97,7 +108,8 @@
   .v2s-main {
     min-width: 0;
     overflow: auto;
-    padding: var(--space-4) var(--space-5);
+    /* room under the last row, so a scrolled sheet never ends mid-row at its edge */
+    padding: var(--space-4) var(--space-5) var(--space-7, 32px);
   }
   .v2s-panel[hidden] {
     display: none;
@@ -109,8 +121,6 @@
     margin: 0 0 var(--space-2);
     font-size: var(--type-xs);
     font-weight: var(--w-semibold);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--fg-2);
   }
   .v2s-row {
@@ -266,5 +276,36 @@
     .v2s-tab {
       transition: none;
     }
+  }
+}
+
+/* The v1 cards Settings reuses (provider keys, engines, theme radios, model list, readiness) carry
+   `font-family: var(--font-mono)` in the components layer, which a shell-layer rule cannot beat. Same
+   layer, one class more of specificity; `:where()` keeps the list from adding any. Commands, paths and
+   sizes (`code`, `.rdy-cmd-tx`, `.st-model-size`, `.v2s-val--mono`) stay mono. */
+@layer components {
+  .v2s-sheet
+    .v2s-main
+    :where(
+      .st-provider-name,
+      .st-provider-notes,
+      .st-provider-configured,
+      .st-provider-keylink,
+      .st-settings-intro,
+      .st-engine-radio-label,
+      .st-engine-radio-note,
+      .st-pref-label,
+      .st-pref-note,
+      .st-sidebtn,
+      .st-btn,
+      .st-step-title,
+      .st-model-label,
+      .st-model-action-note,
+      .st-pill,
+      .st-setup-option-label,
+      .rdy-copy,
+      summary
+    ) {
+    font-family: var(--font-body);
   }
 }
