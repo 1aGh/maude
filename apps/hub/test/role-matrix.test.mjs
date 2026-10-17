@@ -14,7 +14,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-
+import * as oneTable from '../../studio/access/roles.ts';
+import * as roleMatrix from '../src/role-matrix.mjs';
 import {
   ACCOUNT_ROLES,
   CAPABILITIES,
@@ -35,7 +36,8 @@ test('the matrix is complete — every role answers every capability', () => {
       assert.equal(typeof caps[cap], 'boolean', `${role}.${cap} must be stated`);
     }
   }
-  assert.deepEqual([...ROLES], ['owner', 'member', 'viewer']);
+  // V2-1.7 §5.1 (S9.1): weakest first, and `observer` (Can view) below viewer.
+  assert.deepEqual([...ROLES], ['observer', 'viewer', 'member', 'owner']);
   // `session` joined the list in Cloud Phase 27 D3: keeping your own place in a
   // project (which canvas is open, where your camera is) is per-user runtime
   // state, never versioned, and every role holds it — a reviewer who cannot pan
@@ -43,8 +45,48 @@ test('the matrix is complete — every role answers every capability', () => {
   // manifest classify those paths instead of waving them through.
   assert.deepEqual(
     [...CAPABILITIES],
-    ['read', 'session', 'edit', 'comment', 'annotate', 'export', 'invite', 'delete', 'mirror']
+    [
+      'read',
+      'session',
+      'request',
+      'comment',
+      'export',
+      'annotate',
+      'edit',
+      'trash',
+      'summon',
+      'invite',
+      'delete',
+      'mirror',
+    ]
   );
+});
+
+test('ONE table: role-matrix.mjs re-exports apps/studio/access/roles.ts, same objects', () => {
+  // S9.1 (V2-1.7 §5.2): the hub, the control plane and the studio read one matrix.
+  for (const name of [
+    'ROLES',
+    'CAPABILITIES',
+    'ACCOUNT_ROLES',
+    'can',
+    'capabilitiesFor',
+    'isReadOnlyRole',
+    'matrixRows',
+    'projectRoleForAccount',
+  ]) {
+    assert.ok(roleMatrix[name] !== undefined, `role-matrix.mjs must export ${name}`);
+    assert.equal(roleMatrix[name], oneTable[name], `${name} must be the roles.ts object`);
+  }
+  const src = readFileSync(join(HERE, 'src/role-matrix.mjs'), 'utf8');
+  assert.ok(!/\bMATRIX\s*=/.test(src), 'role-matrix.mjs must not hold its own matrix');
+});
+
+test('observer (Can view) is read-only and translates to itself', () => {
+  assert.equal(isReadOnlyRole('observer'), true);
+  assert.equal(projectRoleForAccount('observer'), 'observer');
+  for (const cap of CAPABILITIES) {
+    assert.equal(can('observer', cap), ['read', 'session', 'request'].includes(cap), cap);
+  }
 });
 
 test('a viewer may look, comment and download — and nothing else', () => {
@@ -69,7 +111,8 @@ test('member edits but does not administer; owner does both', () => {
   assert.equal(can('member', 'invite'), false);
   assert.equal(can('member', 'delete'), false);
   assert.equal(can('member', 'mirror'), false);
-  for (const cap of CAPABILITIES) assert.equal(can('owner', cap), true);
+  // The owner holds everything except `request` (Ask to edit is for roles without edit, R5).
+  for (const cap of CAPABILITIES) assert.equal(can('owner', cap), cap !== 'request', cap);
 });
 
 test('an unknown role gets NOTHING — a typo must not be an escalation', () => {
@@ -120,9 +163,11 @@ test("the cell's read-only gate allows exactly what a viewer's capabilities say"
 
 test('the matrix renders as rows for a docs table', () => {
   const rows = matrixRows();
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4);
   assert.equal(rows[0].role, 'owner');
+  assert.equal(rows[2].role, 'viewer');
   assert.equal(rows[2].edit, false);
+  assert.equal(rows[3].role, 'observer');
 });
 
 // ---------------------------------------------------------------------------
