@@ -1,0 +1,293 @@
+/* client/v2/inspector/sections/sections.css — S2.3: Position · Size · Layout bodies (14 Editing, ed-inspector).
+ * `insp-` namespaced, tokens only — no hex, weights stop at --w-semibold. The v1 controls (number field, segmented
+ * control, select, switch, align pad) keep their own `st-cp-*` styling; this file lays them out and draws what is new:
+ * rows, the token chip and its menu, Bind, the constraints picture. */
+
+@layer shell {
+  .insp-row {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-2);
+    min-height: 28px;
+  }
+  .insp-row[data-dim="true"] .insp-row-v {
+    opacity: 0.6;
+  }
+  .insp-row-k {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .insp-row-v {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .insp-pair {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .insp-pair [data-quiet="true"] input {
+    color: var(--fg-2);
+  }
+  .insp-nf {
+    max-width: 84px;
+  }
+  .insp-sub {
+    margin: var(--space-1) 0 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .insp-quiet {
+    margin: 0;
+    max-width: 60ch;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* ── a length: token chip · number + Bind · other CSS ── */
+  .insp-len {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .insp-chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .insp-chip:hover:not(:disabled) {
+    background: var(--bg-2);
+  }
+  .insp-chip:focus-visible,
+  .insp-bind:focus-visible,
+  .insp-chip-more:focus-visible,
+  .insp-sides:focus-visible,
+  .insp-menu-i:focus-visible,
+  .insp-cons-p:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-chip:disabled {
+    cursor: default;
+    color: var(--fg-2);
+  }
+  .insp-chip-face {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .insp-chip-face b {
+    font-weight: var(--w-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .insp-chip-face--css,
+  .insp-chip-face--none {
+    color: var(--fg-2);
+  }
+  .insp-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .insp-num {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .insp-num-in {
+    width: 48px;
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-variant-numeric: tabular-nums;
+  }
+  .insp-num-in:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-bind {
+    appearance: none;
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  .insp-bind:hover:not(:disabled) {
+    background: var(--bg-2);
+  }
+  .insp-chip-more,
+  .insp-sides {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .insp-chip-more:hover:not(:disabled),
+  .insp-sides:hover:not(:disabled),
+  .insp-sides[aria-pressed="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .insp-menu {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + var(--space-1));
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 168px;
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-md);
+  }
+  .insp-menu-i {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+    text-align: left;
+    cursor: pointer;
+  }
+  .insp-menu-i[aria-checked="true"] {
+    color: var(--accent);
+  }
+  .insp-menu-i i {
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-2);
+  }
+  .insp-menu-i:hover {
+    background: var(--bg-3);
+  }
+  .insp-menu-i--sep {
+    margin-top: var(--space-1);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+
+  /* ── padding ── */
+  .insp-pad {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .insp-ax {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .insp-mixed {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* ── constraints: the four pins as a picture ── */
+  .insp-consrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .insp-cons-sel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .insp-cons {
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+  }
+  .insp-cons-in {
+    position: absolute;
+    inset: 14px;
+    border-radius: 2px;
+    background: var(--fg-2);
+  }
+  .insp-cons-p {
+    appearance: none;
+    position: absolute;
+    padding: 0;
+    border: 0;
+    border-radius: 1px;
+    background: var(--border-default);
+    cursor: pointer;
+  }
+  .insp-cons-p:disabled {
+    cursor: default;
+  }
+  .insp-cons-p[data-on="true"] {
+    background: var(--accent);
+  }
+  .insp-cons-p--top,
+  .insp-cons-p--bottom {
+    left: 20px;
+    width: 4px;
+    height: 12px;
+  }
+  .insp-cons-p--left,
+  .insp-cons-p--right {
+    top: 20px;
+    width: 12px;
+    height: 4px;
+  }
+  .insp-cons-p--top {
+    top: 1px;
+  }
+  .insp-cons-p--bottom {
+    bottom: 1px;
+  }
+  .insp-cons-p--left {
+    left: 1px;
+  }
+  .insp-cons-p--right {
+    right: 1px;
+  }
+}

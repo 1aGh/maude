@@ -8,6 +8,7 @@ import { PhotoKnobs } from '../photo-knobs.jsx';
 import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
 // DOM selection points at (an artboard `<img src="assets/<sha8>.<ext>">`). Prefers
