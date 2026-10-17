@@ -31,6 +31,8 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     icon: 'sparkle',
     exec: 'shell',
+    // The chat runs Claude Code on this Mac — the desktop app only (V2-4 gate probe).
+    visible: { shell: ['desktop'] },
     // CONTRACT §2: ⌘/ is Ask AI (the AI chat panel, selection attached). v1's ⇧⌘A Assistant moved
     // here with V2-4.5b (rule 13; v2's ⇧⌘A is Select all annotations). Desktop only, as v1.
     keys: [kb('⌘/', 'global', { inText: true, when: { focus: SHELL_FOCI, facts: ['native'] } })],

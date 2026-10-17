@@ -79,6 +79,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'trash',
     exec: 'shell',
+    // Restoring is an edit; the viewer shells draw no Trash row (V2-4 gate probe).
+    visible: { minRole: 'edit' },
     // V2-4.4a (CONTRACT §1, C10): the Canvases panel's last row, and ⌘K "Trash". Not in the menu.
     // Clearing it out is owner-only [A6].
   },
