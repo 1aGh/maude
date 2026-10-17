@@ -6,6 +6,8 @@
 // and — R3 — that the three pre-v2 roles mean exactly what they meant before.
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
   ACCOUNT_ROLES,
@@ -23,6 +25,7 @@ import {
   rankOf,
   V1_ROLES,
 } from '../access/roles.ts';
+import { isEditRole } from '../sync/hubs-config.ts';
 
 /** The pre-v2 matrix, frozen here as it shipped in v1.9.x (`apps/hub/src/role-matrix.mjs`). */
 const PRE_V2 = {
@@ -183,5 +186,17 @@ describe('rank, max, level, rows', () => {
     expect(projectRoleForAccount('member')).toBe('member');
     for (const r of [null, undefined, '', 'Admin', 'typo'])
       expect(projectRoleForAccount(r)).toBeNull();
+  });
+});
+
+describe('the studio reads the same table (sync/hubs-config.ts isEditRole)', () => {
+  test('isEditRole is can(projectRoleForAccount(role), edit) — no local role list', () => {
+    const src = readFileSync(join(import.meta.dir, '..', 'sync', 'hubs-config.ts'), 'utf8');
+    expect(/from '\.\.\/access\/roles\.ts'/.test(src)).toBe(true);
+    expect(/new Set\(\[\s*'owner'/.test(src)).toBe(false);
+    for (const r of ['owner', 'member', 'admin']) expect([r, isEditRole(r)]).toEqual([r, true]);
+    for (const r of ['viewer', 'observer', 'Owner', 'typo', '', null, undefined, 1, {}]) {
+      expect([r, isEditRole(r)]).toEqual([r, false]);
+    }
   });
 });
