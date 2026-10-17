@@ -1,8 +1,11 @@
 // v2/ai/Suggest.jsx — the empty state, the quick-action verbs (moved from ChatPanel.jsx, S5.8) and the
 // suggestion strip with its one-line why.
 
-import { ThreadPrimitive } from '@assistant-ui/react';
+import { ThreadPrimitive, useThread } from '@assistant-ui/react';
+import { StIcon } from '../../shell/icons.jsx';
+import { lastUserText } from '../../panels/acp-runtime.js';
 import { Spark, Swatches } from './icons.jsx';
+import { deriveSuggestions } from './suggest-why.js';
 
 // Persistent quick-action verbs (prefill the composer; never fire blind). The
 // one-time `/design:setup-ds` is offered contextually in the empty state, not here.
@@ -25,13 +28,13 @@ export function ChatEmpty() {
       <span className="chat-empty-mark">
         <Spark size={28} />
       </span>
-      <div className="chat-empty-title">Edit this canvas with Claude</div>
-      <div className="chat-empty-sub">
-        Ask for a change, a critique, or a new screen — Claude runs on your own subscription.
+      <div className="chat-empty-title" data-testid="ai-hint">
+        Ask for a change, a few variants, or an answer.
       </div>
+      <div className="chat-empty-sub">AI works on what the chip says.</div>
       {/* One-time contextual CTA: bootstrap a design system. Prefills the guided
           wizard (name is required, so we never fire it blind — the composer opens
-          ready for the slug). Canvas verbs live in the persistent quick-action row. */}
+          ready for the slug). The slash verbs sit below (S5.8: the persistent row is gone, 03 has none). */}
       <ThreadPrimitive.Suggestion
         prompt="/design:setup-ds "
         send={false}
@@ -42,6 +45,7 @@ export function ChatEmpty() {
         </span>
         Create new design system
       </ThreadPrimitive.Suggestion>
+      <QuickActions />
       <div className="chat-sugs">
         {SUGGESTIONS.map((s) => (
           <ThreadPrimitive.Suggestion key={s} prompt={s} send={false} className="chat-sug">
@@ -86,6 +90,56 @@ export function QuickActions({ openComments = 0 }) {
           {a.label}
         </ThreadPrimitive.Suggestion>
       ))}
+    </div>
+  );
+}
+
+const STRIP_ICON = {
+  comments: 'comment',
+  clips: 'presentation',
+  shared: 'share',
+  'last-ask': 'reload',
+};
+
+/**
+ * S5.8 (03 `ai-suggest`): up to three chips from what the person was doing, and one quiet line that says
+ * why. A chip fills the composer and never sends. Hidden while a turn runs and when Advanced › Suggestions
+ * is off. Mount it inside the thread (it reads the last ask from it).
+ */
+export function SuggestStrip({
+  openComments = 0,
+  selectedClips = 0,
+  justShared = null,
+  enabled = true,
+}) {
+  const lastAsk = useThread((t) => lastUserText(t.messages) || '');
+  const sug = deriveSuggestions({
+    enabled,
+    openComments,
+    selectedClips,
+    justShared,
+    lastAsk: lastAsk ? { text: lastAsk } : null,
+  });
+  if (!sug) return null;
+  return (
+    <div className="ai-suggest" data-testid="ai-suggest" data-context={sug.context}>
+      <div className="ai-suggest-chips">
+        {sug.chips.map((c) => (
+          <ThreadPrimitive.Suggestion
+            key={c.id}
+            prompt={c.prompt}
+            send={false}
+            className="ai-chip"
+            data-testid={c.testid || 'ai-suggest-chip'}
+          >
+            {c.label}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+      <p className="ai-suggest-why" data-testid="ai-suggest-why">
+        <StIcon name={STRIP_ICON[sug.context] || 'sparkle'} size={11} />
+        {sug.why}
+      </p>
     </div>
   );
 }

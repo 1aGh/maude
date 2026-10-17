@@ -985,8 +985,8 @@
     "pattern": false,
     "meaning": "The context chip in the composer (what the agent will see).",
     "producer": {
-      "file": "apps/studio/client/v2/ai/Composer.jsx",
-      "symbol": "Composer"
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -4739,6 +4739,123 @@
     "producer": {
       "file": "apps/studio/client/panels/chat-header.jsx",
       "symbol": "ChatHeader"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-island",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat panel itself (the `aside` frame, landmark \"AI chat panel\"). Hidden, never unmounted, while folded.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AiChatIsland.jsx",
+      "symbol": "AiChatIsland"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scope chip's menu (`role=menu`): Whole canvas · the artboard in view · Choose artboards… · No canvas — just ask.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-item-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the scope menu. `<id>` = whole | artboard:<artboardId> | choose | none; while choosing artboards: artboard-<artboardId> and done.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The suggestion strip above the composer: up to three chips and one why line. `data-context` = comments | clips | shared | last-ask.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One suggestion chip (fills the composer, never sends). The comments chip keeps its v1 id `chat-qa-implement-comments`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest-why",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one quiet line that says why the suggestions are there (\"Because 3 comments are open on this canvas\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The empty chat's hint line (\"Ask for a change, a few variants, or an answer.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "ChatEmpty"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-canvas-unchanged",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The note that ends an answer which touched nothing: \"The canvas didn't change.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "AssistantMessage"
     },
     "region": "other",
     "consumers": [],

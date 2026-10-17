@@ -12,6 +12,7 @@ import {
   transcriptForcesExpand,
   TRANSCRIPT_VIEWS,
 } from '../../panels/transcript-view.js';
+import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
 import { Copy, Retry, Spark } from './icons.jsx';
 
 // ── message-part renderers ──
@@ -299,6 +300,7 @@ export function UserMessage() {
 // per-part component registry can't.
 export function AssistantMessage() {
   const rawParts = useMessage((m) => m.content) || [];
+  const status = useMessage((m) => m.status?.type);
   const { transcriptView } = useContext(ChatMediaContext) || {};
   const view = transcriptView || DEFAULT_TRANSCRIPT_VIEW;
   const parts = useMemo(() => filterTranscriptParts(rawParts, view), [rawParts, view]);
@@ -310,7 +312,7 @@ export function AssistantMessage() {
         <span className="chat-msg-spark">
           <Spark size={13} />
         </span>
-        Claude
+        AI
       </div>
       {grouped.map((g, i) =>
         g.type === 'tool-group' ? (
@@ -336,6 +338,13 @@ export function AssistantMessage() {
           />
         ) : null
       )}
+      {/* S5.8 (03 `ai-question`): an answer that touched nothing says so. Off for a running turn and for any
+          tool that can write — see answer-note.js. */}
+      {canvasUnchanged(rawParts, status === 'complete') && !alreadySaysUnchanged(rawParts) ? (
+        <p className="ai-unchanged" data-testid="ai-canvas-unchanged">
+          {CANVAS_UNCHANGED}
+        </p>
+      ) : null}
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
         <ActionBarPrimitive.Copy
           className="chat-msg-action"

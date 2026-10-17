@@ -27,9 +27,9 @@ import {
   lastUserText,
   makeAcpAdapter,
 } from './acp-runtime.js';
-import { buildChatContext } from './chat-context.js';
 import ElicitationPrompt from './ElicitationPrompt.jsx';
 import { ChatHeader } from './chat-header.jsx';
+import { AiChatIsland } from '../v2/ai/AiChatIsland.jsx';
 import { Composer } from '../v2/ai/Composer.jsx';
 import {
   ActivityBar,
@@ -42,7 +42,9 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
-import { ChatEmpty, QuickActions } from '../v2/ai/Suggest.jsx';
+import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
+import { readSuggestPref } from '../v2/ai/suggest-why.js';
+import { useAiScope } from '../v2/ai/use-ai-scope.js';
 import PermissionPrompt from './PermissionPrompt.jsx';
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
@@ -221,6 +223,10 @@ function ChatThread({
   selected,
   designRel,
   openComments,
+  selectedClips,
+  justShared,
+  viewArtboardId,
+  panelHidden,
   transcriptView,
   onSetTranscriptView,
   onPermissionRequest,
@@ -308,27 +314,12 @@ function ChatThread({
   // adapter awaits `pending` then expands `map` before sending; the composer writes
   // both on paste.
   const attachmentsRef = useRef({ map: new Map(), pending: new Set() });
-  // Canvas/selection context attachment (feature-acp-context-hardening). One
-  // buildChatContext result drives BOTH the composer chip and the frozen block
-  // the adapter prepends at send. The ref is what the adapter reads (freeze =
-  // read-once at send); the state re-renders the chip. Dismissing the chip
-  // (DDR-140 — the attachment is removable) suppresses the context until it
-  // CHANGES (new selection / canvas), which re-arms it.
-  const [chatCtx, setChatCtx] = useState(null);
-  const [ctxDismissed, setCtxDismissed] = useState(false);
-  const contextRef = useRef(null);
-  const ctxDismissedRef = useRef(false);
-  useEffect(() => {
-    const c = buildChatContext({ canvas: activeCanvas, selected });
-    setChatCtx(c);
-    contextRef.current = c;
-    setCtxDismissed(false);
-    ctxDismissedRef.current = false;
-  }, [activeCanvas, selected]);
-  const dismissCtx = useCallback(() => {
-    setCtxDismissed(true);
-    ctxDismissedRef.current = true;
-  }, []);
+  // Canvas/selection context attachment (feature-acp-context-hardening) + the scope chip (S5.8). One
+  // buildChatContext result drives BOTH the composer chip and the frozen block the adapter prepends at
+  // send (`contextRef` is what it reads — freeze = read-once). The chip follows the selection until the
+  // person narrows it; removing it (DDR-140) sends the ask without the canvas.
+  const aiScope = useAiScope({ activeCanvas, selected, panelHidden, viewArtboardId });
+  const { contextRef } = aiScope;
   const adapter = useMemo(
     () =>
       makeAcpAdapter(
@@ -337,10 +328,10 @@ function ChatThread({
         () => picksRef.current.model || null,
         () => picksRef.current.effort || null,
         () => attachmentsRef.current,
-        () => (ctxDismissedRef.current ? null : contextRef.current),
+        () => contextRef.current,
         () => picksRef.current.mode || null
       ),
-    [conn, chatId, picksRef]
+    [conn, chatId, picksRef, contextRef]
   );
   const runtime = useLocalRuntime(adapter, { initialMessages });
   // Image thumbnails + lightbox — one overlay per thread; bubbles reach it (and
@@ -467,11 +458,24 @@ function ChatThread({
             ) : (
               <ErrorCard error={turnError} onRetry={retryLastTurn} />
             )}
-            <QuickActions openComments={openComments} />
             <Composer
               activeCanvas={activeCanvas}
-              chatCtx={ctxDismissed ? null : chatCtx}
-              onCtxDismiss={dismissCtx}
+              scope={aiScope.scope}
+              artboards={aiScope.artboards}
+              activeArtboardId={aiScope.activeArtboardId}
+              stale={aiScope.stale}
+              onChooseScope={aiScope.choose}
+              onCtxDismiss={aiScope.remove}
+              above={
+                <ThreadPrimitive.If running={false}>
+                  <SuggestStrip
+                    openComments={openComments}
+                    selectedClips={selectedClips}
+                    justShared={justShared}
+                    enabled={readSuggestPref()}
+                  />
+                </ThreadPrimitive.If>
+              }
               picksRef={picksRef}
               caps={{ modes: caps.modes, parsedOptions }}
               onSetMode={onSetMode}
@@ -499,6 +503,9 @@ export default function ChatPanel({
   selected,
   designRel,
   openComments = 0,
+  selectedClips = 0,
+  justShared = null,
+  viewArtboardId = null,
   width,
   resizing,
   onClose,
@@ -859,15 +866,7 @@ export default function ChatPanel({
   const runningChats = Object.values(busyChats || {}).filter(Boolean).length;
 
   return (
-    <aside
-      className={`st-rpanel${resizing ? ' is-resizing' : ''}`}
-      style={{
-        ...(width ? { width, flexBasis: width } : {}),
-        ...(hidden ? { display: 'none' } : {}),
-      }}
-      aria-label="Assistant"
-      aria-hidden={hidden || undefined}
-    >
+    <AiChatIsland hidden={hidden} resizing={resizing} width={width}>
       {/* V2-4.4b — the 03 header (kit `AIPanel chat=…`): spark · the chat's title ⌄ (opens the chat list) ·
           "✦ N" YOUR running chats · New chat · Hide. Hide folds the island to its spark corner icon. */}
       <ChatHeader
@@ -1018,6 +1017,10 @@ export default function ChatPanel({
                 selected={selected}
                 designRel={designRel}
                 openComments={openComments}
+                selectedClips={selectedClips}
+                justShared={justShared}
+                viewArtboardId={viewArtboardId}
+                panelHidden={hidden}
                 transcriptView={transcriptView}
                 onSetTranscriptView={setTranscriptView}
                 onPermissionRequest={onPermissionRequest}
@@ -1027,6 +1030,6 @@ export default function ChatPanel({
           })
         )}
       </div>
-    </aside>
+    </AiChatIsland>
   );
 }

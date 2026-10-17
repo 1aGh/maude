@@ -17,7 +17,7 @@ import {
   STATIC_COMMANDS,
 } from '../../panels/slash-commands.js';
 import { subscribeAskAI } from '../search/search-env.js';
-import { SendArrow } from './icons.jsx';
+import { Spark } from './icons.jsx';
 import {
   chipNodes,
   classifyPaste,
@@ -26,6 +26,7 @@ import {
   nextChipIndex,
   uploadChatImage,
 } from './paste-chips.jsx';
+import { ScopeChip } from './ScopeChip.jsx';
 
 export function prettyCanvas(path) {
   if (!path) return null;
@@ -337,7 +338,7 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange }) {
       <ComposerPrimitive.Input
         className="chat-input chat-input--overlay"
         submitMode="enter"
-        placeholder="Ask Claude to change this canvas…"
+        placeholder="Ask AI…"
         onPaste={onPaste}
         onScroll={(e) => {
           if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -349,8 +350,13 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange }) {
 
 export function Composer({
   activeCanvas,
-  chatCtx,
+  scope,
+  artboards,
+  activeArtboardId,
+  stale = false,
+  onChooseScope,
   onCtxDismiss,
+  above = null,
   picksRef,
   caps,
   onSetMode,
@@ -362,7 +368,6 @@ export function Composer({
   showRateLimitBanner,
   onDismissRateLimitBanner,
 }) {
-  const canvasName = prettyCanvas(activeCanvas);
   const { all, existsSet } = useSlashCommands(conn);
   const composerRuntime = useComposerRuntime();
   const text = useComposer((c) => c.text);
@@ -462,33 +467,18 @@ export function Composer({
         {showRateLimitBanner ? (
           <RateLimitBanner rateLimit={usage.rateLimit} onDismiss={onDismissRateLimitBanner} />
         ) : null}
-        {/* Context attachment chip (feature-acp-context-hardening) — the visible
-            reveal of the fenced <maude-context> block the send will prepend
-            (built from the SAME buildChatContext result, so chip ≡ payload).
-            Removable (DDR-140); a stale selection warns instead of hiding. */}
-        {chatCtx ? (
-          <div
-            className={`chat-ctx${chatCtx.stale ? ' chat-ctx--stale' : ''}`}
-            data-testid="chat-context-chip"
-          >
-            <span className="chat-ctx-label">
-              ◆ {chatCtx.chipLabel}
-              {chatCtx.stale ? ' — canvas changed since selection' : ''}
-            </span>
-            <button
-              type="button"
-              className="chat-ctx-x"
-              aria-label="Remove canvas context from this message"
-              title="Remove canvas context from this message"
-              onClick={onCtxDismiss}
-            >
-              ×
-            </button>
-          </div>
-        ) : canvasName ? (
-          <div className="chat-ctx">
-            Editing: <b>{canvasName}</b>
-          </div>
+        {/* S5.8 — the scope chip (03 `ai-scope`): what AI touches, and the v1 context chip with its
+            removable × (DDR-140 reveal: the chip text is the `[maude-scope …]` line the send carries). */}
+        {above}
+        {activeCanvas ? (
+          <ScopeChip
+            scope={scope}
+            artboards={artboards}
+            activeArtboardId={activeArtboardId}
+            stale={stale}
+            onChoose={onChooseScope}
+            onRemove={onCtxDismiss}
+          />
         ) : null}
         {/* One box: textarea on top, a bottom toolbar (model · effort · send).
             The anchor is relative so the command popover can float above it. */}
@@ -517,7 +507,7 @@ export function Composer({
               <span className="chat-toolbar-spacer" />
               <ChatFootInfo usage={usage} modes={caps.modes} />
               <ComposerPrimitive.Send className="chat-send" aria-label="Send message">
-                <SendArrow />
+                <Spark size={14} />
               </ComposerPrimitive.Send>
             </div>
           </ComposerPrimitive.Root>

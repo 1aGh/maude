@@ -301,21 +301,21 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `acp-setup-signin` | testid | Readiness row action: sign in to Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | — | stable — re-emit |
 | `rdy-row-<id>` | testid (pattern) | One readiness check row (e.g. `rdy-row-claude`). Also rendered in onboarding and the readiness dialog. | `client/panels/ReadinessList.jsx` · `Row` | e2e:acp-cold-start | stable — re-emit |
 | `readiness-autosetup-where` | testid | Readiness dialog: the one line saying the Claude Code auto-setup switch lives in Settings › Advanced. | `client/panels/ReadinessList.jsx` · `ReadinessDialog` | — | new |
-| `chat-composer` | testid | The chat composer (input area). | `client/panels/ChatPanel.jsx` · `Composer` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
-| `chat-context-chip` | testid | The context chip in the composer (what the agent will see). | `client/panels/ChatPanel.jsx` · `Composer` | — | stable — re-emit |
+| `chat-composer` | testid | The chat composer (input area). | `client/v2/ai/Composer.jsx` · `Composer` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
+| `chat-context-chip` | testid | The context chip in the composer (what the agent will see). | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable — re-emit |
 | `chat-mode-banner` | testid | Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan). | `client/panels/ChatPanel.jsx` · `ModeBanner` | e2e:acp-capability-picker | stable — re-emit |
 | `chat-mode-banner-switch` | testid | Button on that alert that switches to the least-privilege mode that can edit. | `client/panels/ChatPanel.jsx` · `ModeBanner` | — | stable — re-emit |
-| `chat-tool-row` | testid | One tool-call row inside a tool card. | `client/panels/ChatPanel.jsx` · `ChatToolCard` | — | stable — re-emit |
+| `chat-tool-row` | testid | One tool-call row inside a tool card. | `client/v2/ai/Feed.jsx` · `ChatToolCard` | — | stable — re-emit |
 | `chat-tool-group` | testid | "Ran N tools" row that folds 2+ consecutive tool calls (expands to the individual cards). | `client/panels/ToolGroup.jsx` · `ToolGroup` | — | stable — re-emit |
-| `chat-msg-actions` | testid | The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`. *Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message).* | `client/panels/ChatPanel.jsx` · `UserMessage`<br>`client/panels/ChatPanel.jsx` · `AssistantMessage` | e2e-helper:assistant | stable — re-emit |
-| `chat-transcript-menu` | testid | The transcript menu button in the chat status row. | `client/panels/ChatPanel.jsx` · `StatusRow` | — | stable — re-emit |
-| `chat-foot-info-btn` | testid | "Chat info" button in the chat footer. | `client/panels/ChatPanel.jsx` · `ChatFootInfo` | — | stable — re-emit |
-| `chat-foot-popover` | testid | The chat info popover opened by `chat-foot-info-btn`. | `client/panels/ChatPanel.jsx` · `ChatFootInfo` | — | stable — re-emit |
-| `chat-usage-banner` | testid | Rate-limit / usage banner in the chat. | `client/panels/ChatPanel.jsx` · `RateLimitBanner` | — | stable — re-emit |
-| `chat-error-card` | testid | Error card in the chat transcript (`role="alert"`). | `client/panels/ChatPanel.jsx` · `ErrorCard` | — | stable — re-emit |
-| `chat-qa-implement-comments` | testid | Quick action "implement comments". | `client/panels/ChatPanel.jsx` · `QuickActions` | — | stable — re-emit |
-| `chat-cmd-menu` | testid | The slash-command popover (`role="listbox"`). | `client/panels/ChatPanel.jsx` · `CommandPopover` | — | stable — re-emit |
-| `chat-cmd-item-<name>` | testid (pattern) | One slash-command item; `<name>` = command name with non-alphanumerics → `-`. | `client/panels/ChatPanel.jsx` · `CommandPopover` | — | stable — re-emit |
+| `chat-msg-actions` | testid | The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`. *Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message).* | `client/v2/ai/Feed.jsx` · `UserMessage`<br>`client/panels/ChatPanel.jsx` · `AssistantMessage` | e2e-helper:assistant | stable — re-emit |
+| `chat-transcript-menu` | testid | The transcript menu button in the chat status row. | `client/v2/ai/Feed.jsx` · `StatusRow` | — | stable — re-emit |
+| `chat-foot-info-btn` | testid | "Chat info" button in the chat footer. | `client/v2/ai/Composer.jsx` · `ChatFootInfo` | — | stable — re-emit |
+| `chat-foot-popover` | testid | The chat info popover opened by `chat-foot-info-btn`. | `client/v2/ai/Composer.jsx` · `ChatFootInfo` | — | stable — re-emit |
+| `chat-usage-banner` | testid | Rate-limit / usage banner in the chat. | `client/v2/ai/Composer.jsx` · `RateLimitBanner` | — | stable — re-emit |
+| `chat-error-card` | testid | Error card in the chat transcript (`role="alert"`). | `client/v2/ai/Feed.jsx` · `ErrorCard` | — | stable — re-emit |
+| `chat-qa-implement-comments` | testid | Quick action "implement comments". | `client/v2/ai/Suggest.jsx` · `QuickActions` | — | stable — re-emit |
+| `chat-cmd-menu` | testid | The slash-command popover (`role="listbox"`). | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
+| `chat-cmd-item-<name>` | testid (pattern) | One slash-command item; `<name>` = command name with non-alphanumerics → `-`. | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
 | `chat-overflow-menu` | testid | The chat panel overflow (⋯) menu. | `client/panels/ChatPanel.jsx` · `ChatPanel` | — | stable — re-emit |
 | `chat-caps-connecting` | testid | Capability bar placeholder while the agent connects. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
 | `chat-caps-bar` | testid | The capability bar (live model/mode/effort pickers). | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
@@ -336,9 +336,9 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `chat-elicit-custom-<id>` | testid (pattern) | Free-text input behind the "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-text-<id>` | testid (pattern) | Text answer input for a text question. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-secret-warning` | testid | Warning shown when a question asks for a secret. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
-| `.chat-input` | selector | The composer textarea. | `client/panels/ChatPanel.jsx` · `HighlightedInput` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-write-scope | stable — re-emit |
-| `[aria-label="Send message"]` | selector | Composer send button. | `client/panels/ChatPanel.jsx` · `Composer` | e2e:acp-ask-user-question, e2e:acp-write-scope | stable — re-emit |
-| `[aria-label="Stop"]` | selector | The composer's Stop button; rendered only while the thread is running. | `client/panels/ChatPanel.jsx` · `Composer` | e2e-helper:assistant | stable — re-emit |
+| `.chat-input` | selector | The composer textarea. | `client/v2/ai/Composer.jsx` · `HighlightedInput` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-write-scope | stable — re-emit |
+| `[aria-label="Send message"]` | selector | Composer send button. | `client/v2/ai/Composer.jsx` · `Composer` | e2e:acp-ask-user-question, e2e:acp-write-scope | stable — re-emit |
+| `[aria-label="Stop"]` | selector | The composer's Stop button; rendered only while the thread is running. | `client/v2/ai/Composer.jsx` · `Composer` | e2e-helper:assistant | stable — re-emit |
 | `.btn--danger (permission prompt)` | selector | The deny/destructive button on the permission prompt (`[data-testid="chat-permission-prompt"] .btn--danger`). | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
 | `.rdy-copy / .rdy-fix-tx / .rdy-fix-tx--err` | selector | Readiness list: copy-command button, fix transcript, and its error state. | `client/panels/ReadinessList.jsx` · `Row`<br>`client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 
@@ -726,6 +726,15 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-chat-new` | testid | The AI chat header's New chat icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-hide` | testid | The AI chat header's Hide icon (replaces the old "Close assistant" button): folds the island to its spark corner icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-count` | testid | The AI chat header's "✦ N" chip: how many of YOUR chats are running; absent at zero. Click opens the chat list. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
+| `ai-chat-island` | testid | The AI chat panel itself (the `aside` frame, landmark "AI chat panel"). Hidden, never unmounted, while folded. | `client/v2/ai/AiChatIsland.jsx` · `AiChatIsland` | — | stable |
+| `ai-scope-chip` | testid | The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
+| `ai-scope-menu` | testid | The scope chip's menu (`role=menu`): Whole canvas · the artboard in view · Choose artboards… · No canvas — just ask. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
+| `ai-scope-item-<id>` | testid | One row of the scope menu. `<id>` = whole | artboard:<artboardId> | choose | none; while choosing artboards: artboard-<artboardId> and done. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
+| `ai-suggest` | testid | The suggestion strip above the composer: up to three chips and one why line. `data-context` = comments | clips | shared | last-ask. | `client/v2/ai/Suggest.jsx` · `SuggestStrip` | — | stable |
+| `ai-suggest-chip` | testid | One suggestion chip (fills the composer, never sends). The comments chip keeps its v1 id `chat-qa-implement-comments`. | `client/v2/ai/Suggest.jsx` · `SuggestStrip` | — | stable |
+| `ai-suggest-why` | testid | The one quiet line that says why the suggestions are there ("Because 3 comments are open on this canvas"). | `client/v2/ai/Suggest.jsx` · `SuggestStrip` | — | stable |
+| `ai-hint` | testid | The empty chat's hint line ("Ask for a change, a few variants, or an answer."). | `client/v2/ai/Suggest.jsx` · `ChatEmpty` | — | stable |
+| `ai-canvas-unchanged` | testid | The note that ends an answer which touched nothing: "The canvas didn't change." | `client/v2/ai/Feed.jsx` · `AssistantMessage` | — | stable |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `embed-view` | testid | Root of the embed shell (`?embed` location). | `client/embed-view.jsx` · `EmbedView` | — | stable — re-emit |
