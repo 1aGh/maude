@@ -1420,7 +1420,7 @@ test('the canvas HTTP lane vouches the member for presence, at the claimed role'
 
 // ------------------------------------------------- the role claim round-trip
 
-test('the render token carries the role; an older token verifies to role null', () => {
+test('the render token carries the role; an older token floors to observer (S9.2)', () => {
   const secret = 'test-secret';
   const withRole = mintRenderToken({ secret, project: 'p', subject: 'o@b.c', role: 'owner' });
   const verdict = verifyRenderToken({ secret, token: withRole, project: 'p' });
@@ -1431,7 +1431,7 @@ test('the render token carries the role; an older token verifies to role null', 
   const without = mintRenderToken({ secret, project: 'p', subject: 'v@b.c' });
   const old = verifyRenderToken({ secret, token: without, project: 'p' });
   assert.equal(old.ok, true);
-  assert.equal(old.role, null);
+  assert.equal(old.role, 'observer');
 });
 
 test('the read-only claim is signed: minted, verified, and never forged off (DDR-247)', () => {
