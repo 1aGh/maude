@@ -220,6 +220,53 @@ here until they land, then re-run the mapper and the probe.
 | Viewers | 3 | `share-cluster-faces/-status`, `share-open-app` are not drawn in the viewer shells | V2-4.9 shells |
 | `cloud-owner`/`member` | 2 | `figma-connect-input/-save` hidden in a cell (local-only by design, DDR-209 D1): needs `HOOK_SHELLS` or the hook's `v2` note | decide |
 
+## V2-4.gate-c: every open row gets its v2 home
+
+**Numbers (2026-10-17, rebuilt client, 7 probes):**
+
+| Check | After gate-b | After gate-c |
+| --- | --- | --- |
+| entries mapped | 0 open (1401) | **0 open (1422; 104 late entries)** |
+| rows with a home | 91 / 144 open | **2 / 144 open** |
+| rows reachable | 50 / 144 | **134 / 144** (10 open) |
+| kept targets reachable | 231 / 401 | **228 / 377** (149 open; 24 targets became rows) |
+
+A row's `v2.action` / `v2.testid` / `v2.where` names the control a person reaches TODAY; "until S<n>" in `where`
+means the final home is that package. `v2.reach` is set where the rule chain gets the shells wrong: the draft
+switcher and the Changes panel's save / publish / discard are desktop only (`['desktop']`); the unsaved badges,
+the saved-version sha and the Share links are local (`['desktop','browser']`); the trash clear-out is not offered
+to a viewer; the ACP chat is desktop only; `A-get-latest` (a cloud project saves through the hub, so nothing is
+"behind") is local only.
+
+**New hooks** (no control had one; each is in testids.json and TESTIDS.md as `new`): `canvases-count`,
+`canvas-row-unsaved`, `git-compare`, `git-discard`, `export-png-resolution`, `export-pdf-quality`,
+`export-pdf-marks`, `inspector-custom-css`, `inspector-html-attrs`, `inspector-grid-tracks`,
+`inspector-body-layout`, `canvas-menu-item-<id>` (every row of the canvas right-click menu).
+
+**Probe additions** (data in openers.mjs unless noted): step kinds `frameContext` (right-click in the canvas),
+`dblclick`, `wait`, `unless`; states `git-dirty` (now with saved versions and a branch list), `git-on-draft`,
+`trash-full`; openers for the saved-version list, the draft switcher (on the shared version and on a draft),
+hidden files, the canvas menu (element, container, artboard), the Inspector (Advanced, Inspect, Layers, a grid
+element, an artboard, a photo), the Export sheet per format and with no render service, and a video comp's
+Timeline and clip inspector. The fixture gained a `Reel` video comp, a grid element and a content-addressed photo
+on every artboard, and `Home.meta.json` (the Layers panel reads its artboard count from it).
+`probe-reach.mjs --merge <evidence.json>` overlays a partial run onto an earlier run's evidence and writes the
+merged reachability.json, so a few openers can be re-run without the ~45 min full pass. Three actions whose v2
+home is a control in a sheet got an `ACTION_SURFACE` entry: `export.rerun-last` (Export again),
+`help.ai-readiness` (its Diagnostics twin), `app.check-updates` (Settings › Update).
+
+**Still open (10 rows):**
+
+- Product gaps, no entry point left: `A-pull-a-local-copy` and `A-invite-by-github-username`. Their only door was
+  the sidebar avatar's menu (IdentityBar `variant="rail"`), which V2-4.7a no longer draws. Smallest fix: two File
+  menu rows ("Pull a local copy…", "Share on GitHub…", desktop) that fire the event IdentityBar's host listener
+  already answers for `project.new`, opening its `'get'` / `'share'` views. It needs two registry actions, so it
+  waits on the `humanMax` (84) decision.
+- Viewers have no Settings: `A-open-the-cloud-dashboard`, `A-panel-positions-left-right` (V2-4.9).
+- ACP chat (6 rows, 33 kept hooks): needs a stub agent in the probe (`/_api/acp/status` answering available, then
+  the `/_ws/acp` JSON-RPC handshake: initialize, session/new with config options, a canned turn with a tool call
+  and a permission request). The rows are homed; only the state is missing.
+
 ## Tests
 
 - `scripts/test/v2-nothing-deleted-map.test.mjs` (8 tests): precedence, historical exclusion, label-file scope,

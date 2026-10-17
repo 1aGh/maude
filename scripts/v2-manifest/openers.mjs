@@ -264,7 +264,7 @@ const diagView = (v) => [
   { expand: tid('diagnostics-sheet') },
 ];
 
-/** step kinds: click (main frame) · frameClick (canvas iframe) · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · key · expandMenu · expand (every
+/** step kinds: click (main frame) · frameClick (canvas iframe) · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
  *  aria-expanded=false inside a root, bounded) · palette (⌘K + type each needed action's label) ·
  *  run (⌘K, pick one action by id) · push (a WS frame) · type (into the focused field) · fill
  *  ([selector, text]) · `optional`
@@ -333,7 +333,7 @@ export const OPENERS = [
     id: 'left-canvases',
     steps: [{ click: tid('canvases-advanced') }, { expand: tid('dock-slot-left') }],
   },
-  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }] },
+  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }, { wait: 2500 }] },
   { id: 'left-assets', steps: [{ click: tid('panel-tab-assets') }] },
   // ── the canvas, with something on it ──────────────────────────────────────────────────────────
   { id: 'inspector', steps: [{ frameClick: '[data-cd-id="home-hero-title"]' }] },
@@ -386,7 +386,7 @@ export const OPENERS = [
   {
     id: 'left-hidden-files',
     steps: [
-      { click: tid('canvases-advanced') },
+      { click: tid('canvases-advanced'), unless: tid('canvases-hidden-files') },
       { click: tid('canvases-hidden-files') },
       { expand: tid('dock-slot-left') },
     ],
@@ -408,6 +408,23 @@ export const OPENERS = [
     steps: [
       { frameClick: '[data-cd-id="home-hero-title"]' },
       { click: tid('inspector-section-advanced'), optional: true },
+    ],
+  },
+  // a click selects and the Inspector opens on its CSS tab; Inspect (the selector header) and Layers (the
+  // DOM tree with its artboard count) are one tab away
+  {
+    id: 'inspector-inspect',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { click: 'button.st-rp-tab:has-text("Inspect")', optional: true },
+    ],
+  },
+  {
+    id: 'inspector-layers',
+    steps: [
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { click: 'button.st-rp-tab:has-text("Layers")', optional: true },
+      { wait: 1500 },
     ],
   },
   {

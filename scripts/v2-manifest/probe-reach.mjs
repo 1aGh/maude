@@ -58,7 +58,10 @@ const opt = (n) => {
 const ONLY = opt('--only')?.split(',') ?? null;
 const ONLY_OPENERS = opt('--openers')?.split(',') ?? null;
 // a partial run (some probes or some openers) only prints; --write lets it replace reachability.json
-const PARTIAL = Boolean(ONLY || ONLY_OPENERS);
+// --merge <evidence.json>: overlay this run's openers onto an earlier run's evidence (the file --evidence wrote), so a
+// re-run of a few openers or probes refreshes reachability.json without a full ~45 min pass
+const MERGE = opt('--merge');
+const PARTIAL = Boolean(ONLY || ONLY_OPENERS) && !MERGE;
 const BUILD = args.includes('--build');
 const die = (m) => {
   console.error(`probe-reach: ${m}`);
@@ -243,6 +246,11 @@ function makeFixture(project) {
       ['home-hero', 'Hero'],
       ['home-pricing', 'Pricing'],
     ])
+  );
+  // the sidecar the Layers panel reads its artboard count from (GET /_api/canvas-meta)
+  put(
+    '.design/ui/Home.meta.json',
+    `${JSON.stringify({ artboards: [{ id: 'home-hero' }, { id: 'home-pricing' }] }, null, 2)}\n`
   );
   put('.design/ui/marketing/Landing.tsx', CANVAS('Landing', [['landing', 'Landing']]));
   // a video comp (two 20 s sequences = long, each animates its title): the Timeline and its clip inspector
@@ -430,6 +438,9 @@ async function runOpener(browser, srv, probe, opener) {
     }
     await collect();
     for (const step of opener.steps) {
+      // `unless`: skip the step when that selector is already on screen (a fold the Mac remembers open)
+      if (step.unless && (await page.locator(step.unless).first().isVisible().catch(() => false)))
+        continue;
       if (step.click) {
         const el = page.locator(step.click).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
@@ -444,6 +455,7 @@ async function runOpener(browser, srv, probe, opener) {
       } else if (step.frameClick) {
         const fr = page.frameLocator(tid('canvas-frame'));
         const target = fr.locator(step.frameClick).first();
+        if (step.optional) await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ timeout: 10_000, modifiers: step.modifiers });
       } else if (step.dblclick) {
@@ -456,6 +468,7 @@ async function runOpener(browser, srv, probe, opener) {
         // a right-click inside the canvas iframe: the canvas's own context menu
         const fr = page.frameLocator(tid('canvas-frame'));
         const target = fr.locator(step.frameContext).first();
+        if (step.optional) await target.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         if (step.optional && !(await target.isVisible().catch(() => false))) continue;
         await target.click({ button: 'right', timeout: 10_000 });
       } else if (step.expandMenu) {
@@ -549,7 +562,7 @@ try {
 }
 const srv = await bootServer();
 const browser = await chromium.launch({ headless: true });
-const evidence = {};
+let evidence = {};
 try {
   for (const probe of PROBES.filter((p) => !ONLY || ONLY.includes(p.id))) {
     evidence[probe.id] = {};
@@ -576,12 +589,17 @@ try {
   }
 }
 
+if (MERGE) {
+  const base = JSON.parse(readFileSync(MERGE, 'utf8'));
+  for (const [p, byOpener] of Object.entries(evidence)) base[p] = { ...(base[p] ?? {}), ...byOpener };
+  evidence = base;
+}
 const doc = summarize({
   evidence,
   subjects,
   hooksByName,
   taken: new Date().toISOString(),
-  bundle: BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js',
+  bundle: `${BUILD ? 'rebuilt from source' : 'committed dist/client.bundle.js'}${MERGE ? ' (earlier run + re-run openers merged)' : ''}`,
 });
 if (!PARTIAL || args.includes('--write')) writeFileSync(OUT, `${JSON.stringify(doc, null, 2)}\n`);
 if (opt('--evidence')) writeFileSync(opt('--evidence'), JSON.stringify(evidence));
