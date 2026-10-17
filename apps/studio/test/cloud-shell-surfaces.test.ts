@@ -43,40 +43,49 @@ const STUDIO = join(import.meta.dir, '..');
 // The shell's code, whichever client file it lives in (app.jsx before the
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const APP = clientSource();
-const SETTINGS = readFileSync(join(STUDIO, 'client', 'panels', 'SettingsPanel.jsx'), 'utf8');
+const SETTINGS_MODEL = readFileSync(
+  join(STUDIO, 'client', 'v2', 'settings', 'settings-model.js'),
+  'utf8'
+);
+const SHEET = readFileSync(join(STUDIO, 'client', 'v2', 'settings', 'settings-sheet.jsx'), 'utf8');
 
 describe('the cloud shell offers nothing it cannot honour', () => {
-  test('the local-machine settings tabs are flagged — and the list is exact', () => {
-    // An exact list, not a `toContain`: the failure this guards is a tab that
-    // configures machine-local state shipping to the cloud shell UNFLAGGED,
-    // where its routes are refused by design (DDR-209 D1) and it renders as a
-    // wall of 404s. A new tab has to be classified deliberately, which means
-    // this assertion is SUPPOSED to fail when one is added.
+  // V2-4.7a: the seven tabs became three sections (client/v2/settings/). The rule is the same — what
+  // configures THIS machine is ABSENT in a cloud tab, not disabled — and now lives in one model.
+  test('the local-machine settings sections are flagged — and the list is exact', () => {
+    // An exact list, not a `toContain`: the failure this guards is a section that configures
+    // machine-local state shipping to the cloud shell UNFLAGGED, where its routes are refused by
+    // design (DDR-209 D1) and it renders as a wall of 404s. A new section has to be classified
+    // deliberately, which means this assertion is SUPPOSED to fail when one is added.
     //
-    // `figma` (DDR-216) is local-machine for the same reason `ai-generation`
-    // is: the credential lives in `~/.config/maude/keys.json` on this machine,
-    // and the import writes into this machine's design root.
+    // Connections holds the Figma token, the provider keys, GitHub and the workspace link (DDR-216:
+    // the credential lives in `~/.config/maude/keys.json` on this machine); Advanced holds ffmpeg,
+    // whisper, mlx-vlm, the keychain and the sync switches.
     const flagged = [
-      ...SETTINGS.matchAll(/\{ id: '([a-z-]+)', label: '[^']+', local: true \}/g),
+      ...SETTINGS_MODEL.matchAll(
+        /\{ id: '([a-z-]+)', label: '[^']+', icon: '[a-z-]+', local: true \}/g
+      ),
     ].map((m) => m[1]);
-    expect(flagged.sort()).toEqual(['ai-generation', 'figma', 'subtitles', 'video']);
+    expect(flagged.sort()).toEqual(['advanced', 'connections']);
   });
 
-  test('the tab rail renders the FILTERED list, not the raw table', () => {
-    // `TABS.map` is what shipped the wall of 404s.
-    expect(SETTINGS).toContain('{tabs.map((t) => (');
-    expect(SETTINGS).not.toContain('{TABS.map(');
-    // …and every keyboard path must walk the same list, or End/Home select a
-    // tab that is not on screen.
-    expect(SETTINGS).not.toMatch(/setTab\(TABS\[/);
-    expect(SETTINGS).toContain('const tabs = useMemo(');
+  test('the section rail renders the FILTERED list, not the raw table', () => {
+    // Rendering SECTIONS directly is what would ship the wall of 404s.
+    expect(SHEET).toContain('const sections = sectionsFor(cloud);');
+    expect(SHEET).toContain('{sections.map((s) => (');
+    expect(SHEET).not.toContain('{SECTIONS.map(');
+    // …and every keyboard path must walk the same list, or End/Home select a section that is
+    // not on screen.
+    expect(SHEET).toContain('railTarget(ids, current, e.key)');
+    expect(SHEET).not.toMatch(/setTab\(SECTIONS\[/);
   });
 
-  test('a remembered tab this shell does not have cannot select nothing', () => {
-    // Open Video on the desktop, then open Settings in the cloud.
-    const init =
-      /const \[tab, setTab\] = useState\(\(\) => \{[\s\S]*?\}\);/.exec(SETTINGS)?.[0] ?? '';
-    expect(init).toContain('!(cloud && t.local)');
+  test('a remembered section this shell does not have cannot select nothing', () => {
+    // Open Advanced on the desktop, then open Settings in the cloud.
+    expect(SHEET).toContain('resolveTab(cloud, initialTab, remembered())');
+    expect(SETTINGS_MODEL).toContain('sectionsFor(cloud).map((s) => s.id)');
+    // …and the local sections need `cloud === null`, never mere falsiness.
+    expect(SETTINGS_MODEL).toMatch(/!s\.local \|\| cloud === null/);
   });
 
   test('the cloud sign-in is not offered inside the cloud', () => {
@@ -126,7 +135,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('every component that gates on the shell is actually GIVEN the flag', () => {
     // The bug this exists for: three `cfg?.cloud` reads inside a component that
     // never receives `cfg` — a ReferenceError at render, and a blank app.
-    for (const call of ['<Menubar', '<Sidebar', '<SettingsPanel']) {
+    for (const call of ['<Menubar', '<Sidebar', '<SettingsSheet']) {
       // Sliced inside the one file that renders it, so the window never runs
       // past the end of that file into the next.
       const { src } = fileContaining(call);

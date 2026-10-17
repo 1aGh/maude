@@ -143,7 +143,10 @@ function ErrorLine({ text }) {
   );
 }
 
-export default function TeamProjects({ variant = 'door', initialServer = '' }) {
+// `serverOnly` (V2-4.7a): Settings › Connections › “Add a team server…” opens just the address /
+// email / password form — the recents and the cloud list have their own homes. The same form,
+// the same handler, the same consent path (opening a project still goes through the switch).
+export default function TeamProjects({ variant = 'door', initialServer = '', serverOnly = false }) {
   const [recents, setRecents] = useState(null);
   const [cloud, setCloud] = useState({
     state: 'loading',
@@ -296,7 +299,7 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
         </div>
       )}
 
-      {recents && recents.length > 0 && (
+      {!serverOnly && recents && recents.length > 0 && (
         <section className="tp-section" aria-label="Recent team projects">
           <div className="ob-section-label">On this computer</div>
           <div className="ob-repolist">
@@ -334,140 +337,144 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
         </section>
       )}
 
-      <section className="tp-section" aria-label="Maude Cloud">
-        <div className="ob-section-label">Maude Cloud</div>
-        {cloud.state === 'loading' && <div className="ob-foot-note">Checking your sign-in…</div>}
-        {cloud.state === 'out' && !device && (
-          <button
-            type="button"
-            className="ob-repo"
-            onClick={startCloudSignIn}
-            data-testid="team-cloud-signin"
-          >
-            <span className="ob-repo-icon">
-              <Spark size={15} />
-            </span>
-            <span className="ob-repo-tx">
-              <span className="ob-repo-name">Sign in to Maude Cloud</span>
-              <span className="ob-repo-meta">See the projects you were invited to</span>
-            </span>
-            <span className="ob-repo-go">
-              <Icon name="arrow-right" size={15} /> Sign in
-            </span>
-          </button>
-        )}
-        {device && (
-          <div className="tp-device" data-testid="team-cloud-device">
-            <span className="ob-field-label">Confirm this code on your Maude Cloud dashboard</span>
-            <div className="gi-code">
-              <span className="gi-code-val" data-testid="team-cloud-code">
-                {device.userCode}
+      {!serverOnly && (
+        <section className="tp-section" aria-label="Maude Cloud">
+          <div className="ob-section-label">Maude Cloud</div>
+          {cloud.state === 'loading' && <div className="ob-foot-note">Checking your sign-in…</div>}
+          {cloud.state === 'out' && !device && (
+            <button
+              type="button"
+              className="ob-repo"
+              onClick={startCloudSignIn}
+              data-testid="team-cloud-signin"
+            >
+              <span className="ob-repo-icon">
+                <Spark size={15} />
               </span>
-              <button
-                type="button"
-                className="btn btn--ghost gi-code-copy"
-                onClick={() =>
-                  navigator.clipboard?.writeText(device.userCode).then(
-                    () => {
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1500);
-                    },
-                    () => {}
-                  )
-                }
-                aria-label="Copy the code"
-              >
-                <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloud.url) && (
-              <span className="ob-foot-note">
-                If your browser didn’t open, go to{' '}
-                <span className="gi-dc-url">{device.verificationUrl}</span>
+              <span className="ob-repo-tx">
+                <span className="ob-repo-name">Sign in to Maude Cloud</span>
+                <span className="ob-repo-meta">See the projects you were invited to</span>
               </span>
-            )}
-            <div className="ob-form-actions">
-              <span className="gi-dc-status" aria-live="polite">
-                <span className="gi-pulse" aria-hidden="true" /> Waiting for you to confirm…
+              <span className="ob-repo-go">
+                <Icon name="arrow-right" size={15} /> Sign in
               </span>
-              <button type="button" className="btn btn--ghost" onClick={cancelCloudSignIn}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-        {cloud.state === 'in' && (
-          <>
-            {projects === null && <div className="ob-foot-note">Loading your projects…</div>}
-            {Array.isArray(projects) && projects.length === 0 && (
-              <div className="ob-foot-note" data-testid="team-cloud-empty">
-                You aren’t in any project yet. Ask whoever runs your team’s project to invite{' '}
-                {cloud.email || 'you'}.
+            </button>
+          )}
+          {device && (
+            <div className="tp-device" data-testid="team-cloud-device">
+              <span className="ob-field-label">
+                Confirm this code on your Maude Cloud dashboard
+              </span>
+              <div className="gi-code">
+                <span className="gi-code-val" data-testid="team-cloud-code">
+                  {device.userCode}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--ghost gi-code-copy"
+                  onClick={() =>
+                    navigator.clipboard?.writeText(device.userCode).then(
+                      () => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1500);
+                      },
+                      () => {}
+                    )
+                  }
+                  aria-label="Copy the code"
+                >
+                  <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
+                </button>
               </div>
-            )}
-            {Array.isArray(projects) && projects.length > 0 && (
-              <div className="ob-repolist">
-                {projects.map((p) => {
-                  const k = `cloud:${p.id}`;
-                  if (p.role === 'viewer') {
+              {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloud.url) && (
+                <span className="ob-foot-note">
+                  If your browser didn’t open, go to{' '}
+                  <span className="gi-dc-url">{device.verificationUrl}</span>
+                </span>
+              )}
+              <div className="ob-form-actions">
+                <span className="gi-dc-status" aria-live="polite">
+                  <span className="gi-pulse" aria-hidden="true" /> Waiting for you to confirm…
+                </span>
+                <button type="button" className="btn btn--ghost" onClick={cancelCloudSignIn}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {cloud.state === 'in' && (
+            <>
+              {projects === null && <div className="ob-foot-note">Loading your projects…</div>}
+              {Array.isArray(projects) && projects.length === 0 && (
+                <div className="ob-foot-note" data-testid="team-cloud-empty">
+                  You aren’t in any project yet. Ask whoever runs your team’s project to invite{' '}
+                  {cloud.email || 'you'}.
+                </div>
+              )}
+              {Array.isArray(projects) && projects.length > 0 && (
+                <div className="ob-repolist">
+                  {projects.map((p) => {
+                    const k = `cloud:${p.id}`;
+                    if (p.role === 'viewer') {
+                      return (
+                        <button
+                          type="button"
+                          key={p.id}
+                          className="ob-repo"
+                          onClick={() => openExternal(shareViewUrl(p.url, p.id))}
+                          data-testid={`team-cloud-project-${p.id}`}
+                          title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
+                        >
+                          <span className="ob-repo-icon">
+                            <Icon name="globe" size={15} />
+                          </span>
+                          <span className="ob-repo-tx">
+                            <span className="ob-repo-name">{p.name || p.id}</span>
+                            <span className="ob-repo-meta">viewer · opens in your browser</span>
+                          </span>
+                          <span className="ob-repo-go">
+                            <Icon name="external" size={15} /> View
+                          </span>
+                        </button>
+                      );
+                    }
                     return (
                       <button
                         type="button"
                         key={p.id}
                         className="ob-repo"
-                        onClick={() => openExternal(shareViewUrl(p.url, p.id))}
+                        disabled={!!busy}
+                        onClick={() => openCloud(p)}
                         data-testid={`team-cloud-project-${p.id}`}
-                        title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
                       >
                         <span className="ob-repo-icon">
-                          <Icon name="globe" size={15} />
+                          <Spark size={15} />
                         </span>
                         <span className="ob-repo-tx">
                           <span className="ob-repo-name">{p.name || p.id}</span>
-                          <span className="ob-repo-meta">viewer · opens in your browser</span>
+                          <span className="ob-repo-meta">
+                            {p.role}
+                            {p.stateLabel ? ` · ${p.stateLabel}` : ''}
+                          </span>
                         </span>
                         <span className="ob-repo-go">
-                          <Icon name="external" size={15} /> View
+                          {busy === k ? (
+                            <Icon name="spinner" size={16} className="ob-spin" />
+                          ) : (
+                            <>
+                              <Icon name="arrow-right" size={15} /> Open
+                            </>
+                          )}
                         </span>
                       </button>
                     );
-                  }
-                  return (
-                    <button
-                      type="button"
-                      key={p.id}
-                      className="ob-repo"
-                      disabled={!!busy}
-                      onClick={() => openCloud(p)}
-                      data-testid={`team-cloud-project-${p.id}`}
-                    >
-                      <span className="ob-repo-icon">
-                        <Spark size={15} />
-                      </span>
-                      <span className="ob-repo-tx">
-                        <span className="ob-repo-name">{p.name || p.id}</span>
-                        <span className="ob-repo-meta">
-                          {p.role}
-                          {p.stateLabel ? ` · ${p.stateLabel}` : ''}
-                        </span>
-                      </span>
-                      <span className="ob-repo-go">
-                        {busy === k ? (
-                          <Icon name="spinner" size={16} className="ob-spin" />
-                        ) : (
-                          <>
-                            <Icon name="arrow-right" size={15} /> Open
-                          </>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </section>
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       <section className="tp-section" aria-label="Your team's server">
         <div className="ob-section-label">Your team’s own server</div>
@@ -557,7 +564,12 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
 }
 
 /** The same picker as a dialog — from the project switcher. */
-export function TeamProjectsDialog({ onClose, initialServer = '', title = 'Open a team project' }) {
+export function TeamProjectsDialog({
+  onClose,
+  initialServer = '',
+  title = 'Open a team project',
+  serverOnly = false,
+}) {
   const ref = useRef(null);
   useEffect(() => {
     const prev = document.activeElement;
@@ -578,7 +590,11 @@ export function TeamProjectsDialog({ onClose, initialServer = '', title = 'Open 
         <div className="tp-dialog-head">
           <div>
             <h2 id="tp-dialog-title">{title}</h2>
-            <p>Projects you were added to open in their own copy on this computer.</p>
+            <p>
+              {serverOnly
+                ? 'Sign in to your team’s own server. Its projects open in their own copy on this computer.'
+                : 'Projects you were added to open in their own copy on this computer.'}
+            </p>
           </div>
           <button
             type="button"
@@ -590,7 +606,7 @@ export function TeamProjectsDialog({ onClose, initialServer = '', title = 'Open 
             <Icon name="x" size={14} />
           </button>
         </div>
-        <TeamProjects variant="dialog" initialServer={initialServer} />
+        <TeamProjects variant="dialog" initialServer={initialServer} serverOnly={serverOnly} />
       </div>
     </div>
   );

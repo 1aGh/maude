@@ -7,11 +7,13 @@
 // configured" state, never the key value. The panel lives in the app shell
 // (main origin); the untrusted canvas iframe can't reach any of these routes.
 //
-// Layout mirrors OnboardingWizard's density + the ExportDialog modal shell
-// (st-scrim / st-dialog). Icons are local Lucide-line paths (IdentityBar
+// V2-4.7a: this file no longer draws a dialog. The seven-tab modal became the v2 Settings sheet
+// (client/v2/settings/ — General · Connections · Advanced); what stays here are the controls
+// themselves — the provider, Figma, engine and model cards, the theme / layout rows — exported so
+// the sheet rehomes them without a second copy. Icons are local Lucide-line paths (IdentityBar
 // precedent); colors are theme tokens only (no hardcoded hex).
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 function Icon({ name, size = 16 }) {
   const p = {
@@ -55,7 +57,7 @@ function Icon({ name, size = 16 }) {
   );
 }
 
-function ProviderCard({ provider, onChanged }) {
+export function ProviderCard({ provider, onChanged }) {
   const [keyInput, setKeyInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, msg }
@@ -197,7 +199,7 @@ const TRANSCRIPTION_ENGINES = [
 
 const ENGINE_LABELS = Object.fromEntries(TRANSCRIPTION_ENGINES.map((e) => [e.id, e.label]));
 
-function TranscriptionEngineCard() {
+export function TranscriptionEngineCard() {
   const [engine, setEngine] = useState(null); // null = loading
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
@@ -259,7 +261,12 @@ function TranscriptionEngineCard() {
           {auto.cloud && ' Audio is uploaded to that provider and billed to your account.'}
         </div>
       )}
-      <div className="st-engine-radios" role="radiogroup" aria-label="Transcription engine">
+      <div
+        className="st-engine-radios"
+        role="radiogroup"
+        aria-label="Transcription engine"
+        data-testid="settings-transcription-engine"
+      >
         {TRANSCRIPTION_ENGINES.map((e) => (
           <label key={e.id} className={'st-engine-radio' + (engine === e.id ? ' is-selected' : '')}>
             <input
@@ -293,7 +300,7 @@ function TranscriptionEngineCard() {
 // is still a soft dep, but the MODEL half is one click: download a ggml model
 // into a Maude-managed cache and `--provider whisper` auto-resolves it. Polls
 // the download progress from the privileged /_api/generate/whisper-model route.
-function WhisperModelCard() {
+export function WhisperModelCard() {
   const [state, setState] = useState(null); // { models, downloading } | null
   const [err, setErr] = useState(null);
 
@@ -488,7 +495,7 @@ const KEYFRAME_ENGINES = [
   },
 ];
 
-function KeyframeEngineCard() {
+export function KeyframeEngineCard() {
   const [engine, setEngine] = useState(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
@@ -532,7 +539,12 @@ function KeyframeEngineCard() {
         Scene-aware beats a blind frame rate. This is an explicit choice — a chosen-but-unavailable
         engine tells you how to fix it; <strong>Auto</strong> just uses the best you have installed.
       </div>
-      <div className="st-engine-radios" role="radiogroup" aria-label="Keyframe engine">
+      <div
+        className="st-engine-radios"
+        role="radiogroup"
+        aria-label="Keyframe engine"
+        data-testid="settings-keyframe-engine"
+      >
         {KEYFRAME_ENGINES.map((e) => (
           <label key={e.id} className={'st-engine-radio' + (engine === e.id ? ' is-selected' : '')}>
             <input
@@ -564,7 +576,7 @@ function KeyframeEngineCard() {
 
 // A copy/paste terminal command with a Copy button (same look as the ACP
 // readiness rows — the rdy-* classes are global in the bundled stylesheet).
-function CopyCommand({ command, label }) {
+export function CopyCommand({ command, label }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard?.writeText(command).then(
@@ -670,7 +682,7 @@ function SetupSteps({ state }) {
 // hands you copy/paste commands for BOTH runtime paths — Ollama (simplest: one
 // app, `ollama pull`, no Python) and mlx-vlm (fastest, the benchmarked path) —
 // and re-probes on its own, so the card unlocks itself once you've run one.
-function GemmaModelCard() {
+export function GemmaModelCard() {
   const [state, setState] = useState(null); // { models, downloading, mlxVlmAvailable, ffmpegAvailable, installCommand, ollama }
   const [err, setErr] = useState(null);
 
@@ -829,7 +841,7 @@ function GemmaModelCard() {
  * upstream-controlled — bounded server-side and rendered as a React text child
  * (never `dangerouslySetInnerHTML`), and deliberately never persisted.
  */
-function FigmaConnectCard() {
+export function FigmaConnectCard() {
   const [status, setStatus] = useState(null); // null = loading
   const [tokenInput, setTokenInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -963,7 +975,13 @@ function FigmaConnectCard() {
         )}
       </div>
       {configured && (
-        <button type="button" className="st-btn" disabled={busy} onClick={probe}>
+        <button
+          type="button"
+          className="st-btn"
+          disabled={busy}
+          onClick={probe}
+          data-testid="figma-test"
+        >
           Test connection
         </button>
       )}
@@ -980,33 +998,6 @@ function FigmaConnectCard() {
     </div>
   );
 }
-
-const TABS = [
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'canvas-view', label: 'Canvas & View' },
-  { id: 'layout', label: 'Layout' },
-  // Cloud Phase 27 — `local: true` means "this tab configures something that
-  // runs on the machine Maude is installed on". A browser tab has no ffmpeg, no
-  // mlx-vlm, no HuggingFace cache and no provider key of yours, and the routes
-  // behind these panes are refused in a cell by design (DDR-209 D1) — so in the
-  // cloud they rendered as a wall of `HTTP 404`.
-  //
-  // ABSENT, not disabled. C2 says state an absence where the thing would be,
-  // and that rule earns its keep for the agent chat: the feature exists, you
-  // just need the desktop app. These are settings for machinery that is not
-  // missing so much as inapplicable — a preference pane for hardware this shell
-  // does not have. There is nothing for the reader to act on, so a whole tab of
-  // dead controls is worse than no tab.
-  { id: 'ai-generation', label: 'AI generation', local: true },
-  // DDR-216 — Figma is its OWN tab, not a row under "AI generation". It is not
-  // a media-generation provider (it produces no modality and needs no adapter),
-  // and putting it in that registry would create a second write path for the
-  // same secret — which is how one of them ends up ungated.
-  { id: 'figma', label: 'Figma', local: true },
-  { id: 'subtitles', label: 'Subtitles', local: true },
-  { id: 'video', label: 'Video', local: true },
-];
-const SETTINGS_TAB_STORE = 'mdcc-settings-tab';
 
 // feature-configurable-panel-docking — the panels the Layout tab can dock. Order
 // = display order. (Assistant is native-only; moving it is a no-op in the browser.)
@@ -1044,7 +1035,7 @@ const LAYERS_MODE_OPTIONS = [
   { id: 'separate', label: 'Separate panel', note: 'Layers docks on its own (default: left).' },
   { id: 'in-inspector', label: 'Inside Inspector', note: 'Layers is a tab within the Inspector.' },
 ];
-function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMode }) {
+export function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMode }) {
   return (
     <>
       <div className="st-provider-card">
@@ -1110,7 +1101,7 @@ function LayoutTab({ panelSide, onSetPanelSide, layersMode, onSetLayersMode }) {
 
 // A labeled switch row. The `checked`/`onChange` are owned by app.jsx state
 // (single source of truth) so the modal and the View menu never diverge.
-function PrefToggleRow({ label, note, checked, disabled, reason, onChange }) {
+export function PrefToggleRow({ label, note, checked, disabled, reason, onChange }) {
   return (
     <label className={'st-pref-row' + (disabled ? ' is-disabled' : '')}>
       <span className="st-pref-body">
@@ -1155,7 +1146,7 @@ const CP_MODE_OPTIONS = [
     note: 'Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…',
   },
 ];
-function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
+export function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
   return (
     <>
       <div className="st-provider-card">
@@ -1166,7 +1157,12 @@ function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
           Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards
           keep their own design-system theme.
         </div>
-        <div className="st-engine-radios" role="radiogroup" aria-label="Theme">
+        <div
+          className="st-engine-radios"
+          role="radiogroup"
+          aria-label="Theme"
+          data-testid="settings-theme"
+        >
           {THEME_OPTIONS.map((o) => (
             <label
               key={o.id}
@@ -1195,7 +1191,12 @@ function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
           How the CSS panel labels controls. You can also flip this from the small toggle in the
           panel’s own corner — this choice is remembered.
         </div>
-        <div className="st-engine-radios" role="radiogroup" aria-label="Inspector vocabulary">
+        <div
+          className="st-engine-radios"
+          role="radiogroup"
+          aria-label="Inspector vocabulary"
+          data-testid="settings-inspector-vocabulary"
+        >
           {CP_MODE_OPTIONS.map((o) => (
             <label
               key={o.id}
@@ -1220,56 +1221,14 @@ function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
   );
 }
 
-export default function SettingsPanel({
-  /** `{ dashboardUrl?, projectName }` when this is a cloud tab, else null. */
-  // Tri-state (see the note where this value is created): `undefined` until
-  // the server config answers, `null` for the desktop, an object for a cloud
-  // tab. Defaulting it to `null` here is what re-broke the boot 404 after the
-  // call sites were fixed — a default fires on `undefined`, so "not known yet"
-  // became "not cloud" one layer further in, invisibly.
-  cloud,
-  onClose,
-  initialTab,
-  theme,
-  onSetTheme,
-  cpMode,
-  onSetCpMode,
-  minimapVisible,
-  onToggleMinimap,
-  zoomCtlVisible,
-  onToggleZoomCtl,
-  annotationsVisible,
-  onToggleAnnotations,
-  autoOpenInspector,
-  onToggleAutoOpenInspector,
-  hasCanvas = false,
-  panelSide,
-  onSetPanelSide,
-  layersMode,
-  onSetLayersMode,
-}) {
+/**
+ * The AI-media provider keys (feature-ai-media-generation). Kept mounted by its caller so the
+ * provider fetch runs once. A key is POSTed to the privileged main-origin route and never echoed
+ * back; this list only ever shows a masked "configured" state.
+ */
+export function ProviderKeys() {
   const [providers, setProviders] = useState(null); // null = loading
   const [error, setError] = useState(null);
-  // The tabs THIS shell can honour. See TABS for why the local-machine ones are
-  // absent in a browser tab rather than disabled.
-  const tabs = useMemo(() => TABS.filter((t) => !(cloud && t.local)), [cloud]);
-  const [tab, setTab] = useState(() => {
-    // A remembered tab that this shell does not have (you opened Video on the
-    // desktop, then opened Settings in the cloud) must not select nothing.
-    const has = (id) => TABS.some((t) => t.id === id && !(cloud && t.local));
-    if (initialTab && has(initialTab)) return initialTab;
-    try {
-      const v = localStorage.getItem(SETTINGS_TAB_STORE);
-      if (v && has(v)) return v;
-    } catch {}
-    return 'appearance';
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(SETTINGS_TAB_STORE, tab);
-    } catch {}
-  }, [tab]);
 
   const load = useCallback(() => {
     fetch('/_api/generate/providers')
@@ -1285,217 +1244,24 @@ export default function SettingsPanel({
     load();
   }, [load]);
 
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  // Vertical roving focus over the tab rail (native-menu parity).
-  function onRailKey(e) {
-    const idx = tabs.findIndex((t) => t.id === tab);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      setTab(tabs[(idx + 1) % tabs.length].id);
-    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-      e.preventDefault();
-      setTab(tabs[(idx - 1 + tabs.length) % tabs.length].id);
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      setTab(tabs[0].id);
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      setTab(tabs[tabs.length - 1].id);
-    }
-  }
-
-  // Minimap / zoom-controls are canvas-scoped — mirror the View menu's
-  // `disabled: !activePath || isSystem` gate and say why inline.
-  const canvasReason = !hasCanvas ? 'Open a canvas to use this.' : undefined;
-
   return (
-    <div
-      className="st-scrim"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="st-dialog is-settings" role="dialog" aria-modal="true" aria-label="Settings">
-        <div className="st-dialog-hd">
-          <span className="st-dialog-title">Settings</span>
-          <button type="button" className="st-iconbtn" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={15} />
-          </button>
+    <>
+      <p className="st-settings-intro">
+        Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are
+        stored on this machine only — in your OS keychain or a private{' '}
+        <code>~/.config/maude/keys.json</code> (mode 0600) — sent straight to the provider, and
+        never committed, logged, or exposed to a canvas.
+      </p>
+      {error && (
+        <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
+          {error}
         </div>
-        <div className="st-settings-tabs">
-          <div
-            className="st-settings-rail"
-            role="tablist"
-            aria-orientation="vertical"
-            aria-label="Settings categories"
-            onKeyDown={onRailKey}
-          >
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                id={`st-stab-${t.id}`}
-                aria-controls={`st-spanel-${t.id}`}
-                aria-selected={tab === t.id}
-                tabIndex={tab === t.id ? 0 : -1}
-                className={'st-settings-tab' + (tab === t.id ? ' is-active' : '')}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div className="st-settings-pane">
-            {/* Appearance */}
-            <section
-              role="tabpanel"
-              id="st-spanel-appearance"
-              aria-labelledby="st-stab-appearance"
-              hidden={tab !== 'appearance'}
-            >
-              <div className="st-rp-hd">Appearance</div>
-              <AppearanceTab
-                theme={theme}
-                onSetTheme={onSetTheme}
-                cpMode={cpMode}
-                onSetCpMode={onSetCpMode}
-              />
-            </section>
-
-            {/* Canvas & View — the persistent View-menu prefs, one canonical home. */}
-            <section
-              role="tabpanel"
-              id="st-spanel-canvas-view"
-              aria-labelledby="st-stab-canvas-view"
-              hidden={tab !== 'canvas-view'}
-            >
-              <div className="st-rp-hd">Canvas &amp; View</div>
-              <PrefToggleRow
-                label="Minimap"
-                note="Show the canvas minimap overlay."
-                checked={minimapVisible}
-                disabled={!hasCanvas}
-                reason={canvasReason}
-                onChange={() => onToggleMinimap?.()}
-              />
-              <PrefToggleRow
-                label="Zoom controls"
-                note="Show the floating zoom controls on the canvas."
-                checked={zoomCtlVisible}
-                disabled={!hasCanvas}
-                reason={canvasReason}
-                onChange={() => onToggleZoomCtl?.()}
-              />
-              <PrefToggleRow
-                label="Annotations"
-                note="Show annotation pins and overlays on the canvas."
-                checked={annotationsVisible}
-                onChange={() => onToggleAnnotations?.()}
-              />
-              <PrefToggleRow
-                label="Auto-open Inspector on select"
-                note="Open the Inspector automatically when you select an element."
-                checked={autoOpenInspector}
-                onChange={() => onToggleAutoOpenInspector?.()}
-              />
-            </section>
-
-            {/* Layout — dock panels left/right + Layers mode. */}
-            <section
-              role="tabpanel"
-              id="st-spanel-layout"
-              aria-labelledby="st-stab-layout"
-              hidden={tab !== 'layout'}
-            >
-              <div className="st-rp-hd">Layout</div>
-              <LayoutTab
-                panelSide={panelSide}
-                onSetPanelSide={onSetPanelSide}
-                layersMode={layersMode}
-                onSetLayersMode={onSetLayersMode}
-              />
-            </section>
-
-            {/* AI generation — BYOK provider keys (kept mounted so the fetch runs once). */}
-            <section
-              role="tabpanel"
-              id="st-spanel-ai-generation"
-              aria-labelledby="st-stab-ai-generation"
-              hidden={tab !== 'ai-generation'}
-            >
-              <div className="st-rp-hd">Provider keys</div>
-              <p className="st-settings-intro">
-                Bring your own API keys to generate images (and, soon, audio + video) inside Maude.
-                Keys are stored on this machine only — in your OS keychain or a private{' '}
-                <code>~/.config/maude/keys.json</code> (mode 0600) — sent straight to the provider,
-                and never committed, logged, or exposed to a canvas.
-              </p>
-              {error && (
-                <div className="st-provider-status" style={{ color: 'var(--danger, #e5484d)' }}>
-                  {error}
-                </div>
-              )}
-              {providers === null && !error && <div className="st-settings-intro">Loading…</div>}
-              {providers?.map((p) => (
-                <ProviderCard key={p.id} provider={p} onChanged={load} />
-              ))}
-              {providers?.length === 0 && (
-                <div className="st-settings-intro">No providers registered.</div>
-              )}
-            </section>
-
-            {/* Figma — the import credential (DDR-216 D2/D3). Separate routes from
-                the generation keys above, and separate on purpose. */}
-            <section
-              role="tabpanel"
-              id="st-spanel-figma"
-              aria-labelledby="st-stab-figma"
-              hidden={tab !== 'figma'}
-            >
-              <div className="st-rp-hd">Figma</div>
-              <FigmaConnectCard />
-            </section>
-
-            {/* Subtitles — kept mounted so WhisperModelCard's download poll survives
-                a tab switch (unmounting mid-download would drop the interval). */}
-            <section
-              role="tabpanel"
-              id="st-spanel-subtitles"
-              aria-labelledby="st-stab-subtitles"
-              hidden={tab !== 'subtitles'}
-            >
-              <div className="st-rp-hd">Subtitles</div>
-              <TranscriptionEngineCard />
-              <WhisperModelCard />
-            </section>
-
-            {/* Video — scene-aware keyframe engine. Kept mounted so GemmaModelCard's
-                download poll survives a tab switch (like Subtitles above). */}
-            <section
-              role="tabpanel"
-              id="st-spanel-video"
-              aria-labelledby="st-stab-video"
-              hidden={tab !== 'video'}
-            >
-              <div className="st-rp-hd">Video</div>
-              <KeyframeEngineCard />
-              <GemmaModelCard />
-            </section>
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+      {providers === null && !error && <div className="st-settings-intro">Loading…</div>}
+      {providers?.map((p) => (
+        <ProviderCard key={p.id} provider={p} onChanged={load} />
+      ))}
+      {providers?.length === 0 && <div className="st-settings-intro">No providers registered.</div>}
+    </>
   );
 }

@@ -84,7 +84,7 @@ import {
 import { durationFramesForDrop, probeMediaDuration } from './panels/timeline-media-cache.js';
 import GenerateDialog from './generate-dialog.jsx';
 import RepoBranchSwitcher from './panels/RepoBranchSwitcher.jsx';
-import SettingsPanel from './panels/SettingsPanel.jsx';
+import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickerPicker from './panels/StickerPicker.jsx';
 import {
   AlignPad,
@@ -2735,7 +2735,8 @@ function ShellTimelinePanel() {
   );
 }
 
-// V2-2.3: the SettingsPanel surface reads the shell store directly instead of being drilled through ShellTree.
+// V2-2.3: the Settings surface reads the shell store directly instead of being drilled through ShellTree.
+// V2-4.7a: it is the v2 sheet — General · Connections · Advanced (client/v2/settings/).
 function ShellSettingsPanel() {
   const {
     shellCore: {
@@ -2748,23 +2749,33 @@ function ShellSettingsPanel() {
       minimapVisible,
       panelSide,
       setAutoOpenInspector,
+      setCloudLinkedHub,
       setCpMode,
       setLayersMode,
       setLayersOpen,
+      setLocalProjectName,
       setPanelSide,
       setSettingsOpen,
       setTheme,
+      setUpdateReady,
       settingsOpen,
+      syncStatus,
       theme,
+      updateReady,
       zoomCtlVisible,
     },
     photoAndTimeline: { toggleAnnotations, toggleMinimap, toggleZoomCtl },
   } = useShellStore();
   return (
-    <SettingsPanel
+    <SettingsSheet
       cloud={cfg.cloud}
       onClose={() => setSettingsOpen(false)}
       initialTab={typeof settingsOpen === 'string' ? settingsOpen : undefined}
+      update={updateReady}
+      onUpdateLater={() => setUpdateReady(null)}
+      syncStatus={syncStatus}
+      onLinkedHub={setCloudLinkedHub}
+      onLocalProject={setLocalProjectName}
       theme={theme}
       onSetTheme={setTheme}
       cpMode={cpMode}

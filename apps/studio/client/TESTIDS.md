@@ -210,12 +210,50 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `figma-connect-card` | testid | Settings: the Figma connection card. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | moves — map in Phase 4 |
-| `figma-connect-input` | testid | Settings: Figma token input. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | moves — map in Phase 4 |
-| `figma-connect-save` | testid | Settings: save the Figma token. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | moves — map in Phase 4 |
-| `figma-disconnect` | testid | Settings: disconnect Figma. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | moves — map in Phase 4 |
-| `figma-connected-as` | testid | Settings: "connected as …" status line. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | moves — map in Phase 4 |
-| `figma-connect-error` | testid | Settings: Figma connection error line. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | moves — map in Phase 4 |
+| `figma-connect-card` | testid | Settings: the Figma connection card. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `figma-connect-input` | testid | Settings: Figma token input. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `figma-connect-save` | testid | Settings: save the Figma token. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `figma-disconnect` | testid | Settings: disconnect Figma. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `figma-connected-as` | testid | Settings: "connected as …" status line. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `figma-connect-error` | testid | Settings: Figma connection error line. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `settings-scrim` | testid | The veil behind the Settings sheet; a pointer-down on it closes the sheet. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
+| `settings-sheet` | testid | The Settings sheet itself (role=dialog): a vertical tablist of sections beside the open section’s groups. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
+| `settings-tab-<id>` | testid (pattern) | A section tab on the sheet’s rail; `<id>` ∈ general, connections, advanced. Connections and Advanced exist only on the desktop. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
+| `settings-panel-<id>` | testid (pattern) | The tabpanel of one section (`<id>` as above); a section opened once stays mounted, hidden. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
+| `settings-close` | testid | The sheet’s Done button. | `client/v2/settings/settings-sheet.jsx` · `SettingsSheet` | — | stable |
+| `settings-account` | testid | General › Account group (shown when a dashboard address is known). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-open-dashboard` | testid | General › Account › Open the cloud dashboard. | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-theme` | testid | General › Look › the Light / Dark radio group. | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
+| `settings-inspector-vocabulary` | testid | General › Look › the Inspector words radio group (Advanced / Designer). | `client/panels/SettingsPanel.jsx` · `AppearanceTab` | — | stable |
+| `settings-canvas-view` | testid | General › Canvas and view group (minimap, zoom controls, annotations, auto-open Inspector). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-layout` | testid | General › Layout group (panel positions, Layers mode). | `client/v2/settings/general-section.jsx` · `GeneralSection` | — | stable |
+| `settings-cloud` | testid | Connections › Maude Cloud group. | `client/v2/settings/connections-section.jsx` · `ConnectionsSection` | — | stable |
+| `settings-cloud-projects` | testid | Connections › Maude Cloud › the cloud projects on this Mac (Connect · Disconnect · View in the browser rows). | `client/panels/CloudBar.jsx` · `CloudBar` | — | stable |
+| `settings-hub-address` | testid | Connections › Maude Cloud › the linked workspace’s address; the access token stays in the keychain and is never shown. | `client/panels/CloudBar.jsx` · `CloudBar` | — | stable |
+| `cloud-sign-out` | testid | Connections › Maude Cloud › Sign out. | `client/panels/CloudBar.jsx` · `CloudBar` | — | stable |
+| `cloud-host` | testid | The left panel footer’s CloudBar host: no visible rail, it only hosts the maude:// deep-link dialogs. | `client/panels/CloudBar.jsx` · `CloudBar` | — | stable |
+| `settings-team-server-add` | testid | Connections › Your team’s own server › Add a team server… (opens the address / email / password form). | `client/v2/settings/connections-section.jsx` · `ConnectionsSection` | — | stable |
+| `settings-github` | testid | Connections › GitHub row (sign-in state). | `client/panels/IdentityBar.jsx` · `IdentityBar` | — | stable |
+| `settings-github-signin` | testid | Connections › GitHub › Sign in. | `client/panels/IdentityBar.jsx` · `IdentityBar` | — | stable |
+| `settings-github-signout` | testid | Connections › GitHub › Disconnect. | `client/panels/IdentityBar.jsx` · `IdentityBar` | — | stable |
+| `settings-ai-keys` | testid | Connections › AI images, video and voice row (the provider keys, masked). | `client/v2/settings/connections-section.jsx` · `ConnectionsSection` | — | stable |
+| `settings-ai-keys-toggle` | testid | Connections › AI keys › Manage / Hide. | `client/v2/settings/connections-section.jsx` · `ConnectionsSection` | — | stable |
+| `figma-test` | testid | Connections › Figma › Test connection. | `client/panels/SettingsPanel.jsx` · `FigmaConnectCard` | — | stable |
+| `settings-app-version` | testid | Advanced › This Mac › Version. | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-update` | testid | Advanced › This Mac › Update row. | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-update-restart` | testid | Advanced › This Mac › Update › Restart now (idle until a build is staged). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-update-later` | testid | Advanced › This Mac › Update › Later (only while a build is staged). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-server-build` | testid | Advanced › This Mac › Server build (MAUDE-DEV-SRV). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-keys-store` | testid | Advanced › This Mac › where provider keys are kept (keychain / keys.json). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-claude-autosetup` | testid | Advanced › Claude Code › Install and sign in automatically (Tauri pref; desktop app only). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-copy-draw` | testid | Advanced › Claude Code › Draw a mark with the SVG agent › Copy command. | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-copy-brand` | testid | Advanced › Claude Code › Import a brand from the terminal › Copy command. | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-transcription` | testid | Advanced › Engines › Subtitles (engine + whisper model cards). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-transcription-engine` | testid | Advanced › Engines › the transcription engine radio group (Auto / whisper.cpp / Scribe / Groq). | `client/panels/SettingsPanel.jsx` · `TranscriptionEngineCard` | — | stable |
+| `settings-keyframes` | testid | Advanced › Engines › Video keyframes (engine + Gemma model cards). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-keyframe-engine` | testid | Advanced › Engines › the keyframe engine radio group (Auto / Gemma / ffmpeg / Blind). | `client/panels/SettingsPanel.jsx` · `KeyframeEngineCard` | — | stable |
+| `settings-this-project` | testid | Advanced › This project group (sync switches, .design/ ownership). | `client/v2/settings/advanced-section.jsx` · `AdvancedSection` | — | stable |
+| `settings-project-unlinked` | testid | Advanced › This project › the one-line note shown when the project is not linked to a workspace. | `client/v2/settings/project-sync-settings.jsx` · `ProjectSyncSettings` | — | stable |
 
 ### chat/ACP
 
@@ -637,7 +675,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `panel-head-<side>` | testid (pattern) | The panel's own header row (the tab strip + its Hide icon); `<side>` ∈ left, right. Only a side that hosts Canvases · Layers · Assets and more than one panel has one. | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
 | `panel-fold-<side>` | testid (pattern) | The Hide icon in the panel's header: folds the panel to its corner icon. | `client/shell/dock.jsx` · `PanelTabs` | — | stable |
 | `panel-grip-<side>` | testid (pattern) | The resize grip on the inner edge of the left / right panel (drag, arrow keys, Home / End, double-click resets). Role separator. | `client/shell/dock.jsx` · `PanelGrip` | — | stable |
-| `panel-side-<id>` | testid (pattern) | Settings › Layout › Panel positions: the Left / Right radio group of one panel (`<id>` ∈ tree, layers, assets, inspector, comments, changes, assistant). Persisted as prefs `panelSides`. | `client/panels/SettingsPanel.jsx` · `SideToggle` | — | stable |
+| `panel-side-<id>` | testid (pattern) | Settings › General › Layout › Panel positions: the Left / Right radio group of one panel (`<id>` ∈ tree, layers, assets, inspector, comments, changes, assistant). Persisted as prefs `panelSides`. | `client/panels/SettingsPanel.jsx` · `SideToggle` | — | stable |
 | `dock-ai-<side>` | testid (pattern) | The AI chat's own island in a dock slot (always mounted; `hidden` while the chat is folded to its corner icon). Floating and showing, it carries `data-occludes` for its side. | `client/shell/dock.jsx` · `DockSlot` | — | stable |
 | `ai-chat-header` | testid | The AI chat panel's header row (03 AI Chat): spark · chat title ⌄ · ✦ N running · New chat · Hide. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-new` | testid | The AI chat header's New chat icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |

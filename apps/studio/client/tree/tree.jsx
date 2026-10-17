@@ -1392,6 +1392,7 @@ export function Sidebar({
           already satisfied. */}
       {cloud === null ? (
         <CloudBar
+          variant="host"
           syncStatus={syncStatus}
           onLinkedHub={onLinkedHub}
           onLocalProject={onLocalProject}
@@ -1402,7 +1403,10 @@ export function Sidebar({
       {/* Phase 28 (E3) — GitHub identity as a compact avatar docked at the BOTTOM:
           sign in, connected account + New/Pull/Share, sign out. Self-contained
           (owns its device-code + CreateProject dialogs). Renders nothing in browser. */}
-      <IdentityBar />
+      {/* V2-4.7a: both are HOSTS now — no rail in the footer. The account, the cloud projects and
+          the GitHub sign-in live in Settings › Connections; these stay mounted for what has to work
+          from anywhere (a maude:// link's dialogs, File › New project…). */}
+      <IdentityBar variant="host" />
     </nav>
   );
 }

@@ -102,8 +102,8 @@
       "drawnAt": "ad-edge-hub",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "cloud-account",
+        "where": "Settings › Connections › Maude Cloud (email, Sign out)"
       }
     },
     {
@@ -141,8 +141,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-update-restart",
+        "where": "Settings › Advanced › This Mac › Update (Restart now · Later) — the banner says the same"
       }
     },
     {
@@ -232,8 +232,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-app-version",
+        "where": "Settings › Advanced › This Mac › Version"
       }
     },
     {
@@ -244,9 +244,9 @@
       "home": "setg",
       "drawnAt": "02 · ob-settings",
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "settings.theme",
+        "testid": "settings-theme",
+        "where": "Settings › General › Look › Theme (⌘K “Theme” toggles it)"
       }
     },
     {
@@ -440,8 +440,8 @@
       "drawnAt": "ad-edge-hub",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-github",
+        "where": "Settings › Connections › GitHub › Sign in"
       }
     },
     {
@@ -453,8 +453,8 @@
       "drawnAt": "02 · ob-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-open-dashboard",
+        "where": "Settings › General › Account › Open the cloud dashboard"
       }
     },
     {
@@ -1051,8 +1051,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-setting-syncFiles",
+        "where": "Settings › Advanced › This project › Sync project files · Propagate deletions"
       }
     },
     {
@@ -1064,8 +1064,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-setting-firstAnchor",
+        "where": "Settings › Advanced › This project › When a folder first links"
       }
     },
     {
@@ -1077,8 +1077,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-ownership-adopt",
+        "where": "Settings › Advanced › This project › Who keeps .design/ › Hand over…"
       }
     },
     {
@@ -1090,8 +1090,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "sync-setting-syncFiles",
+        "where": "Settings › Advanced › This project › Sync project files (off = canvases only)"
       }
     },
     {
@@ -1389,8 +1389,8 @@
       "drawnAt": "ad-edge-hub",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-ai-keys",
+        "where": "Settings › Connections › AI images, video and voice › Manage"
       }
     },
     {
@@ -1402,8 +1402,8 @@
       "drawnAt": "ad-edge-hub",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "figma-connect-card",
+        "where": "Settings › Connections › Figma (token, Test connection, Remove)"
       }
     },
     {
@@ -1415,8 +1415,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-keys-store",
+        "where": "Settings › Advanced › This Mac › Keys are kept in"
       }
     },
     {
@@ -1428,8 +1428,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-transcription",
+        "where": "Settings › Advanced › Engines › Subtitles (engine + whisper model)"
       }
     },
     {
@@ -1441,8 +1441,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-keyframes",
+        "where": "Settings › Advanced › Engines › Video keyframes (engine + Gemma model)"
       }
     },
     {
@@ -1454,8 +1454,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-claude-autosetup",
+        "where": "Settings › Advanced › Claude Code › Install and sign in automatically"
       }
     },
     {
@@ -1506,8 +1506,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-server-build",
+        "where": "Settings › Advanced › This Mac › Server build"
       }
     },
     {
@@ -1519,8 +1519,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-copy-draw",
+        "where": "Settings › Advanced › Claude Code › Draw a mark with the SVG agent › Copy command"
       }
     },
     {
@@ -1532,8 +1532,8 @@
       "drawnAt": "ad-settings",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-copy-brand",
+        "where": "Settings › Advanced › Claude Code › Import a brand from the terminal › Copy command"
       }
     },
     {
@@ -1597,8 +1597,8 @@
       "drawnAt": "ad-edge-hub",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-hub-address",
+        "where": "Settings › Connections › Maude Cloud › Advanced (address; the token stays in the keychain)"
       }
     },
     {
@@ -1610,8 +1610,8 @@
       "drawnAt": "ad-edge-hub",
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-team-server-add",
+        "where": "Settings › Connections › Your team’s own server › Add a team server…"
       }
     },
     {
@@ -1753,8 +1753,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-cloud-projects",
+        "where": "Settings › Connections › Maude Cloud › Cloud projects on this Mac (Connect · Disconnect · View in the browser; cloud-project-<id>, cloud-disconnect-<id>); the maude:// deep-link dialogs and the browser sign-in sheet stay where they open from (cloud-deeplink-*, cloud-device-dialog)"
       }
     },
     {
@@ -1766,8 +1766,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-team-server-add",
+        "where": "Settings › Connections › Your team’s own server › Add a team server… (the address / email / password form, team-hub-*); first-link consent stays in its flow, its rule is Settings › Advanced › This project › When a folder first links (sync-setting-firstAnchor); Sync notice Dismiss, delivery list, SyncBanner and the status words are V2-4.7b / status-word packages"
       }
     },
     {
@@ -1792,8 +1792,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-transcription-engine",
+        "where": "Settings › Connections › Figma › Test connection (figma-test); full selects in Settings › Advanced › Engines (settings-transcription-engine, settings-keyframe-engine); Generate model select + Generate/Insert stay in the AI chat Generate mode (12)"
       }
     },
     {
@@ -1830,9 +1830,9 @@
       "home": "⌘K \"Theme\" + Settings › General · ⌘K \"New video\" + New artboard › Video",
       "drawnAt": null,
       "v2": {
-        "action": null,
-        "testid": null,
-        "where": null
+        "action": "settings.theme",
+        "testid": "settings-theme",
+        "where": "Settings › General › Look › Theme (settings-theme) and ⌘K “Theme” (settings.theme); ⌘K “New video” + New artboard › Video are V2-5 / 08"
       }
     },
     {
@@ -1857,8 +1857,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": null,
-        "where": null
+        "testid": "settings-update-restart",
+        "where": "Native menu unchanged (CONTRACT §1: About, Check for Updates…, Quit, Help › Report a Bug); Settings › Advanced › This Mac › Update shows the staged build (Restart now · Later) — a “Check for updates” button there needs a Tauri command (patch request)"
       }
     },
     {
