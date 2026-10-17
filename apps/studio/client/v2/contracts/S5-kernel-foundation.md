@@ -35,7 +35,15 @@ Manifest and directory effects are compensated newest target first, effects in r
 applies → `undo-conflict`. The redo of that undo is the ordinary single-target redo of the one undo action,
 so ⌘Z after "Undo this chat" re-applies the whole chat at once.
 
-A single `actionId` behaves byte for byte as before (the same stored `undoes` string, the same result keys).
+A single `actionId` keeps its v1 answer: the same result keys (no `undoes`, no `conflictWith`) and the
+same stored `undoes` string. One deliberate change applies to both: manifest and directory effects now
+compensate **before** lane effects (an action's effects come back from the store ordered by random effect
+id, so the order used to be arbitrary). A document the undo deletes keeps its lanes as they stand, so its
+redo revives it whole; a document the undo revives is live before its lanes revert.
+
+The hub's `GET …/history` route still forwards only `before`/`limit`/`entry`; exposing the new filters
+(and a capability line so a v2 studio can tell an old hub without trying) is a follow-up patch on
+`hub-integration.mjs` (S5.1a hand-back, taken by S5.2).
 
 ## 3. What the store gives (unchanged guarantees S1 builds on)
 
