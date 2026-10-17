@@ -458,6 +458,73 @@ describe('what the registry asks of the panel (left-panel bus)', () => {
   });
 });
 
+describe('the registry handlers (menu runner)', () => {
+  const PATH = `${ROOT}/ahoj.tsx`;
+  async function handlers() {
+    const { createMenuHandlers } = await import('../client/v2/shell/menu-runner.js');
+    const calls: string[] = [];
+    const h = createMenuHandlers({
+      activePath: PATH,
+      canvasName: 'ahoj',
+      openPanelExclusive: (id: string) => calls.push(`panel:${id}`),
+      toast: () => {},
+    });
+    return { h, calls };
+  }
+
+  test('canvas.rename asks the panel for the field — it never opens a window.prompt', async () => {
+    const bus = await import('../client/v2/left-panel/left-panel-bus.js');
+    bus.takeCanvasesOps();
+    const realPrompt = window.prompt;
+    let prompted = false;
+    window.prompt = () => {
+      prompted = true;
+      return null;
+    };
+    try {
+      const { h, calls } = await handlers();
+      h['canvas.rename']();
+      expect(prompted).toBe(false);
+      expect(calls).toContain('panel:tree');
+      expect(bus.takeCanvasesOps()).toEqual([{ op: 'rename', path: PATH }]);
+    } finally {
+      window.prompt = realPrompt;
+    }
+  });
+
+  test('canvases.pin / unpin / sort queue what the panel does', async () => {
+    const bus = await import('../client/v2/left-panel/left-panel-bus.js');
+    bus.takeCanvasesOps();
+    const { h } = await handlers();
+    h['canvases.pin']();
+    h['canvases.unpin']();
+    h['canvases.sort']();
+    expect(bus.takeCanvasesOps()).toEqual([
+      { op: 'pin', path: PATH, pinned: true },
+      { op: 'pin', path: PATH, pinned: false },
+      { op: 'sort' },
+    ]);
+  });
+
+  test('canvas.copy-link and canvas.trash tell the shell, with the open canvas', async () => {
+    const bus = await import('../client/v2/left-panel/left-panel-bus.js');
+    const seen: Array<{ op: string; path: string; label?: string }> = [];
+    const on = (e: Event) => seen.push((e as CustomEvent).detail);
+    window.addEventListener(bus.CANVAS_OP_EVENT, on);
+    try {
+      const { h } = await handlers();
+      h['canvas.copy-link']();
+      h['canvas.trash']();
+    } finally {
+      window.removeEventListener(bus.CANVAS_OP_EVENT, on);
+    }
+    expect(seen).toEqual([
+      { op: 'copy-link', path: PATH, label: undefined },
+      { op: 'trash', path: PATH, label: 'ahoj' },
+    ]);
+  });
+});
+
 describe('the Sort menu from the keyboard', () => {
   test('opening takes the focus to the chosen sort; ↓ ↑ Home End walk; esc closes and returns to the button', async () => {
     const { host } = await mount();

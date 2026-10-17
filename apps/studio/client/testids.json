@@ -5329,7 +5329,7 @@
     "hook": "menuitem by name (row menu)",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Tree row-menu items by accessible name: \"Rename…\", \"Duplicate\", \"Move to…\", \"Delete\", \"New folder here\", \"Rename folder\", \"Delete folder\", \"Share…\", and Move-to destinations named `ui/<folder>`.",
+    "meaning": "Tree row-menu items by accessible name: \"Rename…\", \"Duplicate\", \"Move to…\", \"Delete\", \"New folder here\", \"Rename folder\", \"Delete folder\", \"Share…\", and Move-to destinations named `ui/<folder>`. S1.2: a canvas row in the Canvases panel has its own menu (`canvas-row-menu`): \"Open\", \"Pin\"/\"Unpin\", \"Rename\", \"Duplicate\", \"Move to…\", \"Copy link\", \"Move to trash\".",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "Sidebar"
@@ -9706,6 +9706,123 @@
     "producer": {
       "file": "apps/studio/client/tree/tree.jsx",
       "symbol": "Sidebar"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A canvas row's menu (`role=menu`): Open · Pin · Rename · Duplicate · Move to… › · Copy link, then Move to trash. A viewer sees Open · Pin · Copy link.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/row-menu.jsx",
+      "symbol": "CanvasRowMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-menu-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash. `move` drills into the folder list.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/row-menu.jsx",
+      "symbol": "CanvasRowMenu"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-rename-input-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The field a canvas's name turns into on double-click, F2 or Rename (↵ renames, esc keeps the name); `<slug>` as `canvas-row-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/inline-rename.jsx",
+      "symbol": "InlineRename"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-rename-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The reason under the rename field when a name is refused (taken in this folder, not allowed); `role=alert`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/inline-rename.jsx",
+      "symbol": "InlineRename"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-move-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Move to…\" list inside the row menu: a filter field over the project's folders.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/move-sheet.jsx",
+      "symbol": "MoveSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-move-filter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Find a folder\" field in the Move to… list (↑ ↓ choose, ↵ moves, ← goes back).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/move-sheet.jsx",
+      "symbol": "MoveSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-move-target-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One folder in the Move to… list (`role=option`); `<slug>` from the folder path. Choosing it moves the canvas there.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/move-sheet.jsx",
+      "symbol": "MoveSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-move-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Move to… list's answer when the filter matches no folder (\"Nothing called …\").",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/move-sheet.jsx",
+      "symbol": "MoveSheet"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-drop-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Move here\" on the folder (or the project row) a canvas is being dragged over; absent over the folder it already sits in.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelFolderRow"
     },
     "region": "sidebar/tree",
     "consumers": [],
