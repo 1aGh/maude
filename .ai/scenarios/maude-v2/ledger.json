@@ -9,7 +9,7 @@
     "02": {"file":".design/ui/v2/02 Onboarding.tsx","sha256":"sha256:e798857fe5be597f864fa517f69932edb15714d6a5fe941bbde611da2534a7d5"},
     "03": {"file":".design/ui/v2/03 AI Chat.tsx","sha256":"sha256:c2ffdf0558b891204bafb500c2f9bd86b45552b71691d58d04d0f17ba59c743f"},
     "04": {"file":".design/ui/v2/04 Modes.tsx","sha256":"sha256:985a28a439551b8564bc0c3b2d9e39ff965182d4b7aca64c35a6f1b5648f8f11"},
-    "05": {"file":".design/ui/v2/05 Empty States.tsx","sha256":"sha256:b45c5b02acd486b275b3cd77b0dc1e16acb8d3c4e8f466ff1894bf3230463df9"},
+    "05": {"file":".design/ui/v2/05 Empty States.tsx","sha256":"sha256:5cf9eb2dc61cc314b872603241c109d29b852e2f2cbdfc58a8b3964c73f247a5"},
     "06": {"file":".design/ui/v2/06 Advanced.tsx","sha256":"sha256:9f6633d7bb49abd02d1bf2a2989e37732fe5d057d56bf7242c2e931e54d531c9"},
     "07": {"file":".design/ui/v2/07 Video Editing.tsx","sha256":"sha256:3a93544687217742105d891b7466f5f63e045fdf319d83a5af96811e46882e2d"},
     "08": {"file":".design/ui/v2/08 Artboard Kinds.tsx","sha256":"sha256:90c9459b7f8d1eacadc4e89472db6e6a6faca480d46a9eb2811d74bd47e73e5b"},

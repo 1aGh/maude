@@ -31,7 +31,7 @@ export {
   useArrivingRows,
 } from './arriving.jsx';
 export { AskButton } from './ask-button.jsx';
-export { NotLocalCanvas, useCanvasAvailability } from './not-local.jsx';
+export { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from './not-local.jsx';
 export { Confetti } from './confetti.jsx';
 export { COPY, copy, copyIds, NO_DOOR } from './empty-copy.js';
 export { Empty, Glyph, rich } from './empty.jsx';

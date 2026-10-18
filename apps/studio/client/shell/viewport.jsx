@@ -17,7 +17,7 @@ import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
 import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
 import { nativeDoors } from '../v2/shell/native-doors.js';
 import { EmptyProjectSlot } from '../v2/create/empty-project.jsx';
-import { NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
+import { ArrivingCanvas, NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
 
 export function Viewport({
   tabs,
@@ -119,6 +119,8 @@ export function Viewport({
   const canvasTab = activePath && activePath !== SYSTEM_TAB ? activePath : null;
   const availability = useCanvasAvailability(canvasTab, { stamp: canvasReloadNonce });
   const notLocal = !!canvasTab && availability === 'not-local';
+  // Still coming down (Q13 fallback): the "<name> is on its way." card, same stand-in for the frame.
+  const arriving = !!canvasTab && availability === 'arriving';
   const canvasState =
     canvasError && canvasError.path === activePath
       ? 'error'
@@ -185,6 +187,12 @@ export function Viewport({
               <NotLocalCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
             </div>
           );
+        if (arriving && t.path === activePath)
+          return (
+            <div key={`${t.path}#arriving`} className="st-not-local active">
+              <ArrivingCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
+            </div>
+          );
         return (
           <iframe
             // The nonce is part of the key ONLY so the #115 Retry can force a
@@ -220,13 +228,13 @@ export function Viewport({
           onClose={() => setCodeReq(null)}
         />
       )}
-      {loadingPath && loadingPath === activePath && !notLocal && (
+      {loadingPath && loadingPath === activePath && !notLocal && !arriving && (
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
         <CanvasLoading key={loadingPath} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
-      {canvasError && canvasError.path === activePath && !notLocal && (
+      {canvasError && canvasError.path === activePath && !notLocal && !arriving && (
         // issue #115 — what the blank pane used to be. Names which of the two
         // failures happened and offers the recovery that used to require
         // quitting the app (or knowing that switching projects and back

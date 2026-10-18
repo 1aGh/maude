@@ -42,26 +42,70 @@ export function NotLocalCanvas({ name, onShowLocal }) {
 }
 
 /**
+ * A canvas the hub lists but this Mac has not received yet (05 · es-arriving, the Q13 fallback when the
+ * listing carries no artboard sizes): one centred card, no frame — the module is not on disk to load.
+ * @param {{ name: string }} props
+ */
+export function ArrivingCanvas({ name }) {
+  return (
+    <Empty
+      size="canvas"
+      copyId="es-arriving.canvas-arriving"
+      vars={{ canvas: name }}
+      testid="canvas-arriving"
+    />
+  );
+}
+
+/** How often an opened canvas that is still arriving asks again. */
+export const ARRIVING_RECHECK_MS = 2000;
+
+const askAvailability = (path, fetchImpl) =>
+  (fetchImpl || fetch)(`/_api/sync/availability?canvas=${encodeURIComponent(path)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((body) => body?.canvas?.state ?? 'unknown');
+
+/**
  * One canvas's availability, asked once per path (and again when `stamp` changes — the tab's reload key).
+ * A canvas that is `arriving` is asked again every `recheckMs` until it is here (no flicker: the answer
+ * stays `arriving` between asks), so the card gives way to the frame by itself.
  * @param {string|null} path designRoot-relative
  * @returns {'present'|'arriving'|'not-local'|'unknown'|null} null while asking
  */
-export function useCanvasAvailability(path, { stamp, fetchImpl } = {}) {
+export function useCanvasAvailability(
+  path,
+  { stamp, fetchImpl, recheckMs = ARRIVING_RECHECK_MS } = {}
+) {
   const [state, setState] = useState(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: `stamp` is the tab's reload key — a trigger only
   useEffect(() => {
     if (!path) return;
     let alive = true;
     setState(null);
-    (fetchImpl || fetch)(`/_api/sync/availability?canvas=${encodeURIComponent(path)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => {
-        if (alive) setState(body?.canvas?.state ?? 'unknown');
-      })
+    askAvailability(path, fetchImpl)
+      .then((s) => alive && setState(s))
       .catch(() => alive && setState('unknown'));
     return () => {
       alive = false;
     };
   }, [path, stamp, fetchImpl]);
+  useEffect(() => {
+    if (!path || state !== 'arriving') return;
+    let alive = true;
+    let timer;
+    const again = () => {
+      timer = setTimeout(async () => {
+        const s = await askAvailability(path, fetchImpl).catch(() => 'arriving');
+        if (!alive) return;
+        if (s !== 'arriving') setState(s);
+        else again();
+      }, recheckMs);
+    };
+    again();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [path, state, fetchImpl, recheckMs]);
   return state;
 }

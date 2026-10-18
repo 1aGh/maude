@@ -18596,6 +18596,20 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-arriving",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card a tab shows for a canvas the hub lists but this Mac has not received yet, when the listing carries no artboard sizes (05 · es-arriving, Q13): \"<canvas> is on its way.\" (copy id es-arriving.canvas-arriving). No frame, no toolbar, no zoom; it gives way to the canvas by itself.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/not-local.jsx",
+      "symbol": "ArrivingCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-arriving-rows.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "canvas-not-local",
     "kind": "testid",
     "pattern": false,

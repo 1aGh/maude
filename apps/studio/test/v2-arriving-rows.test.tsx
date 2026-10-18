@@ -366,4 +366,49 @@ describe('the viewport and a canvas that is not on this Mac', () => {
     expect(q(host, 'canvas-not-local')).toBeNull();
     expect(host.querySelector('iframe')).not.toBeNull();
   });
+
+  // Q13 fallback (decision v2-lead-arriving-canvas-copy): still coming down, no sizes → one card.
+  test('arriving: "<name> is on its way.", no frame, no loading card, no error card', async () => {
+    const { host } = await mountViewport('arriving');
+    expect(q(host, 'canvas-arriving')?.textContent).toContain('Combine-video-AI is on its way.');
+    expect(q(host, 'canvas-not-local')).toBeNull();
+    expect(host.querySelector('iframe')).toBeNull();
+    expect(host.querySelector('[data-testid="canvas-loading"]')).toBeNull();
+  });
+});
+
+describe('useCanvasAvailability keeps asking while a canvas is arriving', () => {
+  test('arriving → present without a flicker; stops asking once it is here', async () => {
+    const { useCanvasAvailability } = await import('../client/v2/empty/not-local.jsx');
+    const answers = ['arriving', 'arriving', 'present'];
+    let asked = 0;
+    const fetchImpl = (async () => ({
+      ok: true,
+      json: async () => ({ canvas: { state: answers[Math.min(asked++, answers.length - 1)] } }),
+    })) as unknown as typeof fetch;
+    const seen: Array<string | null> = [];
+    function Probe() {
+      const state = useCanvasAvailability('ui/a.tsx', { fetchImpl, recheckMs: 10 });
+      seen.push(state);
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    await act(async () => root.render(<Probe />));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 120));
+    });
+    const settled = seen.filter((s) => s !== null);
+    expect(settled[0]).toBe('arriving');
+    expect(settled.at(-1)).toBe('present');
+    // never dropped back to "asking" (null) between asks — that would mount the frame for a beat
+    expect(seen.slice(seen.indexOf('arriving')).includes(null)).toBe(false);
+    const after = asked;
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60));
+    });
+    expect(asked).toBe(after);
+  });
 });
