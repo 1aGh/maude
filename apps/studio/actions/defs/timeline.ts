@@ -57,20 +57,8 @@ export const TIMELINE_ACTIONS: ActionDef[] = [
     exec: 'shell',
     keys: [kb('.', 'timeline', T), kb('⌘.', 'timeline', { ...T, alias: true })],
   },
-  {
-    id: 'timeline.undo',
-    label: 'Undo timeline edit',
-    kind: 'command',
-    exec: 'shell',
-    keys: [kb('⌘Z', 'timeline', T)],
-  },
-  {
-    id: 'timeline.redo',
-    label: 'Redo timeline edit',
-    kind: 'command',
-    exec: 'shell',
-    keys: [kb('⇧⌘Z', 'timeline', T)],
-  },
+  // S7.6 — `timeline.undo` / `timeline.redo` retired: ⌘Z / ⇧⌘Z with the timeline focused are
+  // `edit.undo` / `edit.redo`, the one canvas stack (help.ts MOVED_KEYS).
   {
     id: 'timeline.split',
     label: 'Split at playhead',

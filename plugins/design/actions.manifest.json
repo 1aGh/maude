@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "d44cc4bc8270",
+  "manifestVersion": "c8d71e8d5a10",
   "actions": [
     {
       "id": "search.open",
@@ -1467,30 +1467,6 @@
         "path": "human",
         "because": "view-pref",
         "note": "playback"
-      }
-    },
-    {
-      "id": "timeline.undo",
-      "label": "Undo timeline edit",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "keys",
-        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
-      }
-    },
-    {
-      "id": "timeline.redo",
-      "label": "Redo timeline edit",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "keys",
-        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
       }
     },
     {

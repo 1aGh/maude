@@ -90,4 +90,12 @@ export const MOVED_KEYS: readonly MovedKey[] = [
     note: '⇧⌘G is Remove frame in Edit',
     to: 'history.open',
   },
+  // S7.6 — the timeline's own undo stack is retired (decision maude/v2-S7-timeline-undo-is-project-undo)
+  {
+    was: 'Timeline undo ⌘Z',
+    now: '⌘Z',
+    note: 'one undo for the canvas and its timeline',
+    to: 'edit.undo',
+  },
+  { was: 'Timeline redo ⇧⌘Z', now: '⇧⌘Z', to: 'edit.redo' },
 ];

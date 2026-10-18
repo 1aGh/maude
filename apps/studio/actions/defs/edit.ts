@@ -3,7 +3,7 @@
 // each document runs its own handler for it (V2-1.3 §5.6).
 
 import type { ActionDef } from '../types.ts';
-import { IN_CANVAS, kb, mods, SHELL_FOCI } from './_v1.ts';
+import { IN_CANVAS, kb, mods, SHELL_FOCI, TRANSPORT } from './_v1.ts';
 
 // v1 shell ⌘Z / ⇧⌘Z: chrome focus with a canvas open; skipped while the timeline transport owns
 // them (timeline open with a comp → focus 'timeline') and inside a text field or range slider.
@@ -13,6 +13,10 @@ const SHELL_UNDO = {
   notFacts: ['rangeFocused' as const],
 };
 // v1 shell ⌘Y (and ⇧⌘Y): the timeline skip covered `z` only.
+// S7.6 — the transport's ⌘Z / ⇧⌘Z (timeline focused, not in a <select>) are Undo / Redo now: the
+// clip verbs record onto the canvas stack, so one ⌘Z undoes the last edit wherever it was made
+// (`timeline.undo` / `timeline.redo` retired; decision maude/v2-S7-timeline-undo-is-project-undo).
+const IN_TIMELINE = { when: TRANSPORT, inText: false } as const;
 const SHELL_REDO_Y = {
   focus: ['chrome' as const, 'timeline' as const],
   facts: ['canvasOpen' as const],
@@ -53,6 +57,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     keys: [
       kb('⌘Z', 'global', { inText: false, when: SHELL_UNDO }), // shell → posts `undo` to the canvas
+      kb('⌘Z', 'timeline', IN_TIMELINE),
       kb('⌘Z', 'global', { when: IN_CANVAS }), // canvas input-router
     ],
     legacy: { menu: 'Undo', sheet: 'Undo / redo' },
@@ -65,6 +70,7 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: EDITS,
     keys: [
       kb('⇧⌘Z', 'global', { inText: false, when: SHELL_UNDO }),
+      kb('⇧⌘Z', 'timeline', IN_TIMELINE),
       kb('⌘Y', 'global', { inText: false, alias: true, when: SHELL_REDO_Y }),
       kb('⇧⌘Y', 'global', { inText: false, alias: true, when: SHELL_REDO_Y }),
       kb('⇧⌘Z', 'global', { when: IN_CANVAS }),
