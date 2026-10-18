@@ -16,6 +16,9 @@ export const HELP_GROUPS: readonly HelpGroupDef[] = [
   { id: 'edit-tools', label: 'Edit tools' },
   { id: 'preview-tools', label: 'Preview tools', note: 'The key switches to Preview' },
   { id: 'file', label: 'File' },
+  // S1.21 (11 Projects and Navigation, pn-switch-ai): the tab keys and the three ways to find a canvas.
+  { id: 'tabs-windows', label: 'Tabs and windows' },
+  { id: 'finding', label: 'Finding a canvas' },
   { id: 'canvas', label: 'Canvas' },
   { id: 'panels-ai', label: 'Panels and AI' },
   // Q2 default: below the drawn groups, in the main grid — nothing about them is Advanced.

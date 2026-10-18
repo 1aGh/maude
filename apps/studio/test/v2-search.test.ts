@@ -365,6 +365,8 @@ describe('"?" — the shortcuts sheet', () => {
       'edit-tools',
       'preview-tools',
       'file',
+      'tabs-windows',
+      'finding',
       'canvas',
       'panels-ai',
       'objects',

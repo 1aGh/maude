@@ -15,6 +15,7 @@
 // enforces — V2-1.7 §5.7): no action declares `server` yet, so these rows are the server
 // half that the actions will point at. Roles are the registry's (`view` = Can view =
 // wire `observer`, `comment` = viewer, `edit` = member).
+// S1.7b: `trash.clear` (owner) adds a row; test/acl-l18-trash.test.ts consumes the table.
 
 import type { ActionDefAI, Role } from '../actions/types.ts';
 
@@ -34,6 +35,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // comment — Can comment and up (D5: Can view may not comment)
   { method: 'POST', route: '/_comments', refused: ['view'] },
   { method: 'POST', route: '/_api/comments/c1/reply', refused: ['view'] },
+  // S9.7b — the comment door (routes/comments.ts): every op needs `comment`
+  {
+    method: 'POST',
+    route: '/_api/comments/op',
+    refused: ['view'],
+    body: { op: 'add', file: '.design/ui/a.tsx', text: 'x' },
+  },
   // export — every download and export
   { method: 'POST', route: '/_api/export', refused: ['view'] },
   { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },
@@ -51,12 +59,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   },
   { method: 'POST', route: '/_api/edit-text', refused: ['view', 'comment'] },
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
-  // delete — `/_api/trash/clear` (owner, §5.5) is S1's route; its row lands with it.
-  // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
   // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
   { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
+  // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
+  // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
+  { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

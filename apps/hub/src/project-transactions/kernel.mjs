@@ -782,6 +782,12 @@ export function createKernel({
     const found = await loadActions(ids);
     for (const t of found) {
       if (!t) throw new Reject('dependency-missing', { reason: 'unknown action' });
+      // V2-1.16 U1: someone else's action may sit on a canvas a canvas-only
+      // session cannot see, so it answers exactly as an unknown id — never
+      // "yours only", which would confirm the id exists. A project session
+      // keeps the v1 answer.
+      if (auth.inScope && t.actor !== auth.actor)
+        throw new Reject('dependency-missing', { reason: 'unknown action' });
       if (t.actor !== auth.actor)
         throw new Reject('forbidden', { reason: 'undo targets your own actions' });
       targets.push(t);

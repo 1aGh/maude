@@ -3,7 +3,8 @@
 // PURE. Built from the registry's keymap at call time — a chord is read from the action, never typed
 // here, so V2-4.5b's tool re-binding shows up the moment it lands. Groups are `HELP_GROUPS`
 // (actions/help.ts). An action's group is its own `help.group` when the registry carries one, else
-// `HELP_FALLBACK` below (the registry has no `help` fields yet — patch request). The Advanced fold
+// `HELP_FALLBACK` below (S1.21: the tab keys, Show Home, Search, Open project… and Version history now
+// carry their own — "Tabs and windows" / "Finding a canvas"). The Advanced fold
 // holds the keys whose home passes through a View › Advanced / Diagnostics group, with the path, then
 // "Keys and tools that moved".
 
@@ -20,10 +21,6 @@ import { fold } from '../../../index/match.ts';
 const HELP_FALLBACK = Object.freeze({
   'canvas.new': 'file',
   'project.new': 'file',
-  'project.open': 'file',
-  'home.open': 'file',
-  'tab.close': 'file',
-  'history.open': 'file',
   'export.open': 'file',
   'handoff.open': 'file',
   'settings.open': 'file',
@@ -41,7 +38,6 @@ const HELP_FALLBACK = Object.freeze({
   'view.assets': 'panels-ai',
   'view.design-system': 'panels-ai',
   'ai.chat': 'panels-ai',
-  'search.open': 'panels-ai',
   'canvases.search': 'panels-ai',
   'canvases.find': 'panels-ai',
   'canvases.refresh': 'panels-ai',
@@ -54,7 +50,7 @@ const PREFIX_GROUP = Object.freeze([
   [/^timeline\./, 'timeline'],
   [/^(object|annotation|select)\./, 'objects'],
   [/^edit\.(copy|cut|paste|copy-properties|paste-properties)$/, 'objects'],
-  [/^tab\./, 'file'],
+  [/^tab\./, 'tabs-windows'],
 ]);
 
 /** ⌘1–9 are one row, not nine. */
@@ -129,13 +125,13 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
   for (const def of actions) {
     if (!def.keys?.length || !visible(def)) continue;
     if (def.search?.hidden && !def.help) continue;
+    const { main, alt } = chordsOf(def, ctx);
+    if (main.length === 0 && alt.length === 0) continue;
+    // ⌘1–9 are one row, and only where the keys are the app's: a browser tab keeps them for its own tabs.
     if (TAB_DIGITS.test(def.id)) {
       tabRow = true;
       continue;
     }
-    if (/^tab\.(next|prev)$/.test(def.id)) continue;
-    const { main, alt } = chordsOf(def, ctx);
-    if (main.length === 0 && alt.length === 0) continue;
     const menu = paths.get(def.id) ?? [];
     const inAdvanced = menu.some((p) => p.advanced || /^Menu › Diagnostics/.test(p.path));
     const path = (menu.find((p) => p.advanced) ?? menu[0])?.path;
@@ -154,8 +150,8 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
   }
   if (tabRow) {
     byGroup
-      .get('file')
-      .push({ id: 'tab.select', label: 'Show tab 1–9', keys: ['⌘1–9'], alt: [], order: 2000 });
+      .get('tabs-windows')
+      .push({ id: 'tab.select', label: 'Show tab 1–9', keys: ['⌘1–9'], alt: [], order: 50 });
   }
   // Two actions that read the same and take the same keys (Nudge for objects and for
   // annotations) are one row on a sheet that says what a key does, not which handler runs it.

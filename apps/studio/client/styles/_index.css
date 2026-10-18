@@ -42,6 +42,12 @@
 /* S5.11 — the ✦ N run list and the waiting card. */
 @import url("../v2/ai/runs.css");
 @import url("../v2/ai/ai-list-advanced.css");
+/* S5.10 — attachments in the prompt, the paperclip menu, drop to attach, the folder consent card. */
+@import url("../v2/ai/attach.css");
+/* S5.13 — the AI chat's inline cards: permission, choice, kept prompt, the connect sheet, the folded count. */
+@import url("../v2/ai/needs-you.css");
+/* S5.14 — the quit dialog and the "Stopped" divider + Keep going. */
+@import url("../v2/ai/quit.css");
 /* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
 @import url("../v2/shell/floating-panels.css");
 @import url("../v2/shell/project-pill.css");
@@ -69,8 +75,11 @@
 @import url("../v2/settings/settings.css");
 /* S3.5 — Present ⌄ › Order and notes…: the order, the skipped artboards and the speaker notes. */
 @import url("../v2/present/order-notes.css");
+@import url("../v2/present/presenter-view.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
+/* S11.1 — the empty kit: Empty, Spot (the one spring), Ask AI, Suggestions, arriving rows (client/v2/empty/). */
+@import url("../v2/empty/empty.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
 @import url("../v2/search/search.css");
 /* S2.2 — the Inspector frame: name · kind chip · numbered sections · › Advanced (client/v2/inspector/). */
