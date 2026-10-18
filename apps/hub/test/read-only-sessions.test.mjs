@@ -18,6 +18,8 @@ import { after, describe, it } from 'node:test';
 
 import { fileURLToPath } from 'node:url';
 
+import { can } from '../src/role-matrix.mjs';
+import { HUB_ROUTE_ROWS } from '../src/routes-v2/index.mjs';
 import { addToken, rotateToken, verifyToken } from '../src/tokens.mjs';
 
 const SERVER_SRC = readFileSync(
@@ -93,14 +95,39 @@ describe('the capability lives on the token, not in the UI', () => {
 // constraint attached — the point is not to forbid the change, it is to make
 // nobody make it by accident.
 describe('the read-only allowlist is a decision, not a convenience', () => {
-  const ALLOWED = ['/auth/logout', '/api/export'];
+  // S9.3: the allowlist is no longer a path list in server.mjs — it is every row
+  // of the hub route table whose WRITE half names a capability a viewer holds.
+  // (`/auth/browser/signout` was on the old list too; the old 400-character
+  // source scrape simply never reached it.)
+  const ALLOWED = ['/api/export', '/auth/browser/signout', '/auth/logout'];
+  // Doors that authenticate with something other than a peer token answer for
+  // themselves, so the gate checks nothing on their write half. Pinned the same way.
+  const SELF_AUTHENTICATING = [
+    '/_materialize',
+    '/admin',
+    '/admin/*',
+    '/auth/browser',
+    '/auth/login',
+    '/auth/oidc/callback',
+    '/auth/oidc/start',
+    '/auth/session',
+    '/internal/revocation-sweep',
+    '/join',
+    '/join/*',
+    '/studio/signin',
+  ];
 
   it('has nothing added to it without reading this', () => {
-    const fn = SERVER_SRC.slice(
-      SERVER_SRC.indexOf('function readOnlyAllowedPath'),
-      SERVER_SRC.indexOf('function readOnlyAllowedPath') + 400
+    const viewerWrites = HUB_ROUTE_ROWS.filter(
+      (row) => row.cap.unsafe !== null && can('viewer', row.cap.unsafe) && row.cap.unsafe !== 'edit'
+    ).map((row) => row.path ?? String(row.pattern));
+    assert.deepEqual(
+      HUB_ROUTE_ROWS.filter((row) => row.cap.unsafe === null)
+        .map((row) => row.path)
+        .sort(),
+      SELF_AUTHENTICATING
     );
-    const paths = [...fn.matchAll(/path === '([^']+)'/g)].map((m) => m[1]).sort();
+    const paths = viewerWrites.sort();
     assert.deepEqual(
       paths,
       [...ALLOWED].sort(),

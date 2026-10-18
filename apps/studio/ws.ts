@@ -270,6 +270,9 @@ export function createWs(
   );
   // V2-2.17 — a picture landed (contract V2-1.17 §5.3): `{type:'thumb-ready', key}` only, never bytes.
   ctx.bus.on('thumb-ready', (e: { key: string }) => broadcast({ type: 'thumb-ready', key: e.key }));
+  // S5.3 — the AI run registry changed (V2-1.15 §5.4): `{type:'ai:runs', seq}` only — the shell
+  // re-reads `GET /_api/ai/runs`. Shell (inspector) sockets only, never the canvas origin.
+  ctx.bus.on('ai:runs', (e: { seq: number }) => broadcast({ type: 'ai:runs', seq: e.seq }));
 
   // Phase 31 (DDR-123) — `/design:chat` → `maude design chat-open` → POST
   // /_api/acp/focus emits this; the shell (app.jsx, native-only) opens the

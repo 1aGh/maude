@@ -11,10 +11,13 @@
 //   3. exec 'native' → the Tauri command that owns it (NATIVE_COMMANDS).
 // An id with none of the three has no runner: `runnableIds()` says so and the test pins it empty.
 
+import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
+import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -159,6 +162,13 @@ export function createMenuHandlers(d) {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
     },
+    // S2.2 — Inspector › Advanced: Copy CSS · Copy element id · Edit element id… (the mounted frame binds them)
+    ...Object.fromEntries(
+      INSPECTOR_ACTION_IDS.map((id) => [
+        id,
+        () => runInspectorAction(id).then((said) => (said ? d.toast?.(said) : undefined)),
+      ])
+    ),
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),
     'view.timeline-keep-open': () => d.onToggleTimeline(),
@@ -184,6 +194,11 @@ export function createMenuHandlers(d) {
         d.toast('AI chat is in the Maude desktop app.');
         return;
       }
+      // S5.8 — the panel already open with focus elsewhere: ⌘/ puts focus in its field, it does not fold
+      if (aiPanelWantsFocus()) {
+        requestFocusAI();
+        return;
+      }
       d.toggleRightPanel('assistant');
     },
     // ── top level ──
@@ -196,6 +211,13 @@ export function createMenuHandlers(d) {
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);
+  // S4.4: ⌘K "<Template> template" — the same `insert-template` a Templates-panel tile sends, so the
+  // pick trails the pointer until a click (S4.13). Only an open canvas has anywhere to put it.
+  for (const t of TEMPLATES)
+    h[`annotation.template-${t.id}`] = () => {
+      if (d.canvasOpen !== false)
+        d.postToActiveCanvas({ dgn: 'insert-template', id: t.id, follow: true });
+    };
   // V2-4.8a: outside the desktop app "Back to Home" is the cloud dashboard (the v1 menubar's
   // "← Dashboard" link). In the desktop app it stays the native Home tab (NATIVE_COMMANDS).
   if (!d.native) h['nav.home'] = () => d.onOpenDashboard?.();

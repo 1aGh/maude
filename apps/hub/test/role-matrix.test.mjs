@@ -25,6 +25,11 @@ import {
   projectRoleForAccount,
   ROLES,
 } from '../src/role-matrix.mjs';
+import { rowFor } from '../src/routes-v2/index.mjs';
+
+// Namespaces as plain objects, so the test can compare every export by name.
+const oneTable = { ...(await import('../../studio/access/roles.ts')) };
+const roleMatrix = { ...(await import('../src/role-matrix.mjs')) };
 
 const HERE = join(import.meta.dirname, '..');
 
@@ -35,7 +40,8 @@ test('the matrix is complete — every role answers every capability', () => {
       assert.equal(typeof caps[cap], 'boolean', `${role}.${cap} must be stated`);
     }
   }
-  assert.deepEqual([...ROLES], ['owner', 'member', 'viewer']);
+  // V2-1.7 §5.1 (S9.1): weakest first, and `observer` (Can view) below viewer.
+  assert.deepEqual([...ROLES], ['observer', 'viewer', 'member', 'owner']);
   // `session` joined the list in Cloud Phase 27 D3: keeping your own place in a
   // project (which canvas is open, where your camera is) is per-user runtime
   // state, never versioned, and every role holds it — a reviewer who cannot pan
@@ -43,8 +49,48 @@ test('the matrix is complete — every role answers every capability', () => {
   // manifest classify those paths instead of waving them through.
   assert.deepEqual(
     [...CAPABILITIES],
-    ['read', 'session', 'edit', 'comment', 'annotate', 'export', 'invite', 'delete', 'mirror']
+    [
+      'read',
+      'session',
+      'request',
+      'comment',
+      'export',
+      'annotate',
+      'edit',
+      'trash',
+      'summon',
+      'invite',
+      'delete',
+      'mirror',
+    ]
   );
+});
+
+test('ONE table: role-matrix.mjs re-exports apps/studio/access/roles.ts, same objects', () => {
+  // S9.1 (V2-1.7 §5.2): the hub, the control plane and the studio read one matrix.
+  for (const name of [
+    'ROLES',
+    'CAPABILITIES',
+    'ACCOUNT_ROLES',
+    'can',
+    'capabilitiesFor',
+    'isReadOnlyRole',
+    'matrixRows',
+    'projectRoleForAccount',
+  ]) {
+    assert.ok(roleMatrix[name] !== undefined, `role-matrix.mjs must export ${name}`);
+    assert.equal(roleMatrix[name], oneTable[name], `${name} must be the roles.ts object`);
+  }
+  const src = readFileSync(join(HERE, 'src/role-matrix.mjs'), 'utf8');
+  assert.ok(!/\bMATRIX\s*=/.test(src), 'role-matrix.mjs must not hold its own matrix');
+});
+
+test('observer (Can view) is read-only and translates to itself', () => {
+  assert.equal(isReadOnlyRole('observer'), true);
+  assert.equal(projectRoleForAccount('observer'), 'observer');
+  for (const cap of CAPABILITIES) {
+    assert.equal(can('observer', cap), ['read', 'session', 'request'].includes(cap), cap);
+  }
 });
 
 test('a viewer may look, comment and download — and nothing else', () => {
@@ -69,7 +115,8 @@ test('member edits but does not administer; owner does both', () => {
   assert.equal(can('member', 'invite'), false);
   assert.equal(can('member', 'delete'), false);
   assert.equal(can('member', 'mirror'), false);
-  for (const cap of CAPABILITIES) assert.equal(can('owner', cap), true);
+  // The owner holds everything except `request` (Ask to edit is for roles without edit, R5).
+  for (const cap of CAPABILITIES) assert.equal(can('owner', cap), cap !== 'request', cap);
 });
 
 test('an unknown role gets NOTHING — a typo must not be an escalation', () => {
@@ -109,20 +156,25 @@ test("the cell's read-only gate allows exactly what a viewer's capabilities say"
   // The gate is a path allowlist; the matrix is a capability table. They are
   // different shapes, so this asserts the MAPPING between them explicitly —
   // which is what makes adding a path a deliberate act.
-  const src = readFileSync(join(HERE, 'src/server.mjs'), 'utf8');
-  const fn = /function readOnlyAllowedPath\(path\) \{([\s\S]*?)\n\}/.exec(src)?.[1] ?? '';
-  assert.ok(fn.includes("'/auth/logout'"), 'a viewer must be able to sign out');
-  assert.ok(fn.includes("'/api/export'"), 'a viewer must be able to download (export)');
-  // Comments are the one write a viewer holds. When the comment route lands on
-  // this list, this assertion is the reminder that the matrix already says so.
+  // S9.3: the gate is no longer a path allowlist — every hub route row names
+  // its capability and the gate asks this matrix, so the mapping IS the table.
+  const unsafe = (path) => rowFor(path).cap.unsafe;
+  assert.ok(can('viewer', unsafe('/auth/logout')), 'a viewer must be able to sign out');
+  assert.ok(can('viewer', unsafe('/api/export')), 'a viewer must be able to download (export)');
+  assert.equal(can('observer', unsafe('/api/export')), false, 'Can view downloads nothing (A19)');
+  assert.ok(can('observer', unsafe('/auth/logout')), 'Can view can still sign out');
+  // Comments are the one write a viewer holds. When the comment door lands
+  // (S9.7, a `comment` row), this assertion is the reminder the matrix says so.
   assert.equal(can('viewer', 'comment'), true);
 });
 
 test('the matrix renders as rows for a docs table', () => {
   const rows = matrixRows();
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4);
   assert.equal(rows[0].role, 'owner');
+  assert.equal(rows[2].role, 'viewer');
   assert.equal(rows[2].edit, false);
+  assert.equal(rows[3].role, 'observer');
 });
 
 // ---------------------------------------------------------------------------
@@ -175,7 +227,14 @@ test('the mint site translates rather than passing the account role through', ()
   // projecting without storing produced sessions browserSession refuses).
   // Behaviour is pinned end-to-end in auth-login-role.test.mjs; this guard
   // only keeps the raw account role out of the role matrix.
-  assert.match(src, /const projectRole = projectRoleForAccount\(user\.role\)/);
+  //
+  // S9.2: /auth/login decides through the one mint door. `claimOf` translates
+  // a v1 role with `legacyClaim` → `projectRoleForAccount`, and the stored role
+  // and its projection both come from `peerSessionFields(door)`.
+  assert.match(src, /const door = peerTokenDoor\(claimOf\(result\)/);
+  assert.match(src, /\.\.\.peerSessionFields\(door,/);
+  // The invite-redeem door still translates inline.
+  assert.match(src, /const projectRole = projectRoleForAccount\(result\.user\.role\)/);
   assert.match(src, /role: projectRole/);
   assert.match(src, /isReadOnlyRole\(projectRole\)/);
   assert.ok(

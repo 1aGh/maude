@@ -27,7 +27,7 @@ import {
 } from './constants.ts';
 import { keyBetween, orderKeys } from './fractional-index.ts';
 import { v1ToV2 } from './migrate-v1.ts';
-import { defOf, isKnownType } from './registry.ts';
+import { defOf, HEAD_FIELDS, isKnownType, TAIL_FIELDS } from './registry.ts';
 import { Scene } from './scene.ts';
 import { validateElements } from './schema.ts';
 import type { AnnotationElement, ArrowEnd, Box } from './types.ts';
@@ -92,7 +92,7 @@ export function elementsToStrokes(elements: Iterable<AnnotationElement>): Stroke
 export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
   const out: Stroke[] = [];
   {
-    if (!isKnownType(el.type)) return out;
+    if (!isKnownType(el.type) || defOf(el.type)?.caps.metadata) return out;
     const o = scene.originOf(el);
     const x = num(el.x) + o.x;
     const y = num(el.y) + o.y;
@@ -278,6 +278,18 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
   return out;
 }
 
+/** Keys of a known-type element that are not format-1 fields (typed ext + unknown). */
+function extensionKeys(el: AnnotationElement): string[] {
+  const def = defOf(el.type);
+  if (!def) return [];
+  const own = new Set([
+    ...Object.keys(HEAD_FIELDS),
+    ...Object.keys(def.fields),
+    ...Object.keys(TAIL_FIELDS),
+  ]);
+  return Object.keys(el).filter((k) => !own.has(k));
+}
+
 function sameBox(a: Box | null, b: Box | null): boolean {
   if (!a || !b) return false;
   return (
@@ -402,6 +414,14 @@ export function strokesToElements(
         if (e && !('el' in e)) rec[k] = { x: e.x - o.x, y: e.y - o.y };
       }
     }
+    // Format-2 extension fields (and a newer peer's keys) have no stroke form:
+    // carried over from the committed element, so the UI's before/after agree
+    // and a stroke-path edit never unsets them (V2-1.12 P2 through the seam).
+    const prevEl = current.get(el.id);
+    if (prevEl && prevEl.type === el.type) {
+      const base = new Set(Object.keys(rec));
+      for (const k of extensionKeys(prevEl)) if (!base.has(k)) rec[k] = prevEl[k];
+    }
     // Standalone text: v1 only knows a character estimate — keep the measured box while the text is unchanged.
     const prev = current.get(el.id);
     if (
@@ -415,8 +435,10 @@ export function strokesToElements(
     }
     out.push(rec);
   }
-  // Unknown types the v1 UI never showed are carried over untouched.
-  for (const el of current.values()) if (!isKnownType(el.type)) out.push(el);
+  // Unknown types and metadata records (a vote, a ballot) the UI never showed are
+  // carried over untouched.
+  for (const el of current.values())
+    if (!isKnownType(el.type) || defOf(el.type)?.caps.metadata) out.push(el);
   return validateElements(out).elements;
 }
 

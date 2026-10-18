@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "d976a22c9fc1",
+  "manifestVersion": "cebb78d1a7ce",
   "actions": [
     {
       "id": "search.open",
@@ -503,6 +503,45 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the element’s position props"
+      }
+    },
+    {
+      "id": "inspector.copy-css",
+      "label": "Copy CSS",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s style={{…}} in the .tsx"
+      }
+    },
+    {
+      "id": "element.copy-id",
+      "label": "Copy element id",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s data-cd-id in the .tsx"
+      }
+    },
+    {
+      "id": "element.set-id",
+      "label": "Edit element id…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
       }
     },
     {
@@ -1479,6 +1518,56 @@
       }
     },
     {
+      "id": "ai.runs.list",
+      "label": "AI runs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "S5.4 makes it `maude design runs list` (V2-1.15 §5.10)"
+      }
+    },
+    {
+      "id": "ai.stop",
+      "label": "Stop",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat",
+        "note": "S5.4 adds `maude design runs stop <run>` for an agent’s own runs"
+      }
+    },
+    {
+      "id": "ai.cancel-waiting",
+      "label": "Cancel the waiting prompt",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.keep-going",
+      "label": "Keep going",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
       "id": "diag.sync",
       "label": "Sync",
       "kind": "command",
@@ -1776,6 +1865,94 @@
       }
     },
     {
+      "id": "annotation.template-kanban",
+      "label": "Kanban template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board kanban"
+      }
+    },
+    {
+      "id": "annotation.template-retro",
+      "label": "Retro template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board retro"
+      }
+    },
+    {
+      "id": "annotation.template-flow",
+      "label": "Flowchart template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board flow"
+      }
+    },
+    {
+      "id": "annotation.template-calendar",
+      "label": "Content calendar template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board calendar"
+      }
+    },
+    {
+      "id": "annotation.template-roadmap",
+      "label": "Roadmap template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board roadmap"
+      }
+    },
+    {
+      "id": "annotation.template-brainstorm",
+      "label": "Brainstorm template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board brainstorm"
+      }
+    },
+    {
+      "id": "annotation.template-checklist",
+      "label": "Checklist template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board checklist"
+      }
+    },
+    {
+      "id": "annotation.template-blank",
+      "label": "Blank section template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board blank"
+      }
+    },
+    {
       "id": "project.new",
       "label": "New project…",
       "kind": "command",
@@ -1984,6 +2161,76 @@
       "agent": {
         "path": "human",
         "because": "native-window"
+      }
+    },
+    {
+      "id": "chat.new",
+      "label": "New chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
+    },
+    {
+      "id": "chat.archive",
+      "label": "Archive",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
+    },
+    {
+      "id": "chat.trash",
+      "label": "Move to trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
+    },
+    {
+      "id": "chat.copy-transcript",
+      "label": "Copy transcript",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.open-in-terminal",
+      "label": "Open in terminal",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
       }
     }
   ],

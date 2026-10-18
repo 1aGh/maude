@@ -9,6 +9,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
+import { can, projectRoleForAccount } from '../access/roles.ts';
+
 export interface HubRecord {
   token: string;
   linkedAt: number;
@@ -148,13 +150,12 @@ function warnIfWorldOrGroupReadable(path: string): void {
  * (`roleReadOnly`), so `role === 'viewer'` alone failed OPEN for `observer`
  * (Can view, S9), a renamed or mis-cased role, or anything a newer hub vouches
  * (V2-4 gate, test/access-role-matrix.test.ts). The edit roles are the project
- * roles that hold `edit` plus the self-hosted account role `admin`, which the
- * hub maps to `owner` (`projectRoleForAccount`, apps/hub/src/role-matrix.mjs).
+ * roles that hold `edit` in THE matrix (`access/roles.ts`, S9.1) plus the
+ * self-hosted account role `admin`, which `projectRoleForAccount` maps to `owner`.
  */
-const EDIT_ROLES: ReadonlySet<unknown> = new Set(['owner', 'member', 'admin']);
-
 /** A hub-vouched role that may edit. Anything else a hub names holds nothing (V2-1.7 R1). */
-export const isEditRole = (role: unknown): boolean => EDIT_ROLES.has(role);
+export const isEditRole = (role: unknown): boolean =>
+  typeof role === 'string' && can(projectRoleForAccount(role), 'edit');
 
 export function isHubReadOnly(url: string): boolean {
   try {

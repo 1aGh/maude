@@ -966,7 +966,7 @@
     "pattern": false,
     "meaning": "The chat composer (input area).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "Composer"
     },
     "region": "chat/ACP",
@@ -985,8 +985,8 @@
     "pattern": false,
     "meaning": "The context chip in the composer (what the agent will see).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "Composer"
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1024,7 +1024,7 @@
     "pattern": false,
     "meaning": "One tool-call row inside a tool card.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "ChatToolCard"
     },
     "region": "chat/ACP",
@@ -1050,7 +1050,7 @@
     "pattern": false,
     "meaning": "The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "UserMessage"
     },
     "alsoProducedBy": [
@@ -1070,7 +1070,7 @@
     "pattern": false,
     "meaning": "The transcript menu button in the chat status row.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "StatusRow"
     },
     "region": "chat/ACP",
@@ -1083,7 +1083,7 @@
     "pattern": false,
     "meaning": "\"Chat info\" button in the chat footer.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "ChatFootInfo"
     },
     "region": "chat/ACP",
@@ -1096,7 +1096,7 @@
     "pattern": false,
     "meaning": "The chat info popover opened by `chat-foot-info-btn`.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "ChatFootInfo"
     },
     "region": "chat/ACP",
@@ -1109,7 +1109,7 @@
     "pattern": false,
     "meaning": "Rate-limit / usage banner in the chat.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "RateLimitBanner"
     },
     "region": "chat/ACP",
@@ -1122,7 +1122,7 @@
     "pattern": false,
     "meaning": "Error card in the chat transcript (`role=\"alert\"`).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "ErrorCard"
     },
     "region": "chat/ACP",
@@ -1135,7 +1135,7 @@
     "pattern": false,
     "meaning": "Quick action \"implement comments\".",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
       "symbol": "QuickActions"
     },
     "region": "chat/ACP",
@@ -1148,7 +1148,7 @@
     "pattern": false,
     "meaning": "The slash-command popover (`role=\"listbox\"`).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "CommandPopover"
     },
     "region": "chat/ACP",
@@ -1161,7 +1161,7 @@
     "pattern": true,
     "meaning": "One slash-command item; `<name>` = command name with non-alphanumerics → `-`.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "CommandPopover"
     },
     "region": "chat/ACP",
@@ -4745,6 +4745,123 @@
     "v2": "stable"
   },
   {
+    "hook": "ai-chat-island",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat panel itself (the `aside` frame, landmark \"AI chat panel\"). Hidden, never unmounted, while folded.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AiChatIsland.jsx",
+      "symbol": "AiChatIsland"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scope chip's menu (`role=menu`): Whole canvas · the artboard in view · Choose artboards… · No canvas — just ask.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-item-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the scope menu. `<id>` = whole | artboard:<artboardId> | choose | none; while choosing artboards: artboard-<artboardId> and done.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The suggestion strip above the composer: up to three chips and one why line. `data-context` = comments | clips | shared | last-ask.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One suggestion chip (fills the composer, never sends). The comments chip keeps its v1 id `chat-qa-implement-comments`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest-why",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one quiet line that says why the suggestions are there (\"Because 3 comments are open on this canvas\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The empty chat's hint line (\"Ask for a change, a few variants, or an answer.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "ChatEmpty"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-canvas-unchanged",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The note that ends an answer which touched nothing: \"The canvas didn't change.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "AssistantMessage"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "dock-slot-<side>",
     "kind": "testid",
     "pattern": true,
@@ -5686,7 +5803,7 @@
     "pattern": false,
     "meaning": "The composer textarea.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "HighlightedInput"
     },
     "region": "chat/ACP",
@@ -5704,7 +5821,7 @@
     "pattern": false,
     "meaning": "Composer send button.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "Composer"
     },
     "region": "chat/ACP",
@@ -5720,7 +5837,7 @@
     "pattern": false,
     "meaning": "The composer's Stop button; rendered only while the thread is running.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "Composer"
     },
     "region": "chat/ACP",
@@ -6047,10 +6164,10 @@
     "hook": ".st-sp-body / .st-sp-cell",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Sticker picker body and one sticker cell.",
+    "meaning": "The Stickers gallery body and one sticker cell (S4.3; the V2-4.5c picker's hooks, re-emitted).",
     "producer": {
-      "file": "apps/studio/client/panels/StickerPicker.jsx",
-      "symbol": "StickerPicker"
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
     },
     "region": "other",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
@@ -6060,10 +6177,10 @@
     "hook": "[aria-label=\"Stickers\"]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Sticker picker dialog (shell) and the toolbar Stickers button (iframe) share this label.",
+    "meaning": "The Stickers gallery dialog (shell, S4.3) and the toolbar Stickers button (iframe) share this label.",
     "producer": {
-      "file": "apps/studio/client/panels/StickerPicker.jsx",
-      "symbol": "StickerPicker"
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
     },
     "alsoProducedBy": [
       {
@@ -6074,6 +6191,227 @@
     "region": "other",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
+  },
+  {
+    "hook": "stickers-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Stickers gallery search field (\"Search stickers…\").",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-stamps",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Stamps row at the top of the Stickers gallery (six vote stamps).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-stamp-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One vote stamp in the gallery (`yes`, `no`, `star`, `heart`, `ask`, `plus`); disabled until the canvas can place stamps (S4.13).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-recent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The gallery's Recent section (the last 12 stickers or fewer this person placed); absent until one was placed.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-pack-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One bundled pack's section in the gallery (`figjam-doodle`, `life-style`, `opposing-thoughts`, `project-status`), in browse and in search.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-more-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A pack's \"+N\" cell: opens the rest of that pack in place.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sticker-<pack>-<file>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One sticker cell in the gallery (Recent, a pack, or a search hit).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-chips",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The word chips of a gallery search (\"All · 6\", \"done · 4\", …).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-chip-<word>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One word chip of a gallery search; `aria-pressed` while it narrows the hits.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The gallery's no-match state: \"No stickers match “…”\" with English suggestions.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under a gallery search naming the packs (and stamps) with no hit.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "stickers-credits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The gallery's credits line: \"Packs from the Figma Community: …\" with each pack's source link.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-grid",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Templates panel's tile grid (eight tiles; arrow keys move the highlight).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-tile-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One template tile (`kanban`, `retro`, `flow`, `calendar`, `roadmap`, `brainstorm`, `checklist`, `blank`); a click emits the pick and closes the panel.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Templates panel's \"describe it\" form: Enter or the send button fills the AI chat composer (never sends).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-ask-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"describe it\" text field (\"Describe it — AI builds it on the canvas\").",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-ask-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"describe it\" send button; disabled until there are words.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": ".maude[data-theme]",
@@ -6129,10 +6467,10 @@
     "hook": "tool-panel-<panel>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). Today `stickers` (the Stickers picker pinned above/below the toolbar island; `data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Assets opens the left panel's Assets tab; Templates and the Component picker have no surface yet (S2).",
+    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). `stickers` is the Stickers gallery (S4.3) pinned above/below the toolbar island (`data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Only a focused canvas opens it, once per 500 ms, on the toolbar it reported (EH-P4-2). Assets opens the left panel's Assets tab; Templates has its host from S4.3 and its panel from S4.4; the Component picker has no surface yet (S2).",
     "producer": {
-      "file": "apps/studio/client/panels/StickerPicker.jsx",
-      "symbol": "StickerPicker"
+      "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
+      "symbol": "StickersGallery"
     },
     "region": "other",
     "consumers": ["apps/studio/test/v2-tool-panels.test.tsx"],
@@ -9891,6 +10229,700 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspector's body for a selection: crumbs, name + kind chip, the numbered sections, › Advanced. `data-kind` = the kind id.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The selection's name (the layer name, else its own text, else its tag; `N objects` for several; the artboard id for an artboard).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind chip beside the name: an artboard shows its artboard kind (Web page · Fixed size · Print · Video), an object Button · Text · Image · Frame, several objects Mixed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-crumbs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The path above the name — artboard › parents › element. Absent for an artboard or a selection the layer tree has not got.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "Crumbs"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-uses",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Uses <design system>\": the system the open canvas is built on.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "InspectorFrame"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sec-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One numbered section of the frame; `<id>` ∈ position, size, layout, fill, corners, border, effects, type, interaction, export. `data-n` = its number. Drawn only when a slice registered a body for the selected kind.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "Section"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-add-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The \"+\" in a section header (Fill, Border, Effects, Interaction, Export), drawn only when the section's body can add.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/frame.jsx",
+      "symbol": "Section"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-row-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One labelled row inside a section body; `<name>` ∈ width, height, clip, xy, rotation, direction, gap, spacing, padding, pad-top/right/bottom/left, align. `data-dim=\"true\"` when the control is inert (an object inside auto layout has no X · Y of its own).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/row.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A number field of a section: Width, Height, X, Y and Rotation wrap the v1 number field (the `input` is inside); a length control's plain number (`gap`, `pad-h`, `pad-v`, `pad-<side>`) is the input itself. Enter or leaving the field writes it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/size.jsx",
+      "symbol": "Axis"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mode-<axis>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Size: the Hug · Fill · Fixed select of `width` or `height`. Hug writes `fit-content`, Fill `flex: 1` / `align-self: stretch` / `100%` by the parent, Fixed a number.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/size.jsx",
+      "symbol": "Axis"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The control of a row: `clip` (Clip content switch), `direction` (Row · Column · Grid · Free), `spacing` (Packed · Space between), `align` (the 3×3 pad), and each length control (`gap`, `pad-h`, `pad-v`, `pad-<side>`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/layout.jsx",
+      "symbol": "LayoutBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-chip-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A length's token chip, \"Space 24\": the name the design system gives the step. Also reads \"None\", \"Auto\" (Gap while Spacing is Space between) or CSS the words cannot say. Absent while the length is a plain number.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-bind-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "**Bind** beside a plain number (\"V 10 · not a token\"): takes the nearest stop of the system's space; a tie goes to the smaller. Absent for 0 and when the system declares no space tokens.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-menu-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The token menu of a length control (`role=menu`): the system's stops, then \"A number, no token…\", then \"None\" where a value may be absent.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-stop-<name>-<px>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One stop in the token menu, by its size in px (`insp-stop-gap-16`). Picking it writes `var(--space-N)` with the system's own name.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-number-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The token menu's \"A number, no token…\" row: turns the chip into a number field (a token's own size is kept).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-none-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The token menu's \"None\" row (Gap): removes the declaration.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-extra-<name>-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A menu row ahead of the stops: the Gap menu's `insp-extra-gap-auto` (\"Auto — space between\") sets Spacing = Space between, the same property as the Spacing segment (decision Q7).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/token-chip.jsx",
+      "symbol": "LengthControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-sides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layout › Padding: opens the four per-side rows (Top · Right · Bottom · Left). `aria-pressed` while open; an uneven box opens it itself and the H / V controls say \"Mixed\" (`insp-mixed-h`, `insp-mixed-v`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/layout.jsx",
+      "symbol": "LayoutBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-cons",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Position › Constraints: the picture of the four pinned edges (`insp-cons-p` buttons toggle an edge); beside it the Horizontal / Vertical selects `insp-pin-h` and `insp-pin-v`. Shown for an absolutely placed object; changing a pin needs the object measured (`el.geometry`), else `insp-pin-unmeasured` says so.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/position.jsx",
+      "symbol": "Pins"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-element-id",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Element id: the id field. Enter or leaving it renames the id (and every reference to it); esc puts the old one back; a computed id shows as the placeholder.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "ElementId"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-id-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-line reason an id was not changed (invalid, taken, locked, held by AI). `role=alert`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "ElementId"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-copy-id",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy id: the element id on the clipboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "CopyButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-copy-css",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy CSS: the element's declarations (authored, then custom properties) on the clipboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "CopyButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-tokens-used",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Tokens it uses: one `li` per design-system token the element's CSS refers to; `title` = the variable.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "TokensUsed"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-facts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced: where it is, how big, its tag and class, the resolved fill / text / radius — what the Inspect tab showed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "symbol": "InspectFacts"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add",
+    "kind": "testid",
+    "meaning": "Fill › the add row the header \"+\" opens: Colour · Gradient · an Image address.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add-colour",
+    "kind": "testid",
+    "meaning": "Fill › add row: a colour fill (the system's first colour). Disabled while the object has one — change it above.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add-gradient",
+    "kind": "testid",
+    "meaning": "Fill › add row: a top-to-bottom gradient between the system's first two colours, as a layer over the colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add-image",
+    "kind": "testid",
+    "meaning": "Fill › add row: the Image address field (a file in the project or an https:// address); Enter adds it as a `cover` layer.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-image-error",
+    "kind": "testid",
+    "meaning": "Fill › the one-line reason an image address was refused (\"Use a file in the project or an https:// address.\"). Nothing was written.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-remove-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Fill › removes layer n (gradient or image, top first); the colour has None in its own menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "Layer"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-locked",
+    "kind": "testid",
+    "meaning": "Fill › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-opacity-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The opacity number beside a colour chip (`fill`): below 100 the colour is written as a `color-mix` of its token.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-color-<name>-<token>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One colour token in a colour menu, by the system's own name without `--` (`insp-color-fill-ink`). Picking it writes `var(--<token>)`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-colorcss-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour menu's \"A colour, no token…\" row: opens a field for one CSS colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-colorin-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The field behind \"A colour, no token…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-corners-unlink",
+    "kind": "testid",
+    "meaning": "Corners › the header toggle: one value for all four corners, or each of ↖ ↗ ↙ ↘. `aria-pressed` while unlinked; corners that already differ open unlinked.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/corners.jsx",
+      "symbol": "UnlinkToggle"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-corners",
+    "kind": "testid",
+    "meaning": "Corners › the unlinked grid (↖ ↗ / ↙ ↘); each corner is a length control `corner-tl|tr|bl|br`, row `insp-row-corner-<k>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/corners.jsx",
+      "symbol": "CornersBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-corners-exotic",
+    "kind": "testid",
+    "meaning": "Corners › the quiet line for an elliptical radius the corner controls cannot say.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/corners.jsx",
+      "symbol": "CornersBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-border-none",
+    "kind": "testid",
+    "meaning": "Border › \"None\": nothing until the header \"+\" adds one (a Pen path or line says Stroke).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-border-width",
+    "kind": "testid",
+    "meaning": "Border › the width in px (0 removes the border); wraps the number field.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-border-position",
+    "kind": "testid",
+    "meaning": "Border › Position: Inside · Centre · Outside. Inside is an inset ring (the object keeps its size); Centre and Outside are an outline.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-border-locked",
+    "kind": "testid",
+    "meaning": "Border › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-shadow",
+    "kind": "testid",
+    "meaning": "Effects › Shadow: Flat, then the design system's own elevation names in the order it declares them (a Select above five steps; \"Custom\" for a shadow the system does not name).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/effects.jsx",
+      "symbol": "EffectsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-shadow-none",
+    "kind": "testid",
+    "meaning": "Effects › the quiet line when the system declares no shadow steps.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/effects.jsx",
+      "symbol": "EffectsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-opacity",
+    "kind": "testid",
+    "meaning": "Opacity in percent (wraps the number field); written as a 0–1 `opacity`, 100 removes it. Under Effects for one object, under Fill for several.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/opacity-row.jsx",
+      "symbol": "OpacityRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-opacity",
+    "kind": "testid",
+    "meaning": "Opacity › \"Mixed\": the selected objects differ; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/opacity-row.jsx",
+      "symbol": "OpacityRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-weight",
+    "kind": "testid",
+    "meaning": "Type › the weight select (Regular · Medium · Semibold · Bold, \"Inherited\" removes it, \"Mixed\" for several that differ).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/type.jsx",
+      "symbol": "TypeBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-type-locked",
+    "kind": "testid",
+    "meaning": "Type › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/type.jsx",
+      "symbol": "TypeBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-multi-note",
+    "kind": "testid",
+    "meaning": "Several objects › \"Changes go to all 3. Text settings show when only text is selected.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiOpacity"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   }
 ]

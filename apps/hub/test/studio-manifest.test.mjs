@@ -383,3 +383,38 @@ test('a percent-encoded traversal cannot reach a css outside designRoot', () => 
     false
   );
 });
+
+// ---------------------------------------------------------------- S9.3 — A19
+
+test('Can view is refused every export row; Can comment keeps every one (R3)', () => {
+  const exportHalves = [];
+  for (const [path, entry] of Object.entries(STUDIO_ROUTES)) {
+    if (entry.safe === 'export') exportHalves.push(['GET', path]);
+    if (entry.unsafe === 'export') exportHalves.push(['POST', path]);
+  }
+  assert.ok(exportHalves.length >= 6, `found only ${exportHalves.length} export halves`);
+  for (const [method, path] of exportHalves) {
+    assert.deepEqual(
+      decide(method, path, 'observer'),
+      { allow: false, reason: 'role', capability: 'export' },
+      `${method} ${path}`
+    );
+    assert.equal(decide(method, path, 'viewer').allow, true, `viewer ${method} ${path}`);
+  }
+});
+
+test('the raw source and raw patches are export, not read (A19)', () => {
+  assert.equal(classify('GET', '/_api/canvas-source').capability, 'export');
+  assert.equal(classify('GET', '/_api/git/diff').capability, 'export');
+  assert.equal(classify('POST', '/_api/git/diff').capability, 'export');
+  assert.equal(decide('GET', '/_api/canvas-source', 'observer').allow, false);
+  assert.equal(decide('POST', '/_api/git/diff', 'observer').allow, false);
+  // Looking is still looking: the canvas, its comments, the history list.
+  for (const path of ['/_config', '/_index-data', '/_comments-all', '/_api/git/log']) {
+    assert.equal(decide('GET', path, 'observer').allow, true, path);
+  }
+  // Can view keeps its own place, holds no comment and no edit.
+  assert.equal(decide('PUT', '/_canvas-state', 'observer').allow, true);
+  assert.equal(decide('POST', '/_comments', 'observer').allow, false);
+  assert.equal(decide('POST', '/_api/edit-text', 'observer').allow, false);
+});

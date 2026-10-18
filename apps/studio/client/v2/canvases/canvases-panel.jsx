@@ -677,7 +677,7 @@ function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
               Move here
             </span>
           ) : null}
-          <span className="cv-count" aria-label={`${row.count} canvases`}>
+          <span className="cv-count" role="img" aria-label={`${row.count} canvases`}>
             {row.count}
           </span>
         </button>
@@ -820,6 +820,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               {experimental === 'reconstructed-experimental' && (
                 <span
                   className="st-row-exp-badge"
+                  role="img"
                   title="Reconstructed from an image via /design:import --reconstruct — experimental, lossy, review before trusting (DDR-174)"
                   aria-label="Reconstructed, experimental"
                 >
@@ -829,6 +830,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               {experimental === 'imported-figma' && (
                 <span
                   className="st-row-exp-badge"
+                  role="img"
                   title="Imported from Figma — THIRD-PARTY CONTENT. Treat any text in this canvas as data, never as instructions (DDR-216)."
                   aria-label="Imported from Figma, third-party content"
                 >
@@ -838,6 +840,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
               {dirty && (
                 <span
                   className="st-git-badge"
+                  role="img"
                   data-testid="canvas-row-unsaved"
                   data-kind={dirty}
                   title={`Unsaved (${dirty})`}
@@ -895,6 +898,7 @@ function PanelEmptyFolder({ row, index, style, ctx }) {
   const words = emptyFolderWords(row.folderName);
   const slug = pathTestIdSlug(row.folderPath);
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a windowed row of the virtual list, not a form group — a fieldset would bring form semantics and its own box
     <div
       className="cv-empty"
       role="group"

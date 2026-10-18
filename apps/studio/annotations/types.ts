@@ -45,6 +45,12 @@ export interface ElementCaps {
   textSlot: 'text' | 'label' | 'title' | null;
   /** Resize keeps the aspect ratio (stickies are 1:1 at creation, not at resize). */
   aspectLock?: boolean;
+  /**
+   * A record with no geometry that the board never draws, hits or moves (a
+   * `vote`, a `ballot` — format 2). The whiteboard UI carries it through
+   * untouched; its own surface (the vote bar) reads it from the board.
+   */
+  metadata?: boolean;
 }
 
 /**
@@ -63,6 +69,22 @@ export interface ElementDef {
   type: string;
   /** Type-specific fields, in canonical key order. */
   fields: FieldSpecMap;
+  /**
+   * Format-2 EXTENSION fields of this type (V2-1.12 R5): typed for a format-2
+   * reader, but serialized after the tail fields in sorted key order — exactly
+   * where a format-1 reader keeps them as opaque extension keys — so both write
+   * the same bytes. Optional, default-omitted, display-ignorable (R1/R2). The
+   * registry adds the extension fields every type shares (`COMMON_EXT_FIELDS`).
+   */
+  ext?: FieldSpecMap;
+  /**
+   * Serialize every non-head key (fields, tail, extensions) in ONE sorted run.
+   * Required of every type added after format 1 (V2-1.12 R4 + R5): a format-1
+   * reader keeps an unknown type with its non-head keys sorted, so the type's
+   * own canonical form must be that order for both readers to write the same
+   * bytes.
+   */
+  sortedKeys?: boolean;
   caps: ElementCaps;
   /** Unrotated bounds in PARENT space, or null when degenerate. */
   bounds(el: AnnotationElement, ctx: GeomCtx): Box | null;

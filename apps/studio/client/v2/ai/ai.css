@@ -1,0 +1,215 @@
+/* @layer components — S5.8: the AI chat panel host (03 AI Chat). Tokens only: no hex, weights ≤ 600.
+   The v1 `chat-*` classes still style the thread (6-acp-chat.css); this file adds what 03 draws on top —
+   the scope chip + menu, the suggestion strip with its why line, the answer note — and pins the send
+   button to azure with a white spark (rule `send-and-ask-ai-are-azure`: an AI action is still an action;
+   vermilion is only for AI presence). */
+@layer components {
+  /* Send: azure fill, white spark glyph (the glyph is a currentColor SVG). */
+  .maude .chat-send {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .maude .chat-send:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .maude .chat-send:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+
+  /* ── The scope chip ── */
+  .ai-scope {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: 100%;
+    margin-bottom: var(--space-3);
+  }
+  .ai-scope-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    max-width: 100%;
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-sm);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .ai-scope-chip:hover {
+    border-color: var(--accent);
+  }
+  .ai-scope-chip:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  .ai-scope-dot {
+    flex: none;
+    font-size: 8px;
+    line-height: 1;
+  }
+  /* Long names are cut, never wrapped. */
+  .ai-scope-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-scope--none .ai-scope-chip {
+    border-color: var(--border-default);
+    background: var(--bg-2);
+    color: var(--fg-2);
+    font-weight: 500;
+  }
+  .ai-scope--stale .ai-scope-chip {
+    border-color: var(--status-warn);
+  }
+  .ai-scope-warn {
+    flex: none;
+  }
+  /* The v1 remove ×: there for keyboard and pointer, quiet until the chip is looked at. */
+  .ai-scope-x {
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .ai-scope:hover .ai-scope-x,
+  .ai-scope:focus-within .ai-scope-x {
+    opacity: 1;
+  }
+  /* A several-artboards chip lists its names on hover. */
+  .ai-scope-names {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-1));
+    z-index: 21;
+    display: none;
+    max-width: 260px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-4, var(--bg-3));
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+    box-shadow: var(--shadow-md);
+  }
+  .ai-scope:hover .ai-scope-names {
+    display: block;
+  }
+  .ai-scope-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-1));
+    z-index: 22;
+    display: flex;
+    flex-direction: column;
+    min-width: 216px;
+    max-width: 280px;
+    padding: var(--space-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-lg);
+  }
+  .ai-scope-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ai-scope-item:hover,
+  .ai-scope-item:focus-visible {
+    background: var(--bg-3);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .ai-scope-check {
+    flex: none;
+    width: 14px;
+    color: var(--accent-text);
+    font-size: var(--type-xs);
+  }
+  .ai-scope-item-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ai-scope-sep {
+    height: 1px;
+    border: 0;
+    margin: var(--space-1) 0;
+    background: var(--border-subtle);
+  }
+
+  /* ── Suggestions: up to three chips, one quiet reason ── */
+  .ai-suggest {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-4) 0;
+  }
+  .ai-suggest-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .ai-chip {
+    max-width: 100%;
+    height: 24px;
+    padding: 0 var(--space-2);
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .ai-chip:hover {
+    border-color: var(--accent);
+    color: var(--fg-0);
+  }
+  .ai-chip:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  .ai-suggest-why {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    color: var(--fg-3, var(--fg-2));
+    font-size: var(--type-xs);
+  }
+
+  /* ── An answer that touched nothing ── */
+  .ai-unchanged {
+    margin: var(--space-2) 0 0;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-scope-x {
+      transition-duration: 1ms;
+    }
+  }
+}

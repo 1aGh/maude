@@ -151,6 +151,41 @@ describe('renewHubCredential', () => {
     expect(readHubRecord()?.role).toBe('member');
   });
 
+  // Phase 4 security low D3 (S9.2): a stored record without a role reads as
+  // writable, so renewal must never write one. Cell silent + no stored role →
+  // the control plane's listed role; nothing at all → the floor, explicitly.
+  test('D3: no fresh and no stored role → the listed role, stored explicitly', async () => {
+    signIn();
+    writeHubRecord({ token: 'mau_stale', linkedAt: 1 });
+    const { doFetch } = fakeFetch({
+      ...HAPPY_ROUTES,
+      'https://cloud.test/api/projects': {
+        status: 200,
+        body: { projects: [{ id: 'alligators', url: HUB_URL, role: 'member' }] },
+      },
+      [`${HUB_URL}/auth/login`]: { status: 200, body: { token: 'mau_new', expiresAt: 12345 } },
+    });
+    expect((await renewHubCredential(HUB_URL, doFetch)).ok).toBe(true);
+    expect(readHubRecord()?.role).toBe('member');
+  });
+
+  test('D3: nobody names a role → the observer floor is stored, never undefined', async () => {
+    signIn();
+    writeHubRecord({ token: 'mau_stale', linkedAt: 1 });
+    const { doFetch } = fakeFetch({
+      ...HAPPY_ROUTES,
+      'https://cloud.test/api/projects': {
+        status: 200,
+        body: { projects: [{ id: 'alligators', url: HUB_URL }] },
+      },
+      [`${HUB_URL}/auth/login`]: { status: 200, body: { token: 'mau_new', expiresAt: 12345 } },
+    });
+    expect((await renewHubCredential(HUB_URL, doFetch)).ok).toBe(true);
+    const stored = readHubRecord();
+    expect(stored && 'role' in stored).toBe(true);
+    expect(stored?.role).toBe('observer');
+  });
+
   test('claim-a: an embedded-credential hubUrl is refused, no network touched', async () => {
     signIn();
     const { doFetch, calls } = fakeFetch(HAPPY_ROUTES);

@@ -13,7 +13,7 @@
 import { createHash } from 'node:crypto';
 
 import { migrateSvg } from '../annotations/migrate-v1.ts';
-import { isKnownType, specOf } from '../annotations/registry.ts';
+import { FORMAT2_TYPES, isKnownType, specOf } from '../annotations/registry.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import { asFormat } from '../format.ts';
@@ -163,10 +163,10 @@ const marker: MigrationStep = {
 
 // ─── annotations.check ───────────────────────────────────────────────────────
 
-/** Element types only v2 writes (V2-1.12 §5.3: vote stamps are a new type).
- *  An unknown type that is NOT here came from somewhere else and is never
- *  ours to strip — 1.x keeps unknown types verbatim (probe C). */
-export const V2_ONLY_TYPES: ReadonlySet<string> = new Set(['vote-stamp']);
+/** Element types only v2 writes (V2-1.12 R4; contract S4 Q5/Q7: `stamp`,
+ *  `vote`, `ballot`). An unknown type that is NOT here came from somewhere else
+ *  and is never ours to strip — 1.x keeps unknown types verbatim (probe C). */
+export const V2_ONLY_TYPES: ReadonlySet<string> = FORMAT2_TYPES;
 
 function stripBoard(
   rel: string,

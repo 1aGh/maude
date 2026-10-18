@@ -25,6 +25,7 @@
 // matched project — never to an address read from repo-committed state.
 
 import { existsSync, readFileSync } from 'node:fs';
+import { FLOOR_ROLE } from '../access/roles.ts';
 import { saveHubCredential } from '../sync/hub-link.ts';
 import { getHubRecord, isEditRole, normalizeUrl } from '../sync/hubs-config.ts';
 import { boundCloudToken, cloudConfigPath } from './config-path.ts';
@@ -170,9 +171,13 @@ export async function renewHubCredential(
   // over the stored one — this is the one moment the code learns the current
   // role, and carrying the stale value forward would discard exactly that.
   // Fall back to the prior role only when the cell didn't say (older cell).
-  const freshRoleRaw = (cellLogin.body.user as { role?: unknown } | undefined)?.role;
-  const freshRole = typeof freshRoleRaw === 'string' && freshRoleRaw ? freshRoleRaw : undefined;
-  const role = freshRole ?? getHubRecord(norm)?.role;
+  //
+  // D3 (S9.2): NEVER store an undefined role — a record without one reads as
+  // writable (`isHubReadOnly`). Then the control plane's listed role, and with
+  // nobody naming one, the floor (`observer`, read-only), stated explicitly.
+  const named = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+  const freshRole = named((cellLogin.body.user as { role?: unknown } | undefined)?.role);
+  const role = freshRole ?? named(getHubRecord(norm)?.role) ?? named(match.role) ?? FLOOR_ROLE;
   try {
     saveHubCredential(norm, cellLogin.body.token, role, expiresAt ?? undefined);
   } catch {

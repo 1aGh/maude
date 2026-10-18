@@ -16,7 +16,7 @@
 
 import { MAX_ELEMENTS } from './constants.ts';
 import { type JsonSchema, specMapSchema } from './fields.ts';
-import { HEAD_FIELDS, REGISTRY, TAIL_FIELDS, TYPE_RE } from './registry.ts';
+import { extSpecOf, HEAD_FIELDS, REGISTRY, TAIL_FIELDS, TYPE_RE } from './registry.ts';
 import { BOARD_FORMAT, BOARD_VERSION } from './schema.ts';
 
 export const ANNOTATIONS_SCHEMA_ID = `https://maude.sh/schema/annotations/v${BOARD_VERSION}`;
@@ -24,11 +24,15 @@ export const ANNOTATIONS_SCHEMA_ID = `https://maude.sh/schema/annotations/v${BOA
 /** `$defs` key of a type's element schema. */
 export const elementDefKey = (type: string): string => `el-${type}`;
 
-/** The strict element schema of one registered type (head + type fields + tail, closed). */
+/**
+ * The strict element schema of one registered type (head + type fields + tail
+ * + its typed format-2 extension fields, closed).
+ */
 export function elementSchema(type: string): JsonSchema | null {
   const def = REGISTRY.get(type);
   if (!def) return null;
-  const s = specMapSchema({ ...HEAD_FIELDS, ...def.fields, ...TAIL_FIELDS }) as {
+  const ext = extSpecOf(type) ?? {};
+  const s = specMapSchema({ ...HEAD_FIELDS, ...def.fields, ...TAIL_FIELDS, ...ext }) as {
     properties: Record<string, unknown>;
   };
   return { ...s, properties: { ...s.properties, type: { const: type } } };

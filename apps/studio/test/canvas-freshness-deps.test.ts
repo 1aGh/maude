@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 
-import { localDepsFromSource } from '../http.ts';
+import { localDepsFromSource } from '../access/closure.ts';
 
 const ROOT = join('/tmp', 'freshness-root', '.design');
 const CANVAS = join(ROOT, 'ui', 'Foo.tsx');
