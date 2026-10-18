@@ -26,6 +26,7 @@ import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-for
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
+import { createVideoRoutes } from './video.ts';
 
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
@@ -69,5 +70,11 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
     ...createPresentRoutes(deps.present),
+    // S7.4 — GET /_api/comp-media (routes/video.ts): the comp's words, speech and beats derived from
+    // its cut. It needs only the design root and its name, which the present and ai deps already carry.
+    ...createVideoRoutes({
+      designRoot: deps.present.designRoot,
+      designRel: deps.ai.designRel,
+    }),
   ];
 }
