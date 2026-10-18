@@ -42,8 +42,16 @@ export type EditOpResult =
       /** the targets as written: same order, every `element` an authored id */
       refs: ElementRef[];
       created?: ElementRef[];
+      /** S2.2b — `element.set-id`: the references that followed the new id, per lane */
+      moved?: { comments: number; board: number };
     }
   | { ok: false; code: EditOpCode; message: string };
+
+/** S2.2b — an id rename an op made; the dispatcher moves every durable reference with it. */
+export interface IdRename {
+  from: string;
+  to: string;
+}
 
 /** The request an op sees: designRoot-relative `file`, stamped `targets`. */
 export interface ResolvedEditOp {
@@ -58,7 +66,10 @@ export interface EditOp {
   id: EditOpId;
   /** 'refuse' (default): a locked target refuses the op. 'allow' only for the lock op itself. */
   locked?: 'refuse' | 'allow';
-  apply(source: string, req: ResolvedEditOp): { source: string; created?: ElementRef[] };
+  apply(
+    source: string,
+    req: ResolvedEditOp
+  ): { source: string; created?: ElementRef[]; renamed?: IdRename };
 }
 
 /** HTTP status per refusal code (contract §2). */

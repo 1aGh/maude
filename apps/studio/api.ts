@@ -463,6 +463,12 @@ export interface Api {
   fileSlug(file: string): string;
   loadCommentsForFile(file: string): Promise<Comment[]>;
   saveCommentsForFile(file: string, list: Comment[]): Promise<void>;
+  /**
+   * S2.2b — rewrite one canvas's comment list through the one publish path (shared doc first, then
+   * disk): `fn` gets the current list and returns the new one, or null for "no change". Used by
+   * `element.set-id` to move element pins with a renamed id.
+   */
+  rewriteComments(file: string, fn: (list: Comment[]) => Comment[] | null): Promise<void>;
   loadAllComments(): Promise<Record<string, Comment[]>>;
   /**
    * Resolve a canvas URL slug back to its repo-relative `file` path by scanning
@@ -1457,6 +1463,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const settled = dedupeCommentsById(list);
     await onCommentsChanged(file, settled, base ? dedupeCommentsById(base) : undefined);
     await saveCommentsForFile(file, settled);
+  }
+
+  async function rewriteComments(
+    file: string,
+    fn: (list: Comment[]) => Comment[] | null
+  ): Promise<void> {
+    const list = await loadCommentsForFile(file);
+    const next = fn(structuredClone(list));
+    if (next) await publishComments(file, next, list);
   }
 
   async function loadAllComments(): Promise<Record<string, Comment[]>> {
@@ -7251,6 +7266,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     fileSlug,
     loadCommentsForFile,
     saveCommentsForFile,
+    rewriteComments,
     loadAllComments,
     fileForSlug,
     commentsAdd,

@@ -278,7 +278,8 @@ describe('renameElementId asks the dispatch route (S2.1) and says the answer in 
       seen = { url, body: JSON.parse(init.body) };
       return new Response(JSON.stringify({ ok: true, writeId: 'w1', actionId: null }));
     }) as never);
-    expect(r).toEqual({ ok: true });
+    // S2.2b: the write id comes back, so the inspector can record the one-step undo
+    expect(r).toEqual({ ok: true, writeId: 'w1', actionId: null });
     expect(seen.url).toBe('/_api/edit-op');
     expect(seen.body).toEqual({
       file: '.design/ui/Home.tsx',
@@ -318,6 +319,22 @@ describe('renameElementId asks the dispatch route (S2.1) and says the answer in 
     expect((down as { message: string }).message).toContain('try again');
     for (const r of [held, locked, none, down])
       expect((r as { message: string }).message).not.toContain('!');
+  });
+
+  test('S2.2b: `invalid` says the server’s own reason (taken, grammar, references)', async () => {
+    const taken = await renameElementId(
+      REQ,
+      reply(400, {
+        ok: false,
+        code: 'invalid',
+        message: 'Not renamed: another object on this canvas already has that id.',
+      }) as never
+    );
+    expect((taken as { message: string }).message).toBe(
+      'Not renamed: another object on this canvas already has that id.'
+    );
+    const bare = await renameElementId(REQ, reply(400, { ok: false, code: 'invalid' }) as never);
+    expect((bare as { message: string }).message).toContain('does not fit');
   });
 });
 

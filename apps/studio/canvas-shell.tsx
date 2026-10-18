@@ -81,6 +81,7 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { editOpRecord } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -3014,6 +3015,16 @@ function CanvasRouter({
         if (e.source !== window.parent) return;
         const p = (m as { payload?: Partial<EditSourcePayload> & { seq?: number; label?: string } })
           .payload;
+        // S2.2b — a landed edit-op the SHELL made (the inspector's Element id rename): Cmd+Z
+        // posts `revert {writeId}`, which restores the source and the moved references together.
+        if (p && (p as { op?: string }).op === 'edit-op') {
+          const q = p as { writeId?: unknown; label?: unknown };
+          if (typeof q.writeId === 'string' && /^w_[0-9a-f]{16}$/.test(q.writeId))
+            undoStack.record(
+              editOpRecord(q.writeId, typeof q.label === 'string' ? q.label.slice(0, 80) : 'Edit')
+            );
+          return;
+        }
         // Phase 12.1 — a landed reorder (drag / keyboard move). The shell POSTed
         // /_api/reorder already; record so Cmd+Z reverts via the server's log.
         if (p && (p as { op?: string }).op === 'reorder') {

@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
 import { dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
+import type { ReferenceLanes } from '../edit-ops/references.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, MAX_BODY } from '../edit-ops/types.ts';
 import { heldByAi } from './agent.ts';
@@ -35,6 +36,9 @@ export interface EditRouteDeps {
   runs?: RunRegistry;
   /** accepted-revisions mode: the action a write became, by repo-relative path + bytes */
   actionFor?(repoRel: string, after: string): string | null;
+  /** S2.2b — comments + board of a canvas (`createReferenceLanes`): `element.set-id` moves its
+   *  references there. Absent = a rename with references to move is refused. */
+  references?: ReferenceLanes;
   /** tests only: an op table instead of `EDIT_OPS` */
   ops?: readonly EditOp[];
   log?: WriteLog;
@@ -131,6 +135,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
                 after
               ) ?? null,
             log,
+            ...(deps.references ? { references: deps.references } : {}),
             ...(deps.ops ? { ops: deps.ops } : {}),
           })
         );

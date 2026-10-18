@@ -34,3 +34,17 @@ calls the route: it edits the TSX and gets the same bytes. Ids never change; a n
 | Lock ⇧⌘L | `data-cd-locked` is added to (or removed from) the element, next to `data-cd-id`. Shared by everyone; an agent never removes it. |
 | Hide | `style={{ display: 'none' }}` plus `data-cd-hidden="<the previous inline display, or empty>"`. Show restores the display from the marker and drops it. The object stays in the file and in Layers; it never exports. |
 | Select matching | A selection, not an edit: same tag, same `className` set and same inline `style` declarations (any order). An agent greps for them. |
+
+## Element id rename (S2.2b)
+
+The inspector's **Element id** field runs `element.set-id` (`apps/studio/edit-ops/set-id.ts`). Afterwards the
+file holds the new literal in place of the old one, `data-cd-id="book-call"`, and nothing else in the `.tsx`
+changes. In the same request the studio moves every durable reference to the old id on that canvas: an element
+comment's `selector` (`[data-cd-id="…"]`) in `_comments/<slug>.json`, and every `el:<artboard>/<id>[#n]` host on
+the board (`startHost.ref` / `endHost.ref`, a stamp's `target`, a vote's `targets` and `tallies`, a ballot's
+`picks`). One undo restores the source and the references. Refused: a new id that breaks the grammar, that
+another element has, or that a detached comment or arrow still holds; a locked element; an element (or new id)
+an AI run holds; and, on a project in accepted-revisions mode, a rename that has references to move.
+
+An agent does not rename ids: `maude design check` reports the old id as `id-lost`, and agents never write the
+comments file. Ask the person to use Element id.

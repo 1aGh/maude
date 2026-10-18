@@ -15,13 +15,16 @@ import { walkIdElements } from '../element-ids.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
+import type { ReferenceLanes } from './references.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
+import { elementSetId } from './set-id.ts';
 import {
   EDIT_OP_STATUS,
   type EditOp,
   type EditOpCode,
   type EditOpResult,
   type ElementRef,
+  type IdRename,
   parseEditOpRequest,
   REVERT_OP,
 } from './types.ts';
@@ -44,6 +47,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSendBack,
   objectLock,
   objectHide,
+  // S2.2b — the inspector's Element id field: renames the id and every durable reference to it
+  elementSetId,
 ];
 
 export interface AiHoldHit {
@@ -62,6 +67,9 @@ export interface DispatchDeps {
   /** the kernel action a write became, when the runtime already knows it */
   actionFor?(rel: string, after: string): string | null;
   log: WriteLog;
+  /** S2.2b — the comments + board of a canvas; an id rename moves its references here. Without
+   *  it a rename that has references to move is refused (never a half-rename). */
+  references?: ReferenceLanes;
   /** the op table (tests pass their own); default `EDIT_OPS` */
   ops?: readonly EditOp[];
 }
@@ -115,7 +123,18 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     if (rec.file !== rel) return refuse('invalid', 'That undo belongs to another canvas.');
     const next = revertSource(rec, current);
     if (next === null) return refuse('stale', REVERT_STALE_MESSAGE);
-    return commit(rel, current, next, [], undefined, 'pre-edit-op-revert', deps);
+    // Undoing an id rename renames its references back too — one step (S2.2b). The inverse is a
+    // rename, not old bytes: a comment pinned to the new id since then moves with the element.
+    const back = rec.renamed ? { from: rec.renamed.to, to: rec.renamed.from } : undefined;
+    if (back) {
+      const w = walkIdElements(next, rel);
+      if (!w.ok || w.elements.filter((e) => e.id === back.to).length !== 1)
+        return refuse('stale', REVERT_STALE_MESSAGE);
+      const gate = await renameGate(rel, back, deps);
+      if (gate)
+        return !gate.ok && gate.code === 'invalid' ? refuse('stale', REVERT_STALE_MESSAGE) : gate;
+    }
+    return commit(rel, current, next, [], undefined, 'pre-edit-op-revert', deps, back);
   }
 
   // Stamp every target in this write (V2-1.4 rule 3): an op never sees a computed id.
@@ -154,7 +173,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         return refuse('locked', `${said(r.element)} is locked · ⇧⌘L unlocks`);
     }
   }
-  let out: { source: string; created?: ElementRef[] };
+  let out: { source: string; created?: ElementRef[]; renamed?: IdRename };
   try {
     out = (op as EditOp).apply(source, {
       file: rel,
@@ -166,7 +185,44 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);
     throw e;
   }
-  return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps);
+  if (out.renamed) {
+    const gate = await renameGate(rel, out.renamed, deps);
+    if (gate) return gate;
+  }
+  return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps, out.renamed);
+}
+
+export const ID_HELD_BY_REFERENCE_MESSAGE =
+  'Not renamed: a comment or an arrow of a removed object still uses that id; pick another.';
+export const RENAME_SPLIT_MESSAGE =
+  'Not renamed: comments or arrows point at this object, and this project can’t move them in one undo step yet.';
+
+/**
+ * S2.2b — may this rename go ahead? The new id must not be held by an AI run or by a durable
+ * reference (a detached comment / arrow of a removed element would land on this one — V2-1.4
+ * §4.2); the old id's references must be movable as ONE undo step. Null = go.
+ */
+async function renameGate(
+  rel: string,
+  r: IdRename,
+  deps: DispatchDeps
+): Promise<EditOpResult | null> {
+  const ai = deps.heldByAi(rel, r.to);
+  if (ai)
+    return refuse(
+      'held-by-ai',
+      `${said(r.to)} is AI's until it's done${ai.mine ? ' · Stop in the AI chat' : ''}`
+    );
+  const lanes = deps.references;
+  if (!lanes) return refuse('invalid', RENAME_SPLIT_MESSAGE);
+  const taken = await lanes.count(rel, r.to);
+  if (!taken.ok) return refuse('invalid', taken.message);
+  if (taken.comments + taken.board > 0) return refuse('invalid', ID_HELD_BY_REFERENCE_MESSAGE);
+  const held = await lanes.count(rel, r.from);
+  if (!held.ok) return refuse('invalid', held.message);
+  if (held.comments + held.board > 0 && !lanes.oneStep())
+    return refuse('invalid', RENAME_SPLIT_MESSAGE);
+  return null;
 }
 
 async function commit(
@@ -176,7 +232,8 @@ async function commit(
   refs: ElementRef[],
   created: ElementRef[] | undefined,
   label: string,
-  deps: DispatchDeps
+  deps: DispatchDeps,
+  renamed?: IdRename
 ): Promise<EditOpResult> {
   if (after === before)
     return {
@@ -187,7 +244,25 @@ async function commit(
       refs,
     };
   await deps.write(rel, before, after, label);
-  const writeId = deps.log.add(rel, before, after);
+  let moved: { comments: number; board: number } | undefined;
+  if (renamed && deps.references) {
+    try {
+      moved = await deps.references.rename(rel, renamed);
+    } catch {
+      // Never a half-rename: put back what moved, then the source (only if nobody wrote since).
+      try {
+        await deps.references.rename(rel, { from: renamed.to, to: renamed.from });
+      } catch {
+        /* the lanes refused twice — the source still goes back; refs left on the new id detach */
+      }
+      if (deps.read(rel) === after) await deps.write(rel, after, before, `${label}-rollback`);
+      return refuse(
+        'invalid',
+        'Not renamed: the comments or the board could not be updated; nothing changed.'
+      );
+    }
+  }
+  const writeId = deps.log.add(rel, before, after, renamed);
   const res: EditOpResult = {
     ok: true,
     actionId: deps.actionFor?.(rel, after) ?? null,
@@ -196,5 +271,6 @@ async function commit(
     refs,
   };
   if (created?.length) res.created = created;
+  if (moved && res.ok) res.moved = moved;
   return res;
 }

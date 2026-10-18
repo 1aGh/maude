@@ -716,7 +716,15 @@ export function InspectorPanel({
             onRecordEdit={onRecordEdit}
             onReplaceMedia={onReplaceMedia}
             onUndoRedo={onUndoRedo}
-            onRenameElementId={onRenameElementId}
+            onRenameElementId={async (req) => {
+              const r = await onRenameElementId(req);
+              // S2.2b — a legacy link / unlinked project undoes through the edit-op revert
+              // (`revert {writeId}` restores the source AND the moved references); an op-log
+              // project's ⌘Z binds to the action instead.
+              if (r?.ok && r.writeId && r.actionId == null)
+                onRecordEdit?.({ op: 'edit-op', writeId: r.writeId, label: 'Rename id' });
+              return r;
+            }}
             onResizeArtboard={onResizeArtboard}
             onSetArtboardHug={onSetArtboardHug}
             onSetArtboardStyle={onSetArtboardStyle}
