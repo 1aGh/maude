@@ -307,3 +307,63 @@ describe('NotLocalCanvas', () => {
     expect(showLocalOnly()).toBe(true);
   });
 });
+
+// A6c (S11.4 patch): the viewport asks before it frames a canvas. A canvas that is not on this Mac
+// (offline, never came down) is the card INSTEAD of the frame — no iframe, so no toolbar and no zoom
+// (both live in the canvas runtime) and no loading card waiting for a frame that will never load.
+describe('the viewport and a canvas that is not on this Mac', () => {
+  const PATH = `${D}/ui/2026/Combine-video-AI.tsx`;
+  async function mountViewport(state: string) {
+    const { Viewport } = await import('../client/shell/viewport.jsx');
+    const asked: string[] = [];
+    const saved = globalThis.fetch;
+    globalThis.fetch = (async (url: string) => {
+      asked.push(String(url));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ canvas: { path: 'ui/2026/Combine-video-AI.tsx', state } }),
+      } as Response;
+    }) as unknown as typeof fetch;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    try {
+      await act(async () =>
+        root.render(
+          <Viewport
+            tabs={[{ path: PATH }]}
+            activePath={PATH}
+            registerIframe={() => {}}
+            cfg={{ designRel: D }}
+            loadingPath={PATH}
+            canvasReloadNonce={0}
+          />
+        )
+      );
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+      });
+    } finally {
+      globalThis.fetch = saved;
+    }
+    return { host, asked };
+  }
+
+  test('not-local: the card, no frame, no loading card', async () => {
+    const { host, asked } = await mountViewport('not-local');
+    expect(asked.some((u) => u.startsWith('/_api/sync/availability?canvas='))).toBe(true);
+    expect(q(host, 'canvas-not-local')?.textContent).toContain(
+      "Combine-video-AI isn't on this Mac yet."
+    );
+    expect(host.querySelector('iframe')).toBeNull();
+    expect(host.querySelector('[data-testid="canvas-loading"]')).toBeNull();
+  });
+
+  test('present: the frame, as before', async () => {
+    const { host } = await mountViewport('present');
+    expect(q(host, 'canvas-not-local')).toBeNull();
+    expect(host.querySelector('iframe')).not.toBeNull();
+  });
+});

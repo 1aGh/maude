@@ -343,6 +343,15 @@
     color: var(--fg-1);
   }
 
+  /* ─── S11.4 (A6c): a canvas that is not on this Mac — the card where the frame would be ─── */
+  .viewport > .st-not-local {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--u-bg-0);
+  }
+
   /* ─── S11.2: the empty canvas, the empty-artboard hint, Layers' empty line, the connect veil ─── */
   /* The canvas is the whole window body: the block centres on it, above the toolbar. Only its buttons take
      the pointer, so panning and drawing pass straight through the words. */

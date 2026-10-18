@@ -17,6 +17,7 @@ import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
 import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
 import { nativeDoors } from '../v2/shell/native-doors.js';
 import { EmptyProjectSlot } from '../v2/create/empty-project.jsx';
+import { NotLocalCanvas, useCanvasAvailability } from '../v2/empty/not-local.jsx';
 
 export function Viewport({
   tabs,
@@ -112,6 +113,12 @@ export function Viewport({
   // three states are named together. `ready` is `dgn:'loaded'`-backed, so it
   // cannot be faked by a timer expiring (which is exactly how the bug used to
   // look successful: skeleton gone, pane white).
+  // S11.4 (05 es-offline-uncached) — the open canvas is asked once per open (and per Retry): offline and
+  // never downloaded, the tab shows the card INSTEAD of the frame. No frame = no toolbar and no zoom (both
+  // live in the canvas runtime), and no loading card waiting on a frame that will never load.
+  const canvasTab = activePath && activePath !== SYSTEM_TAB ? activePath : null;
+  const availability = useCanvasAvailability(canvasTab, { stamp: canvasReloadNonce });
+  const notLocal = !!canvasTab && availability === 'not-local';
   const canvasState =
     canvasError && canvasError.path === activePath
       ? 'error'
@@ -172,6 +179,12 @@ export function Viewport({
             </div>
           );
         }
+        if (notLocal && t.path === activePath)
+          return (
+            <div key={`${t.path}#not-local`} className="st-not-local active">
+              <NotLocalCanvas name={basename(t.path).replace(/\.(tsx|html)$/i, '')} />
+            </div>
+          );
         return (
           <iframe
             // The nonce is part of the key ONLY so the #115 Retry can force a
@@ -207,13 +220,13 @@ export function Viewport({
           onClose={() => setCodeReq(null)}
         />
       )}
-      {loadingPath && loadingPath === activePath && (
+      {loadingPath && loadingPath === activePath && !notLocal && (
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
         <CanvasLoading key={loadingPath} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
-      {canvasError && canvasError.path === activePath && (
+      {canvasError && canvasError.path === activePath && !notLocal && (
         // issue #115 — what the blank pane used to be. Names which of the two
         // failures happened and offers the recovery that used to require
         // quitting the app (or knowing that switching projects and back
