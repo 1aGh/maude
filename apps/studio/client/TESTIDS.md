@@ -257,7 +257,7 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | --- | --- | --- | --- | --- | --- |
 | `shortcuts-sheet` | testid | The “?” sheet dialog. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-find` | testid | The sheet’s “Find a shortcut” box. | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
-| `shortcuts-group-<id>` | testid | A sheet group (`edit-tools`, `preview-tools`, `file`, `canvas`, `panels-ai`, `objects`, `timeline`, `present`). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
+| `shortcuts-group-<id>` | testid | A sheet group (`edit-tools`, `preview-tools`, `file`, `tabs-windows`, `finding`, `canvas`, `panels-ai`, `objects`, `timeline`, `present`). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-row-<id>` | testid | One sheet row; <id> is the registry action id (also in the Advanced fold). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-advanced` | testid | The sheet’s Advanced fold (View › Advanced / Diagnostics keys, then the moved keys). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |
 | `shortcuts-advanced-toggle` | testid | The Advanced fold’s disclosure button (`aria-expanded`; remembered). | `client/dialogs/shortcuts-overlay.jsx` · `ShortcutsOverlay` | test/v2-search-ui.test.tsx | new |

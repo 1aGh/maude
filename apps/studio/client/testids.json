@@ -9485,7 +9485,7 @@
     "hook": "shortcuts-group-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A sheet group (`edit-tools`, `preview-tools`, `file`, `canvas`, `panels-ai`, `objects`, `timeline`, `present`).",
+    "meaning": "A sheet group (`edit-tools`, `preview-tools`, `file`, `tabs-windows`, `finding`, `canvas`, `panels-ai`, `objects`, `timeline`, `present`).",
     "producer": {
       "file": "apps/studio/client/dialogs/shortcuts-overlay.jsx",
       "symbol": "ShortcutsOverlay"
