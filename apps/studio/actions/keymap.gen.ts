@@ -100,26 +100,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'object.remove',
     exec: 'canvas',
     keys: [
-      {
-        chord: '⌫',
-        layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
-      },
+      { chord: '⌫', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {
         chord: '⇧⌫',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: { focus: ['canvas'], selection: ['object'] },
         alias: true,
       },
-      {
-        chord: '⌦',
-        layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
-      },
+      { chord: '⌦', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {
         chord: '⇧⌦',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: { focus: ['canvas'], selection: ['object'] },
         alias: true,
       },
     ],
@@ -273,6 +265,27 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         chord: '⌘D',
         layer: 'selection',
         when: { focus: ['canvas'], mode: ['edit'], selection: ['artboard'] },
+      },
+    ],
+  },
+  {
+    id: 'artboard.trash',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['artboard'] },
+    keys: [
+      { chord: '⌫', layer: 'selection', when: { focus: ['canvas'], selection: ['artboard'] } },
+      {
+        chord: '⇧⌫',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['artboard'] },
+        alias: true,
+      },
+      { chord: '⌦', layer: 'selection', when: { focus: ['canvas'], selection: ['artboard'] } },
+      {
+        chord: '⇧⌦',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['artboard'] },
+        alias: true,
       },
     ],
   },

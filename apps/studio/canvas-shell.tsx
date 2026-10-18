@@ -3085,8 +3085,9 @@ function CanvasRouter({
         if (e.source !== window.parent) return;
         const p = (m as { payload?: Partial<EditSourcePayload> & { seq?: number; label?: string } })
           .payload;
-        // S2.2b — a landed edit-op the SHELL made (the inspector's Element id rename): Cmd+Z
-        // posts `revert {writeId}`, which restores the source and the moved references together.
+        // S2.2b / S2.10b — a landed edit-op the SHELL made (the inspector's Element id rename, ⌫ Move
+        // to trash on an artboard): Cmd+Z posts `revert {writeId}`, which restores the source and the
+        // moved references together. An op-log write posts none — it undoes through the op log.
         if (p && (p as { op?: string }).op === 'edit-op') {
           const q = p as { writeId?: unknown; label?: unknown };
           if (typeof q.writeId === 'string' && /^w_[0-9a-f]{16}$/.test(q.writeId)) {

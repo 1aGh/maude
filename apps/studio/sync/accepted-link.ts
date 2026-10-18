@@ -381,9 +381,12 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     label: string,
     kind: string,
     operations: Operation[],
-    waitMs: number
+    waitMs: number,
+    origin?: { trashed?: Array<{ artboard: string; label?: string }> }
   ): Promise<StructuralOutcome> {
-    const answer = propose({ kind, label, operations }).then(outcome);
+    const answer = propose({ kind, label, operations, ...(origin ? { origin } : {}) }).then(
+      outcome
+    );
     if (!Number.isFinite(waitMs)) return answer;
     return Promise.race([
       answer,
@@ -482,7 +485,13 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     lanesEdit(
       slug: string,
       lanes: Array<{ lane: LaneProposal['lane']; content: string; baseContent: string }>,
-      action: { kind: string; label: string; writeId?: string }
+      action: {
+        kind: string;
+        label: string;
+        writeId?: string;
+        /** S2.10b — an artboard-trash action names what it removed (S1-trash.md §2) */
+        origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+      }
     ): Promise<StructuralOutcome> {
       const doc = opts.docNameFor(slug);
       return structural(
@@ -496,7 +505,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
           baseContent: l.baseContent,
           ...(action.writeId ? { writeId: action.writeId } : {}),
         })),
-        Number.POSITIVE_INFINITY
+        Number.POSITIVE_INFINITY,
+        action.origin?.trashed?.length ? { trashed: action.origin.trashed } : undefined
       );
     },
     /** Logical history, newest first (optionally one entry's). */

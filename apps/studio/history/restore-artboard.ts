@@ -12,8 +12,9 @@
 //   3. CSS rules whose every class is used only inside this artboard (in A and in Now) → A's rule; other
 //      rules that differ are kept and counted ("2 styles");
 //   4. meta: `layout.artboards[id]`, `artboardMeta[id]` and the `artboards[]` mirror entry → A's;
-//   5. annotations whose `parentArtboard` is `id` (in A or Now) → A's records by id (added-since ones go —
-//      they stay in Version history);
+//   5. the artboard's annotations (in A or Now: `parentArtboard` is `id`, a section's contents, an arrow
+//      bound only to them — annotations/artboard-members.ts, the set ⌫ Move to trash takes, S2.10c) →
+//      A's records by id (added-since ones go — they stay in Version history);
 //   6. the result must parse and still carry the artboard, or nothing is proposed.
 //
 // Pure: no I/O. The route (routes/history.ts) reads both sides through the accepted runtime and proposes
@@ -21,6 +22,7 @@
 // merges three-way onto whatever landed meanwhile. Every value a v1 peer reads stays its own format;
 // unknown meta keys and unknown annotation fields are carried through untouched.
 
+import { artboardMembers } from '../annotations/artboard-members.ts';
 import { parseBoard } from '../annotations/schema';
 import { type ArtboardInfo, artboardLabel, parseModel, type TsxModel } from './describe';
 import { type AnyNode, forEachChild, isNode, jsxTagName } from './describe-match';
@@ -384,11 +386,12 @@ function spliceAnnotations(
   if (!parseBoard(nowText).elements.length && now.elements.length) return null;
   const old = parseJson(oldText);
   const oldEls = isObj(old) && Array.isArray(old.elements) ? old.elements.filter(isObj) : [];
-  const parented = (e: Obj) => e.parentArtboard === id;
+  // S2.10c — the artboard's members as ⌫ Move to trash takes them (annotations/artboard-members.ts):
+  // `parentArtboard`, a section's contents, an arrow bound only to them.
+  const oldMembers = artboardMembers(oldEls, [id]);
+  const parented = (e: Obj) => typeof e.id === 'string' && oldMembers.has(e.id);
   const oldById = new Map(oldEls.filter((e) => typeof e.id === 'string').map((e) => [e.id, e]));
-  const touched = new Set<unknown>();
-  for (const e of oldEls) if (parented(e)) touched.add(e.id);
-  for (const e of now.elements) if (isObj(e) && parented(e)) touched.add(e.id);
+  const touched = new Set<unknown>([...oldMembers, ...artboardMembers(now.elements, [id])]);
   if (!touched.size) return null;
   const out: unknown[] = [];
   const seen = new Set<unknown>();

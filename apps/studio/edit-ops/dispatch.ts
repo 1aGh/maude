@@ -16,10 +16,12 @@ import { alignOps } from './align.ts';
 import { artboardResize } from './artboard-resize.ts';
 import { CLEAR_LINK_OP } from './clear-link.ts';
 import { objectConstrain } from './constraints.ts';
+import { artboardTrash } from './artboard-trash.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
+import { hasLayoutChange } from './layout-patch.ts';
 import { objectLock } from './lock.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
@@ -79,6 +81,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   // S3.10a — a click's destination: `data-cd-link` (S3-links-format §3)
   SET_LINK_OP,
   CLEAR_LINK_OP,
+  // S2.10b — ⌫ / "Move to trash" on an artboard: one `kind: 'trash'` action on an op-log home
+  artboardTrash,
 ];
 
 export interface AiHoldHit {
@@ -98,6 +102,14 @@ export interface DispatchDeps {
   writeLayout?(rel: string, patch: LayoutPatch): Promise<void>;
   /** the kernel action a write became, when the runtime already knows it */
   actionFor?(rel: string, after: string): string | null;
+  /** S2.10b — a live AI run holds this ARTBOARD (its lease, V2-1.15): ops that change it whole refuse */
+  heldArtboard?(rel: string, artboard: string): AiHoldHit | null;
+  /**
+   * S2.10b — an op-log home lands the write as ONE project action: the source and the op's layout
+   * lane together, with the op's kind / label / origin. Null = no such home here (a legacy link, no
+   * link): the ordinary `writeLayout` + `write` path runs. A refusal writes nothing.
+   */
+  land?(plan: LandPlan): Promise<LandOutcome | null>;
   log: WriteLog;
   /** S2.2b — the comments + board of a canvas; an id rename moves its references here. Without
    *  it a rename that has references to move is refused (never a half-rename). */
@@ -105,6 +117,22 @@ export interface DispatchDeps {
   /** the op table (tests pass their own); default `EDIT_OPS` */
   ops?: readonly EditOp[];
 }
+
+/** What `land` is asked to make one action of. */
+export interface LandPlan {
+  rel: string;
+  before: string;
+  after: string;
+  layout?: LayoutPatch;
+  /** the op's action; absent = `kind: 'edit'` with a label from the op id */
+  action?: EditOpOutput['action'];
+  /** the snapshot reason (`pre-<op>`) */
+  reason: string;
+}
+
+export type LandOutcome =
+  | { ok: true; actionId: string | null; queued?: true }
+  | { ok: false; code: EditOpCode; message: string };
 
 /** The file's revision: the first 16 hex of SHA-256 of its bytes. */
 export function revOf(source: string): string {
@@ -199,6 +227,23 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         `${said(r.element)} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
       );
   }
+  // S2.10b — an op that changes artboards whole (resize, copy, trash) respects the run's artboard lease.
+  if (deps.heldArtboard) {
+    const boards = (op as EditOp).artboards?.({
+      file: rel,
+      op: req.op,
+      targets: refs,
+      params: req.params ?? {},
+    });
+    for (const a of boards ?? []) {
+      const hold = deps.heldArtboard(rel, a);
+      if (hold)
+        return refuse(
+          'held-by-ai',
+          `${said(a)} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
+        );
+    }
+  }
   if ((op as EditOp).locked !== 'allow') {
     for (const r of refs) {
       if (walk.elements.find((x) => x.id === r.element)?.locked)
@@ -221,9 +266,35 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     const gate = await renameGate(rel, out.renamed, deps);
     if (gate) return gate;
   }
+  // S2.10b — an op that writes source + layout, on an op-log home: ONE action (one ⌘Z, one history row).
+  if (deps.land && out.source !== current && hasLayoutChange(out.layout)) {
+    const landed = await deps.land({
+      rel,
+      before: current,
+      after: out.source,
+      ...(out.layout ? { layout: out.layout } : {}),
+      ...(out.action ? { action: out.action } : {}),
+      reason: `pre-${req.op}`,
+    });
+    if (landed) {
+      if (!landed.ok) return refuse(landed.code, landed.message);
+      // The op log undoes it; a legacy revert record would undo it a second way.
+      const res: EditOpResult = {
+        ok: true,
+        actionId: landed.actionId,
+        writeId: landed.actionId || landed.queued ? '' : deps.log.add(rel, current, out.source),
+        rev: revOf(out.source),
+        refs,
+      };
+      if (landed.queued) res.queued = true;
+      if (out.created?.length) res.created = out.created;
+      return res;
+    }
+  }
   // S2.10 — the layout lane goes first: an entry for an artboard that never got written is inert, while a
-  // written artboard with no entry would flash at its default-grid slot before it moved.
-  if (out.layout && out.source !== current && deps.writeLayout)
+  // written artboard with no entry would flash at its default-grid slot before it moved. A `remove` waits
+  // for an op-log home (types.ts LayoutPatch): here the entry stays and the source revert restores all.
+  if (out.layout && !out.layout.remove && out.source !== current && deps.writeLayout)
     await deps.writeLayout(rel, out.layout);
   return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps, out.renamed);
 }

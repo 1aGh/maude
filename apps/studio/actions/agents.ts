@@ -241,6 +241,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: file('canvas-tsx', 'design:design', 'Remove the element’s data-cd-link attribute'),
   },
   'preview.back': NAV('<canvas> --mode preview'), // an agent opens the canvas it wants
+  // S2.10c — the same result by hand: the board's JSX, its layout entry and its annotations go together.
+  'artboard.trash': TSX(
+    'Remove the <DCArtboard id="…"> element (canvas-tsx.md § Remove an artboard), its layout.artboards[] entry in the .meta.json and, in the .annotations.json, the annotations whose parentArtboard is it with what sits in its sections; the canvas keeps at least one artboard'
+  ),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),

@@ -587,8 +587,19 @@ export interface SyncRuntime {
    */
   proposeLanes?(
     slug: string,
-    lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
-    opts: { kind: string; label: string; writeId?: string }
+    lanes: Array<{
+      /** S2.10b — `html`: an edit-op's source with its layout lane (one action) */
+      lane: 'comments' | 'annotations' | 'meta' | 'html';
+      text: string;
+      baseText: string;
+    }>,
+    opts: {
+      kind: string;
+      label: string;
+      writeId?: string;
+      /** S2.10b — an artboard-trash action's `origin.trashed` (S1-trash.md §2) */
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
   /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
@@ -5643,7 +5654,7 @@ export function createSyncRuntime(
       if (!acceptedOn() || !acceptedLink) return null;
       if (!projections.has(slug)) return null;
       const out: Array<{
-        lane: 'comments' | 'annotations' | 'meta';
+        lane: 'comments' | 'annotations' | 'meta' | 'html';
         content: string;
         baseContent: string;
       }> = [];

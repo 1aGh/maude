@@ -44,6 +44,9 @@ export type EditOpResult =
       created?: ElementRef[];
       /** S2.2b — `element.set-id`: the references that followed the new id, per lane */
       moved?: { comments: number; board: number };
+      /** S2.10b — an op-log home took the write but has not answered yet (the outbox keeps it);
+       *  `writeId` is then '' — an op-log write never gets a legacy revert record. */
+      queued?: true;
     }
   | { ok: false; code: EditOpCode; message: string };
 
@@ -66,6 +69,11 @@ export interface EditOp {
   id: EditOpId;
   /** 'refuse' (default): a locked target refuses the op. 'allow' only for the lock op itself. */
   locked?: 'refuse' | 'allow';
+  /**
+   * S2.10b — the artboards this op changes as a whole (resize, copy, trash): an AI run's lease on
+   * any of them refuses the op with `held-by-ai`, like an element hold. Absent = none.
+   */
+  artboards?(req: ResolvedEditOp): string[];
   apply(source: string, req: ResolvedEditOp): EditOpOutput;
 }
 
@@ -77,6 +85,12 @@ export interface EditOp {
 export interface LayoutPatch {
   set?: Array<{ id: string; x: number; y: number }>;
   pin?: Array<{ id: string; x: number; y: number }>;
+  /**
+   * S2.10b — entries an op takes out (an artboard moved to the trash). Only on an op-log home, where
+   * the removal is in the same action as the source: on a legacy link the entry stays (an orphan entry
+   * is inert, and the source revert then brings the board back at its own place).
+   */
+  remove?: string[];
 }
 
 export interface EditOpOutput {
@@ -86,6 +100,15 @@ export interface EditOpOutput {
   layout?: LayoutPatch;
   /** S2.2b — `element.set-id`: the id it renamed (its references move in the same request) */
   renamed?: IdRename;
+  /**
+   * S2.10b — the project action this write is on an op-log home. Absent: `kind: 'edit'` with the
+   * op's `label`. `trashed` is the artboard-trash action's `origin.trashed` (S1-trash.md §2).
+   */
+  action?: {
+    kind: 'edit' | 'trash';
+    label: string;
+    trashed?: Array<{ artboard: string; label?: string }>;
+  };
 }
 
 /** HTTP status per refusal code (contract §2). */

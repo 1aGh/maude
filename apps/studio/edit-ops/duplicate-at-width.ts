@@ -23,7 +23,7 @@ import { applyDuplicateArtboard, CanvasEditError } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { ARTBOARD_ID_RE, MAX_ARTBOARD, MIN_ARTBOARD } from './artboard-resize.ts';
 import { isCoord, MAX_LAYOUT_ENTRIES } from './layout-patch.ts';
-import type { EditOp, ElementRef, LayoutPatch } from './types.ts';
+import type { EditOp, EditOpOutput, ElementRef, LayoutPatch, ResolvedEditOp } from './types.ts';
 
 /** Artboards one request may copy (a marquee of a whole canvas is fine; a runaway body is not). */
 export const MAX_COPIES = 50;
@@ -136,7 +136,7 @@ function duplicate(
   file: string,
   params: Record<string, unknown>,
   withWidth: boolean
-): { source: string; created: ElementRef[]; layout: LayoutPatch } {
+): EditOpOutput {
   const items = parseItems(params, file, withWidth);
   const pin = parsePin(params, file);
   let out = source;
@@ -168,15 +168,33 @@ function duplicate(
     source: out,
     created,
     layout: { ...(set.length ? { set } : {}), ...(pin.length ? { pin } : {}) },
+    // S2.10b — on an op-log home the copy and its place are ONE action (one ⌘Z)
+    action: {
+      kind: 'edit',
+      label: items.length === 1 ? DUPLICATE_LABEL : `Duplicate ${items.length} artboards`,
+    },
   };
 }
 
+/** The history row of a copy (the canvas's legacy undo record says the same). */
+export const DUPLICATE_LABEL = 'Duplicate artboard';
+
+/** S2.10b — the boards a copy is made of: an AI run holding one refuses the copy. */
+const sourcesOf = (req: ResolvedEditOp): string[] =>
+  Array.isArray(req.params.items)
+    ? req.params.items.flatMap((r) =>
+        isRec(r) && typeof r.artboard === 'string' ? [r.artboard] : []
+      )
+    : [];
+
 export const artboardDuplicate: EditOp = {
   id: 'artboard.duplicate',
+  artboards: sourcesOf,
   apply: (source, req) => duplicate(source, req.file, req.params, false),
 };
 
 export const artboardDuplicateAtWidth: EditOp = {
   id: 'artboard.duplicate-at-width',
+  artboards: sourcesOf,
   apply: (source, req) => duplicate(source, req.file, req.params, true),
 };

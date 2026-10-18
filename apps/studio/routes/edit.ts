@@ -8,13 +8,46 @@
 // and a format-gated project get the read-only gate's 403 before this handler runs (minRole edit).
 //
 // One request = one file write = one kernel action (V2-1.5). Writes to one file are serialized.
+//
+// S2.10b — on an op-log home (`ctx.syncControl.current().proposeLanes`: the local home, or a hub link in
+// accepted mode) the source AND the op's layout lane are ONE proposal, so a copy with its place, or an
+// artboard moved to the trash with its entry, is one action / one ⌘Z / one Version history row — the
+// pattern of routes/annotations.ts `proposerFor` and api.ts `moveArtboardsWithRider`:
+//   - accepted mode: the project decides first; a refusal writes nothing; then the files are written raw
+//     (no per-lane hooks, which would propose each lane on its own);
+//   - the local home: the ordinary writes, then the proposal records both lanes as one action.
+// An op that writes no layout keeps the ordinary source path (watcher / source-written import). Elsewhere
+// (a legacy link, no link) nothing changes: one write, one legacy revert record.
+//
+// S2.10c — an artboard moved to the trash takes its annotations with it (S1-trash.md §2): the board's
+// members (annotations/artboard-members.ts) are the action's THIRD lane, so ⌘Z brings them back with
+// the board and the Trash's Restore (the S1.13 splice) does too. Only where the trash is one action:
+// on a legacy link they stay where they are, as the layout entry does (a member left behind is inert).
 
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
-import { dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
-import { type LayoutEntry, mergeLayout } from '../edit-ops/layout-patch.ts';
+import { artboardMembers } from '../annotations/artboard-members.ts';
+import { canonicalAnnotations } from '../annotations/board-text.ts';
+import { type Op as AnnotationOp, applyOps } from '../annotations/ops.ts';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import type { LaneChange, LanesOutcome } from '../api.ts';
+import { canvasSlugFromRel } from '../canvas-slug.ts';
+import {
+  dispatchEditOp,
+  type LandOutcome,
+  type LandPlan,
+  STALE_MESSAGE,
+  statusOf,
+} from '../edit-ops/dispatch.ts';
+import {
+  hasLayoutChange,
+  type LayoutEntry,
+  layoutEntriesOf,
+  mergeLayout,
+  nextMetaText,
+} from '../edit-ops/layout-patch.ts';
 import type { ReferenceLanes } from '../edit-ops/references.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
@@ -23,6 +56,23 @@ import type { RouteSpec } from './table.ts';
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+
+/** How long a hub proposal is awaited before the answer says `queued` (as S4.7 / S2.9b). */
+const ANSWER_WAIT_MS = 8_000;
+
+/** The op-log home's half the route uses (`SyncRuntime.proposeLanes`, the local home's). */
+export interface EditLanesRuntime {
+  proposeLanes?(
+    slug: string,
+    lanes: LaneChange[],
+    o: {
+      kind: string;
+      label: string;
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
+  acceptedMode?(): boolean;
+}
 
 export interface EditRouteDeps {
   designRoot: string;
@@ -48,7 +98,31 @@ export interface EditRouteDeps {
   meta?: {
     load(file: string): Promise<Record<string, unknown> | null>;
     patch(file: string, patch: Record<string, unknown>): Promise<unknown>;
+    /**
+     * S2.10b — write the versioned `.meta.json` text (`api.writeCanvasMetaText`). `hooks: false` skips
+     * the `onMetaChanged` hook (an accepted-mode action already carries the lane); the announce runs.
+     */
+    writeText?(
+      file: string,
+      nextText: string,
+      baseText: string | null,
+      o: { hooks: boolean }
+    ): Promise<unknown>;
   };
+  /** S2.10b — `ctx.syncControl.current()`: the hub runtime, the local home, or null. */
+  control?: () => EditLanesRuntime | null | undefined;
+  /**
+   * S2.10c — the canvas's annotation board (`api.readBoard` / `api.applyAnnotationOps`): an artboard
+   * moved to the trash takes its members along. `apply` with `hooks: false` writes the file only (an
+   * accepted-mode action already carries the lane); `hooks: true` is the canvas op path (a live room's
+   * replica, the change hooks). Absent: the board file beside the canvas, read and written directly.
+   */
+  board?: {
+    read(file: string): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
+    apply(file: string, ops: readonly AnnotationOp[], o: { hooks: boolean }): Promise<unknown>;
+  };
+  /** tests only: the clock `last_modified` is stamped with */
+  now?: () => Date;
   /** tests only: an op table instead of `EDIT_OPS` */
   ops?: readonly EditOp[];
   log?: WriteLog;
@@ -77,6 +151,17 @@ export function resolveCanvasRel(
   }
 }
 
+/** A home's refusal, in the dispatcher's words. */
+function refusalOf(code: string | undefined): LandOutcome {
+  if (code === 'forbidden' || code === 'not-in-scope')
+    return { ok: false, code: 'forbidden', message: 'You can look here; ask to edit.' };
+  if (code === 'base-conflict' || code === 'stale')
+    return { ok: false, code: 'stale', message: STALE_MESSAGE };
+  if (code === 'lease-fenced')
+    return { ok: false, code: 'held-by-ai', message: "This artboard is AI's until it's done" };
+  return { ok: false, code: 'invalid', message: 'That edit did not go through; try again.' };
+}
+
 export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
   const log = deps.log ?? createWriteLog();
   const chains = new Map<string, Promise<unknown>>();
@@ -88,16 +173,156 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     const file = path.posix.join(deps.designRel.replace(/\\/g, '/'), rel);
     const layout = ((await meta.load(file)) ?? {}).layout;
     const rec = layout && typeof layout === 'object' && !Array.isArray(layout) ? layout : {};
-    const list = Array.isArray((rec as { artboards?: unknown }).artboards)
-      ? ((rec as { artboards: unknown[] }).artboards.filter(
-          (e): e is LayoutEntry =>
-            !!e &&
-            typeof (e as LayoutEntry).id === 'string' &&
-            Number.isFinite((e as LayoutEntry).x) &&
-            Number.isFinite((e as LayoutEntry).y)
-        ) as LayoutEntry[])
-      : [];
-    await meta.patch(file, { layout: { ...rec, artboards: mergeLayout(list, patch) } });
+    await meta.patch(file, {
+      layout: { ...rec, artboards: mergeLayout(layoutEntriesOf(layout), patch) },
+    });
+  };
+  const readText = (rel: string): string | null => {
+    try {
+      return readFileSync(abs(rel), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  /** The source write every path shares: announce the base, the bytes, the /design:rollback snapshot. */
+  const writeSource = async (rel: string, before: string, after: string, label: string) => {
+    deps.emit('activity:suppress', rel);
+    try {
+      await Bun.write(abs(rel), after);
+    } catch (e) {
+      deps.emit('activity:unsuppress', rel);
+      throw e;
+    }
+    try {
+      await deps.snapshot?.(rel, before, label);
+    } catch {
+      /* snapshot best-effort */
+    }
+  };
+  // S2.10c — the board (header). Without `deps.board`: `<designRoot>/<slug>.annotations.json` directly.
+  const boardAbs = (slug: string) => path.join(deps.designRoot, `${slug}.annotations.json`);
+  const readBoard = async (
+    file: string,
+    slug: string
+  ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }> => {
+    if (deps.board) return deps.board.read(file);
+    let raw: string;
+    try {
+      raw = readFileSync(boardAbs(slug), 'utf8');
+    } catch {
+      return { ok: true, text: null };
+    }
+    const text = canonicalAnnotations(raw);
+    return text === null ? { ok: false, error: 'not a board' } : { ok: true, text };
+  };
+  const applyBoard = async (
+    file: string,
+    slug: string,
+    ops: readonly AnnotationOp[],
+    hooks: boolean
+  ) => {
+    if (deps.board) return void (await deps.board.apply(file, ops, { hooks }));
+    const read = await readBoard(file, slug);
+    if (!read.ok) return;
+    const els = read.text ? parseBoard(read.text).elements : [];
+    const r = applyOps(new Map(els.map((e) => [e.id, e])), ops);
+    if (r.touched.size) await Bun.write(boardAbs(slug), serializeBoard([...r.state.values()]));
+  };
+  /** The members of the trashed artboards out of the board: the lane, and the ops that make it. */
+  const boardWithout = async (file: string, slug: string, artboards: string[]) => {
+    const read = await readBoard(file, slug);
+    // An unreadable board is never rewritten (it would erase it): its members stay behind.
+    if (!read.ok || !read.text) return null;
+    const els = parseBoard(read.text).elements;
+    const gone = artboardMembers(els, artboards);
+    if (!gone.size) return null;
+    const ops: AnnotationOp[] = [...gone].map((id) => ({ op: 'delete', id }));
+    const r = applyOps(new Map(els.map((e) => [e.id, e])), ops);
+    return { before: read.text, after: serializeBoard([...r.state.values()]), ops };
+  };
+  /** S2.10b — one action on an op-log home (header); null = no such home, the legacy path runs. */
+  const land = async (p: LandPlan): Promise<LandOutcome | null> => {
+    const rt = deps.control?.();
+    if (!rt?.proposeLanes) return null;
+    // A hub runtime answers `acceptedMode`; one that is not in it is a legacy link (the local home
+    // has no such mode: it is always an op log).
+    const accepted = rt.acceptedMode?.();
+    if (accepted === false) return null;
+    const metaRel = p.rel.replace(/\.tsx$/i, '.meta.json');
+    const metaBefore = hasLayoutChange(p.layout) ? readText(metaRel) : null;
+    const metaAfter = hasLayoutChange(p.layout)
+      ? nextMetaText(metaBefore, p.layout, (deps.now ?? (() => new Date()))())
+      : null;
+    const lanes: LaneChange[] = [
+      { lane: 'html', text: p.after, baseText: p.before },
+      ...(metaAfter !== null
+        ? [{ lane: 'meta' as const, text: metaAfter, baseText: metaBefore ?? '{}' }]
+        : []),
+    ];
+    const action = p.action ?? { kind: 'edit' as const, label: 'Edit canvas' };
+    const o = {
+      kind: action.kind,
+      label: action.label,
+      ...(action.trashed?.length ? { origin: { trashed: action.trashed } } : {}),
+    };
+    const slug = canvasSlugFromRel(p.rel, deps.designRel);
+    const file = path.posix.join(deps.designRel.replace(/\\/g, '/'), p.rel);
+    const writeMeta = async (hooks: boolean) => {
+      if (metaAfter === null) return;
+      if (deps.meta?.writeText) await deps.meta.writeText(file, metaAfter, metaBefore, { hooks });
+      else await Bun.write(abs(metaRel), metaAfter);
+    };
+    // S2.10c — a trashed artboard's annotations leave in the same action.
+    const board =
+      action.kind === 'trash' && action.trashed?.length
+        ? await boardWithout(
+            file,
+            slug,
+            action.trashed.map((t) => t.artboard)
+          )
+        : null;
+    if (board) lanes.push({ lane: 'annotations', text: board.after, baseText: board.before });
+    const writeBoard = async (hooks: boolean) => {
+      if (board) await applyBoard(file, slug, board.ops, hooks);
+    };
+    if (accepted === true) {
+      // The project decides first: a refused action leaves both files as they are.
+      const pending = rt.proposeLanes(slug, lanes, o);
+      if (!pending) return null; // the runtime does not carry this canvas: the ordinary path
+      const answer = await Promise.race<LanesOutcome>([
+        pending,
+        new Promise<LanesOutcome>((resolve) =>
+          setTimeout(() => resolve({ status: 'accepted', queued: true }), ANSWER_WAIT_MS)
+        ),
+      ]);
+      if (answer.status !== 'accepted') return refusalOf(answer.code);
+      await writeMeta(false);
+      await writeBoard(false);
+      await writeSource(p.rel, p.before, p.after, p.reason);
+      // The write is complete: the projection reads these bytes now (they ARE the accepted
+      // source, so nothing is proposed again) instead of holding its doc→file writer for a
+      // watcher event — without it, the next accepted change (this action's ⌘Z) never reached
+      // this Mac's disk.
+      deps.emit('source-written', { rel: p.rel, content: p.after });
+      return answer.queued
+        ? { ok: true, actionId: null, queued: true }
+        : { ok: true, actionId: answer.actionId ?? null };
+    }
+    // The local home records what the disk became; the watcher's echo then finds it recorded.
+    await writeMeta(true);
+    await writeBoard(true);
+    await writeSource(p.rel, p.before, p.after, p.reason);
+    const answer = await rt.proposeLanes(slug, lanes, o);
+    // Written either way: an unrecorded write is an ordinary write with its legacy revert record.
+    return { ok: true, actionId: answer?.status === 'accepted' ? (answer.actionId ?? null) : null };
+  };
+  /** S2.10b — an AI run's lease on the artboard (V2-1.15 §5.2), as `heldByAi` reads element holds. */
+  const heldArtboard = (rel: string, artboard: string) => {
+    const runs = deps.runs;
+    if (!runs) return null;
+    const holder = runs.holderOf({ canvas: runs.canvasKey(rel), artboard });
+    if (!holder) return null;
+    return { mine: runs.live().some((r) => r.runId === holder.runId) };
   };
   const serialized = <T>(key: string, run: () => Promise<T>): Promise<T> => {
     const prev = chains.get(key) ?? Promise.resolve();
@@ -142,22 +367,11 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
                 return null;
               }
             },
-            write: async (rel, before, after, label) => {
-              deps.emit('activity:suppress', rel);
-              try {
-                await Bun.write(abs(rel), after);
-              } catch (e) {
-                deps.emit('activity:unsuppress', rel);
-                throw e;
-              }
-              try {
-                await deps.snapshot?.(rel, before, label);
-              } catch {
-                /* snapshot best-effort */
-              }
-            },
+            write: writeSource,
             writeLayout,
+            land,
             heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),
+            heldArtboard,
             actionFor: (rel, after) =>
               deps.actionFor?.(
                 path.relative(deps.repoRoot, abs(rel)).split(path.sep).join('/'),

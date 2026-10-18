@@ -1112,7 +1112,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const store = opened?.store;
     if (!store) return;
     try {
-      await publishChanges(store, p);
+      // S5.5b — a proposal made from the disk (a watched write, a run landing): nothing to write.
+      if (fromDisk === 0) await publishChanges(store, p);
     } finally {
       if (p.trashCleared?.length) await clearCopies(store, p.trashCleared);
       if (

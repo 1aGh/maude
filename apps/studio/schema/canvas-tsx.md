@@ -112,3 +112,14 @@ the file and gets the same bytes.
 | Place freely (or drag out of the frame) | On the card: `style.position: "absolute"`, `left`, `top`, `width`, `height` in px as it sits now (inside its frame's padding box, margin taken off). A frame that was `static` gets `position: "relative"`. CSS only — no `data-cd-*` is added. A `style` the file computes is left alone. |
 | Constraints (Position › Pins) | On a freely placed object: Right replaces `left` with `right: <distance to the frame's right edge>`, Bottom likewise with `bottom`; Left & Right sets both and drops `width`; Center is `calc(50% ± Npx)`; Scale is percentages. Datum pinned Right and Top keeps `right: 64px; top: 64px` in every size of the frame, so a story made with Duplicate at another width still shows it there. |
 | Convert children to absolute position | Each child gets `position: "absolute"` with `left` / `top` / `width` / `height` as rendered, and a static frame `position: "relative"` (its own size is frozen when it would collapse). The children no longer take part in the layout, so the frame stops arranging them. |
+
+## Remove an artboard: the same result by hand (S2.10b)
+
+⌫ on a selected artboard and the artboard menu's "Move to trash" (the op `artboard.trash`,
+`edit-ops/artboard-trash.ts`) remove the whole `<DCArtboard id="…">…</DCArtboard>` element and its
+`layout.artboards[]` entry in the `.meta.json`, and (S2.10c) the artboard's annotations from the canvas's
+`.annotations.json`: the elements whose `parentArtboard` is it, whatever sits in those sections, and an arrow with
+no `parentArtboard` whose every bound end is on them or on the artboard. A canvas keeps at least one artboard. In
+the studio this is one project action, "Moved “<label>” to the trash": the Trash lists the artboard, one ⌘Z
+brings it back at its place with its annotations, and the Trash's Restore does too. Removed by hand, the change
+is an ordinary edit of the files (Version history still has the board).

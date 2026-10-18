@@ -17431,9 +17431,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
@@ -17447,9 +17445,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
@@ -17463,9 +17459,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
