@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
+import { CLIP_OPS } from './clip/index.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
@@ -44,6 +45,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSendBack,
   objectLock,
   objectHide,
+  // S7.6 — every clip verb (clip-ops.ts appliers) + the video ops, artboard-scoped
+  ...CLIP_OPS,
 ];
 
 export interface AiHoldHit {
@@ -59,6 +62,8 @@ export interface DispatchDeps {
   write(rel: string, before: string, after: string, label: string): Promise<void>;
   /** V2-1.15 §4 #13 — a live AI run holds this element (S5.4's `heldByAi`) */
   heldByAi(rel: string, element: string): AiHoldHit | null;
+  /** S7.6 — a live AI run leases this artboard (null = any artboard of the file): an AI cut */
+  artboardHeldByAi?(rel: string, artboard: string | null): AiHoldHit | null;
   /** the kernel action a write became, when the runtime already knows it */
   actionFor?(rel: string, after: string): string | null;
   log: WriteLog;
@@ -148,13 +153,34 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         `${said(r.element)} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
       );
   }
+  // An artboard-scoped op (S7.6 clip / video ops): the artboard must exist, and a live AI run
+  // leasing it (an AI cut) refuses the whole comp — same step, same copy.
+  if ((op as EditOp).scope === 'artboard') {
+    const ab = req.params?.artboard;
+    if (ab !== undefined && (typeof ab !== 'string' || !ab))
+      return refuse('invalid', 'The edit names no video.');
+    const board =
+      typeof ab === 'string'
+        ? walk.elements.find((x) => x.tag === 'DCArtboard' && x.artboard === ab)
+        : undefined;
+    if (typeof ab === 'string' && !board)
+      return refuse('invalid', 'That video is not on this canvas.');
+    const hold = deps.artboardHeldByAi?.(rel, typeof ab === 'string' ? ab : null);
+    if (hold)
+      return refuse(
+        'held-by-ai',
+        `${typeof ab === 'string' ? said(ab) : 'This video'} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
+      );
+    if (board?.locked && (op as EditOp).locked !== 'allow')
+      return refuse('locked', `${said(ab as string)} is locked · ⇧⌘L unlocks`);
+  }
   if ((op as EditOp).locked !== 'allow') {
     for (const r of refs) {
       if (walk.elements.find((x) => x.id === r.element)?.locked)
         return refuse('locked', `${said(r.element)} is locked · ⇧⌘L unlocks`);
     }
   }
-  let out: { source: string; created?: ElementRef[] };
+  let out: { source: string; created?: ElementRef[]; detail?: Record<string, unknown> };
   try {
     out = (op as EditOp).apply(source, {
       file: rel,
@@ -166,7 +192,9 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);
     throw e;
   }
-  return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps);
+  const res = await commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps);
+  if (res.ok && out.detail && Object.keys(out.detail).length) res.detail = out.detail;
+  return res;
 }
 
 async function commit(

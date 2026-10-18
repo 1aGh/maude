@@ -42,6 +42,8 @@ export type EditOpResult =
       /** the targets as written: same order, every `element` an authored id */
       refs: ElementRef[];
       created?: ElementRef[];
+      /** op-specific facts about the write (S7.6: a split's new clip id, a trim's new length) */
+      detail?: Record<string, unknown>;
     }
   | { ok: false; code: EditOpCode; message: string };
 
@@ -58,7 +60,17 @@ export interface EditOp {
   id: EditOpId;
   /** 'refuse' (default): a locked target refuses the op. 'allow' only for the lock op itself. */
   locked?: 'refuse' | 'allow';
-  apply(source: string, req: ResolvedEditOp): { source: string; created?: ElementRef[] };
+  /**
+   * S7.6 (additive): 'artboard' = the op edits a whole video artboard's comp, addressed by
+   * `params.artboard` (or every artboard of the file when absent) instead of `targets`. Step 5
+   * then also refuses while a live AI run LEASES that artboard (an AI cut), and step 6 while the
+   * artboard is locked. Default 'targets'.
+   */
+  scope?: 'targets' | 'artboard';
+  apply(
+    source: string,
+    req: ResolvedEditOp
+  ): { source: string; created?: ElementRef[]; detail?: Record<string, unknown> };
 }
 
 /** HTTP status per refusal code (contract §2). */
