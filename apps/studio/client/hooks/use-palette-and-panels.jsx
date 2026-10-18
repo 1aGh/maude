@@ -30,6 +30,7 @@ import {
   takeOpenLinks,
 } from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
+import { annotationLayersFor } from '../v2/annotations/annotation-list.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
 import SyncPanel from '../panels/SyncPanel.jsx';
@@ -664,7 +665,9 @@ export function usePaletteAndPanels({
         />
       );
     if (id === 'inspector' || id === 'layers')
-      return (
+      return annotationLayersFor(
+        id,
+        { file: activePath, post: postToActiveCanvas },
         <InspectorPanel
           // Cloud Phase 27 E4 — the parity spec asserts these two panels exist
           // in BOTH shells, so each needs a name a spec can ask for.

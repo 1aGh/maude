@@ -13188,6 +13188,174 @@
     "v2": "new"
   },
   {
+    "hook": "annotation-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The annotation list that replaces the Layers panel body while the canvas is in Preview (S4.17, an-layers).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Annotations N\" - every annotation on the open canvas (sections are containers, not counted); the filter never changes it.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One person chip (Everyone, a name, You, AI); `data-person` is the key, `aria-pressed` the state. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-section",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One section row in the annotation list (twisty + title + count); `data-id` is the section id. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-section-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The count at the end of a section row - the rows the filter lets through. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One annotation row (sticky with colour dot, \"Arrow to Post 1:1\", \"Marker on Post 1:1\"); `data-id` / `data-kind`, `aria-current` when selected. Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-lock",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The lock mark on a locked annotation row (its title is the drag tooltip). Repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Hidden by the filter: Jonas 9 · You 4 · AI 5\" - absent when the filter hides nothing.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list for a canvas with no annotations.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-list-nohits",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list when the filter lets nothing through (annotations exist).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "AnnotationList"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-locked-toolbar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Locked · Unlock ⇧⌘L\" - shown when the whole selection is locked (S4.17; the canvas layer may reuse the component).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "LockedToolbar"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "annotation-locked-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The drag tooltip on a locked annotation: \"Locked — unlock to move it\".",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/annotation-list.jsx",
+      "symbol": "LockedDragTip"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "preview-bar",
     "kind": "testid",
     "pattern": false,
