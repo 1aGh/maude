@@ -26,6 +26,7 @@ import path from 'node:path';
 
 import type { TrashListing } from '../history/trash.ts';
 import { type ActionStageOptions, createActionStage, type StageSummary } from './action-stage.ts';
+import { recordConflicts, recordFromResult } from './conflict-record.ts';
 import type {
   AcceptedLaneLink,
   HeldObjectConflict,
@@ -132,7 +133,12 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       log,
       onPending: opts.onPending,
       onStats: opts.onStats,
-      onResult: opts.onResult,
+      // S9.24 — every final answer, a replay after a restart included (nobody awaits that one):
+      // held object conflicts go to _state/conflicts/ so the card survives (sync/conflict-record.ts).
+      onResult: (result, action) => {
+        recordFromResult(opts.designRoot, result);
+        opts.onResult?.(result, action);
+      },
       retryMs: opts.retryMs,
     });
 
@@ -333,7 +339,15 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
                 ...(p.lane === 'annotations' ? { objects: 'hold' } : {}),
               },
             ],
-          }).then(outcome);
+          }).then((r) => {
+            const o = outcome(r);
+            // S9.24 — the answer's own producer of the card (the onResult one covers a replay).
+            if (o.status === 'accepted' && o.objectConflicts)
+              recordConflicts(opts.designRoot, slug, o.objectConflicts, {
+                ...(o.actionId ? { actionId: o.actionId } : {}),
+              });
+            return o;
+          });
         if (stage.holdsDependency(p.dependsOn)) {
           // Authored on top of an agent's unpublished bytes: it waits behind
           // the stage, and goes out right after the group (or is discarded
