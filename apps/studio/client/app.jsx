@@ -236,6 +236,7 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
+import { noteAiRuns } from './v2/ai/runs-store.js';
 import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
 import {
   CSS_ALIGN_SELF,
@@ -804,6 +805,9 @@ function ShellState({ children }) {
             // surface the native ACP chat sidepanel. Native-only (the panel
             // doesn't exist on the web surface).
             if (isNativeApp()) openRightPanel('assistant');
+          } else if (m.type === 'ai:runs') {
+            // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
+            noteAiRuns(m.seq);
           } else if (m.type === 'ui-open') {
             // V2-2.4b (contract V2-1.11 §5.3) — `maude design open <canvas>[#ab][@el]`: open the
             // tab, then run the same registry actions the UI runs (zoom / select / present).
