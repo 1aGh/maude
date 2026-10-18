@@ -99,6 +99,11 @@ pub struct ProjectEntry {
     /// binding. Absent = the project's own name. A 1.x build ignores the key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    /// S8.23 — the folder "Save to" remembers for this project's exports ON THIS
+    /// MAC (export_save.rs): chosen once through the native save panel, never
+    /// written into the project. Absent = not chosen yet. A 1.x build ignores it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export_folder: Option<String>,
 }
 
 /// S1.22b — the most a tab's display name may be (characters, after `sanitize_title`).
@@ -148,6 +153,26 @@ pub fn set_display_name_in(st: &mut AppState, pid: &str, name: Option<&str>) -> 
         .get_mut(pid)
         .ok_or_else(|| "That project isn't in your list.".to_string())?;
     e.display_name = name.and_then(clean_display_name);
+    Ok(())
+}
+
+/// S8.23 — the folder `pid`'s exports were last saved into on this Mac.
+pub fn export_folder_of(app: &tauri::AppHandle, pid: &str) -> Option<String> {
+    load(app).projects.get(pid).and_then(|e| e.export_folder.clone())
+}
+
+/// S8.23 — remember `dir` as the folder `pid`'s exports go to on this Mac.
+pub fn set_export_folder(app: &tauri::AppHandle, pid: &str, dir: &Path) -> Result<(), String> {
+    update(app, |st, _| set_export_folder_in(st, pid, dir))
+}
+
+/// Pure half of `set_export_folder`. Err for a pid that is not in the registry.
+pub fn set_export_folder_in(st: &mut AppState, pid: &str, dir: &Path) -> Result<(), String> {
+    let e = st
+        .projects
+        .get_mut(pid)
+        .ok_or_else(|| "That project isn't in your list.".to_string())?;
+    e.export_folder = Some(dir.to_string_lossy().into_owned());
     Ok(())
 }
 
@@ -266,6 +291,7 @@ impl AppState {
                 managed: None,
                 bound: false,
                 display_name: None,
+                export_folder: None,
             });
         e.root = root.to_string();
         if e.name.is_empty() {
@@ -633,6 +659,15 @@ pub fn settle_sign_in_app(
     update(app, |st, now| {
         settle_sign_in(st, &registry, root, kind, account, prior_credential, store, now)
     })
+}
+
+/// S6.7: a Home sign-in (no calling project) records `lastSignInProfile` only —
+/// a never-bound project adopts it on its first open; nothing is bound here.
+pub fn set_last_sign_in_profile(app: &tauri::AppHandle, id: &str) {
+    if profiles::validate_id(id).is_err() {
+        return;
+    }
+    update(app, |st, _| st.last_sign_in_profile = Some(id.to_string()));
 }
 
 /// Remember the port the Home server bound (contract §5.5 `homePort`), so the

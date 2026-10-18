@@ -655,6 +655,404 @@ fn move_cloud_credential(src: &Path, dest: &Path, raw: &[u8]) -> Result<(), Stri
     Ok(())
 }
 
+// ── S6.7: Home signs in to Maude Cloud by itself ─────────────────────────────
+//
+// Contract S6-S9-signin-invite-home §5.1, S6-slices Q3. On a first launch there
+// is no project server, so the Home server runs the device flow and writes the
+// `cloud.json` of a profile RUST picks. Three Home-only calls bracket it:
+//
+//   1. `home_cloud_sign_in_prepare({profile?, forInvite?})` → the profile id. A
+//      profile that holds a cloud credential (any account) is never re-signed —
+//      a fresh profile is made instead (V2-3.8). Rust tells the Home server
+//      (internal route, bearer) which profile the next `start` may write.
+//   2. `home_cloud_sign_in_open({userCode, state})` — Rust composes
+//      `<cloud>/activate?code=…&state=…[&invite=…]` itself (the invite is the
+//      prepared one, never the page's) and opens it in the browser. The
+//      `state` becomes the attempt the `maude://auth/{done,cancelled}` nudges
+//      must name (deep_link.rs): single use, `HOME_SIGNIN_TTL`.
+//   3. `home_cloud_signed_in({profile})` — after the Home server stored the
+//      credential: record the account and `lastSignInProfile`, and when that
+//      would re-sign a profile other projects use under another account, move
+//      the credential to a fresh profile (V2-3.8). Returns where it landed.
+//
+// No credential crosses these calls: the page passes ids and the attempt's
+// `state`; the device code and the token stay in the Home process and on disk.
+
+/// How long a Home sign-in attempt stays live — the Home server's own wait
+/// (`expiresIn: 600`); the device code itself lives 15 min.
+pub const HOME_SIGNIN_TTL: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
+/// Sign-in attempts Home may prepare (each may make a profile) / browser opens,
+/// per `SIGNIN_BUDGET_WINDOW`.
+const MAX_SIGNIN_PREPARES: usize = 5;
+const MAX_SIGNIN_OPENS: usize = 5;
+const SIGNIN_BUDGET_WINDOW: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// What a fresh profile made for a Home sign-in is called until the account is
+/// known (`home_cloud_signed_in` relabels it with the e-mail).
+const FRESH_SIGNIN_LABEL: &str = "Maude Cloud";
+
+/// An invite id as the cloud mints it (`^[0-9a-f-]{36}$`, contract §5.1 step 2).
+pub fn valid_invite_id(id: &str) -> bool {
+    id.len() == 36 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f' | b'-'))
+}
+
+/// An attempt's `state`: 16 random bytes as 32 lowercase hex (contract §5.1).
+pub fn valid_signin_state(s: &str) -> bool {
+    s.len() == 32 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// A device-flow user code (`ABCD-1234`, apps/cloud/device-auth.mjs).
+fn valid_user_code(c: &str) -> bool {
+    (1..=16).contains(&c.len())
+        && c.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'-')
+        && c.bytes().any(|b| b != b'-')
+}
+
+/// Where a Home sign-in goes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HomePick {
+    /// This profile (empty, or signed out on its own).
+    Use(String),
+    /// A fresh profile.
+    Fresh,
+}
+
+/// THE rule for which profile a Home sign-in writes (S6.7, V2-3.8 for Home).
+/// `requested`: the profile Home named (`default` when none). `holds_credential`:
+/// its `cloud.json` exists right now. `recorded`: the account last signed in on
+/// it. `bound`: projects bound to it.
+///
+/// - a profile holding a cloud credential is never re-signed — whichever
+///   account the person is about to use, its projects keep theirs ⇒ Fresh;
+/// - for an invite (Home found no profile of the invite's account), only an
+///   untouched profile is used — never one with an account history or projects;
+/// - otherwise the profile is used (a first sign-in, or signing a signed-out
+///   profile in again — `home_cloud_signed_in` still moves the credential off
+///   if the account turns out to be another one under shared projects).
+pub fn home_sign_in_pick(
+    requested: &str,
+    holds_credential: bool,
+    recorded: Option<&str>,
+    bound: usize,
+    for_invite: bool,
+) -> HomePick {
+    if holds_credential || (for_invite && (recorded.is_some() || bound > 0)) {
+        return HomePick::Fresh;
+    }
+    HomePick::Use(requested.to_string())
+}
+
+/// A sliding-window count of attempts (the sign-in rate limit).
+#[derive(Debug, Default)]
+pub(crate) struct Budget(std::collections::VecDeque<std::time::Instant>);
+
+impl Budget {
+    pub(crate) const fn new() -> Self {
+        Budget(std::collections::VecDeque::new())
+    }
+
+    /// Records one at `now`; false once `max` are inside `window`.
+    pub(crate) fn allow(&mut self, max: usize, window: std::time::Duration, now: std::time::Instant) -> bool {
+        while self.0.front().is_some_and(|&t| now.duration_since(t) >= window) {
+            self.0.pop_front();
+        }
+        if self.0.len() >= max {
+            return false;
+        }
+        self.0.push_back(now);
+        true
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct HomePrepared {
+    pub profile: String,
+    /// Made by this prepare — relabelled with the e-mail once signed in, and
+    /// reused by the next prepare while it is still untouched.
+    pub fresh: bool,
+    pub invite: Option<String>,
+    pub at: std::time::Instant,
+}
+
+#[derive(Clone, Debug)]
+struct Attempt {
+    state: String,
+    at: std::time::Instant,
+    /// A `done` / `cancelled` nudge already used it.
+    spent: bool,
+}
+
+/// Home's one sign-in in flight: the prepared profile and the attempt `state`.
+#[derive(Debug, Default)]
+pub(crate) struct HomeSignInBook {
+    prepared: Option<HomePrepared>,
+    attempt: Option<Attempt>,
+    prepares: Budget,
+    opens: Budget,
+}
+
+const TOO_MANY: &str = "Too many sign-in attempts. Wait a minute and try again.";
+const AGAIN: &str = "Start the Maude Cloud sign-in again.";
+
+impl HomeSignInBook {
+    /// The rate limit of `home_cloud_sign_in_prepare`.
+    pub(crate) fn may_prepare(&mut self, now: std::time::Instant) -> Result<(), String> {
+        if self
+            .prepares
+            .allow(MAX_SIGNIN_PREPARES, SIGNIN_BUDGET_WINDOW, now)
+        {
+            Ok(())
+        } else {
+            Err(TOO_MANY.to_string())
+        }
+    }
+
+    /// The fresh profile an earlier prepare made, if that attempt never finished.
+    pub(crate) fn unfinished_fresh(&self) -> Option<String> {
+        self.prepared
+            .as_ref()
+            .filter(|p| p.fresh)
+            .map(|p| p.profile.clone())
+    }
+
+    /// A new attempt: replaces any earlier one (a second start cancels the first).
+    pub(crate) fn prepare(&mut self, p: HomePrepared) {
+        self.prepared = Some(p);
+        self.attempt = None;
+    }
+
+    fn live(&self, now: std::time::Instant) -> Option<&HomePrepared> {
+        self.prepared
+            .as_ref()
+            .filter(|p| now.duration_since(p.at) <= HOME_SIGNIN_TTL)
+    }
+
+    /// The browser is opened for `state`: only inside a live prepare. The same
+    /// state again ("Open the page again") keeps its clock; a spent one is
+    /// refused; another state starts a new attempt. Returns the prepared invite.
+    pub(crate) fn open(&mut self, state: &str, now: std::time::Instant) -> Result<Option<String>, String> {
+        if !valid_signin_state(state) {
+            return Err(AGAIN.to_string());
+        }
+        let invite = self.live(now).ok_or_else(|| AGAIN.to_string())?.invite.clone();
+        match &self.attempt {
+            Some(a) if a.state == state && a.spent => return Err(AGAIN.to_string()),
+            Some(a) if a.state == state && now.duration_since(a.at) > HOME_SIGNIN_TTL => {
+                return Err(AGAIN.to_string())
+            }
+            _ => {}
+        }
+        if !self.opens.allow(MAX_SIGNIN_OPENS, SIGNIN_BUDGET_WINDOW, now) {
+            return Err(TOO_MANY.to_string());
+        }
+        if self.attempt.as_ref().is_none_or(|a| a.state != state) {
+            self.attempt = Some(Attempt {
+                state: state.to_string(),
+                at: now,
+                spent: false,
+            });
+        }
+        Ok(invite)
+    }
+
+    /// A `maude://auth/{done,cancelled}?state=` nudge: true only for the live
+    /// attempt's own state, once. Anything else — a forged, an old, a replayed
+    /// or an expired state — is false, and the link is dropped.
+    pub(crate) fn nudge(&mut self, state: &str, now: std::time::Instant) -> bool {
+        match self.attempt.as_mut() {
+            Some(a) if !a.spent && a.state == state && now.duration_since(a.at) <= HOME_SIGNIN_TTL => {
+                a.spent = true;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// `home_cloud_signed_in`: the prepare for exactly `profile`, in time, once.
+    pub(crate) fn finish(&mut self, profile: &str, now: std::time::Instant) -> Result<HomePrepared, String> {
+        let p = self.prepared.take().ok_or_else(|| AGAIN.to_string())?;
+        self.attempt = None;
+        if p.profile != profile || now.duration_since(p.at) > HOME_SIGNIN_TTL {
+            return Err(AGAIN.to_string());
+        }
+        Ok(p)
+    }
+}
+
+static HOME_SIGNIN: std::sync::Mutex<Option<HomeSignInBook>> = std::sync::Mutex::new(None);
+
+pub(crate) fn with_home_signin<T>(f: impl FnOnce(&mut HomeSignInBook) -> T) -> T {
+    let mut g = HOME_SIGNIN.lock().unwrap_or_else(|e| e.into_inner());
+    f(g.get_or_insert_with(HomeSignInBook::default))
+}
+
+/// deep_link.rs: may this `maude://auth/*?state=` reach Home? (Consumes it.)
+pub fn home_auth_nudge(state: &str) -> bool {
+    with_home_signin(|b| b.nudge(state, std::time::Instant::now()))
+}
+
+/// The device-activation page for an attempt, composed from validated parts
+/// only (never the page's URL): `<cloud origin>/activate?code=…&state=…
+/// [&invite=…]`. Every byte is in `[A-Za-z0-9:/.?=&-]` plus the origin's own,
+/// which `oauth::cloud_base` already vetted — no `%`, quote or space can reach
+/// the OS launcher (on Windows `cmd /c start "" "<url>"` keeps `&` literal
+/// inside the quotes; `%` and `"` are what it would expand).
+pub fn sign_in_url(base: &reqwest::Url, user_code: &str, state: &str, invite: Option<&str>) -> Option<String> {
+    if !matches!(base.scheme(), "http" | "https") || !valid_user_code(user_code) || !valid_signin_state(state) {
+        return None;
+    }
+    if invite.is_some_and(|i| !valid_invite_id(i)) {
+        return None;
+    }
+    let origin = base.origin().ascii_serialization();
+    let mut url = format!("{origin}/activate?code={user_code}&state={state}");
+    if let Some(i) = invite {
+        url.push_str("&invite=");
+        url.push_str(i);
+    }
+    let safe = url
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b':' | b'/' | b'.' | b'?' | b'=' | b'&' | b'-' | b'[' | b']'));
+    safe.then_some(url)
+}
+
+/// Rename profile `id` (Home's fresh sign-in profile, once its account is known).
+pub(crate) fn set_label_in(file: &Path, id: &str, label: &str) {
+    let Ok(label) = clean_label(label) else { return };
+    let _guard = REGISTRY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = load_registry(file);
+    if let Some(p) = reg.profiles.iter_mut().find(|p| p.id == id) {
+        p.label = label;
+        let _ = save_registry(file, &reg);
+    }
+}
+
+/// Pure-ish half of `home_cloud_signed_in` (registry file passed in, `store`
+/// injected): the V2-3.8 decision on the account's e-mail, with no project to
+/// bind. The credential is stored in the target profile's own dir FIRST; only
+/// then is the account recorded. Returns the profile the credential is in.
+pub(crate) fn settle_home_sign_in(
+    registry: &Path,
+    prepared: &HomePrepared,
+    account: &str,
+    bound: usize,
+    store: impl FnOnce(&str) -> Result<(), String>,
+) -> Result<String, String> {
+    let recorded = recorded_account_in(registry, &prepared.profile, SignInKind::Cloud);
+    let target = match sign_in_target(false, recorded.as_deref(), bound, account) {
+        SignInTarget::Keep => prepared.profile.clone(),
+        SignInTarget::NewProfile => create_capped_in(registry, account)?.id,
+    };
+    store(&target)?;
+    if prepared.fresh && target == prepared.profile {
+        set_label_in(registry, &target, account);
+    }
+    set_account_in(registry, &target, SignInKind::Cloud, account);
+    Ok(target)
+}
+
+/// `home_cloud_sign_in_prepare({profile?, forInvite?})` — Home only. Picks the
+/// profile the Home server's next sign-in may write (`home_sign_in_pick`) and
+/// tells the Home server so; returns its id. Rate-limited.
+#[tauri::command]
+pub async fn home_cloud_sign_in_prepare(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    profile: Option<String>,
+    for_invite: Option<String>,
+) -> Result<String, String> {
+    crate::home::caller_home(&webview, false)?;
+    if for_invite.as_deref().is_some_and(|i| !valid_invite_id(i)) {
+        return Err("That invitation link is not valid.".to_string());
+    }
+    let requested = profile.unwrap_or_else(default_id);
+    validate_id(&requested)?;
+    let registry = registry_file();
+    if !list_in(&registry).iter().any(|p| p.id == requested) {
+        return Err("That account profile doesn't exist.".to_string());
+    }
+    let now = std::time::Instant::now();
+    with_home_signin(|b| b.may_prepare(now))?;
+    let st = crate::app_state::load(&app);
+    let bound_to = |id: &str| st.others_on_profile(id, "");
+    let untouched = |id: &str| {
+        paths(id).is_ok_and(|p| !p.cloud_config.exists())
+            && recorded_account_in(&registry, id, SignInKind::Cloud).is_none()
+            && bound_to(id) == 0
+    };
+    let pick = home_sign_in_pick(
+        &requested,
+        paths(&requested)?.cloud_config.exists(),
+        recorded_account_in(&registry, &requested, SignInKind::Cloud).as_deref(),
+        bound_to(&requested),
+        for_invite.is_some(),
+    );
+    let (id, fresh) = match pick {
+        HomePick::Use(id) => (id, false),
+        HomePick::Fresh => match with_home_signin(|b| b.unfinished_fresh()).filter(|id| exists(id) && untouched(id)) {
+            // An earlier attempt's fresh profile, still untouched: no second one.
+            Some(id) => (id, true),
+            None => (create_capped_in(&registry, FRESH_SIGNIN_LABEL)?.id, true),
+        },
+    };
+    crate::home::register_sign_in_profile(&app, &id, for_invite.as_deref()).await?;
+    with_home_signin(|b| {
+        b.prepare(HomePrepared {
+            profile: id.clone(),
+            fresh,
+            invite: for_invite,
+            at: now,
+        })
+    });
+    Ok(id)
+}
+
+/// `home_cloud_sign_in_open({userCode, state})` — Home only. Opens the device
+/// page of the prepared attempt in the browser; `state` becomes the attempt the
+/// `maude://auth/*` nudges must name.
+#[tauri::command]
+pub async fn home_cloud_sign_in_open(
+    webview: tauri::Webview,
+    user_code: String,
+    state: String,
+) -> Result<(), String> {
+    crate::home::caller_home(&webview, false)?;
+    let invite = with_home_signin(|b| b.open(&state, std::time::Instant::now()))?;
+    let url = sign_in_url(&crate::oauth::cloud_base(), &user_code, &state, invite.as_deref())
+        .ok_or_else(|| "Refusing to open that sign-in page.".to_string())?;
+    // Off the UI thread (a Linux launcher can wait for the browser) — as open_cloud_url.
+    tauri::async_runtime::spawn_blocking(move || open::that(url))
+        .await
+        .map_err(|e| format!("Couldn't launch the browser task: {e}"))?
+        .map_err(|e| format!("Couldn't open the browser: {e}"))
+}
+
+/// `home_cloud_signed_in({profile})` — Home only, after the Home server stored
+/// a credential in the prepared profile's `cloud.json`. Records the account
+/// and `lastSignInProfile`, tells Home (`shell://state`), and returns the
+/// profile the credential ended in.
+#[tauri::command]
+pub async fn home_cloud_signed_in(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    profile: String,
+) -> Result<String, String> {
+    crate::home::caller_home(&webview, false)?;
+    validate_id(&profile)?;
+    let prepared = with_home_signin(|b| b.finish(&profile, std::time::Instant::now()))?;
+    let src = paths(&profile)?.cloud_config;
+    let raw = std::fs::read(&src).map_err(|_| "Maude Cloud sign-in didn't finish.".to_string())?;
+    let email = cloud_email_of(&raw).unwrap_or_else(|| "Maude Cloud".to_string());
+    let bound = crate::app_state::load(&app).others_on_profile(&profile, "");
+    let target = settle_home_sign_in(&registry_file(), &prepared, &email, bound, |t| {
+        move_cloud_credential(&src, &paths(t)?.cloud_config, &raw)
+    })?;
+    crate::app_state::set_last_sign_in_profile(&app, &target);
+    crate::home::state_changed(&app);
+    Ok(target)
+}
+
 // ── S1.22b: the accounts on this Mac, for the account card by the faces ──────
 
 /// The projects of an account, as far as the calling tab may know them: the
@@ -818,6 +1216,189 @@ mod tests {
         b.prepare("p-a", "/a", "default", t0);
         b.forget("p-a");
         assert!(b.take("p-a", "/a", "default", t0).is_err());
+    }
+
+    /// S6.7: which profile a Home sign-in writes. Home cannot pick a profile that
+    /// holds an account without getting a fresh one; an invite never lands on a
+    /// profile with an account history or projects.
+    #[test]
+    fn home_signin_profile_rules() {
+        use HomePick::{Fresh, Use};
+        // First launch: nothing anywhere ⇒ default.
+        assert_eq!(home_sign_in_pick("default", false, None, 0, false), Use("default".into()));
+        // A profile holding a credential — whichever account — is never re-signed.
+        assert_eq!(home_sign_in_pick("default", true, Some("a@x.cz"), 0, false), Fresh);
+        assert_eq!(home_sign_in_pick("work", true, None, 3, false), Fresh);
+        assert_eq!(home_sign_in_pick("work", true, Some("a@x.cz"), 0, true), Fresh);
+        // Signing a signed-out profile in again: kept (settle decides on the e-mail).
+        assert_eq!(home_sign_in_pick("work", false, Some("a@x.cz"), 2, false), Use("work".into()));
+        // An invite: only an untouched profile.
+        assert_eq!(home_sign_in_pick("default", false, None, 0, true), Use("default".into()));
+        assert_eq!(home_sign_in_pick("default", false, Some("a@x.cz"), 0, true), Fresh);
+        assert_eq!(home_sign_in_pick("default", false, None, 1, true), Fresh);
+        // Ids from the page are ids: never a path.
+        assert!(valid_invite_id("0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab"));
+        for bad in [
+            "",
+            "0B6F3D4E-1C2A-4B5D-8E9F-0123456789AB",
+            "0b6f3d4e-1c2a-4b5d-8e9f-0123456789a",
+            "0b6f3d4e-1c2a-4b5d-8e9f-0123456789abc",
+            "../../../../../../../../../../../etc",
+            "0b6f3d4e-1c2a-4b5d-8e9f-0123456789a?",
+        ] {
+            assert!(!valid_invite_id(bad), "{bad:?}");
+        }
+    }
+
+    /// S6.7: the attempt book — a nudge counts only for the live attempt's own
+    /// state, once, in time; signed_in needs this exact prepare; the browser
+    /// opens only inside a prepare; prepares and opens are rate-limited.
+    #[test]
+    fn home_signin_state_is_single_use_with_a_ttl() {
+        let t0 = std::time::Instant::now();
+        let s = "0123456789abcdef0123456789abcdef";
+        let other = "fedcba9876543210fedcba9876543210";
+        let prep = |profile: &str, invite: Option<&str>| HomePrepared {
+            profile: profile.into(),
+            fresh: false,
+            invite: invite.map(str::to_string),
+            at: t0,
+        };
+        let mut b = HomeSignInBook::default();
+        // No prepare: no browser, no nudge, no signed_in.
+        assert!(b.open(s, t0).is_err());
+        assert!(!b.nudge(s, t0));
+        assert!(b.finish("default", t0).is_err());
+        b.prepare(prep("default", Some("0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab")));
+        // A malformed state never becomes an attempt.
+        assert!(b.open("0123456789ABCDEF0123456789ABCDEF", t0).is_err());
+        assert!(b.open("xyz", t0).is_err());
+        // The open hands back the PREPARED invite (the page never names one).
+        assert_eq!(
+            b.open(s, t0).unwrap().as_deref(),
+            Some("0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab")
+        );
+        // A forged nudge (another state) is dropped and spends nothing.
+        assert!(!b.nudge(other, t0));
+        // "Open the page again" keeps the attempt.
+        assert!(b.open(s, t0 + std::time::Duration::from_secs(1)).is_ok());
+        assert!(b.nudge(s, t0), "the attempt's own state, once");
+        assert!(!b.nudge(s, t0), "a replayed nudge is dropped");
+        assert!(b.open(s, t0).is_err(), "a spent state is not reopened");
+        // signed_in: only for the prepared profile, once.
+        assert!(b.finish("work", t0).is_err());
+        assert!(b.finish("default", t0).is_err(), "a mismatched finish consumes it");
+        b.prepare(prep("work", None));
+        assert!(b.open(s, t0).unwrap().is_none());
+        assert_eq!(b.finish("work", t0).unwrap().profile, "work");
+        assert!(b.finish("work", t0).is_err(), "one-shot");
+        assert!(!b.nudge(s, t0), "finishing ends the attempt");
+        // Expired: the attempt and the prepare.
+        let late = t0 + HOME_SIGNIN_TTL + std::time::Duration::from_secs(1);
+        let mut b = HomeSignInBook::default();
+        b.prepare(prep("default", None));
+        b.open(s, t0).unwrap();
+        assert!(!b.nudge(s, late));
+        assert!(b.open(other, late).is_err());
+        assert!(b.finish("default", late).is_err());
+        // A new prepare cancels the attempt before it.
+        let mut b = HomeSignInBook::default();
+        b.prepare(prep("default", None));
+        b.open(s, t0).unwrap();
+        b.prepare(prep("default", None));
+        assert!(!b.nudge(s, t0), "the old attempt's state is dead");
+        // Rate limits.
+        let mut b = HomeSignInBook::default();
+        for i in 0..MAX_SIGNIN_PREPARES {
+            assert!(b.may_prepare(t0 + std::time::Duration::from_millis(i as u64)).is_ok());
+        }
+        assert!(b.may_prepare(t0 + std::time::Duration::from_secs(1)).is_err());
+        assert!(b.may_prepare(t0 + SIGNIN_BUDGET_WINDOW).is_ok(), "the window refills");
+        b.prepare(prep("default", None));
+        for _ in 0..MAX_SIGNIN_OPENS {
+            assert!(b.open(s, t0).is_ok());
+        }
+        assert!(b.open(s, t0).is_err(), "opens are capped");
+    }
+
+    /// S6.7: the activation URL is composed from vetted parts only.
+    #[test]
+    fn home_signin_url_is_composed_not_passed() {
+        let base = reqwest::Url::parse("https://cloud.maude.sh/some/path").unwrap();
+        let s = "0123456789abcdef0123456789abcdef";
+        assert_eq!(
+            sign_in_url(&base, "ABCD-1234", s, None).as_deref(),
+            Some("https://cloud.maude.sh/activate?code=ABCD-1234&state=0123456789abcdef0123456789abcdef")
+        );
+        assert_eq!(
+            sign_in_url(&base, "ABCD-1234", s, Some("0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab")).as_deref(),
+            Some("https://cloud.maude.sh/activate?code=ABCD-1234&state=0123456789abcdef0123456789abcdef&invite=0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab")
+        );
+        let local = reqwest::Url::parse("http://127.0.0.1:8788").unwrap();
+        assert!(sign_in_url(&local, "ABCD-1234", s, None).unwrap().starts_with("http://127.0.0.1:8788/activate?"));
+        for code in ["", "abcd-1234", "AB CD", "AB%41", "AB&x=1", "----", &"A".repeat(17)] {
+            assert_eq!(sign_in_url(&base, code, s, None), None, "{code:?}");
+        }
+        assert_eq!(sign_in_url(&base, "ABCD", "0123", None), None);
+        assert_eq!(sign_in_url(&base, "ABCD", s, Some("x@y.cz")), None);
+        let file = reqwest::Url::parse("file:///etc/passwd").unwrap();
+        assert_eq!(sign_in_url(&file, "ABCD", s, None), None);
+    }
+
+    /// S6.7: after a Home sign-in the credential sits in ITS profile's own dir;
+    /// another account on a shared profile moves to a fresh profile; a fresh
+    /// profile takes the e-mail as its name.
+    #[test]
+    fn home_signed_in_settles_into_the_profiles_own_dir() {
+        let dir = tmp("homesettle");
+        let registry = dir.join("profiles.json");
+        let home = dir.join("home");
+        let path_of = |id: &str| paths_in(id, &dir, &home).unwrap().cloud_config;
+        let t0 = std::time::Instant::now();
+        // A first sign-in on default.
+        let first = HomePrepared {
+            profile: "default".into(),
+            fresh: false,
+            invite: None,
+            at: t0,
+        };
+        let mut wrote = Vec::new();
+        let got = settle_home_sign_in(&registry, &first, "a@x.cz", 0, |t| {
+            wrote.push(path_of(t));
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(got, "default");
+        assert_eq!(recorded_account_in(&registry, "default", SignInKind::Cloud).as_deref(), Some("a@x.cz"));
+        // The same account again on default (a re-sign-in): kept.
+        assert_eq!(settle_home_sign_in(&registry, &first, "A@x.cz", 4, |_| Ok(())).unwrap(), "default");
+        // Another account on default while 2 projects use it: a NEW profile.
+        let got = settle_home_sign_in(&registry, &first, "b@y.cz", 2, |t| {
+            wrote.push(path_of(t));
+            Ok(())
+        })
+        .unwrap();
+        assert_ne!(got, "default");
+        assert_eq!(recorded_account_in(&registry, "default", SignInKind::Cloud).as_deref(), Some("A@x.cz"));
+        assert_eq!(recorded_account_in(&registry, &got, SignInKind::Cloud).as_deref(), Some("b@y.cz"));
+        // A fresh prepare profile takes the e-mail as its label.
+        let fresh = create_capped_in(&registry, FRESH_SIGNIN_LABEL).unwrap();
+        let p = HomePrepared {
+            profile: fresh.id.clone(),
+            fresh: true,
+            invite: None,
+            at: t0,
+        };
+        assert_eq!(settle_home_sign_in(&registry, &p, "c@z.cz", 0, |_| Ok(())).unwrap(), fresh.id);
+        assert_eq!(list_in(&registry).iter().find(|x| x.id == fresh.id).unwrap().label, "c@z.cz");
+        // Every write was the target profile's own cloud.json.
+        assert_eq!(wrote[0], home.join(".config/maude/cloud.json"));
+        assert_eq!(wrote[1], dir.join("profiles").join(&got).join("cloud.json"));
+        // A failed store records nothing.
+        let before = list_in(&registry);
+        assert!(settle_home_sign_in(&registry, &p, "d@z.cz", 0, |_| Err("disk".into())).is_err());
+        assert_eq!(list_in(&registry), before);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     fn tmp(tag: &str) -> PathBuf {

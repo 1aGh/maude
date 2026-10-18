@@ -34,6 +34,9 @@ import {
  *     Show Home activates the pinned Home.
  *  8. File ▸ New Project… on Home opens Home's create sheet, and the new project opens as the
  *     active tab (it did nothing before V2-3.9).
+ *  9. S6.7: a sign-in nudge with a state no attempt owns, and a malformed invite link, reach
+ *     nobody (the project tab in front stays in front); a well-formed `maude://invite/<id>`
+ *     fired while a project tab is in front brings Home forward, parked for Home only.
  *
  * Fixtures: wdio.home.conf.ts → fixtures/seed-home-index.ts.
  */
@@ -396,5 +399,32 @@ export default function C() {
       timeoutMsg: `the new project is not the last strip tab: ${JSON.stringify((await strip()).tabs)}`,
     });
     await capture('08-new-project-from-home');
+  });
+
+  it('9 · an invite link lands on Home, never the project in front; a forged sign-in nudge reaches nobody', async () => {
+    const id = '0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab';
+    // `e2e_route_deep_link` runs the link through the real routing (deep_link.rs route_now).
+    const route = (url: string) => tryInvoke('e2e_route_deep_link', { url });
+    await onServer(label(BETA));
+    expect(await activeTab()).toBe(label(BETA));
+    // No sign-in attempt is live, so this state is nobody's: dropped, no Home focus.
+    expect((await route(`maude://auth/done?state=${'f'.repeat(32)}`)).err).toBeUndefined();
+    // A malformed invite (and one that tries to carry an address) is dropped too.
+    expect((await route('maude://invite/not-an-id?email=you@work-studio.cz')).err).toBeUndefined();
+    await browser.pause(750);
+    expect(await activeTab()).toBe(label(BETA));
+    // A well-formed invite while BETA is in front: Home comes forward.
+    expect((await route(`maude://invite/${id}`)).err).toBeUndefined();
+    await homeStaysAnd(HOME);
+    // A project page cannot take it (no grant, and the command is Home-only).
+    await browser.switchToWindow(label(BETA));
+    expect((await tryInvoke('take_pending_invite')).err).toBeTruthy();
+    // Home can, once (S6.11's invite flow may already have taken it on `invite://open`).
+    await onHome();
+    const first = await tryInvoke('take_pending_invite');
+    expect(first.err).toBeUndefined();
+    expect([id, null]).toContain(first.ok);
+    expect((await tryInvoke('take_pending_invite')).ok).toBeNull();
+    await capture('09-invite-link-on-home');
   });
 });

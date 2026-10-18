@@ -65,6 +65,148 @@ impl PendingDeepLink {
 /// `drop_parked_for` can clear it without an `AppHandle`).
 pub static PENDING_LINKS: PendingDeepLink = PendingDeepLink::new();
 
+// ── S6.7: the sign-in nudges and the invite link (contract S6-S9 §5.1 step 8) ──
+//
+// `maude://auth/done?state=<s>` / `maude://auth/cancelled?state=<s>` are rendered
+// by the cloud's device page for Home's own sign-in. Any web page can fire them,
+// so they carry NOTHING but the attempt's `state` and are only nudges: Rust
+// passes one to Home (`auth://return {kind, state}`) only when `state` is the
+// live attempt's (`profiles::home_auth_nudge` — single use, TTL); a forged, an
+// old, a replayed or a malformed one is dropped silently (no Home focus, no
+// note). `maude://invite/<id>` goes to Home only — never a project window — and
+// is parked for it (`take_pending_invite`): Home peeks it and decides which
+// profile opens it (S6.11). Neither kind ever carries an e-mail, a token or a
+// project name, and neither opens a project by itself.
+
+/// The longest auth / invite link the shell reads (both are fixed-size).
+const MAX_SPECIAL_LINK: usize = 128;
+
+/// The invite id parked for Home (one slot; a newer link replaces it).
+pub static PENDING_INVITES: crate::windows::Parked<String> = crate::windows::Parked::new();
+
+/// Invite links that may bring Home to the front per `LINK_OPEN_WINDOW`
+/// (any page can fire one; past the budget they are dropped).
+const MAX_INVITE_LINKS: usize = 5;
+static INVITE_LINKS: Mutex<crate::profiles::Budget> = Mutex::new(crate::profiles::Budget::new());
+
+/// Which sign-in nudge a link is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthKind {
+    Done,
+    Cancelled,
+}
+
+/// A `maude://` link the shell handles itself rather than routing to a project.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Special {
+    /// `maude://auth/{done,cancelled}?state=<32 lowercase hex>`.
+    Auth { kind: AuthKind, state: String },
+    /// `maude://invite/<36 chars of [0-9a-f-]>` (one trailing `/` tolerated).
+    Invite(String),
+    /// An `auth` / `invite` link of any other shape — dropped, never shown.
+    Malformed,
+    /// Not one of these: the V2-3.5 routing (`plan_route`).
+    No,
+}
+
+/// Classify a link. The grammar is matched on the RAW string, not a parsed URL,
+/// so no percent-decoding, case folding or normalisation can turn a junk link
+/// into a valid one: the host must be exactly `auth` / `invite` in lowercase
+/// (any other casing of those names is Malformed), with no query besides the
+/// one `state`, no fragment, no userinfo, no port.
+pub fn special_link(url: &str) -> Special {
+    let Some(rest) = url.strip_prefix("maude://") else {
+        return Special::No;
+    };
+    let host_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    let host = &rest[..host_end];
+    let is = |name: &str| host.eq_ignore_ascii_case(name);
+    if !is("auth") && !is("invite") {
+        return Special::No;
+    }
+    if url.len() > MAX_SPECIAL_LINK || host.bytes().any(|b| b.is_ascii_uppercase()) {
+        return Special::Malformed;
+    }
+    let tail = &rest[host_end..];
+    if host == "auth" {
+        let parsed = tail
+            .strip_prefix("/done?state=")
+            .map(|s| (AuthKind::Done, s))
+            .or_else(|| tail.strip_prefix("/cancelled?state=").map(|s| (AuthKind::Cancelled, s)));
+        return match parsed {
+            Some((kind, state)) if crate::profiles::valid_signin_state(state) => Special::Auth {
+                kind,
+                state: state.to_string(),
+            },
+            _ => Special::Malformed,
+        };
+    }
+    let id = tail.strip_prefix('/').map(|t| t.strip_suffix('/').unwrap_or(t));
+    match id {
+        Some(id) if crate::profiles::valid_invite_id(id) => Special::Invite(id.to_string()),
+        _ => Special::Malformed,
+    }
+}
+
+/// Where a special link ends: Home, or nowhere. Pure, so "never a project
+/// window" is a test. `nudge`: the attempt book's verdict on an auth state.
+pub fn special_label(s: &Special, nudge: impl FnOnce(&str) -> bool) -> Option<&'static str> {
+    match s {
+        Special::Auth { state, .. } => nudge(state).then_some(HOME_LABEL),
+        Special::Invite(_) => Some(HOME_LABEL),
+        Special::Malformed | Special::No => None,
+    }
+}
+
+/// Deliver a special link (Home only). Returns false for `Special::No`, which
+/// the caller routes as before.
+fn deliver_special(app: &AppHandle, url: &str) -> bool {
+    let special = special_link(url);
+    if special == Special::No {
+        return false;
+    }
+    let invite_ok = || {
+        INVITE_LINKS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .allow(MAX_INVITE_LINKS, LINK_OPEN_WINDOW, Instant::now())
+    };
+    let label = match &special {
+        Special::Invite(_) if !invite_ok() => None,
+        s => special_label(s, crate::profiles::home_auth_nudge),
+    };
+    let Some(label) = label else {
+        // Silently: no Home focus, no note — the person did nothing here.
+        crate::sidecar::log_line("[maude] deep link: dropped an auth/invite link");
+        return true;
+    };
+    if let Err(e) = crate::home::ensure_home_window(app, None) {
+        crate::sidecar::log_line(&format!("[maude] deep link: could not open Home: {e}"));
+    }
+    match special {
+        Special::Auth { kind, state } => {
+            crate::bus::send(label, "auth://return", serde_json::json!({ "kind": kind, "state": state }));
+        }
+        Special::Invite(id) => {
+            PENDING_INVITES.park(label, id.clone());
+            crate::bus::send(label, "invite://open", serde_json::json!({ "id": id }));
+        }
+        Special::Malformed | Special::No => {}
+    }
+    crate::sidecar::log_line(&format!("[maude] deep link routed to {label}"));
+    true
+}
+
+/// `take_pending_invite()` — Home only: the invite id a `maude://invite/<id>`
+/// link parked for Home (the link that launched the app, or one Home missed),
+/// once. A project window never reads it.
+#[tauri::command]
+pub fn take_pending_invite(webview: tauri::Webview) -> Result<Option<String>, String> {
+    crate::home::caller_home(&webview, false)?;
+    Ok(PENDING_INVITES.take(HOME_LABEL))
+}
+
 /// What a `maude://` link names, as far as ROUTING needs to know. The client
 /// re-validates the whole link (`parseDeepLink` / `parseFileDeepLink`).
 #[derive(Clone, Debug, PartialEq)]
@@ -212,6 +354,7 @@ pub fn parse_link(url: &str) -> Option<LinkAddress> {
             crate::windows::validate_target(crate::windows::OpenTarget {
                 canvas: None,
                 artboard: Some(a.to_string()),
+                thread: None,
             })
             .ok()
             .and_then(|t| t.artboard)
@@ -355,6 +498,11 @@ pub fn take_link_opened(webview: tauri::Webview) -> Result<Option<LinkOpened>, S
 }
 
 fn route_now(app: &AppHandle, url: &str) {
+    // S6.7: sign-in nudges and invites go to Home or nowhere — before any
+    // project resolution, so neither can reach (or open) a project window.
+    if deliver_special(app, url) {
+        return;
+    }
     let st = crate::app_state::load(app);
     let legacy = crate::managed::bound_copies(app);
     let mut route = plan_route(
@@ -402,6 +550,7 @@ fn route_now(app: &AppHandle, url: &str) {
                 Some(&crate::windows::OpenTarget {
                     canvas: address.canvas.clone(),
                     artboard: address.artboard.clone(),
+                    thread: None,
                 }),
             );
             o.label().to_string()
@@ -414,6 +563,7 @@ fn route_now(app: &AppHandle, url: &str) {
                 crate::windows::OpenTarget {
                     canvas: address.canvas.clone(),
                     artboard: address.artboard.clone(),
+                    thread: None,
                 }
             }),
         ),
@@ -475,9 +625,138 @@ pub fn e2e_deliver_deep_link(webview: tauri::Webview, url: String) -> Result<(),
     }
 }
 
+/// Debug-only e2e helper (S6.7): run a `maude://` link through the REAL routing
+/// (`route_now`) as if the OS had delivered it — unlike `e2e_deliver_deep_link`,
+/// which hands it to the calling window. Lets a scenario prove that an invite
+/// fired while a project tab is in front lands on Home, and that a forged
+/// sign-in nudge reaches nobody. Granted only by
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub fn e2e_route_deep_link(app: AppHandle, webview: tauri::Webview, url: String) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    {
+        crate::windows::caller_any(&webview, false)?;
+        if !url.starts_with("maude://") {
+            return Err("not a maude:// link".into());
+        }
+        route_now(&app, &url);
+        Ok(())
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, webview, url);
+        Err("debug builds only".into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const STATE: &str = "0123456789abcdef0123456789abcdef";
+
+    /// S6.7 (contract S6-S9 §5.1 step 8, §5.6): the sign-in nudges carry the
+    /// state only, in one exact shape; anything else is dropped, never shown.
+    /// A forged / replayed / stale state reaches nobody; the live one reaches
+    /// Home once.
+    #[test]
+    fn deep_link_auth_state() {
+        assert_eq!(
+            special_link(&format!("maude://auth/done?state={STATE}")),
+            Special::Auth { kind: AuthKind::Done, state: STATE.into() }
+        );
+        assert_eq!(
+            special_link(&format!("maude://auth/cancelled?state={STATE}")),
+            Special::Auth { kind: AuthKind::Cancelled, state: STATE.into() }
+        );
+        let long = format!("maude://auth/done?state={STATE}{}", "0".repeat(200));
+        for bad in [
+            "maude://auth",
+            "maude://auth/",
+            "maude://auth/done",
+            "maude://auth/done?state=",
+            "maude://auth/done?state=0123456789ABCDEF0123456789ABCDEF",
+            "maude://auth/done?state=0123456789abcdef0123456789abcde",
+            "maude://auth/done?state=0123456789abcdef0123456789abcdef0",
+            "maude://auth/done?state=%30123456789abcdef0123456789abcde",
+            "maude://auth/done?state=0123456789abcdef0123456789abcdef&token=mpt_x",
+            "maude://auth/done?email=a@b.cz&state=0123456789abcdef0123456789abcdef",
+            "maude://auth/done?state=0123456789abcdef0123456789abcdef#x",
+            "maude://auth/done/?state=0123456789abcdef0123456789abcdef",
+            "maude://auth/signed-in?state=0123456789abcdef0123456789abcdef",
+            "maude://AUTH/done?state=0123456789abcdef0123456789abcdef",
+            "maude://auth/Done?state=0123456789abcdef0123456789abcdef",
+            "maude://auth/done?State=0123456789abcdef0123456789abcdef",
+            &long,
+        ] {
+            assert_eq!(special_link(bad), Special::Malformed, "{bad}");
+            assert_eq!(special_label(&special_link(bad), |_| panic!("no nudge for {bad}")), None);
+        }
+        // The attempt book decides: a forged state reaches nobody.
+        let forged = special_link(&format!("maude://auth/done?state={}", "f".repeat(32)));
+        assert_eq!(special_label(&forged, |_| false), None);
+        let live = special_link(&format!("maude://auth/cancelled?state={STATE}"));
+        assert_eq!(special_label(&live, |s| s == STATE), Some(HOME_LABEL));
+        // Through the real book: once, and only after Home opened the page.
+        let t0 = Instant::now();
+        let mut book = crate::profiles::HomeSignInBook::default();
+        assert!(!book.nudge(STATE, t0), "no attempt yet: a cold-start nudge is dropped");
+        book.prepare(crate::profiles::HomePrepared {
+            profile: "default".into(),
+            fresh: false,
+            invite: None,
+            at: t0,
+        });
+        book.open(STATE, t0).unwrap();
+        assert_eq!(special_label(&live, |s| book.nudge(s, t0)), Some(HOME_LABEL));
+        assert_eq!(special_label(&live, |s| book.nudge(s, t0)), None, "replayed");
+        // Not a special link: the V2-3.5 routing.
+        for other in ["maude://open/alligators?open=ui/A.tsx", "maude://connect?code=x", "maude://authx/done", "https://auth/done"] {
+            assert_eq!(special_link(other), Special::No, "{other}");
+        }
+        // The payload Home hears is the kind and the state, nothing else.
+        let wire = serde_json::json!({ "kind": AuthKind::Cancelled, "state": STATE }).to_string();
+        assert_eq!(wire, format!(r#"{{"kind":"cancelled","state":"{STATE}"}}"#));
+    }
+
+    /// S6.7: an invite link goes to Home only — never a project window, whatever
+    /// tab is in front and whatever the project resolver knows — and only Home
+    /// can take it.
+    #[test]
+    fn invite_link_to_home() {
+        let id = "0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab";
+        for url in [format!("maude://invite/{id}"), format!("maude://invite/{id}/")] {
+            let s = special_link(&url);
+            assert_eq!(s, Special::Invite(id.into()), "{url}");
+            assert_eq!(special_label(&s, |_| panic!("an invite is no nudge")), Some(HOME_LABEL));
+        }
+        for bad in [
+            "maude://invite",
+            "maude://invite/",
+            "maude://invite/not-an-id",
+            "maude://invite/0B6F3D4E-1C2A-4B5D-8E9F-0123456789AB",
+            "maude://invite/0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab?email=a@b.cz",
+            "maude://invite/0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab#poster",
+            "maude://invite/0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab/alligators",
+            "maude://invite/../../0b6f3d4e-1c2a-4b5d-8e9f-0123456789",
+            "maude://Invite/0b6f3d4e-1c2a-4b5d-8e9f-0123456789ab",
+        ] {
+            assert_eq!(special_link(bad), Special::Malformed, "{bad}");
+        }
+        // The V2-3.5 router would never send one to a project either.
+        let r = plan_route(&format!("maude://invite/{id}"), |_| Some("/work/a".into()), |_| Some("/work/a".into()));
+        assert!(matches!(r, LinkRoute::Home { .. }), "{r:?}");
+        // Parked for Home: a project tab's takes read nothing.
+        PENDING_INVITES.park(HOME_LABEL, id.to_string());
+        assert_eq!(PENDING_INVITES.take("p-front"), None);
+        assert_eq!(PENDING_LINKS.take(HOME_LABEL), None, "not a deep-link note");
+        assert_eq!(PENDING_INVITES.take(HOME_LABEL).as_deref(), Some(id));
+        assert_eq!(PENDING_INVITES.take(HOME_LABEL), None, "one-shot");
+        // take_pending_invite is Home's: label + Home origin (home::check_home).
+        let src = include_str!("deep_link.rs");
+        let body = &src[src.find("pub fn take_pending_invite(").unwrap()..];
+        assert!(body[..body.find("\n}\n").unwrap()].contains("caller_home(&webview, false)?"));
+    }
 
     /// V2-3.6 L1: a burst of links for closed projects opens at most
     /// `MAX_LINK_OPENS` tabs per window of time; the budget refills.

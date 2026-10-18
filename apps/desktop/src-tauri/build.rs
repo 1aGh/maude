@@ -42,7 +42,10 @@ fn main() {
                 "prefs_set_crash_reporting",
                 "prefs_get_claude_auto_setup",
                 "prefs_set_claude_auto_setup",
+                // S8.23 (export_save.rs): Save to, Show in Finder for a saved export, Copy as PNG.
                 "save_export",
+                "reveal_export",
+                "clipboard_write_png",
                 "pick_media_file",
                 "pick_media_files",
                 "read_picked_media",
@@ -50,6 +53,12 @@ fn main() {
                 "list_crash_logs",
                 "read_crash_log",
                 "take_pending_deep_link",
+                // S6.7 (profiles.rs, deep_link.rs): Home's own Maude Cloud sign-in
+                // and the invite link parked for Home (Home-only, HOME_PERMISSIONS).
+                "home_cloud_sign_in_prepare",
+                "home_cloud_sign_in_open",
+                "home_cloud_signed_in",
+                "take_pending_invite",
                 "managed_project_open",
                 "managed_projects_list",
                 "resolve_project_for_link",
@@ -62,6 +71,10 @@ fn main() {
                 "pick_attach_folder",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
+                // S9.17 (windows.rs): a `409 browser-door` opens the cell as a `c-*` tab.
+                "open_cell_tab",
+                // S9.17 (notify.rs): a project tab's unread mentions → Dock badge + notice.
+                "mention_notice",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
                 // capabilities/strip.json).
                 "tabs_state",
@@ -113,6 +126,8 @@ fn main() {
                 // V2-3.6 M5: e2e delivers a deep link through the shell (pages
                 // can no longer emit events).
                 "e2e_deliver_deep_link",
+                // S6.7: run a link through the real routing (debug only).
+                "e2e_route_deep_link",
                 // V2-3.6 L1: the "Opened from a link" toast of a NEW tab.
                 "take_link_opened",
                 // Finding 1d (bus.rs): every shell → page message goes through
