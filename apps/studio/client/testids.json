@@ -10942,10 +10942,75 @@
     "hook": "canvases-foot",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The line under the Canvases list: \"93 canvases · ⌘K searches every project\" (\"3 results · …\" while searching).",
+    "meaning": "The line under the Canvases list: \"93 canvases · ⌘K searches every project\" (\"3 results · …\" while searching). `data-slot` says which fact it is: `sync` (offline), `jump` (artboard count), `access` (canvas-only) or `default`; `data-tone` warn on the offline line.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
       "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-meta-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One short word at a canvas row's right, before its badges, published by a slice through `row-slots.js` (\"Needs you\", \"not sent\", \"sending\"). `data-tone` quiet/warn/azure, `data-source` ai/sync/access/trash. The Pinned copy uses `canvas-pinned-meta-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-meta-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The same meta word on a canvas's copy under Pinned (so a pinned canvas that goes offline says \"not sent\" in both places).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-sub-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The second words after a canvas's name from a slot (\"Shared with you · Can view\", \"In the trash · open here\"); never drawn while a search draws its own sub. The Pinned copy uses `canvas-pinned-sub-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-sub-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The same slot sub on a canvas's copy under Pinned.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-trashed-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A ghost row: a canvas open in a tab that is not in the index any more (trashed while open), drawn dim at its last path with its provider's words; click or Enter focuses that tab. Not counted by its folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelGhostRow"
     },
     "region": "sidebar/tree",
     "consumers": [],
