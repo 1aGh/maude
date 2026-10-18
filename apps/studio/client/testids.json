@@ -79,7 +79,9 @@
       "symbol": "CloudBar"
     },
     "region": "menubar",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "moves",
     "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted."
   },
@@ -149,7 +151,9 @@
       "symbol": "ProjectPill"
     },
     "region": "menubar",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the pill's mark (was the menubar wordmark)."
   },
@@ -163,7 +167,10 @@
       "symbol": "ProjectPill"
     },
     "region": "menubar",
-    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/client/tour/usage-tour.js",
+      "apps/studio/whats-new.json"
+    ],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the pill (was the six-menu group of the menubar)."
   },
@@ -191,7 +198,10 @@
       "symbol": "ShareCluster"
     },
     "region": "menubar",
-    "consumers": ["apps/studio/client/tour/collab-tour.js", "apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js",
+      "apps/studio/whats-new.json"
+    ],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the cluster root (was the menubar's right-hand cluster; despite its name it was never the status bar)."
   },
@@ -225,7 +235,9 @@
       "symbol": "ShareCluster"
     },
     "region": "menubar",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the Share cluster's Exports icon (`share-cluster-exports`), present once any export exists (the v1 badge was always there). Was the menubar badge (`ExportBadge`, deleted)."
   },
@@ -254,7 +266,9 @@
       "apps/desktop/e2e/scenarios/splash-recovers-after-return-to-entry.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
-    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/shell-accessibility.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -267,7 +281,9 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -324,7 +340,9 @@
       "symbol": "FileRow"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -653,7 +671,9 @@
       "symbol": "ExportDialog"
     },
     "region": "export dialog",
-    "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
+    "consumers": [
+      "apps/studio/test/export-e2e-lanes.test.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -695,7 +715,9 @@
       "symbol": "ExportPanel"
     },
     "region": "export dialog",
-    "consumers": ["apps/studio/test/export-center.test.tsx"],
+    "consumers": [
+      "apps/studio/test/export-center.test.tsx"
+    ],
     "v2": "moves"
   },
   {
@@ -709,7 +731,9 @@
     },
     "region": "export dialog",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/exporters/degraded-propagation.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/exporters/degraded-propagation.test.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -722,7 +746,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
+    ],
     "v2": "moves",
     "notes": "Passed as the `testId` prop from `renderPanelBody` in `App()`."
   },
@@ -750,7 +776,9 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -792,7 +820,10 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/client/tour/usage-tour.js",
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -805,7 +836,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -818,7 +851,9 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -831,7 +866,9 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -870,7 +907,9 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -883,7 +922,9 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1124,7 +1165,9 @@
       "symbol": "SetupAction"
     },
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1150,7 +1193,9 @@
       "symbol": "Row"
     },
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1195,7 +1240,9 @@
       "symbol": "SuggestOnlyBanner"
     },
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1253,7 +1300,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/helpers/assistant.ts"],
+    "consumers": [
+      "apps/desktop/e2e/helpers/assistant.ts"
+    ],
     "v2": "stable",
     "notes": "Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message)."
   },
@@ -1433,7 +1482,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1493,7 +1544,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1560,7 +1613,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1637,7 +1692,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1789,7 +1846,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -1815,7 +1874,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -1880,7 +1941,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -1909,7 +1972,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -1922,7 +1987,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2160,7 +2227,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2329,7 +2398,9 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2407,7 +2478,9 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2420,7 +2493,9 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2519,7 +2594,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2532,7 +2609,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2545,7 +2624,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2558,7 +2639,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2572,7 +2655,9 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/cloud-history-posture.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/cloud-history-posture.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2586,7 +2671,9 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/cloud-history-posture.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/cloud-history-posture.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2633,7 +2720,9 @@
       "symbol": "AcceptedRow"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -2695,7 +2784,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/studio/client/tour/collab-tour.js"],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "stable"
   },
   {
@@ -2708,7 +2799,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/studio/client/tour/collab-tour.js"],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "stable"
   },
   {
@@ -2721,7 +2814,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/studio/client/tour/collab-tour.js"],
+    "consumers": [
+      "apps/studio/client/tour/collab-tour.js"
+    ],
     "v2": "stable"
   },
   {
@@ -2845,7 +2940,9 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2858,7 +2955,9 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2871,7 +2970,9 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2884,7 +2985,9 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2897,7 +3000,9 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -2910,7 +3015,9 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -3030,8 +3137,12 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
-    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/sync-panel-surface.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3057,7 +3168,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3070,7 +3183,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3083,7 +3198,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3096,7 +3213,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3135,7 +3254,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"],
+    "consumers": [
+      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -3162,7 +3283,9 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/sync-panel-surface.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3176,7 +3299,9 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/sync-panel-surface.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3241,7 +3366,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3294,7 +3421,9 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/sync-panel-surface.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3307,7 +3436,9 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3453,7 +3584,9 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"],
+    "consumers": [
+      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -3466,7 +3599,9 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
+    "consumers": [
+      "apps/studio/test/source-conflict-dialog.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -3479,7 +3614,9 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
+    "consumers": [
+      "apps/studio/test/source-conflict-dialog.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -3492,7 +3629,9 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
+    "consumers": [
+      "apps/studio/test/source-conflict-dialog.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -3505,7 +3644,9 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
+    "consumers": [
+      "apps/studio/test/source-conflict-dialog.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -3560,7 +3701,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -3573,7 +3716,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -3586,7 +3731,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -3599,7 +3746,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -3719,7 +3868,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3745,7 +3896,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3758,7 +3911,9 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3771,7 +3926,9 @@
       "symbol": "FileDeepLinkDialog"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3784,7 +3941,9 @@
       "symbol": "FileDeepLinkDialog"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3858,7 +4017,9 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3871,7 +4032,9 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3897,7 +4060,9 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -3910,7 +4075,9 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/studio/test/team-projects-empty.test.tsx"],
+    "consumers": [
+      "apps/studio/test/team-projects-empty.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -4024,7 +4191,9 @@
       "symbol": "TeamProjectsDialog"
     },
     "region": "sync/cloud",
-    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4254,7 +4423,9 @@
       "symbol": "SetupChecklist"
     },
     "region": "onboarding",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -4475,7 +4646,9 @@
       "symbol": "STARTER_CANVAS_TSX"
     },
     "region": "onboarding",
-    "consumers": ["apps/desktop/e2e/scenarios/onboarding.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4488,7 +4661,9 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4501,7 +4676,9 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4514,7 +4691,9 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4540,7 +4719,9 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4553,7 +4734,9 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4566,7 +4749,9 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4631,7 +4816,9 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -4696,7 +4883,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -4728,7 +4917,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -4741,7 +4932,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4754,7 +4947,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4767,7 +4962,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4780,7 +4977,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4793,7 +4992,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4806,7 +5007,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4819,7 +5022,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4832,7 +5037,9 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "consumers": [
+      "apps/studio/test/mode-toggle.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4845,7 +5052,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4858,7 +5067,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4871,7 +5082,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4884,7 +5097,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4897,7 +5112,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4910,7 +5127,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -4988,254 +5207,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-view",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view on the Mac while Present · Artboards runs with it on: now, next, notes, the clock and the order map. Hidden with one display.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-end",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › End (esc): leaves Present and closes the audience window.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-audience",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view's top bar: \"Audience on <display>\", or why the audience screen would not open.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-audience-retry",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › Try again, shown when the audience screen would not open.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-elapsed",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view clock: time since Present started.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-wall",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view clock: the wall time.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-now",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › the Now box (the presented artboard).",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-now-label",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › \"Now · 3 of 14 · <artboard>\".",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-next-box",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › the Next box (the artboard after this one in the run).",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-next-label",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › \"Next · <artboard>\" (or \"Next · the end\").",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-prev",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › Previous artboard.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-next",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › Next artboard.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-notes",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › the presented artboard's speaker notes, one paragraph per line.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-order-map",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › the run drawn as the canvas layout; one cell per artboard.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/order-map.jsx",
-      "symbol": "OrderMap"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-order-count",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Presenter view › \"Order · 15 artboards · 1 skipped\".",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-view.jsx",
-      "symbol": "PresenterView"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-cell-<id>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "One artboard in the order map, where it sits on the canvas; `<id>` is the artboard id. `data-n` is its run number, `aria-current` marks the one on screen, `data-skip` a skipped one (dimmed, eye-off, not clickable). A click jumps both screens.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/order-map.jsx",
-      "symbol": "OrderMap"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "presenter-skipped-mark",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The eye-off mark on a skipped artboard in the order map.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/order-map.jsx",
-      "symbol": "OrderMap"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "present-presenter-view",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Present controls › Presenter view (laptop glyph); `aria-pressed` while on. Only with another display.",
-    "producer": {
-      "file": "apps/studio/client/v2/present/presenter-button.jsx",
-      "symbol": "PresenterViewButton"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "mode-present-presenter-view",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Present ⌄ › Presenter view on another display (a check while on, the display's name). Only in the desktop app with another display.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
-      "symbol": "ModeSwitch"
-    },
-    "region": "other",
-    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5248,7 +5222,9 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5261,7 +5237,9 @@
       "symbol": "CanvasPill"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "consumers": [
+      "apps/studio/test/present-controls.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5274,7 +5252,9 @@
       "symbol": "createPointerDot"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "consumers": [
+      "apps/studio/test/pointer-dot.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5287,7 +5267,9 @@
       "symbol": "createPointerDot"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "consumers": [
+      "apps/studio/test/pointer-dot.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5300,7 +5282,9 @@
       "symbol": "createPointerDot"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "consumers": [
+      "apps/studio/test/pointer-dot.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -5339,7 +5323,9 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -5352,7 +5338,9 @@
       "symbol": "LockBadge"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
+    "consumers": [
+      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -5365,7 +5353,9 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
+    "consumers": [
+      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -5378,7 +5368,9 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
+    "consumers": [
+      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -5391,7 +5383,9 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -5404,7 +5398,9 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -5522,71 +5518,6 @@
     },
     "region": "other",
     "consumers": [],
-    "v2": "stable"
-  },
-  {
-    "hook": "ai-quit-dialog",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S5.14: \"Quit while AI is working?\" — the shell's quit:// ask shown in the project tab with AI (03 ai-quit). Desktop only.",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
-      "symbol": "QuitDialog"
-    },
-    "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
-    "v2": "stable"
-  },
-  {
-    "hook": "ai-quit-confirm",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S5.14: the quit dialog's Quit button — every chat stops, what AI finished is kept as a version, then the app quits.",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
-      "symbol": "QuitDialog"
-    },
-    "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
-    "v2": "stable"
-  },
-  {
-    "hook": "ai-quit-cancel",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S5.14: the quit dialog's Cancel — nothing stops, the app stays open.",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
-      "symbol": "QuitDialog"
-    },
-    "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
-    "v2": "stable"
-  },
-  {
-    "hook": "ai-stopped-divider",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S5.14: the end-of-chat line \"Stopped when the app quit · <time>\" (or Stopped / when the tab closed / when Maude quit unexpectedly) for a chat whose last run stopped. `data-run` = the run id.",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/StoppedDivider.jsx",
-      "symbol": "StoppedDivider"
-    },
-    "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
-    "v2": "stable"
-  },
-  {
-    "hook": "ai-keep-going",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "S5.14: Keep going under the Stopped line — a new ask in the same chat resuming the stopped run (registry action ai.keep-going).",
-    "producer": {
-      "file": "apps/studio/client/v2/ai/StoppedDivider.jsx",
-      "symbol": "StoppedDivider"
-    },
-    "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6042,7 +5973,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6056,7 +5989,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6070,7 +6005,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6084,7 +6021,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6098,7 +6037,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6112,7 +6053,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6126,7 +6069,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6140,7 +6085,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6154,7 +6101,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6168,7 +6117,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6182,7 +6133,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6196,7 +6149,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6210,7 +6165,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6224,7 +6181,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6238,7 +6197,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6252,7 +6213,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6266,7 +6229,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6280,7 +6245,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-run-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -6518,136 +6485,6 @@
     "v2": "new"
   },
   {
-    "hook": "share-cluster-account",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The account chip, first in the Share cluster (desktop, signed in, two or more accounts on this Mac): which account this project tab is bound to (`data-account` = the profile id). Opens `account-card`. S1.22a (canvas 11 pn-accounts).",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The account card under the chip (`role=dialog`): this account, the other accounts on this Mac, Sign in as another account…, Sign out of …, the footnote.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-current",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The card's first row: the face, `<label> · <email>` and `<project> uses this account`.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-other-<id>",
-    "kind": "testid",
-    "pattern": true,
-    "meaning": "One other account on this Mac with its projects (\"Also on this Mac\"); `<id>` = the profile id. Present only when the shell supplies the account list.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-switch",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Sign in as another account… — runs the shell's own `account.switch` handler.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-signout",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Sign out of <email>… with the line naming every project on it; pressing it only asks (`account-card-confirm`).",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-confirm",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The inline confirm (`role=alertdialog`): `Sign out of <email>?` · Cancel · Sign out.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-signout-confirm",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The confirm's primary button: calls the existing `POST /_api/cloud/signout` (clears this profile's credential; projects on it are signed out).",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-signout-cancel",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The confirm's Cancel: signs nothing out.",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "account-card-foot",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "\"Kept on this Mac — <project> opens as <account> next time.\"",
-    "producer": {
-      "file": "apps/studio/client/v2/shell/account-card.jsx",
-      "symbol": "AccountChip"
-    },
-    "region": "other",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
     "hook": "shell-prompt-input",
     "kind": "testid",
     "pattern": false,
@@ -6657,7 +6494,9 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -6670,7 +6509,9 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -6879,7 +6720,9 @@
       }
     ],
     "region": "menubar",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "retired",
     "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The same rows are reached in the project pill's menu by role=menuitem and name: \"File\", \"Edit\", \"Advanced\", \"New artboard\" (submenus), \"Close canvas\", \"New artboard: Mobile\" (rows) — `surface.e2e.ts` `Surface.menu(text)`. Was: `surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
   },
@@ -6893,7 +6736,9 @@
       "symbol": "FileTree"
     },
     "region": "sidebar/tree",
-    "consumers": [".claude/skills/desktop-e2e/SKILL.md"],
+    "consumers": [
+      ".claude/skills/desktop-e2e/SKILL.md"
+    ],
     "v2": "stable"
   },
   {
@@ -6906,7 +6751,9 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -6933,7 +6780,9 @@
       }
     ],
     "region": "sidebar/tree",
-    "consumers": ["apps/studio/test/file-tree-navigation.test.tsx"],
+    "consumers": [
+      "apps/studio/test/file-tree-navigation.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -6969,7 +6818,9 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7067,7 +6918,9 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/studio/client/app.jsx"],
+    "consumers": [
+      "apps/studio/client/app.jsx"
+    ],
     "v2": "stable",
     "notes": "Internal cross-component consumer: `App()`."
   },
@@ -7081,7 +6934,9 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": ["apps/studio/client/app.jsx"],
+    "consumers": [
+      "apps/studio/client/app.jsx"
+    ],
     "v2": "stable",
     "notes": "Internal cross-component consumer: `App()`."
   },
@@ -7118,7 +6973,9 @@
       "symbol": "Viewport"
     },
     "region": "viewport",
-    "consumers": ["apps/desktop/e2e/scenarios/sidecar-respawn-canvas-switch.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/sidecar-respawn-canvas-switch.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7139,7 +6996,9 @@
       "apps/desktop/e2e/scenarios/shell-parity.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
-    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/shell-accessibility.test.ts"
+    ],
     "v2": "stable",
     "notes": "`test/shell-accessibility.test.ts` also asserts (source text) that this iframe's `title` is the template literal \"Canvas: \" + `t.path`."
   },
@@ -7153,7 +7012,9 @@
       "symbol": "CanvasLoading"
     },
     "region": "viewport",
-    "consumers": ["apps/desktop/src-tauri/src/e2e-frame-probe.js"],
+    "consumers": [
+      "apps/desktop/src-tauri/src/e2e-frame-probe.js"
+    ],
     "v2": "stable"
   },
   {
@@ -7166,7 +7027,9 @@
       "symbol": "CommandPalette"
     },
     "region": "⌘K palette",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7179,7 +7042,9 @@
       "symbol": "ExportDialog"
     },
     "region": "export dialog",
-    "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
+    "consumers": [
+      "apps/studio/test/export-e2e-lanes.test.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7198,7 +7063,9 @@
       }
     ],
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -7217,7 +7084,9 @@
       }
     ],
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -7240,7 +7109,9 @@
       }
     ],
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -7253,7 +7124,9 @@
       "symbol": "LayerRow"
     },
     "region": "inspector",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "moves"
   },
   {
@@ -7266,7 +7139,9 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7285,7 +7160,9 @@
       }
     ],
     "region": "inspector",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7298,7 +7175,9 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
+    "consumers": [
+      ".ai/scenarios/element-editing-resize-and-position/spec.md"
+    ],
     "v2": "moves"
   },
   {
@@ -7317,7 +7196,9 @@
       }
     ],
     "region": "inspector",
-    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
+    "consumers": [
+      ".ai/scenarios/element-editing-resize-and-position/spec.md"
+    ],
     "v2": "moves"
   },
   {
@@ -7346,7 +7227,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
+    "consumers": [
+      ".ai/scenarios/element-editing-resize-and-position/spec.md"
+    ],
     "v2": "moves"
   },
   {
@@ -7369,7 +7252,9 @@
       }
     ],
     "region": "inspector",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7404,7 +7289,9 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7423,7 +7310,9 @@
       }
     ],
     "region": "banners",
-    "consumers": ["apps/studio/test/notifications.test.tsx"],
+    "consumers": [
+      "apps/studio/test/notifications.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -7436,7 +7325,9 @@
       "symbol": "App"
     },
     "region": "banners",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves",
     "notes": "`surface.e2e.ts` clicks every visible match; there is no single producer."
   },
@@ -7484,7 +7375,9 @@
       "symbol": "Composer"
     },
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/helpers/assistant.ts"],
+    "consumers": [
+      "apps/desktop/e2e/helpers/assistant.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7503,7 +7396,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7522,7 +7417,9 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7567,7 +7464,9 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7580,7 +7479,9 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "moves"
   },
   {
@@ -7593,7 +7494,9 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7606,7 +7509,9 @@
       "symbol": "AcceptedRow"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7620,7 +7525,9 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/git-cloud-posture.test.ts"],
+    "sourceConsumers": [
+      "apps/studio/test/git-cloud-posture.test.ts"
+    ],
     "v2": "stable",
     "notes": "Source-text consumer only: `test/git-cloud-posture.test.ts` regex-matches `className=\"gp-tabs\"` / `className=\"gp-cloud-note\"` in `GitPanel.jsx`."
   },
@@ -7634,7 +7541,9 @@
       "symbol": "CanvasView"
     },
     "region": "git/history",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7647,7 +7556,9 @@
       "symbol": "ZoomBar"
     },
     "region": "git/history",
-    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
+    "consumers": [
+      "apps/studio/test/shell-text-contrast.test.ts"
+    ],
     "v2": "stable",
     "notes": "CSS consumer."
   },
@@ -7677,7 +7588,9 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7708,7 +7621,9 @@
       }
     ],
     "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
+    ],
     "v2": "stable",
     "notes": "Keep the `-dialog` suffix on new dialog roots."
   },
@@ -7741,7 +7656,9 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
+    "consumers": [
+      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -7754,7 +7671,9 @@
       "symbol": "ReportBugDialog"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7767,7 +7686,9 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
+    "consumers": [
+      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -7780,7 +7701,9 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7793,7 +7716,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7806,7 +7731,9 @@
       "symbol": "AssetPicker"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7819,7 +7746,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7838,7 +7767,9 @@
       }
     ],
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -7851,7 +7782,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7864,7 +7797,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7877,7 +7812,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7890,7 +7827,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7903,7 +7842,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7916,7 +7857,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7929,7 +7872,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7942,7 +7887,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7955,7 +7902,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7968,7 +7917,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7981,7 +7932,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -7994,7 +7947,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
+    "consumers": [
+      "apps/studio/test/stickers-gallery.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8007,7 +7962,9 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "consumers": [
+      "apps/studio/test/templates-panel.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8020,7 +7977,9 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "consumers": [
+      "apps/studio/test/templates-panel.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8033,7 +7992,9 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "consumers": [
+      "apps/studio/test/templates-panel.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8046,7 +8007,9 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "consumers": [
+      "apps/studio/test/templates-panel.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8059,7 +8022,9 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "consumers": [
+      "apps/studio/test/templates-panel.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8096,7 +8061,10 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/bin/_screenshot-playwright.mjs", "apps/studio/bin/screenshot.sh"],
+    "consumers": [
+      "apps/studio/bin/_screenshot-playwright.mjs",
+      "apps/studio/bin/screenshot.sh"
+    ],
     "v2": "stable"
   },
   {
@@ -8109,7 +8077,9 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "consumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8122,7 +8092,9 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-tool-panels.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-tool-panels.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8135,7 +8107,9 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "consumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8148,7 +8122,9 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "consumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8161,7 +8137,9 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "consumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -8342,7 +8320,9 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"],
+    "consumers": [
+      ".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"
+    ],
     "v2": "stable"
   },
   {
@@ -8405,7 +8385,9 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [".ai/scenarios/artboard-kinds/spec.md"],
+    "consumers": [
+      ".ai/scenarios/artboard-kinds/spec.md"
+    ],
     "v2": "stable"
   },
   {
@@ -8462,7 +8444,9 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/bin/screenshot.sh"],
+    "consumers": [
+      "apps/studio/bin/screenshot.sh"
+    ],
     "v2": "stable",
     "notes": "Read by `dom-selection.ts` (`cssPath`, `domPath`) and the Layers tree (`canvas-shell.tsx` `serializeArtboardTree`)."
   },
@@ -8493,7 +8477,9 @@
       "symbol": "PhotoBgRemoveHarness"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/bin/photo-bg-remove.sh"],
+    "consumers": [
+      "apps/studio/bin/photo-bg-remove.sh"
+    ],
     "v2": "stable"
   },
   {
@@ -8545,7 +8531,9 @@
       "symbol": "ArtboardGuidesOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/canvas-hide-chrome.test.ts"],
+    "consumers": [
+      "apps/studio/test/canvas-hide-chrome.test.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -8589,7 +8577,9 @@
       "symbol": "ensureAxisNodes"
     },
     "region": "canvas iframe chrome",
-    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
+    "consumers": [
+      ".ai/scenarios/element-editing-resize-and-position/spec.md"
+    ],
     "v2": "stable"
   },
   {
@@ -8627,7 +8617,9 @@
       "symbol": "SpacingHandlesOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
+    "consumers": [
+      ".ai/scenarios/element-editing-resize-and-position/spec.md"
+    ],
     "v2": "stable"
   },
   {
@@ -8705,7 +8697,9 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -8718,7 +8712,9 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/e2e/annotations-parity.e2e.mjs"],
+    "consumers": [
+      "apps/studio/test/e2e/annotations-parity.e2e.mjs"
+    ],
     "v2": "stable"
   },
   {
@@ -8731,7 +8727,9 @@
       "symbol": "CanvasRouter"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -8761,7 +8759,9 @@
       "symbol": "HmrHoldingToast"
     },
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/test/canvas-hmr-loaded.test.tsx"],
+    "consumers": [
+      "apps/studio/test/canvas-hmr-loaded.test.tsx"
+    ],
     "v2": "stable"
   },
   {
@@ -8905,7 +8905,9 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -9116,7 +9118,9 @@
     "meaning": "Artboard drag ghost; no component renders it.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"],
+    "consumers": [
+      ".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"
+    ],
     "v2": "historical",
     "dangling": true
   },
@@ -9127,7 +9131,9 @@
     "meaning": "Canvas render error overlay; no component renders this class, so the spec's \"absent\" check passes vacuously.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [".ai/scenarios/web-artboards/spec.md"],
+    "consumers": [
+      ".ai/scenarios/web-artboards/spec.md"
+    ],
     "v2": "historical",
     "dangling": true
   },
@@ -9138,7 +9144,9 @@
     "meaning": "Tree row attribute; never emitted (rows use `data-testid=\"canvas-row-<slug>\"`).",
     "producer": null,
     "region": "sidebar/tree",
-    "consumers": [".ai/scenarios/canvas-format-tsx/tsx-canvas-render-and-edit/spec.md"],
+    "consumers": [
+      ".ai/scenarios/canvas-format-tsx/tsx-canvas-render-and-edit/spec.md"
+    ],
     "v2": "historical",
     "dangling": true
   },
@@ -9149,7 +9157,10 @@
     "meaning": "Legacy artboard-slot attribute; no current component emits it. Screenshot/smoke helpers still accept it as a fallback next to `[data-dc-screen]`.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": ["apps/studio/bin/screenshot.sh", "apps/studio/bin/smoke.sh"],
+    "consumers": [
+      "apps/studio/bin/screenshot.sh",
+      "apps/studio/bin/smoke.sh"
+    ],
     "v2": "historical",
     "dangling": true
   },
@@ -9160,7 +9171,9 @@
     "meaning": "A skeleton caption whose CSS rule is contrast-tested; no component renders the class (`CanvasLoading` renders `.st-skel-card/-thumb/-line`).",
     "producer": null,
     "region": "viewport",
-    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
+    "consumers": [
+      "apps/studio/test/shell-text-contrast.test.ts"
+    ],
     "v2": "historical",
     "notes": "CSS consumer; the rule still exists in `styles/3-shell-maude.css`.",
     "dangling": true
@@ -9172,7 +9185,9 @@
     "meaning": "Intended: the File menu trigger, for the \"AI generation settings\" spotlight. No element carries this anchor; the File menu trigger is `data-testid=\"menu-file\"` with no `data-tour`.",
     "producer": null,
     "region": "menubar",
-    "consumers": ["apps/studio/whats-new.json"],
+    "consumers": [
+      "apps/studio/whats-new.json"
+    ],
     "v2": "historical",
     "dangling": true
   },
@@ -9316,7 +9331,9 @@
       "symbol": "RowLive"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9329,7 +9346,9 @@
       "symbol": "RowLive"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9341,7 +9360,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9353,7 +9374,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9365,7 +9388,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9377,7 +9402,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9441,7 +9468,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9453,7 +9482,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9465,7 +9496,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9477,7 +9510,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9489,72 +9524,9 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": ["test:home-page"],
-    "v2": "new"
-  },
-  {
-    "hook": "root-missing-card",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The moved-folder card a project tab shows when its folder is gone (11 · pn-cant-open): the app-local root-missing.html, shown once resolve_dev_server_url answers {missing}.",
-    "producer": {
-      "file": "apps/desktop/src/root-missing.html",
-      "symbol": "(page)"
-    },
-    "region": "home",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "root-missing-title",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "\"<name> isn't where it was.\" on the moved-folder card (the registry's name for the tab's own project).",
-    "producer": {
-      "file": "apps/desktop/src/root-missing.html",
-      "symbol": "(page)"
-    },
-    "region": "home",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "root-missing-place",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "\"It was in Desktop › Portfolio 2026. Nothing inside has changed — the folder was moved or renamed.\"",
-    "producer": {
-      "file": "apps/desktop/src/root-missing.html",
-      "symbol": "(page)"
-    },
-    "region": "home",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "root-missing-find",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "\"Find the folder…\" on the moved-folder card → relink_project({pid}) for the tab's own pid; on a relink Rust moves the tab to the new folder.",
-    "producer": {
-      "file": "apps/desktop/src/root-missing.html",
-      "symbol": "(page)"
-    },
-    "region": "home",
-    "consumers": [],
-    "v2": "new"
-  },
-  {
-    "hook": "root-missing-error",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Why the picked folder could not be used, on the moved-folder card (role=alert, hidden when empty).",
-    "producer": {
-      "file": "apps/desktop/src/root-missing.html",
-      "symbol": "(page)"
-    },
-    "region": "home",
-    "consumers": [],
+    "consumers": [
+      "test:home-page"
+    ],
     "v2": "new"
   },
   {
@@ -9737,160 +9709,6 @@
     "v2": "stable"
   },
   {
-    "hook": "canvases-trash-count",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Trash view header: what is in the shared Trash, \"3 canvases · 1 artboard\" (only the parts there are).",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-group-today",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Trash view: the Today group (heading + its rows). Absent while nothing was trashed today.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-group-earlier",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Trash view: the Earlier group (heading + its rows). Absent while nothing is older.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-sub",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "A Trash row's second line: \"root · You, just now\" / \"artboard of Combine-kampan · Jonas, 14:05\".",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-note",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The one status line under the Trash list after Restore / Clear out (`data-outcome` ok | not-yet | refused). An artboard's Restore shows the not-yet line here, quietly.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-unreachable",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Trash view: \"The team server did not answer\" — the list shown is from a moment ago.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-foot",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The Trash view's foot: \"Kept until you clear it out.\" plus Clear out… for an owner.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-ask-body",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "The clear-out confirmation's body: what goes for good, and for whom.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-trash-clear-cancel",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Cancel on the clear-out confirmation.",
-    "producer": {
-      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
-      "symbol": "TrashView"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-kept",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Canvases > Advanced > \"Kept on this Mac\": the per-Mac list (conflict losers, sync quarantine, migration copies) moved out of the shared Trash. Absent when nothing is parked or for a viewer.",
-    "producer": {
-      "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
-      "symbol": "KeptRow"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "canvases-kept-toggle",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "Open / Hide on the \"Kept on this Mac\" row (`aria-expanded`); its list uses the canvases-trash-item / -restore / -clear / -ask ids.",
-    "producer": {
-      "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
-      "symbol": "KeptRow"
-    },
-    "region": "sidebar/tree",
-    "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
-    "v2": "new"
-  },
-  {
     "hook": "canvases-advanced",
     "kind": "testid",
     "pattern": false,
@@ -10056,7 +9874,9 @@
       "symbol": "Level"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10069,7 +9889,9 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10082,7 +9904,9 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10095,7 +9919,9 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10108,7 +9934,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10121,7 +9949,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10134,7 +9964,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10147,7 +9979,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10160,7 +9994,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10173,7 +10009,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10186,7 +10024,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10199,7 +10039,9 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10212,7 +10054,9 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10225,7 +10069,9 @@
       "symbol": "Row"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10238,7 +10084,9 @@
       "symbol": "CopyBtn"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10251,7 +10099,9 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10264,7 +10114,9 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10277,7 +10129,9 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10290,7 +10144,9 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10303,7 +10159,9 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10316,7 +10174,9 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10329,7 +10189,9 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10342,7 +10204,9 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10355,7 +10219,9 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10368,7 +10234,9 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10381,7 +10249,9 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10394,7 +10264,9 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10407,7 +10279,9 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -10420,7 +10294,9 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": ["test:v2-diagnostics-render"],
+    "consumers": [
+      "test:v2-diagnostics-render"
+    ],
     "v2": "new"
   },
   {
@@ -11200,7 +11076,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11213,7 +11091,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11226,7 +11106,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11239,7 +11121,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11252,20 +11136,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
-    "v2": "new"
-  },
-  {
-    "hook": "palette-project-label",
-    "kind": "testid",
-    "pattern": false,
-    "meaning": "On another project's row in \"Did you mean\" (one flat list): its square, name and where it is (\"in another tab\" / \"not open — opens a tab\") — ↵ switches project (S15-A2, desktop only).",
-    "producer": {
-      "file": "apps/studio/client/dialogs/command-palette.jsx",
-      "symbol": "CommandPalette"
-    },
-    "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11278,7 +11151,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11291,7 +11166,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11304,7 +11181,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11317,7 +11196,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11330,7 +11211,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11343,7 +11226,9 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11356,7 +11241,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11369,7 +11256,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11382,7 +11271,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11395,7 +11286,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11408,7 +11301,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11421,7 +11316,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11434,7 +11331,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11447,7 +11346,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11460,7 +11361,9 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11474,7 +11377,9 @@
     },
     "region": "diagnostics",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-diagnostics-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-diagnostics-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11488,7 +11393,9 @@
     },
     "region": "settings",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-settings.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-settings.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11502,7 +11409,9 @@
     },
     "region": "settings",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-settings.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-settings.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11516,7 +11425,9 @@
     },
     "region": "help/shortcuts",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-fold.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11530,7 +11441,9 @@
     },
     "region": "help/shortcuts",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-fold.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11544,7 +11457,9 @@
     },
     "region": "help/shortcuts",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-fold.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11557,7 +11472,9 @@
       "symbol": "CalloutStack"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-callouts.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11586,7 +11503,9 @@
       "symbol": "Callout"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-callouts.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11599,7 +11518,9 @@
       "symbol": "Callout"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-callouts.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11612,7 +11533,9 @@
       "symbol": "CanvasesAdvanced"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-callouts.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11625,7 +11548,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
+    "consumers": [
+      "apps/studio/test/v2-callouts.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -11638,7 +11563,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "new"
   },
   {
@@ -11651,7 +11578,9 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
     "v2": "new"
   },
   {
@@ -12184,7 +12113,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12197,7 +12128,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12210,7 +12143,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12223,7 +12158,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12236,7 +12173,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12249,7 +12188,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12262,7 +12203,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12275,7 +12218,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12288,7 +12233,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12301,7 +12248,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12314,7 +12263,9 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12380,7 +12331,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12394,7 +12347,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12408,7 +12363,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12439,7 +12396,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/edit-op-crumbs.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/edit-op-crumbs.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12453,7 +12412,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/edit-op-crumbs.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/edit-op-crumbs.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12509,7 +12470,9 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/edit-object-client.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/edit-object-client.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12649,7 +12612,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12663,7 +12628,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12677,7 +12644,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12691,7 +12660,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12705,7 +12676,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12719,7 +12692,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12733,7 +12708,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12747,7 +12724,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12761,7 +12740,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12775,7 +12756,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12789,7 +12772,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12803,7 +12788,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12817,7 +12804,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12831,7 +12820,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12845,7 +12836,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12859,7 +12852,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-sections.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12873,7 +12868,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12887,7 +12884,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12901,7 +12900,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12915,7 +12916,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12929,7 +12932,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12943,7 +12948,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12956,7 +12963,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12969,7 +12978,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12982,7 +12993,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -12995,7 +13008,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13008,7 +13023,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13022,7 +13039,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13035,7 +13054,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13049,7 +13070,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13063,7 +13086,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13077,7 +13102,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13091,7 +13118,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13104,7 +13133,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13117,7 +13148,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13130,7 +13163,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13143,7 +13178,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13156,7 +13193,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13169,7 +13208,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13182,7 +13223,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13195,7 +13238,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13208,7 +13253,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13221,7 +13268,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13234,7 +13283,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13247,7 +13298,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13260,7 +13313,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13273,7 +13328,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13286,7 +13343,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13299,7 +13358,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13312,7 +13373,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13325,7 +13388,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13338,7 +13403,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13351,7 +13418,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13364,7 +13433,9 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13377,7 +13448,1363 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history (⌥⌘H): the panel in the right slot; the dock id stays `changes`. Header, the four filters, the Now row, the rows, the Advanced fold.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history's close button.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-filter-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One filter of Version history (`aria-pressed`): `<id>` is all, named, ai or people — All · Named · Made by AI · People.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-now",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Now row: \"Now\", the canvas and its save word, and Name this version….",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-now-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Now row's second line: \"<canvas> · Saved\" (the save word of CONTRACT §6).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-now-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Now row while a past version is held: a click returns to now.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Now row › \"Name this version…\" (\"Saving…\", disabled, while the canvas has unsent changes); absent for Can view and Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The grouped rows (Today / Yesterday / 4 Oct …).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-row-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One version row; `<ref>` is its last revision (`r41`). A click looks at that version (the Viewing hold); `aria-current` marks the one held.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-acts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The held row's actions: Compare (when Compare is wired) and Restore this version (edit only).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-compare",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Held row › Compare (S1.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Held row › \"Restore this version\": a new version, then a toast \"Restored 5 Oct, 18:40 · Undo\". Absent for Can view and Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Show older versions\" at the foot of the list.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The empty state: \"Versions appear here as you work.\" (or the filter's own line).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Skeleton rows while the first page loads.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Couldn't load versions\" (`role=alert`) with Retry versions.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Retry versions: pressed by hand, never automatic.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-offline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Offline — showing versions up to 14:05\" above the rows.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-nocanvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open a canvas to see its versions.\" when no canvas is in front.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history header tail when filtered to one object (\"· this object\" / \"· this sticky\", S1.16).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-scope-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Filtered panel › \"All versions\": lifts the object filter.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The filtered panel's grouped rows (one object's versions).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Skeleton while one object's versions load.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Couldn't load this object's versions\" card.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Retry versions\" on the failed object read (by hand, never automatic).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"No versions of this object yet.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-stopped",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Earlier versions are not shown — …\": the matching chain stopped at a doubt.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-row-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One version of the object; `<ref>` is its revision (`r4`), `r3-aside` for a version kept aside (S9.24). A click looks at that version.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectRow"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-restore-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Per-row Restore of just this object (edit only; absent on found-by-matching, removed and kept-aside rows).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectRow"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-hint-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Restore the artboard instead.\" on a found-by-matching row (edit only).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectRow"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-viewbar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Viewing bar: \"Viewing “…” · 5 Oct, 18:40 · Jonas\" and \"esc back to now\", shown while the mode store holds a past version.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/view-bar.jsx",
+      "symbol": "ViewBar"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-viewbar-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Viewing bar's words.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/view-bar.jsx",
+      "symbol": "ViewBar"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-viewbar-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Viewing bar's \"esc back to now\" button.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/view-bar.jsx",
+      "symbol": "ViewBar"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Name this version\" dialog (`role=dialog`, modal).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dim behind the Name this version dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The name field (1–80 characters).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-save",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Name version (the dialog's primary button).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The reason under the name field (`role=alert`).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view on the Mac while Present · Artboards runs with it on: now, next, notes, the clock and the order map. Hidden with one display.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-end",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › End (esc): leaves Present and closes the audience window.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-audience",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view's top bar: \"Audience on <display>\", or why the audience screen would not open.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-audience-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Try again, shown when the audience screen would not open.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-elapsed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view clock: time since Present started.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-wall",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view clock: the wall time.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-now",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the Now box (the presented artboard).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-now-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › \"Now · 3 of 14 · <artboard>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-next-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the Next box (the artboard after this one in the run).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-next-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › \"Next · <artboard>\" (or \"Next · the end\").",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Previous artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Next artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-notes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the presented artboard's speaker notes, one paragraph per line.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-order-map",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the run drawn as the canvas layout; one cell per artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-map.jsx",
+      "symbol": "OrderMap"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-order-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › \"Order · 15 artboards · 1 skipped\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-cell-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard in the order map, where it sits on the canvas; `<id>` is the artboard id. `data-n` is its run number, `aria-current` marks the one on screen, `data-skip` a skipped one (dimmed, eye-off, not clickable). A click jumps both screens.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-map.jsx",
+      "symbol": "OrderMap"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-skipped-mark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The eye-off mark on a skipped artboard in the order map.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-map.jsx",
+      "symbol": "OrderMap"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-presenter-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present controls › Presenter view (laptop glyph); `aria-pressed` while on. Only with another display.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-button.jsx",
+      "symbol": "PresenterViewButton"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-presenter-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Presenter view on another display (a check while on, the display's name). Only in the desktop app with another display.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-quit-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: \"Quit while AI is working?\" — the shell's quit:// ask shown in the project tab with AI (03 ai-quit). Desktop only.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
+      "symbol": "QuitDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
+    ],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-quit-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: the quit dialog's Quit button — every chat stops, what AI finished is kept as a version, then the app quits.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
+      "symbol": "QuitDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
+    ],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-quit-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: the quit dialog's Cancel — nothing stops, the app stays open.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
+      "symbol": "QuitDialog"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
+    ],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-stopped-divider",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: the end-of-chat line \"Stopped when the app quit · <time>\" (or Stopped / when the tab closed / when Maude quit unexpectedly) for a chat whose last run stopped. `data-run` = the run id.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/StoppedDivider.jsx",
+      "symbol": "StoppedDivider"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
+    ],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-keep-going",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: Keep going under the Stopped line — a new ask in the same chat resuming the stopped run (registry action ai.keep-going).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/StoppedDivider.jsx",
+      "symbol": "StoppedDivider"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
+    ],
+    "v2": "stable"
+  },
+  {
+    "hook": "share-cluster-account",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The account chip, first in the Share cluster (desktop, signed in, two or more accounts on this Mac): which account this project tab is bound to (`data-account` = the profile id). Opens `account-card`. S1.22a (canvas 11 pn-accounts).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The account card under the chip (`role=dialog`): this account, the other accounts on this Mac, Sign in as another account…, Sign out of …, the footnote.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-current",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's first row: the face, `<label> · <email>` and `<project> uses this account`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-other-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One other account on this Mac with its projects (\"Also on this Mac\"); `<id>` = the profile id. Present only when the shell supplies the account list.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign in as another account… — runs the shell's own `account.switch` handler.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-signout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign out of <email>… with the line naming every project on it; pressing it only asks (`account-card-confirm`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inline confirm (`role=alertdialog`): `Sign out of <email>?` · Cancel · Sign out.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-signout-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm's primary button: calls the existing `POST /_api/cloud/signout` (clears this profile's credential; projects on it are signed out).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-signout-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm's Cancel: signs nothing out.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Kept on this Mac — <project> opens as <account> next time.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The moved-folder card a project tab shows when its folder is gone (11 · pn-cant-open): the app-local root-missing.html, shown once resolve_dev_server_url answers {missing}.",
+    "producer": {
+      "file": "apps/desktop/src/root-missing.html",
+      "symbol": "(page)"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"<name> isn't where it was.\" on the moved-folder card (the registry's name for the tab's own project).",
+    "producer": {
+      "file": "apps/desktop/src/root-missing.html",
+      "symbol": "(page)"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"It was in Desktop › Portfolio 2026. Nothing inside has changed — the folder was moved or renamed.\"",
+    "producer": {
+      "file": "apps/desktop/src/root-missing.html",
+      "symbol": "(page)"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-find",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Find the folder…\" on the moved-folder card → relink_project({pid}) for the tab's own pid; on a relink Rust moves the tab to the new folder.",
+    "producer": {
+      "file": "apps/desktop/src/root-missing.html",
+      "symbol": "(page)"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the picked folder could not be used, on the moved-folder card (role=alert, hidden when empty).",
+    "producer": {
+      "file": "apps/desktop/src/root-missing.html",
+      "symbol": "(page)"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view header: what is in the shared Trash, \"3 canvases · 1 artboard\" (only the parts there are).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-group-today",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view: the Today group (heading + its rows). Absent while nothing was trashed today.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-group-earlier",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view: the Earlier group (heading + its rows). Absent while nothing is older.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A Trash row's second line: \"root · You, just now\" / \"artboard of Combine-kampan · Jonas, 14:05\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one status line under the Trash list after Restore / Clear out (`data-outcome` ok | not-yet | refused). An artboard's Restore shows the not-yet line here, quietly.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-unreachable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view: \"The team server did not answer\" — the list shown is from a moment ago.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Trash view's foot: \"Kept until you clear it out.\" plus Clear out… for an owner.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-ask-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The clear-out confirmation's body: what goes for good, and for whom.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-clear-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel on the clear-out confirmation.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-kept",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > \"Kept on this Mac\": the per-Mac list (conflict losers, sync quarantine, migration copies) moved out of the shared Trash. Absent when nothing is parked or for a viewer.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+      "symbol": "KeptRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-kept-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Open / Hide on the \"Kept on this Mac\" row (`aria-expanded`); its list uses the canvases-trash-item / -restore / -clear / -ask ids.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+      "symbol": "KeptRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-trash-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-project-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "On another project's row in \"Did you mean\" (one flat list): its square, name and where it is (\"in another tab\" / \"not open — opens a tab\") — ↵ switches project (S15-A2, desktop only).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": [
+      "apps/studio/test/v2-search-ui.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14792,7 +16219,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14806,7 +16235,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14820,7 +16251,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14834,7 +16267,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14848,7 +16283,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14862,7 +16299,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14876,7 +16315,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14890,7 +16331,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14904,7 +16347,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14918,7 +16363,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14932,7 +16379,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14946,7 +16395,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14960,7 +16411,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14974,7 +16427,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -14988,7 +16443,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15002,7 +16459,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15016,7 +16475,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15030,7 +16491,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15044,7 +16507,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15058,7 +16523,9 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-ai-needs-you.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15072,7 +16539,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15086,7 +16555,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15100,7 +16571,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15114,7 +16587,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15128,7 +16603,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -15142,7 +16619,73 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-kit.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "all-trashed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card over a canvas whose every artboard is in the trash (05 es-all-trashed): the situation, why it is fine, Restore N; `data-count` is how many artboards it holds.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/all-trashed.jsx",
+      "symbol": "AllTrashedCard"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "all-trashed-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Restore N artboards: puts every artboard of this canvas back where it was, one undo step. Absent for Can view; the server refuses a restore from them anyway.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/all-trashed.jsx",
+      "symbol": "AllTrashedCard"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-ghosts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer of dashed outlines an all-trashed canvas keeps. Decorative, no hit area. (Canvas origin: reachable by coordinates, not by DOM.)",
+    "producer": {
+      "file": "apps/studio/artboard-ghosts-overlay.tsx",
+      "symbol": "ArtboardGhostsLayer"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-ghost-<artboard-id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Inside the canvas iframe: the outline where one trashed artboard stood, with its name above; `<artboard-id>` is the artboard's id.",
+    "producer": {
+      "file": "apps/studio/artboard-ghosts-overlay.tsx",
+      "symbol": "ArtboardGhostsLayer"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
     "v2": "new"
   }
 ]

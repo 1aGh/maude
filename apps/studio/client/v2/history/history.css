@@ -1,0 +1,411 @@
+/* client/v2/history/history.css — S1.14: Version history (11 · pn-history) and its Viewing bar.
+ * Classes are `vh-*` (nothing reuses a bare v1 name); values are the shell's tokens. */
+
+@layer shell {
+  .vh-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-height: 0;
+    padding: var(--space-3);
+    color: var(--fg-1);
+  }
+  .vh-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-1);
+  }
+  .vh-hd > strong {
+    flex: 1;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+
+  /* All · Named · Made by AI · People */
+  .vh-seg {
+    align-self: flex-start;
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+  }
+  .vh-seg-b {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs);
+    min-height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: 6px;
+  }
+  .vh-seg-b[aria-pressed="true"] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+  }
+  .vh-seg-b:focus-visible,
+  .vh-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .vh-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  /* the Now row */
+  .vh-now {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 36px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+  }
+  .vh-dot {
+    width: 10px;
+    height: 10px;
+    margin: 0 var(--space-1) 0 var(--space-3);
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+  .vh-now-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-align: left;
+  }
+  .vh-now-t > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .vh-now > .btn {
+    margin-left: auto;
+  }
+  button.vh-now-t.vh-row {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .vh-g,
+  .vh-ul {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .vh-gt {
+    margin: var(--space-2) 0 var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+
+  /* a version */
+  .vh-row {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 62px;
+    padding: var(--space-1) var(--space-2);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .vh-row:hover {
+    background: var(--bg-2);
+  }
+  .vh-row.is-sel,
+  .vh-row[aria-current="true"] {
+    background: var(--accent-tint);
+  }
+  .vh-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-t > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vh-row.is-named .vh-t > strong {
+    font-weight: var(--w-semibold);
+  }
+  .vh-t > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vh-ai {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--spark-muted);
+  }
+  .vh-face {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3, var(--bg-2));
+    color: var(--fg-1);
+    font-size: 8px;
+    font-weight: var(--w-semibold);
+  }
+
+  /* the picture: a skeleton until it lands */
+  .vh-pic {
+    flex: none;
+    width: 72px;
+    height: 54px;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .vh-pic img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .vh-pic[data-state="pending"],
+  .vh-skel {
+    background: linear-gradient(90deg, var(--bg-2), var(--bg-3, var(--bg-1)), var(--bg-2));
+    background-size: 200% 100%;
+    animation: vh-shimmer 1200ms linear infinite;
+  }
+  @keyframes vh-shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  .vh-skel {
+    display: block;
+    height: 54px;
+    margin: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .vh-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-1) var(--space-2);
+  }
+  .vh-more {
+    align-self: center;
+    margin: var(--space-2) 0;
+  }
+  .vh-note,
+  .vh-offline {
+    margin: var(--space-2) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-6, 24px) var(--space-4);
+    text-align: center;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .vh-empty > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+
+  /* the Advanced fold at the foot keeps its own look; only the embedded git body is tamed */
+  .vh-panel .v2-fold-body .gp-panel {
+    width: auto;
+    flex-basis: auto;
+    border: 0;
+    box-shadow: none;
+  }
+
+  /* ── name this version ── */
+  .vh-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: var(--scrim, rgb(0 0 0 / 0.32));
+  }
+  .vh-dialog {
+    width: min(360px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+  }
+  .vh-dialog-t {
+    margin: 0;
+    font-size: var(--type-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .vh-dialog-sub {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-field {
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-0, var(--bg-1));
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .vh-field:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .vh-dialog-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--danger, var(--fg-1));
+  }
+  .vh-dialog-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  /* ── the Viewing bar (11 · pn-viewbar) ── */
+  .island.vh-viewbar {
+    position: absolute;
+    left: 50%;
+    top: var(--space-4);
+    translate: -50% 0;
+    z-index: 12;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 40px;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    font-size: var(--type-sm);
+    animation: st-island-in var(--dur-panel) var(--ease-out);
+  }
+  .vh-viewbar > svg {
+    color: var(--accent-text, var(--accent));
+  }
+  .vh-viewbar-t {
+    white-space: nowrap;
+    color: var(--fg-1);
+  }
+  .vh-viewbar-t strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .vh-viewbar-esc {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .vh-viewbar-esc:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .vh-viewbar-esc:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* S1.16 - Version history filtered to one object (10 / co-vh). */
+  .vh-tail {
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    white-space: nowrap;
+  }
+  .vh-obj-row .vh-t strong {
+    font-weight: 600;
+  }
+  .vh-obj-value {
+    font-style: italic;
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .vh-obj-words {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .vh-obj-hint {
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-1);
+  }
+  .vh-obj[data-aside="true"] .vh-obj-row {
+    opacity: 0.8;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vh-pic[data-state="pending"],
+    .vh-skel,
+    .island.vh-viewbar {
+      animation-duration: 1ms;
+      animation-iteration-count: 1;
+    }
+  }
+}

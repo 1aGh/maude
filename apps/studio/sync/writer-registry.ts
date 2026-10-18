@@ -162,6 +162,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // S1.12b routes/history.ts — Version history (V2-1.9 §5.11)
   '/_api/project/versions': { class: 'read' },
   '/_api/project/changes': { class: 'read' },
+  '/_api/project/object-history': { class: 'read' },
   '/_api/project/source': { class: 'read' },
   '/_api/project/name': {
     class: 'structural',

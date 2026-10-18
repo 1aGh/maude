@@ -84,6 +84,15 @@ export function canvasUrl(p, cfg, opts) {
   if (opts?.thumbnail) params.set('comments', '0');
   // Phase 27 (E2) — DiffView "before" pane renders the canvas at a past version.
   if (opts?.sha) params.set('sha', opts.sha);
+  // S1.14 — Version history's Viewing: the shell frames the past version `ref` (`r<n>` · `git:<sha>`)
+  // read-only — `ro=1` (no tools, no drag, no inline edit), no comment layer — and the canvas itself
+  // (`isHistoricalCanvas`) writes no camera or layout back and asks the shell for "now" on esc. The
+  // chrome stays: it is the same canvas, looked at.
+  if (opts?.viewing) {
+    params.set('sha', opts.viewing);
+    params.set('ro', '1');
+    params.set('comments', '0');
+  }
   // Phase 27 (E2) — DiffView renders a CLEAN canvas (no editor chrome: toolbar,
   // world minimap, devtools) so the before/after is just the design.
   if (opts?.hideChrome) params.set('hide-chrome', '1');

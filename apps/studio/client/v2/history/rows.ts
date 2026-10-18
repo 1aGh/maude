@@ -316,6 +316,7 @@ function assemble(g: OpenRow, named: Map<number, RowName>, opts: ReduceOptions):
       undid: first.undid,
       label: first.trashedLabel,
       actor: who.name,
+      ...(g.kind === 'restore' && first.label ? { actionLabel: first.label } : {}),
     },
     { formatTime: fmt }
   );

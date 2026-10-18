@@ -316,4 +316,28 @@
     top: 44%;
     height: 44%;
   }
+
+  /* ─── S11.5: every artboard moved to the trash — the card over the empty canvas ─── */
+  .es-alltrashed {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-2);
+    pointer-events: none; /* only the card takes the pointer; the outlines and the canvas stay reachable */
+  }
+  .es-alltrashed .es-trashcard {
+    pointer-events: auto;
+    width: min(460px, 100%);
+    margin-bottom: 12%;
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  }
+  .es-alltrashed .es-fine {
+    color: var(--fg-1);
+  }
 }

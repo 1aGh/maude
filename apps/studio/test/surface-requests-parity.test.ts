@@ -14,6 +14,7 @@ import { join } from 'node:path';
 
 import {
   nameRequest,
+  objectHistoryRequest,
   restoreRequest,
   SURFACE_WRITE_ROUTES,
   type SurfaceRequest,
@@ -57,6 +58,12 @@ const SURFACE: Record<string, { verb: string; args: string[]; request: SurfaceRe
     args: ['name', 'ui/home.tsx', 'r11', 'Hero pass'],
     request: nameRequest({ path: CANVAS, at: 'r11', name: 'Hero pass' }),
   },
+  // S1.16 — a read: the panel's "Version history · this object" and the verb ask the same question.
+  'history.object': {
+    verb: 'history',
+    args: ['object', 'ui/home.tsx', 'hero/cta'],
+    request: objectHistoryRequest({ path: CANVAS, object: 'hero/cta' }),
+  },
   'view.trash': {
     verb: 'trash',
     args: ['list'],
@@ -97,6 +104,58 @@ const everything = (s: Seen) => {
     return json({ ok: true, status: 'accepted', path: 'ui/home.tsx', cleared: [] });
 };
 
+describe('history object (S1.16)', () => {
+  test('prints the rows in the panel’s words, marks matched and kept-aside rows', async () => {
+    studio = fakeStudio((s) =>
+      s.path === '/_api/project/object-history'
+        ? json({
+            ok: true,
+            key: 's1',
+            header: 'this sticky',
+            rows: [
+              {
+                ref: 'r4',
+                sub: 'Jonas · 18:40',
+                what: 'changed',
+                title: 'Sticky: “a” → “b”',
+                value: '“b”',
+              },
+              { ref: 'r2', sub: 'Tereza · 18:00', what: 'changed', title: 'Text', matched: true },
+              {
+                ref: 'r2',
+                sub: 'You · 18:00',
+                what: 'changed',
+                title: 'Your version, not kept',
+                aside: true,
+              },
+            ],
+          })
+        : undefined
+    );
+    const r = await studio.run('history', ['object', 'ui/home.tsx', 's1']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('Version history · this sticky');
+    expect(r.stdout).toContain('r4  Jonas · 18:40  changed  Sticky: “a” → “b”  “b”');
+    expect(r.stdout).toContain('(found by matching)');
+    expect(r.stdout).toContain('(not kept)');
+    expect(studio.seen.at(-1)?.query).toEqual({ path: '.design/ui/home.tsx', object: 's1' });
+  });
+
+  test('a bad object is a usage error and nothing is asked; an object without versions exits 1', async () => {
+    studio = fakeStudio((s) =>
+      s.path === '/_api/project/object-history'
+        ? json({ ok: false, reason: 'not-found' }, 404)
+        : undefined
+    );
+    const bad = await studio.run('history', ['object', 'ui/home.tsx', 'a/b/c']);
+    expect(bad.code).toBe(2);
+    expect(studio.seen.length).toBe(0);
+    const none = await studio.run('history', ['object', 'ui/home.tsx', 'hero/cta']);
+    expect(none.code).toBe(1);
+    expect(none.stderr).toContain('no versions of hero/cta');
+  });
+});
+
 describe('surface = substrate: history + Trash (S1.17)', () => {
   for (const [id, row] of Object.entries(SURFACE)) {
     test(`${id}: the verb makes the request the UI makes`, async () => {
@@ -109,10 +168,12 @@ describe('surface = substrate: history + Trash (S1.17)', () => {
         method: sent?.method,
         route: sent?.path,
         body: sent?.method === 'GET' ? undefined : sent?.body,
+        query: sent?.method === 'GET' && row.request.query ? sent.query : undefined,
       }).toEqual({
         method: row.request.method,
         route: row.request.route,
         body: row.request.body,
+        query: row.request.query,
       });
     });
   }

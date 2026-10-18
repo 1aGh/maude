@@ -537,6 +537,44 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `.dv-zoom-sync` | selector | Zoom-sync label in the diff zoom bar. *CSS consumer.* | `client/panels/DiffView.jsx` · `ZoomBar` | test:shell-text-contrast | stable — re-emit |
 | `git-compare` | testid | The compare-before/after button on a changed canvas in the Changes list. | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
 | `git-discard` | testid | The discard button on a changed file (or canvas with its supporting files) in the Changes list. Desktop only (read-only elsewhere). | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
+| `vh-panel` | testid | Version history (⌥⌘H): the panel in the right slot; the dock id stays `changes`. Header, the four filters, the Now row, the rows, the Advanced fold. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-close` | testid | Version history's close button. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-filter-<id>` | testid (pattern) | One filter of Version history (`aria-pressed`): `<id>` is all, named, ai or people — All · Named · Made by AI · People. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-now` | testid | The Now row: "Now", the canvas and its save word, and Name this version…. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-now-status` | testid | The Now row's second line: "<canvas> · Saved" (the save word of CONTRACT §6). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-now-back` | testid | The Now row while a past version is held: a click returns to now. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-name` | testid | Now row › "Name this version…" ("Saving…", disabled, while the canvas has unsent changes); absent for Can view and Can comment. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-list` | testid | The grouped rows (Today / Yesterday / 4 Oct …). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-row-<ref>` | testid (pattern) | One version row; `<ref>` is its last revision (`r41`). A click looks at that version (the Viewing hold); `aria-current` marks the one held. | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-acts` | testid | The held row's actions: Compare (when Compare is wired) and Restore this version (edit only). | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-compare` | testid | Held row › Compare (S1.15). | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-restore` | testid | Held row › "Restore this version": a new version, then a toast "Restored 5 Oct, 18:40 · Undo". Absent for Can view and Can comment. | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-more` | testid | "Show older versions" at the foot of the list. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-empty` | testid | The empty state: "Versions appear here as you work." (or the filter's own line). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-loading` | testid | Skeleton rows while the first page loads. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-failed` | testid | "Couldn't load versions" (`role=alert`) with Retry versions. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-retry` | testid | Retry versions: pressed by hand, never automatic. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-offline` | testid | "Offline — showing versions up to 14:05" above the rows. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-nocanvas` | testid | "Open a canvas to see its versions." when no canvas is in front. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-scope` | testid | Version history header tail when filtered to one object ("· this object" / "· this sticky", S1.16). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-scope-clear` | testid | Filtered panel › "All versions": lifts the object filter. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-obj-list` | testid | The filtered panel's grouped rows (one object's versions). | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-loading` | testid | Skeleton while one object's versions load. | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-failed` | testid | "Couldn't load this object's versions" card. | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-retry` | testid | "Retry versions" on the failed object read (by hand, never automatic). | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-empty` | testid | "No versions of this object yet." | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-stopped` | testid | "Earlier versions are not shown — …": the matching chain stopped at a doubt. | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-row-<ref>` | testid (pattern) | One version of the object; `<ref>` is its revision (`r4`), `r3-aside` for a version kept aside (S9.24). A click looks at that version. | `client/v2/history/object-view.jsx` · `ObjectRow` | — | new |
+| `vh-obj-restore-<ref>` | testid (pattern) | Per-row Restore of just this object (edit only; absent on found-by-matching, removed and kept-aside rows). | `client/v2/history/object-view.jsx` · `ObjectRow` | — | new |
+| `vh-obj-hint-<ref>` | testid (pattern) | "Restore the artboard instead." on a found-by-matching row (edit only). | `client/v2/history/object-view.jsx` · `ObjectRow` | — | new |
+| `vh-viewbar` | testid | The Viewing bar: "Viewing “…” · 5 Oct, 18:40 · Jonas" and "esc back to now", shown while the mode store holds a past version. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
+| `vh-viewbar-text` | testid | The Viewing bar's words. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
+| `vh-viewbar-back` | testid | The Viewing bar's "esc back to now" button. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
+| `vh-name-dialog` | testid | The "Name this version" dialog (`role=dialog`, modal). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-scrim` | testid | The dim behind the Name this version dialog. | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-input` | testid | The name field (1–80 characters). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-save` | testid | Name version (the dialog's primary button). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-error` | testid | The reason under the name field (`role=alert`). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 
 ### sync/cloud
 
@@ -1218,6 +1256,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
 | `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
 | `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+| `all-trashed` | testid | The card over a canvas whose every artboard is in the trash (05 es-all-trashed): the situation, why it is fine, Restore N; `data-count` is how many artboards it holds. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
+| `all-trashed-restore` | testid | Restore N artboards: puts every artboard of this canvas back where it was, one undo step. Absent for Can view; the server refuses a restore from them anyway. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
+| `artboard-ghosts` | testid | Inside the canvas iframe: the layer of dashed outlines an all-trashed canvas keeps. Decorative, no hit area. (Canvas origin: reachable by coordinates, not by DOM.) | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
+| `artboard-ghost-<artboard-id>` | testid (pattern) | Inside the canvas iframe: the outline where one trashed artboard stood, with its name above; `<artboard-id>` is the artboard's id. | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
 
 ## What's New spotlights
 

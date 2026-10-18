@@ -347,6 +347,13 @@ export interface ShellToCanvas {
       { state: 'running' | 'needs-you' | 'done'; who: string; tag: string; waiting: number }
     >;
   };
+  // S11.5 (05 es-all-trashed): the outlines an all-trashed canvas keeps. The shell reads the Trash itself and
+  // sends ids, labels and where each stood (`rect: null` = unknown, left out); the canvas draws and never says
+  // what is in the Trash. The table caps the strings (ids 128, labels 200); the layer draws at most 200.
+  'trashed-artboards': {
+    canvas: string;
+    items: Array<{ id: Id; label: string; rect: Rect | null }>;
+  };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -1319,6 +1326,15 @@ const s2c: S2C = {
     orphan: 'no-handler',
     owner: 'annotations-layer',
     parse: p({ id: str, follow: opt(bool) }),
+  },
+  'trashed-artboards': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'artboard-ghosts-overlay (S11.5)',
+    parse: p({
+      canvas: shortStr(1024),
+      items: arrOf(shape({ id: shortStr(128), label: shortStr(200), rect: nul(rect) })),
+    }),
   },
   'insert-annotation-media': {
     gate: 'parent',

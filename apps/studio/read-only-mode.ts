@@ -86,6 +86,29 @@ export function isFollowCanvas(): boolean {
 }
 
 /**
+ * S1.14 — is this canvas a past version (`?sha=` — Version history's Viewing, V2-1.9 §5.6)? The shell frames
+ * it read-only (`ro=1&comments=0`); this is the canvas's own half: a past version never writes its camera
+ * or layout back over the designer's (the S1.11 risk note), and esc asks the shell for "now". Read from the
+ * URL on every call, like `isFollowCanvas`.
+ */
+export function isHistoricalCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return !!new URLSearchParams(window.location.search).get('sha');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Does this canvas persist its camera / layout (`PATCH /_api/canvas-meta`)? Not an embed (DDR-247), not a
+ * Present follower (S3.7a), not a past version (S1.14): in each of them the view is not the designer's own.
+ */
+export function persistsCanvasMeta(): boolean {
+  return !isEmbedCanvas() && !isFollowCanvas() && !isHistoricalCanvas();
+}
+
+/**
  * DDR-247 — Escape inside an embedded canvas belongs to the app around it.
  * Keys pressed in this frame never reach the embedding page, so an embed shown
  * in a dialog would trap a keyboard user: the dialog's own Escape stops

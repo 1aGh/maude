@@ -152,6 +152,7 @@ describe('every history route is main-origin only', () => {
     expect(specs.map((s) => `${s.method} ${s.path}`).sort()).toEqual([
       'GET /_api/project/changes',
       'GET /_api/project/history',
+      'GET /_api/project/object-history',
       'GET /_api/project/source',
       'GET /_api/project/versions',
       'POST /_api/project/aside',
@@ -267,10 +268,34 @@ describe('Can edit: name, aside, restore reach the home', () => {
     expect(calls.aside[0]?.slice(0, 2)).toEqual(['.design/ui/a.tsx', 'html']);
     const r = await post(specs, '/_api/project/restore', { path: 'ui/a.tsx', at: 'r2' });
     expect(r.status).toBe(200);
-    expect(calls.restore).toEqual([['.design/ui/a.tsx', 2]]);
+    // S1.14: the action says what it restored — the row and the toast read this line
+    expect(calls.restore).toEqual([['.design/ui/a.tsx', 2, { label: 'Restored 18 Oct, 09:05' }]]);
+    expect(r.body.line).toBe('Restored 18 Oct, 09:05');
     // v1 body shape still accepted (maude design history restore)
     await post(specs, '/_api/project/restore', { path: '.design/ui/a.tsx', revision: 1 });
     expect(calls.restore[1]).toEqual(['.design/ui/a.tsx', 1]);
+  });
+
+  test('restoring a named version says its name (S1.14)', async () => {
+    const rows = history();
+    rows.push(
+      row({
+        at: T0 + 120 * MIN,
+        kind: 'name',
+        label: 'Schváleno trenéry',
+        lanes: {},
+        named: { rev: 2, name: 'Schváleno trenéry' },
+      } as Partial<HistoryRowLike> & { at: number })
+    );
+    const { rt, calls } = fakeRuntime(rows);
+    const { specs } = routes(rt, MEMBER);
+    const r = await post(specs, '/_api/project/restore', { path: 'ui/a.tsx', at: 'r2' });
+    expect(r.body.line).toBe('Restored “Schváleno trenéry”');
+    expect(calls.restore[0]).toEqual([
+      '.design/ui/a.tsx',
+      2,
+      { label: 'Restored “Schváleno trenéry”' },
+    ]);
   });
 
   test('a hub without history.name: 409 hub-too-old with the line', async () => {
@@ -477,5 +502,59 @@ describe('both homes carry lanes + named (additive)', () => {
     const top = v.body.rows.find((r: { named?: unknown }) => r.named);
     expect(top?.title).toBe('Two');
     expect(top?.chips).toContain('Named');
+  });
+});
+
+// S1.14: a row's picture. The versions answer carries, per row, what the picture service said about
+// `thumb({ at: { rev } })` — a ready picture's url, a pending key (the panel waits for `thumb-ready`),
+// or unavailable — so the panel never needs a second route to learn a key (V2-1.17 §5.8, L14).
+describe('rows carry their picture (S1.14)', () => {
+  type Req = {
+    canvas: string;
+    artboard: string | null;
+    at?: unknown;
+    size: string;
+    priority: string;
+  };
+  test('ready / pending / unavailable per row; a throw is never a 500', async () => {
+    const { rt } = fakeRuntime(history());
+    const asked: Req[] = [];
+    const { specs } = routes(rt, OBSERVER, {
+      thumb: async (req: Req) => {
+        asked.push(req);
+        const rv = (req.at as { rev: number }).rev;
+        if (rv === 7) return { status: 'ready', key: 'k7', url: '/_api/thumb/k7', w: 160, h: 100 };
+        if (rv === 6) return { status: 'unavailable', reason: 'no-engine' };
+        if (rv === 3) throw new Error('renderer died');
+        return { status: 'pending', key: `k${rv}` };
+      },
+    });
+    const r = await get(specs, '/_api/project/versions', { path: 'ui/a.tsx' });
+    const pics = r.body.rows.map((x: { picture?: unknown }) => x.picture);
+    expect(pics[0]).toEqual({ status: 'ready', key: 'k7', url: '/_api/thumb/k7', w: 160, h: 100 });
+    expect(pics[1]).toEqual({ status: 'unavailable', reason: 'no-engine' });
+    expect(pics[2]).toEqual({ status: 'unavailable', reason: 'failed' });
+    expect(pics[3]).toEqual({ status: 'pending', key: 'k2' });
+    expect(asked.every((q) => q.size === 'row' && q.canvas === 'ui/a.tsx')).toBe(true);
+    expect(asked.map((q) => q.priority)).toEqual(['visible', 'visible', 'visible', 'visible']);
+  });
+
+  test('past the first screenful pictures wait in the background; without a service, no picture field', async () => {
+    rev = 0;
+    const many = Array.from({ length: 20 }, (_, i) => row({ at: T0 + i * 30 * MIN }));
+    const { rt } = fakeRuntime(many);
+    const priorities: string[] = [];
+    const withThumbs = routes(rt, OBSERVER, {
+      thumb: async (req: Req) => {
+        priorities.push(req.priority);
+        return { status: 'pending', key: 'k' };
+      },
+    });
+    await get(withThumbs.specs, '/_api/project/versions', { path: 'ui/a.tsx' });
+    expect(priorities.filter((p) => p === 'visible')).toHaveLength(8);
+    expect(priorities.filter((p) => p === 'background')).toHaveLength(12);
+    const bare = routes(rt, OBSERVER);
+    const r = await get(bare.specs, '/_api/project/versions', { path: 'ui/a.tsx' });
+    expect(r.body.rows.some((x: { picture?: unknown }) => 'picture' in x)).toBe(false);
   });
 });

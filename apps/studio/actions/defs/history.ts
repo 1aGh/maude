@@ -25,6 +25,15 @@ export const HISTORY_ACTIONS: ActionDef[] = [
     search: ROW,
   },
   {
+    // the sticky / object menu's "Version history": the panel filtered to one object (§5.9, S1.16).
+    // Reading is for everyone who can see the canvas; Restore on its rows is `history.restore-object`.
+    id: 'history.object',
+    label: 'Version history of this object',
+    kind: 'command',
+    exec: 'shell',
+    search: ROW,
+  },
+  {
     id: 'history.compare',
     label: 'Compare',
     kind: 'command',

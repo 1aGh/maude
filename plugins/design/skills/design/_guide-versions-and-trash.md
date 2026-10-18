@@ -12,6 +12,7 @@ Every change you or anyone makes is a version. Restoring never removes one: it a
 ```sh
 maude design history list ui/home.tsx          # the versions, newest first (r12, r11, …)
 maude design history show r11                  # who, when, what it was
+maude design history object ui/home.tsx hero/cta   # one object's versions (a sticky: its annotation id), as in the panel's "Version history · this object"
 maude design history restore ui/home.tsx r11   # the whole canvas back to r11, as a new version
 maude design history restore ui/home.tsx r11 --artboard hero       # only that artboard
 maude design history restore ui/home.tsx r11 --element hero/cta    # only that object (<artboard>/<id>)

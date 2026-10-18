@@ -105,6 +105,7 @@ import {
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
+import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
@@ -162,7 +163,12 @@ import {
 // (photo/pipeline.ts, which imports pixi.js) is loaded via a DYNAMIC import
 // inside <PhotoLayer> only when an edited photo actually mounts — see there.
 import { isDefaultEdit, type PhotoEdit } from './photo/schema.ts';
-import { isEmbedCanvas, isFollowCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import {
+  isEmbedCanvas,
+  isFollowCanvas,
+  isReadOnlyCanvas,
+  persistsCanvasMeta,
+} from './read-only-mode.ts';
 import { AgentPresenceProvider, useAgentPresence } from './use-agent-presence.tsx';
 import { type DragState, useArtboardDrag } from './use-artboard-drag.tsx';
 import {
@@ -875,7 +881,8 @@ function patchCanvasMeta(
   // not the designer's view, and the next time they open the canvas in the
   // studio it must be where they left it. S3.7a — nor does a Present follower: its camera is the
   // presenter's, and the audience window shares the designer's own `_canvas-state/` view file.
-  if (isEmbedCanvas() || isFollowCanvas()) return;
+  // S1.14 — nor does a past version (`?sha=`, Version history's Viewing): it is not the designer's view.
+  if (!persistsCanvasMeta()) return;
   // Cloud Phase 25 C2 — a read-only session persists its CAMERA (per-user
   // `_canvas-state/` view, DDR-115) but never the LAYOUT lane (versioned
   // `.meta.json`). The dev-server refuses the layout lane too (http.ts);
@@ -2394,6 +2401,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     <div className="dc-canvas" ref={hostRef}>
       <div className="dc-world" ref={worldRef} style={worldStyle}>
         {children}
+        {/* S11.5 — the outlines an all-trashed canvas keeps (world coords, no hit area, shell-told). */}
+        <ArtboardGhostsLayer />
       </div>
       {showMiniMap ? <DCMiniMap /> : null}
       {/* Plan C F6 — separate bottom-left zoom pill (the design's ZoomHud).

@@ -24,19 +24,38 @@ export async function pressMenuRow(actionId: string, submenu?: string): Promise<
   await row.click();
 }
 
-/** Is the Changes (git / project history) panel showing? */
+/** Is Version history (S1.14: `vh-panel`, the dock's `changes` slot) showing? */
 export async function historyShowing(): Promise<boolean> {
   return (
-    (await $(tid('git-panel'))
+    (await $(tid('vh-panel'))
       .isDisplayed()
       .catch(() => false)) === true
   );
 }
 
-/** Menu › Version history, unless the panel is already up. */
-export async function openHistory(): Promise<void> {
+/** Menu › Version history, unless the panel is already up. Waits for the panel itself (`vh-panel`). */
+export async function openVersionHistory(): Promise<void> {
   if (await historyShowing()) return;
   await pressMenuRow('history.open');
+  await (await $(tid('vh-panel'))).waitForDisplayed({ timeout: 30_000 });
+}
+
+/**
+ * Menu › Version history › Advanced: today's source-control body (`git-panel`) lives in the panel's Advanced
+ * fold until S1.15 / S11 re-home it, so a scenario that drives it opens the fold too (a fold the Mac
+ * remembers open is left open).
+ */
+export async function openHistory(): Promise<void> {
+  await openVersionHistory();
+  if (
+    await $(tid('git-panel'))
+      .isDisplayed()
+      .catch(() => false)
+  )
+    return;
+  const toggle = await $(tid('fold-history-toggle'));
+  await toggle.waitForDisplayed({ timeout: 10_000 });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
   await (await $(tid('git-panel'))).waitForDisplayed({ timeout: 30_000 });
 }
 

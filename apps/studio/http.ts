@@ -162,6 +162,7 @@ import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitCommitFiles, gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import { trashArtboardRestorer } from './history/restore-artboard-action.ts';
 import {
   cssOverridesFor,
   injectVersionMeta,
@@ -1691,6 +1692,20 @@ export function createHttp(
         }
       },
       emit: (e, p) => ctx.bus.emit(e, p),
+      // S1.13b — an artboard comes back through S1.13's splice, from the revision before its
+      // trash action, as ONE `restore` action (S1 Q3; history/restore-artboard-action.ts).
+      restoreArtboard: trashArtboardRestorer({
+        control: () => ctx.syncControl?.current?.() ?? null,
+        designRel: ctx.paths.designRel,
+        announce: (actionId) =>
+          void announceAction(
+            {
+              control: () => ctx.syncControl?.current?.() ?? null,
+              emit: (e, p) => ctx.bus.emit(e, p),
+            },
+            actionId
+          ),
+      }),
     },
     projectUndo: {
       control: () => ctx.syncControl?.current?.() ?? null,

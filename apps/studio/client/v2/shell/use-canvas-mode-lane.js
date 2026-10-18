@@ -33,6 +33,7 @@ import {
   createShellMode,
   decideModeRequest,
   effectiveMode,
+  heldMode,
   presentingOf,
   presentSpecFor,
   sameCaps,
@@ -109,6 +110,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
   const mode = effectiveMode(snap.mode, caps);
   const presenting = presentingOf(snap);
+  // S1.14 — a past version held by the store (Version history's Viewing): the canvases are told Viewing with
+  // no capabilities (`sent`), whatever the role; `mode` / `caps` below stay what the person is in.
+  const sent = heldMode(snap, mode, caps);
   const [peers, setPeers] = useState([]);
 
   // S3.6b — presenter view on: a role that cannot edit still publishes its Present position, so the audience
@@ -116,7 +120,17 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   const presenterView = presenterOn(usePresenterState());
 
   const live = useRef({});
-  live.current = { activePath, cfg, caps, presenting, mode, present: snap.present, presenterView };
+  live.current = {
+    activePath,
+    cfg,
+    caps,
+    presenting,
+    mode,
+    present: snap.present,
+    viewing: snap.viewing,
+    sent,
+    presenterView,
+  };
 
   const activeWin = () => {
     const p = live.current.activePath;
@@ -176,17 +190,29 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         return;
       }
     }
-    const key = `${mode}|${caps.edit}|${caps.annotate}|${caps.comment}|${snap.nonce}|${presenterView}`;
+    const key = `${sent.mode}|${sent.caps.edit}|${sent.caps.annotate}|${sent.caps.comment}|${snap.nonce}|${snap.viewing ? 'v' : ''}|${presenterView}`;
     if (sentRef.current === key) return;
     sentRef.current = key;
-    lane.broadcast({ mode, caps, tool: snap.tool, present: snap.present, presenterView });
-  }, [mode, caps, snap.nonce, snap.tool, snap.present, presenterView, lane, folded]);
+    lane.broadcast({ mode: sent.mode, caps: sent.caps, tool: snap.tool, present: snap.present, presenterView });
+  }, [
+    mode,
+    caps,
+    sent.mode,
+    sent.caps,
+    snap.viewing,
+    snap.nonce,
+    snap.tool,
+    snap.present,
+    presenterView,
+    lane,
+    folded,
+  ]);
 
   // A newly active canvas is seeded (it may have missed a change while in the background; it re-posts
   // its peers on the seed). The old canvas's faces leave with it.
   const seedOf = () => ({
-    mode: live.current.mode,
-    caps: live.current.caps,
+    mode: live.current.sent.mode,
+    caps: live.current.sent.caps,
     present: live.current.present,
     presenterView: live.current.presenterView,
   });
@@ -250,10 +276,15 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
           presenting: L.presenting,
           mode: L.mode,
           modalOpen: modalOpenNow(),
+          viewing: L.viewing,
         });
         if (!d) return;
         if (d.kind === 'deny') {
           if (d.reason === 'role') shellToast(ROLE_DENIAL);
+          return;
+        }
+        if (d.kind === 'exit-viewing') {
+          shellMode.leaveViewing();
           return;
         }
         if (d.kind === 'present') shellMode.present(d.present);

@@ -68,6 +68,8 @@ export interface RouteDeps {
   present: PresentRouteDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
   trash?: TrashRouteDeps;
+  /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
+  history?: HistoryRouteDeps;
   /** S1.18 — `GET /_api/link/resolve` (stable canvas links: entry → path) */
   links?: LinksRouteDeps;
   /** S5.10 — attachments (→ Assets / this Mac's `_chat/attachments/`) + folder consent */
@@ -76,8 +78,6 @@ export interface RouteDeps {
   comments?: CommentRouteDeps;
   /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
   annotations?: AnnotationRouteDeps;
-  /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
-  history?: HistoryRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
