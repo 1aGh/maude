@@ -237,6 +237,8 @@ import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
 import { noteAiRuns } from './v2/ai/runs-store.js';
+import { isFollowLocation } from './v2/present/follow-location.js';
+import FollowView from './v2/present/follow-view.jsx';
 import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
 import {
   CSS_ALIGN_SELF,
@@ -3190,5 +3192,7 @@ function App() {
 // shell does (prefs, address bar, panels) runs inside another app's frame.
 // V2-3.3 — so is Home (`/_config.mode === 'home'`, client/home/shell-mode.js).
 const root = createRoot(document.getElementById('root'));
-if (isEmbedLocation(location)) root.render(<EmbedView />);
+// S3.7a — a follow link (`?present=follow`, or any `audience` URL) is the follower page: never the editor.
+if (isFollowLocation(location)) root.render(<FollowView />);
+else if (isEmbedLocation(location)) root.render(<EmbedView />);
 else bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />));
