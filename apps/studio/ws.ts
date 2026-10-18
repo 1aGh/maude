@@ -273,6 +273,9 @@ export function createWs(
   // S5.3 — the AI run registry changed (V2-1.15 §5.4): `{type:'ai:runs', seq}` only — the shell
   // re-reads `GET /_api/ai/runs`. Shell (inspector) sockets only, never the canvas origin.
   ctx.bus.on('ai:runs', (e: { seq: number }) => broadcast({ type: 'ai:runs', seq: e.seq }));
+  // S5.5 — an accepted action (V2-1.5 §5.3 `project:action`): the shell's ⌘Z projection and
+  // Made by AI read it. Shell (inspector) sockets only, never the canvas origin.
+  ctx.bus.on('project:action', (action: unknown) => broadcast({ type: 'project:action', action }));
 
   // Phase 31 (DDR-123) — `/design:chat` → `maude design chat-open` → POST
   // /_api/acp/focus emits this; the shell (app.jsx, native-only) opens the

@@ -301,20 +301,27 @@ export interface Context {
         limit?: number;
         before?: number | null;
         path?: string | null;
+        chat?: string | null;
+        kind?: string | null;
+        mine?: boolean;
       }): Promise<unknown[] | null>;
       acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
       acceptedRestore?(
         repoRel: string,
         revision: number
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+      /** S5.5 — `{ actionId } | { actionIds } | { chatId }` (a bare id = `{ actionId }`). */
       acceptedUndo?(
-        actionId: string,
-        redo?: boolean
+        target: string | import('./sync/undo-target.ts').UndoTarget,
+        redo?: boolean,
+        o?: { via?: 'keys' | 'panel' }
       ): Promise<{
         status: 'accepted' | 'rejected';
         code?: string;
         queued?: boolean;
         actionId?: string;
+        undoes?: string | string[];
+        skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
       } | null>;
       acceptedActionForContent?(repoRel: string, content: string): string | null;
       prepareOffline?(): Promise<{
@@ -331,15 +338,38 @@ export interface Context {
         choice: 'mine' | 'theirs'
       ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
       /** T16 — AI action boundaries (see sync/action-stage.ts). */
-      beginAiAction?(key: string, label: string): void;
+      beginAiAction?(
+        key: string,
+        label: string,
+        meta?: { runId?: string; chatId?: string; actor?: string }
+      ): void;
       endAiAction?(
         key: string,
-        outcome: 'done' | 'failed'
-      ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
-      resolveAiAction?(choice: 'publish' | 'discard'): Promise<{
+        outcome: 'done' | 'failed' | 'stopped',
+        o?: {
+          fence?: {
+            runId: string;
+            leases: Array<{ entry: string; artboard: string; token: number }>;
+          };
+        }
+      ): Promise<{
+        status: 'accepted' | 'rejected';
+        code?: string;
+        actionId?: string;
+        /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+        touched?: Record<string, string[]>;
+      } | null>;
+      /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
+      claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+      resolveAiAction?(
+        choice: 'publish' | 'discard',
+        runId?: string
+      ): Promise<{
         status: 'accepted' | 'rejected' | 'discarded';
         code?: string;
         canvases?: number;
+        actionId?: string;
+        touched?: Record<string, string[]>;
       } | null>;
     } | null;
   };

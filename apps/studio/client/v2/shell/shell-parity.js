@@ -27,6 +27,7 @@ import { initialMode, NO_CAPS, roleOfCaps, visibleSlots } from '../../../bridge/
 import { DOCK_PANELS } from '../../shell/dock.jsx';
 import { hiddenMenuIds } from '../diagnostics/diagnostics-model.js';
 import { leftTabs } from '../left-panel/left-panel-model.js';
+import { acrossProjects } from '../search/search-projects.js';
 import { rowShown, SETTINGS_ROWS, sectionsFor } from '../settings/settings-model.js';
 import { capsFor, MODE_WORD, modeSegments } from './canvas-mode.js';
 import { panelAvailable } from './panel-availability.js';
@@ -366,13 +367,17 @@ export function parityFor(id) {
   });
   const desktop = shell.id === 'desktop';
   const parts = {
-    'window-tabs': desktop
-      ? { present: true, where: 'the tab strip webview (V2-3.7) — not part of a project page' }
-      : absent(
-          inp.cloud
-            ? 'a cloud project is one browser tab; the dashboard is the list of projects'
-            : 'the browser tab is the tab'
-        ),
+    'window-tabs': {
+      ...(desktop
+        ? { present: true, where: 'the tab strip webview (V2-3.7) — not part of a project page' }
+        : absent(
+            inp.cloud
+              ? 'a cloud project is one browser tab; the dashboard is the list of projects'
+              : 'the browser tab is the tab'
+          )),
+      // S1.5: ⌘K reaches the other projects only where there are other tabs (search-projects.js)
+      search: acrossProjects({ native: desktop }),
+    },
     'project-pill': { present: true, testids: ['project-pill'] },
     'back-to-home':
       ACTIONS_BY_ID.get('nav.home') && isVisible(ACTIONS_BY_ID.get('nav.home'), ctx)

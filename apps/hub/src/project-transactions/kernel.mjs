@@ -189,6 +189,8 @@ export function createKernel({
       }
       if (Number.isSafeInteger(p.origin.madeAt) && p.origin.madeAt >= 0)
         origin.madeAt = p.origin.madeAt;
+      // S5.5 — a stopped AI run's publish (V2-1.5 §5.1 `partial`); only `true`.
+      if (p.origin.partial === true) origin.partial = true;
     }
     return { p, label, kind, origin, fence: parseFence(p.fence) };
   }

@@ -49,15 +49,32 @@ import { MIGRATION_ACTOR } from '../../hub/src/project-transactions/baseline.mjs
 import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transactions/kernel.mjs';
 import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
+import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { createActionStage, type RunFence, type RunStageSummary } from './action-stage.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
+import { hashBytes } from './echo-guard.ts';
+import { mergeSource } from './source-merge.ts';
+import {
+  asTarget,
+  chatActionIds,
+  originFields,
+  type UndoTarget,
+  undoLabel,
+} from './undo-target.ts';
 
 /* ------------------------------------------------------------------ files */
 
 export const STORE_FILE = 'project-store.sqlite';
 export const LOCK_FILE = 'project-store.lock';
+/** S5.5b — this home's held AI runs (V2-1.5 §5.5), apart from the hub link's `ai-stage.json`. */
+export const AI_STAGE_FILE = 'ai-stage-local.json';
+/** S5.5b — how long a studio write's content note waits for the watcher to read it. */
+export const WRITE_NOTE_MS = 30_000;
+/** The label a person's studio edit carries (the hub link's `LANE_LABEL.html`). */
+export const STUDIO_EDIT_LABEL = 'Edit canvas';
 /** A foreign machine's store, kept read-only (C1). */
 export const FOREIGN_STORE = /^project-store\.([A-Za-z0-9_-]{1,64})\.sqlite$/;
 const SQLITE_SIDECARS = ['', '-wal', '-shm'] as const;
@@ -374,6 +391,11 @@ export interface LocalHistoryRow {
   undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** V2-1.5 §5.1 origin keys (S5.5). */
+  runId?: string;
+  chatId?: string;
+  madeAt?: number;
+  partial?: true;
 }
 
 export type LocalOutcome = {
@@ -381,6 +403,8 @@ export type LocalOutcome = {
   code?: string;
   actionId?: string;
   revision?: number;
+  undoes?: string | string[];
+  skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
 };
 
 /** The `ctx.syncControl.current()` surface a local project answers through. */
@@ -390,10 +414,42 @@ export interface LocalRuntime {
     limit?: number;
     before?: number | null;
     path?: string | null;
+    chat?: string | null;
+    kind?: string | null;
+    mine?: boolean;
   }): Promise<LocalHistoryRow[]>;
   acceptedVersion(repoRel: string, revision: number): Promise<string | null>;
   acceptedRestore(repoRel: string, revision: number): Promise<LocalOutcome>;
-  acceptedUndo(actionId: string, redo?: boolean): Promise<LocalOutcome>;
+  acceptedUndo(
+    target: string | UndoTarget,
+    redo?: boolean,
+    o?: { via?: 'keys' | 'panel' }
+  ): Promise<LocalOutcome>;
+  /** S5.5b (U21) — the same run-stage surface the hub runtime has (sync/index.ts). */
+  beginAiAction(
+    key: string,
+    label: string,
+    meta?: { runId?: string; chatId?: string; actor?: string }
+  ): void;
+  claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
+  endAiAction(
+    key: string,
+    outcome: 'done' | 'failed' | 'stopped',
+    o?: { fence?: RunFence }
+  ): Promise<AiActionOutcome | null>;
+  resolveAiAction(
+    choice: 'publish' | 'discard',
+    runId?: string
+  ): Promise<(AiActionOutcome & { canvases?: number }) | null>;
+}
+
+/** What a run's end answers: the action it landed as and the artboards it touched. */
+export interface AiActionOutcome {
+  status: 'accepted' | 'rejected' | 'discarded';
+  code?: string;
+  actionId?: string;
+  /** design-root-relative canvas → artboards (V2-1.5 §5.7). */
+  touched?: Record<string, string[]>;
 }
 
 export interface LocalHomeOptions {
@@ -410,6 +466,8 @@ export interface LocalHomeOptions {
   settleMs?: number;
   /** Retry the lock this often while read-only; 0 = never (tests). */
   lockRetryMs?: number;
+  /** S5.5b — how long a run's last tool write gets to reach the watcher before the run ends. */
+  aiSettleMs?: number;
   log?: Pick<Console, 'warn' | 'error'>;
 }
 
@@ -428,6 +486,14 @@ export interface LocalHome {
   runtime: LocalRuntime;
   /** The fs watcher feed: a design-root-relative path changed. */
   observe(rel: string): void;
+  /**
+   * S5.5b — the studio itself wrote `content` to canvas `rel` (api.ts `source-written`): when
+   * the watcher reads exactly that content it is the person's `edit`, never `outside` and never
+   * an AI run's.
+   */
+  noteWritten(rel: string, content: string): void;
+  /** S5.5b — the runs this home stages (open and held), no bytes. */
+  aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
   observeMove(fromRel: string, toRel: string): void;
   /** Propose every pending observation now. */
@@ -488,6 +554,68 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   let retryTimer: ReturnType<typeof setInterval> | null = null;
   let closed = false;
   const foreignOpen = new Map<string, OpenedStore>();
+  const aiSettleMs = opts.aiSettleMs ?? 250;
+
+  /* ------------------------------------------------------- S5.5b — AI runs */
+
+  // A run's tool writes are STAGED here (sync/action-stage.ts — the same stage the hub link
+  // uses), so the watcher never records a canvas a run covers as `outside`: the run lands as
+  // ONE `ai` action when it ends (V2-1.5 §5.5, U21). The disk stays the working copy, so it may
+  // hold staged bytes the store has not accepted; `seen` remembers what each lane held when the
+  // watcher last read it — the `d0` a change is composed from (`R.mine = merge3(d0, d1, mine)`)
+  // and the base a person's edit made on top of staged bytes is proposed from.
+  /** `${rel}|${lane}` → the lane's value on disk when last read (or written) here. */
+  const seen = new Map<string, string>();
+  /** rel → the studio's own write of it (api.ts `source-written`), until the watcher reads it. */
+  const notes = new Map<string, { hash: string; at: number }>();
+  /** >0 while a proposal made FROM the disk is accepted: the disk already holds it. */
+  let fromDisk = 0;
+  let runTx = 0;
+  const stage = createActionStage({
+    designRoot: opts.designRoot,
+    stateFile: path.join(stateDir, AI_STAGE_FILE),
+    propose: async (a) => {
+      // The local store has no lease rows (the run registry's lease home is in process), so a
+      // fence would only ever mismatch: the publish goes without it.
+      const r = await serial(() =>
+        submit(a.operations, { kind: a.kind, label: a.label }, actor, a.origin ?? {}, true)
+      );
+      return {
+        protocol: PROTOCOL,
+        status: r.status,
+        transactionId: a.transactionId,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+        ...(r.revision !== undefined ? { revision: r.revision } : {}),
+      };
+    },
+    newTransactionId: () => `lt_run_${now().toString(36)}_${(++runTx).toString(36)}`,
+    attribute: (slug, before, after) =>
+      /\.tsx$/i.test(slug)
+        ? { canvas: slug, artboards: attributeArtboards(slug, before, after).artboards }
+        : null,
+    log: { log() {}, warn: (m: string) => log.warn(m) },
+    now,
+  });
+
+  function noteWritten(rel: string, content: string): void {
+    const canvas = canvasOfRel(rel);
+    if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
+    notes.set(canvas, { hash: hashBytes(content), at: now() });
+  }
+
+  /** The studio's note for this html, consumed (null when the content is not the studio's). */
+  function takeNote(rel: string, html: string | undefined): { at: number } | null {
+    const n = notes.get(rel);
+    if (!n) return null;
+    if (now() - n.at > WRITE_NOTE_MS) {
+      notes.delete(rel);
+      return null;
+    }
+    if (html === undefined || hashBytes(html) !== n.hash) return null;
+    notes.delete(rel);
+    return { at: n.at };
+  }
 
   /* ---------------------------------------------------------------- open */
 
@@ -530,6 +658,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       now,
       log,
     });
+    // S5.5b (U14) — a run the last session left comes back HELD, before the boot reconcile
+    // reads the disk: its bytes are its stage's, never an `outside` row.
+    stage.restore();
   }
 
   function openReadOnly(): void {
@@ -571,7 +702,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     operations: unknown[],
     action: { kind: string; label: string | null },
     as: string = actor,
-    origin: Record<string, unknown> = {}
+    origin: Record<string, unknown> = {},
+    /** The proposal IS what the disk holds: its acceptance writes nothing back. */
+    disk = false
   ): Promise<LocalOutcome> {
     if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
     const { epoch } = await opened.store.state();
@@ -583,12 +716,22 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       origin: { deviceId: machine.id, client: 'studio-local', madeAt: now(), ...origin },
       action: { kind: action.kind, label: action.label, operations },
     });
-    const { body } = await kernel.submit(bytes, { actor: as });
+    if (disk) fromDisk += 1;
+    let body: any;
+    try {
+      ({ body } = await kernel.submit(bytes, { actor: as }));
+    } finally {
+      if (disk) fromDisk -= 1;
+    }
     if (body?.status === 'accepted') {
       return {
         status: 'accepted',
         ...(body.actionId ? { actionId: body.actionId } : {}),
         ...(Number.isSafeInteger(body.revision) ? { revision: body.revision } : {}),
+        ...(typeof body.undoes === 'string' || Array.isArray(body.undoes)
+          ? { undoes: body.undoes }
+          : {}),
+        ...(Array.isArray(body.skipped) && body.skipped.length ? { skipped: body.skipped } : {}),
       };
     }
     return { status: 'rejected', code: String(body?.code ?? 'retryable') };
@@ -644,6 +787,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const live: string | null = await store.docByPath(rel);
     const onDisk = existsSync(abs(rel));
     if (!onDisk) {
+      for (const lane of LOCAL_LANES) seen.delete(`${rel}|${lane}`);
       if (!live) return null;
       const st = (await store.heads([live]))[live];
       return submit(
@@ -670,16 +814,52 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const head = (await store.heads([live]))[live] as {
       lanes: Record<string, { hash: string | null }>;
     };
+    // S5.5b — the studio's own write is the person's edit; a write a run claims (or a run
+    // covers) joins that run's stage; anything else is outside, as before.
+    const noted = action.kind === OUTSIDE_KIND ? takeNote(rel, values.html) : null;
     const ops: unknown[] = [];
+    const nextSeen: Array<[string, string]> = [];
     for (const lane of LOCAL_LANES) {
       const v = values[lane];
       if (v === undefined) continue;
+      const k = `${rel}|${lane}`;
       const headHash = hashOr(head?.lanes?.[lane]?.hash);
-      if (laneHash(v) === headHash) continue;
-      ops.push({ op: 'lane.replace', doc: live, lane, content: v, base: headHash });
+      const prev = seen.get(k);
+      if (prev !== undefined ? prev === v : laneHash(v) === headHash) continue;
+      const base =
+        prev ?? (headHash === EMPTY_HASH ? '' : (((await store.blob(headHash)) as string) ?? ''));
+      if (!noted && action.kind === OUTSIDE_KIND && stage.captures(rel, true, v)) {
+        seen.set(k, v);
+        void stage
+          .capture(rel, live, {
+            lane,
+            content: v,
+            baseContent: base,
+            transactionId: `lt_stage_${now().toString(36)}_${(++runTx).toString(36)}`,
+            stageable: true,
+          })
+          .catch(() => null);
+        continue;
+      }
+      ops.push(
+        laneHash(base) === headHash
+          ? { op: 'lane.replace', doc: live, lane, content: v, base: headHash }
+          : { op: 'lane.replace', doc: live, lane, content: v, baseContent: base }
+      );
+      nextSeen.push([k, v]);
     }
     if (!ops.length) return null;
-    return submit(ops, { ...action, label: action.label ?? NAME(rel) }, as);
+    const r = noted
+      ? await submit(
+          ops,
+          { kind: 'edit', label: STUDIO_EDIT_LABEL },
+          as,
+          { madeAt: noted.at },
+          true
+        )
+      : await submit(ops, { ...action, label: action.label ?? NAME(rel) }, as, {}, true);
+    if (r.status === 'accepted') for (const [k, v] of nextSeen) seen.set(k, v);
+    return r;
   }
 
   /** Every canvas on disk under the groups, design-root-relative. */
@@ -760,6 +940,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   }): Promise<void> {
     const store = opened?.store;
     if (!store) return;
+    // S5.5b — a proposal made from the disk (a watched write, a run landing): nothing to write.
+    if (fromDisk > 0) return;
     // What the store held before this action, per lane — the disk must still
     // say that, or it carries a byte the store never accepted.
     const before = async (doc: string, lane: LocalLane) =>
@@ -810,26 +992,62 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         const l = lane as LocalLane;
         const rel = sibling(c.path, l);
         const current = diskLane(c.path, l);
-        if (current !== null && laneHash(current) === laneHash(value)) continue;
+        if (current !== null && laneHash(current) === laneHash(value)) {
+          seen.set(`${c.path}|${l}`, current);
+          continue;
+        }
         if (!c.created && !c.revived && !(await diskMatches(c.path, c.doc, l))) {
           log.warn(`[local-kernel] ${rel} changed on disk since — left as it is`);
           continue;
         }
-        if (value === '') {
-          if (l !== 'html') {
-            try {
-              unlinkSync(abs(rel));
-            } catch {
-              /* absent */
-            }
-          }
-          continue;
-        }
-        const text = l === 'meta' ? mergeSharedMetaIntoLocal(readText(rel), value) : value;
-        if (text === null) continue;
-        atomicWrite(abs(rel), text);
+        writeLane(c.path, l, value);
       }
     }
+  }
+
+  /** Write one lane's value to its file (an empty side lane removes the file). */
+  function writeLane(canvasRel: string, l: LocalLane, value: string): void {
+    const rel = sibling(canvasRel, l);
+    if (value === '') {
+      if (l !== 'html') {
+        try {
+          unlinkSync(abs(rel));
+        } catch {
+          /* absent */
+        }
+        seen.set(`${canvasRel}|${l}`, '');
+      }
+      return;
+    }
+    const text = l === 'meta' ? mergeSharedMetaIntoLocal(readText(rel), value) : value;
+    if (text === null) return;
+    atomicWrite(abs(rel), text);
+    seen.set(`${canvasRel}|${l}`, value);
+  }
+
+  /**
+   * A discarded run's bytes leave the disk: its deltas are taken back out of what the disk holds
+   * now (three-way — a person's edit made since stays). A lane that cannot be untangled is left
+   * as it is, and the next watched change records it.
+   */
+  function unstage(l: { slug: string; lane: string; base: string; mine: string }): void {
+    if (!(LOCAL_LANES as readonly string[]).includes(l.lane)) return;
+    const lane = l.lane as LocalLane;
+    const disk = diskLane(l.slug, lane);
+    if (disk === null) return;
+    let next: string | null = null;
+    if (disk === l.mine) next = l.base;
+    else if (lane === 'html') {
+      const m = mergeSource(l.mine, l.base, disk);
+      next = m.ok ? m.merged : null;
+    }
+    if (next === null) {
+      log.warn(
+        `[local-kernel] ${l.slug}: the discarded AI changes could not be taken out — left as it is`
+      );
+      return;
+    }
+    if (next !== disk) writeLane(l.slug, lane, next);
   }
 
   /* -------------------------------------------------------------- watcher */
@@ -905,7 +1123,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   async function rowsOf(
     o: OpenedStore,
-    q: { limit?: number; before?: number | null; entry?: string | null }
+    q: {
+      limit?: number;
+      before?: number | null;
+      entry?: string | null;
+      chat?: string | null;
+      kind?: string | null;
+      actor?: string | null;
+    }
   ): Promise<LocalHistoryRow[]> {
     const m = await o.store.manifest();
     const pathOf = new Map<string, string>(
@@ -915,6 +1140,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       limit: Math.min(Math.max(q.limit ?? 50, 1), 200),
       before: q.before ?? null,
       entry: q.entry ?? null,
+      chat: q.chat ?? null,
+      kind: q.kind ?? null,
+      actor: q.actor ?? null,
     })) as {
       revision: number;
       actionId: string;
@@ -923,6 +1151,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       label: string | null;
       committedAt: number;
       undoes: string | string[] | null;
+      origin?: Record<string, unknown> | null;
       effects: { doc: string | null; beforePath: string | null; afterPath: string | null }[];
     }[];
     return history.map((a) => {
@@ -941,6 +1170,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         committedAt: a.committedAt,
         undoes: a.undoes,
         canvases: [...canvases].sort(),
+        ...originFields(a.origin),
       };
     });
   }
@@ -972,7 +1202,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         entry = (h as { entry?: string } | undefined)?.entry ?? null;
         if (!entry) return [];
       }
-      return rowsOf(o, { ...q, entry });
+      return rowsOf(o, {
+        limit: q.limit,
+        before: q.before,
+        entry,
+        chat: q.chat ?? null,
+        kind: q.kind ?? null,
+        actor: q.mine ? actor : null,
+      });
     },
     async acceptedVersion(repoRel, revision) {
       await readyP;
@@ -995,17 +1232,77 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         })
       );
     },
-    async acceptedUndo(actionId, redo = false) {
+    async acceptedUndo(raw, redo = false, o) {
       await settled();
-      if (!kernel) return { status: 'rejected', code: 'store-locked' };
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const target = asTarget(raw);
+      const label = undoLabel(target, redo, o?.via);
+      let ids: { actionId: string } | { actionIds: string[] };
+      if ('chatId' in target) {
+        // "Undo this chat": this person's own `ai` actions of the chat, as ONE action.
+        const rows = await rowsOf(opened, { limit: 200, chat: target.chatId, actor, kind: 'ai' });
+        const found = chatActionIds(rows, target.chatId);
+        if (!found.ok) return { status: 'rejected', code: found.code };
+        ids = { actionIds: found.actionIds };
+      } else ids = target;
       return serial(() =>
-        submit([{ op: redo ? 'history.redo' : 'history.undo', actionId }], {
+        submit([{ op: redo ? 'history.redo' : 'history.undo', ...ids }], {
           kind: redo ? 'redo' : 'undo',
-          label: redo ? 'Redo' : 'Undo',
+          label,
         })
       );
     },
+    beginAiAction(key, label, meta) {
+      if (!kernel) return;
+      stage.begin(key, label, meta ?? {});
+    },
+    claimAiWrite(key, repoRel, hash) {
+      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+      const canvas = rel ? canvasOfRel(rel) : null;
+      if (canvas) stage.claim(key, canvas, hash ?? null);
+    },
+    async endAiAction(key, outcome) {
+      if (!kernel) return null;
+      // The watcher delivers the run's last tool write a beat after the tool returns.
+      if (aiSettleMs > 0) await new Promise((r) => setTimeout(r, aiSettleMs));
+      await settled();
+      const touched = stage.summaryOf(key)?.touched;
+      const r = await stage.end(key, outcome);
+      return r ? aiOutcome(r, touched) : null;
+    },
+    async resolveAiAction(choice, runId) {
+      if (!kernel) return null;
+      await settled();
+      const held = stage.runs().filter((r) => r.state === 'held' && (!runId || r.runId === runId));
+      if (!held.length) return null;
+      if (choice === 'discard') {
+        const lanes = held.flatMap((r) => stage.lanesOf(r.runId));
+        const canvases = stage.discard(runId);
+        await serial(async () => {
+          for (const l of lanes) unstage(l);
+        });
+        return { status: 'discarded', canvases };
+      }
+      const touched: Record<string, string[]> = {};
+      for (const r of held)
+        for (const [c, ids] of Object.entries(r.touched))
+          touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
+      const r = await stage.publish(runId);
+      return r ? aiOutcome(r, touched) : null;
+    },
   };
+
+  function aiOutcome(
+    r: { status: 'accepted' | 'rejected'; code?: string; actionId?: unknown },
+    touched: Record<string, string[]> | undefined
+  ): AiActionOutcome {
+    return {
+      status: r.status,
+      ...(r.code ? { code: r.code } : {}),
+      ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+      ...(touched && Object.keys(touched).length ? { touched } : {}),
+    };
+  }
 
   /* -------------------------------------------------------------- foreign */
 
@@ -1061,6 +1358,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     runtime,
     observe,
     observeMove,
+    noteWritten,
+    aiRuns: () => stage.runs(),
     flush: () => drain(),
     foreignStores,
     foreignHistory,
@@ -1165,6 +1464,11 @@ export function attachLocalHome<S extends SupervisorLike>(
   };
   ctx.bus.on('fs:any', (rel: string) => {
     if (isLocal()) get()?.observe(rel);
+  });
+  // S5.5b — the studio's own write (api.ts, after it landed): the person's edit, by content.
+  ctx.bus.on('source-written', (p: { rel?: unknown; content?: unknown } | null) => {
+    if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+    get()?.noteWritten(p.rel, p.content);
   });
   ctx.bus.on(
     'canvas-list-update',

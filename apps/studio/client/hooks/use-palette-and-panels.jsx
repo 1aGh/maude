@@ -10,6 +10,7 @@ import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-mode
 import { roleRefuses } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 import { bindPaletteEnv, sendToAskAI } from '../v2/search/search-env.js';
+import { desktopProjectsEnv } from '../v2/search/search-projects.js';
 import { actionSearchRows, settingsSearchRows } from '../v2/search/search-model.js';
 import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
@@ -317,6 +318,8 @@ export function usePaletteAndPanels({
   useEffect(
     () =>
       bindPaletteEnv({
+        // S1.5: the other projects' groups — the desktop app's tabs only ({} in a browser tab)
+        ...desktopProjectsEnv({ projectName: cfg?.cloud?.projectName || project || '' }),
         designRel: cfg.designRel,
         canAskAI: () => isNativeApp() && !viewerMode,
         askAI: (text) => {
@@ -331,7 +334,15 @@ export function usePaletteAndPanels({
               setTimeout(() => postToActiveCanvas({ dgn: 'select-by-id', artboardId }), delay);
         },
       }),
-    [cfg.designRel, viewerMode, openPanelExclusive, openTab, postToActiveCanvas]
+    [
+      cfg.designRel,
+      cfg?.cloud?.projectName,
+      project,
+      viewerMode,
+      openPanelExclusive,
+      openTab,
+      postToActiveCanvas,
+    ]
   );
 
   // Native menu items whose registry action runs in the webview (`menu://action {id}`,
