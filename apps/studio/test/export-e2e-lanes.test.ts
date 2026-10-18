@@ -150,6 +150,7 @@ interface PwPage {
   keyboard: { press(k: string): Promise<void> };
   click(sel: string, o?: unknown): Promise<void>;
   waitForSelector(sel: string, o?: unknown): Promise<unknown>;
+  waitForTimeout(ms: number): Promise<void>;
   selectOption(sel: string, v: string): Promise<unknown>;
   textContent(sel: string): Promise<string | null>;
   waitForEvent(e: string, o?: unknown): Promise<PwDownload>;
@@ -208,6 +209,7 @@ async function openExportDialog(port: number) {
   // `maude-canvas-iframe-unreachable-by-dom`). Playwright is not bound by the
   // same-origin policy, so drive the FRAME directly.
   const deadline = Date.now() + 60_000;
+  let canvasFrame: ReturnType<PwPage['frames']>[number] | null = null;
   for (;;) {
     const frame = page
       .frames()
@@ -215,6 +217,7 @@ async function openExportDialog(port: number) {
     if (frame) {
       try {
         await frame.waitForSelector('[data-dc-screen]', { timeout: 5_000 });
+        canvasFrame = frame;
         break;
       } catch {
         /* still building — the first load transpiles the canvas */
@@ -223,6 +226,14 @@ async function openExportDialog(port: number) {
     if (Date.now() > deadline) throw new Error('artboard never mounted in the canvas iframe');
     await Bun.sleep(250);
   }
+  // S8.2: "this artboard" is the sheet's `selection` scope, off while nothing is selected ("Nothing is
+  // selected."), and without the render service a workspace exports one artboard only. The cell's shell
+  // opens in Preview (esc → Viewing); select the artboard by clicking it, as a person does.
+  await page.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  });
+  await canvasFrame?.click('[data-dc-screen]', { timeout: 15_000, position: { x: 3, y: 3 } });
+  await page.waitForTimeout(400);
   // ⌘⇧E opens the dialog. Dispatch it on the SHELL window rather than through
   // `keyboard.press`: once the canvas iframe has mounted it holds focus, and a
   // synthetic keypress would be delivered to the iframe's document instead of
@@ -656,8 +667,12 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             // Renders target the ACTIVE canvas's artboard — switch to the
             // fixture this entry needs. The dialog's scrim is still up from
             // the last submit and would swallow the tree click; dismiss it.
+            // S8.2: the sheet closes on Esc through its own key handler (focus inside it), not a
+            // window listener — so the key goes to a control inside the sheet and bubbles up.
             await page.evaluate(() => {
-              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              document
+                .querySelector('[data-testid="export-submit"]')
+                ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
             });
             await page.waitForSelector('[data-testid="export-submit"]', {
               state: 'detached',
