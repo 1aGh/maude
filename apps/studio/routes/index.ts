@@ -17,6 +17,7 @@
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -44,6 +45,8 @@ export interface RouteDeps {
   chat: ChatRouteDeps;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
+  annotations?: AnnotationRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -51,6 +54,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
   // ONE run registry (S5.3, ai/runs.ts): the hook routes' view writes it, the shell status counts
   // it (V2-3.4), and `/_api/ai/runs*` reads it — never a second map.
   deps.agent.runs ??= createAgentRuns(deps.agent.bracket, undefined, deps.ai.registry);
+  const convert = deps.annotations ? createAnnotationRoutes(deps.annotations) : null;
+  const projectUndo = deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel };
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
@@ -60,7 +65,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createAiRoutes(deps.ai),
     ...createChatRoutes(deps.chat),
     ...createProjectUndoRoutes(
-      deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+      convert ? { ...projectUndo, guard: convert.undoGuard } : projectUndo
     ),
+    ...(convert?.specs ?? []),
   ];
 }

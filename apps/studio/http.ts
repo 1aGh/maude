@@ -1600,6 +1600,16 @@ export function createHttp(
       designRel: ctx.paths.designRel,
       emit: (e, p) => ctx.bus.emit(e, p),
     },
+    // S4.7 — sticky ↔ comment as one action; the converter is the session (a cell's vouched
+    // member, else this machine's git identity) — never the body (contract S4-S9 §3.1).
+    annotations: {
+      api,
+      control: () => ctx.syncControl?.current?.() ?? null,
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
+    },
     ai: {
       registry: runs,
       repoRoot: ctx.paths.repoRoot,
