@@ -353,5 +353,16 @@ export function createPokeVisibility({ designRoot, journal }) {
           (typeof ev?.path === 'string' && files.sees(ev.path))
       );
     },
+    /**
+     * Whether a claim-judged connection may hear that a vote on `canvasPath`
+     * changed (Gate 0 A18, S9.13). Votes are anchored to one canvas, so the
+     * grant itself decides — no closure, no journal.
+     */
+    votesVisible(connection, canvasPath) {
+      const claim = claimOfConnection(connection);
+      if (!claim || typeof canvasPath !== 'string' || canvasPath === '') return false;
+      const access = resolveAccess(claim);
+      return access.canvasOnly && access.can('read', canvasPath);
+    },
   };
 }

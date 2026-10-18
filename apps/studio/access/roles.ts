@@ -43,6 +43,12 @@ export const CAPABILITIES = Object.freeze([
   'session',
   'request',
   'comment',
+  // A ballot in a formal vote (Gate 0 A18, contract S4-S9-votes-comments §2.3):
+  // Can comment and up. Its own word, not `comment`'s — "may vote" and "may
+  // comment" are separate promises in the Share sheet, so a later "comment,
+  // but no votes" role is a row, not a matrix migration. Starting or ending a
+  // vote needs `edit`.
+  'vote',
   'export',
   'annotate',
   'edit',
@@ -70,6 +76,7 @@ const MATRIX: Readonly<Record<ProjectRole, Row>> = Object.freeze({
     'read',
     'session',
     'comment',
+    'vote',
     'export',
     'annotate',
     'edit',
@@ -79,8 +86,18 @@ const MATRIX: Readonly<Record<ProjectRole, Row>> = Object.freeze({
     'delete',
     'mirror',
   ]),
-  member: row(['read', 'session', 'comment', 'export', 'annotate', 'edit', 'trash', 'summon']),
-  viewer: row(['read', 'session', 'request', 'comment', 'export']),
+  member: row([
+    'read',
+    'session',
+    'comment',
+    'vote',
+    'export',
+    'annotate',
+    'edit',
+    'trash',
+    'summon',
+  ]),
+  viewer: row(['read', 'session', 'request', 'comment', 'vote', 'export']),
   observer: row(['read', 'session', 'request']),
 });
 

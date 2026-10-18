@@ -52,6 +52,12 @@ export const STORE_METHODS = Object.freeze([
   'runsRenew',
   'runsEnd',
   'runsList',
+  // Gate 0 A18 (S4.6) — votes and hub-held ballots (each one transaction = one RPC).
+  'votesStart',
+  'votesCast',
+  'votesEnd',
+  'votesGet',
+  'votesList',
 ]);
 const ALLOWED = new Set(STORE_METHODS);
 
