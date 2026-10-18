@@ -329,6 +329,34 @@ describe('origin keys', () => {
       assert.deepEqual(res.body.origin, { deviceId: 'mac-1' });
     }
   });
+
+  test('S5.5 — a stopped run keeps origin.partial (true only; anything else is dropped)', async () => {
+    const r = rig();
+    await r.create('you', F, 'ui/combine.tsx', canvas());
+    for (const [partial, kept] of [
+      [true, true],
+      ['true', false],
+      [1, false],
+    ]) {
+      const cur = await r.head(F);
+      const res = await r.propose(
+        'you',
+        [
+          {
+            op: 'lane.replace',
+            doc: F,
+            lane: 'html',
+            content: `${cur}// ${partial}\n`,
+            base: laneHash(cur),
+          },
+        ],
+        { kind: 'ai', label: 'Restyle — stopped', origin: { runId: 'run_S', partial } }
+      );
+      assert.equal(res.status, 200, JSON.stringify(res.body));
+      const [row] = await r.kernel.history({ limit: 1 });
+      assert.equal(row.origin.partial, kept ? true : undefined);
+    }
+  });
 });
 
 describe('v1 compatibility', () => {

@@ -14,13 +14,13 @@ import { useModalFocus } from '../v2/shell/modal-focus.js';
 import { REMOTE_DEBOUNCE_MS, searchIndex } from '../v2/search/search-remote.js';
 import {
   askRow as askRowFor,
-  assemble,
   emptyCopy,
   footerCount,
   remoteRows,
   sanitizeQuery,
 } from '../v2/search/search-model.js';
 import { fetchRecents, RECENT_EMPTY, recentRows, startRows } from '../v2/search/search-recent.js';
+import { assembleAcross, projectGroups } from '../v2/search/search-projects.js';
 
 const FALLBACK_ICON = {
   canvases: 'file',
@@ -59,6 +59,8 @@ function Marked({ text, marks }) {
 function runItem(item, { env, query, close }) {
   close();
   if (item.group === 'ask-ai') env.askAI(query.trim());
+  // another project's row (S1.5): the shell switches to its tab, or opens one, then goes there
+  else if (item.pid) env.openSearchResult?.(item);
   else if (item.group === 'canvases' || item.group === 'artboards')
     env.openCanvas(item.path, item.artboardId ?? null);
   else item.run?.();
@@ -68,6 +70,8 @@ export function CommandPalette({ open, onClose, actions }) {
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const [remote, setRemote] = useState({ q: '', rows: [] });
+  // S1.5: the person's other projects (desktop tab only — the shell's `index_search`)
+  const [across, setAcross] = useState({ q: '', groups: [] });
   // Canvases opened on this Mac (`known: false` = the server did not say, so no day-one screen)
   const [recents, setRecents] = useState({ known: false, opened: {} });
   const listRef = useRef(null);
@@ -86,6 +90,7 @@ export function CommandPalette({ open, onClose, actions }) {
       setQ('');
       setActive(0);
       setRemote({ q: '', rows: [] });
+      setAcross({ q: '', groups: [] });
       setRecents({ known: false, opened: {} });
       const ctl = new AbortController();
       fetchRecents({ signal: ctl.signal }).then((r) => {
@@ -108,8 +113,21 @@ export function CommandPalette({ open, onClose, actions }) {
           rows: remoteRows(res, { designRel: getPaletteEnv().designRel, query: clean }),
         });
     }, REMOTE_DEBOUNCE_MS);
+    // Other projects answer through the shell, on the same pause; a browser tab has none to ask.
+    const { searchProjects, ownProject } = getPaletteEnv();
+    const acrossTimer = searchProjects
+      ? setTimeout(async () => {
+          const res = await searchProjects(clean, { signal: ctl.signal });
+          if (res && !ctl.signal.aborted)
+            setAcross({
+              q: clean,
+              groups: projectGroups(res, { ownPid: ownProject?.pid, query: clean }),
+            });
+        }, REMOTE_DEBOUNCE_MS)
+      : null;
     return () => {
       clearTimeout(timer);
+      if (acrossTimer) clearTimeout(acrossTimer);
       ctl.abort();
     };
   }, [open, clean]);
@@ -125,7 +143,7 @@ export function CommandPalette({ open, onClose, actions }) {
   );
 
   /** Everything on screen for a query (the live input value or the rendered one). */
-  const viewFor = (query, remoteRowsNow) => {
+  const viewFor = (query, remoteRowsNow, others = []) => {
     if (!sanitizeQuery(query)) {
       const designRel = getPaletteEnv().designRel;
       const recent = recentRows(recents.opened, { designRel });
@@ -156,11 +174,13 @@ export function CommandPalette({ open, onClose, actions }) {
         total: 0,
       };
     }
-    return assemble({ query, local, remote: remoteRowsNow, canAskAI });
+    const own = getPaletteEnv().ownProject ?? null;
+    return assembleAcross({ query, local, remote: remoteRowsNow, others, own, canAskAI });
   };
   const view = useMemo(
-    () => viewFor(q, remote.q === clean ? remote.rows : []),
-    [q, clean, remote, local, shortList, canAskAI, recents, actions]
+    () =>
+      viewFor(q, remote.q === clean ? remote.rows : [], across.q === clean ? across.groups : []),
+    [q, clean, remote, across, local, shortList, canAskAI, recents, actions]
   );
   const items = view.items;
 
@@ -195,9 +215,13 @@ export function CommandPalette({ open, onClose, actions }) {
         onMouseEnter={() => setActive(i)}
         onClick={() => go(item)}
       >
-        <span className={`st-pal-icon${group === 'ask-ai' ? ' st-pal-icon--spark' : ''}`}>
-          <StIcon name={iconFor(item, group)} size={15} />
-        </span>
+        {item.thumb ? (
+          <img className="st-pal-thumb" src={item.thumb} alt="" />
+        ) : (
+          <span className={`st-pal-icon${group === 'ask-ai' ? ' st-pal-icon--spark' : ''}`}>
+            <StIcon name={iconFor(item, group)} size={15} />
+          </span>
+        )}
         <span className="st-pal-label">
           <span className="st-pal-ltxt">
             <Marked text={item.name} marks={item.marks} />
@@ -296,10 +320,21 @@ export function CommandPalette({ open, onClose, actions }) {
         aria-labelledby={`${baseId}-g-${g.id}`}
       >
         <div className="st-pal-group" id={`${baseId}-g-${g.id}`} role="presentation">
+          {g.square ? (
+            <span
+              className={`st-pal-sq st-pal-sq--${g.square.tone}`}
+              data-testid="palette-project-square"
+              aria-hidden="true"
+            >
+              {g.square.initial}
+            </span>
+          ) : null}
           {g.title}
           {g.aside ? <span className="st-pal-aside">{g.aside}</span> : null}
         </div>
-        {g.rows.map((row) => rowButton(row, g.id === 'did-you-mean' ? row.group : g.id))}
+        {g.rows.map((row) =>
+          rowButton(row, g.id === 'did-you-mean' || g.square ? row.group : g.id)
+        )}
       </div>
     ));
     body = copy ? (
