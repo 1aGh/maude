@@ -4711,7 +4711,10 @@ export function applyDuplicateArtboard(
   canvasAbsPath: string,
   source: string,
   artboardId: string,
-  newWidth: number
+  /** `null` (S2.10 ⌘D, with `names`): the copy keeps the source's width attribute verbatim. */
+  newWidth: number | null,
+  /** S2.10 — the copy's own id / label (⌘D: "Desktop 2"); absent = the v1 width-suffixed names. */
+  names?: { id?: string; label?: string }
 ): { source: string; artboardId: string } {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
@@ -4728,22 +4731,36 @@ export function applyDuplicateArtboard(
       id: artboardId,
     });
   }
-  const width = Math.max(1, Math.round(newWidth));
+  const width = newWidth === null ? null : Math.max(1, Math.round(newWidth));
+  if (width === null && !(names?.id && names.label))
+    throw new CanvasEditError('A copy at the same width needs its own id and label.', {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
 
   const existingIds = new Set(
     artboards
       .map((a) => getStringAttr(a.openingElement, 'id'))
       .filter((x): x is string => typeof x === 'string')
   );
-  let newId = `${artboardId}-${width}`;
-  let suffix = 2;
-  while (existingIds.has(newId)) {
-    newId = `${artboardId}-${width}-${suffix}`;
-    suffix += 1;
+  let newId = names?.id ?? `${artboardId}-${width}`;
+  if (names?.id) {
+    if (existingIds.has(newId)) {
+      throw new CanvasEditError(`<DCArtboard id="${newId}"> already exists in ${canvasAbsPath}`, {
+        canvas: canvasAbsPath,
+        id: newId,
+      });
+    }
+  } else {
+    let suffix = 2;
+    while (existingIds.has(newId)) {
+      newId = `${artboardId}-${width}-${suffix}`;
+      suffix += 1;
+    }
   }
 
   const sourceLabel = getStringAttr(target.openingElement, 'label') ?? artboardId;
-  const newLabel = `${sourceLabel} (${width}px)`;
+  const newLabel = names?.label ?? `${sourceLabel} (${width}px)`;
 
   const elStart = target.start as number;
   const elEnd = target.end as number;
@@ -4770,7 +4787,13 @@ export function applyDuplicateArtboard(
   } else {
     cs.appendLeft(idAttr.end - elStart, ` label="${escapeAttr(newLabel)}"`);
   }
-  if (widthAttr && typeof widthAttr.start === 'number' && typeof widthAttr.end === 'number') {
+  if (width === null) {
+    // same width: the attribute (a number or an expression) is copied as it was
+  } else if (
+    widthAttr &&
+    typeof widthAttr.start === 'number' &&
+    typeof widthAttr.end === 'number'
+  ) {
     cs.overwrite(widthAttr.start - elStart, widthAttr.end - elStart, `width={${width}}`);
   } else {
     cs.appendLeft(idAttr.end - elStart, ` width={${width}}`);
@@ -4781,7 +4804,18 @@ export function applyDuplicateArtboard(
   const insertText = `\n${targetIndent}${patchedClone}`;
   const s = new MagicString(source);
   s.appendLeft(elEnd, insertText);
-  const out = s.toString();
+  let out = s.toString();
+  // V2-1.4 §5.2: a copy never inherits an element id or a lock — every `data-cd-id` / `data-cd-locked`
+  // inside the clone is dropped (its elements are named lazily, like a duplicated element's).
+  const copyWalk = walkIdElements(out, canvasAbsPath);
+  if (copyWalk.ok) {
+    const board = copyWalk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === newId);
+    if (board)
+      out =
+        out.slice(0, board.start) +
+        copyWithoutIds(out, copyWalk.elements, board.start, board.end) +
+        out.slice(board.end);
+  }
   const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
   if (check.errors && check.errors.length > 0) {
     throw new CanvasEditError(
