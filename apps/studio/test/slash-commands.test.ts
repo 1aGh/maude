@@ -2,6 +2,8 @@
 // inline pill (client/panels/slash-commands.js). No DOM — importable directly.
 
 import { describe, expect, test } from 'bun:test';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
   buildCommandModel,
@@ -113,5 +115,27 @@ describe('filterCommands', () => {
     const { all } = buildCommandModel(STATIC_COMMANDS, []);
     const res = filterCommands(all, 'critic', 20);
     expect(res.some((c) => c.name === 'design:critic')).toBe(true);
+  });
+});
+
+// S12.2 — the list is generated from plugins/design/commands/*.md; a command added there shows
+// up in the AI chat panel's autocomplete without a hand edit.
+describe('STATIC_COMMANDS covers every design command', () => {
+  const dir = join(import.meta.dir, '..', '..', '..', 'plugins', 'design', 'commands');
+  const verbs = readdirSync(dir)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => f.slice(0, -3));
+
+  test('there are design commands to cover', () => {
+    expect(verbs.length).toBeGreaterThanOrEqual(24);
+  });
+  test('every commands/*.md has a design:<verb> entry', () => {
+    const have = new Set(STATIC_COMMANDS.map((c) => c.name));
+    const missing = verbs.filter((v) => !have.has(`design:${v}`));
+    expect(missing).toEqual([]);
+  });
+  test('and nothing else is listed', () => {
+    const want = new Set(verbs.map((v) => `design:${v}`));
+    expect(STATIC_COMMANDS.filter((c) => !want.has(c.name)).map((c) => c.name)).toEqual([]);
   });
 });
