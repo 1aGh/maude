@@ -9,16 +9,15 @@
 // Can view / Can comment get none of it (no create affordance). Ask AI opens the chat and PRE-FILLS; it never
 // sends. The registry action `ai.ask-fill-artboard` (⌘K) runs the same ask for the hint's board (fill-ask.js).
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { isNativeApp } from '../../github.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
-import { connectClaude } from '../ai/connect-flow.js';
 import { getPaletteEnv } from '../search/search-env.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { ArtboardHint, HINT_SIZE } from './artboard-hint.jsx';
-import { EmptyCanvas, EmptyConnect } from './empty-canvas.jsx';
+import { EmptyCanvas } from './empty-canvas.jsx';
 import { emptyHintStore } from './empty-hint-store.js';
 import { bindFillAsk } from './fill-ask.js';
 import {
@@ -43,7 +42,7 @@ export function EmptyHost() {
   const canEdit = !viewerMode;
   const native = isNativeApp();
   const canAsk = native && canEdit;
-  const [claude, rereadClaude] = useClaudeState(canAsk && canvasOpen);
+  const [claude] = useClaudeState(canAsk && canvasOpen);
   const { lane, count, hint } = useEmptyLane({
     activePath,
     iframesRef,
@@ -62,42 +61,15 @@ export function EmptyHost() {
   // a closed canvas is forgotten
   useEffect(() => () => lane.forget(activePath), [lane, activePath]);
 
-  // ── the ask ──
-  const [sheet, setSheet] = useState(null); // null | { phase, error }
-  const abortRef = useRef(null);
+  // ── the ask ── (the connect sheet waits for the first send, in the chat — CONTRACT §6)
   const openChat = useCallback(() => getPaletteEnv().askAI(''), []);
   const flowRef = useRef(null);
   if (!flowRef.current)
     flowRef.current = createAskFlow({
       openChat: () => openChat(),
       prefill: (text) => getPaletteEnv().askAI(text),
-      openConnect: () => setSheet({ phase: 'idle', error: null }),
     });
   const flow = flowRef.current;
-
-  const onConnect = useCallback(async () => {
-    abortRef.current?.abort();
-    const ctl = new AbortController();
-    abortRef.current = ctl;
-    setSheet({ phase: 'installing', error: null });
-    const r = await connectClaude({
-      signal: ctl.signal,
-      onPhase: (phase) => setSheet((s) => (s ? { ...s, phase } : s)),
-    });
-    if (ctl.signal.aborted) return;
-    if (r.ok) {
-      setSheet(null);
-      rereadClaude();
-      openChat();
-    } else {
-      setSheet({ phase: 'idle', error: r.reason || 'That did not work.' });
-    }
-  }, [openChat, rereadClaude]);
-  const onCancelConnect = useCallback(() => {
-    abortRef.current?.abort();
-    setSheet(null);
-    openChat(); // the chat is still where the prompt gets written
-  }, [openChat]);
 
   const askCanvas = useCallback(() => {
     flow.ask(model);
@@ -141,7 +113,7 @@ export function EmptyHost() {
   );
 
   const showHint = !!hint && !!placement && canEdit && mode === 'edit' && !model;
-  if (!model && !showHint && !sheet) return null;
+  if (!model && !showHint) return null;
   return (
     <>
       {model ? (
@@ -156,14 +128,6 @@ export function EmptyHost() {
       ) : null}
       {showHint ? (
         <ArtboardHint hint={hint} placement={placement} canAsk={canAsk} onAsk={askFill} />
-      ) : null}
-      {sheet ? (
-        <EmptyConnect
-          phase={sheet.phase}
-          error={sheet.error}
-          onConnect={onConnect}
-          onCancel={onCancelConnect}
-        />
       ) : null}
     </>
   );

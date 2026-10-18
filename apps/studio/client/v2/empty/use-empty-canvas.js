@@ -49,21 +49,15 @@ export function emptyCanvasModel(f) {
 
 /**
  * Ask AI on the empty canvas / the empty artboard. The chat opens and the words are put in its field — the
- * person presses ↵ (nothing here sends). Not connected: the S5 ConnectSheet opens the first time, once; after
- * that Ask AI is simply the chat (it queues, S5.13, and asks again only if the person sends).
+ * person presses ↵ (nothing here sends). Not connected changes nothing here: the S5 ConnectSheet asks on the
+ * first SEND, in the chat (CONTRACT §6; decision v2-lead-connect-sheet-on-first-send) — never on the press.
  *
- * @param {{ openChat: () => void, prefill: (text: string) => void, openConnect: () => void }} deps
+ * @param {{ openChat: () => void, prefill: (text: string) => void }} deps
  */
 export function createAskFlow(deps) {
-  let asked = false;
   return {
-    /** @returns 'connect' | 'chat' */
-    ask(model, text) {
-      if (model?.variant === 'connect' && !asked) {
-        asked = true;
-        deps.openConnect();
-        return 'connect';
-      }
+    /** @returns 'chat' */
+    ask(_model, text) {
       deps.openChat();
       if (text) deps.prefill(text);
       return 'chat';

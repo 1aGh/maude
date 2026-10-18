@@ -93,7 +93,7 @@ describe('the empty-canvas model: three variants from the readiness state', () =
   });
 });
 
-describe('Ask AI: opens the chat, pre-fills, never sends; not connected asks once', () => {
+describe('Ask AI: opens the chat, pre-fills, never sends; the connect sheet waits for a send', () => {
   const make = () => {
     const calls: string[] = [];
     const flow = createAskFlow({
@@ -111,11 +111,13 @@ describe('Ask AI: opens the chat, pre-fills, never sends; not connected asks onc
     expect(calls).toEqual(['chat', 'chat', 'fill:Fill Tablet starting from Desktop.']);
   });
 
-  test('not connected: the ConnectSheet opens the first time only — then the chat', () => {
+  // A6c (decision v2-lead-connect-sheet-on-first-send, CONTRACT §6): Ask AI opens and pre-fills the
+  // chat even when no Claude account is connected — the connect sheet comes on the first SEND, in the chat.
+  test('not connected: Ask AI opens the chat and pre-fills, every time — no sheet on the press', () => {
     const { calls, flow } = make();
-    expect(flow.ask({ variant: 'connect' })).toBe('connect');
     expect(flow.ask({ variant: 'connect' })).toBe('chat');
-    expect(calls).toEqual(['connect', 'chat']);
+    expect(flow.ask({ variant: 'connect' }, 'Fill Tablet.')).toBe('chat');
+    expect(calls).toEqual(['chat', 'chat', 'fill:Fill Tablet.']);
   });
 
   test('offline: still opens the chat (Ask AI always works; the prompt waits in line)', () => {

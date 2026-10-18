@@ -5,7 +5,7 @@
 //   ready      online, AI connected — the line + Ask AI.
 //   offline    the line keeps its first sentence and adds S5.13's "AI is back when this Mac is online."; the
 //              spot goes quiet; Ask AI stays enabled (the prompt waits in line, S5.13).
-//   connect    no Claude account yet — the line never changes; the first Ask AI asks once (ConnectSheet).
+//   connect    no Claude account yet — the line never changes; Ask AI opens the chat, the first send asks (ConnectSheet).
 // W7 "no door": next to Ask AI sits "New artboard" — a way in that is not the AI (and the only action where
 // the AI chat does not exist: a cloud tab, a browser tab).
 //
