@@ -22,14 +22,25 @@
 //
 // Reached via `maude design annotate` (DDR-062), never a raw bin path.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
+import { makeHostLookup } from '../annotations/ai-read.ts';
 import { AiBatch, AiOpError, CREATE_SIZE, describeTypes } from '../annotations/ai-write.ts';
 import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
+import {
+  applyOriginOffset,
+  BoardSpecError,
+  boardToOps,
+  flowToOps,
+  NODE_FILL,
+  NODE_INK,
+} from '../annotations/board-ops.ts';
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import { TEMPLATES, templateBoard } from '../annotations/templates.ts';
+import { STICKERS_DIR } from '../paths.ts';
+import { PostOpsError, postOps } from './_annotate-post.mjs';
 import {
   canvasRelFromArg,
   fileSlug,
@@ -39,21 +50,14 @@ import {
   resolveDesignRoot,
 } from './read-annotations.mjs';
 
-// Flow-node look — the blue ink + paired tint read on light AND dark canvases
-// (the verb cannot know the viewer's theme).
-const NODE_INK = '#3b82f6';
-const NODE_FILL = '#e0ebfd';
-const NODE_W = 180;
-const NODE_H = 80;
-const FLOW_GAP_X = 100;
-const FLOW_GAP_Y = 60;
-
 const HELP = `annotate — the AI whiteboard write verb (DDR-242, via \`maude design annotate\`)
 
 Usage:
   maude design annotate <rel-path> [--ops <file|-> | --flow <file|-> | --board <file|-|template-id>]
                         [--near <artboardId>] [--in <artboardId>]
                         [--pin <cdId|selector>] [--no-pointer]
+                        [--sticker <pack>/<id>] [--to <ab:…|el:…>]
+                        [--wrap-section [<id,…>] [--title <text>]] [--resolve <id,…>]
                         [--canvas-state <path>] [--rects <path>]
                         [--root <repo>] [--dry-run]
 
@@ -74,6 +78,17 @@ or "@refs" minted earlier in the batch.
       triangle-down (default rounded, blue node look). Arrows: "from"/"to"
       (bound, follow their hosts) or x1/y1/x2/y2 (free).
   { "op": "connect", "from": <id>, "to": <id>, "label"? }   bound arrow
+      An end may also be a CANVAS host: "ab:<artboard>" or "el:<artboard>/<element-id>[#n]"
+      (the stamped id from canvas-rects). The end follows that artboard / element; if it is
+      moved to the trash the arrow keeps its bind and shows it as pointing at something gone.
+      Needs the host's geometry (--rects / --canvas-state) or the end's x/y as its cached point.
+  { "op": "create", "type": "sticky"|"text"|"image", …, "to": "ab:…"|"el:…" }
+      the new note also gets a bound arrow to that host (pass "from" only on arrows).
+  { "op": "sticker", "sticker": "<pack>/<id>", x?, y?, w?, h?, "to"?, … }
+      a Stickers-gallery picture (an image, 160 × 160 by default), authored by AI.
+  { "op": "resolve", "id": <sticky> | "ids": [<sticky>, …] }   resolved by AI (a person's stays);
+      a locked sticky is refused. { "op": "update", "id", "resolved": null } reopens it.
+  { "op": "wrap-section", "ids": [<id>, …], "text"?: <title> }   one new section around them
   { "op": "update", "id": <id>, …fields }                   patch fields; null resets
   { "op": "move", "id": <id>, "x", "y" } | { …, "dx", "dy" } then joins the section
       it lands in ("keepParent": true to stay); a bound arrow end follows its host
@@ -99,6 +114,17 @@ ${describeTypes()}
                     "flow" = nodes/edges as in --flow. connections: [{from,to,label?}]
                     between minted refs (@sec<i>, @sec<i>card<j>, @center, @idea<i>).
 
+Shortcut flags (combine with any of the above, or use alone — alone, stdin is not read;
+add --ops - to also read ops from it):
+  --sticker <pack>/<id>   place that Stickers-gallery picture (pack slug / file or file name
+                          without the extension: "project-status/group-100")
+  --to <ref>              bind an arrow from every sticky / text / sticker this call creates to
+                          that canvas host; with no --in/--near/--pin they land beside it
+  --wrap-section [ids]    wrap the given ids — or, with none, everything this call created at
+                          the top level — in one section; --title names it
+  --resolve <ids>         resolve those stickies (as AI)
+Votes, ballots and stamps are people's own: the verb refuses to write them.
+
 Placement (creates without x/y, and whole --flow/--board layouts):
   --near <artboard>   beside the artboard (right of it)
   --in <artboard>     inside the artboard (top-left + 40px). Unknown id = error.
@@ -108,7 +134,8 @@ Placement (creates without x/y, and whole --flow/--board layouts):
   Any create op may carry its own "in"/"near"/"pin" to override for that op.
   --canvas-state <p>  artboard rects; --rects <p> a \`maude design canvas-rects\` manifest.
 
-Output: { ok, via: "server"|"file", file, created, updated, deleted, refs }.
+Output: { ok, via: "server"|"file", file, created, updated, deleted, refs }, plus
+resolved: [ids] when stickies were resolved and section: <id> when --wrap-section ran.
 --dry-run prints { dryRun: true, ops } (the element ops) and writes nothing.
 Invalid requests fail loud (exit 2) and write nothing.`;
 
@@ -128,6 +155,11 @@ function parseArgv(argv) {
     canvasState: null,
     rects: null,
     root: null,
+    sticker: null,
+    to: null,
+    title: null,
+    resolve: null,
+    wrapSection: null, // true = wrap what this call created; a string = the ids to wrap
     dryRun: false,
     help: false,
   };
@@ -141,6 +173,10 @@ function parseArgv(argv) {
     '--canvas-state': 'canvasState',
     '--rects': 'rects',
     '--root': 'root',
+    '--sticker': 'sticker',
+    '--to': 'to',
+    '--title': 'title',
+    '--resolve': 'resolve',
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -149,7 +185,14 @@ function parseArgv(argv) {
     if (a === '--help' || a === '-h') out.help = true;
     else if (a === '--dry-run') out.dryRun = true;
     else if (a === '--no-pointer') out.pointer = false;
-    else if (flagKey in VALUE_FLAGS) {
+    else if (flagKey === '--wrap-section') {
+      // Optional value: the ids, or nothing (= what this call created).
+      if (eq > 0) out.wrapSection = a.slice(eq + 1);
+      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) {
+        i += 1;
+        out.wrapSection = argv[i];
+      } else out.wrapSection = true;
+    } else if (flagKey in VALUE_FLAGS) {
       if (eq > 0) out[VALUE_FLAGS[flagKey]] = a.slice(eq + 1);
       else {
         i += 1;
@@ -187,23 +230,6 @@ function parseJsonInput(raw, what) {
   }
 }
 
-/**
- * Wave H F2 — the annotate egress allowlist. The dev-server is loopback-only
- * (DDR-054); a POST target that is not a loopback http(s) origin is refused so
- * a poisoned `_server.json.url` can't exfiltrate the board off-box.
- */
-function isLoopbackHttpUrl(base) {
-  let u;
-  try {
-    u = new URL(base);
-  } catch {
-    return false;
-  }
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
-  const h = u.hostname.toLowerCase();
-  return h === '127.0.0.1' || h === 'localhost' || h === '::1' || h === '[::1]';
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Placement — where a create without x/y lands.
 
@@ -223,6 +249,9 @@ function buildPlacement(batch, artboards, elements, placement) {
     if (!el) fail(`--pin: element "${placement.pin}" not found in the --rects manifest`, 2);
     pinnedEl = el;
     origin = { x: el.x + el.w + 40, y: el.y };
+  } else if (placement.toBox && !placement.near) {
+    // --to a host whose geometry is known: beside it, like --pin.
+    origin = { x: placement.toBox.x + placement.toBox.w + 40, y: placement.toBox.y };
   } else {
     const nearBoard = placement.near ? artboards.find((r) => r.id === placement.near) : null;
     if (nearBoard) origin = { x: nearBoard.x + nearBoard.w + 80, y: nearBoard.y };
@@ -298,10 +327,25 @@ function createOp(batch, pl, op) {
     fields.width ??= 3;
   }
   if (type === 'arrow' || type === 'pen') return batch.create(type, fields);
+  // `to` makes a note point at something; `from` only means something on an arrow. Neither is a
+  // field of a box element — silently dropping one would hide a mistake.
+  const { to, from, ...boxFields } = fields;
+  if (from !== undefined) {
+    throw new AiOpError(
+      `create ${type}: "from" is an arrow end — use "to" to point this ${type} at something`
+    );
+  }
   const w = Number.isFinite(op.w) ? op.w : (CREATE_SIZE[type]?.w ?? 160);
   const { x, y, pinnedEl } = place(pl, op, w);
-  const id = batch.create(type, { ...fields, x, y });
-  if (pinnedEl && pl.pointer && op.pointer !== false && (type === 'sticky' || type === 'text')) {
+  const id = batch.create(type, { ...boxFields, x, y });
+  if (to !== undefined) {
+    batch.connect({ from: id, to });
+  } else if (
+    pinnedEl &&
+    pl.pointer &&
+    op.pointer !== false &&
+    (type === 'sticky' || type === 'text')
+  ) {
     batch.pointer(id, { x: pinnedEl.x, y: pinnedEl.y, w: pinnedEl.w, h: pinnedEl.h });
   }
   return id;
@@ -345,6 +389,14 @@ function runOps(batch, pl, ops) {
       case 'delete':
         batch.delete(op);
         break;
+      case 'resolve':
+        batch.resolveStickies(op);
+        break;
+      case 'wrap-section':
+        batch.wrapSection(op);
+        break;
+      case 'sticker':
+        throw new AiOpError('sticker: internal — the picture should have been placed first');
       default:
         throw new AiOpError(`ops: unknown op "${op.op}"`);
     }
@@ -352,308 +404,104 @@ function runOps(batch, pl, ops) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Flow mode — layered left→right layout of nodes + bound connector edges.
+// Stickers — a Stickers-gallery picture placed by the agent (--sticker / {"op":"sticker"}).
 
-// Shared by --flow and --board layout:"flow" (which delegates to flowToOps) —
-// checked once, in flowToOps, so neither caller can bypass it. A relationship
-// array (edges) manufactures ops just as surely as an entity array does.
-const FLOW_MAX_NODES = 200;
-const FLOW_MAX_EDGES = 400;
+/** Default drop size of a sticker (the gallery's `STICKER_DROP_SIZE`). */
+const STICKER_SIZE = 160;
+const PACK_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const STICKER_FILE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-function flowToOps(flow) {
-  const nodes = Array.isArray(flow.nodes) ? flow.nodes : [];
-  const edges = Array.isArray(flow.edges) ? flow.edges : [];
-  if (!nodes.length) fail('flow: needs at least one node', 2);
-  if (nodes.length > FLOW_MAX_NODES) {
-    fail(`flow: nodes[] has ${nodes.length}, max ${FLOW_MAX_NODES}`, 2);
-  }
-  if (edges.length > FLOW_MAX_EDGES) {
-    fail(`flow: edges[] has ${edges.length}, max ${FLOW_MAX_EDGES}`, 2);
-  }
-  const ids = nodes.map((n) => n.id);
-  const idSet = new Set(ids);
-  for (const e of edges) {
-    if (!idSet.has(e.from) || !idSet.has(e.to)) {
-      fail(`flow: edge references unknown node (${e.from} → ${e.to})`, 2);
-    }
-  }
-  // Longest-path layering via Kahn; cycle leftovers keep their seeded layer.
-  const indeg = new Map(ids.map((id) => [id, 0]));
-  const adj = new Map(ids.map((id) => [id, []]));
-  for (const e of edges) {
-    adj.get(e.from).push(e.to);
-    indeg.set(e.to, indeg.get(e.to) + 1);
-  }
-  const layer = new Map(ids.map((id) => [id, 0]));
-  const queue = ids.filter((id) => indeg.get(id) === 0);
-  while (queue.length) {
-    const id = queue.shift();
-    for (const t of adj.get(id)) {
-      layer.set(t, Math.max(layer.get(t), layer.get(id) + 1));
-      indeg.set(t, indeg.get(t) - 1);
-      if (indeg.get(t) === 0) queue.push(t);
-    }
-  }
-  const byLayer = new Map();
-  for (const id of ids) {
-    const l = layer.get(id);
-    if (!byLayer.has(l)) byLayer.set(l, []);
-    byLayer.get(l).push(id);
-  }
-  const ops = [];
-  for (const [l, list] of [...byLayer.entries()].sort((a, b) => a[0] - b[0])) {
-    list.forEach((id, i) => {
-      const node = nodes.find((n) => n.id === id);
-      ops.push({
-        op: 'create',
-        type: 'shape',
-        shape: typeof node.shape === 'string' ? node.shape : 'rounded',
-        ref: `@${id}`,
-        text: typeof node.label === 'string' ? node.label : String(id),
-        w: NODE_W,
-        h: NODE_H,
-        // Relative to the placement origin (applyOriginOffset).
-        flowX: l * (NODE_W + FLOW_GAP_X),
-        flowY: i * (NODE_H + FLOW_GAP_Y),
-      });
-    });
-  }
-  for (const e of edges) {
-    ops.push({ op: 'connect', from: `@${e.from}`, to: `@${e.to}`, label: e.label });
-  }
-  return ops;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Board mode — a typed template spec expands into ops the same way --flow
-// does. Named presets (retro / kanban / social calendar / roadmap / brainstorm
-// / checklist / user flow) are spec fixtures in the `whiteboard` skill, not
-// code: this is only the generic layout engine they share.
-
-const BOARD_COL_W = 280;
-const BOARD_COL_GAP = 40;
-const BOARD_CARD_W = 240;
-const BOARD_CARD_H = 90;
-const BOARD_CARD_GAP = 20;
-const BOARD_HEADER_H = 60;
-const BOARD_EMPTY_SECTION_H = 500;
-const BOARD_RADIAL_RADIUS = 320;
-const BOARD_RADIAL_CENTER_W = 200;
-const BOARD_RADIAL_CENTER_H = 100;
-const BOARD_RADIAL_CARD_W = 200;
-const BOARD_RADIAL_CARD_H = 80;
-
-// --board is arbitrary agent-composed JSON: cap it BEFORE expansion, so an
-// unbounded groups/cards array can't burn CPU/memory before the board byte cap.
-const BOARD_MAX_GROUPS = 20;
-const BOARD_MAX_CARDS_PER_GROUP = 50;
-const BOARD_MAX_TOTAL_CARDS = 300;
-const BOARD_MAX_CONNECTIONS = 400;
-
-function cardText(card) {
-  return typeof card === 'string' ? card : typeof card?.text === 'string' ? card.text : '';
-}
-
-function cardColor(card) {
-  return typeof card === 'object' && card && typeof card.color === 'string'
-    ? card.color
-    : undefined;
-}
-
-/**
- * "columns" — one titled section per group, its cards stacked INSIDE it (they
- * are the section's children). Each section's height grows with its own card
- * count, so a half-filled board never collides with its neighbour.
- */
-function boardColumns(groups) {
-  const ops = [];
-  groups.forEach((g, i) => {
-    const cards = Array.isArray(g.cards) ? g.cards : [];
-    const h = cards.length
-      ? BOARD_HEADER_H + cards.length * (BOARD_CARD_H + BOARD_CARD_GAP)
-      : BOARD_EMPTY_SECTION_H;
-    const colX = i * (BOARD_COL_W + BOARD_COL_GAP);
-    ops.push({
-      op: 'create',
-      type: 'section',
-      ref: `@sec${i}`,
-      text: typeof g.title === 'string' && g.title ? g.title : `Group ${i + 1}`,
-      color: typeof g.color === 'string' ? g.color : undefined,
-      boardX: colX,
-      boardY: 0,
-      w: BOARD_COL_W,
-      h,
-      parent: null,
-    });
-    cards.forEach((c, j) => {
-      ops.push({
-        op: 'create',
-        type: 'sticky',
-        ref: `@sec${i}card${j}`,
-        text: cardText(c),
-        color: cardColor(c),
-        boardX: colX + (BOARD_COL_W - BOARD_CARD_W) / 2,
-        boardY: BOARD_HEADER_H + j * (BOARD_CARD_H + BOARD_CARD_GAP),
-        w: BOARD_CARD_W,
-        h: BOARD_CARD_H,
-        parent: `@sec${i}`,
-      });
-    });
-  });
-  return ops;
-}
-
-/** "radial" — a central topic shape with idea cards in a ring (brainstorm). */
-function boardRadial(spec, groups) {
-  const cards = groups.flatMap((g) => (Array.isArray(g.cards) ? g.cards : []));
-  const pad = BOARD_RADIAL_RADIUS + Math.max(BOARD_RADIAL_CARD_W, BOARD_RADIAL_CARD_H);
-  const ops = [
-    {
-      op: 'create',
-      type: 'shape',
-      shape: 'ellipse',
-      ref: '@center',
-      text: typeof spec.title === 'string' && spec.title ? spec.title : 'Topic',
-      boardX: pad - BOARD_RADIAL_CENTER_W / 2,
-      boardY: pad - BOARD_RADIAL_CENTER_H / 2,
-      w: BOARD_RADIAL_CENTER_W,
-      h: BOARD_RADIAL_CENTER_H,
-    },
-  ];
-  const n = cards.length;
-  cards.forEach((c, i) => {
-    const angle = (2 * Math.PI * i) / Math.max(1, n) - Math.PI / 2;
-    const cx = pad + BOARD_RADIAL_RADIUS * Math.cos(angle);
-    const cy = pad + BOARD_RADIAL_RADIUS * Math.sin(angle);
-    ops.push({
-      op: 'create',
-      type: 'sticky',
-      ref: `@idea${i}`,
-      text: cardText(c),
-      color: cardColor(c),
-      boardX: cx - BOARD_RADIAL_CARD_W / 2,
-      boardY: cy - BOARD_RADIAL_CARD_H / 2,
-      w: BOARD_RADIAL_CARD_W,
-      h: BOARD_RADIAL_CARD_H,
-    });
-  });
-  return ops;
-}
-
-function boardToOps(spec) {
-  const layout = typeof spec.layout === 'string' ? spec.layout : 'columns';
-  if (layout === 'flow') {
-    if (!Array.isArray(spec.nodes) || !spec.nodes.length) {
-      fail('board: layout "flow" needs a nodes[] array', 2);
-    }
-    return flowToOps({ nodes: spec.nodes, edges: spec.edges });
-  }
-  const groups = Array.isArray(spec.groups) ? spec.groups : [];
-  if (!groups.length) fail('board: needs a non-empty groups[] array (or layout: "flow")', 2);
-  if (groups.length > BOARD_MAX_GROUPS) {
-    fail(`board: groups[] has ${groups.length}, max ${BOARD_MAX_GROUPS}`, 2);
-  }
-  let totalCards = 0;
-  for (const g of groups) {
-    const n = Array.isArray(g?.cards) ? g.cards.length : 0;
-    if (n > BOARD_MAX_CARDS_PER_GROUP) {
-      fail(`board: group "${g?.title ?? '?'}" has ${n} cards, max ${BOARD_MAX_CARDS_PER_GROUP}`, 2);
-    }
-    totalCards += n;
-  }
-  if (totalCards > BOARD_MAX_TOTAL_CARDS) {
-    fail(`board: ${totalCards} total cards across groups, max ${BOARD_MAX_TOTAL_CARDS}`, 2);
-  }
-  const ops = layout === 'radial' ? boardRadial(spec, groups) : boardColumns(groups);
-  const connections = Array.isArray(spec.connections) ? spec.connections : [];
-  if (connections.length > BOARD_MAX_CONNECTIONS) {
-    fail(`board: connections[] has ${connections.length}, max ${BOARD_MAX_CONNECTIONS}`, 2);
-  }
-  for (const c of connections) {
-    if (!c || typeof c.from !== 'string' || typeof c.to !== 'string') {
-      fail('board: each connections[] entry needs string "from"/"to"', 2);
-    }
-    ops.push({ op: 'connect', from: c.from, to: c.to, label: c.label });
-  }
-  return ops;
-}
-
-/**
- * --flow and --board emit a relative offset (flowX/flowY, boardX/boardY)
- * instead of absolute x/y, so ONE placement resolution positions the whole
- * diagram/board as a unit.
- */
-function applyOriginOffset(ops, origin) {
-  return ops.map((op) => {
-    const { flowX, flowY, boardX, boardY, ...rest } = op;
-    if (flowX !== undefined) return { ...rest, x: origin.x + flowX, y: origin.y + flowY };
-    if (boardX !== undefined) return { ...rest, x: origin.x + boardX, y: origin.y + boardY };
-    return rest;
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Write — the live server's op endpoint, else a direct canonical file write.
-
-/**
- * POST the ops to a live, loopback dev-server. Returns the parsed response,
- * `null` when no server answers or it predates the op route (then the caller
- * writes the file), and fails on any other refusal or a timeout — a file write
- * would bypass the server and its live room.
- */
-async function postOps(designRoot, file, ops) {
-  const serverJsonPath = join(designRoot, '_server.json');
-  if (!existsSync(serverJsonPath)) return null;
-  let base = null;
+function stickerPacks() {
   try {
-    const srv = JSON.parse(readFileSync(serverJsonPath, 'utf8'));
-    base = typeof srv.url === 'string' ? srv.url.replace(/\/+$/, '') : null;
+    return readdirSync(STICKERS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
   } catch {
-    return null;
+    return [];
   }
-  // Security (Wave H F2): only ever POST to a loopback origin — a poisoned
-  // `url` can't turn the verb into an exfiltration primitive. Anything else
-  // silently falls back to the file write (the local intent still succeeds).
-  if (!base || !isLoopbackHttpUrl(base)) return null;
-  let res;
+}
+
+/**
+ * `<pack>/<id>` → the bundled picture: the pack slug, the catalogue id (the file name without its
+ * extension — a board's `sticker.id` is a dot-free catalogue word) and the file. Unknown packs and
+ * stickers are errors that name what exists.
+ */
+function findSticker(spec) {
+  const m = /^([^/]+)\/([^/]+)$/.exec(String(spec ?? ''));
+  if (!m || !PACK_RE.test(m[1]) || !STICKER_FILE_RE.test(m[2])) {
+    throw new AiOpError(
+      `sticker: want "<pack>/<id>" (e.g. project-status/group-100), got ${JSON.stringify(spec)}`
+    );
+  }
+  const [, pack, want] = m;
+  let manifest;
   try {
-    res = await fetch(`${base}/_api/annotations/ops`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        file,
-        actionId: `ai-annotate-${Math.random().toString(36).slice(2, 12)}`,
-        ops,
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch (err) {
-    // No server answering (a stale _server.json) → the file write is safe.
-    // A server that IS there but too slow must not be bypassed: writing the
-    // file would reseed its live room from a stale snapshot and erase what
-    // collaborators did meanwhile (security review A2).
-    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      fail('the dev-server did not answer in time — nothing written; try again', 1);
+    manifest = JSON.parse(readFileSync(join(STICKERS_DIR, pack, 'manifest.json'), 'utf8'));
+  } catch {
+    throw new AiOpError(
+      `sticker: no pack "${pack}" (packs: ${stickerPacks().join(', ') || 'none bundled'})`
+    );
+  }
+  const stem = (f) => f.replace(/\.[^.]+$/, '');
+  const list = Array.isArray(manifest?.stickers) ? manifest.stickers : [];
+  const hit = list.find(
+    (s) =>
+      typeof s?.file === 'string' &&
+      STICKER_FILE_RE.test(s.file) &&
+      (s.file === want || stem(s.file) === want)
+  );
+  if (!hit) {
+    throw new AiOpError(
+      `sticker: "${pack}" has no "${want}" (try one of: ${list
+        .slice(0, 8)
+        .map((s) => stem(String(s?.file)))
+        .join(', ')}…)`
+    );
+  }
+  const word = Array.isArray(hit.keywords) ? hit.keywords.find((k) => typeof k === 'string') : '';
+  return { pack, id: stem(hit.file), file: hit.file, alt: word ? String(word).slice(0, 80) : '' };
+}
+
+/**
+ * Turn every `{"op":"sticker", "sticker":"pack/id", …}` into the `create image` op the engine takes:
+ * the bundled picture is copied to the project's content-addressed `assets/` (the canvas-safe lane
+ * the gallery uses), the image carries `sticker: {pack, id}` and the stickers' drop size. A dry run
+ * computes the same name and writes nothing.
+ */
+async function prepareStickers(ops, { root, designRel, write }) {
+  const out = [];
+  for (const op of ops) {
+    if (!op || typeof op !== 'object' || op.op !== 'sticker') {
+      out.push(op);
+      continue;
     }
-    return null;
+    const { op: _op, sticker: spec, flip, ...rest } = op;
+    const s = findSticker(spec);
+    const bytes = readFileSync(join(STICKERS_DIR, s.pack, s.file));
+    const asset = await import('./_import-asset.mjs');
+    const ext = asset.sniffRasterKind(bytes);
+    if (!ext) throw new AiOpError(`sticker: ${s.pack}/${s.id} is not a png/jpeg`);
+    const href = write
+      ? asset.writeContainedAsset(root, designRel, bytes, ext).path
+      : `assets/${asset.assetName(bytes, ext)}`;
+    out.push({
+      ...rest,
+      op: 'create',
+      type: 'image',
+      href,
+      ...(rest.alt === undefined && s.alt ? { alt: s.alt } : {}),
+      w: rest.w ?? STICKER_SIZE,
+      h: rest.h ?? STICKER_SIZE,
+      sticker: { pack: s.pack, id: s.id, ...(flip === true ? { flip: true } : {}) },
+    });
   }
-  // Only a server too old to have the op route falls back to the file.
-  if (res.status === 404 || res.status === 405) return null;
-  // Inside a cloud workspace (MAUDE_WORKSPACE_MODE=1) the studio treats a
-  // loopback request without the proxy's role header as read-only; the
-  // workspace's own file write IS the agent's channel there (the workspace
-  // agent syncs it). Anywhere else a read-only refusal stands — a local write
-  // the hub refuses to sync is a silent fork.
-  if (res.status === 403 && process.env.MAUDE_WORKSPACE_MODE === '1') return null;
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    fail(`the server refused the batch: ${body?.error ?? res.status} — nothing written`, 1);
-  }
-  return res.json().catch(() => ({ ok: true, rejected: [] }));
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main
+// Main — the write is the live server's op endpoint (_annotate-post.mjs), else a direct
+// canonical file write.
 
 async function main() {
   const args = parseArgv(process.argv.slice(2));
@@ -706,32 +554,85 @@ async function main() {
     if (!artboards.length) artboards = loadArtboards(rectsPath);
   }
 
-  const batch = new AiBatch(boardFile.elements);
+  // Canvas hosts (`ab:` / `el:` bound ends) are looked up in the geometry the caller passed; the
+  // artboards also let a new note ride with the artboard its centre lands on (contract S4 Q3).
+  const hosts =
+    artboards.length || elements.length ? makeHostLookup(artboards, elements) : undefined;
+  const batch = new AiBatch(boardFile.elements, { hosts, artboards });
+  const toBox = args.to ? (hosts?.(args.to)?.box ?? null) : null;
   const pl = buildPlacement(batch, artboards, elements, {
     near: args.near,
     in: args.in,
     pin: args.pin,
     pointer: args.pointer,
+    toBox,
   });
 
-  let ops;
-  if (args.flow != null) {
-    ops = applyOriginOffset(flowToOps(parseJsonInput(readInput(args.flow), '--flow')), pl.origin);
-  } else if (args.board != null) {
-    ops = applyOriginOffset(
-      boardToOps(templateBoard(args.board) ?? parseJsonInput(readInput(args.board), '--board')),
-      pl.origin
-    );
-  } else {
-    const payload = parseJsonInput(readInput(args.ops), '--ops');
-    ops = Array.isArray(payload?.ops) ? payload.ops : Array.isArray(payload) ? payload : null;
-    if (!ops) fail('ops: expected { ops: [...] } (or a bare array)', 2);
-  }
+  // The shortcut flags can stand alone; only then is stdin not read for ops.
+  const flagOnly =
+    args.ops == null &&
+    args.flow == null &&
+    args.board == null &&
+    (args.sticker != null || args.wrapSection != null || args.resolve != null);
 
+  let ops;
+  let sectionId = null;
+  let resolvedIds = null;
   try {
+    if (flagOnly) {
+      ops = [];
+    } else if (args.flow != null) {
+      ops = applyOriginOffset(flowToOps(parseJsonInput(readInput(args.flow), '--flow')), pl.origin);
+    } else if (args.board != null) {
+      ops = applyOriginOffset(
+        boardToOps(templateBoard(args.board) ?? parseJsonInput(readInput(args.board), '--board')),
+        pl.origin
+      );
+    } else {
+      const payload = parseJsonInput(readInput(args.ops), '--ops');
+      ops = Array.isArray(payload?.ops) ? payload.ops : Array.isArray(payload) ? payload : null;
+      if (!ops) fail('ops: expected { ops: [...] } (or a bare array)', 2);
+    }
+    if (args.sticker != null) ops.push({ op: 'sticker', sticker: args.sticker });
+    // --to: every note this call creates points at the host (an op's own "to" wins).
+    if (args.to != null) {
+      ops = ops.map((o) =>
+        o?.op === 'create' && ['sticky', 'text'].includes(o.type) && o.to === undefined
+          ? { ...o, to: args.to }
+          : o?.op === 'sticker' && o.to === undefined
+            ? { ...o, to: args.to }
+            : o
+      );
+    }
+    ops = await prepareStickers(ops, { root: repoRoot, designRel, write: !args.dryRun });
+    // A sticker made by --sticker/--to is a create op by now: --to reaches it too.
     runOps(batch, pl, ops);
+
+    if (args.wrapSection != null) {
+      let ids;
+      if (typeof args.wrapSection === 'string') {
+        ids = args.wrapSection
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+      } else {
+        // Whatever this call put at the top level (arrows keep their hosts and stay out).
+        ids = batch.created.filter((id) => {
+          const e = batch.state.get(id);
+          return e && e.type !== 'arrow' && !batch.scene.effectiveParent(e);
+        });
+      }
+      sectionId = batch.wrapSection({ ids, text: args.title ?? undefined });
+    }
+    if (args.resolve != null) {
+      const ids = String(args.resolve)
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      resolvedIds = batch.resolveStickies({ ids });
+    }
   } catch (err) {
-    if (err instanceof AiOpError) fail(err.message, 2);
+    if (err instanceof AiOpError || err instanceof BoardSpecError) fail(err.message, 2);
     throw err;
   }
 
@@ -751,7 +652,13 @@ async function main() {
   let via = 'file';
   let rejected = [];
   if (batch.ops.length) {
-    const res = await postOps(designRoot, `${designRel}/${canvasRel}`, batch.ops);
+    let res = null;
+    try {
+      res = await postOps(designRoot, `${designRel}/${canvasRel}`, batch.ops);
+    } catch (err) {
+      if (err instanceof PostOpsError) fail(err.message, err.code);
+      throw err;
+    }
     if (res) {
       via = 'server';
       rejected = Array.isArray(res.rejected) ? res.rejected : [];
@@ -773,6 +680,8 @@ async function main() {
     updated: batch.updated.size,
     deleted: batch.deleted.length,
     refs,
+    ...(resolvedIds ? { resolved: resolvedIds } : {}),
+    ...(sectionId ? { section: sectionId } : {}),
     ...(rejected.length ? { rejected } : {}),
   };
   process.stdout.write(`${JSON.stringify(out)}\n`);
