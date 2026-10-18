@@ -3133,7 +3133,7 @@
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-get-latest": "testid:git-get-latest",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-history-retry": "testid:git-history-retry",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-history-unreachable": "testid:git-history-unreachable",
-    "testid:studio/client/panels/GitPanel.jsx#git/history/git-panel": "D10",
+    "testid:studio/client/panels/GitPanel.jsx#git/history/git-panel": "testid:git-panel",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-panel-repo": "testid:git-panel-repo",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-publish": "A-publish-changes",
     "testid:studio/client/panels/GitPanel.jsx#git/history/git-save-all": "testid:git-save-all",
