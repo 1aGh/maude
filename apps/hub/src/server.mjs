@@ -192,6 +192,12 @@ import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { createAccessService, withRolesV2 } from './routes-v2/access.mjs';
 import { COMMENTS_PATH } from './routes-v2/comments.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
+import {
+  createVotesPoke,
+  createVotesRoutes,
+  stripVoteAwareness,
+  VOTES_CAPABILITY,
+} from './routes-v2/votes.mjs';
 import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
 import { seedRepo } from './seed-repo.mjs';
@@ -883,6 +889,9 @@ export function createHub(config = {}) {
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
+  // Gate 0 A18 (S4.6 / S9.13) — formal votes; assigned once the store is open.
+  /** @type {ReturnType<typeof createVotesRoutes>|null} */
+  let votesRoutes = null;
 
   // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
   const commentsDeps = {
@@ -1178,8 +1187,8 @@ export function createHub(config = {}) {
           // when it is here. Added by the lead's Q13 flip, never before.
           capabilities: withRolesV2(
             journal
-              ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY]
-              : ['annotations-v2', 'format-v2', RUNS_CAPABILITY],
+              ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
+              : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY],
             accessService.rolesV2Options
           ),
           // The project's file format — null while the store is unread.
@@ -1256,7 +1265,13 @@ export function createHub(config = {}) {
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
           // S1.7 — the v2 handlers' doors into the project (routes-v2/trash.mjs).
-          deps: { access: accessService, accepted: () => accepted, auth: acceptedAuth, comments: commentsDeps },
+          deps: {
+            access: accessService,
+            accepted: () => accepted,
+            auth: acceptedAuth,
+            comments: commentsDeps,
+            votes: votesRoutes,
+          },
         })
       ) {
         bailFromOnRequest();
@@ -2129,6 +2144,8 @@ export function createHub(config = {}) {
       // V2-1.7 §5.5 / L11 (S9.5): Bring everyone here needs `summon` on this
       // document — the field is stripped from any connection lacking it.
       stripSummon({ states, context });
+      // Gate 0 A18 (S9.13): picks never ride presence, whoever sends them.
+      stripVoteAwareness({ states });
     },
 
     // A content change tells the cell's DO, so a parked desktop's
@@ -2208,6 +2225,14 @@ export function createHub(config = {}) {
         token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
       })
     : openSqliteProjectStore(dataDir);
+  // Gate 0 A18 (S4.6 / S9.13) — the hub holds a linked project's ballots and
+  // the timer; the routes are rows in `routes-v2/votes.mjs`.
+  votesRoutes = createVotesRoutes({
+    store: projectStore,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    auth: (req) => acceptedAuth(req),
+    poke: createVotesPoke({ instance: server, visibility: pokeVisibility }),
+  });
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it
   // could lose on the next rollout (T11: no weakened "saved" semantics).
