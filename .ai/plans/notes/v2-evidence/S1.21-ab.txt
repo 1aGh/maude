@@ -1,0 +1,22 @@
+Row: pn-ab (11 · A or B — the trade-offs, and a pick) — DECISION RECORDED: B
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae; contract V2-3.7-own-tab-bar.md blob 7443b61b81f6.
+Written from reading code, the graph and existing gate evidence. NO desktop e2e was run for this file.
+
+WHICH VARIANT: B (Maude draws its own strip). The artboard PROPOSED A ("A for v2.0 ... Proposed - Michal to choose"); the pick was made the other way, later.
+DECISION IDS (kg search "tab bar"):
+  maude/v2-3.7-own-tab-bar             "Maude draws its own tab bar instead of macOS NSWindow tabbing (Michal, 2026-10-14)". Trigger: after trying the Phase 3 release .app Michal asked for Home as a pinned icon-only tab and a per-tab dot when AI finishes; NSWindow tabbing could do neither.
+  maude/v2-3.7-own-tab-bar-mechanism   "V2-3.7: one shell window, a strip webview and one child webview per tab" (EXTENDS the first).
+  related: maude/v2-3.7-wdio-webview-fork (the patched WebDriver), maude/v2-3.2b-rest-policy (running cap 5), maude/v2-3.8-bind-on-sign-in (per-project account), maude/v2-V2-1.1-home-window (Home, open-once, resting cap).
+CONTRACT: apps/studio/client/v2/contracts/V2-3.7-own-tab-bar.md section 1 (the A / B / C measurements: switch 44-55 ms in A vs 1-9 ms in B; native tab bar cannot be hidden in C) and section 2 (rejected alternatives).
+
+HOW THE ARTBOARD'S "B WOULD CHANGE THE PLAN" LIST LANDED:
+  - strip in the page             -> it is a separate trusted webview, not in the page: tabs.rs:189 ensure_shell, strip.html:166.
+  - many projects in one window   -> yes, child webviews: tabs.rs:234 add_tab. Per-tab data store, capability and caller checks kept (contract sections 3.1 and 8).
+  - native tabbing off; drag-out / merge / Show All Tabs rebuilt -> NOT rebuilt, by decision (contract section 10 q2-q3: one shell in v1, reorder in the strip only). See S1.21-windows.txt.
+  - a feed of every tab's AI / rest state with its own review -> tabs.rs:472 changed() pushes a TabStripState over a Channel to the strip only; security review in contract section 8, verified in the rework gate ("Security" block).
+  - Home as a real tab           -> pinned, never in session.tabs: windows.rs:1334 plan_tabs; pin windows.rs:2998 plan_tabs_drops_an_old_home_entry_and_restores_home_active.
+"BOTH NEED" lines: Home tab = registry home.open Cmd+T (apps/studio/actions/defs/native.ts, activates Home); resting tabs past 5 = sidecar.rs:238 RUNNING_CAP; relaunch = S1.21-relaunch.txt.
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2): default 12/12 after a re-run with no cover, tabs 1/1, home 1/1, tabs-identity 1/1, relaunch 1/1.
+
+GAP-CONTRACT (doc, lead's file): .design/system/maude-v2/CONTRACT.md lines 18 and 127 still read "Project tabs are native macOS window tabs [A1] ... A tab shows no avatar and no status glyph ... Right-clicking a tab gives the native tab menu". After the B pick that is wrong in three places: the tabs are Maude's own strip, a tab DOES carry a status glyph (the done / needs-you dot), and there is no native tab menu. The canvas artboards pn-tab-a / pn-tab-a20 / pn-ab / pn-windows / pn-accounts keep drawing A. Suggested: amend CONTRACT section 1 and mark the canvas A artboards "not picked".
+Suggested ledger state: verified (decision recorded, ids above); the CONTRACT wording is the open follow-up.

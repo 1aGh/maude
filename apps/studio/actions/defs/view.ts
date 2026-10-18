@@ -85,6 +85,16 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // Clearing it out is owner-only [A6].
   },
   {
+    id: 'trash.clear',
+    label: 'Clear out the trash…',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    // S1.7b (S1-slices row S1.7, V2-1.7 §5.2 `delete`): the Trash foot's "Clear out…" (S1.8 draws
+    // it, owner only). POST /_api/trash/clear refuses everyone else (hidden ≠ refused). No key.
+    visible: { minRole: 'owner' },
+  },
+  {
     id: 'view.comments',
     label: 'Comments',
     kind: 'toggle',
@@ -116,6 +126,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // CONTRACT §1–§2: ⌥⌘H. v1's ⇧⌘G (the Changes panel) died with the V2-4 gate (rule 13 — ⇧⌘G is
     // Remove frame in Edit and Ungroup annotations in Preview); its row is in help.ts MOVED_KEYS.
     keys: [kb('⌥⌘H', 'global', { inText: true })],
+    help: { group: 'finding', order: 30 },
     legacy: { menu: 'Changes' },
   },
   {
@@ -250,6 +261,35 @@ export const VIEW_ACTIONS: ActionDef[] = [
     visible: { minRole: 'edit' },
     enabled: { facts: ['canvasOpen'] },
     search: { keywords: ['presentation', 'slides', 'speaker notes', 'skip', 'reorder'] },
+  },
+  {
+    // S3.6b (04 md-present-menu, md-presenter): Present ⌄ › "Presenter view on another display ✓ (<name>)". A
+    // toggle the person sets; with it on, Present · Artboards shows the Mac the presenter's screen and the
+    // audience window follows on the other display. Desktop only, and the row is absent (not greyed) with one
+    // display — the shell's Present ⌄ menu and the controls' button read the display list; this action is the
+    // one registry home both call. Only a person's click turns it on: no canvas message can.
+    id: 'present.presenter-view',
+    label: 'Presenter view on another display',
+    kind: 'toggle',
+    exec: 'shell',
+    visible: { shell: ['desktop'], facts: ['native'] },
+    search: { keywords: ['presentation', 'second screen', 'audience', 'notes', 'projector'] },
+  },
+  {
+    // S3.7b (md-present-link) — the link a cloud viewer with Can view follows (hub `GET /present/<canvas>`,
+    // client/v2/present/copy-link.js). An editor's row; shown greyed with "in a cloud project" outside a
+    // cloud-linked project (the V2-4.9 decision 2 pattern — absence with a notice, never a silent hole).
+    id: 'present.copy-link',
+    label: 'Copy presentation link',
+    kind: 'command',
+    icon: 'link',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
+    search: {
+      keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
+      note: 'in a cloud project',
+    },
   },
   {
     id: 'settings.theme',

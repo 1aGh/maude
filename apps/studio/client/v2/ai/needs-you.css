@@ -1,0 +1,422 @@
+/* @layer components — S5.13: the AI chat's inline cards (03 `ai-permission`, `ai-choice-fail`, `ai-not-ready`,
+   `ai-needs-hidden`). Tokens only: no hex, weights ≤ 600, motion by --dur-* (reduced motion collapses to 1 ms).
+   A card sits in the chat between the feed and the field — never a modal, never an overlay on the app. */
+@layer components {
+  .ai-nc-slot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    flex: none;
+    min-height: 0;
+    max-height: 60%;
+    overflow-y: auto;
+    padding: 0 var(--space-3) var(--space-2);
+  }
+  /* Claude Code is not ready: the v1 setup list shares the slot with the field below it. */
+  .ai-nc-slot > .chat-disabled {
+    flex: none;
+    min-height: 0;
+    padding: var(--space-3) 0;
+  }
+
+  /* ── The card ── */
+  .ai-nc {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    outline: none;
+  }
+  /* The azure ring: this is the one that waits for you. */
+  .ai-nc-perm,
+  .ai-nc-choice {
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ai-nc:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .ai-nc-t {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    font-weight: var(--w-medium);
+  }
+  .ai-nc-tt {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .ai-nc-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-top: -1px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+  }
+  .ai-nc-ic--ask {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .ai-nc-ic--prob {
+    color: var(--status-error-text);
+  }
+  .ai-nc-more {
+    flex: none;
+    font-size: var(--type-xs);
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .ai-nc-d {
+    padding-left: calc(22px + var(--space-2));
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .ai-nc-fine {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-nc-paths {
+    margin: var(--space-1) 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+  }
+  .ai-nc-a {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    row-gap: var(--space-2);
+  }
+  .ai-nc-a .btn {
+    white-space: nowrap;
+  }
+  /* Decline keeps `.btn--danger` (the desktop e2e reads it) but is drawn quiet: "Not now" is not an alarm. */
+  .ai-nc-decline {
+    background: var(--bg-3);
+    color: var(--fg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-nc-decline:hover:not(:disabled) {
+    background: var(--bg-4);
+  }
+
+  /* "Always for this canvas" gets its own line so the two verbs never wrap. */
+  .ai-nc-check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-basis: 100%;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+  .ai-nc-check input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ai-nc-box {
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    color: var(--accent-fg);
+  }
+  .ai-nc-check input:checked + .ai-nc-box {
+    background: var(--accent);
+    box-shadow: none;
+  }
+  .ai-nc-check input:focus-visible + .ai-nc-box {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+
+  /* ── The choice rows ── */
+  .ai-nc-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: calc(22px + var(--space-1));
+  }
+  .ai-nc-opt {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 36px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    cursor: pointer;
+    transition: background var(--dur-flip);
+  }
+  .ai-nc-opt:hover {
+    background: var(--bg-3);
+  }
+  .ai-nc-opt[aria-current="true"] {
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ai-nc-opt input {
+    flex: none;
+    accent-color: var(--accent);
+  }
+  .ai-nc-opt-t {
+    display: flex;
+    flex-direction: column;
+    line-height: var(--lh-sm);
+  }
+  .ai-nc-opt-h {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-nc-input {
+    margin-left: calc(22px + var(--space-1));
+    height: 32px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-0);
+    font: inherit;
+  }
+  .ai-nc-input:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 1px;
+  }
+
+  /* ── Kept prompts: offline · setting up · used up · the meter ── */
+  .ai-nr {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .ai-nr-queued {
+    align-self: flex-end;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-nr-offline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    font-weight: var(--w-medium);
+    color: var(--status-warn-text);
+  }
+  .ai-nr-state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+    color: var(--fg-1);
+  }
+  .ai-nr-state strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .ai-nr-ic {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .ai-nr-ic--busy {
+    background: var(--spark-muted);
+    color: var(--spark);
+  }
+  .ai-nr-bar {
+    width: 100%;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .ai-nr-bar i {
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--spark);
+    animation: ai-nr-slide var(--dur-signature-1) ease-in-out infinite alternate;
+  }
+  @keyframes ai-nr-slide {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(163%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ai-nr-bar i {
+      animation: none;
+    }
+  }
+  [data-reduced-motion="true"] .ai-nr-bar i {
+    animation: none;
+  }
+  .ai-nr-quota {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 var(--space-3) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-nr-meter {
+    flex: none;
+    width: 40px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-4);
+    overflow: hidden;
+  }
+  .ai-nr-meter i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--fg-1);
+  }
+
+  /* ── The one sheet ── */
+  .ai-conn-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md),
+      inset 0 0 0 0.5px var(--island-edge);
+    color: var(--fg-0);
+  }
+  .ai-conn-sheet--inline {
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+  }
+  .ai-conn-t {
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+  }
+  .ai-conn-b {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .ai-conn-opt {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-conn-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--spark-muted);
+    color: var(--spark);
+  }
+  .ai-conn-txt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ai-conn-txt strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ai-conn-txt > span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-conn-fine {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-conn-err {
+    font-size: var(--type-xs);
+    color: var(--status-error-text);
+  }
+  .ai-conn-a {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  /* ── The folded spark (v2/shell/corner-icons.jsx): an azure count wins over the busy dot ── */
+  .st-corner--needs {
+    box-shadow:
+      var(--island-shadow),
+      0 0 0 2px var(--accent);
+  }
+  .ai-fold-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: 0 0 0 2px var(--bg-1);
+    font-size: var(--type-xs);
+    font-style: normal;
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+}

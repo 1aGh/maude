@@ -173,8 +173,10 @@ test('a declared canvas-only claim mints a peer token that stores the claim', as
   const match = verifyToken(dataDir, body.token, SECRET);
   assert.deepEqual(match.access, { v: 1, ...claim });
   assert.equal(match.role, undefined);
-  // Interim fail-closed until the doors read `access` (S9.4/S9.5): no wildcard.
-  assert.notEqual(match.scope, '*');
+  // S9.6b: the doors read `access` now (peerTokenDoor), so the token carries the project-wide
+  // `scope: '*'` and the stored claim is what narrows it to its canvases — the interim
+  // fail-closed "no wildcard" (S9.4/S9.5) is retired.
+  assert.equal(match.scope, '*');
 });
 
 test('a declared v1 role still mints exactly today’s token (no access column)', async () => {

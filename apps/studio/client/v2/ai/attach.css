@@ -1,0 +1,294 @@
+/* @layer components — S5.10: attachments in the prompt, the paperclip menu, the drop target and the
+   folder consent card (03 AI Chat `ai-attach`, `ai-attach-menu`). Lifted from the topic canvas's own
+   rules; tokens only, no hex, weights ≤ 600, motion through --dur-* (reduced motion collapses them). */
+@layer components {
+  /* The paperclip sits first in the prompt row. */
+  .ai-clip-wrap {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+  }
+  .ai-clip {
+    color: var(--fg-1);
+  }
+  .ai-clip.is-pressed {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .ai-am-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-2));
+    z-index: 22;
+    display: flex;
+    flex-direction: column;
+    width: 232px;
+    padding: var(--space-1);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-lg);
+  }
+  .ai-am-item[aria-disabled="true"] {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ai-am-item[aria-disabled="true"]:hover {
+    background: none;
+    color: var(--fg-3);
+  }
+  .ai-am-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    color: var(--fg-2);
+  }
+  .ai-am-keys {
+    margin-left: auto;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs);
+  }
+
+  /* Chips sit inside the prompt, on top. */
+  .ai-ask-chips-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-2) 0;
+  }
+  .ai-ask-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .ai-ach {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    max-width: 100%;
+    height: 40px;
+    padding: 0 var(--space-2) 0 5px;
+    border-radius: var(--radius-md);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-ach .ai-att-txt {
+    max-width: 138px;
+  }
+  .ai-ach--img {
+    width: 40px;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .ai-ach--busy .ai-ach-thumb {
+    opacity: 0.6;
+  }
+  .ai-ach-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+  }
+  .ai-ach-thumb--blank {
+    display: grid;
+    place-items: center;
+    background: var(--bg-3);
+    color: var(--fg-2);
+  }
+  .ai-ach-x {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-strong);
+    cursor: pointer;
+  }
+  .ai-ach-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .ai-ach-pic {
+    position: relative;
+    flex: none;
+  }
+  .ai-ach-vthumb {
+    display: block;
+    width: 40px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+  }
+  .ai-ach-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .ai-ach--wait {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ai-ach--wait .ai-ach-ic {
+    color: var(--accent-text);
+  }
+  .ai-ach--error {
+    box-shadow: inset 0 0 0 1px var(--status-warn);
+  }
+  .ai-att-txt {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: var(--lh-xs);
+  }
+  .ai-att-n {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+  }
+  .ai-att-m {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .ai-att-x {
+    display: grid;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .ai-att-x:hover,
+  .ai-ach-x:hover {
+    color: var(--fg-0);
+  }
+  .ai-att-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .ai-att-note--warn {
+    color: var(--fg-1);
+  }
+
+  /* Drop to attach — over the whole panel while files hover it. */
+  .chat-panel {
+    position: relative;
+  }
+  .ai-drop {
+    position: absolute;
+    inset: var(--space-2);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    border-radius: var(--radius-md);
+    border: 1.5px dashed var(--accent);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 999px var(--accent-muted);
+    color: var(--accent-text);
+    font-size: var(--type-sm);
+    pointer-events: none;
+    animation: ai-drop-in var(--dur-soft) var(--ease-out);
+  }
+  .ai-drop strong {
+    font-weight: var(--w-semibold);
+  }
+  .ai-drop span {
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+  }
+  @keyframes ai-drop-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* A folder asks once. */
+  .ai-consent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-bottom: var(--space-2);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--accent-muted);
+  }
+  .ai-consent-t {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ai-consent-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    color: var(--accent-text);
+  }
+  .ai-consent-d {
+    margin: 0;
+    padding-left: calc(20px + var(--space-2));
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-1);
+  }
+  .ai-consent-path {
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+    color: var(--fg-0);
+  }
+  .ai-card-a {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+  .ai-card-a .btn {
+    white-space: nowrap;
+  }
+}

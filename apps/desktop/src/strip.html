@@ -24,7 +24,9 @@
         --close-hover: rgba(0, 0, 0, 0.1);
         --focus: #4a7dff;
         --dot-done: #3fa35b;
-        --dot-needs: #e2932c;
+        /* S5.14: needs you is azure (03 ai-needs-tab), the working spark is AI's vermilion. */
+        --dot-needs: #2f6bff;
+        --dot-working: #e8553a;
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -111,8 +113,34 @@
       .dot.done {
         background: var(--dot-done);
       }
+      /* S5.14: the azure "?" (needs you) and the spark (working) are glyph marks. */
+      .dot.needs-you,
+      .dot.working {
+        flex-basis: 14px;
+        width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font: 600 10px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      }
       .dot.needs-you {
         background: var(--dot-needs);
+        color: #fff;
+      }
+      .dot.working {
+        color: var(--dot-working);
+        font-size: 12px;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .dot.working {
+          animation: strip-spark 1.6s ease-in-out infinite;
+        }
+      }
+      @keyframes strip-spark {
+        50% {
+          opacity: 0.45;
+        }
       }
       .close,
       .home {

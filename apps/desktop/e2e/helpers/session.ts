@@ -102,10 +102,33 @@ async function until(what: string, ms: number, ok: () => boolean | Promise<boole
  */
 export async function relaunchApp(): Promise<{ before: number; after: number }> {
   const before = appPid();
-  const bin = appBinary();
-  const port = process.env.TAURI_WEBDRIVER_PORT ?? '4455';
   process.kill(before, 'SIGTERM');
   await until(`the e2e app (pid ${before}) did not quit on SIGTERM`, 30_000, () => !alive(before));
+  const after = await startApp();
+  return { before, after };
+}
+
+/** True while `pid` is alive (S5.14: the quit scenario waits for the app to go by itself). */
+export function isAlive(pid: number): boolean {
+  return alive(pid);
+}
+
+/** Wait until `pid` is gone; the ms it took. Throws after `ms`. */
+export async function waitGone(pid: number, ms: number): Promise<number> {
+  const t0 = Date.now();
+  await until(`pid ${pid} still alive`, ms, () => !alive(pid));
+  return Date.now() - t0;
+}
+
+/**
+ * Start this lane's app binary again after it QUIT ITSELF (S5.14 `ai-quit`: ⌘Q → Quit) and
+ * continue on a new WebDriver session — the second half of `relaunchApp`. Returns the new pid.
+ * The binary path must be read before the old app is gone (`appBinary` reads the session's
+ * capabilities, which survive it).
+ */
+export async function startApp(): Promise<number> {
+  const bin = appBinary();
+  const port = process.env.TAURI_WEBDRIVER_PORT ?? '4455';
   const child = spawn(bin, [], {
     env: { ...process.env, TAURI_WEBDRIVER_PORT: port, WDIO_EMBEDDED_SERVER: 'true' },
     stdio: 'ignore',
@@ -124,7 +147,7 @@ export async function relaunchApp(): Promise<{ before: number; after: number }> 
     }
   });
   await browser.reloadSession();
-  return { before, after };
+  return after;
 }
 
 /** Wait until the saved session is `want` (the save is debounced, 400 ms). */

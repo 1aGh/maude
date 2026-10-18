@@ -4,20 +4,21 @@
 // NEVER exposed on the canvas origin (DDR-054/DDR-123) — the untrusted iframe
 // must not reach the agent bridge.
 
+import { readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-
 import type {
   AvailableCommand,
   CreateElicitationRequest,
   SessionUpdate,
 } from '@agentclientprotocol/sdk';
 import type { ServerWebSocket } from 'bun';
-
 import { isCanvasFile } from '../activity.ts';
+import { readOnlyRootsFor } from '../ai/attach-grants.ts';
 import { ASK_ID_RE, isLive, type RunRecord, type RunScope } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
 import type { Context } from '../context.ts';
+import { hashBytes } from '../sync/echo-guard.ts';
 import type { WsData } from '../ws.ts';
 import { type AskQueue, noteRateLimit, promptLabel } from './ask-queue.ts';
 import { buildStudioBrief } from './bootstrap-brief.ts';
@@ -109,6 +110,11 @@ export interface AcpOptions {
   queue?: () => AskQueue | null;
   /** tests only — the bridges' permission deadline */
   permissionTimeoutMs?: number;
+  /**
+   * S5.10 — the folders granted read-only (`ai/attach-grants.ts`), read per write request by every
+   * bridge's write gate. Default: this project's `_state/ai-grants.json`.
+   */
+  readOnlyRoots?: () => readonly string[];
 }
 
 /** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */
@@ -168,9 +174,17 @@ interface AgentActivityTracker {
    * person's decision. Default `failed` — only a clean end publishes.
    */
   endTurn(outcome?: 'done' | 'failed'): void;
-  /** The prompt this turn answers — the action's history label. */
-  beginTurn?(prompt: string): void;
+  /**
+   * The prompt this turn answers — the action's history label. `runId` = the registry run the
+   * turn belongs to (S5.6): its stage is begun under that id and the REGISTRY ends it
+   * (routes/project-undo.ts `runStageHooks`) — this tracker then never ends it itself, so one
+   * turn is never two stages and Stop publishes partial instead of holding (S5.5b).
+   */
+  beginTurn?(prompt: string, runId?: string | null): void;
 }
+
+/** The registry's run ids (ai/run-lifecycle.ts RUN_ID_RE) — the stage's own id pattern. */
+const STAGE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Exported for tests (acp-ai-activity.test.ts); not part of the Acp surface. */
 export function createAgentActivityTracker(
@@ -183,6 +197,22 @@ export function createAgentActivityTracker(
   const actionKey = `acp:${chatId}`;
   let turnLabel = 'Claude edit';
   let actionOpen = false;
+  /** S5.5b — the registry run of the current turn (null: a pre-S5.6 direct turn). */
+  let turnRun: string | null = null;
+
+  /** S5.5b — a completed edit tool names the content it wrote: the stage claims it by hash. */
+  function claimWrite(key: string): void {
+    const posix = key.slice(ctx.paths.designRel.length + 1);
+    let hash: string | null = null;
+    if (/\.tsx$/i.test(posix)) {
+      try {
+        hash = hashBytes(readFileSync(join(ctx.paths.designRoot, posix), 'utf8'));
+      } catch {
+        hash = null; // deleted or unreadable: the canvas is still this run's
+      }
+    }
+    ctx.syncControl?.current?.()?.claimAiWrite?.(turnRun ?? actionKey, key, hash);
+  }
 
   function keyFor(p: unknown): string | null {
     if (typeof p !== 'string' || !p) return null;
@@ -199,6 +229,7 @@ export function createAgentActivityTracker(
       sessionUpdate?: string;
       toolCallId?: string;
       kind?: string;
+      status?: string;
       locations?: Array<{ path?: string } | null> | null;
       rawInput?: unknown;
     };
@@ -222,8 +253,12 @@ export function createAgentActivityTracker(
       if (!actionOpen) {
         // T16 — the turn's first canvas edit opens its project action.
         actionOpen = true;
-        ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel);
+        ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel, {
+          ...(turnRun ? { runId: turnRun } : {}),
+          ...(STAGE_ID.test(chatId) ? { chatId } : {}),
+        });
       }
+      if (u.sessionUpdate === 'tool_call_update' && u.status === 'completed') claimWrite(key);
       const last = lastBeat.get(key);
       if (last == null) {
         ai.start(key, AGENT_AUTHOR);
@@ -241,16 +276,21 @@ export function createAgentActivityTracker(
     kindByToolCall.clear();
     if (actionOpen) {
       actionOpen = false;
-      void ctx.syncControl
-        ?.current?.()
-        ?.endAiAction?.(actionKey, outcome)
-        ?.catch(() => {});
+      // A registry run's stage is the registry's to end (publish / partial / hold).
+      if (!turnRun) {
+        void ctx.syncControl
+          ?.current?.()
+          ?.endAiAction?.(actionKey, outcome)
+          ?.catch(() => {});
+      }
     }
+    turnRun = null;
   }
 
-  function beginTurn(prompt: string): void {
+  function beginTurn(prompt: string, runId: string | null = null): void {
     const words = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
     turnLabel = words ? `Claude: ${words}` : 'Claude edit';
+    turnRun = runId && STAGE_ID.test(runId) ? runId : null;
   }
 
   return { onUpdate, endTurn, beginTurn };
@@ -460,6 +500,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     entry.bridge = new AcpBridge({
       // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
       chatId,
+      // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
+      readOnlyRoots: options.readOnlyRoots ?? (() => readOnlyRootsFor(ctx.paths.designRoot)),
       repoRoot: ctx.paths.repoRoot,
       // Static, config-derived environment brief for every new session
       // (feature-acp-context-hardening; see bootstrap-brief.ts guardrails).
@@ -669,7 +711,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     // live turn rather than an abandoned bridge.
     entry.turnActive = true;
     entry.runId = runId;
-    entry.tracker?.beginTurn?.(text);
+    entry.tracker?.beginTurn?.(text, runId);
     let turnOutcome: 'done' | 'failed' = 'failed';
     let stopReason: string | null = null;
     try {
