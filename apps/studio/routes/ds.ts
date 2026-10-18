@@ -563,22 +563,21 @@ async function byOf(deps: DsRouteDeps, req: Request): Promise<By> {
   return p.name ? { kind: 'person', name: p.name.slice(0, 64) } : { kind: 'person' };
 }
 
-const GETS: Record<string, DsOp> = {
-  '/_api/ds/state': 'state',
-  '/_api/ds/revision': 'revision',
-  '/_api/ds/revisions': 'revisions',
-  '/_api/ds/usage': 'usage',
-};
-const POSTS: Record<string, DsOp> = {
-  '/_api/ds/publish': 'publish',
-  '/_api/ds/pending': 'pending',
-  '/_api/ds/outside': 'outside',
-  '/_api/ds/pick': 'pick',
-  '/_api/ds/canvas': 'canvas',
-  '/_api/ds/trash': 'trash',
-  '/_api/ds/restore': 'restore',
-  '/_api/ds/clear': 'clear',
-};
+// Literal `method`/`path` pairs: the writer-registry, hub-manifest and CSRF scrapers read them.
+const TABLE: ReadonlyArray<{ method: 'GET' | 'POST'; path: string; op: DsOp }> = [
+  { method: 'GET', path: '/_api/ds/state', op: 'state' },
+  { method: 'GET', path: '/_api/ds/revision', op: 'revision' },
+  { method: 'GET', path: '/_api/ds/revisions', op: 'revisions' },
+  { method: 'GET', path: '/_api/ds/usage', op: 'usage' },
+  { method: 'POST', path: '/_api/ds/publish', op: 'publish' },
+  { method: 'POST', path: '/_api/ds/pending', op: 'pending' },
+  { method: 'POST', path: '/_api/ds/outside', op: 'outside' },
+  { method: 'POST', path: '/_api/ds/pick', op: 'pick' },
+  { method: 'POST', path: '/_api/ds/canvas', op: 'canvas' },
+  { method: 'POST', path: '/_api/ds/trash', op: 'trash' },
+  { method: 'POST', path: '/_api/ds/restore', op: 'restore' },
+  { method: 'POST', path: '/_api/ds/clear', op: 'clear' },
+];
 
 export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
   const ctx = async (req: Request): Promise<DsOpContext | null> => {
@@ -603,11 +602,11 @@ export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
   const unavailable = () =>
     json(503, { error: 'Design systems are not available here.', code: 'ds-unavailable' });
 
-  const gets: RouteSpec[] = Object.entries(GETS).map(([p, op]) => ({
+  const gets: RouteSpec[] = TABLE.filter((t) => t.method === 'GET').map(({ path: p, op }) => ({
     method: 'GET',
     path: p,
     origin: 'main',
-    readOnly: 'refused',
+    readOnly: 'allowed',
     async handle(req) {
       const c = await ctx(req);
       if (!c) return unavailable();
@@ -620,7 +619,7 @@ export function createDsRoutes(deps: DsRouteDeps): RouteSpec[] {
       return answer(await runDsOp(op, input, c));
     },
   }));
-  const posts: RouteSpec[] = Object.entries(POSTS).map(([p, op]) => ({
+  const posts: RouteSpec[] = TABLE.filter((t) => t.method === 'POST').map(({ path: p, op }) => ({
     method: 'POST',
     path: p,
     origin: 'main',
