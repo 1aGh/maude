@@ -16,9 +16,11 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { canvasOfSlug, createWsVisibility, seesSlug } from './access/filters.ts';
 import {
   accessForDesktop,
   acpRefusal,
+  notInScopeResponse,
   runWithAccess,
   setAccessFallback,
 } from './access/request.ts';
@@ -318,7 +320,20 @@ const acp = createAcp(ctx, aiActivity, {
 acpTurns = acp;
 // V2-1.14 — the outbox lives in createHttp (below); the chat reaches its door lazily.
 let askQueue: AskQueue | null = null;
-const ws = createWs(ctx, api, inspects, collab, activity, acp);
+// S9.11 (V2-1.16 L12) — a canvas-only socket hears only about canvases it sees. The closure
+// is http's (declared below; only read once a canvas-only socket exists).
+const ws = createWs(
+  ctx,
+  api,
+  inspects,
+  collab,
+  activity,
+  acp,
+  createWsVisibility({
+    designRel: ctx.paths.designRel,
+    closureOf: (access) => http.closureOf(access),
+  })
+);
 const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
@@ -530,12 +545,16 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
         if (!WORKSPACE && !isSameOriginWs(req)) {
           return new Response('collab is same-origin only', { status: 403 });
         }
+        // S9.11 (V2-1.16 L11) — a canvas-only session joins only its canvases' rooms.
+        const access = http.accessOf(req);
+        if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
             remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
             kind: 'collab',
             slug: collabSlug,
+            access,
             // Privileged shell origin — ungated (see collab/origins.ts) —
             // UNLESS the proxy marked this socket as canvas-realm (a cell's
             // canvas lane forwards here when the canvas listener is the same
@@ -543,8 +562,9 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             realm:
               WORKSPACE && req.headers.get('x-maude-collab-realm') === 'canvas' ? 'canvas' : 'main',
             // Same fail-closed posture as the inspector branch: in a cell an
-            // absent header is an unproven session.
-            readOnly: WORKSPACE ? req.headers.get('x-maude-readonly') !== '0' : false,
+            // absent header is an unproven session. S9.11 — from the access, so a
+            // hub-linked desktop viewer is read-only too (and a grant edits its canvas).
+            readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -589,6 +609,7 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
         if (!WORKSPACE && !isSameOriginWs(req)) {
           return new Response('inspector is same-origin only', { status: 403 });
         }
+        const access = http.accessOf(req);
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
@@ -604,8 +625,12 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             // the one moment the session is unambiguous. Fails CLOSED in a cell
             // for the same reason the HTTP gate does: an absent header is an
             // unproven session, and this channel can delete other people's
-            // comments.
-            readOnly: WORKSPACE ? req.headers.get('x-maude-readonly') !== '0' : false,
+            // comments. S9.11 — derived from the request's access: in a cell the
+            // proxy's claim (fail closed as before), on a desktop the linked hub's
+            // stored claim — a hub-linked viewer's socket was writable here.
+            readOnly: !access.can('edit', null),
+            // S9.11 (V2-1.16 L12) — what this socket may hear.
+            access,
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -729,12 +754,16 @@ function startCanvasServer(
         if (!WORKSPACE && !isSameOriginWs(req)) {
           return new Response('collab is same-origin only', { status: 403 });
         }
+        // S9.11 (V2-1.16 L11/L15) — the render token's access joins only its canvases' rooms.
+        const access = http.accessOf(req);
+        if (!seesSlug(access, collabSlug, ctx.paths.designRel)) return notInScopeResponse();
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
             remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
             kind: 'collab',
             slug: collabSlug,
+            access,
             // UNTRUSTED canvas iframe origin (DDR-063 split). Every sync frame
             // from here goes through the origin gate and may never write a
             // body lane — DDR-122 follow-up, collab/origins.ts. ALWAYS
@@ -742,8 +771,8 @@ function startCanvasServer(
             // consulted, so a forged header cannot promote the socket.
             realm: 'canvas',
             // Fail closed in a cell (absent header = unproven session);
-            // loopback desktop keeps full capability as before.
-            readOnly: WORKSPACE ? req.headers.get('x-maude-readonly') !== '0' : false,
+            // loopback desktop keeps full capability as before. S9.11 — from the access.
+            readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -762,6 +791,8 @@ function startCanvasServer(
             id: crypto.randomUUID(),
             remote: req.headers.get('x-forwarded-for') ?? '127.0.0.1',
             kind: 'canvas-hmr',
+            // S9.11 (V2-1.16 L12) — the render token's access decides which frames it hears.
+            access: http.accessOf(req),
           },
         });
         if (ok) return undefined as unknown as Response;

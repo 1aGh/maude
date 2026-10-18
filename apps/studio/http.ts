@@ -14,9 +14,10 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { localDepsFromSource } from './access/closure.ts';
+import { type Closure, localDepsFromSource } from './access/closure.ts';
 import {
   canvasOnlyLogPaths,
+  canvasOriginTarget,
   diffRefusal,
   exportTargetVerdict,
   filterAcceptedHistory,
@@ -26,6 +27,8 @@ import {
   filterIndexSnapshot,
   mergeCanvasOnlyLog,
   projectVisibility,
+  type Seer,
+  seerOf,
 } from './access/filters.ts';
 import {
   accessForDesktop,
@@ -1124,6 +1127,8 @@ export interface Http {
   tableCanvasPaths: readonly string[];
   /** S9.9 — THIS request's access (V2-1.7 §5.4); server.ts `withSession` puts it in ALS. */
   accessOf(req?: Request): Access;
+  /** S9.11 — the closure of a session's grants on this child's disk (null without grants). */
+  closureOf(access: Access): Closure | null;
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -1593,6 +1598,8 @@ export function createHttp(
       // the ACP chat's own banner entries (acp/index.ts → AiActivity) until S5.6 moves the
       // chat turn onto the registry
       legacyEntries: () => ai.list(),
+      // S9.11 (V2-1.16 L13) — a canvas-only session's runs and banner entries
+      seerFor: (req) => seerFor(req),
       // T16 — a v1 `/design:edit` is ONE project action
       beginAction: (key, name) => ctx.syncControl?.current?.()?.beginAiAction?.(key, name),
       endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
@@ -2176,7 +2183,9 @@ export function createHttp(
     // Phase 9 Task 8 — offline-mode banner poll fallback. The linked-mode sync
     // runtime writes `_sync.json`; browser tabs also get live pushes over the
     // WS ('sync:status'). Returns `{ linked: false }` in solo mode.
-    '/_sync-status': () => {
+    '/_sync-status': (req: Request) => {
+      // S9.11 (V2-1.16 L16) — `project` class: sync trouble names every canvas's slug.
+      if (accessOf(req).canvasOnly) return notInScopeResponse();
       const file = join(ctx.paths.designRoot, '_sync.json');
       if (!existsSync(file)) {
         return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
@@ -6640,9 +6649,34 @@ export function createHttp(
   // A canvas-only session naming a target outside its grants + closure is refused
   // with `not-in-scope` on ANY method (`canvasScopeRefusal`), the same 403 a missing
   // file gets.
+  /** S9.11 — the session's seer (null = a project session, the identity). */
+  function seerFor(req?: Request): Seer | null {
+    const access = accessOf(req);
+    return seerOf(access, () => closureOf(access));
+  }
+
+  function closureOf(access: Access): Closure | null {
+    return access.grants.length > 0 ? visibility.closureOf(access) : null;
+  }
+
   async function readOnlyRefusal(req: Request): Promise<Response | null> {
     const access = accessOf(req);
     const g = gateInput(access);
+    // S9.11 (V2-1.16 L15) — a file of the design root (the static lane, its `/assets/`
+    // alias, `?sha=` builds) is judged on its PATH, before any query names a target: a
+    // `?file=` of a visible canvas must not lend its answer to the module being served.
+    if (access.canvasOnly) {
+      let pathname = '';
+      try {
+        pathname = new URL(req.url).pathname;
+      } catch {
+        /* unparseable — the gates below refuse it */
+      }
+      const file = canvasOriginTarget(pathname, designRel);
+      const see = seerOf(access, () => closureOf(access));
+      if (file !== undefined && (file === null || see?.(file) !== true))
+        return notInScopeResponse();
+    }
     const scope = await canvasScopeRefusal(req, g);
     if (scope) return scope;
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
@@ -6748,6 +6782,7 @@ export function createHttp(
     canvasRoutes,
     tableCanvasPaths: laneRoutes.canvasPaths,
     accessOf,
+    closureOf,
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,
