@@ -154,7 +154,7 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs, heldByAiRefusal } from './routes/index.ts';
+import { allSpecs, announceAction, heldByAiRefusal, runStageHooks } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -169,6 +169,7 @@ import {
   serveIndexHtml,
 } from './static-lane.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
+import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
@@ -1565,6 +1566,12 @@ export function createHttp(
       home: createLocalLeaseHome({ actor: 'you' }),
       autoRenew: false,
       emit: (e, p) => ctx.bus.emit(e, p),
+      // S5.5b — THE end of every run's stage, by its run id: publish / partial / hold, and the
+      // published run is announced as `project:action` with the artboards it touched.
+      stage: runStageHooks({
+        control: () => ctx.syncControl?.current?.() ?? null,
+        emit: (e, p) => ctx.bus.emit(e, p),
+      }),
     });
   const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
   outboxSenders['ai.prompt'] = askQueue.sender;
@@ -1577,6 +1584,16 @@ export function createHttp(
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,
       emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S4.7 — sticky ↔ comment as one action; the converter is the session (a cell's vouched
+    // member, else this machine's git identity) — never the body (contract S4-S9 §3.1).
+    annotations: {
+      api,
+      control: () => ctx.syncControl?.current?.() ?? null,
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
     },
     ai: {
       registry: runs,
@@ -1603,18 +1620,29 @@ export function createHttp(
       // acp/index.ts already — its T16 action + banner; the hook routes skip it, so it is never
       // bracketed twice. Every other run is a terminal Claude Code.
       bracket: {
+        // S5.5b — the stage is begun under the registry's run id; the REGISTRY ends it
+        // (`stage` above), so there is no `end` here: one turn is never two stages.
         begin: (r) => {
           if (r.actor === 'maude-chat') return;
-          ctx.syncControl?.current?.()?.beginAiAction?.(`agent:${r.session}`, 'Claude Code');
-        },
-        // S5.3 — no `touch`: the ai-activity banner of a hook run is DERIVED from the registry
-        // (ai/runs.ts `bannerEntries`), never a second entry in AiActivity.
-        end: (r, outcome) => {
-          if (r.actor === 'maude-chat') return;
-          void ctx.syncControl
+          ctx.syncControl
             ?.current?.()
-            ?.endAiAction?.(`agent:${r.session}`, outcome === 'failed' ? 'failed' : 'done')
-            .catch(() => null);
+            ?.beginAiAction?.(`agent:${r.session}`, r.label || 'Claude Code', { runId: r.run });
+        },
+        // S5.3 — the ai-activity banner of a hook run is DERIVED from the registry (ai/runs.ts
+        // `bannerEntries`), never a second entry in AiActivity. S5.5b — `touch` claims the
+        // write for the run by its content hash (V2-1.5 §5.5 "Write → run").
+        touch: (r, rel) => {
+          let hash: string | null = null;
+          if (/\.tsx$/i.test(rel)) {
+            try {
+              hash = hashBytes(readFileSync(join(ctx.paths.designRoot, rel), 'utf8'));
+            } catch {
+              hash = null;
+            }
+          }
+          ctx.syncControl
+            ?.current?.()
+            ?.claimAiWrite?.(r.run, `${ctx.paths.designRel}/${rel}`, hash);
         },
       },
     },
@@ -2761,20 +2789,37 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      const body = await readJson<{ choice?: string }>(req);
+      const body = await readJson<{ choice?: string; runId?: unknown }>(req);
       const choice =
         body?.choice === 'discard' ? 'discard' : body?.choice === 'publish' ? 'publish' : null;
+      // S5.5b — the held card keeps or undoes ONE run; no id = every held run (v1).
+      const runId =
+        typeof body?.runId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.runId)
+          ? body.runId
+          : undefined;
+      if (body?.runId !== undefined && !runId)
+        return Response.json({ ok: false, error: 'runId is a run id' }, { status: 400 });
       if (!choice)
         return Response.json(
           { ok: false, error: 'choice must be publish or discard' },
           { status: 400 }
         );
-      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice);
+      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice, runId);
       if (!r)
         return Response.json(
           { ok: false, error: 'There is no unfinished AI edit.' },
           { status: 409 }
         );
+      if (r.status === 'accepted' && r.actionId) {
+        void announceAction(
+          {
+            control: () => ctx.syncControl?.current?.() ?? null,
+            emit: (e, p) => ctx.bus.emit(e, p),
+          },
+          r.actionId,
+          r.touched ?? {}
+        ).catch(() => {});
+      }
       return Response.json(
         { ok: r.status !== 'rejected', ...r },
         { headers: { 'Cache-Control': 'no-store' } }

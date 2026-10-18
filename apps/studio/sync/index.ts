@@ -576,6 +576,16 @@ export interface SyncRuntime {
     opts?: { baseText?: string; writeId?: string; stageable?: boolean }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
+   * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
+   * comment conversion). `null` when the project is not in accepted mode or
+   * this runtime does not carry the canvas.
+   */
+  proposeLanes?(
+    slug: string,
+    lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+    opts: { kind: string; label: string; writeId?: string }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
+  /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
    * when the project is not in that mode; otherwise the (possibly queued)
    * outcome. Canvases inside are moved/deleted by the hub, not one by one.
@@ -653,7 +663,13 @@ export interface SyncRuntime {
     key: string,
     outcome: 'done' | 'failed' | 'stopped',
     o?: { fence?: RunFence }
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    actionId?: string;
+    /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+    touched?: Record<string, string[]>;
+  } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
   /**
@@ -687,6 +703,8 @@ export interface SyncRuntime {
     status: 'accepted' | 'rejected' | 'discarded';
     code?: string;
     canvases?: number;
+    actionId?: string;
+    touched?: Record<string, string[]>;
   } | null>;
 }
 
@@ -5498,6 +5516,26 @@ export function createSyncRuntime(
         ...(o?.stageable === true ? { stageable: true } : {}),
       });
     },
+    proposeLanes: (slug, lanes, o) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!projections.has(slug)) return null;
+      const out: Array<{
+        lane: 'comments' | 'annotations' | 'meta';
+        content: string;
+        baseContent: string;
+      }> = [];
+      for (const l of lanes) {
+        const content = laneValueFromFile(l.lane, l.text);
+        const baseContent = laneValueFromFile(l.lane, l.baseText);
+        if (content === null || baseContent === null) return null;
+        out.push({ lane: l.lane, content, baseContent });
+      }
+      return acceptedLink.lanesEdit(slug, out, o).then((r) => ({
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+      }));
+    },
     proposeFolder,
     acceptedMode: acceptedOn,
     commentsConfirmedOnHub: (slug) => {
@@ -5655,12 +5693,14 @@ export function createSyncRuntime(
       // returns; let it land in the stage before the stage closes.
       await new Promise((r) => setTimeout(r, AI_ACTION_SETTLE_MS));
       await (discoveryRescan?.flush() ?? Promise.resolve()).catch(() => {});
+      const touched = acceptedLink.stage.summaryOf(key)?.touched;
       const r = await acceptedLink.stage.end(key, outcome, o);
       return r
         ? {
             status: r.status,
             ...(r.code ? { code: r.code } : {}),
             ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+            ...(touched && Object.keys(touched).length ? { touched } : {}),
           }
         : null;
     },
@@ -5674,8 +5714,21 @@ export function createSyncRuntime(
         const canvases = acceptedLink.stage.discard(runId);
         return { status: 'discarded', canvases };
       }
+      // S5.5b — the touched artboards of what Keep publishes, for `project:action`.
+      const touched: Record<string, string[]> = {};
+      for (const run of acceptedLink.stage.runs())
+        if (run.state === 'held' && (!runId || run.runId === runId))
+          for (const [c, ids] of Object.entries(run.touched))
+            touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
       const r = await acceptedLink.stage.publish(runId);
-      return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
+      return r
+        ? {
+            status: r.status,
+            ...(r.code ? { code: r.code } : {}),
+            ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+            ...(Object.keys(touched).length ? { touched } : {}),
+          }
+        : null;
     },
   };
 }

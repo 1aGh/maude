@@ -17,6 +17,7 @@
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -30,6 +31,8 @@ import type { RouteSpec } from './table.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
+export { announceAction, runStageHooks } from './project-undo.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -48,6 +51,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
+  annotations?: AnnotationRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -55,6 +60,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
   // ONE run registry (S5.3, ai/runs.ts): the hook routes' view writes it, the shell status counts
   // it (V2-3.4), and `/_api/ai/runs*` reads it — never a second map.
   deps.agent.runs ??= createAgentRuns(deps.agent.bracket, undefined, deps.ai.registry);
+  const convert = deps.annotations ? createAnnotationRoutes(deps.annotations) : null;
+  const projectUndo = deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel };
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
@@ -66,8 +73,9 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     // S2.1 — AI holds read THE run registry (V2-1.15 §4 #13)
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
     ...createProjectUndoRoutes(
-      deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+      convert ? { ...projectUndo, guard: convert.undoGuard } : projectUndo
     ),
     ...createPresentRoutes(deps.present),
+    ...(convert?.specs ?? []),
   ];
 }

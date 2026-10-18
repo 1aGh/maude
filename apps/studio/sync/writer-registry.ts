@@ -102,6 +102,27 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
     test: 'test/sync-accepted-projection.test.ts',
   },
+  // S4.7 — sticky ↔ comment: ONE action carrying the board and the thread list of one canvas
+  // (contract S4-S9-votes-comments §3.2), so one undo restores both.
+  '/_api/annotations/to-comment': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, annotations + comments lane.replace with the read bases',
+    test: 'test/annotations-convert.test.ts',
+  },
+  '/_api/comments/to-sticky': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, comments + annotations lane.replace with the read bases',
+    test: 'test/annotations-convert.test.ts',
+  },
+  // No op log (a legacy link): the conversion's in-memory undo token puts both files back.
+  '/_api/annotations/convert-undo': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'legacy only — both files written back through the comments/annotations hooks',
+    test: 'test/annotations-convert.test.ts',
+  },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
   '/_api/project/restore': {

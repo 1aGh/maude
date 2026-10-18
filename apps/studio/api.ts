@@ -458,6 +458,55 @@ export type ReorderRevertResult =
   | { ok: true; dir: 'undo' | 'redo' }
   | { ok: false; status: number; error: string };
 
+/** S4.7 — one lane of a two-lane action, as file text (the runtime canonicalizes). */
+export interface LaneChange {
+  lane: 'annotations' | 'comments';
+  text: string;
+  baseText: string;
+}
+
+export interface LanesOutcome {
+  status: 'accepted' | 'rejected';
+  code?: string;
+  actionId?: string;
+  /** Not answered yet: the proposal waits in the durable outbox. */
+  queued?: boolean;
+}
+
+/** S4.7 — the home a two-lane action goes to (the hub runtime or the local home). */
+export interface LanesProposer {
+  /** Accepted-revisions mode: the action IS the change; the disk is written raw. */
+  accepted: boolean;
+  send(lanes: LaneChange[]): Promise<LanesOutcome>;
+}
+
+export type ConvertChange<T> = (cur: {
+  board: AnnotationElement[];
+  comments: Comment[];
+}) =>
+  | { ok: true; ops: AnnotationOp[]; comments: Comment[]; result: T }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+/** What a conversion replaced — the no-home undo token's payload. */
+export interface ConvertSnapshot {
+  file: string;
+  /** canonical board text ('' = no board) */
+  boardBefore: string;
+  boardAfter: string;
+  commentsBefore: Comment[];
+  commentsAfter: Comment[];
+}
+
+export type ConvertResult<T> =
+  | {
+      ok: true;
+      result: T;
+      snapshot: ConvertSnapshot;
+      actionId?: string;
+      queued?: boolean;
+    }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
 export interface Api {
   // File tree
   fileSlug(file: string): string;
@@ -526,6 +575,14 @@ export interface Api {
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
+  /** S4.7 — the board and the comments of one canvas as ONE project action. */
+  convertLanes<T>(
+    file: string,
+    change: ConvertChange<T>,
+    proposer: LanesProposer | null
+  ): Promise<ConvertResult<T>>;
+  /** S4.7 — the no-home undo of a conversion (refused `stale` once a lane moved on). */
+  restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -2483,6 +2540,119 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     } finally {
       await rm(temp, { force: true });
     }
+  }
+
+  /**
+   * S4.7 — one canvas's board AND its comments as ONE project action (contract
+   * S4-S9-votes-comments §3.2, V2-1.5). `change` sees both lanes as they are and
+   * answers the board ops + the next comment list; the two lanes then reach the
+   * home together:
+   *
+   *   - accepted mode (hub): both files are written raw — the per-lane hooks
+   *     would propose each lane as its own action — and `proposer.send` carries
+   *     both `lane.replace` ops in one proposal;
+   *   - the local home: the ordinary write paths (live room bridge, sidebar), then
+   *     `proposer.send` records both lanes as one action;
+   *   - no home (`proposer` null): the ordinary write paths; the caller keeps the
+   *     returned snapshot for its undo token.
+   *
+   * Serialized on the board's chain, so no op batch lands between the read and
+   * the write.
+   */
+  async function convertLanes<T>(
+    file: string,
+    change: ConvertChange<T>,
+    proposer: LanesProposer | null
+  ): Promise<ConvertResult<T>> {
+    return onAnnotationChain(file, async () => {
+      const read = await readBoard(file);
+      if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+      const elements = read.text ? parseBoard(read.text).elements : [];
+      const boardBefore = read.text ?? '';
+      const comments = await loadCommentsForFile(file);
+      const commentsBefore = structuredClone(comments);
+      const c = change({ board: elements, comments: structuredClone(comments) });
+      if (!c.ok) return c;
+      const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), c.ops);
+      if (r.rejected.length) {
+        return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+      }
+      const boardAfter = serializeBoard([...r.state.values()]);
+      if (boardAfter.length > MAX_ANNOTATIONS_BYTES) {
+        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+      }
+      const commentsAfter = dedupeCommentsById(c.comments);
+      const lanes: LaneChange[] = [
+        { lane: 'annotations', text: boardAfter, baseText: boardBefore },
+        {
+          lane: 'comments',
+          text: JSON.stringify(commentsAfter),
+          baseText: JSON.stringify(commentsBefore),
+        },
+      ];
+      const snapshot: ConvertSnapshot = {
+        file,
+        boardBefore,
+        boardAfter,
+        commentsBefore,
+        commentsAfter,
+      };
+      if (proposer?.accepted) {
+        // The project decides first: a refused conversion leaves both files as they are.
+        const answer = await proposer.send(lanes);
+        if (answer.status !== 'accepted') {
+          return { ok: false, status: 409, body: { ok: false, reason: answer.code ?? 'rejected' } };
+        }
+        await writeBoardFile(file, boardAfter);
+        await saveCommentsForFile(file, commentsAfter);
+        ctx.bus.emit('comments', { file, comments: commentsAfter });
+        return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+      }
+      const live = hooks.applyAnnotationOpsLive?.(file, c.ops) ?? null;
+      if (live === 'too-large') {
+        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+      }
+      if (!live) {
+        await writeBoardFile(file, boardAfter);
+        onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore);
+      }
+      await publishComments(file, commentsAfter, commentsBefore);
+      if (!proposer) return { ok: true, result: c.result, snapshot };
+      const answer = await proposer.send(lanes);
+      return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+    });
+  }
+
+  const actionOf = (a: LanesOutcome): { actionId?: string; queued?: boolean } => ({
+    ...(a.status === 'accepted' && a.actionId ? { actionId: a.actionId } : {}),
+    ...(a.queued ? { queued: true } : {}),
+  });
+
+  /**
+   * S4.7 — put a conversion's two lanes back as they were (the no-home undo
+   * token, contract §3.2 "Legacy link / no op log"). Refused as `stale` once
+   * either lane moved on since the conversion — a later change is never undone
+   * along with it.
+   */
+  async function restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }> {
+    return onAnnotationChain(s.file, async () => {
+      const read = await readBoard(s.file);
+      if (!read.ok) return { ok: false, reason: 'unreadable' };
+      const comments = await loadCommentsForFile(s.file);
+      const sameComments = JSON.stringify(comments) === JSON.stringify(s.commentsAfter);
+      if ((read.text ?? '') !== s.boardAfter || !sameComments)
+        return { ok: false, reason: 'stale' };
+      const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+      const ops = diffToOps(byId(s.boardAfter), byId(s.boardBefore || serializeBoard([])));
+      const live = hooks.applyAnnotationOpsLive?.(s.file, ops) ?? null;
+      if (live === 'too-large') return { ok: false, reason: 'too-large' };
+      if (!live) {
+        await writeBoardFile(s.file, s.boardBefore || serializeBoard([]));
+        onAnnotationsChanged?.(s.file, s.boardBefore, undefined, s.boardAfter);
+      }
+      await publishComments(s.file, s.commentsBefore, s.commentsAfter);
+      return { ok: true };
+    });
   }
 
   // Phase 23 — content-addressed asset write. Reachable from the (potentially
@@ -7295,6 +7465,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     saveAnnotations,
     applyAnnotationOps,
     projectAnnotations,
+    convertLanes,
+    restoreConversion,
     saveAsset,
     listAssets,
     readAssetBytes,
