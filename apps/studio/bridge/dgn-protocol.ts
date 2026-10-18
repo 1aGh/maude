@@ -235,7 +235,16 @@ export interface CanvasToShell {
   };
   // S3.3 — the clip on the presented artboard (video-comp): the shell's transport mirrors it. `t` and
   // `duration` are seconds, 0..86400.
-  'present-media': { playing: boolean; t: number; duration: number; muted: boolean };
+  // S3.8 — `sources`: the media files the clip uses (src URLs, ≤ 8 × 400 chars); `missing`: its media failed to
+  // load, so it holds its first frame. Untrusted: the shell only compares them with what is on this Mac.
+  'present-media': {
+    playing: boolean;
+    t: number;
+    duration: number;
+    muted: boolean;
+    sources?: string[];
+    missing?: boolean;
+  };
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -402,6 +411,12 @@ const bool: V = (v) => (typeof v === 'boolean' ? v : BAD);
 /** S3.3 — a time in seconds: finite, 0..86400 (a day), else the whole message is junk. */
 const seconds: V = (v) =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 86400 ? v : BAD;
+/** S3.8 — the media files a presented clip uses: at most 8 strings of at most 400 chars. */
+const mediaSources: V = (v) => {
+  if (!Array.isArray(v) || v.length > 8) return BAD;
+  for (const x of v) if (typeof x !== 'string' || x.length > 400) return BAD;
+  return [...v];
+};
 const lit =
   (...xs: readonly unknown[]): V =>
   (v) =>
@@ -975,7 +990,14 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: 'present/present-media (S3.3)',
-    parse: p({ playing: bool, t: seconds, duration: seconds, muted: bool }),
+    parse: p({
+      playing: bool,
+      t: seconds,
+      duration: seconds,
+      muted: bool,
+      sources: opt(mediaSources),
+      missing: opt(bool),
+    }),
   },
 };
 
