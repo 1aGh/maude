@@ -11,6 +11,7 @@ import type { ActionDef, Pred } from '../types.ts';
 
 const EDIT: Pred = { minRole: 'edit' };
 const OWNER: Pred = { minRole: 'owner' };
+const VIEW: Pred = { minRole: 'view' };
 const ROW = { hidden: true } as const;
 
 const row = (id: string, label: string, visible: Pred = EDIT): ActionDef => ({
@@ -33,4 +34,8 @@ export const DS_ACTIONS: ActionDef[] = [
   row('ds.trash-token', 'Move to Trash'),
   row('ds.restore-token', 'Restore'),
   row('ds.clear-token', 'Clear out', OWNER),
+  // S10.6 — the Design system canvas. Both are for anyone who can open the project: opening it
+  // and previewing it in Light or Dark read the canvas and write nothing.
+  row('ds.open', 'Design system', VIEW),
+  row('ds.set-theme-preview', 'Show the system in Light or Dark', VIEW),
 ];

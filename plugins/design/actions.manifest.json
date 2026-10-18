@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b3e5a6b63e60",
+  "manifestVersion": "bcf22ec88213",
   "actions": [
     {
       "id": "search.open",
@@ -2767,6 +2767,29 @@
       "agent": {
         "path": "cli",
         "verb": "maude design ds clear <ds> <css>"
+      }
+    },
+    {
+      "id": "ds.open",
+      "label": "Design system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <ds.path>/design-system.tsx"
+      }
+    },
+    {
+      "id": "ds.set-theme-preview",
+      "label": "Show the system in Light or Dark",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "previews the system in its own Light or Dark on the Design system canvas; an agent reads tokens.json"
       }
     }
   ],
