@@ -8,8 +8,10 @@
       Maude's own tab bar (V2-3.7, contract V2-3.7-own-tab-bar.md). A trusted
       app-local page in the `strip` child webview of the one `shell` window: it
       draws what Rust sends it (tabs_state + its Channel) and asks Rust to act
-      (tab_activate / tab_close). It knows no project beyond a sanitized name.
-      Deliberately plain and native-feeling — the Phase 4 shell design restyles it.
+      (tab_activate / tab_close / tab_reorder / tab_menu / tab_rename / tab_overview). It
+      knows no project beyond a sanitized name, its square, its account badge and one
+      state mark. S1.22b: canvas 11 pn-tab-b (square + name, account badge, state mark),
+      pn-tab-b20 ("N more", the resting ring) and the tab list (Show All Tabs ⇧⌘\).
     -->
     <style>
       :root {
@@ -27,6 +29,22 @@
         /* S5.14: needs you is azure (03 ai-needs-tab), the working spark is AI's vermilion. */
         --dot-needs: #2f6bff;
         --dot-working: #e8553a;
+        /* S1.22b: the project squares — the maude-v2 object palette (1-tokens-maude-v2.css). */
+        --tone-yellow: oklch(0.91 0.12 95);
+        --tone-green: oklch(0.82 0.12 152);
+        --tone-lilac: oklch(0.83 0.075 300);
+        --tone-coral: oklch(0.83 0.095 32);
+        --tone-sky: oklch(0.85 0.07 230);
+        --tone-grey: oklch(0.9 0.006 250);
+        --tone-ink: oklch(0.24 0.014 250);
+        /* The two account tones (the account card's a / b). */
+        --acct-a: oklch(0.8 0.08 250);
+        --acct-b: oklch(0.84 0.1 80);
+        --panel-bg: #f6f6f7;
+        --panel-row-hover: rgba(0, 0, 0, 0.05);
+        --panel-row-on: rgba(74, 125, 255, 0.14);
+        --scrim: rgba(20, 20, 24, 0.28);
+        --dur-fast: 80ms;
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -38,6 +56,23 @@
           --tab-active-fg: #f1f1f4;
           --tab-sep: rgba(255, 255, 255, 0.1);
           --close-hover: rgba(255, 255, 255, 0.12);
+          --tone-yellow: oklch(0.8 0.12 95);
+          --tone-green: oklch(0.72 0.11 152);
+          --tone-lilac: oklch(0.72 0.08 300);
+          --tone-coral: oklch(0.72 0.1 32);
+          --tone-sky: oklch(0.74 0.08 230);
+          --tone-grey: oklch(0.62 0.008 250);
+          --acct-a: oklch(0.62 0.08 250);
+          --acct-b: oklch(0.7 0.1 80);
+          --panel-bg: #232327;
+          --panel-row-hover: rgba(255, 255, 255, 0.05);
+          --panel-row-on: rgba(74, 125, 255, 0.22);
+          --scrim: rgba(0, 0, 0, 0.4);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        :root {
+          --dur-fast: 1ms;
         }
       }
       html,
@@ -56,7 +91,8 @@
       .strip {
         display: flex;
         align-items: stretch;
-        height: 100%;
+        /* The titlebar row (tabs.rs STRIP_H) — the page itself grows while the tab list is open. */
+        height: 38px;
         box-sizing: border-box;
         border-bottom: 1px solid var(--tab-sep);
       }
@@ -75,7 +111,9 @@
       .tab {
         position: relative;
         flex: 0 1 200px;
-        min-width: 72px;
+        /* S1.22b: the square, a short name and the × always fit (strip.js MIN_TAB). */
+        min-width: 120px;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         gap: 6px;
@@ -183,6 +221,228 @@
       svg {
         display: block;
       }
+      /* ── S1.22b: square, account badge, resting ring, rename, drag, "N more" ── */
+      .sq {
+        flex: 0 0 16px;
+        height: 16px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font: 600 9px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: var(--tone-ink);
+        background: var(--tone-grey);
+      }
+      .sq--md {
+        flex-basis: 28px;
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        font-size: 13px;
+      }
+      .sq--home {
+        background: transparent;
+        color: inherit;
+      }
+      .sq[data-tone="yellow"] { background: var(--tone-yellow); }
+      .sq[data-tone="green"] { background: var(--tone-green); }
+      .sq[data-tone="lilac"] { background: var(--tone-lilac); }
+      .sq[data-tone="coral"] { background: var(--tone-coral); }
+      .sq[data-tone="sky"] { background: var(--tone-sky); }
+      .acct {
+        flex: 0 0 14px;
+        height: 14px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font: 600 8px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: var(--tone-ink);
+        background: var(--acct-a);
+      }
+      .acct[data-tone="b"] {
+        background: var(--acct-b);
+      }
+      .rest {
+        flex: 0 0 8px;
+        width: 8px;
+        height: 8px;
+        box-sizing: border-box;
+        border-radius: 50%;
+        border: 1.5px solid var(--strip-fg-dim);
+      }
+      .rename {
+        flex: 1 1 auto;
+        min-width: 0;
+        height: 22px;
+        box-sizing: border-box;
+        border: 0;
+        border-radius: 5px;
+        padding: 0 6px;
+        font: inherit;
+        color: var(--tab-active-fg);
+        background: var(--tab-active-bg);
+        box-shadow: inset 0 0 0 2px var(--focus);
+        outline: none;
+        user-select: text;
+        -webkit-user-select: text;
+      }
+      .tab.dragging {
+        z-index: 2;
+        background: var(--tab-active-bg);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+        cursor: grabbing;
+      }
+      .more {
+        flex: 0 0 auto;
+        margin: 5px 2px 0;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 7px 7px 0 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        white-space: nowrap;
+        outline: none;
+        position: relative;
+      }
+      .more:hover,
+      .more[aria-expanded="true"] {
+        background: var(--tab-hover);
+      }
+      .more:focus-visible {
+        box-shadow: inset 0 0 0 2px var(--focus);
+      }
+      .more[data-dot="needs-you"]::after,
+      .more[data-dot="working"]::after,
+      .more[data-dot="done"]::after {
+        content: "";
+        position: absolute;
+        top: 7px;
+        right: 4px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--dot-done);
+      }
+      .more[data-dot="needs-you"]::after { background: var(--dot-needs); }
+      .more[data-dot="working"]::after { background: var(--dot-working); }
+      /* ── The tab list (Show All Tabs ⇧⌘\, "N more") — over the whole window ── */
+      .overview {
+        position: fixed;
+        top: 38px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--scrim);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 48px;
+      }
+      .overview[hidden] {
+        display: none;
+      }
+      .panel {
+        width: min(560px, calc(100% - 32px));
+        max-height: calc(100% - 96px);
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-bg);
+        color: var(--tab-active-fg);
+        border-radius: 12px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+      }
+      .panel-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--tab-sep);
+      }
+      .panel-head h2 {
+        margin: 0;
+        font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: var(--strip-fg-dim);
+        white-space: nowrap;
+      }
+      .find {
+        flex: 1 1 auto;
+        height: 28px;
+        border: 0;
+        border-radius: 7px;
+        padding: 0 10px;
+        font: 400 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: inherit;
+        background: var(--tab-hover);
+        outline: none;
+        user-select: text;
+        -webkit-user-select: text;
+      }
+      .find:focus-visible {
+        box-shadow: inset 0 0 0 2px var(--focus);
+      }
+      .list {
+        overflow-y: auto;
+        padding: 6px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 8px;
+        border-radius: 8px;
+      }
+      .row:hover {
+        background: var(--panel-row-hover);
+      }
+      .row.selected {
+        background: var(--panel-row-on);
+      }
+      .words {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .words strong {
+        font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .words span {
+        font-size: 11px;
+        color: var(--strip-fg-dim);
+      }
+      .row[data-current="true"] .words strong::after {
+        content: " · this tab";
+        font-weight: 400;
+        color: var(--strip-fg-dim);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        background: var(--tab-hover);
+        white-space: nowrap;
+      }
+      .none {
+        padding: 18px 10px;
+        text-align: center;
+        color: var(--strip-fg-dim);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .row,
+        .more {
+          transition: background-color var(--dur-fast) linear;
+        }
+      }
       @media (prefers-reduced-motion: no-preference) {
         .close {
           transition: opacity 80ms linear;
@@ -194,6 +454,16 @@
     <nav class="strip" data-tauri-drag-region data-testid="tab-strip" aria-label="Tabs">
       <div class="lights" data-tauri-drag-region></div>
       <div class="tabs" id="tabs" role="tablist" aria-label="Open projects" data-tauri-drag-region></div>
+      <button
+        type="button"
+        class="more"
+        id="more"
+        data-testid="tab-more"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        title="The other open tabs"
+        hidden
+      ></button>
       <button
         type="button"
         class="home"
@@ -215,6 +485,25 @@
         </svg>
       </button>
     </nav>
+    <div class="overview" id="overview" data-testid="tab-overview" hidden>
+      <div class="panel" role="dialog" aria-labelledby="overview-title">
+        <div class="panel-head">
+          <h2 id="overview-title">All tabs</h2>
+          <input
+            class="find"
+            id="find"
+            type="search"
+            data-testid="tab-overview-find"
+            placeholder="Find a tab"
+            aria-label="Find a tab"
+            aria-controls="list"
+            spellcheck="false"
+            autocomplete="off"
+          />
+        </div>
+        <div class="list" id="list" role="listbox" aria-label="Open tabs"></div>
+      </div>
+    </div>
     <script src="strip.js"></script>
   </body>
 </html>

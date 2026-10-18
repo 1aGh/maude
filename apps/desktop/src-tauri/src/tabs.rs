@@ -778,6 +778,10 @@ pub fn run_tab_menu(app: &AppHandle, item: TabMenuItem, label: &str) {
         TabMenuItem::Close => close_tab_by_user(app, label),
         TabMenuItem::Rename => {
             *RENAMING.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.to_string());
+            // The name is typed in the strip.
+            if let Some(strip) = app.get_webview(STRIP_LABEL) {
+                let _ = strip.set_focus();
+            }
             changed(app);
             Ok(())
         }
