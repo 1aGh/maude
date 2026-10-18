@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "2bf20061c9df",
+  "manifestVersion": "369620c5ebf5",
   "actions": [
     {
       "id": "search.open",
@@ -823,6 +823,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages"
+      }
+    },
+    {
+      "id": "layout.set-gap",
+      "label": "Set gap",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set style.gap on each frame to the same value: var(--space-N) when the system names that stop, else px; one edit for all the frames. Over HTTP: POST /_api/edit-op {file, op: \"layout.set-gap\", targets: [{artboard, element}…], params: {gap: {token: \"--space-N\"} | {px: n}}} — one write, one undo step, a locked or non-layout target refuses the whole request"
       }
     },
     {

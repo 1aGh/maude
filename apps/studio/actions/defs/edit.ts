@@ -335,6 +335,16 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['object'] },
     search: { hidden: true },
   },
+  // S2.11c — ⌥ on a gap drag: one gap value over several auto layouts, one write and one undo step.
+  // A gesture, like `object.reorder-to`: not offered in ⌘K.
+  {
+    id: 'layout.set-gap',
+    label: 'Set gap',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
   {
     id: 'layout.convert-to-absolute',
     label: 'Convert children to absolute position',

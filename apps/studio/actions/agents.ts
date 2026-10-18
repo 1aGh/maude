@@ -240,6 +240,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.constrain': TSX(
     'On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages'
   ),
+  'layout.set-gap': TSX(
+    'Set style.gap on each frame to the same value: var(--space-N) when the system names that stop, else px; one edit for all the frames. Over HTTP: POST /_api/edit-op {file, op: "layout.set-gap", targets: [{artboard, element}…], params: {gap: {token: "--space-N"} | {px: n}}} — one write, one undo step, a locked or non-layout target refuses the whole request'
+  ),
   'layout.convert-to-absolute': TSX(
     'Give each child position: "absolute" with left/top/width/height as rendered, and a static parent position: "relative" with its own width/height fixed if it would collapse; the children then no longer take part in the layout'
   ),
