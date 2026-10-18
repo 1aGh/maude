@@ -44,6 +44,7 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
+import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
 import { stopAllThumbs } from './thumbs/service.ts';
 import {
@@ -923,7 +924,11 @@ ctx.bus.on('fs:json', (rel: string) => {
 // cloud panel cycles the runtime in place (ctx.syncControl), so pressing
 // Connect starts syncing instead of printing "restart the studio server".
 const syncRuntime = createSyncSupervisor(ctx, collab ? { registry: collab.registry } : {});
-ctx.syncControl = syncRuntime;
+// S5.1b — a project with no hub answers history / undo / restore from its own
+// store (`_state/project-store.sqlite`, the in-process kernel); a linked one is
+// unchanged. The watcher feeds it through the bus.
+const localHome = attachLocalHome(ctx, syncRuntime);
+ctx.syncControl = localHome.control;
 registerStatus('sync', () => ({
   linked: Boolean(ctx.cfg.linkedHub),
   hub: ctx.cfg.linkedHub?.url ?? null,
@@ -1036,6 +1041,11 @@ async function shutdown() {
     await syncRuntime.stop();
   } catch {
     /* best-effort — provider sockets will be closed by process exit anyway */
+  }
+  try {
+    localHome.close(); // releases `_state/project-store.lock`
+  } catch {
+    /* a dead pid's lock is taken over at the next boot anyway */
   }
   try {
     if (collab) {
