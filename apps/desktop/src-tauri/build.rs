@@ -56,6 +56,8 @@ fn main() {
                 "profiles_delete",
                 // S1.22b (profiles.rs): the account card's list — own account named, others counted.
                 "accounts_list",
+                // S5.10 (lib.rs): the AI composer's folder picker (never remembered as an open pick).
+                "pick_attach_folder",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,

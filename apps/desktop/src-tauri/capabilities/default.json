@@ -51,6 +51,7 @@
     "allow-send-notification",
     "allow-managed-project-open",
     "allow-managed-projects-list",
-    "allow-accounts-list"
+    "allow-accounts-list",
+    "allow-pick-attach-folder"
   ]
 }

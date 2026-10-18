@@ -697,10 +697,16 @@ pub fn is_first_run(app: &tauri::AppHandle) -> bool {
 /// Remember `path` as the last project: registry upsert, MRU head, one-tab session
 /// (and, via `save_to`, the v1 keys).
 pub fn set_last_project(app: &tauri::AppHandle, path: &Path) {
+    set_last_project_with(app, path, Binding::Adopt);
+}
+
+/// `set_last_project`, choosing whether an unbound entry may adopt
+/// `lastSignInProfile` (S15-A1; `open_local_project` keeps a registered one's).
+pub fn set_last_project_with(app: &tauri::AppHandle, path: &Path, binding: Binding) {
     let s = path.to_string_lossy().to_string();
     update(app, |st, now| {
         forget_missing_recent(st);
-        let pid = st.open(&s, now);
+        let pid = st.open_with(&s, now, binding);
         st.session = Some(one_tab_session(&pid, now));
     });
     // A project was opened this run — lets MAUDE_FORCE_ONBOARDING dismiss the wizard.
