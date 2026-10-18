@@ -1,0 +1,19 @@
+Help#0 :: "{\"label\":\"Keyboard shortcuts?\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Keyboard short\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".kbd\",\"text\":\"?\",\"ratio\":8.69,\"fg\":\"183,187,192\",\"bg\":\"25,30,36\"}],\"fails\":[],\"checked\":23}"
+Help#1 :: "{\"label\":\"Help and guidesF1\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Help and guide\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".kbd\",\"text\":\"F1\",\"ratio\":8.69,\"fg\":\"183,187,192\",\"bg\":\"25,30,36\"}],\"fails\":[],\"checked\":23}"
+Help#2 :: "{\"label\":\"What's new2 new\",\"tg\":[{\"sel\":\".st-pm-status\",\"text\":\"2 new\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-lab\",\"text\":\"What's new\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"}],\"fails\":[],\"checked\":23}"
+Help#3 :: "{\"label\":\"Take the tour\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Take the tour\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"}],\"fails\":[],\"checked\":23}"
+Help#4 :: "{\"label\":\"Set up Maude…\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Set up Maude…\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"}],\"fails\":[],\"checked\":23}"
+Help#5 :: "{\"label\":\"Watch the intro\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Watch the intr\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"}],\"fails\":[],\"checked\":23}"
+Help#6 :: "{\"label\":\"How sharing works\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"How sharing wo\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"}],\"fails\":[],\"checked\":23}"
+Help#7 :: "{\"label\":\"Report a bug…\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Report a bug…\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"}],\"fails\":[],\"checked\":23}"
+Edit#0 :: "{\"label\":\"Undo⌘Z\",\"tg\":[{\"sel\":\".st-pm-lab\",\"text\":\"Undo\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".st-pm-ic\",\"text\":\"\",\"ratio\":6.33,\"fg\":\"238,240,243\",\"bg\":\"62,84,149\"},{\"sel\":\".kbd\",\"text\":\"⌘Z\",\"ratio\":8.69,\"fg\":\"183,187,192\",\"bg\":\"25,30,36\"}],\"fails\":[],\"checked\":31}"
+Edit#1 :: 
+Edit#2 :: 
+Edit#3 :: 
+Edit#4 :: 
+Edit#5 :: 
+Edit#6 :: 
+Edit#7 :: 
+Edit#8 :: 
+Edit#9 :: 
+Edit#10 :: 

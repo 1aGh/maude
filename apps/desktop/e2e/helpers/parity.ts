@@ -130,12 +130,23 @@ export async function walkProjectMenu(): Promise<{ top: string[]; rows: string[]
     if (!root) return done({ top, rows: [] });
     level(root, 0).then(() => done({ top, rows: [...rows] }));
   })) as { top: string[]; rows: string[] };
-  await browser.keys([Key.Escape]);
+  await closeProjectMenu();
   return out;
+}
+
+/** Esc steps back one level (a submenu first, then the menu — WAI-ARIA, V2-4 gate polish-b): press
+ *  it until the menu is gone, so the next pill click opens the menu instead of closing it. */
+async function closeProjectMenu(): Promise<void> {
+  for (let i = 0; i < 4; i++) {
+    if (!(await (await $(tid('project-menu'))).isExisting())) return;
+    await browser.keys([Key.Escape]);
+    await browser.pause(80);
+  }
 }
 
 /** Settings via the menu (the one way every shell has), the section tabs read, and the sheet closed again. */
 export async function readSettings(): Promise<{ tabs: string[]; generalTestids: string[] }> {
+  await closeProjectMenu();
   await (await $(tid('project-pill'))).click();
   const row = await $(tid('project-menu-row-settings.open'));
   await row.waitForDisplayed({ timeout: 10_000 });
