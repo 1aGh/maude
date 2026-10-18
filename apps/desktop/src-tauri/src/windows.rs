@@ -625,6 +625,10 @@ pub fn open_in_as(
 /// (`notify::sanitize_title`, contract §5.2 "Title" — one line, no bidi
 /// controls) — AppKit draws it.
 pub fn project_display_name(root: &str) -> String {
+    // S1.22b: the name the person gave the tab on this Mac wins (Rename…).
+    if let Some(n) = crate::app_state::display_name_of(&pid_for_root(root)) {
+        return crate::notify::sanitize_title(&n);
+    }
     let from_config = std::fs::read(Path::new(root).join(".design").join("config.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())

@@ -688,6 +688,10 @@ pub fn run() {
             tabs::tab_activate,
             tabs::tab_close,
             tabs::tab_reorder,
+            // S1.22b: the tab menu, Rename… and the tab overview (strip-only).
+            tabs::tab_menu,
+            tabs::tab_rename,
+            tabs::tab_overview,
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
@@ -742,6 +746,10 @@ pub fn run() {
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .setup(|app| {
             let handle = app.handle().clone();
+            // S1.22b: the menu is NSApp's by now (tauri init_app_menu runs before setup);
+            // hide the ⇧⌘] / ⇧⌘[ items, keeping their keys (menu.rs).
+            #[cfg(target_os = "macos")]
+            menu::hide_hidden_items();
 
             // Crash reporting (Phase 32 / Task 4) — prime the opt-in toggle from
             // prefs.json and install the panic hook FIRST, so a panic anywhere in
@@ -993,6 +1001,11 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
     // S5.14: Maude ▸ Quit ⌘Q is a native item (menu.rs) — ask first while AI is working.
     if id == quit::MENU_QUIT {
         quit::request(app);
+        return;
+    }
+    // S1.22b: a row of the tab menu (right-click a tab; tabs::tab_menu builds it).
+    if let Some((item, label)) = tabs::tab_menu_command(id) {
+        tabs::run_tab_menu(app, item, &label);
         return;
     }
     let Some(route) = menu::route(id) else {

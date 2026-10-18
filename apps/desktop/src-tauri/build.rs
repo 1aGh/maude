@@ -66,6 +66,10 @@ fn main() {
                 "tab_activate",
                 "tab_close",
                 "tab_reorder",
+                // S1.22b: the tab menu (native, right-click), Rename…, the tab overview.
+                "tab_menu",
+                "tab_rename",
+                "tab_overview",
                 // V2-3.3 Home window (home.rs, lib.rs). The Home-only ones are
                 // granted by the RUNTIME `home` capability (home::HOME_PERMISSIONS).
                 "shell_state",

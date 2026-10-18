@@ -90,6 +90,13 @@ tauri-plugin-wdio-webdriver = "=1.2.0"
 # (`wait_for_action`). Already in the lock via tauri-plugin-notification, so no
 # new crate is downloaded; no default features (they only add Linux D-Bus).
 notify-rust = { version = "4.18", default-features = false }
+# S1.22b: hide the ⇧⌘] / ⇧⌘[ menu items while their accelerators keep working
+# (`NSMenuItem.hidden` + `allowsKeyEquivalentWhenHidden`, which muda does not
+# expose — menu.rs `hide_hidden_items`). Already in the lock via tao / muda;
+# no new crate is downloaded.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSMenu", "NSMenuItem", "NSResponder"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSString"] }
 
 # V2-3.7: the embedded WebDriver plugin, retargeted from `WebviewWindow` to
 # `Webview` so every child webview of a multi-webview window is its own W3C
