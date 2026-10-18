@@ -52,8 +52,28 @@ describe('Home route guards (§5.8 item 1)', () => {
       '/_home/cloud/prepare',
       '/_home/internal/search',
       '/_home/internal/thumbs',
+      // S6.5 — sign-in + invite proxy, and the profile Rust names for the next sign-in
+      '/_home/cloud/signin/start',
+      '/_home/cloud/signin/poll',
+      '/_home/cloud/signin/cancel',
+      '/_home/invite/peek',
+      '/_home/invite/accept',
+      '/_home/internal/signin/profile',
     ])
-      expect(paths.has(p)).toBe(true);
+      expect([p, paths.has(p)]).toEqual([p, true]);
+  });
+
+  test('S6.5: the sign-in and invite rows are page routes, the profile row is internal', () => {
+    const kinds = new Map(homeRouteTable(homeDeps()).map((r) => [`${r.method} ${r.path}`, r.kind]));
+    for (const row of [
+      'POST /_home/cloud/signin/start',
+      'POST /_home/cloud/signin/poll',
+      'POST /_home/cloud/signin/cancel',
+      'POST /_home/invite/peek',
+      'POST /_home/invite/accept',
+    ])
+      expect([row, kinds.get(row)]).toEqual([row, 'home']);
+    expect(kinds.get('POST /_home/internal/signin/profile')).toBe('internal');
   });
 
   test('a request the Home page would send passes', async () => {
@@ -216,7 +236,15 @@ describe('the Home page secret (V2-3.6 H1)', () => {
 describe('internal routes (§5.8 item 2)', () => {
   test('Rust with the token gets in', async () => {
     for (const s of INTERNAL) {
-      const r = await fetchHome(rustReq(`${s.path}?q=x&pids=&pid=l0000000000000000`));
+      const r = await fetchHome(
+        s.method === 'POST'
+          ? new Request(`http://${HOST}${s.path}`, {
+              method: 'POST',
+              headers: rustReq(s.path).headers,
+              body: JSON.stringify({ profile: 'default', invite: null }),
+            })
+          : rustReq(`${s.path}?q=x&pids=&pid=l0000000000000000`)
+      );
       expect([s.path, r.status]).toEqual([s.path, 200]);
     }
   });

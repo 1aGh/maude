@@ -51,7 +51,7 @@ export function profileHubsPath(profile: string): string | null {
   return path.join(base, 'maude', 'profiles', profile, 'hubs.json');
 }
 
-function profileToken(profile: string): string | null {
+export function profileToken(profile: string): string | null {
   const p = profileCloudPath(profile);
   if (!p || !existsSync(p)) return null;
   try {

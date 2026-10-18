@@ -41,7 +41,9 @@ import { isLoopbackHost } from '../ws.ts';
 import type { HomeCloud } from './cloud.ts';
 import { createLocalProject } from './create-local.ts';
 import { readHomeIndex, resolveProject, searchHome, thumbSource } from './index-reader.ts';
+import { createHomeInvite, type HomeInvite } from './invite.ts';
 import { isPid } from './pid.ts';
+import { createHomeSignIn, type HomeAnswer, type HomeSignIn } from './signin.ts';
 import { isCanvasKey, setPin } from './user-state.ts';
 
 export const HOME_HEADER = 'x-maude-home';
@@ -64,6 +66,10 @@ export interface HomeDeps {
   /** base dir for create-local (default ~/Maude) */
   projectsDir: string;
   cloud: HomeCloud;
+  /** S6.5 — the device-flow sign-in (one per Home process; default: a fresh one per table) */
+  signin?: HomeSignIn;
+  /** S6.5 — the invite peek/accept proxy */
+  invite?: HomeInvite;
 }
 
 const NO_STORE = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
@@ -194,8 +200,29 @@ interface HomeRoute {
   handle(req: Request, url: URL): Response | Promise<Response>;
 }
 
+/** A JSON-bodied POST row whose handler answers `{status, body}` (S6.5). */
+function post(
+  path: string,
+  kind: Kind,
+  run: (body: unknown) => HomeAnswer | Promise<HomeAnswer>
+): HomeRoute {
+  return {
+    method: 'POST',
+    path,
+    kind,
+    handle: async (req) => {
+      const b = await readBody(req);
+      if (!b.ok) return b.res;
+      const r = await run(b.value);
+      return json(r.status, r.body);
+    },
+  };
+}
+
 /** Exported for the route-guard test: every row of V2-1.1 §5.3 but the static lane. */
 export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
+  const signin = deps.signin ?? createHomeSignIn();
+  const invite = deps.invite ?? createHomeInvite();
   return [
     {
       method: 'GET',
@@ -341,6 +368,14 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
         return json(r.ok ? 200 : r.status, r);
       },
     },
+    // S6.5 — sign-in (contract S6-S9 §5.1) and the invite proxy (§5.3): page routes behind the
+    // page secret; the profile they may write is named by Rust alone (the internal row below)
+    post('/_home/cloud/signin/start', 'home', (b) => signin.start(b)),
+    post('/_home/cloud/signin/poll', 'home', (b) => signin.poll(b)),
+    post('/_home/cloud/signin/cancel', 'home', (b) => signin.cancel(b)),
+    post('/_home/invite/peek', 'home', (b) => invite.peek(b)),
+    post('/_home/invite/accept', 'home', (b) => invite.accept(b)),
+    post('/_home/internal/signin/profile', 'internal', (b) => signin.register(b)),
     {
       method: 'GET',
       path: '/_home/internal/search',
