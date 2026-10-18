@@ -37,6 +37,8 @@ export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
+export { announceAction, runStageHooks } from './project-undo.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
