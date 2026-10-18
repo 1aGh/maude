@@ -2708,6 +2708,7 @@ function ShellTree() {
       openPanelExclusive,
       paletteOpen,
       presentMode,
+      project,
       quickSetupOpen,
       readinessOpen,
       reportBugOpen,
@@ -2844,6 +2845,9 @@ function ShellTree() {
       onFinished={handleAssistantFinished}
       onPermissionRequest={handleAssistantAttention}
       onElicitationRequest={handleAssistantAttention}
+      // S5.12 — the chat list's role gate (a Can view session reads, never writes) and its project chip
+      readOnly={viewerMode}
+      projectName={cfg?.cloud?.projectName || project || ''}
     />
   );
 
