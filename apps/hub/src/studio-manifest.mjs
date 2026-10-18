@@ -57,6 +57,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // file — `export`, so Can view (`observer`) is refused it. The rendered canvas
   // is still theirs to look at.
   '/_api/canvas-source': { safe: 'export', unsafe: null },
+  // S11.6 — the structured errors quote the broken line (`lineText`): the same download rule.
+  '/_api/canvas-errors': { safe: 'export', unsafe: null },
   '/_api/component-map': { safe: 'read', unsafe: null },
   '/_api/preflight': { safe: 'read', unsafe: null },
   '/_api/setup-readiness': { safe: 'read', unsafe: null },
@@ -151,6 +153,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // GET was refused 405 for every role, owner included. `read` on the safe side,
   // nothing on the unsafe side — it writes nothing (inspector-edits RCA).
   '/_api/edit-scope': { safe: 'read', unsafe: null },
+  // S3.10a — the shell's link-follow reads where an on-click link goes (read only, any role)
+  '/_api/links': { safe: 'read', unsafe: null },
   '/_api/insert-artboard': { safe: null, unsafe: 'edit' },
   '/_api/insert-element': { safe: null, unsafe: 'edit' },
   '/_api/insert-sequence': { safe: null, unsafe: 'edit' },

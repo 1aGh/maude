@@ -104,6 +104,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
+  '/_api/links': { class: 'read' }, // S3.10a routes/links.ts: where on-click links go, parsed from the TSX
   '/_api/project/restore': {
     class: 'lane',
     rows: 'X15',
@@ -129,6 +130,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S11.6 — the structured canvas errors (routes/canvas-source.ts, with /_api/canvas-source)
+  '/_api/canvas-errors': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',

@@ -30,7 +30,7 @@ import {
   SESSION_WRITES,
   toDesignRel,
 } from './access/request.ts';
-import type { Access } from './access/scope.ts';
+import { type Access, sees as accessSees } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
 import {
   cancelSignin,
@@ -60,6 +60,7 @@ import { buildCanvasModule } from './canvas-build.ts';
 import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { TranspileError } from './canvas-pipeline.ts';
+import { CanvasBuildError, canvasSourceSig, recordCanvasBuild } from './canvas-source/errors.ts';
 import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
@@ -736,6 +737,13 @@ export async function serveCanvasTsx(
         assetUrlBase: designRootUrlBase(ctx.paths),
       });
     } catch (err) {
+      // S11.6 — the build's own error (an import, the allowlist) for `/_api/canvas-errors`;
+      // a syntax error is re-read from the file there, so only these need remembering.
+      recordCanvasBuild(
+        absPath,
+        canvasSourceSig(source),
+        err instanceof CanvasBuildError ? (err.errors[0] ?? null) : null
+      );
       if (err instanceof TranspileError) {
         return new Response(`Transpile error: ${err.message}`, {
           status: 500,
@@ -757,6 +765,7 @@ export async function serveCanvasTsx(
     };
     canvasCache.set(absPath, cached);
     rememberCanvasBuild(absPath, { source, locator: result.locator });
+    recordCanvasBuild(absPath, canvasSourceSig(source), null);
     // Persist the locator map. Awaited so the inspector / Phase-12 layers
     // panel sees a consistent (cdId -> source) view by the time the canvas
     // mounts. Per-path mutex inside writeLocator() makes concurrent transpiles
@@ -868,6 +877,31 @@ function historicalBuildAllowed(): boolean {
   if (histBuilds >= HIST_MAX_BUILDS) return false;
   histBuilds++;
   return true;
+}
+
+/**
+ * S11.6 — a past version's SOURCE for `GET /_api/canvas-source?sha=` (routes/canvas-source.ts):
+ * the same three readers as the `?sha=` build below (an accepted revision `r<n>`, local git, the
+ * linked cell), under the same global budget. `'busy'` = over budget (the route answers 429).
+ */
+async function historicalCanvasSource(
+  ctx: Context,
+  repoRel: string,
+  sha: string
+): Promise<string | null | 'busy'> {
+  if (!historicalBuildAllowed()) return 'busy';
+  const acceptedRev = /^r(\d{1,12})$/.exec(sha);
+  if (acceptedRev)
+    return (
+      (await ctx.syncControl
+        ?.current?.()
+        ?.acceptedVersion?.(repoRel, Number(acceptedRev[1]))
+        .catch(() => null)) ?? null
+    );
+  const local = await gitShowFile(ctx.paths.repoRoot, sha, repoRel);
+  if (local != null) return local;
+  const fromCloud = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
+  return fromCloud.ok ? fromCloud.source : null;
 }
 async function serveHistoricalCanvas(
   absPath: string,
@@ -1634,6 +1668,21 @@ export function createHttp(
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
     pins: { designRoot: ctx.paths.designRoot },
+    // S3.10a — where an on-click link goes, read from the versioned TSX (routes/links.ts)
+    links: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      // the session's own predicate (S9.9): a canvas-only session reads its grants' closure and nothing else,
+      // so a link to a canvas it was not granted reads `dangling` (no existence oracle, V2-1.16 U1)
+      sees: (req, rel) => {
+        const access = accessOf(req);
+        return accessSees(
+          access,
+          access.grants.length > 0 ? closureFor(access, projectReader, closureCache) : null,
+          rel
+        );
+      },
+    },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
     chat: {
       designRoot: ctx.paths.designRoot,
@@ -1684,6 +1733,15 @@ export function createHttp(
       write: async (file, nextText, baseText) => {
         await api.writeCanvasMetaText(file, nextText, baseText);
       },
+    },
+    // S11.6 — GET /_api/canvas-source + /_api/canvas-errors (routes/canvas-source.ts): main origin
+    // only, `export` on the canvas (Can view refused), a canvas-only session its grants only.
+    canvasSource: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      historicalSource: (repoRel, ref) => historicalCanvasSource(ctx, repoRel, ref),
+      // A GET of project source is CORS-readable once a rebound page shares this origin.
+      trustedHost: (req) => isTrustedRequestHost(req),
     },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
@@ -2646,33 +2704,9 @@ export function createHttp(
       return new Response('Method not allowed', { status: 405 });
     },
 
-    '/_api/canvas-source': async (req: Request) => {
-      // DDR-148 — read-only raw .tsx source for the Timeline panel's sequence/
-      // keyframe parser. GET ?file=<canvas rel or slug> → { source }.
-      // MAIN-ORIGIN ONLY: intentionally absent from CANVAS_SAFE_API +
-      // startCanvasServer's routes (dual-allowlist, DDR-054) — the untrusted
-      // canvas iframe must never read arbitrary project source. Containment via
-      // api.loadCanvasSource → resolveCanvasAbs (stays under designRoot).
-      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      // DNS-rebinding guard — a GET read of project source is CORS-readable once
-      // a rebound page shares this origin; the dev-server always binds 127.0.0.1,
-      // so a real browser (Host: localhost:<port>) passes and only a rebound
-      // foreign hostname 403s. (No sameOriginWrite here — GET.)
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const file = new URL(req.url).searchParams.get('file');
-      const r = await api.loadCanvasSource(file);
-      if (!r.ok) {
-        return Response.json(
-          { ok: false, error: r.error },
-          { status: r.status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      return Response.json(
-        { ok: true, source: r.source },
-        { headers: { 'Cache-Control': 'no-store' } }
-      );
-    },
+    // '/_api/canvas-source' (DDR-148's Timeline read) moved to the route table in S11.6:
+    // routes/canvas-source.ts — same `?file=` answer, now with the code view's fields and its
+    // access rule (`export` on the canvas: Can view refused, a canvas-only session its grants).
 
     '/_api/git-committers': async (req: Request) => {
       // Phase 6 — feed for the @mention autocomplete in composer + reply box.

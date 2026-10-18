@@ -556,6 +556,23 @@ export function isArtboardDragChrome(t: EventTarget | null): boolean {
   return !!el.closest('[data-dc-screen]') && !el.closest('.dc-artboard-body');
 }
 
+/** S3.9 — is the target inside an artboard's design surface (`.dc-artboard-body`)? The label strip and
+ *  the bare canvas are not. */
+export function isDesignSurface(t: EventTarget | null): boolean {
+  if (!t || typeof (t as Element).closest !== 'function') return false;
+  return !!(t as Element).closest('.dc-artboard-body');
+}
+
+/**
+ * S3.9 (V2-1.2 Q3) — does a bare left-button drag pan the canvas? Hand always does; Preview's Hand rests on
+ * `browse`, where a click uses the design, so a drag pans only when it starts OFF the design (empty canvas,
+ * an artboard's label) — a drag on the design goes to the design (sliders, scroll areas, text selection).
+ * Space-drag and middle-button pan everywhere, ahead of this.
+ */
+export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
+  return tool === 'hand' || (tool === 'browse' && !onDesign);
+}
+
 /**
  * Should the router's pointerdown/mousedown handler skip
  * `stopImmediatePropagation` so the event still reaches use-artboard-drag.tsx?
@@ -606,6 +623,54 @@ export function yieldsClickToArtboardChrome(
 
 /** V2-4.5b — a momentary slot's key asks the toolbar (tool-palette.tsx owns the insert anchor). */
 export const TOOLBAR_INSERT_EVENT = 'maude:toolbar-insert';
+
+// ── S3.10a — on-click links, Preview branch only (contract S3-links-format §5 step 1) ────────────
+// A plain left click in Preview whose `closest('[data-cd-link]')` also carries a `data-cd-id` posts
+// `link-follow {elementId, artboardId}` and prevents the default. The canvas never posts the TARGET (the
+// shell reads it from the TSX, `GET /_api/links`): the canvas origin is untrusted (DDR-054). Edit,
+// Viewing and Present never post it; ⌘-click inspects (S3.11).
+const LINK_ELEMENT_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const LINK_ARTBOARD_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** What a click asks the shell to follow, or null. Pure over the DOM it is handed. */
+export function linkFollowOf(
+  target: EventTarget | null,
+  click: { mode: CanvasModeV2 | null | undefined; button: number; mod: boolean; shift?: boolean }
+): { elementId: string; artboardId: string | null } | null {
+  if (click.mode !== 'preview' || click.button !== 0 || click.mod || click.shift) return null;
+  const el = (target as Element | null)?.closest?.('[data-cd-link]');
+  const id = el?.getAttribute('data-cd-id');
+  if (!el || !id || id.length > 48 || !LINK_ELEMENT_ID_RE.test(id) || /^[0-9a-f]{8}$/.test(id))
+    return null;
+  const ab = el.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null;
+  return { elementId: id, artboardId: ab && LINK_ARTBOARD_ID_RE.test(ab) ? ab : null };
+}
+
+// Both routers of a document (the comment-mount ancestor too) see one click: post once per event.
+const linkFollowed = new WeakSet<Event>();
+
+function postLinkFollow(e: MouseEvent): boolean {
+  if (typeof window === 'undefined' || window.parent === window) return false;
+  const hit = linkFollowOf(e.target, {
+    mode: canvasModeStore(window).get()?.mode ?? null,
+    button: e.button,
+    mod: e.metaKey || e.ctrlKey,
+    shift: e.shiftKey,
+  });
+  if (!hit) return false;
+  e.preventDefault();
+  if (linkFollowed.has(e)) return true;
+  linkFollowed.add(e);
+  try {
+    window.parent.postMessage(
+      { dgn: 'link-follow', elementId: hit.elementId, artboardId: hit.artboardId },
+      '*'
+    );
+  } catch {
+    /* detached */
+  }
+  return true;
+}
 
 /** V2-4.5b — a key's `mode-request` (M3: no local change). Both routers of a document can see one
  *  keydown (the comment-mount ancestor claims esc too), so the document asks once (claimRequest).
@@ -819,6 +884,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
     const onClick = (e: MouseEvent): void => {
       if (isOverlayTarget(e.target)) return;
       if (isEditableTarget(e.target)) return;
+      if (postLinkFollow(e)) return; // S3.10a — Preview only; the shell follows (or drops) it
       const tool = getActiveTool();
       const mod = e.metaKey || e.ctrlKey;
       // Map the click to the action kind the matching pointerdown would have

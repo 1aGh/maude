@@ -278,4 +278,45 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
   },
+  // S3.10a — where a click goes: `data-cd-link` on the element (S3-links-format). Both are `edit-op`s
+  // (`edit-ops/{set,clear}-link.ts`) on POST /_api/edit-op. Clear link runs from ⌘K through the inspector's
+  // frame; Set link has no human picker yet (the On click row only clears), so it has no runner — the AI path
+  // and the route are complete.
+  {
+    id: 'element.set-link',
+    label: 'Set link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  {
+    id: 'element.clear-link',
+    label: 'Clear link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  // S11.8 — Inspector › Advanced, the code half. Copy code reads the canvas source (`/_api/canvas-source`,
+  // which needs `export`: Can comment and up, never Can view); the other two write the element's JSX.
+  {
+    id: 'inspector.copy-code',
+    label: 'Copy code',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'comment' as const, selection: ['object'] },
+  },
+  {
+    id: 'inspector.edit-css-as-text',
+    label: 'Edit CSS as text…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  {
+    id: 'element.detach',
+    label: 'Detach from shared component',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
 ];
