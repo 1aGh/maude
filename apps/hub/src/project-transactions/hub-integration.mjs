@@ -9,7 +9,6 @@
 //   • `handleRoutes` — `/api/projects/:project/v1/*`.
 
 import { canvasSlugFromRel } from '../../../studio/canvas-slug.ts';
-import { createRunsPoke, createRunsRoutes, RUNS_CAPABILITY, RUNS_ROUTE } from '../runs-routes.mjs';
 import {
   NOT_IN_SCOPE_REFUSAL,
   proposalScope,
@@ -17,6 +16,7 @@ import {
   scopeBootstrap,
   seesDocRow,
 } from '../access-docs.mjs';
+import { createRunsPoke, createRunsRoutes, RUNS_CAPABILITY, RUNS_ROUTE } from '../runs-routes.mjs';
 import { importBaseline } from './baseline.mjs';
 import { createKernel, MAX_UNDO_TARGETS } from './kernel.mjs';
 import { applyLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
