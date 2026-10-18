@@ -127,6 +127,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S1.18 — a stable canvas link's entry → path (history/links.ts)
+  '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',

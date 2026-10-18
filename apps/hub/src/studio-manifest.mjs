@@ -232,6 +232,10 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/undo': REFUSED,
   // S5.5 — "your ⌘Z stack" is the same per-person question as undo itself.
   '/_api/project/undo-stack': REFUSED,
+  // S1.18 — entry → path across the whole project. Refused in a cell until the studio reads a
+  // canvas-only session's claim per request (S9.9): before that it could not keep an ungranted
+  // canvas's path from a canvas-only visitor. The cell's web `/c/<entry>` link lands with it.
+  '/_api/link/resolve': REFUSED,
   // Signs in and stores a credential on the machine that serves it — that is
   // the desktop's own copy-making step, never something a cell does for a
   // visitor (plan T21).
