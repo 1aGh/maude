@@ -228,6 +228,7 @@ import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
+import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
@@ -2923,6 +2924,8 @@ function ShellTree() {
           <DiagnosticsHost toast={shellToast} />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
+          {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}
+          <SyncStatesHost />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
               tab strip in the panel's OWN header; the AI chat, when docked here, is a separate island under it
               (always mounted, so its stream survives — DDR-123). Folded, the corner icon below is the way back. */}
