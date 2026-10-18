@@ -12376,5 +12376,69 @@
       "apps/studio/test/v2-empty-kit.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "all-trashed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card over a canvas whose every artboard is in the trash (05 es-all-trashed): the situation, why it is fine, Restore N; `data-count` is how many artboards it holds.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/all-trashed.jsx",
+      "symbol": "AllTrashedCard"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "all-trashed-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Restore N artboards: puts every artboard of this canvas back where it was, one undo step. Absent for Can view; the server refuses a restore from them anyway.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/all-trashed.jsx",
+      "symbol": "AllTrashedCard"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-ghosts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer of dashed outlines an all-trashed canvas keeps. Decorative, no hit area. (Canvas origin: reachable by coordinates, not by DOM.)",
+    "producer": {
+      "file": "apps/studio/artboard-ghosts-overlay.tsx",
+      "symbol": "ArtboardGhostsLayer"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "artboard-ghost-<artboard-id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Inside the canvas iframe: the outline where one trashed artboard stood, with its name above; `<artboard-id>` is the artboard's id.",
+    "producer": {
+      "file": "apps/studio/artboard-ghosts-overlay.tsx",
+      "symbol": "ArtboardGhostsLayer"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

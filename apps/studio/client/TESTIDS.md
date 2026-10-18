@@ -1012,6 +1012,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
 | `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
 | `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+| `all-trashed` | testid | The card over a canvas whose every artboard is in the trash (05 es-all-trashed): the situation, why it is fine, Restore N; `data-count` is how many artboards it holds. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
+| `all-trashed-restore` | testid | Restore N artboards: puts every artboard of this canvas back where it was, one undo step. Absent for Can view; the server refuses a restore from them anyway. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
+| `artboard-ghosts` | testid | Inside the canvas iframe: the layer of dashed outlines an all-trashed canvas keeps. Decorative, no hit area. (Canvas origin: reachable by coordinates, not by DOM.) | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
+| `artboard-ghost-<artboard-id>` | testid (pattern) | Inside the canvas iframe: the outline where one trashed artboard stood, with its name above; `<artboard-id>` is the artboard's id. | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
 
 ## What's New spotlights
 
