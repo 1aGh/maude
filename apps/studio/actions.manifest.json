@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1ade062db596",
+  "manifestVersion": "c4b7dc353ef3",
   "actions": [
     {
       "id": "search.open",
@@ -2687,6 +2687,18 @@
       "agent": {
         "path": "cli",
         "verb": "maude design history diff"
+      }
+    },
+    {
+      "id": "history.compare-pictures",
+      "label": "Compare pictures",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the same two versions as words: maude design history diff"
       }
     },
     {

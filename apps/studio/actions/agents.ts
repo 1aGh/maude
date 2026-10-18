@@ -223,6 +223,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'history.view-version': { effect: 'none', agent: cli('maude design history show') },
   'history.compare': { effect: 'none', agent: cli('maude design history diff') },
+  // S1.15: the picture compare (DiffView, before / after as ?sha= panes) is for looking — an agent reads the
+  // same two versions as words with `history diff`.
+  'history.compare-pictures': PREF('the same two versions as words: maude design history diff'),
   'history.name': {
     effect: 'shared',
     minRole: 'edit',

@@ -32,6 +32,14 @@ export const HISTORY_ACTIONS: ActionDef[] = [
     search: ROW,
   },
   {
+    // Version history › Advanced › "Compare pictures": today's DiffView (S1.15; the words live in Compare)
+    id: 'history.compare-pictures',
+    label: 'Compare pictures',
+    kind: 'command',
+    exec: 'shell',
+    search: ROW,
+  },
+  {
     // the Now row's "Name this version…" (§5.4)
     id: 'history.name',
     label: 'Name this version…',
