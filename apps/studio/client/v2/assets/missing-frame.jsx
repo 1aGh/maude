@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { frameWords } from '../../../asset-placeholder.tsx';
 import { notify } from '../../../notifications.tsx';
-import { useLinkDialogFocus } from '../../share-dialog.jsx';
+import { useLinkDialogFocus } from '../share/link-dialog.js';
 import {
   assetAnswersVersion,
   assetItemForSrc,
