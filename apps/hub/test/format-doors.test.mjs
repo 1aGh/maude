@@ -308,7 +308,10 @@ describe('the doors on a real hub (H4, H5)', () => {
         ['PUT', '/api/project-config', () => v1.put('/api/project-config', '{"name":"x"}')],
         ['PUT', '/assets/<key>', () => v1.put('/assets/abc.png', PNG)],
         ['PUT', '/_asset-file/<rel>', () => v1.put('/_asset-file/assets/c.png', PNG)],
-        ['POST', '/api/studio/comments', () => v1.post('/api/studio/comments', { text: 'hi' })],
+        // S9.7 moved the comment door to `POST /api/comments` (COMMENTS_PATH,
+        // routes-v2/comments.mjs); the handler-less `/api/studio/comments`
+        // string is gone, so a request there reaches no door at all.
+        ['POST', '/api/comments', () => v1.post('/api/comments', { text: 'hi' })],
         ['DELETE', '/api/documents/<doc>', () => v1.del('/api/documents/ws%2Flocal%2Fmain%2Fui-a')],
       ];
       for (const [method, path, call] of doors) {
