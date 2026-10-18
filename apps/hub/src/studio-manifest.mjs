@@ -257,6 +257,10 @@ export const STUDIO_ROUTES = Object.freeze({
   // V2-3.3 — a pin is ONE person's view state in `_canvas-state/`, and a cell's is shared by
   // every member: refused rather than letting one member's pins become everyone's.
   '/_api/pins': REFUSED,
+  // S8.19 — asset state merges THIS machine's disk + upload queue with its linked hub's
+  // presence. A cell is the hub: its studio has no peer hub to ask, and a browser member's
+  // client reads a refusal as the quiet "Not here yet" (contract §5.5, offline row).
+  '/_api/asset-state': REFUSED,
   // Preparing a device for offline work is a desktop's; a cell IS the copy.
   '/_api/sync/offline': REFUSED,
 

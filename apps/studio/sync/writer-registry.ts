@@ -296,6 +296,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/outbox/:id/retry': { class: 'local' },
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
+  '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
   '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
   // S3.5 — routes/present.ts: Present order / skip / notes in the versioned .meta.json
   '/_api/present-meta': {
