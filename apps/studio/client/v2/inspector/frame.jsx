@@ -22,7 +22,13 @@ import { SECTIONS } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
 
 function Section({ def, entries, ctx, el, selection, kindId }) {
-  const adder = def.adder ? entries.find((e) => typeof e.add === 'function') : null;
+  const adder = def.adder
+    ? entries.find(
+        (e) =>
+          typeof e.add === 'function' &&
+          (typeof e.canAdd !== 'function' || e.canAdd({ el, selection, kind: kindId, ctx }))
+      )
+    : null;
   const aside = entries.find((e) => e.aside != null)?.aside;
   const asideNode = typeof aside === 'function' ? aside({ el, ctx }) : aside;
   // a body may rename its section for what is selected: Border is "Stroke" on a line or a Pen path
@@ -174,7 +180,7 @@ export function InspectorFrame({
         </p>
       ) : null}
       {SECTIONS.map((def) => {
-        const entries = slotsFor(def.id, kind.id, selected);
+        const entries = slotsFor(def.id, kind.id, selected, ctx);
         if (!entries.length) return null;
         return (
           <Section

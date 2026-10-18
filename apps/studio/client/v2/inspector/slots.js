@@ -9,6 +9,7 @@
 //     kinds: ['frame', 'text'],    // which kinds show it; absent = every kind
 //     Body: SizeBody,              // ({ el, selection, kind, ctx }) => element — the section's rows
 //     add: ({ el, ctx }) => void,  // optional: the "+" in the header (only sections with an adder draw it)
+//     canAdd: ({ el, selection, kind, ctx }) => boolean,  // optional (S8.8): the "+" is drawn only when true
 //     aside: ReactNode | ({ el, ctx }) => ReactNode,   // optional: replaces the quiet word beside the title
 //   })
 //
@@ -56,13 +57,14 @@ export function registerSlot(sectionId, entry) {
 
 /**
  * The entries of a section that show for this kind, in order. An entry may also carry `when({ selection, kind })`
- * (S2.4: Type shows for several objects only when every one is text); absent = always.
+ * (S2.4: Type shows for several objects only when every one is text); absent = always. `ctx` (the frame's) is
+ * there for a role gate (S8.8: Can view sees no Export); callers without one pass nothing.
  */
-export function slotsFor(sectionId, kindId, selection) {
+export function slotsFor(sectionId, kindId, selection, ctx) {
   return (bySection.get(sectionId) ?? []).filter(
     (e) =>
       (!Array.isArray(e.kinds) || e.kinds.includes(kindId)) &&
-      (typeof e.when !== 'function' || e.when({ selection, kind: kindId }))
+      (typeof e.when !== 'function' || e.when({ selection, kind: kindId, ctx }))
   );
 }
 

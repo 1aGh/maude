@@ -53,3 +53,17 @@ Rules (V2-1.12 R1/R6; strict schema `apps/studio/schema/canvas-meta.v2.schema.js
 - Every id is the `id` of a `<DCArtboard>` in the canvas `.tsx` (`^[A-Za-z0-9_-]{1,64}$`), once per list. `maude design check --strict <Canvas>.meta.json` reports an unknown id or a duplicate.
 - Absent means the default: no `present` = canvas order, nothing skipped; no `notes` = no note. Remove a key rather than writing `[]` or `""`.
 - Keep every other `artboardMeta[id]` field (`poster`, `snap`, `maxFrames`, `madeBy`) and every other top-level key as you found it. Don't stamp `last_modified` for this — it marks layout changes only.
+
+#### An artboard's export sizes (`artboardMeta.<id>.exports`)
+
+The Inspector's Export section keeps each artboard's own sizes — set once, one click from then on. You may write the same list:
+
+```jsonc
+"artboardMeta": {
+  "post": { "exports": [ { "format": "png", "scale": 1 }, { "format": "jpg", "scale": 2 }, { "format": "svg" } ] }
+}
+```
+
+- `format` is `png`, `jpg` or `svg`; raster formats carry a `scale` from 0.25 to 4, `svg` carries none. At most 8 sizes. Nothing else goes in an entry.
+- Absent means the kind's default (Fixed size and Web page: PNG 1×). Remove the key rather than writing `[]`. Print and video artboards keep their one format in the export sheet, not here. Element sizes are never stored.
+- It is an `artboardMeta` member like `notes`: keep every other field of the entry as you found it. To export without storing anything: `maude design export png --scope selection --canvas <rel>`.

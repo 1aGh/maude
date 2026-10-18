@@ -133,6 +133,20 @@
             "minimum": 0
           },
           "snap": { "enum": ["beat", "off"] },
+          "exports": {
+            "description": "The artboard's own export sizes (S8.8, Inspector › Export): PNG/JPG at a scale, or SVG. Absent = the kind's default. Element presets are not stored.",
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "required": ["format"],
+              "additionalProperties": false,
+              "properties": {
+                "format": { "enum": ["png", "jpg", "svg"] },
+                "scale": { "type": "number", "minimum": 0.25, "maximum": 4 }
+              }
+            }
+          },
           "maxFrames": {
             "description": "C22 \"Allow longer\": this artboard's length cap, up to the exporter ceiling.",
             "type": "integer",

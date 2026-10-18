@@ -17,7 +17,10 @@
 // file, the `onMetaChanged` hook → meta `lane.replace`, the cell's announce), so one sheet commit is one
 // project action.
 //
-// A body with neither `present` nor `notes` writes nothing and answers the current state with its
+// S8.8 — `exports` (artboardId → [{format, scale}] | null) is the inspector's per-artboard export sizes
+// (`artboardMeta[id].exports`), written the same way and answered back with the rest.
+//
+// A body with none of `present`, `notes`, `exports` writes nothing and answers the current state with its
 // ETag — how the sheet reads what it later sends back as `expected` (the route has no GET: a cell
 // classifies it `{ safe: null, unsafe: 'edit' }`).
 
@@ -30,6 +33,7 @@ import {
   applyPresentPatch,
   type PresentState,
   parsePresentPatch,
+  readExportPresets,
   readPresentState,
 } from '../present/meta-schema.ts';
 import type { RouteSpec } from './table.ts';
@@ -136,7 +140,8 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
           if (patch.expected !== undefined && patch.expected !== etag)
             return json(409, { error: 'stale', etag });
 
-          const writes = patch.present !== undefined || patch.notes !== undefined;
+          const writes =
+            patch.present !== undefined || patch.notes !== undefined || patch.exports !== undefined;
           let nextText = currentText;
           let next = current;
           if (writes) {
@@ -155,6 +160,7 @@ export function createPresentRoutes(deps: PresentRouteDeps): RouteSpec[] {
             ok: true,
             present: presentOut(state),
             notes: state.notes,
+            exports: readExportPresets(next),
             etag: metaEtag(nextText),
           });
         });
