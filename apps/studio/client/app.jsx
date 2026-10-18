@@ -241,6 +241,7 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
+import { ShellMentionCallouts, useCommentsShell } from './v2/comments/use-comments-shell.jsx';
 import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
 import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
 import { OPEN_ASSETS_EVENT } from './v2/ai/AttachMenu.jsx';
@@ -1110,6 +1111,7 @@ function ShellState({ children }) {
     broadcastChrome,
     wsSend,
     reloadActive,
+    gitUser,
   });
 
   // Jump from right-sidebar list to a comment: open file tab if needed, focus pin.
@@ -1314,9 +1316,20 @@ function ShellState({ children }) {
     reopenComment,
     deleteComment,
     jumpToComment,
+    gitUser,
+  });
+  // S9.22b — unread mentions (Share cluster count + toast), the comments.* runners, timeline flags.
+  const comments = useCommentsShell({
+    commentsByFile,
+    me: gitUser,
+    activePath,
+    jumpToComment,
+    setCommentsFilter,
+    openRightPanel,
   });
   // V2-2.3: everything the render tree reads, grouped by the module seam it comes from.
   const shellStore = {
+    comments,
     shellCore: {
       activeArtboards,
       activeComps,
@@ -1615,6 +1628,7 @@ function ShellProjectPill() {
     },
     canvasBridge: { onInsertArtboard },
     paletteAndPanels: { leftActive },
+    comments,
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const native = isNativeApp();
@@ -1647,6 +1661,9 @@ function ShellProjectPill() {
     onCloseCanvas: () => activePath && closeTab(activePath),
     onAssembleVideo: assembleVideo,
     onToggleShowHidden: () => setShowHidden((v) => !v),
+    // S9.22b — comments.filter-* / comments.open-thread (v2/comments/use-comments-shell.jsx)
+    onCommentsFilter: (f) => comments?.showFilter(f),
+    onOpenCommentThread: (file, id) => comments?.openThread(file, id),
     // V2-4.4a: View › Advanced › Layers as a panel — the Settings › Layout switch, from the menu.
     onToggleLayersMode: () => {
       const next = layersMode === 'separate' ? 'in-inspector' : 'separate';
@@ -2918,6 +2935,7 @@ function ShellTree() {
           callouts now, ONE stack. A child of `.maude`, not of `.st-body`: Presentation mode must not hide a
           fail-closed sync warning (DDR-102, phase-28 audit F-1). */}
       <ShellCallouts />
+      <ShellMentionCallouts />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that
           only appears if you happen to open the Sync panel is not consent.
           Skipped during first-run onboarding so two flows don't stack. */}
