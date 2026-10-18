@@ -46,7 +46,6 @@ export const STATIC_COMMANDS = [
   {
     name: 'design:export',
     description: 'Export a canvas to images, documents, slides, video or a handoff bundle.',
-    argHint: '<png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> …',
   },
   {
     name: 'design:generate',

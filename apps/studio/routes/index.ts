@@ -40,6 +40,7 @@ import { createSettingsRoutes, type SettingsRouteDeps } from './settings.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
 import type { RouteSpec } from './table.ts';
+import { createVideoRoutes } from './video.ts';
 import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 
 const trashAccessNone = resolveAccess(null);
@@ -132,6 +133,12 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createPresentRoutes(deps.present),
     ...createCanvasSourceRoutes(deps.canvasSource),
     ...(deps.export ? createExportRoutes(deps.export) : []),
+    // S7.4 — GET /_api/comp-media (routes/video.ts): the comp's words, speech and beats derived from
+    // its cut. It needs only the design root and its name, which the present and ai deps already carry.
+    ...createVideoRoutes({
+      designRoot: deps.present.designRoot,
+      designRel: deps.ai.designRel,
+    }),
     ...createTrashRoutes(
       deps.trash ?? {
         control: () => null,

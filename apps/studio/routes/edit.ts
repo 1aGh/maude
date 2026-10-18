@@ -49,6 +49,7 @@ import {
   nextMetaText,
 } from '../edit-ops/layout-patch.ts';
 import type { ReferenceLanes } from '../edit-ops/references.ts';
+import { CLIP_EDIT_VERBS } from '../edit-ops/clip/index.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
 import { heldByAi } from './agent.ts';
@@ -160,6 +161,18 @@ function refusalOf(code: string | undefined): LandOutcome {
   if (code === 'lease-fenced')
     return { ok: false, code: 'held-by-ai', message: "This artboard is AI's until it's done" };
   return { ok: false, code: 'invalid', message: 'That edit did not go through; try again.' };
+}
+
+/** The legacy `/_api/clip-edit` body (`{canvas, artboardId?, stableId, contentHash?, verb, …}`) as
+ *  an edit-op request, or null when its verb has no op. Every other key rides along as a param. */
+export function clipEditToEditOp(body: unknown): Record<string, unknown> | null {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const { canvas, artboardId, verb, ...rest } = body as Record<string, unknown>;
+  const op = typeof verb === 'string' ? CLIP_EDIT_VERBS.get(verb) : undefined;
+  if (!op) return null;
+  const params: Record<string, unknown> = { ...rest };
+  if (typeof artboardId === 'string' && artboardId) params.artboard = artboardId;
+  return { file: canvas, op, targets: [], params };
 }
 
 export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
@@ -334,6 +347,50 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     return next;
   };
 
+  const run = (body: unknown) => {
+    const file = (body as { file?: unknown } | null)?.file;
+    const key =
+      typeof file === 'string'
+        ? (resolveCanvasRel(deps.designRoot, deps.designRel, file) ?? '')
+        : '';
+    return serialized(key, () =>
+      dispatchEditOp(body, {
+        resolve: (f) => resolveCanvasRel(deps.designRoot, deps.designRel, f),
+        read: (rel) => {
+          try {
+            return readFileSync(abs(rel), 'utf8');
+          } catch {
+            return null;
+          }
+        },
+        write: writeSource,
+        writeLayout,
+        land,
+        exists: (rel) => {
+          // a regular file inside the design root (a symlink is not one — `to` is a copy, not a pointer)
+          try {
+            const target = abs(rel);
+            const back = path.relative(deps.designRoot, target);
+            if (back.startsWith('..') || path.isAbsolute(back)) return false;
+            return lstatSync(target).isFile();
+          } catch {
+            return false;
+          }
+        },
+        heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),
+        heldArtboard,
+        actionFor: (rel, after) =>
+          deps.actionFor?.(
+            path.relative(deps.repoRoot, abs(rel)).split(path.sep).join('/'),
+            after
+          ) ?? null,
+        log,
+        ...(deps.references ? { references: deps.references } : {}),
+        ...(deps.ops ? { ops: deps.ops } : {}),
+      })
+    );
+  };
+
   return [
     {
       method: 'POST',
@@ -352,48 +409,41 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
         } catch {
           return json(400, { ok: false, code: 'invalid', message: 'The edit is not readable.' });
         }
-        const file = (body as { file?: unknown } | null)?.file;
-        const key =
-          typeof file === 'string'
-            ? (resolveCanvasRel(deps.designRoot, deps.designRel, file) ?? '')
-            : '';
-        const result = await serialized(key, () =>
-          dispatchEditOp(body, {
-            resolve: (f) => resolveCanvasRel(deps.designRoot, deps.designRel, f),
-            read: (rel) => {
-              try {
-                return readFileSync(abs(rel), 'utf8');
-              } catch {
-                return null;
-              }
-            },
-            write: writeSource,
-            writeLayout,
-            land,
-            exists: (rel) => {
-              // a regular file inside the design root (a symlink is not one — `to` is a copy, not a pointer)
-              try {
-                const target = abs(rel);
-                const back = path.relative(deps.designRoot, target);
-                if (back.startsWith('..') || path.isAbsolute(back)) return false;
-                return lstatSync(target).isFile();
-              } catch {
-                return false;
-              }
-            },
-            heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),
-            heldArtboard,
-            actionFor: (rel, after) =>
-              deps.actionFor?.(
-                path.relative(deps.repoRoot, abs(rel)).split(path.sep).join('/'),
-                after
-              ) ?? null,
-            log,
-            ...(deps.references ? { references: deps.references } : {}),
-            ...(deps.ops ? { ops: deps.ops } : {}),
-          })
-        );
+        const result = await run(body);
         return json(statusOf(result), result);
+      },
+    },
+    {
+      // S7.6 — the legacy clip-verb door, kept as an ALIAS of the dispatcher (S7-slices Q2): the
+      // old body shape, the same bytes as `clip.<verb>` through /_api/edit-op, the same refusals.
+      // No `seq` any more: undo is the project's (V2-1.5), the timeline-local revert is retired.
+      method: 'POST',
+      path: '/_api/clip-edit',
+      origin: 'main',
+      readOnly: 'refused',
+      handle: async (req) => {
+        const text = await req.text();
+        if (text.length > 16 * 1024) return json(413, { ok: false, error: 'body too large' });
+        let body: unknown;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          return json(400, { ok: false, error: 'body required' });
+        }
+        const mapped = clipEditToEditOp(body);
+        if (!mapped) {
+          const verb = (body as { verb?: unknown } | null)?.verb;
+          return json(400, { ok: false, error: `unknown clip verb "${String(verb ?? '')}"` });
+        }
+        const r = await run(mapped);
+        if (!r.ok) return json(statusOf(r), { ok: false, code: r.code, error: r.message });
+        return json(200, {
+          ok: true,
+          ...(r.detail ?? {}),
+          actionId: r.actionId,
+          writeId: r.writeId,
+          rev: r.rev,
+        });
       },
     },
   ];

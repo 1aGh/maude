@@ -94,11 +94,11 @@ Flags on `/design:new`: `--blank` (create a board), `--from-annotations` (force 
 <!-- BEGIN GENERATED: studio capabilities (scripts/gen-actions.mjs) -->
 ## Studio capabilities
 
-Every studio action has one AI path: 102 by editing a file, 85 by a `maude` verb, 130 only the person can do, 0 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
+Every studio action has one AI path: 112 by editing a file, 91 by a `maude` verb, 128 only the person can do, 0 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
 
 | Tier | `maude design` verbs |
 | --- | --- |
-| auto (no prompt in the Maude chat) | prep · bootstrap-check · slug · server-up · runtime-health · screenshot · smoke · visual-sanity · perf · canvas-rects · canvas-errors · canvas-source · read-annotations · svg-optimize · asset-sweep · draw-proof · probe-footage · smart-frames · agent-browser-safe · chat-open · serve · status · index · assets · help · check · place · layout-check · open · history list · history show · history diff · history object · trash list · comments list · exports list · exports again · runs list · runs stop · logs · sync status · annotate · canvas-edit · handoff · import-asset · import-tokens · ingest-footage · photo-adjust · ds-check · ds-upgrade analyse · ds-upgrade plan · ds-upgrade validate · trash restore |
+| auto (no prompt in the Maude chat) | prep · bootstrap-check · slug · server-up · runtime-health · screenshot · smoke · visual-sanity · perf · canvas-rects · canvas-errors · canvas-source · read-annotations · svg-optimize · asset-sweep · draw-proof · probe-footage · smart-frames · agent-browser-safe · chat-open · serve · status · index · assets · help · check · place · layout-check · open · history list · history show · history diff · history object · trash list · comments list · exports list · exports again · runs list · runs stop · logs · sync status · annotate · canvas-edit · handoff · import-asset · import-tokens · ingest-footage · photo-adjust · transcribe-local · beats · captions list · captions add · captions export · captions · cut-words · cut-to-beat · ds-check · ds-upgrade analyse · ds-upgrade plan · ds-upgrade validate · trash restore |
 | prompt (permission card) | hook · export · curl-local · draw-build · to-lottie · generate · audio-search · fetch-asset · ensure-browser · transcribe · import-figma · import-brand · photo-bg-remove · init · ds-upgrade · bulk-deletes · history restore · trash · history undo · history name · exports · sync resync · sync · runs · comments reply · comments resolve · comments reopen · comments add · comments · history |
 | person only | trash clear · link · adopt · unlink · detach |
 <!-- END GENERATED: studio capabilities -->

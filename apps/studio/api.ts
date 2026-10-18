@@ -117,24 +117,8 @@ import {
   toggleClipHidden,
 } from './canvas-edit.ts';
 import {
-  applyClipAudio,
-  applyClipFraming,
-  applyClipGrade,
-  applyDetachAudio,
-  applyEditTransition,
   applyFitTotalToContent,
-  applyInsertTransition,
-  applyMoveClipToOverlay,
-  applyMoveClipToStoryline,
   applyOnDisk,
-  applyRemoveTransition,
-  applyReorderOverlayLayer,
-  applyResolvePlaceholder,
-  applySetClipText,
-  applySetPlaybackRate,
-  applySplitClip,
-  applyTrimIn,
-  type GradeParams,
   insertClipAt,
   removeClipRippled,
   seriesMove,
@@ -779,31 +763,6 @@ export interface Api {
     durationInFrames?: unknown;
     from?: unknown;
   }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
-  // feature-enhanced-video-editing (Phase 2) — parametric clip verbs (speed ·
-  // trim-in · audio · detach-audio · framing · grade · transition).
-  clipEditOp(input: {
-    canvas?: unknown;
-    artboardId?: unknown;
-    stableId?: unknown;
-    contentHash?: unknown;
-    verb?: unknown;
-    rate?: unknown;
-    deltaFrames?: unknown;
-    muted?: unknown;
-    volume?: unknown;
-    framing?: unknown;
-    grade?: unknown;
-    presentation?: unknown;
-    durationInFrames?: unknown;
-    atFrame?: unknown;
-    src?: unknown;
-    mediaKind?: unknown;
-    text?: unknown;
-    toIndex?: unknown;
-  }): Promise<
-    | { ok: true; seq?: number; extra?: Record<string, unknown> }
-    | { ok: false; status: number; error: string }
-  >;
   // DDR-150 P3 — remove a clip addressed by stableId (fingerprint + semantic
   // gate; refuses the only clip; drops an adjacent transition in a series).
   removeSequenceOp(input: {
@@ -5780,172 +5739,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  /**
-   * feature-enhanced-video-editing (Phase 2) — the parametric clip verbs, one
-   * dispatch op: speed · trim-in · audio · detach-audio · framing · grade ·
-   * transition. Every verb is a pure clip-ops fn run under the file lock, with
-   * the same stableId + contentHash optimistic-concurrency discipline, pre-op
-   * snapshot, and whole-file undo seq as the structural clip ops.
-   */
-  async function clipEditOp(input: {
-    canvas?: unknown;
-    artboardId?: unknown;
-    stableId?: unknown;
-    contentHash?: unknown;
-    verb?: unknown;
-    rate?: unknown;
-    deltaFrames?: unknown;
-    muted?: unknown;
-    volume?: unknown;
-    framing?: unknown;
-    grade?: unknown;
-    presentation?: unknown;
-    durationInFrames?: unknown;
-    atFrame?: unknown;
-    src?: unknown;
-    mediaKind?: unknown;
-    text?: unknown;
-    toIndex?: unknown;
-  }): Promise<
-    | { ok: true; seq?: number; extra?: Record<string, unknown> }
-    | { ok: false; status: number; error: string }
-  > {
-    const r = resolveCanvasAbs(input.canvas);
-    if (!r.ok) return r;
-    const stableId = typeof input.stableId === 'string' ? input.stableId : null;
-    if (!stableId) return { ok: false, status: 400, error: 'stableId required' };
-    const artboardId = typeof input.artboardId === 'string' ? input.artboardId : undefined;
-    const hash = typeof input.contentHash === 'string' ? input.contentHash : undefined;
-    const verb = typeof input.verb === 'string' ? input.verb : '';
-    const abs = r.abs;
-    // Just `{ source: string }`: the `& Record<string, unknown>` was there for
-    // the rest-spread below, but an INTERFACE return (SpeedResult and friends)
-    // has no implicit index signature, so no verb's function was actually
-    // assignable — every branch failed the check the same way.
-    let run: ((source: string) => { source: string }) | null = null;
-    switch (verb) {
-      case 'speed': {
-        const rate = Number(input.rate);
-        run = (src) => applySetPlaybackRate(abs, src, artboardId, stableId, hash, rate);
-        break;
-      }
-      case 'trim-in': {
-        const delta = Number(input.deltaFrames);
-        if (!Number.isFinite(delta))
-          return { ok: false, status: 400, error: 'deltaFrames required' };
-        run = (src) => applyTrimIn(abs, src, artboardId, stableId, hash, delta);
-        break;
-      }
-      case 'audio': {
-        const opts: { muted?: boolean; volume?: number | null } = {};
-        if (typeof input.muted === 'boolean') opts.muted = input.muted;
-        if (input.volume !== undefined)
-          opts.volume = input.volume == null ? null : Number(input.volume);
-        run = (src) => applyClipAudio(abs, src, artboardId, stableId, hash, opts);
-        break;
-      }
-      case 'detach-audio': {
-        run = (src) => applyDetachAudio(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'framing': {
-        const f = input.framing as { scale?: unknown; x?: unknown; y?: unknown } | null;
-        const framing =
-          f == null
-            ? null
-            : { scale: Number(f.scale) || 1, x: Number(f.x) || 0, y: Number(f.y) || 0 };
-        run = (src) => applyClipFraming(abs, src, artboardId, stableId, hash, framing);
-        break;
-      }
-      case 'grade': {
-        const grade = input.grade == null ? null : (input.grade as GradeParams);
-        run = (src) => applyClipGrade(abs, src, artboardId, stableId, hash, grade);
-        break;
-      }
-      case 'transition': {
-        const opts: { presentation?: string; durationInFrames?: number } = {};
-        if (typeof input.presentation === 'string') opts.presentation = input.presentation;
-        if (input.durationInFrames != null) opts.durationInFrames = Number(input.durationInFrames);
-        run = (src) => applyEditTransition(abs, src, artboardId, stableId, hash, opts);
-        break;
-      }
-      case 'split': {
-        const atFrame = Number(input.atFrame);
-        if (!Number.isFinite(atFrame)) return { ok: false, status: 400, error: 'atFrame required' };
-        run = (src) => applySplitClip(abs, src, artboardId, stableId, hash, atFrame);
-        break;
-      }
-      case 'insert-transition': {
-        const presentation = typeof input.presentation === 'string' ? input.presentation : 'fade';
-        const frames = Number(input.durationInFrames) || 15;
-        run = (src) =>
-          applyInsertTransition(abs, src, artboardId, stableId, hash, presentation, frames);
-        break;
-      }
-      case 'remove-transition': {
-        run = (src) => applyRemoveTransition(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'set-text': {
-        const t = typeof input.text === 'string' ? input.text : '';
-        run = (src) => applySetClipText(abs, src, artboardId, stableId, hash, t);
-        break;
-      }
-      case 'to-overlay': {
-        run = (src) => applyMoveClipToOverlay(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'to-storyline': {
-        run = (src) => applyMoveClipToStoryline(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'layer-order': {
-        const toIndex = Number(input.toIndex);
-        if (!Number.isFinite(toIndex)) return { ok: false, status: 400, error: 'toIndex required' };
-        run = (src) => applyReorderOverlayLayer(abs, src, artboardId, stableId, hash, toIndex);
-        break;
-      }
-      case 'resolve-placeholder': {
-        const src2 = typeof input.src === 'string' ? input.src : '';
-        const mediaKind = input.mediaKind === 'image' ? 'image' : 'video';
-        run = (src) =>
-          applyResolvePlaceholder(abs, src, artboardId, stableId, hash, src2, mediaKind);
-        break;
-      }
-      default:
-        return { ok: false, status: 400, error: `unknown clip verb "${verb}"` };
-    }
-    const rel = path.relative(paths.designRoot, abs);
-    ctx.bus.emit('activity:suppress', rel);
-    try {
-      const before = await Bun.file(abs).text();
-      // The switch above either assigned `run` or returned; say so to the checker.
-      if (!run) return { ok: false, status: 400, error: `unknown clip verb "${verb}"` };
-      const result = await applyOnDisk(abs, run);
-      const after = await Bun.file(abs).text();
-      let seq: number | undefined;
-      if (after === before) {
-        ctx.bus.emit('activity:unsuppress', rel);
-      } else {
-        try {
-          await history.writeSnapshot(rel, before, `pre-clip-${verb}`);
-        } catch {
-          /* snapshot best-effort */
-        }
-        seq = logUndo(abs, before, after);
-      }
-      const { source: _src, ...extra } = result;
-      return { ok: true, seq, extra };
-    } catch (err) {
-      ctx.bus.emit('activity:unsuppress', rel);
-      return {
-        ok: false,
-        status: err instanceof CanvasEditError ? 422 : 500,
-        error: err instanceof Error ? err.message : `clip ${verb} failed`,
-      };
-    }
-  }
-
   // Stage I (feature-element-editing-robustness) — general element structural
   // edits (delete / insert / new-artboard) + free-hand artboard resize (D4). All
   // MAIN-ORIGIN ONLY at the route layer; each logs a whole-file {before, after}
@@ -7734,7 +7527,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     editCss,
     editText,
     editAttr,
-    clipEditOp,
     removeSequenceOp,
     insertSequenceOp,
     reorderSequenceOp,

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "7f7793a434f1",
+  "manifestVersion": "23fae44075c4",
   "actions": [
     {
       "id": "search.open",
@@ -2310,30 +2310,6 @@
       }
     },
     {
-      "id": "timeline.undo",
-      "label": "Undo timeline edit",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "keys",
-        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
-      }
-    },
-    {
-      "id": "timeline.redo",
-      "label": "Redo timeline edit",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "keys",
-        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
-      }
-    },
-    {
       "id": "timeline.split",
       "label": "Split at playhead",
       "kind": "command",
@@ -2388,6 +2364,273 @@
       "agent": {
         "path": "cli",
         "verb": "maude design comments add --as-ai"
+      }
+    },
+    {
+      "id": "video.captions.add",
+      "label": "Captions from speech",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design captions add"
+      }
+    },
+    {
+      "id": "video.captions.style",
+      "label": "Caption style",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set words / position / font / highlight / maxChars on the comp’s one <Captions>"
+      }
+    },
+    {
+      "id": "video.captions.fix-word",
+      "label": "Fix a caption word",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word)"
+      }
+    },
+    {
+      "id": "video.captions.export",
+      "label": "Export captions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "comment",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design captions export"
+      }
+    },
+    {
+      "id": "video.transcript.cut",
+      "label": "Cut these words",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design cut-words"
+      }
+    },
+    {
+      "id": "video.transcript.find-speech",
+      "label": "Find speech",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design transcribe-local"
+      }
+    },
+    {
+      "id": "video.music.beats",
+      "label": "Find the beat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design beats"
+      }
+    },
+    {
+      "id": "video.music.duck",
+      "label": "Lower under speech",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off"
+      }
+    },
+    {
+      "id": "video.cut-to-beat",
+      "label": "Cut to the beat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design cut-to-beat"
+      }
+    },
+    {
+      "id": "video.snap",
+      "label": "Snap to the beat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "artboardMeta.<id>.snap: \"beat\" | \"off\" in the canvas .meta.json"
+      }
+    },
+    {
+      "id": "video.reframe",
+      "label": "Re-frame",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)"
+      }
+    },
+    {
+      "id": "video.poster.set",
+      "label": "Set as poster frame",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json"
+      }
+    },
+    {
+      "id": "video.format.add",
+      "label": "Add a format",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)"
+      }
+    },
+    {
+      "id": "video.format.unlink",
+      "label": "Make an unlinked copy",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Copy the comp under a new name and point this artboard’s <VideoComp component> at it"
+      }
+    },
+    {
+      "id": "video.take.swap",
+      "label": "Swap a take",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set the clip media’s trimBefore (output frames) to the other take; keep durationInFrames"
+      }
+    },
+    {
+      "id": "video.fit",
+      "label": "Fit the picture",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set fit=\"fit\" | \"blur\" on the clip’s <Reframe> (fill is the default)"
       }
     },
     {
@@ -4203,6 +4446,54 @@
     },
     {
       "scope": "design",
+      "verb": "design transcribe-local",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design beats",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions add",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions export",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design cut-words",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design cut-to-beat",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design export",
       "effect": "project",
       "tier": "prompt",
@@ -4633,6 +4924,20 @@
       "id": "https://maude.sh/schema/gen/v1",
       "source": "hand",
       "skill": "design:ai-generation"
+    },
+    {
+      "format": "transcript",
+      "schema": "apps/studio/schema/transcript.v1.schema.json",
+      "id": "https://maude.sh/schema/transcript/v1",
+      "source": "generated",
+      "skill": "design:video-comp"
+    },
+    {
+      "format": "beats",
+      "schema": "apps/studio/schema/beats.v1.schema.json",
+      "id": "https://maude.sh/schema/beats/v1",
+      "source": "generated",
+      "skill": "design:video-comp"
     },
     {
       "format": "tokens",

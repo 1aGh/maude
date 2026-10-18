@@ -20,6 +20,7 @@ import { objectConstrain } from './constraints.ts';
 import { objectSetCornerRadius } from './corner-radius.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
+import { CLIP_OPS } from './clip/index.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { artboardDraw, objectInsertShape } from './insert-shape.ts';
@@ -102,6 +103,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSetCornerRadius,
   // S8.19c — Relink… on a missing picture: every reference to the old file, one write
   assetRelink,
+  // S7.6 — every clip verb (clip-ops.ts appliers) + the video ops, artboard-scoped
+  ...CLIP_OPS,
 ];
 
 export interface AiHoldHit {
@@ -248,15 +251,35 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         `${said(r.element)} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
       );
   }
-  // S2.10b — an op that changes artboards whole (resize, copy, trash) respects the run's artboard lease.
+  // An artboard-scoped op (S7.6 clip / video ops): the artboard must exist before anything is held or locked.
+  const scoped = (op as EditOp).scope === 'artboard';
+  const ab = req.params?.artboard;
+  const board =
+    scoped && typeof ab === 'string'
+      ? walk.elements.find((x) => x.tag === 'DCArtboard' && x.artboard === ab)
+      : undefined;
+  if (scoped) {
+    if (ab !== undefined && (typeof ab !== 'string' || !ab))
+      return refuse('invalid', 'The edit names no video.');
+    if (typeof ab === 'string' && !board)
+      return refuse('invalid', 'That video is not on this canvas.');
+  }
+  // S2.10b — an op that changes artboards whole (resize, copy, trash, and S7.6's clip / video ops) respects
+  // the run's artboard lease. ONE check for all of them (v2-lead-artboard-hold-one-check): an op declares the
+  // artboards it edits; an artboard-scoped op with no artboard named edits every one of the file's.
   if (deps.heldArtboard) {
-    const boards = (op as EditOp).artboards?.({
-      file: rel,
-      op: req.op,
-      targets: refs,
-      params: req.params ?? {},
-    });
-    for (const a of boards ?? []) {
+    const boards = [
+      ...((op as EditOp).artboards?.({
+        file: rel,
+        op: req.op,
+        targets: refs,
+        params: req.params ?? {},
+      }) ?? []),
+    ];
+    if (scoped && typeof ab !== 'string')
+      for (const x of walk.elements)
+        if (x.tag === 'DCArtboard' && x.artboard) boards.push(x.artboard);
+    for (const a of boards) {
       const hold = deps.heldArtboard(rel, a);
       if (hold)
         return refuse(
@@ -265,6 +288,8 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         );
     }
   }
+  if (board?.locked && (op as EditOp).locked !== 'allow')
+    return refuse('locked', `${said(ab as string)} is locked · ⇧⌘L unlocks`);
   if ((op as EditOp).locked !== 'allow') {
     for (const r of refs) {
       if (walk.elements.find((x) => x.id === r.element)?.locked)
@@ -310,6 +335,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       };
       if (landed.queued) res.queued = true;
       if (out.created?.length) res.created = out.created;
+      if (out.detail && Object.keys(out.detail).length) res.detail = out.detail;
       return res;
     }
   }
@@ -318,7 +344,18 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
   // for an op-log home (types.ts LayoutPatch): here the entry stays and the source revert restores all.
   if (out.layout && !out.layout.remove && out.source !== current && deps.writeLayout)
     await deps.writeLayout(rel, out.layout);
-  return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps, out.renamed);
+  const res = await commit(
+    rel,
+    current,
+    out.source,
+    refs,
+    out.created,
+    `pre-${req.op}`,
+    deps,
+    out.renamed
+  );
+  if (res.ok && out.detail && Object.keys(out.detail).length) res.detail = out.detail;
+  return res;
 }
 
 export const ID_HELD_BY_REFERENCE_MESSAGE =

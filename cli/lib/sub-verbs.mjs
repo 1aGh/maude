@@ -40,6 +40,8 @@ export const SUB_VERBS = {
   runs: { list: NATIVE, stop: NATIVE },
   // S11.11: `status` reads; `resync` re-compares every file with the cloud copy (shared → prompt).
   sync: { status: NATIVE, resync: NATIVE },
+  // S7.6c (V2-1.10 §5.7): a video's captions — `list` reads, `add` / `export` write in the project.
+  captions: { add: NATIVE, list: NATIVE, export: NATIVE },
 };
 
 const STEP_FLAGS = {

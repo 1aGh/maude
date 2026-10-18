@@ -65,6 +65,19 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S7.6c — the video tools' edit ops (`video.*` server: POST /_api/edit-op): a clip op from a
+  // Can comment session is the gate's 403, whatever the Timeline shows.
+  {
+    method: 'POST',
+    route: '/_api/edit-op',
+    refused: ['view', 'comment'],
+    body: {
+      file: '.design/ui/a.tsx',
+      op: 'video.reframe',
+      targets: [],
+      params: { artboard: 'reel', stableId: 'name:one', zoom: 2 },
+    },
+  },
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },

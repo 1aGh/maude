@@ -2364,6 +2364,10 @@ export interface LooseMediaInfo {
   src: string | null;
   cdId: string | null;
   contentHash: string;
+  /** S7.4 — the element's source span, so `video/derive.ts` can read a music bed's literal timing
+   *  props (`trimBefore`, a fractional `playbackRate`, `volume={0}`) without a second parse. */
+  start: number;
+  end: number;
 }
 
 export interface CompClips {
@@ -2638,6 +2642,8 @@ export function enumerateClips(
       src: getStringAttr(mel.node.openingElement, 'src'),
       cdId: cdIdOf.get(mel.node) ?? null,
       contentHash: hashSpan(source, mel.start, mel.end),
+      start: mel.start,
+      end: mel.end,
     }));
 
   return {

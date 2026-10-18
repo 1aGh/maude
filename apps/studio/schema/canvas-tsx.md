@@ -172,3 +172,16 @@ no `parentArtboard` whose every bound end is on them or on the artboard. A canva
 the studio this is one project action, "Moved “<label>” to the trash": the Trash lists the artboard, one ⌘Z
 brings it back at its place with its annotations, and the Trash's Restore does too. Removed by hand, the change
 is an ordinary edit of the files (Version history still has the board).
+
+## Artboard props that Maude 2 adds (S7)
+
+Both props are literal values on `<DCArtboard>`. Maude 1.x ignores them and still draws the artboard correctly
+(V2-1.12 R1–R3).
+
+| Prop | Shape | What a 1.x peer sees |
+| --- | --- | --- |
+| `print={{ …, sizeMm: [w, h] }}` (custom print size) | `sizeMm` is the trim in mm, width × height, each side 10–5000. `paper` is still a preset id: the **smallest preset that holds the trim** (`kinds/print-custom.ts` `nearestLargerPreset`), never `"custom"`. `orientation` is the one that makes the preset hold it. `bleedMm` is always written. The JSX `width`/`height` are the trim plus 2 × bleed in px, as for every print artboard. Example: `print={{ paper: 'dl', orientation: 'portrait', sizeMm: [99, 210], bleedMm: 3 }}`. | The preset's name in its Paper select and the same guides, because the guides come from the artboard's px size less the bleed. Its prop reader drops the array, and `paper: "custom"` would make it throw. |
+| `safeZones="<preset>"` (e.g. `"instagram-reels"`) | One preset id from `kinds/safe-zones.ts` (S7.22). "Show on canvas" is per-person runtime state in `_canvas-state/<slug>.view.json` `overlays.safeZones`, never in the file. The bands are never exported. | Nothing. The prop is unknown to it and has no effect on rendering. |
+
+Write a custom size with `customPrintProp([w, h])`, or hand-write the same shape. Both props follow DDR-181:
+artboard intent lives in the JSX.

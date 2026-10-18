@@ -76,6 +76,14 @@ const COMMENT_ADD: ActionDefAI = {
   agent: cli('maude design comments add --as-ai'),
 };
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
+// S7.6c — a video tool whose UI write is one edit op: one undo step, refused below Can edit.
+const VIDEO_OP = (agent: AgentPath): ActionDefAI => ({
+  effect: 'project',
+  minRole: 'edit',
+  undo: 'step',
+  server: { route: '/_api/edit-op', method: 'POST' },
+  agent,
+});
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── diagnostics (V2-4.7b) ──
@@ -196,6 +204,97 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'project',
     agent: file('edl', 'design:footage-director', 'Write the <slug>.edl.json cut, then the comp'),
   },
+  // ── video tools (S7.6c, V2-1.10 §5.7): the UI's writes are edit ops (`POST /_api/edit-op`, minRole
+  // edit — the server refuses below it); an agent runs the verb that ends in the same op, or writes
+  // the same literal props itself.
+  'video.captions.add': VIDEO_OP(cli('maude design captions add')),
+  'video.captions.style': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set words / position / font / highlight / maxChars on the comp’s one <Captions>'
+    )
+  ),
+  'video.captions.fix-word': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word)'
+    )
+  ),
+  'video.captions.export': {
+    effect: 'project',
+    minRole: 'comment',
+    agent: cli('maude design captions export'),
+  },
+  'video.transcript.cut': VIDEO_OP(cli('maude design cut-words')),
+  'video.transcript.find-speech': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: cli('maude design transcribe-local'),
+  },
+  'video.music.beats': { effect: 'project', minRole: 'edit', agent: cli('maude design beats') },
+  'video.music.duck': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off'
+    )
+  ),
+  'video.cut-to-beat': VIDEO_OP(cli('maude design cut-to-beat')),
+  'video.snap': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'artboardMeta.<id>.snap: "beat" | "off" in the canvas .meta.json'
+    ),
+  },
+  'video.reframe': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)'
+    )
+  ),
+  'video.poster.set': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json'
+    ),
+  },
+  'video.format.add': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)'
+    )
+  ),
+  'video.format.unlink': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Copy the comp under a new name and point this artboard’s <VideoComp component> at it'
+    )
+  ),
+  'video.take.swap': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set the clip media’s trimBefore (output frames) to the other take; keep durationInFrames'
+    )
+  ),
+  'video.fit': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set fit="fit" | "blur" on the clip’s <Reframe> (fill is the default)'
+    )
+  ),
   'artboard.new-desktop': TSX('Add a DCArtboard sized 1440×1024'),
   'artboard.new-laptop': TSX('Add a DCArtboard sized 1280×800'),
   'artboard.new-tablet': TSX('Add a DCArtboard sized 834×1194'),
@@ -643,8 +742,6 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.to-end': PREF('playback'),
   'timeline.prev-keyframe': PREF('playback'),
   'timeline.next-keyframe': PREF('playback'),
-  'timeline.undo': UNDO_KEYS,
-  'timeline.redo': UNDO_KEYS,
   'timeline.split': TSX('Split the clip into two sequences at the frame', 'design:video-comp'),
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),

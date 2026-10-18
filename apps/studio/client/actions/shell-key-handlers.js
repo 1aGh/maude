@@ -264,17 +264,7 @@ export const SHELL_KEY_HANDLERS = {
     const one = Array.isArray(sel) ? (sel.length === 1 ? sel[0] : null) : sel;
     if (one?.artboardId && !one.id) d.deleteArtboardShell(one.artboardId);
   },
-  // ── timeline transport ──
-  'timeline.undo': (d, { event: e }) => {
-    // Only when the shell (not the canvas iframe) has focus + the timeline is active, so the
-    // canvas's own annotation undo is untouched.
-    e.preventDefault();
-    d.tlKeyRef.current.undoRedo('undo');
-  },
-  'timeline.redo': (d, { event: e }) => {
-    e.preventDefault();
-    d.tlKeyRef.current.undoRedo('redo');
-  },
+  // ── timeline transport ── (S7.6: ⌘Z / ⇧⌘Z here are `edit.undo` / `edit.redo`, the one stack)
   // Task 16 — ⌘B splits the selection at the playhead; with nothing selected, the clip under the
   // playhead (iMovie behavior).
   'timeline.split': (d, { event: e }) => {

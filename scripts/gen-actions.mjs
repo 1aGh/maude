@@ -39,10 +39,15 @@ const { aiActionsDoc, cliHelpModule, designHelpBlock, studioActionsSkill, withHe
   await import('./gen-actions-docs.mjs');
 const { FORMAT_SCHEMAS } = await import('../apps/studio/schema/formats.ts');
 const { annotationsJsonSchema } = await import('../apps/studio/annotations/board-schema.ts');
+const { transcriptJsonSchema, beatsJsonSchema } = await import(
+  '../apps/studio/video/format-ids.ts'
+);
 
 /** The generated schemas, by the `schema` path formats.ts names for them. */
 const GENERATED = {
   'annotations/board-schema.ts#annotationsJsonSchema': annotationsJsonSchema,
+  'video/format-ids.ts#transcriptJsonSchema': transcriptJsonSchema,
+  'video/format-ids.ts#beatsJsonSchema': beatsJsonSchema,
 };
 
 function die(msg) {

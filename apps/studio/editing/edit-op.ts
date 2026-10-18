@@ -129,6 +129,23 @@ export function editOpRecord(
   return { kind: EDIT_OP_KIND, label, payload: { writeId } };
 }
 
+/** `edit-ops/revert.ts` WRITE_ID_RE (kept local: that module pulls the merge engine into the canvas). */
+export const SHELL_WRITE_ID_RE = /^w_[0-9a-f]{16}$/;
+
+/**
+ * S7.6 — a shell-side edit-op (a Timeline clip verb: the shell calls `/_api/edit-op` itself) posts
+ * `record-edit { op: 'edit-op', writeId, label }` so the write lands on THIS stack, the one ⌘Z log
+ * (decision `maude/v2-S7-timeline-undo-is-project-undo`). Null for anything else.
+ */
+export function editOpRecordFromShell(payload: unknown): CommandRecord<EditOpPayload> | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const p = payload as { op?: unknown; writeId?: unknown; label?: unknown };
+  if (p.op !== EDIT_OP_KIND || typeof p.writeId !== 'string') return null;
+  if (!SHELL_WRITE_ID_RE.test(p.writeId)) return null;
+  const label = typeof p.label === 'string' && p.label ? p.label.slice(0, 80) : 'edit';
+  return editOpRecord(p.writeId, label);
+}
+
 registerCommand<EditOpPayload>(EDIT_OP_KIND, (record) =>
   typeof record.payload?.writeId === 'string'
     ? createEditOpCommand(record.payload, record.label)

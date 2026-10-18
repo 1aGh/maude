@@ -15,11 +15,13 @@ import { REGISTRY } from '../annotations/registry.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import { validateEdl } from '../footage/schema.ts';
 import { FORMAT_SCHEMAS } from '../schema/formats.ts';
+import { beatsJsonSchema, transcriptJsonSchema } from '../video/format-ids.ts';
+import { validateBeats, validateTranscript } from '../video/schema.ts';
 
 const STUDIO = join(import.meta.dir, '..');
 const readJson = (rel: string) => JSON.parse(readFileSync(join(STUDIO, rel), 'utf8'));
 const jsonRows = FORMAT_SCHEMAS.filter((f) => f.schema.endsWith('.json'));
-const LITE_FORMATS = ['annotations', 'canvas-meta', 'edl', 'agent-handoff'];
+const LITE_FORMATS = ['annotations', 'canvas-meta', 'edl', 'agent-handoff', 'transcript', 'beats'];
 
 const MIXED = JSON.parse(
   serializeBoard(
@@ -42,6 +44,11 @@ const agree = (rows: { i: number; ajv: boolean; lite: boolean }[]) =>
 describe('generated schemas equal their TS source (gen-actions --check is the gate)', () => {
   test('annotations.v2.schema.json = annotationsJsonSchema()', () => {
     expect(readJson('schema/annotations.v2.schema.json')).toEqual(annotationsJsonSchema());
+  });
+
+  test('transcript.v1 / beats.v1 = their builders (video/format-ids.ts, S7.1)', () => {
+    expect(readJson('schema/transcript.v1.schema.json')).toEqual(transcriptJsonSchema());
+    expect(readJson('schema/beats.v1.schema.json')).toEqual(beatsJsonSchema());
   });
 
   test('every built-in field declares what it accepts (no `{}` holes)', () => {
@@ -305,5 +312,68 @@ describe('json-schema-lite gives Ajv’s verdict', () => {
       true,
       false,
     ]);
+  });
+
+  test('transcript v1 + beats v1 — the schema gives the strict writer’s verdict (S7.1)', () => {
+    const word = { id: 'w0', t0: 0.4, t1: 0.7, text: 'Ahoj' };
+    const t = {
+      format: 'maude.transcript',
+      v: 1,
+      asset: 'assets/ab12cd34.mp4',
+      engine: { id: 'whisper.cpp', timing: 'dtw+energy' },
+      words: [word],
+      speech: { source: 'words', regions: [[0.4, 0.7]] },
+      createdAt: '2026-10-18T09:00:00Z',
+    };
+    const tDocs = [
+      t,
+      { ...t, newer: { any: 1 } }, // preserving: an unknown key is fine
+      { ...t, words: [{ ...word, speaker: 'A', p: 0.5, flags: ['loop'] }] },
+      { ...t, v: 2 },
+      { ...t, engine: { id: 'whisper-next', timing: 'segment' } },
+      { ...t, words: [{ ...word, text: 'x'.repeat(65) }] },
+      { ...t, words: [{ ...word, p: 2 }] },
+      { ...t, words: [{ ...word, flags: ['laugh'] }] },
+      { ...t, speech: { source: 'words', regions: [[1]] } },
+      { ...t, asset: '/etc/x.mp4' },
+      { ...t, lang: 'Czech' },
+      { ...t, createdAt: '' },
+    ];
+    const tRows = bothVerdicts(transcriptJsonSchema(), undefined, tDocs);
+    expect(agree(tRows)).toEqual([]);
+    expect(tRows.map((r) => r.ajv)).toEqual(
+      tDocs.map((d) => validateTranscript(d, { strict: true }).ok)
+    );
+    expect(tRows.map((r) => r.ajv)).toEqual(tDocs.map((_, i) => i <= 2));
+
+    const b = {
+      format: 'maude.beats',
+      v: 1,
+      asset: 'assets/9f00aa11.mp3',
+      durationSec: 4,
+      analyzer: { id: 'maude-beats', version: 1, decode: 'chromium' },
+      bpm: 120,
+      bpmSource: 'set',
+      tempoStrength: 0.4,
+      beats: [0.5, 1],
+      bar: { phase: 0, confidence: 0.2 },
+      createdAt: '2026-10-18T09:00:00Z',
+    };
+    const bDocs = [
+      b,
+      { ...b, sections: [] },
+      { ...b, bpm: 401 },
+      { ...b, bar: { phase: 4, confidence: 0 } },
+      { ...b, analyzer: { id: 'maude-beats', version: 2, decode: 'ffmpeg' } },
+      { ...b, bpmSource: 'tapped' },
+      { ...b, beats: [-1] },
+      { ...b, tempoStrength: 'high' },
+    ];
+    const bRows = bothVerdicts(beatsJsonSchema(), undefined, bDocs);
+    expect(agree(bRows)).toEqual([]);
+    expect(bRows.map((r) => r.ajv)).toEqual(
+      bDocs.map((d) => validateBeats(d, { strict: true }).ok)
+    );
+    expect(bRows.map((r) => r.ajv)).toEqual(bDocs.map((_, i) => i <= 1));
   });
 });

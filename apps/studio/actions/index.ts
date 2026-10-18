@@ -15,6 +15,7 @@ import { SEARCH_ACTIONS } from './defs/search.ts';
 import { TIMELINE_ACTIONS } from './defs/timeline.ts';
 import { TOOL_ACTIONS } from './defs/tool.ts';
 import { UI_ACTIONS } from './defs/ui.ts';
+import { VIDEO_ACTIONS } from './defs/video.ts';
 import { VIEW_ACTIONS } from './defs/view.ts';
 import type { ActionDef, ActionId } from './types.ts';
 
@@ -26,6 +27,7 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...TOOL_ACTIONS,
   ...UI_ACTIONS,
   ...TIMELINE_ACTIONS,
+  ...VIDEO_ACTIONS,
   ...EXPORT_ACTIONS,
   ...APP_ACTIONS,
   ...AI_RUN_ACTIONS,

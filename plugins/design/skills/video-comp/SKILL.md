@@ -34,3 +34,5 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When previewing or exporting the composition | [Export cost & reliability (learned the hard way — 2026-07-10 dogfood)](./_guide-12-export-cost-reliability-learned-the-hard-way-2026-07-10.md) |
 | Before reporting results or handing off | [Verify motion over time — freeze-frames lie (DDR-094)](./_guide-13-verify-motion-over-time-freeze-frames-lie-ddr-094.md) |
 | When performing this stage: License note (surface once to the user) | [License note (surface once to the user)](./_guide-14-license-note-surface-once-to-the-user.md) |
+| When a comp reads speech words or a beat grid (Maude 2) | [Transcript and beats sidecars](./_guide-15-transcript-and-beats-sidecars.md) |
+| When adding captions, cutting by transcript, cutting to the beat, re-framing or adding a format (Maude 2) | [Video tools: captions, edit by transcript, Cut to the beat](./_guide-16-video-tools-captions-cut-words-cut-to-beat.md) |

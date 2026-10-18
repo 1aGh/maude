@@ -167,6 +167,8 @@ export type FormatId =
   | 'gen' // assets/<sha8>.gen.json, maude.gen v1 (S8 §5.2)
   | 'footage'
   | 'edl'
+  | 'transcript' // S7.1: assets/<sha8>.transcript.json (video/format-ids.ts)
+  | 'beats' // S7.1: assets/<sha8>.beats.json
   | 'design-config';
 export type SkillRef = `${'design' | 'flow'}:${string}`;
 /** Closed: a new value needs a lead-owned change + a decision id (§5.7 rule 4). */

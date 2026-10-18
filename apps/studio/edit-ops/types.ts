@@ -47,6 +47,8 @@ export type EditOpResult =
       /** S2.10b — an op-log home took the write but has not answered yet (the outbox keeps it);
        *  `writeId` is then '' — an op-log write never gets a legacy revert record. */
       queued?: true;
+      /** op-specific facts about the write (S7.6: a split's new clip id, a trim's new length) */
+      detail?: Record<string, unknown>;
     }
   | { ok: false; code: EditOpCode; message: string };
 
@@ -76,6 +78,13 @@ export interface EditOp {
    * any of them refuses the op with `held-by-ai`, like an element hold. Absent = none.
    */
   artboards?(req: ResolvedEditOp): string[];
+  /**
+   * S7.6 (additive): 'artboard' = the op edits a whole video artboard's comp, addressed by
+   * `params.artboard` (every artboard of the file when absent) instead of `targets`. The dispatcher then
+   * refuses an artboard that is not on the canvas, and a locked one. The AI lease on it is the
+   * `artboards` check above — declare `artboards` too (v2-lead-artboard-hold-one-check). Default 'targets'.
+   */
+  scope?: 'targets' | 'artboard';
   apply(source: string, req: ResolvedEditOp): EditOpOutput;
 }
 
@@ -98,6 +107,8 @@ export interface LayoutPatch {
 export interface EditOpOutput {
   source: string;
   created?: ElementRef[];
+  /** op-specific facts about the write (S7.6: a split's new clip id, a trim's new length) */
+  detail?: Record<string, unknown>;
   /** written to the layout lane in the same request, BEFORE the source (an orphan entry is harmless) */
   layout?: LayoutPatch;
   /** S2.2b — `element.set-id`: the id it renamed (its references move in the same request) */
