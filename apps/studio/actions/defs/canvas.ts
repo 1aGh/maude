@@ -20,6 +20,16 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     keys: [kb('⌘N', 'global', { inText: true, when: { shell: ['desktop'] } })],
     legacy: { palette: 'New canvas…', menu: 'New canvas…', sheet: 'New brief board' },
   },
+  // S6.1 — the brief board keeps a door of its own (⌘K and the Canvases panel's New menu); ⌘N makes a blank
+  // canvas. It runs what `canvas.new` ran in v1: the tree's composer asks for a name, then stamps the board.
+  {
+    id: 'canvas.new-brief',
+    label: 'New brief board',
+    kind: 'command',
+    icon: 'plus',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+  },
   {
     id: 'canvas.reload',
     label: 'Reload canvas',

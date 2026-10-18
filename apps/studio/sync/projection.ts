@@ -235,6 +235,13 @@ export interface DocProjection {
    */
   adoptBase(body: string): void;
   /**
+   * S6.13b — this Mac's canvas moved away from this path on purpose (its name
+   * was taken while it was away): the file is gone by agreement, and what the
+   * project holds here — the peer's canvas — is written fresh, never held as
+   * a local edit.
+   */
+  vacate(): void;
+  /**
    * Accepted mode, cold start: `value` is this disk's own html proposal that a
    * previous run left in the outbox and the drain just had accepted. It is
    * what the disk was saved as — the base of whatever it holds next — even
@@ -1243,6 +1250,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     adoptBase(body: string) {
       lastHtml = body;
       observedBody = body;
+    },
+    vacate() {
+      observedBody = null;
+      lastHtml = null;
+      lastCss = null;
+      lastMeta = null;
+      deferredBeforeReady.clear();
     },
     adoptOwnAccepted(value: string) {
       // Exactly what an answer in this process does (see `submit`): the

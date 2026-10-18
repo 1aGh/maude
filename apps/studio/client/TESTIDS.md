@@ -1425,6 +1425,12 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `canvas-row-not-local-<slug>` | testid (pattern) | Offline, and this canvas never came down (05 · es-offline-uncached): dimmed with a cloud. Hidden by "Show canvases on this Mac". | `client/v2/canvases/canvases-panel.jsx` · `PanelPendingRow` | test:v2-arriving-rows | new |
 | `canvas-not-local` | testid | The card a tab shows for a canvas that is not on this Mac while offline: "<canvas> isn't on this Mac yet." with the 05 words (copy id es-offline-uncached.not-local). No toolbar, no zoom. | `client/v2/empty/not-local.jsx` · `NotLocalCanvas` | test:v2-arriving-rows | new |
 | `canvas-not-local-show-local` | testid | The card's one action, "Show canvases on this Mac": narrows the Canvases panel to the canvases that are here. | `client/v2/empty/not-local.jsx` · `NotLocalCanvas` | test:v2-arriving-rows | new |
+| `empty-project` | testid | The card for a project with no canvases: "<Project> has no canvases yet." with the prompt and the plain way out. No toolbar. Replaces "No canvas open" in the viewport; for Can view it is the situation only. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `empty-project-prompt` | testid | The one-line prompt on that card. Enter creates a canvas from the sentence (the create call carries fromPrompt). Absent for Can view. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `empty-project-send` | testid | The send button of that prompt; the same door as Enter. Does nothing while the box is empty. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `empty-project-blank` | testid | "Start with an empty canvas" (Cmd+N): a blank canvas, named by the server. Absent for Can view. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `canvases-none` | testid | The Canvases panel's line for a project with no canvases: "No canvases yet." (the kit's block). | `client/v2/create/empty-project.jsx` · `PanelNoCanvases` | test:v2-empty-project | new |
+| `canvases-none-new` | testid | The "New canvas" row under that line: a blank canvas. Absent for Can view. | `client/v2/create/empty-project.jsx` · `PanelNoCanvases` | test:v2-empty-project | new |
 
 ## What's New spotlights
 

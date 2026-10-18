@@ -19,6 +19,7 @@ import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName, openCount, shellToast } from '../shell/util.js';
 import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../v2/create/new-canvas.js';
 import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
 import {
   goneWords,
@@ -272,7 +273,8 @@ export function usePaletteAndPanels({
     if (op === 'ask-ai-fix') {
       openPanelExclusive('assistant');
       sendToAskAI(label ?? '');
-    } else if (op === 'copy-link') copyCanvasLink(path);
+    } else if (op === 'open') openTab(path);
+    else if (op === 'copy-link') copyCanvasLink(path);
     else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
   };
   useEffect(() => {
@@ -284,12 +286,9 @@ export function usePaletteAndPanels({
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
-        openPanelExclusive('tree');
-        setTimeout(
-          () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-          60
-        );
+        createBlankCanvas({ toast: shellToast });
       },
+      'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
       'canvas.new-video': () => createVideo(),
       'export.open': () => setExportDialog({ mode: 'export' }),
       'share.copy-link': () => {

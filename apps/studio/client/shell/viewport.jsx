@@ -16,6 +16,7 @@ import { CanvasLoadFailure } from '../v2/code/canvas-error-card.jsx';
 import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
 import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
 import { nativeDoors } from '../v2/shell/native-doors.js';
+import { EmptyProjectSlot } from '../v2/create/empty-project.jsx';
 
 export function Viewport({
   tabs,
@@ -135,22 +136,26 @@ export function Viewport({
         </div>
       )}
       {tabs.length === 0 && !previewPath && (
-        <div className="st-empty">
-          <div className="st-empty-title">No canvas open</div>
-          <div className="st-empty-body">
-            Open a canvas from the Canvases panel, or start a new one.
+        // S6.2 (shared): a project with 0 canvases shows the 05 es-project-new card; any other
+        // no-tab state keeps the placeholder below as the slot's fallback.
+        <EmptyProjectSlot>
+          <div className="st-empty">
+            <div className="st-empty-title">No canvas open</div>
+            <div className="st-empty-body">
+              Open a canvas from the Canvases panel, or start a new one.
+            </div>
+            {showQuickSetup && (
+              <button
+                type="button"
+                data-testid="st-empty-start-quick-setup"
+                className="btn btn--primary st-empty-quick-setup"
+                onClick={onStartQuickSetup}
+              >
+                Start quick setup
+              </button>
+            )}
           </div>
-          {showQuickSetup && (
-            <button
-              type="button"
-              data-testid="st-empty-start-quick-setup"
-              className="btn btn--primary st-empty-quick-setup"
-              onClick={onStartQuickSetup}
-            >
-              Start quick setup
-            </button>
-          )}
-        </div>
+        </EmptyProjectSlot>
       )}
       {tabs.map((t) => {
         if (t.path === SYSTEM_TAB) {

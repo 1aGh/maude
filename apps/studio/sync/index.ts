@@ -43,8 +43,9 @@ import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '.
 import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
-import { acceptedColdStart } from './accepted-cold-start.ts';
-import { type AcceptedLink, createAcceptedLink } from './accepted-link.ts';
+import { rekeyUserState } from '../home/user-state.ts';
+import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
+import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
@@ -65,6 +66,7 @@ import {
   createConnectionMonitor,
   type ProviderStatus,
 } from './connection-state.ts';
+import { createCollisionRenamer, createRenamedText } from './create-collision.ts';
 import { createCtlProvider } from './ctl-provider.ts';
 import { createRescanScheduler, diffCanvasSet, type RescanScheduler } from './discovery.ts';
 import { createDocNameResolver } from './doc-name.ts';
@@ -844,6 +846,8 @@ export interface CreateSyncRuntimeOptions {
   transactionFetch?: typeof fetch;
   /** Base backoff between re-sends of an unanswered proposal (tests). */
   transactionRetryMs?: number;
+  /** S6.13b crash test — called at named points inside an offline-create rename. */
+  createRenameFault?: (point: string) => void;
   /** Override the HocuspocusProvider factory (test injection). */
   providerFactory?: ProviderFactory;
   /** Force-enable/disable adopt mode (overrides cfg.linkedHub.adopt). */
@@ -1248,6 +1252,19 @@ export function createSyncRuntime(
   // two-doc agent path has no proposal lane and stays legacy.
   /** Resolves once a previous run's outbox is drained: doc → own accepted html. */
   let outboxDrained: Promise<Map<string, string>> = Promise.resolve(new Map());
+  /** S6.13 — documents whose `doc.create` that drain had accepted: made BY
+   *  THIS MAC in a previous run, so they join as a create, not a reconcile. */
+  const drainedCreates = new Set<string>();
+  // S6.13b — a create the project refused because a peer took the name while
+  // this Mac was away: this Mac's canvas moves to the next free name.
+  /** Documents this Mac's canvas moved away from: an answer to their create is not ours. */
+  const renamedAway = new Set<string>();
+  /** The renamed creates: new document → the source the project holds once accepted. */
+  const renamedCreates = new Map<string, Promise<string | null>>();
+  /** Slugs whose file moved away; kept attached until the peer's canvas lands there. */
+  const vacated = new Set<string>();
+  let collisionRenamer: ReturnType<typeof createCollisionRenamer> | null = null;
+  const noticesBeforeStore: Array<{ id: string; severity: 'info'; text: string }> = [];
   const acceptedLink: AcceptedLink | null = useSharedDoc
     ? createAcceptedLink({
         hubUrl: linkedHub.url,
@@ -1260,6 +1277,9 @@ export function createSyncRuntime(
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
+        onCreateConflict: (ops, result, tx) =>
+          collisionRenamer?.onCreateConflict(ops, result, tx) ?? Promise.resolve(null),
+        ...(opts.createRenameFault ? { fault: opts.createRenameFault } : {}),
         // S5.5 — a run's `touched` artboards, by AST reference closure (V2-1.5 §5.7)
         attribute: (slug, before, after) => {
           const html = descriptors.get(slug)?.html;
@@ -1284,6 +1304,64 @@ export function createSyncRuntime(
           // synced, until a restart. Knowing the mode, hand it back now.
           if (b.mode === 'transactions') for (const p of projections.values()) p.retryDeferred();
         },
+      })
+    : null;
+  /** S6.13b — an answer to a create of a document this Mac's canvas moved away from is not ours. */
+  const notOursIfRenamed =
+    (docName: string) =>
+    (o: StructuralOutcome): StructuralOutcome =>
+      renamedAway.has(docName) ? { status: 'rejected', code: 'renamed' } : o;
+  collisionRenamer = acceptedLink
+    ? createCollisionRenamer({
+        paths: ctx.paths,
+        docNameFor: (slug) => docNameFor(slug),
+        liveDocs: async () => {
+          await acceptedLink.refresh();
+          const docs = acceptedLink.manifest?.docs;
+          return docs ? docs.filter((d) => !d.retired) : null;
+        },
+        onRenaming: (c) => {
+          renamedAway.add(c.fromDoc);
+          // The old canvas stays attached: the peer's canvas lands at its path.
+          if (projections.has(c.fromSlug) || providers.has(c.fromSlug)) vacated.add(c.fromSlug);
+          projections.get(c.fromSlug)?.vacate();
+          let settle: (html: string | null) => void = () => {};
+          renamedCreates.set(
+            c.toDoc,
+            new Promise<string | null>((r) => {
+              settle = r;
+            })
+          );
+          return (result) => settle(result.status === 'accepted' ? c.html : null);
+        },
+        onRenamed: (c, tell) => {
+          try {
+            rekeyUserState(ctx.paths.designRoot, [[c.fromRel, c.toRel]]);
+          } catch {
+            /* a lost pin is not worth failing the rename */
+          }
+          // Open tabs and the selection follow it (server.ts retargets every
+          // member's state on a move); the rescan adopts the new file.
+          ctx.bus.emit('canvas-list-update', {
+            action: 'moved',
+            rel: c.toRel,
+            slug: c.toSlug,
+            fromRel: c.fromRel,
+            fromSlug: c.fromSlug,
+          });
+          if (tell) {
+            const name = (rel: string) => path.posix.basename(rel).replace(/\.tsx$/i, '');
+            const notice = {
+              id: `canvas-renamed-${c.toSlug}`,
+              severity: 'info' as const,
+              text: createRenamedText(name(c.fromRel), name(c.toRel)),
+            };
+            // A boot replay can land before the status store exists: kept until it does.
+            if (statusStore) statusStore.notice?.(notice);
+            else noticesBeforeStore.push(notice);
+          }
+        },
+        ...(opts.createRenameFault ? { fault: opts.createRenameFault } : {}),
       })
     : null;
   const trashWatch = acceptedLink
@@ -2652,9 +2730,14 @@ export function createSyncRuntime(
         // What each canvas's disk was last saved as, when that save was one of
         // these: the base its cold start judges the disk against.
         const own = new Map<string, string>();
+        const drainFrom = Date.now();
         outboxDrained = acceptedLink.client
           .drainOutbox((result, operations) => {
             for (const o of operations) {
+              if (o.op === 'doc.create' && typeof o.doc === 'string') {
+                if (result.status === 'accepted') drainedCreates.add(o.doc);
+                else drainedCreates.delete(o.doc);
+              }
               const html =
                 o.op === 'lane.replace' && o.lane === 'html'
                   ? o.content
@@ -2669,6 +2752,8 @@ export function createSyncRuntime(
           .then((results) => {
             if (results.length)
               console.log(`[sync/tx] resent ${results.length} unanswered change(s).`);
+            // S6.13b — every rename a previous run left has replayed by now.
+            collisionRenamer?.sweep(drainFrom);
             return own;
           })
           .catch(() => own);
@@ -2931,6 +3016,7 @@ export function createSyncRuntime(
         },
         broadcast: (payload) => ctx.bus.emit('sync:status', payload),
       });
+    for (const n of noticesBeforeStore.splice(0)) statusStore.notice?.(n);
     const store = statusStore;
     // An unfinished AI action restored from the last session (T16).
     const restoredStage = acceptedLink?.stage.summary();
@@ -3436,6 +3522,50 @@ export function createSyncRuntime(
       }
     };
 
+    /**
+     * S6.13 — a canvas made here that the project does not list yet is
+     * proposed AT ONCE, before its document's handshake: offline that
+     * handshake waits for the network, and ⌘N must still be a content-lane
+     * write (V2-1.14 §8 "S6") — durable, ordered, and the watermark a prompt
+     * queued behind it waits for. Its cold start then reuses this answer
+     * instead of creating the canvas a second time.
+     */
+    const earlyCreates = new Map<string, { html: string; answer: Promise<StructuralOutcome> }>();
+    const proposeEarlyCreate = (canvas: CanvasDescriptor): void => {
+      if (!acceptedOn() || !acceptedLink || pulledSlugs.has(canvas.slug) || !canvas.html) return;
+      if (earlyCreates.has(canvas.slug)) return;
+      const docName = docNameFor(canvas.slug);
+      if (acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired)) return;
+      if (renamedCreates.has(docName)) return;
+      let html: string;
+      try {
+        html = readFileSync(canvas.html, 'utf8');
+      } catch {
+        return;
+      }
+      const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
+      const lanes = localCreateLanes(
+        {
+          html: canvas.html,
+          comments: canvas.comments,
+          annotations: canvas.annotations,
+          meta: canvas.meta,
+          css: canvas.css,
+        },
+        html
+      );
+      const answer = acceptedLink
+        .createDoc(canvas.slug, rel, lanes)
+        .then(notOursIfRenamed(docName))
+        .catch(
+          (err): StructuralOutcome => ({
+            status: 'rejected',
+            code: (err as { code?: string })?.code ?? 'failed',
+          })
+        );
+      earlyCreates.set(canvas.slug, { html, answer });
+    };
+
     /** Post-handshake reconcile — shared by first connect and re-probe. */
     const handleSynced = async (
       canvas: CanvasDescriptor,
@@ -3506,18 +3636,45 @@ export function createSyncRuntime(
       const agent = agents.get(canvas.slug);
       if (projection && acceptedOn() && acceptedLink) {
         const docName = docNameFor(canvas.slug);
-        let inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
-        if (!inProject) {
+        // S6.13 — the create this run already proposed (offline ⌘N) is THE
+        // create: wait for its answer.
+        const early = earlyCreates.get(canvas.slug);
+        earlyCreates.delete(canvas.slug);
+        const earlyAnswer = early ? await early.answer : null;
+        // A save a previous run left unanswered is answered first: a disk
+        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
+        // against the older base, the save conflicted with itself). Awaited
+        // BEFORE asking whether the canvas is in the project: a create that
+        // previous run left (S6.13) has made it a member by now.
+        const drained = await outboxDrained;
+        const ownAccepted = drained.get(docName) ?? null;
+        // S6.13b — a canvas this Mac renamed because its name was taken joins
+        // as that renamed create did.
+        const renamed = renamedCreates.get(docName);
+        const renamedHtml = renamed ? await renamed : null;
+        renamedCreates.delete(docName);
+        // A canvas THIS MAC created (now, or in the run the drain finished)
+        // joins exactly as its own create did — never reconciled against a
+        // replica that may not hold that publication yet, and never created
+        // a second time. What the project holds is what the create carried
+        // (or the newest save of it the drain had accepted).
+        const createdHere =
+          early && earlyAnswer?.status === 'accepted'
+            ? early.html
+            : drainedCreates.has(docName)
+              ? ownAccepted
+              : renamedHtml;
+        drainedCreates.delete(docName);
+        let inProject =
+          createdHere === null &&
+          acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
+        if (createdHere === null && !inProject) {
           // A canvas adopted after boot: ask again before creating anything.
           await acceptedLink.refresh();
           inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
         }
         const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
-        // A save a previous run left unanswered is answered first: a disk
-        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
-        // against the older base, the save conflicted with itself).
-        const ownAccepted = (await outboxDrained).get(docName) ?? null;
-        await acceptedColdStart({
+        const coldStart: Parameters<typeof acceptedColdStart>[0] = {
           slug: canvas.slug,
           doc: provider.document,
           paths: canvasPaths,
@@ -3529,8 +3686,19 @@ export function createSyncRuntime(
           commentLedger: commentLedgerFor(ctx.paths.designRoot),
           ownAccepted,
           wasAccepted: (content) => acceptedLink.client.holdsValue(content),
-          createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
-        });
+          createDoc:
+            createdHere !== null
+              ? async () => ({ status: 'accepted' as const, html: createdHere })
+              : (lanes) =>
+                  acceptedLink.createDoc(canvas.slug, rel, lanes).then(notOursIfRenamed(docName)),
+        };
+        let joined = await acceptedColdStart(coldStart);
+        if (joined.kind === 'create-refused' && joined.code === 'renamed') {
+          // S6.13b — this Mac's canvas moved to a free name while its create
+          // waited; what stays at this path is the peer's canvas.
+          joined = await acceptedColdStart({ ...coldStart, inProject: true });
+        }
+        renamedAway.delete(docName);
         projection.reconcile();
       } else if (projection) {
         // Phase E (DDR-064 Task 9) — one-time authoritative seed BEFORE
@@ -4448,10 +4616,16 @@ export function createSyncRuntime(
           // the canvas ("source sync blocked (local-edit)" on a fresh copy).
           if (body && existsSync(body) && bySlug.has(slug)) pulledSlugs.delete(slug);
         }
+        // S6.13b — the same race guard for a path this Mac's canvas just moved
+        // away from: the peer's canvas is written there after its cold start.
+        for (const slug of [...vacated]) {
+          const body = descriptors.get(slug)?.html;
+          if (body && existsSync(body) && bySlug.has(slug)) vacated.delete(slug);
+        }
         const { added, removed } = diffCanvasSet(
           [...agents.keys(), ...projections.keys()],
           bySlug.keys(),
-          pulledSlugs
+          [...pulledSlugs, ...vacated]
         );
         if (added.length === 0 && removed.length === 0) return;
         if (removed.length > 0) {
@@ -4464,9 +4638,20 @@ export function createSyncRuntime(
           markUntrusted();
         }
         const incoming = added.map((slug) => bySlug.get(slug)).filter((c) => !!c);
+        // S6.13 — only a project that does not answer gets its creates now;
+        // one that answers creates them on the handshake, as it always has.
+        const offline =
+          incoming.length > 0 && acceptedOn() && acceptedLink
+            ? (await Promise.race([
+                acceptedLink.refresh(),
+                new Promise<undefined>((r) => setTimeout(r, EARLY_CREATE_PROBE_MS)),
+              ])) == null
+            : false;
         for (const canvas of incoming) {
           if (agents.has(canvas.slug) || projections.has(canvas.slug)) continue;
           if (providers.has(canvas.slug)) continue;
+          // Before the attach: offline, its handshake waits for the network.
+          if (offline) proposeEarlyCreate(canvas);
           await attachCanvas(canvas, false);
         }
         if (incoming.length > 0) {
@@ -6037,6 +6222,9 @@ export function createSyncRuntime(
  */
 /** Coalesce a burst of asset writes (dragging six images on) into one sweep. */
 const ASSET_SWEEP_DEBOUNCE_MS = 1500;
+/** S6.13 — how long a new canvas waits for the project to answer before its
+ *  create is proposed straight into the outbox (offline ⌘N). */
+const EARLY_CREATE_PROBE_MS = 1500;
 
 export const DEFAULT_MAX_PINNED_ROOMS = 500;
 

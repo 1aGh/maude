@@ -18270,5 +18270,101 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "empty-project",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card for a project with no canvases: \"<Project> has no canvases yet.\" with the prompt and the plain way out. No toolbar. Replaces \"No canvas open\" in the viewport; for Can view it is the situation only.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/empty-project.jsx",
+      "symbol": "EmptyProject"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-project.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-project-prompt",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-line prompt on that card. Enter creates a canvas from the sentence (the create call carries fromPrompt). Absent for Can view.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/empty-project.jsx",
+      "symbol": "EmptyProject"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-project.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-project-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The send button of that prompt; the same door as Enter. Does nothing while the box is empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/empty-project.jsx",
+      "symbol": "EmptyProject"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-project.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-project-blank",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Start with an empty canvas\" (Cmd+N): a blank canvas, named by the server. Absent for Can view.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/empty-project.jsx",
+      "symbol": "EmptyProject"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-project.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Canvases panel's line for a project with no canvases: \"No canvases yet.\" (the kit's block).",
+    "producer": {
+      "file": "apps/studio/client/v2/create/empty-project.jsx",
+      "symbol": "PanelNoCanvases"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-project.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-none-new",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"New canvas\" row under that line: a blank canvas. Absent for Can view.",
+    "producer": {
+      "file": "apps/studio/client/v2/create/empty-project.jsx",
+      "symbol": "PanelNoCanvases"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-empty-project.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

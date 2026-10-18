@@ -14,6 +14,7 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { requestViewCode, runErrorOp } from '../code/code-bus.js';
@@ -92,10 +93,11 @@ async function runDoor(d, id) {
 export function createMenuHandlers(d) {
   const h = {
     // ── File ──
+    // S6.1: a blank canvas, named by the server (C4), opened at once. The tree composer is the brief board's.
     'canvas.new': () => {
-      d.openPanelExclusive('tree');
-      setTimeout(() => document.querySelector('[aria-label="New blank brief board"]')?.click(), 60);
+      createBlankCanvas({ toast: d.toast });
     },
+    'canvas.new-brief': () => openBriefBoardComposer(d),
     // IdentityBar owns the create dialog's state; it hears this the way it hears the native menu.
     'project.new': () => {
       if (!d.native) {

@@ -20,6 +20,7 @@ import { ArrivingRow } from '../empty/skeleton.jsx';
 import { requestViewCode } from '../code/code-bus.js';
 import { useFold } from '../fold/use-fold.js';
 import { nativeDoors } from '../shell/native-doors.js';
+import { PANEL_NONE_FOOT, PanelNoCanvases } from '../create/empty-project.jsx';
 import {
   CANVASES_OP_EVENT,
   dispatchArtboardJump,
@@ -485,6 +486,7 @@ export function CanvasesPanel({
         dynamic: listed.some((r) => r.dynamic),
       }
     : null;
+  const emptyProject = !searching && tree.total === 0; // S6.2: "No canvases yet." through the kit
   const foot = panelFootLine({
     total: tree.total,
     shown,
@@ -531,7 +533,7 @@ export function CanvasesPanel({
             {nothingCalled(search)}
           </p>
         ) : null}
-        {!searching && tree.total === 0 ? <p className="cv-none">Empty.</p> : null}
+        {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
       {children}
       <p
@@ -540,7 +542,7 @@ export function CanvasesPanel({
         data-slot={foot.source}
         data-tone={foot.tone || undefined}
       >
-        {foot.text}
+        {emptyProject && foot.source === 'default' ? PANEL_NONE_FOOT : foot.text}
       </p>
       {sortMenu ? (
         <div

@@ -2372,7 +2372,7 @@
     "button:studio/client/tree/tree.jsx#renderSection/tree-section-g-label-tolowercase-replace-a-z0-9-": "D5",
     "button:studio/client/tree/tree.jsx#Sidebar/clear-search": "D5",
     "button:studio/client/tree/tree.jsx#Sidebar/collapse-sidebar": "D4",
-    "button:studio/client/tree/tree.jsx#Sidebar/new-blank-brief-board": "action:canvas.new",
+    "button:studio/client/tree/tree.jsx#Sidebar/new-blank-brief-board": "action:canvas.new-brief",
     "button:studio/client/tree/tree.jsx#Sidebar/onclick-submitcomposer": "D5",
     "button:studio/client/tree/tree.jsx#Sidebar/refresh-files": "A-refresh-tree-r",
     "button:studio/client/tree/tree.jsx#Sidebar/tree-new-folder": "D5",

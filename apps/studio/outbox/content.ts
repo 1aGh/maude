@@ -10,6 +10,10 @@ import path from 'node:path';
 
 const OUTBOX_REL = path.join('_state', 'outbox');
 const NAME_RE = /^(\d+)-(tx_[A-Za-z0-9]+)\.json$/;
+/** S6.13 — a canvas create noted inside its batching window, before it is
+ *  sealed into a proposal of the SAME name (`sync/accepted-link.ts`
+ *  `CREATE_NOTE_RE`). Pending like one: a prompt queued behind ⌘N waits for it. */
+const CREATE_NOTE_RE = /^(\d+)-(tx_[A-Za-z0-9]+)\.creates\.ndjson$/;
 
 /** createdAt of every content entry still waiting for a final answer — the
  *  `after` gate's input (O4). Read from the names alone: cheap per wake. */
@@ -22,7 +26,7 @@ export function contentPending(designRoot: string): number[] {
   }
   const out: number[] = [];
   for (const n of names) {
-    const m = n.match(NAME_RE);
+    const m = n.match(NAME_RE) ?? n.match(CREATE_NOTE_RE);
     if (m) out.push(Number(m[1]));
   }
   return out.sort((a, b) => a - b);
