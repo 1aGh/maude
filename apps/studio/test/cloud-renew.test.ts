@@ -183,7 +183,11 @@ describe('renewHubCredential', () => {
     expect((await renewHubCredential(HUB_URL, doFetch)).ok).toBe(true);
     const stored = readHubRecord();
     expect(stored && 'role' in stored).toBe(true);
-    expect(stored?.role).toBe('observer');
+    // The floor is `observer`, stored the way a 1.x peer reads it (decision v2-1.7 Q3 / `v1RoleProjection`:
+    // 1.9.x knows only `viewer` as read-only, `observer` would read as writable there); the real claim
+    // rides in `access`. Never undefined, never writable.
+    expect(stored?.role).toBe('viewer');
+    expect(stored?.access?.role).toBe('observer');
   });
 
   test('claim-a: an embedded-credential hubUrl is refused, no network touched', async () => {
