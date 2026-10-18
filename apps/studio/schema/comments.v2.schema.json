@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://maude.sh/schema/comments/v2",
   "title": "Maude comment threads (<designRoot>/_comments/<slug>.json, the canvas doc's comments lane), v2",
-  "description": "Hand-written source; the runtime owners are apps/studio/comments/ops.ts (writes) and comments/anchors.ts (the tolerant read). The file carries NO version field (V2-1.12 §5.1): it grows by top-level keys, which every reader since Phase 6 keeps verbatim, so `additionalProperties` stays open — a Maude 1 peer carries a Maude 2 key through a rewrite, and the S4 sticky ↔ comment `from` is carried uninterpreted. Anchors that fail their shape are dropped by the reader (the thread renders detached, never deleted). `author` is the session's name, stamped by the door — never a body field; `authorId` is the hub's opaque id; `authorKind: \"ai\"` marks `maude design comments add --as-ai`, and AI text never mentions anyone (C3). Comment text is untrusted (DDR-054). Agents never write this file: they use `maude design comments …`. Skill: design:design _guide-05.",
+  "description": "Hand-written source; the runtime owners are apps/studio/comments/ops.ts (writes) and comments/anchors.ts (the tolerant read). The file carries NO version field (V2-1.12 §5.1): it grows by top-level keys, which every reader since Phase 6 keeps verbatim, so `additionalProperties` stays open — a Maude 1 peer carries a Maude 2 key through a rewrite, and the S4 sticky ↔ comment `from` (written only by the conversion route) is kept by every reader. Anchors that fail their shape are dropped by the reader (the thread renders detached, never deleted). `author` is the session's name, stamped by the door — never a body field; `authorId` is the hub's opaque id; `authorKind: \"ai\"` marks `maude design comments add --as-ai`, and AI text never mentions anyone (C3). Comment text is untrusted (DDR-054). Agents never write this file: they use `maude design comments …`. Skill: design:design _guide-05.",
   "type": "array",
   "items": { "$ref": "#/$defs/comment" },
   "$defs": {
@@ -91,7 +91,26 @@
           }
         },
         "from": {
-          "description": "Reserved for the S4 sticky ↔ comment conversion (contract S4-S9-votes-comments.md). Carried, never interpreted here."
+          "description": "S4-S9-votes-comments §3.1: the sticky a conversion turned into this comment. Written only by the conversion route (S4.7) from the board, never from a request body. The comment's `author` is the converter (= convertedBy); the sticky's author lives only in from.author. A root carrying `from` mentions nobody. `kind` is an open word.",
+          "type": "object",
+          "required": ["kind", "id", "author", "convertedBy", "at"],
+          "properties": {
+            "kind": { "type": "string", "pattern": "^[a-z][a-z-]{0,31}$" },
+            "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+            "author": { "type": "string", "maxLength": 120 },
+            "authorId": { "$ref": "#/$defs/opaqueId" },
+            "convertedBy": { "type": "string", "maxLength": 120 },
+            "at": { "type": "string", "maxLength": 40 },
+            "spot": {
+              "type": "object",
+              "required": ["x", "y"],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "artboard": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$" }
+              }
+            }
+          }
         }
       }
     }

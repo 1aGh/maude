@@ -36,12 +36,15 @@ interface Authored {
 const personText = (part: Authored, key: 'text' | 'body'): string =>
   part.authorKind === 'ai' || typeof part[key] !== 'string' ? '' : (part[key] as string);
 
-/** Every token a thread holds: the comment's text and every person-written reply. */
-export function mentionsOf(c: Authored & { thread?: unknown }): string[] {
+/**
+ * Every token a thread holds: the comment's text and every person-written reply. A root that
+ * carries `from` was a sticky, not a message to anyone (S4-S9-votes-comments §3.1): its words
+ * mention nobody; its replies mention as usual.
+ */
+export function mentionsOf(c: Authored & { thread?: unknown; from?: unknown }): string[] {
   const replies = Array.isArray(c.thread) ? (c.thread as Authored[]) : [];
-  return parseMentions(
-    [personText(c, 'text'), ...replies.map((r) => personText(r ?? {}, 'body'))].join('\n')
-  );
+  const root = c.from ? '' : personText(c, 'text');
+  return parseMentions([root, ...replies.map((r) => personText(r ?? {}, 'body'))].join('\n'));
 }
 
 /** The tokens in `after` that `before` did not hold — what one op newly mentions. */

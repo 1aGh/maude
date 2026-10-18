@@ -17,8 +17,8 @@ import { addedMentions, mentionsOf } from './mentions.ts';
 
 /** Same bound as a top-level comment and a reply today (`api.ts`). */
 export const MAX_TEXT = 4000;
-/** The S4 contract's `from` (sticky ↔ comment) — carried, never interpreted here, bounded. */
-export const MAX_FROM_BYTES = 2048;
+const FROM_KIND_RE = /^[a-z][a-z-]{0,31}$/;
+const FROM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 const ID_RE = /^[A-Za-z0-9_]{1,64}$/;
 
@@ -48,6 +48,23 @@ export interface OpContext {
   now: string;
   newId(): string;
   newReplyId(): string;
+  /**
+   * S4-S9-votes-comments §3.1 — the sticky a conversion turns into this comment. TRUSTED: set
+   * only by the conversion route (S4.7), which reads the sticky from the board. A `from` in an
+   * op body is never read — the hub cannot check a sticky existed, so it would sign as anyone.
+   */
+  from?: unknown;
+}
+
+/** The `from` of a converted comment (S4-S9-votes-comments §3.1). */
+export interface CommentFrom {
+  kind: string;
+  id: string;
+  author: string;
+  authorId?: string;
+  convertedBy: string;
+  at: string;
+  spot?: { x: number; y: number; artboard?: string };
 }
 
 export interface AddPayload {
@@ -60,7 +77,6 @@ export interface AddPayload {
   classes?: string;
   bounds?: { x: number; y: number; w: number; h: number } | null;
   html_excerpt?: string;
-  from?: unknown;
   [anchor: string]: unknown;
 }
 
@@ -112,7 +128,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 const text = (v: unknown): string | null =>
   typeof v === 'string' && v.trim() ? v.trim().slice(0, MAX_TEXT) : null;
 
-function bounds(v: unknown): AddPayload['bounds'] {
+function bounds(v: unknown): Comment['bounds'] {
   if (!isObject(v)) return null;
   const { x, y, w, h } = v;
   const nums = [x, y, w, h];
@@ -120,14 +136,26 @@ function bounds(v: unknown): AddPayload['bounds'] {
   return { x: x as number, y: y as number, w: w as number, h: h as number };
 }
 
-function boundedFrom(v: unknown): unknown {
-  if (v === undefined || v === null) return undefined;
-  try {
-    const s = JSON.stringify(v);
-    return typeof s === 'string' && s.length <= MAX_FROM_BYTES ? JSON.parse(s) : undefined;
-  } catch {
-    return undefined;
+/** A trusted `from`, bounded; `convertedBy` is always the acting session (= `author`). */
+export function sanitizeFrom(v: unknown, actor: OpActor, now: string): CommentFrom | undefined {
+  if (!isObject(v)) return undefined;
+  const { kind, id, author, authorId, at, spot } = v;
+  if (typeof kind !== 'string' || !FROM_KIND_RE.test(kind)) return undefined;
+  if (typeof id !== 'string' || !FROM_ID_RE.test(id)) return undefined;
+  if (typeof author !== 'string' || author.length > 120) return undefined;
+  const out: CommentFrom = { kind, id, author, convertedBy: actor.name, at: now };
+  if (typeof authorId === 'string' && /^[A-Za-z0-9_:-]{1,80}$/.test(authorId))
+    out.authorId = authorId;
+  if (typeof at === 'string' && at.length <= 40) out.at = at;
+  if (isObject(spot) && Number.isFinite(spot.x) && Number.isFinite(spot.y)) {
+    out.spot = { x: spot.x as number, y: spot.y as number };
+    if (
+      typeof spot.artboard === 'string' &&
+      /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(spot.artboard)
+    )
+      out.spot.artboard = spot.artboard;
   }
+  return out;
 }
 
 /** Validate an op body. `null` = not an op (400 `invalid`). Unknown fields are ignored. */
@@ -190,8 +218,8 @@ function recordFrom(p: AddPayload, ctx: OpContext): CommentRecord {
     mentions: [],
     ...readAnchors(p),
   };
-  const from = boundedFrom(p.from);
-  if (from !== undefined) c.from = from;
+  const from = sanitizeFrom(ctx.from, ctx.actor, ctx.now);
+  if (from) c.from = from;
   c.mentions = mentionsOf(c);
   return c;
 }

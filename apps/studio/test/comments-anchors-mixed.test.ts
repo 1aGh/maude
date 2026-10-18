@@ -86,7 +86,6 @@ function v2Video() {
     text: 'URL too close to the edge',
     artboard: 'a-front',
     mm: { x: 14, y: -2.04 },
-    from: { sticky: 's_ab12' },
   });
   if (!add || !print) throw new Error('fixture ops');
   let n = 0;
@@ -98,7 +97,8 @@ function v2Video() {
   };
   const a = applyCommentOp([], add, ctx);
   if (!a.ok) throw new Error(a.error);
-  const b = applyCommentOp(a.list, print, ctx);
+  const sticky = { kind: 'sticky', id: 's_ab12', author: 'Jonas', at: '2026-10-18T09:00:00.000Z' };
+  const b = applyCommentOp(a.list, print, { ...ctx, from: sticky });
   if (!b.ok) throw new Error(b.error);
   return b.list;
 }
@@ -113,7 +113,7 @@ describe('v2 → v1 → v2: a Maude 1 peer carries the Maude 2 keys through', ()
     expect(list[1]).toMatchObject({
       artboard: 'a-front',
       mm: { x: 14, y: -2 },
-      from: { sticky: 's_ab12' },
+      from: { kind: 'sticky', id: 's_ab12', author: 'Jonas', convertedBy: 'Claude' },
     });
     const v1 = (JSON.parse(JSON.stringify(list)) as unknown[]).map(V1_backfillComment);
     expect(v1.map(pick)).toEqual(list.map(pick));

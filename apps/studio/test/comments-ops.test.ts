@@ -205,13 +205,64 @@ describe('parseCommentOp', () => {
     expect(r.comment?.bounds).toBeNull();
   });
 
-  test('the S4 `from` is carried when small, dropped when large', () => {
-    expect(added([], ctx('Olga'), { from: { sticky: 's_1' } }).comment?.from).toEqual({
-      sticky: 's_1',
+  test('a `from` in the op body is never read (S4-S9 §3.1: it would sign as anyone)', () => {
+    const forged = { kind: 'sticky', id: 's_1', author: 'Olga', convertedBy: 'Olga', at: 'x' };
+    const r = added([], ctx('Vera'), { from: forged, text: 'hi @max' });
+    expect(r.comment && 'from' in r.comment).toBe(false);
+    expect(r.mentioned).toEqual(['@max']);
+  });
+});
+
+describe('a converted comment (`from`, S4-S9-votes-comments §3.1)', () => {
+  const sticky = {
+    kind: 'sticky',
+    id: 's_ab12',
+    author: 'Jonas',
+    convertedBy: 'Somebody Else',
+    at: '2026-10-18T09:00:00.000Z',
+    spot: { x: 10, y: 20, artboard: 'hero' },
+    extra: 'dropped',
+  };
+  const conv = (): OpContext => ({ ...ctx('Tereza', { id: 'h:tereza' }), from: sticky });
+
+  test('author = the converter, no exception; the sticky’s author only in from.author', () => {
+    const r = added([], conv(), { text: 'Datum je malé @max', author: 'Jonas' });
+    expect(r.comment).toMatchObject({
+      author: 'Tereza',
+      authorId: 'h:tereza',
+      from: {
+        kind: 'sticky',
+        id: 's_ab12',
+        author: 'Jonas',
+        convertedBy: 'Tereza',
+        at: sticky.at,
+        spot: { x: 10, y: 20, artboard: 'hero' },
+      },
     });
-    expect(
-      added([], ctx('Olga'), { from: { big: 'x'.repeat(4000) } }).comment?.from
-    ).toBeUndefined();
+    expect(r.comment?.from && 'extra' in (r.comment.from as object)).toBe(false);
+    expect(valid(r.list)).toEqual({ ajv: true, lite: true });
+  });
+
+  test('a `from` root mentions nobody; its replies mention as usual', () => {
+    const r = added([], conv(), { text: 'Datum je malé @max' });
+    expect(r.mentioned).toEqual([]);
+    expect(r.comment?.mentions).toEqual([]);
+    const reply = applyCommentOp(
+      r.list,
+      op({ op: 'reply', id: r.comment?.id, body: '@max ok' }),
+      ctx('Vera')
+    );
+    expect(reply.ok && reply.mentioned).toEqual(['@max']);
+  });
+
+  test('a malformed trusted `from` is dropped, never guessed', () => {
+    for (const bad of [
+      { kind: 'Sticky!', id: 's_1', author: 'J' },
+      { kind: 'sticky', id: '../x', author: 'J' },
+    ]) {
+      const r = added([], { ...ctx('Tereza'), from: bad });
+      expect(r.comment && 'from' in r.comment).toBe(false);
+    }
   });
 });
 
