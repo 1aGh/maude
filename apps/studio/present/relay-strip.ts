@@ -73,3 +73,53 @@ export function stripPresenterAwareness(payload: Uint8Array): Uint8Array | null 
   encoding.writeVarUint8Array(out, encoding.toUint8Array(inner));
   return encoding.toUint8Array(out);
 }
+
+/** A presenter's sid (S3-present-session §2 `present.sid`) — the only `watching` value kept. */
+const WATCHING_SID_RE = /^[a-z0-9]{8,32}$/;
+
+/**
+ * S3.7c — a presentation FOLLOWER's frame (a socket opened on the receive-only
+ * `follow` capability, apps/hub/src/follow-capability.mjs): every state it
+ * carries is reduced to `{ watching }` (a valid sid, else `{}`), on top of the
+ * strip above — a follower is counted, never seen. Removals (null states) pass.
+ * Same return contract as `stripPresenterAwareness`; a non-awareness frame is
+ * returned as is (the room drops a follower's other frames itself).
+ */
+export function stripToWatching(payload: Uint8Array): Uint8Array | null {
+  const entries: { clientID: number; clock: number; json: string }[] = [];
+  try {
+    const outer = decoding.createDecoder(payload);
+    if (decoding.readVarUint(outer) !== MESSAGE_AWARENESS) return payload;
+    const dec = decoding.createDecoder(decoding.readVarUint8Array(outer));
+    const count = decoding.readVarUint(dec);
+    for (let i = 0; i < count; i++) {
+      const clientID = decoding.readVarUint(dec);
+      const clock = decoding.readVarUint(dec);
+      const state = JSON.parse(decoding.readVarString(dec)) as unknown;
+      let json = 'null';
+      if (state !== null) {
+        const w =
+          state && typeof state === 'object' && !Array.isArray(state)
+            ? (state as { watching?: unknown }).watching
+            : undefined;
+        json = JSON.stringify(
+          typeof w === 'string' && WATCHING_SID_RE.test(w) ? { watching: w } : {}
+        );
+      }
+      entries.push({ clientID, clock, json });
+    }
+  } catch {
+    return null;
+  }
+  const inner = encoding.createEncoder();
+  encoding.writeVarUint(inner, entries.length);
+  for (const e of entries) {
+    encoding.writeVarUint(inner, e.clientID);
+    encoding.writeVarUint(inner, e.clock);
+    encoding.writeVarString(inner, e.json);
+  }
+  const out = encoding.createEncoder();
+  encoding.writeVarUint(out, MESSAGE_AWARENESS);
+  encoding.writeVarUint8Array(out, encoding.toUint8Array(inner));
+  return encoding.toUint8Array(out);
+}
