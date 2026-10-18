@@ -28,7 +28,9 @@ async function v17Fixture() {
     sqlite.exec('ALTER TABLE project_invites DROP COLUMN invited_by');
     sqlite.exec('ALTER TABLE project_invites DROP COLUMN thread');
   }
-  sqlite.prepare('DELETE FROM schema_migrations WHERE version >= 18').run();
+  // Only v18's row: a later migration (S9.15's v19) stays applied, so its
+  // non-idempotent ALTERs are not replayed over columns that already exist.
+  sqlite.prepare('DELETE FROM schema_migrations WHERE version = 18').run();
   sqlite
     .prepare(`INSERT INTO accounts (id, email, created_at) VALUES ('a1', 'owner@example.com', 1)`)
     .run();
