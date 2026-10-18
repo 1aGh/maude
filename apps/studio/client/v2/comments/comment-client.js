@@ -6,7 +6,7 @@
 //                        This is what lets a canvas-only session REPLY: the route finds the thread's canvas
 //                        itself (the old `/_api/comments/<id>/reply` named none, so the local gate had no
 //                        canvas to judge a grant on).
-//   fetchMentionPeople  `GET /api/access/people?canvas=` through the studio's proxy (S9.19's route). The
+//   fetchMentionPeople  `GET /api/access/people?canvas=` through S9.19's `/_api/share/people` (routes/share.ts). The
 //                        hub answers only with people who can open THAT canvas; `mentionRows` drops the
 //                        rest (addresses, pending invitations, yourself). Null = no source (a local
 //                        project, or a build without the proxy): the overlay falls back to git committers.
@@ -16,7 +16,7 @@
 import { mentionRows } from '../../../comments/people.ts';
 
 export const OP_URL = '/_api/comments/op';
-export const PEOPLE_URL = '/_api/access/people';
+export const PEOPLE_URL = '/_api/share/people';
 
 /**
  * @param {object} op `{ op: 'add' | 'reply' | …, … }` — comments/ops.ts `parseCommentOp`

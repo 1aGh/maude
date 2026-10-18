@@ -363,7 +363,7 @@ describe('the shell half of the overlay messages', () => {
         }),
       }
     );
-    expect(calls[0].url).toBe('/_api/access/people?canvas=ui%2Fa.tsx');
+    expect(calls[0].url).toBe('/_api/share/people?canvas=ui%2Fa.tsx');
     expect(sent[0].people).toEqual([{ id: 'u1', name: 'Tereza', role: 'Can edit' }]);
     expect(await fetchMentionPeople('ui/a.tsx', null, okFetch([], {}, 404))).toBeNull();
   });
