@@ -63,6 +63,9 @@ const NONE = [
 ];
 
 const FILTERED = [
+  // A6a — S1.7 shared Trash list (L18: only the session's canvases); S1.18 link resolve (an ungranted entry reads `unknown`, as a missing one)
+  '/_api/trash',
+  '/_api/link/resolve',
   '/_config',
   '/_index-data',
   '/_system-data',
@@ -91,6 +94,19 @@ const FILTERED = [
 ];
 
 const CANVAS = [
+  // A6a — one canvas each: S5.11b run copy, S4.7 sticky ↔ comment, S9.7b comment op, S3.10a on-click links (`file`), S1.12b/S1.13 version history (`path`), S1.17 Trash restore (the item's canvas)
+  '/_api/ai/runs/:id/copy',
+  '/_api/annotations/to-comment',
+  '/_api/annotations/convert-undo',
+  '/_api/comments/to-sticky',
+  '/_api/comments/op',
+  '/_api/links',
+  '/_api/project/versions',
+  '/_api/project/changes',
+  '/_api/project/source',
+  '/_api/project/name',
+  '/_api/project/aside',
+  '/_api/trash/restore',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
   // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).
   '/_api/present-meta',
@@ -168,6 +184,14 @@ const CANVAS = [
 ];
 
 const PROJECT = [
+  // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
+  '/_api/trash/clear',
+  '/_api/ai/attach/file',
+  '/_api/ai/attach/folder',
+  '/_api/ai/attach/folder/detach',
+  '/_api/ai/attach/folder/list',
+  '/_api/ai/attach/folder/revoke',
+  '/_api/ai/attach/folders',
   '/_sync-status',
   '/_api/acp/status',
   '/_api/acp/focus',

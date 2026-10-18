@@ -119,7 +119,12 @@ describe('commit riders', () => {
     const nudge = readFileSync(join(ROOT, 'use-keyboard-discipline.tsx'), 'utf8');
     expect(nudge).toContain('dragBus.commitPositions(moved);');
     const lib = readFileSync(join(ROOT, 'canvas-lib.tsx'), 'utf8');
-    expect(lib).toContain('dragBus.commitPositions(moved, alt ? { riders: false } : undefined)');
+    // S2.10 — the drop goes through routeDrop (editing/duplicate-rhythm.ts): ⌥ commits the moved
+    // boards without riders (the copy is placed, not moved), a plain drop commits with them.
+    expect(lib).toContain('routeDrop(alt, moved, window, (m, o) => dragBus.commitPositions(m, o))');
+    const rhythm = readFileSync(join(ROOT, 'editing', 'duplicate-rhythm.ts'), 'utf8');
+    expect(rhythm).toContain('commit(moved, { riders: false });');
+    expect(rhythm).toContain('commit(moved);');
     const resize = readFileSync(join(ROOT, 'editing', 'artboard-handles.tsx'), 'utf8');
     expect(resize).toContain("{ label: 'resize artboard', riders: false }");
     // Nothing else in the canvas runtime writes the layout lane on its own.
