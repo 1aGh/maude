@@ -42,6 +42,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
+import { StoppedDivider } from '../v2/ai/StoppedDivider.jsx';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
 import { readSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
@@ -446,6 +447,8 @@ function ChatThread({
               <ContinuationBubble parts={bgParts} viewMode={transcriptView} />
               {/* "still working" indicator under the latest message */}
               <ActivityBar tools={activeTools} />
+              {/* S5.14: "Stopped when the app quit · …" + Keep going (03 ai-quit). */}
+              <StoppedDivider chatId={chatId} hidden={hidden} />
             </ThreadPrimitive.Viewport>
             {activePermission ? (
               <PermissionPrompt
