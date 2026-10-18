@@ -4,7 +4,8 @@
 //   prompt      UserPromptSubmit  POST /_api/agent/run/begin; names the run folder once per session
 //                                                                                 → additionalContext or nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
-//   post-edit   PostToolUse       check (studio, else local) · rollback · touched   → block or nothing
+//   post-edit   PostToolUse       check (studio, else local) · rollback · touched · `ds` warnings
+//                                 (ds-check --hook, S12.4/D9)  → block, or additionalContext, or nothing
 //   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · out-of-project (bash-guard)
 //                                                                                     → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
@@ -854,6 +855,7 @@ function missingShots(ctx, touched) {
 }
 
 async function postEdit(ctx, input, self) {
+  const t0 = performance.now();
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const t = targetOf(ctx, input);
   if (!t) return null;
@@ -896,10 +898,60 @@ async function postEdit(ctx, input, self) {
     if (r?.status === 200 && Array.isArray(r.body?.artboards)) artboards = r.body.artboards;
   }
   recordTouch(ctx, t.rel, { by: input.agent_type ?? 'main', via: 'tool', artboards });
-  return syncedBoardHint(ctx, t.rel);
+  const notes = [syncedBoardHint(ctx, t.rel), dsWarnings(ctx, t.rel, input, self, t0)].filter(
+    Boolean
+  );
+  return notes.length
+    ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notes.join('\n') } }
+    : null;
 }
 
-/** §5.4 post-edit 4: a synced board edited directly gets one hint a run (no studio needed). */
+/** The files the `ds` checker reads S-rules / system structure from (the old hook's filter). */
+const DS_FILE_RE = /(?:\.tsx|\.css|(?:^|\/)components\.json)$/;
+/** V2-1.18 §5.3: the `ds` checker's share of the fast tier, and post-edit's whole budget. */
+export const DS_CHECK_MS = 400;
+export const POST_EDIT_BUDGET_MS = 1500;
+const DS_LINES = 16;
+const DS_LINE_MAX = 240;
+
+/**
+ * S12.4 (D9) — `maude design ds-check --hook` on the file just written: its S-rule / system
+ * findings as warnings (additionalContext text), never a decision. Fail-open: no `self`, a crash,
+ * a timeout, garbage or a forged decision → only the child's `additionalContext` string is ever
+ * read, cleaned per line and capped; anything else → nothing. Bounded by what is left of the
+ * post-edit budget (≤ DS_CHECK_MS); skipped when too little is left.
+ */
+function dsWarnings(ctx, rel, input, self, t0) {
+  if (!self || !DS_FILE_RE.test(rel)) return null;
+  const left = Math.min(DS_CHECK_MS, POST_EDIT_BUDGET_MS - 150 - (performance.now() - t0));
+  if (left < 100) return null;
+  try {
+    const p = spawnSync(
+      self[0],
+      [...self.slice(1), 'design', 'ds-check', '--hook', '--root', ctx.root],
+      {
+        input: JSON.stringify(input),
+        encoding: 'utf8',
+        timeout: Math.round(left),
+        killSignal: 'SIGKILL',
+        maxBuffer: 256 * 1024,
+        env: { ...process.env, MAUDE_NO_UPDATE_CHECK: '1' },
+      }
+    );
+    if (p.error || p.status !== 0 || !p.stdout) return null;
+    const text = JSON.parse(p.stdout)?.hookSpecificOutput?.additionalContext;
+    if (typeof text !== 'string' || !text.trim()) return null;
+    const lines = text
+      .split('\n')
+      .map((l) => cleanText(l, DS_LINE_MAX))
+      .filter((l) => l.trim());
+    return lines.slice(0, DS_LINES).join('\n') || null;
+  } catch {
+    return null;
+  }
+}
+
+/** §5.4 post-edit 4: a synced board edited directly gets one hint a run (no studio needed) — its text. */
 function syncedBoardHint(ctx, rel) {
   if (!BOARD_RE.test(rel)) return null;
   const cfg = readJson(join(ctx.designRoot, 'config.json'), {});
@@ -907,12 +959,7 @@ function syncedBoardHint(ctx, rel) {
   const marker = join(ctx.run, 'board-hint');
   if (existsSync(marker)) return null;
   writeAt(marker, '');
-  return {
-    hookSpecificOutput: {
-      hookEventName: 'PostToolUse',
-      additionalContext: `${rel} is a board this project syncs with collaborators. For board changes prefer \`maude design annotate <canvas> --ops <ops.json>\`: it applies them as element ops that merge with other people's edits.`,
-    },
-  };
+  return `${rel} is a board this project syncs with collaborators. For board changes prefer \`maude design annotate <canvas> --ops <ops.json>\`: it applies them as element ops that merge with other people's edits.`;
 }
 
 function preBash(ctx, input) {
