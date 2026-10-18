@@ -12,7 +12,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { serializeBoard } from '../annotations/schema.ts';
-import { type LocalHome, OUTSIDE_KIND, openLocalHome } from '../sync/local-kernel.ts';
+import {
+  attachLocalHome,
+  type LocalHome,
+  OUTSIDE_KIND,
+  openLocalHome,
+} from '../sync/local-kernel.ts';
 
 const dirs: string[] = [];
 const homes: LocalHome[] = [];
@@ -140,6 +145,41 @@ describe('U20 — studio layout and annotation writes are the person’s edits o
     await h.flush();
     const rows = await h.runtime.acceptedHistory({ path: REPO_REL, limit: 50 });
     expect(rows[0].kind).toBe(OUTSIDE_KIND);
+  });
+});
+
+describe('U20 — a collab room projecting its board (the live-room stroke path)', () => {
+  test('`annotations-projected` on the bus makes the flushed board the person’s edit', async () => {
+    const p = project();
+    process.env.MAUDE_MACHINE_FILE = path.join(p.designRoot, '..', 'machine.json');
+    const subs = new Map<string, Array<(x: unknown) => void>>();
+    const bus = {
+      on(ev: string, fn: (x: unknown) => void) {
+        subs.set(ev, [...(subs.get(ev) ?? []), fn]);
+      },
+      emit(ev: string, x: unknown) {
+        for (const fn of subs.get(ev) ?? []) fn(x);
+      },
+    };
+    const att = attachLocalHome(
+      {
+        cfg: { canvasGroups: [{ path: 'ui' }] },
+        paths: { designRoot: p.designRoot, designRel: '.design' },
+        bus,
+      },
+      { current: () => null },
+      {}
+    );
+    const h = att.home() as LocalHome;
+    await h.ready();
+    const next = board('s1', 's3');
+    bus.emit('annotations-projected', { slug: SLUG, board: next }); // collab/index.ts, before the write
+    p.write(BOARD_REL, next);
+    bus.emit('fs:any', BOARD_REL);
+    await h.flush();
+    const [row] = await mineRows(h);
+    expect([row.kind, row.label]).toEqual(['edit', 'Edit annotations']);
+    att.close();
   });
 });
 

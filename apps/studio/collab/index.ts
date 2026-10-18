@@ -79,6 +79,9 @@ export function createCollab(ctx: Context, api: Api): Collab {
       list.push(board);
       ownProjections.set(slug, list.slice(-4));
       diskBase.set(slug, board);
+      // S2.20b (U20) — the room's board is about to land on disk: a local project's home records
+      // it as the person's `edit` (sync/local-kernel.ts), never `outside`. Emitted before the write.
+      ctx.bus.emit('annotations-projected', { slug, board });
     },
     onAnnotationsSeeded: (slug, board) => {
       diskBase.set(slug, board);

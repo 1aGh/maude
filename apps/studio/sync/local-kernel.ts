@@ -1552,6 +1552,11 @@ export function attachLocalHome<S extends SupervisorLike>(
     if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
     get()?.noteWritten(p.rel, p.content);
   });
+  // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
+  ctx.bus.on('annotations-projected', (p: { slug?: unknown; board?: unknown } | null) => {
+    if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;
+    get()?.runtime.proposeLane(p.slug, 'annotations', p.board);
+  });
   ctx.bus.on(
     'canvas-list-update',
     (change: { action?: string; rel?: string; fromRel?: string } | null) => {
