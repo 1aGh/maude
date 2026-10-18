@@ -5,17 +5,34 @@
 // in canvas-shell.tsx. The layer also answers the shell's `run-action` for the editing actions that
 // have no chord to replay (⌘K / menus): `object.enter`, `object.step-out`.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
+import { canvasModeStore, canvasSingleKeys } from '../bridge/canvas-mode-store.ts';
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
+import { isEditableTarget } from '../input-router.tsx';
+import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
+import { useToolModeOptional } from '../use-tool-mode.tsx';
+import { LockBadge } from './lock-badge.tsx';
+import { NudgeReadout } from './nudge.tsx';
+import { useObjectOps } from './object-actions.ts';
+import { resolveObjectKey } from './object-keys.ts';
+import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
 import { EditingSelection, enterSelection, stepOut } from './selection.tsx';
 
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
-export const EDITING_ACTIONS = ['object.enter', 'object.step-out'] as const;
+export const EDITING_ACTIONS = ['object.enter', 'object.step-out', ...OBJECT_OP_ACTIONS] as const;
 
 export function EditingLayer() {
   const selSet = useSelectionSet();
+  const ops = useObjectOps();
+  const opsRef = useRef(ops);
+  opsRef.current = ops;
+  const tool = useToolModeOptional()?.tool;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const selRef = useRef(selSet.selected);
+  selRef.current = selSet.selected;
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (e: MessageEvent) => {
@@ -23,7 +40,13 @@ export function EditingLayer() {
         return;
       const m = acceptFromShell(e, window);
       if (m?.dgn !== 'run-action') return;
-      if (m.id === 'object.step-out') {
+      if (isObjectOpAction(m.id)) {
+        // a Layers row names its own target (and the value) in `params`; a chord / menu / ⌘K uses the selection
+        if (!isReadOnlyCanvas()) {
+          const { refs, params } = layerParams(m.params);
+          void opsRef.current.run(m.id, refs, params);
+        }
+      } else if (m.id === 'object.step-out') {
         if (!stepOut(selSet)) selSet.clear();
       } else if (m.id === 'object.enter') {
         const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
@@ -35,10 +58,33 @@ export function EditingLayer() {
     return () => window.removeEventListener('message', onMessage);
   }, [selSet]);
 
+  // S2.6 — the object chords (⌥⌘G ⇧⌘G ⌘] ] [ ⌘[ ⇧⌘L), resolved through the registry in Edit mode.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || isReadOnlyCanvas() || toolRef.current === 'browse') return;
+      const governed = canvasModeStore(window).get().mode;
+      const action = resolveObjectKey(e, {
+        typing: isEditableTarget(e.target),
+        mode: governed ?? 'edit',
+        selection: refsOf(selRef.current).length > 0 ? 'object' : 'none',
+        singleKeys: canvasSingleKeys(),
+      });
+      if (!action) return;
+      e.preventDefault();
+      void opsRef.current.run(action);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <>
       {/* S2.1 — dashed parent outline + name tag; refs / crumbs / kind on select-set */}
       <EditingSelection />
+      {/* S2.6 — a locked object says so; the arrows say where they put things */}
+      <LockBadge readOnly={isReadOnlyCanvas()} />
+      <NudgeReadout readOnly={isReadOnlyCanvas()} />
     </>
   );
 }

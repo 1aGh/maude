@@ -12,6 +12,9 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
+import { objectFrame } from './frame.ts';
+import { objectHide } from './hide.ts';
+import { objectLock } from './lock.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import {
   EDIT_OP_STATUS,
@@ -22,9 +25,26 @@ import {
   parseEditOpRequest,
   REVERT_OP,
 } from './types.ts';
+import { objectUnframe } from './unframe.ts';
+import {
+  objectBringForward,
+  objectBringFront,
+  objectSendBack,
+  objectSendBackward,
+} from './z-order.ts';
 
 /** THE op table. Append one line per writer (S2.2 element.set-id, S2.6 object.frame, S3.0 links…). */
-export const EDIT_OPS: readonly EditOp[] = [];
+export const EDIT_OPS: readonly EditOp[] = [
+  // S2.6 — the object menu: frame / unframe, z-order, lock, hide
+  objectFrame,
+  objectUnframe,
+  objectBringFront,
+  objectBringForward,
+  objectSendBackward,
+  objectSendBack,
+  objectLock,
+  objectHide,
+];
 
 export interface AiHoldHit {
   /** a run of this Mac's person (Stop is in the AI chat) — else a member's */
