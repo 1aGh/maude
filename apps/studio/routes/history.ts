@@ -22,6 +22,7 @@
 //   - a canvas-only session naming a canvas it was not granted: 403 `not-in-scope`, the same answer
 //     a canvas that does not exist gets (U1); its AI rows read as their words (`scope: canvas-only`).
 
+import { changedSubject } from '../access/filters.ts';
 import { currentAccess, notInScopeResponse, toDesignRel } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
 import { offlineLine, parseFilter, type SaveWord } from '../client/v2/history/rows.ts';
@@ -392,14 +393,26 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
         if (rows === null) return json(200, { ok: false, reason: 'legacy' });
         let history = rows as HistoryRowLike[];
         if (access.canvasOnly) {
-          // Only what touched a granted canvas, naming only granted canvases (U1 / U5).
+          // Only what touched a granted canvas, naming only granted canvases (U1 / U5). S9.10 (U4) —
+          // the label is free text that can name another canvas: rewritten from the visible ones
+          // (`changedSubject`, as access/filters.ts `filterAcceptedHistory`). A row may carry
+          // repo-relative paths (a hub's), so each is judged design-root-relative.
+          const visible = (c: string) => {
+            const r = toDesignRel(c, designRel);
+            return r !== null && access.seesCanvas(r);
+          };
           history = history
             .map((r) => {
-              const canvases = r.canvases.filter((c) => access.seesCanvas(c));
+              const canvases = r.canvases.filter(visible);
               const lanes = r.lanes
-                ? Object.fromEntries(Object.entries(r.lanes).filter(([c]) => access.seesCanvas(c)))
+                ? Object.fromEntries(Object.entries(r.lanes).filter(([c]) => visible(c)))
                 : undefined;
-              return { ...r, canvases, ...(lanes ? { lanes } : {}) };
+              return {
+                ...r,
+                canvases,
+                label: changedSubject(canvases),
+                ...(lanes ? { lanes } : {}),
+              };
             })
             .filter((r) => r.canvases.length > 0);
         }

@@ -314,6 +314,26 @@ describe('a canvas-only session (V2-1.16 L4)', () => {
     expect(h.body.ok).toBe(true);
     for (const r of h.body.history) expect(r.canvases).toEqual(['ui/a.tsx']);
   });
+
+  test('S9.10 (U4) — /_api/project/history labels are rewritten from the visible canvases only', async () => {
+    rev = 0;
+    const rows = [
+      row({ at: T0, label: 'Moved the hero onto b', canvases: ['ui/a.tsx', 'ui/b.tsx'] }),
+      // repo-relative paths (a hub's rows) are judged the same way
+      row({ at: T0 + MIN, label: 'Edited b only', canvases: ['.design/ui/b.tsx'] }),
+      row({ at: T0 + 2 * MIN, label: 'Edit canvas', canvases: ['.design/ui/a.tsx'] }),
+    ];
+    const { rt } = fakeRuntime(rows);
+    const { specs } = routes(rt, ONLY_A);
+    const h = await get(specs, '/_api/project/history', {});
+    expect(h.body.ok).toBe(true);
+    expect(h.body.history.map((r: { label: string }) => r.label)).toEqual([
+      'Changed a',
+      'Changed a',
+    ]);
+    expect(JSON.stringify(h.body)).not.toContain('b.tsx');
+    expect(JSON.stringify(h.body)).not.toMatch(/onto b|b only/);
+  });
 });
 
 describe('sources (§5.2) and the offline line (§5.14)', () => {
