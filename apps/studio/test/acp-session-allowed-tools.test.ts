@@ -160,6 +160,10 @@ const STILL_AUTO = [
   'maude design runs list',
   'maude design runs list --canvas ui/x.tsx --json',
   'maude design runs stop r_abcdef01',
+  // S7.2 (V2-1.10 §5.7): local whisper.cpp only, effect project → auto; `transcribe` (cloud) stays
+  // in NOT_AUTO above
+  'maude design transcribe-local assets/abcd1234.mp4',
+  'maude design transcribe-local assets/abcd1234.mp4 --speech-only --json',
 ];
 
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {

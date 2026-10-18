@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b670b315dd4a",
+  "manifestVersion": "8f3dda3959f4",
   "actions": [
     {
       "id": "search.open",
@@ -2795,6 +2795,12 @@
     {
       "scope": "design",
       "verb": "design photo-adjust",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design transcribe-local",
       "effect": "project",
       "tier": "auto"
     },
