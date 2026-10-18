@@ -179,6 +179,7 @@ import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
+import { runHubRoutes } from './routes-v2/index.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
 import { seedRepo } from './seed-repo.mjs';
 import { DEFAULT_HUB_NAME, readSettings, writeSettings } from './settings.mjs';
@@ -316,34 +317,12 @@ function authError(reason) {
 /** Methods that cannot change anything, so a read-only session may use them. */
 const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/**
- * The mutating paths a READ-ONLY session is still allowed (Cloud Phase 25 C1).
- *
- * Deliberately a short, explicit list rather than a pattern:
- *   /auth/logout  — ending your OWN session is not changing the project, and a
- *                   viewer who cannot sign out is a viewer stuck signed in.
- *   /api/export   — "look, comment and download" is what the role means; the
- *                   export is a READ of the project, POSTed only because it
- *                   takes work to build.
- * Comments join this list when they exist (Phase 25 C3).
- */
-function readOnlyAllowedPath(path) {
-  return (
-    path === '/auth/logout' ||
-    path === '/api/export' ||
-    // Cloud Phase 25 B5 — comments. THE ONE WRITE A VIEWER HOLDS, promised in
-    // those words on the People page and stated in the role matrix
-    // (`src/role-matrix.mjs`: viewer.comment === true, viewer.annotate ===
-    // false). It is exactly where a scope bug turns "may leave a note" into
-    // "may edit the project", so it is ONE exact path, never a prefix — the
-    // handler behind it touches `_comments/` and nothing else, and it offers
-    // no delete.
-    path === '/api/studio/comments' ||
-    // Signing out of the browser door is ending your own session, same as
-    // /auth/logout is for the desktop's.
-    path === '/auth/browser/signout'
-  );
-}
+// The writes a READ-ONLY session may still make (Cloud Phase 25 C1) are no longer
+// a path allowlist here: each route's row in `routes-v2/` names its capability
+// (`/auth/logout` + `/auth/browser/signout` → session, `/api/export` → export),
+// and `access-gate.mjs` asks the one matrix (S9.3). The handler-less
+// `/api/studio/comments` string went with it; the comment door is
+// `POST /api/comments` (S9.7), whose row will say `comment`.
 
 /**
  * The HTTP write doors a writer of the wrong FILE FORMAT is refused at
@@ -1163,27 +1142,29 @@ export function createHub(config = {}) {
       // the Hocuspocus catch-all.
       const authPath = url.split('?')[0];
 
-      // ---- READ-ONLY SESSIONS (Cloud Phase 25 C1) -------------------------
+      // ---- THE ACCESS GATE + THE v2 ROUTE TABLE (Cloud Phase 25 C1 → S9.3) -
       //
       // ONE gate, at the single HTTP entry point, rather than a branch inside
-      // each of the sixteen mutating handlers — because a capability check
-      // that has to be remembered sixteen times is a capability check that is
-      // eventually forgotten once, and the once is the whole hole.
+      // each mutating handler — a capability check that has to be remembered
+      // sixteen times is eventually forgotten once, and the once is the hole.
       //
-      // A viewer may still do the things "viewer" means (Phase 25: look,
-      // comment, download), so the exceptions are named explicitly and are
-      // few. Everything else that changes state is refused with the same
-      // sentence the People page promises.
-      if (!READ_ONLY_SAFE_METHODS.has(method) && !readOnlyAllowedPath(authPath)) {
-        const presented = (request.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
-        const bearer = presented ? verifyToken(dataDir, presented, secret) : null;
-        if (bearer?.readOnly) {
-          respondJson(response, 403, {
-            error: 'You can look at this project, comment and download it, but not change it.',
-            reason: 'read-only',
-          });
-          bailFromOnRequest();
-        }
+      // Every hub route is a row in `routes-v2/` naming the capability each
+      // method half needs (V2-1.7 §5.2): a write needs `edit` unless its row
+      // says `session` or `export`, and a byte route needs `export` on a GET
+      // too — Can view is refused every download (A19). New v2 routes are rows
+      // with handlers, answered here; never another branch below.
+      if (
+        await runHubRoutes({
+          request,
+          response,
+          method,
+          path: authPath,
+          canvasHost: Boolean(studioProxy && isCanvasHost(request)),
+          verify: (token) => verifyToken(dataDir, token, secret),
+          respondJson: (status, payload) => respondJson(response, status, payload),
+        })
+      ) {
+        bailFromOnRequest();
       }
 
       // ---- THE FORMAT GATE (V2-1.12 §5.4 / §5.11 F2) ----------------------

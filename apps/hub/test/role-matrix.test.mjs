@@ -25,6 +25,7 @@ import {
   projectRoleForAccount,
   ROLES,
 } from '../src/role-matrix.mjs';
+import { rowFor } from '../src/routes-v2/index.mjs';
 
 // Namespaces as plain objects, so the test can compare every export by name.
 const oneTable = { ...(await import('../../studio/access/roles.ts')) };
@@ -155,12 +156,15 @@ test("the cell's read-only gate allows exactly what a viewer's capabilities say"
   // The gate is a path allowlist; the matrix is a capability table. They are
   // different shapes, so this asserts the MAPPING between them explicitly —
   // which is what makes adding a path a deliberate act.
-  const src = readFileSync(join(HERE, 'src/server.mjs'), 'utf8');
-  const fn = /function readOnlyAllowedPath\(path\) \{([\s\S]*?)\n\}/.exec(src)?.[1] ?? '';
-  assert.ok(fn.includes("'/auth/logout'"), 'a viewer must be able to sign out');
-  assert.ok(fn.includes("'/api/export'"), 'a viewer must be able to download (export)');
-  // Comments are the one write a viewer holds. When the comment route lands on
-  // this list, this assertion is the reminder that the matrix already says so.
+  // S9.3: the gate is no longer a path allowlist — every hub route row names
+  // its capability and the gate asks this matrix, so the mapping IS the table.
+  const unsafe = (path) => rowFor(path).cap.unsafe;
+  assert.ok(can('viewer', unsafe('/auth/logout')), 'a viewer must be able to sign out');
+  assert.ok(can('viewer', unsafe('/api/export')), 'a viewer must be able to download (export)');
+  assert.equal(can('observer', unsafe('/api/export')), false, 'Can view downloads nothing (A19)');
+  assert.ok(can('observer', unsafe('/auth/logout')), 'Can view can still sign out');
+  // Comments are the one write a viewer holds. When the comment door lands
+  // (S9.7, a `comment` row), this assertion is the reminder the matrix says so.
   assert.equal(can('viewer', 'comment'), true);
 });
 

@@ -201,7 +201,7 @@ describe('S9.2 — credentials: a 1.9.1 desktop keeps working', () => {
     }
   });
 
-  test('a v1 client presenting a v2 claim gets 426, in words it can show', async () => {
+  test('a v1 client presenting a v2 claim gets 426, in words it can show (S9.2)', async () => {
     const res = await v1Login(PORT, v2ProjectToken({ role: 'observer' }));
     assert.equal(res.status, 426);
     const body = await res.json();
@@ -209,4 +209,49 @@ describe('S9.2 — credentials: a 1.9.1 desktop keeps working', () => {
     assert.equal(body.error, 'Update Maude to open this project.');
     assert.equal(body.token, undefined);
   });
+});
+
+// ------------------------------------------------------------------- S9.3
+
+/** The 1.9.1 desktop's file-plane write: PUT through the one door, no declaration. */
+function v1FilePut(port, peerToken) {
+  return fetch(`http://127.0.0.1:${port}/api/file/assets/a.png`, {
+    method: 'PUT',
+    headers: { authorization: `Bearer ${peerToken}`, 'content-type': 'image/png' },
+    body: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  });
+}
+
+/** The 1.9.1 desktop's byte pulls. */
+const V1_BYTE_PULLS = ['/_project-file/assets/a.png', '/assets/a.png', '/api/history/file'];
+
+describe('S9.3 — the capability gate: a 1.9.1 desktop sees today’s answers', () => {
+  for (const role of ['owner', 'member', 'viewer']) {
+    test(`${role}: byte pulls are not refused; sign-out works; a write is judged as today`, async () => {
+      const { token } = await (await v1Login(PORT, v1ProjectToken(role))).json();
+      for (const path of V1_BYTE_PULLS) {
+        const res = await fetch(`http://127.0.0.1:${PORT}${path}`, {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        assert.notEqual(res.status, 403, `${role} ${path}`);
+      }
+      const put = await v1FilePut(PORT, token);
+      const putBody = await put.json().catch(() => null);
+      if (role === 'viewer') {
+        // Byte for byte what 1.9.1 shows a viewer today.
+        assert.equal(put.status, 403);
+        assert.deepEqual(putBody, {
+          error: 'You can look at this project, comment and download it, but not change it.',
+          reason: 'read-only',
+        });
+      } else {
+        assert.notEqual(putBody?.reason, 'read-only', `${role} is not a read-only session`);
+      }
+      const logout = await fetch(`http://127.0.0.1:${PORT}/auth/logout`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      assert.equal(logout.status, 200, `${role} signs out`);
+    });
+  }
 });

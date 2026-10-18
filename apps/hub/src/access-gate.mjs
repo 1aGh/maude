@@ -1,0 +1,140 @@
+// The hub's access gate — V2-1.16 §5.2, V2-1.7 A19 (S9.3).
+//
+// THE ONLY HUB MODULE THAT TURNS A CREDENTIAL INTO AN `Access`. Every door that
+// asks "may this session do X" asks it here, through the one predicate module
+// (`apps/studio/access/scope.ts`) the studio, the cloud and the cells import too.
+// A second copy of "what a role means" in a handler is how two doors drift.
+//
+// What S9.3 puts here:
+//   - `peerAccess(match)` — a verified peer token (`tokens.mjs verifyToken`) as an
+//     Access. Its `closure()` is null until S9.4 computes the canvas closure;
+//   - `hubAccessRefusal(...)` — the ONE capability check `onRequest` runs, for
+//     every classified hub route (`routes-v2/index.mjs`). It replaces the
+//     `bearer.readOnly` check + `readOnlyAllowedPath` allowlist: a write needs
+//     `edit` unless its row names another capability (`session` to sign out,
+//     `export` to download), and a byte route needs `export` on a GET too —
+//     which is A19: Can view (`observer`) is refused every download.
+//
+// A COURTESY LIMIT, NOT DRM (V2-1.7 §4 decision 4). A viewer's browser still
+// holds every byte it renders; this refuses the routes that hand project bytes
+// away as files.
+
+import { legacyClaim, resolveAccess } from '../../studio/access/scope.ts';
+
+/** Today's refusal for a read-only session (Cloud Phase 25 C1) — v1.9.1 shows it verbatim. */
+export const READ_ONLY_REFUSAL = Object.freeze({
+  error: 'You can look at this project, comment and download it, but not change it.',
+  reason: 'read-only',
+});
+
+/** Can view's refusal (V2-1.7 §5.9 copy) — it holds no comment and no download. */
+export const OBSERVER_REFUSAL = Object.freeze({
+  error: 'You can look at this project, not change it.',
+  reason: 'read-only',
+});
+
+/** U1 — invisible answers exactly as missing; the copy never says why (V2-1.7 G2). */
+export const NOT_IN_SCOPE_REFUSAL = Object.freeze({
+  error: 'not-in-scope',
+  reason: 'not-in-scope',
+});
+
+/**
+ * Capabilities the `read_only` projection on a peer token can never hold. A token
+ * stored read-only stays read-only whatever its role column says — the bit is what
+ * every pre-v2 door reads, so the gate must never be wider than it.
+ */
+const WRITE_CAPABILITIES = new Set([
+  'annotate',
+  'edit',
+  'trash',
+  'summon',
+  'invite',
+  'delete',
+  'mirror',
+]);
+
+/**
+ * The access claim a verified peer token carries.
+ *
+ *  - `access` column set → the claim the mint door decided (S9.2);
+ *  - the operator's env secret → the project's owner;
+ *  - a role column → `legacyClaim(role)` (an account role is translated);
+ *  - NO role at all — a token minted before roles existed, a machine token, an
+ *    admin-console invite — keeps exactly what it has always had: the `read_only`
+ *    bit says viewer or member. Refusing it would break every self-hosted
+ *    desktop linked through the admin console (U7: project-level sessions are
+ *    unchanged); treating it as owner would be an escalation.
+ */
+export function claimForMatch(match) {
+  if (!match) return null;
+  if (match.access) return match.access;
+  if (match.source === 'env') return { v: 1, role: 'owner' };
+  if (match.role) return legacyClaim(match.role);
+  return legacyClaim(match.readOnly ? 'viewer' : 'member');
+}
+
+/**
+ * A verified peer token as the one Access object every door asks.
+ *
+ * @param {object | null} match `verifyToken`'s result
+ * @returns {{ access: import('../../studio/access/scope.ts').Access, readOnly: boolean, closure: () => null } | null}
+ */
+export function peerAccess(match) {
+  if (!match) return null;
+  return {
+    access: resolveAccess(claimForMatch(match)),
+    readOnly: !!match.readOnly,
+    // S9.4 computes the canvas closure (V2-1.7 G2–G4) for canvas-only sessions.
+    closure: () => null,
+  };
+}
+
+/** The bearer a request presents, or null. */
+export function presentedBearer(request) {
+  const raw = request?.headers?.authorization;
+  const value = (typeof raw === 'string' ? raw : '').replace(/^Bearer\s+/i, '').trim();
+  return value || null;
+}
+
+/**
+ * The capability check `onRequest` runs once per request.
+ *
+ * `capability` is the classified row's answer for this method (null = no check).
+ * Only a request that PRESENTS a credential that VERIFIES is judged here: an
+ * absent or wrong token falls through to its handler, which answers its own 401
+ * exactly as today.
+ *
+ * @param {{ request: object, capability: string | null, scope: string, verify: (token: string) => object | null }} ctx
+ * @returns {{ status: number, body: object } | null} a refusal, or null to go on
+ */
+export function hubAccessRefusal({ request, capability, scope, verify }) {
+  if (!capability) return null;
+  const token = presentedBearer(request);
+  if (!token) return null;
+  let match;
+  try {
+    match = verify(token);
+  } catch {
+    match = null;
+  }
+  const peer = peerAccess(match);
+  if (!peer) return null;
+  const { access } = peer;
+  // INTERIM, FAIL CLOSED (S9.3 → S9.4/S9.5): a canvas-only session reaches no
+  // project route until the doors that compute its closure answer for it. It
+  // gets the U1 answer, the same one a missing path will give it.
+  if (access.canvasOnly && scope !== 'none') {
+    return { status: 403, body: { ...NOT_IN_SCOPE_REFUSAL } };
+  }
+  // A canvas-only session holds nothing at canvas `null` (lead decision: even
+  // `session` must pass a canvas). A route that is no project's at all (scope
+  // `none` — sign out) asks whether ANY granted canvas carries the capability.
+  const held = access.canvasOnly
+    ? access.grants.some((g) => access.can(capability, g.c))
+    : access.can(capability, null);
+  const allowed = held && !(peer.readOnly && WRITE_CAPABILITIES.has(capability));
+  if (allowed) return null;
+  if (access.role === 'observer') return { status: 403, body: { ...OBSERVER_REFUSAL } };
+  return { status: 403, body: { ...READ_ONLY_REFUSAL } };
+}
