@@ -203,7 +203,12 @@
       "parts": {
         "window-tabs": {
           "present": true,
-          "where": "the tab strip webview (V2-3.7) — not part of a project page"
+          "where": "the tab strip webview (V2-3.7) — not part of a project page",
+          "search": {
+            "present": true,
+            "groups": "by project once another project answers",
+            "opens": "its tab"
+          }
         },
         "project-pill": {
           "present": true,
@@ -541,7 +546,11 @@
       "parts": {
         "window-tabs": {
           "present": false,
-          "why": "the browser tab is the tab"
+          "why": "the browser tab is the tab",
+          "search": {
+            "present": false,
+            "why": "a browser tab is one project: ⌘K searches this project only (other projects live in the desktop app’s tabs)"
+          }
         },
         "project-pill": {
           "present": true,
@@ -871,7 +880,11 @@
       "parts": {
         "window-tabs": {
           "present": false,
-          "why": "a cloud project is one browser tab; the dashboard is the list of projects"
+          "why": "a cloud project is one browser tab; the dashboard is the list of projects",
+          "search": {
+            "present": false,
+            "why": "a browser tab is one project: ⌘K searches this project only (other projects live in the desktop app’s tabs)"
+          }
         },
         "project-pill": {
           "present": true,
@@ -1127,7 +1140,11 @@
       "parts": {
         "window-tabs": {
           "present": false,
-          "why": "a cloud project is one browser tab; the dashboard is the list of projects"
+          "why": "a cloud project is one browser tab; the dashboard is the list of projects",
+          "search": {
+            "present": false,
+            "why": "a browser tab is one project: ⌘K searches this project only (other projects live in the desktop app’s tabs)"
+          }
         },
         "project-pill": {
           "present": true,
@@ -1383,7 +1400,11 @@
       "parts": {
         "window-tabs": {
           "present": false,
-          "why": "a cloud project is one browser tab; the dashboard is the list of projects"
+          "why": "a cloud project is one browser tab; the dashboard is the list of projects",
+          "search": {
+            "present": false,
+            "why": "a browser tab is one project: ⌘K searches this project only (other projects live in the desktop app’s tabs)"
+          }
         },
         "project-pill": {
           "present": true,
@@ -1638,7 +1659,11 @@
       "parts": {
         "window-tabs": {
           "present": false,
-          "why": "the browser tab is the tab"
+          "why": "the browser tab is the tab",
+          "search": {
+            "present": false,
+            "why": "a browser tab is one project: ⌘K searches this project only (other projects live in the desktop app’s tabs)"
+          }
         },
         "project-pill": {
           "present": true,

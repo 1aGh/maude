@@ -159,6 +159,14 @@ export interface AcpBridgeOptions {
   onUsage?: (usage: BridgeUsage) => void;
   /** Override for `PERMISSION_TIMEOUT_MS` (tests only — production always gets the real default). */
   permissionTimeoutMs?: number;
+  /**
+   * S5.6 (S5-slices D7, V2-1.15 Q1) — how long nobody has been watching this bridge, in ms
+   * (0 = a socket is attached). With it, the permission/elicitation deadline runs ONLY while
+   * detached: an attended request waits for its answer ("Needs you never times out"), a detached
+   * one is denied once it has been unattended for the full timeout. Without it, the fixed
+   * DDR-179 deadline. Every other abandonment path (cancel, stop) still denies at once.
+   */
+  detachedFor?: () => number;
   /** Override for `CANCEL_ESCALATION_MS` (tests only — production always gets the real default). */
   cancelEscalationMs?: number;
 }
@@ -1282,11 +1290,13 @@ export class AcpBridge {
           : params;
         const optionIds = new Set(offered.map((o) => o.optionId));
         return new Promise<RequestPermissionResponse>((resolve) => {
-          const timer = setTimeout(
-            () => this.resolvePermission(id, 'cancelled'),
-            this.opts.permissionTimeoutMs ?? PERMISSION_TIMEOUT_MS
-          );
-          this.pendingPermissions.set(id, { resolve, timer, optionIds });
+          const slot = {
+            resolve,
+            timer: undefined as unknown as ReturnType<typeof setTimeout>,
+            optionIds,
+          };
+          this.armDecisionDeadline(slot, () => this.resolvePermission(id, 'cancelled'));
+          this.pendingPermissions.set(id, slot);
           this.opts.onPermissionRequest?.(id, outgoing, scope.info);
         });
       },
@@ -1329,11 +1339,9 @@ export class AcpBridge {
         }
         const id = crypto.randomUUID();
         return new Promise<CreateElicitationResponse>((resolve) => {
-          const timer = setTimeout(
-            () => this.resolveElicitation(id, { action: 'decline' }),
-            this.opts.permissionTimeoutMs ?? PERMISSION_TIMEOUT_MS
-          );
-          this.pendingElicitations.set(id, { resolve, timer });
+          const slot = { resolve, timer: undefined as unknown as ReturnType<typeof setTimeout> };
+          this.armDecisionDeadline(slot, () => this.resolveElicitation(id, { action: 'decline' }));
+          this.pendingElicitations.set(id, slot);
           this.opts.onElicitationRequest?.(id, params);
         });
       },
@@ -1583,6 +1591,35 @@ export class AcpBridge {
     // no matter which card it was clicked from.
     if (!allowOnce) return { stripAlways: true };
     return { autoApprove: allowOnce.optionId };
+  }
+
+  /**
+   * S5.6 (D7) — the fail-closed deadline of a pending human decision. Without `detachedFor` it is
+   * the fixed DDR-179 timeout. With it, the deadline counts only unattended time: on each expiry
+   * it re-reads how long nobody has watched and either denies (`onExpire`) or re-arms for the
+   * rest. The slot's `timer` is replaced in place, so a resolve always clears the live one.
+   */
+  private armDecisionDeadline(
+    slot: { timer: ReturnType<typeof setTimeout> },
+    onExpire: () => void
+  ): void {
+    const limit = this.opts.permissionTimeoutMs ?? PERMISSION_TIMEOUT_MS;
+    const arm = (wait: number) => {
+      slot.timer = setTimeout(() => {
+        let away = Number.POSITIVE_INFINITY;
+        if (this.opts.detachedFor) {
+          try {
+            away = this.opts.detachedFor();
+          } catch {
+            away = Number.POSITIVE_INFINITY; // can't tell who is watching → fail closed
+          }
+          if (typeof away !== 'number' || Number.isNaN(away)) away = Number.POSITIVE_INFINITY;
+        }
+        if (this.stopped || away >= limit) onExpire();
+        else arm(Math.max(25, limit - Math.max(0, away)));
+      }, wait);
+    };
+    arm(limit);
   }
 
   /**

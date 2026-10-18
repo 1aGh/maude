@@ -110,6 +110,7 @@ import {
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
+import { usePresentStage } from './present/present-stage.tsx';
 import type { ArtboardPrintProp } from './print/units.ts';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
@@ -2185,6 +2186,10 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
       if (shouldBootRefit(boot, c.viewport, c.isInteracting, s.insets)) c.refitBoot();
     });
   }, []);
+
+  // S3.2a — Present · Artboards: inert until the shell's `set-mode` says so (present/present-stage.tsx).
+  const presentSelection = useSelectionSetOptional();
+  usePresentStage({ hostRef, worldRef, artboards, controller, selection: presentSelection });
 
   const rectById = useMemo(() => {
     const m = new Map<string, ArtboardRect>();

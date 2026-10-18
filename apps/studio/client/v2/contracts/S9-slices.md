@@ -69,7 +69,7 @@ Phase 4 already ships:
 | Contract file | Writer | Needed by | Content |
 | --- | --- | --- | --- |
 | `apps/studio/client/v2/contracts/S3-present-link.md` | S3 spike/planner | S9.13 | `/present/<canvas>` auth (which link roles may open it), the presenter-position stateless message, Catch up |
-| `apps/studio/client/v2/contracts/S4-votes-ballots.md` | S4 planner | S9.13 | ballot shape, timer, reveal; A18: the hub holds ballots in cloud projects, local = UI-hidden |
+| `apps/studio/client/v2/contracts/S4-S9-votes-comments.md` (written; was `S4-votes-ballots.md`) | S4 planner | S9.13, S9.7, S9.9, S9.22 | ballot shape, timer, reveal, the `vote` capability, secrecy lanes; A18: the hub holds ballots in linked projects, local = UI-hidden; comment `from` + sticky ↔ comment; D5 |
 | `apps/studio/client/v2/contracts/S1-canvas-row-slots.md` | S1 planner | S9.21, S9.24 | Canvases panel row meta + foot slots ("Shared with you · Can view", "not sent" / "sending", "In the trash · open here", the canvas-only foot); Trash store id + `POST /api/trash/clear` route (the gate is S9's: `delete`); Version history calling `access/filters.ts visibleHistoryRows` |
 | (no file — a patch note in S5's plan) | S5 | S9.9, S9.11 | `/_ws/acp` + `/_api/acp/*` refused without `edit` (D2) through `access/request.ts acpRefusal`; V2-1.15 run records filtered for canvas-only (L13) |
 | (no file — a patch note in S7's plan) | S7 | S9.22 | the timeline renders comment markers from `commentsAt(videoArtboard)`; print mm needs the artboard's physical size from the kind props |
