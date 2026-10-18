@@ -2149,7 +2149,9 @@ export function useCanvasBridge({
         postToActiveCanvas({
           dgn: 'insert-sticker',
           path: j.path,
-          ...(sticker.pack && sticker.id ? { sticker: { pack: sticker.pack, id: sticker.id } } : {}),
+          ...(sticker.pack && sticker.id
+            ? { sticker: { pack: sticker.pack, id: sticker.id } }
+            : {}),
         });
       } catch {
         console.warn('[sticker-picker] could not load or upload that sticker');

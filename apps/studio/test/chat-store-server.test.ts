@@ -40,7 +40,10 @@ describe('chat store routes on a booted server', () => {
         groups: Array<{ canvas: string | null; chats: Array<{ id: string }> }>;
       };
       expect(
-        grouped.groups.map((g) => g.canvas).filter((c): c is string => c !== null).sort()
+        grouped.groups
+          .map((g) => g.canvas)
+          .filter((c): c is string => c !== null)
+          .sort()
       ).toEqual(['ui/pricing.tsx', 'ui/reel.tsx']);
       expect(grouped.groups.at(-1)?.canvas).toBeNull();
 
