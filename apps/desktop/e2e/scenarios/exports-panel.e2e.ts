@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { $, browser, expect } from '@wdio/globals';
+import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -10,8 +10,8 @@ import { canvasRow } from '../helpers/tree';
 /**
  * Exports panel — the native half (S8.23, apps/desktop/src-tauri/src/export_save.rs).
  *
- * S8.4 owns the panel UI (rows, done toast, Retry) and adds its legs here; this file
- * starts with what only the shell can do and a browser can't fake:
+ * S8.4 owns the panel UI (rows, done toast, Retry): its legs are the last three `it`s below.
+ * The first ones are what only the shell can do and a browser can't fake:
  *
  *   - Save to: `save_export` writes the finished job's bytes (Rust fetches them from
  *     this project's own server by job id) and returns the path. The first save asks
@@ -180,5 +180,45 @@ describe('exports-panel (native-desktop)', () => {
     // A JSON body (not the raw bytes) is refused too.
     expect((await call('clipboard_write_png', { bytes })).ok).toBe(false);
     await capture('clipboard-png');
+  });
+
+  // ── S8.4: the panel itself (DOM-driven; the Share cluster's Exports icon opens it) ─────────────
+
+  it('the Exports icon opens the panel with this export as a row that says where it runs', async () => {
+    await (await $('[data-testid="share-cluster-exports"]')).click();
+    const panel = await $('[data-testid="exports-panel"]');
+    await panel.waitForDisplayed({ timeout: 10_000 });
+    const row = await $(`[data-testid="export-job-${jobId}"]`);
+    await row.waitForDisplayed({ timeout: 10_000 });
+    expect(await row.getAttribute('data-where')).toBe('this-mac');
+    expect(await (await $(`[data-testid="export-job-meta-${jobId}"]`)).getText()).toContain(
+      'On this Mac'
+    );
+    await capture('exports-panel-row');
+  });
+
+  it('a row opens its folder (Show in Finder) and exports again', async () => {
+    // Show in Finder saves where "Save to" says (the debug build answers the panel), then reveals;
+    // MAUDE_E2E_NO_REVEAL keeps Finder from popping.
+    await (await $(`[data-testid="export-job-reveal-${jobId}"]`)).click();
+    await browser.waitUntil(async () => existsSync(savePath), {
+      timeout: 20_000,
+      timeoutMsg: 'Show in Finder did not save the file',
+    });
+    const before = (await $$('[data-testid^="export-job-"][data-state]')).length;
+    await (await $(`[data-testid="export-job-again-${jobId}"]`)).click();
+    await browser.waitUntil(
+      async () => (await $$('[data-testid^="export-job-"][data-state]')).length > before,
+      { timeout: 60_000, timeoutMsg: 'Export again did not add a row' }
+    );
+    await capture('exports-panel-again');
+  });
+
+  it('Esc folds the panel', async () => {
+    await browser.keys('Escape');
+    await (await $('[data-testid="exports-panel"]')).waitForExist({
+      reverse: true,
+      timeout: 5_000,
+    });
   });
 });

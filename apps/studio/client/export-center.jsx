@@ -1,39 +1,21 @@
 // export-center.jsx — background export notification center
-// (feature-background-export-notification-center).
+// (feature-background-export-notification-center; the surfaces are S8.4's).
 //
-//   useExportCenter()  → headless handle (hydrate + WS upsert + toast/panel state)
-//   <ExportToast>       → completion notice (bottom-left, mirrors WhatsNewToast)
-//   <ExportPanel>       → job list (reuses the help-modal backdrop)
+//   useExportCenter()  → headless handle (hydrate + WS upsert + toast/panel state + the row actions:
+//                        reveal / download / again / retry)
+//   <ExportToast>       → completion notice (shim → v2/export/done-toast.jsx)
+//   <ExportPanel>       → the last 20 exports (shim → v2/export/exports-panel.jsx)
 //
-// Structurally a near-exact twin of whats-new.jsx, but driven by live WS
-// `export:job` pushes (via `upsert`, called from app.jsx's WS message handler)
-// instead of a static feed. Styling lives in client/styles/4-components.css (`.st-export-*`).
+// Driven by live WS `export:job` pushes (via `upsert`, called from app.jsx's WS message handler).
 // The entry point is the Share cluster's Exports icon (v2/shell/share-cluster.jsx).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { dismissNotice, notify, summarizeNoticeText } from '../notifications.tsx';
-import { isNativeApp, saveExport } from './github.js';
-
-const FORMAT_LABELS = {
-  png: 'PNG',
-  pdf: 'PDF',
-  svg: 'SVG',
-  html: 'HTML',
-  pptx: 'PPTX',
-  canva: 'Canva',
-  zip: 'ZIP',
-  mp4: 'MP4',
-  webm: 'WebM',
-  gif: 'GIF',
-};
-const SCOPE_LABELS = {
-  selection: 'Selection',
-  artboard: 'Artboard',
-  'canvas-as-separate': 'Canvas → separate',
-  'canvas-whole': 'Whole canvas',
-  'selection-bounds': 'Selection area',
-  'project-raw': 'Project (raw)',
-};
+import { defaultScopeForFormat, isScopeValidForFormat } from '../exporters/format-scopes.ts';
+import { notify } from '../notifications.tsx';
+import { nativeSave } from './v2/export/native-save.js';
+import { replayBody } from './v2/export/run-export.js';
+import { retryItems } from './v2/export/exports-model.js';
+import { isNativeApp } from './github.js';
 
 async function fetchJobBytes(id) {
   const r = await fetch(`/_api/export-jobs/download?id=${encodeURIComponent(id)}`);
@@ -58,15 +40,6 @@ async function autoDownloadBlob(id, fallbackName) {
   URL.revokeObjectURL(url);
 }
 
-// Native "Save…" — unlike the web `download()` path, this does NOT fetch the
-// job's bytes into the renderer first. `save_export` fetches them itself
-// (RCA issue-desktop-print-pdf-save-as-hang-large-payload: routing a
-// hundreds-of-MB export through a JS Uint8Array + Tauri's JSON IPC froze the
-// app), so all this needs is the filename already carried on the job record.
-async function saveNative(id, filename) {
-  return saveExport(filename || 'export', id);
-}
-
 /**
  * @param {{ enabled?: boolean }} [opts] — `enabled` false suppresses the
  *   hydration fetch. The cloud shell passes false: `/_api/export-jobs` is
@@ -85,6 +58,10 @@ export function useExportCenter({ enabled = true } = {}) {
   // pointless; they only gate one-shot side effects).
   const finalizedRef = useRef(new Set()); // auto-download fires at most once per job
   const startToastShownRef = useRef(new Set()); // "Exporting…" toast fires at most once per job
+  const hydratedRef = useRef(new Set()); // seen at load: a snapshot, never a live finish
+  const autoSavedRef = useRef(new Set()); // a spec with its own Save to saves at most once per run
+  // job id → the path this Mac saved it to (Show in Finder reveals only what was saved this run)
+  const [savedPaths, setSavedPaths] = useState(() => new Map());
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -101,6 +78,7 @@ export function useExportCenter({ enabled = true } = {}) {
           // job that already reached this status before we opened.
           prevStatusRef.current.set(job.id, job.status);
           startToastShownRef.current.add(job.id);
+          hydratedRef.current.add(job.id);
         }
         setJobs(m);
       })
@@ -157,7 +135,8 @@ export function useExportCenter({ enabled = true } = {}) {
     }
 
     // Native (Tauri) never auto-pops the OS save dialog — it would interrupt
-    // whatever the user is doing elsewhere. Always an explicit "Save…" click.
+    // whatever the user is doing elsewhere. A spec that names where to save (the effect below) saves
+    // itself; otherwise Show in Finder asks, once.
     if (isNativeApp() || !justFinished.length) return;
     for (const job of justFinished) {
       if (job.status !== 'done') continue;
@@ -193,7 +172,7 @@ export function useExportCenter({ enabled = true } = {}) {
   const withSaving = useCallback(async (job, fn) => {
     setSavingIds((prev) => new Set(prev).add(job.id));
     try {
-      await fn();
+      return await fn();
     } finally {
       setSavingIds((prev) => {
         const next = new Set(prev);
@@ -203,11 +182,20 @@ export function useExportCenter({ enabled = true } = {}) {
     }
   }, []);
 
-  // Manual "Download" (web, unfocused-tab fallback) / "Save…" (native) — the
-  // toast/panel row action. Both mark the job finalized so the focus-gated
-  // auto-download effect above doesn't ALSO fire for it later, and both track
-  // a busy state (`savingIds`) so the button can show it's working instead of
-  // going silent while the bytes fetch + (for native) the OS dialog opens.
+  const fail = useCallback((job, title, message) => {
+    notify({
+      id: `export-error-${job.id}`,
+      group: 'exports',
+      kind: 'error',
+      title,
+      description: message,
+    });
+  }, []);
+
+  // Manual "Download" (web, unfocused-tab fallback) — the toast/panel row action in a browser. It
+  // marks the job finalized so the focus-gated auto-download effect above doesn't ALSO fire for it
+  // later, and tracks a busy state (`savingIds`) so the button shows it's working instead of going
+  // silent while the bytes fetch.
   const download = useCallback(
     async (job) => {
       finalizedRef.current.add(job.id);
@@ -215,13 +203,100 @@ export function useExportCenter({ enabled = true } = {}) {
     },
     [withSaving]
   );
+  // Save the job's file on this Mac (the Mac app): where `spec.options.saveTo` says, else it asks
+  // once. The bytes never pass through this page (S8.23, native-save.js). Remembers the path so
+  // Show in Finder can reveal it.
   const save = useCallback(
     async (job) => {
       finalizedRef.current.add(job.id);
-      await withSaving(job, () => saveNative(job.id, job.filename));
+      return withSaving(job, async () => {
+        const r = await nativeSave().save({
+          jobId: job.id,
+          filename: job.filename,
+          saveTo: job.spec?.options?.saveTo,
+        });
+        if (r.ok && r.path) setSavedPaths((prev) => new Map(prev).set(job.id, r.path));
+        else if (!r.ok && r.reason === 'refused')
+          fail(job, "Couldn't save the export", r.error || 'Try again.');
+        return r;
+      });
     },
-    [withSaving]
+    [withSaving, fail]
   );
+  // Show in Finder: reveal the saved file, saving it first when this run has not (one ask, then it
+  // is remembered). A browser tab has no Finder; its rows download instead.
+  const reveal = useCallback(
+    async (job) => {
+      let path = savedPaths.get(job.id);
+      if (!path) {
+        const saved = await save(job);
+        if (!saved?.ok || !saved.path) return;
+        path = saved.path;
+      }
+      const r = await withSaving(job, () => nativeSave().reveal(path));
+      if (!r.ok && r.reason === 'refused')
+        fail(job, "Couldn't show the file", r.error || "Maude didn't save that file.");
+    },
+    [savedPaths, save, withSaving, fail]
+  );
+  // Export again: the same spec (a v2 job) or the same v1 job, as the sheet's Recent row sends it.
+  const again = useCallback(
+    async (job) => {
+      const body = replayBody(job, { isScopeValidForFormat, defaultScopeForFormat });
+      try {
+        const r = await fetch('/_api/export-jobs', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) fail(job, "Couldn't export again", (await r.text()) || `Refused (${r.status})`);
+      } catch (err) {
+        fail(job, "Couldn't export again", err?.message || String(err));
+      }
+    },
+    [fail]
+  );
+  // Retry: run again only the items that did not make it (POST /_api/export-jobs/retry). The job goes
+  // back to running and its row and file update in place.
+  const retry = useCallback(
+    async (job) => {
+      finalizedRef.current.delete(job.id);
+      autoSavedRef.current.delete(job.id);
+      try {
+        const r = await fetch('/_api/export-jobs/retry', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: job.id, items: retryItems(job) }),
+        });
+        if (!r.ok)
+          fail(
+            job,
+            "Couldn't retry",
+            r.status === 404 || r.status === 409
+              ? 'That export is no longer here. Export it again.'
+              : (await r.text()) || `Refused (${r.status})`
+          );
+      } catch (err) {
+        fail(job, "Couldn't retry", err?.message || String(err));
+      }
+    },
+    [fail]
+  );
+
+  // A spec that names where to save (Downloads, or the remembered folder) saves itself on this Mac the
+  // moment it is done — no dialog. Any other waits for Show in Finder, which asks once.
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    for (const job of jobs.values()) {
+      if (job.status !== 'done' || !job.filename || job.deliveredInBrowser) continue;
+      const to = job.spec?.options?.saveTo;
+      if (to !== 'downloads' && to !== 'remembered') continue;
+      if (hydratedRef.current.has(job.id) || autoSavedRef.current.has(job.id)) continue;
+      if (finalizedRef.current.has(job.id) || !document.hasFocus()) continue;
+      autoSavedRef.current.add(job.id);
+      void save(job);
+    }
+  }, [jobs, save]);
 
   const toastJobId = panelOpen ? null : (toastQueue[0] ?? null);
 
@@ -241,304 +316,15 @@ export function useExportCenter({ enabled = true } = {}) {
     dismissToast,
     download,
     save,
+    reveal,
+    again,
+    retry,
+    savedPaths,
     savingIds,
   };
 }
 
-function jobLabel(job) {
-  const fmt = FORMAT_LABELS[job.format] || String(job.format || '').toUpperCase();
-  const scope = SCOPE_LABELS[job.scope] || job.scope;
-  return `${fmt} · ${scope}`;
-}
-
-// Native "Save…" opens the OS file picker; web "Download" streams a blob
-// through <a download> — distinct verbs, so the busy label stays distinct too
-// (the fetch-bytes step behind both can take several seconds on a large export).
-function saveActionLabel(saving) {
-  if (isNativeApp()) return saving ? 'Saving…' : 'Save…';
-  return saving ? 'Downloading…' : 'Download';
-}
-
-function ProgressBar({ progress }) {
-  if (!progress || !progress.total) {
-    return (
-      <div className="st-export-progress st-export-progress--indeterminate" aria-hidden="true" />
-    );
-  }
-  const pct = Math.max(0, Math.min(100, Math.round((progress.current / progress.total) * 100)));
-  return (
-    <div
-      className="st-export-progress"
-      role="progressbar"
-      aria-valuenow={pct}
-      aria-valuemin={0}
-      aria-valuemax={100}
-    >
-      <div className="st-export-progress-bar" style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
-// Per-job anchor for the ETA: the FIRST progress sample the client sees. For a
-// video export that's the first frame-step frame — after the (progress-less)
-// renderMediaOnWeb attempt — so the rate is measured over real capture work and
-// isn't skewed by that pre-roll. Keyed by job id; cleared when the job ends.
-const etaAnchors = new Map();
-
-/** Rough "~N min left" from the rate since the first observed progress sample.
- *  Recomputes on every progress update (frame-step emits ~1–2/s), so it ticks
- *  down live without a timer. Returns null until there's enough delta to trust. */
-function etaLabel(job) {
-  const cur = job.progress?.current;
-  const total = job.progress?.total;
-  if (!cur || !total || cur >= total) {
-    etaAnchors.delete(job.id);
-    return null;
-  }
-  let anchor = etaAnchors.get(job.id);
-  if (!anchor || cur < anchor.c) {
-    anchor = { t: Date.now(), c: cur };
-    etaAnchors.set(job.id, anchor);
-  }
-  const doneSinceAnchor = cur - anchor.c;
-  if (doneSinceAnchor < 3) return null; // need a few frames to estimate a rate
-  const remainingMs = ((Date.now() - anchor.t) / doneSinceAnchor) * (total - cur);
-  if (remainingMs < 45_000) return '<1 min left';
-  return `~${Math.round(remainingMs / 60_000)} min left`;
-}
-
-function StatusPill({ job }) {
-  // A degraded export is `done` — the file is real — but it is NOT clean, and a
-  // plain "Ready" pill is exactly how a muted mp4 shipped unnoticed for four
-  // attempts (RCA issue-mp4-audio-export-html5audio-silent-degrade).
-  const degraded = job.status === 'done' && !!job.degraded;
-  const statusText =
-    job.status === 'queued'
-      ? 'Queued'
-      : job.status === 'running'
-        ? job.progress?.total
-          ? `${job.progress.current} of ${job.progress.total}`
-          : 'Rendering…'
-        : job.status === 'done'
-          ? degraded && job.degraded.audioDropped
-            ? 'Ready · no audio'
-            : degraded && job.degraded.fontsNotEmbedded?.length
-              ? 'Ready · font warning'
-              : degraded
-                ? 'Ready · degraded'
-                : 'Ready'
-          : 'Failed';
-  const eta = job.status === 'running' ? etaLabel(job) : null;
-  return (
-    <span
-      className={`st-export-pill st-export-pill--${job.status}${
-        degraded ? ' st-export-pill--degraded' : ''
-      }`}
-    >
-      {statusText}
-      {eta ? ` · ${eta}` : ''}
-    </span>
-  );
-}
-
-/**
- * The "your file is missing something" row. Rendered on a `done` job that came
- * back degraded — in the panel row and in the completion toast, because the
- * whole failure mode of this bug was that neither surface said anything.
- */
-function DegradedNote({ degraded, compact = false }) {
-  if (!degraded) return null;
-  // The font case names the fonts, because "reduced fidelity" is useless to
-  // someone about to send this to a printer — what they need is which faces
-  // came out unprintable (issue #116).
-  const fonts = degraded.fontsNotEmbedded ?? [];
-  const headline = degraded.audioDropped
-    ? 'Exported without audio.'
-    : fonts.length
-      ? `Fonts a print shop will reject: ${fonts.join(', ')}.`
-      : 'Exported with reduced fidelity.';
-  return (
-    <div className="st-export-degraded" data-testid="export-degraded-note">
-      <span aria-hidden="true">!</span> {compact ? summarizeNoticeText(headline) : headline}
-      {degraded.remedy ? (
-        <div className="st-export-degraded__fix">
-          {compact ? summarizeNoticeText(degraded.remedy) : degraded.remedy}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ExportJobNotice({ job, center }) {
-  const pending = job.status === 'queued' || job.status === 'running';
-  const ok = job.status === 'done';
-  const saving = center.savingIds.has(job.id);
-  const id = `export-${job.id}`;
-  useEffect(() => {
-    notify({
-      id,
-      group: 'exports',
-      title: pending
-        ? 'Exporting…'
-        : ok
-          ? job.degraded
-            ? 'Export ready — with a problem'
-            : 'Export ready'
-          : 'Export failed',
-      description: pending
-        ? 'Running in the background — you can keep working.'
-        : ok
-          ? (job.filename ?? 'Ready to download.')
-          : (job.error ?? 'Something went wrong.'),
-      kind: pending ? 'info' : ok ? (job.degraded ? 'warning' : 'success') : 'error',
-      duration: pending ? Infinity : undefined,
-      timerKey: pending ? 'active' : job.status,
-      paused: saving,
-      onDismiss: () => center.dismissToast(job.id),
-      content: (
-        <>
-          <div className="maude-notice-summary">{jobLabel(job)}</div>
-          {pending && <ProgressBar progress={job.progress} />}
-          {ok && <DegradedNote degraded={job.degraded} compact />}
-          <div className="st-toast-actions">
-            {ok && (
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                disabled={saving}
-                onClick={() => (isNativeApp() ? void center.save(job) : void center.download(job))}
-              >
-                {saving && <span className="st-btn-spin" aria-hidden="true" />}
-                {saveActionLabel(saving)}
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => center.openPanel(job.id)}
-            >
-              View in history
-            </button>
-          </div>
-        </>
-      ),
-    });
-  }, [
-    id,
-    job,
-    pending,
-    ok,
-    saving,
-    center.dismissToast,
-    center.openPanel,
-    center.save,
-    center.download,
-  ]);
-  useEffect(() => () => dismissNotice(id), [id]);
-  return null;
-}
-
-export function ExportToast({ center }) {
-  return center.toastJobs.map((job) => <ExportJobNotice key={job.id} job={job} center={center} />);
-}
-
-export function ExportPanel({ center }) {
-  const { panelOpen, closePanel, selectedJobId } = center;
-  const selectedRow = useRef(null);
-  useEffect(() => {
-    if (panelOpen && selectedJobId) {
-      selectedRow.current?.scrollIntoView?.({ block: 'nearest' });
-      selectedRow.current?.focus();
-    }
-  }, [panelOpen, selectedJobId]);
-  useEffect(() => {
-    if (!panelOpen) return;
-    function onKey(e) {
-      if (e.key === 'Escape') closePanel();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [panelOpen, closePanel]);
-
-  if (!panelOpen) return null;
-  return (
-    <div
-      className="help-modal-backdrop"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) closePanel();
-      }}
-    >
-      <div
-        className="st-export-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="st-export-panel-title"
-      >
-        <header className="help-modal-hd">
-          <span className="title" id="st-export-panel-title">
-            Exports
-          </span>
-          <button
-            type="button"
-            className="help-modal-close"
-            aria-label="Close (Esc)"
-            onClick={closePanel}
-          >
-            ×
-          </button>
-        </header>
-        <div className="st-export-panel__body">
-          {center.jobs.length === 0 ? (
-            <p className="mdcc-wn-empty">No exports yet.</p>
-          ) : (
-            <ul className="st-export-list">
-              {center.jobs.map((job) => (
-                <li
-                  key={job.id}
-                  className="st-export-item"
-                  data-testid={`export-job-${job.id}`}
-                  ref={job.id === selectedJobId ? selectedRow : null}
-                  tabIndex={-1}
-                >
-                  <div className="st-export-item__hd">
-                    <span className="st-export-item__label">{jobLabel(job)}</span>
-                    <StatusPill job={job} />
-                  </div>
-                  {(job.status === 'queued' || job.status === 'running') && (
-                    <ProgressBar progress={job.progress} />
-                  )}
-                  {job.status === 'done' && <DegradedNote degraded={job.degraded} />}
-                  {job.status === 'done' && (
-                    <div className="st-export-item__ft">
-                      <span className="st-export-item__filename">{job.filename}</span>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        disabled={center.savingIds.has(job.id)}
-                        onClick={() => (isNativeApp() ? center.save(job) : center.download(job))}
-                      >
-                        {center.savingIds.has(job.id) && (
-                          <span className="st-btn-spin" aria-hidden="true" />
-                        )}
-                        {saveActionLabel(center.savingIds.has(job.id))}
-                      </button>
-                    </div>
-                  )}
-                  {job.status === 'failed' && (
-                    <div className="st-export-item__ft">
-                      <details className="st-export-item__error">
-                        <summary>Show error details</summary>
-                        <pre>{job.error ?? 'Export failed.'}</pre>
-                      </details>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// The surfaces moved to client/v2/export/ (S8.4). These two names stay so app.jsx — which mounts
+// `<ExportToast center>` and `<ExportPanel center>` — and the v1 tests keep working.
+export { DoneToast as ExportToast } from './v2/export/done-toast.jsx';
+export { ExportsPanel as ExportPanel } from './v2/export/exports-panel.jsx';

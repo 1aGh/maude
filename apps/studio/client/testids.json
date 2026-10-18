@@ -689,13 +689,16 @@
     "hook": "export-job-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One job row in the background Exports panel (`<id>` = job id).",
+    "meaning": "One job row in the Exports panel (`<id>` = job id). Focusable: the toast's “Show details” lands on it. Carries `data-state` and `data-where` (`this-mac` | `cloud`).",
     "producer": {
-      "file": "apps/studio/client/export-center.jsx",
-      "symbol": "ExportPanel"
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
     },
     "region": "export dialog",
-    "consumers": ["apps/studio/test/export-center.test.tsx"],
+    "consumers": [
+      "apps/studio/test/export-center.test.tsx",
+      "apps/studio/test/exports-panel.test.tsx"
+    ],
     "v2": "moves"
   },
   {
@@ -704,7 +707,7 @@
     "pattern": false,
     "meaning": "Note on an export job that finished in a degraded mode.",
     "producer": {
-      "file": "apps/studio/client/export-center.jsx",
+      "file": "apps/studio/client/v2/export/job-row.jsx",
       "symbol": "DegradedNote"
     },
     "region": "export dialog",
@@ -19378,6 +19381,146 @@
     "region": "export sheet",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "exports-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Exports panel: an island under the Share cluster listing the last 20 exports (S8.4). Not a modal.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/exports-panel.jsx",
+      "symbol": "ExportsPanel"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "exports-panel-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Fold the Exports panel (the chevron in its header; Esc does the same).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/exports-panel.jsx",
+      "symbol": "ExportsPanel"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "exports-panel-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Exports panel with nothing in it: the S11 empty kit block (`es-panels-make.exports-none`).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/exports-panel.jsx",
+      "symbol": "ExportsPanel"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "exports-panel-new",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Export… in the empty Exports panel: closes the panel and opens the Export sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/exports-panel.jsx",
+      "symbol": "ExportsPanel"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-job-meta-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A row's second line: where it runs (On this Mac · In the cloud) and the moment it is in (`<id>` = job id).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-job-state-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A finished row's state word (Ready · Ready · no audio · Failed) when it has no Retry button.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "StateWord"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-job-reveal-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A finished row's folder button: Show in Finder in the Mac app, Download in a browser tab.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-job-again-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A finished row's Export again button (replays the stored spec exactly).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-job-retry-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Retry <name> on a partly done row (“Exported 114 of 115”): runs only the items that did not make it.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/job-row.jsx",
+      "symbol": "JobRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-toast-action-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The export toast's ONE action (`data-action` = reveal | download | retry | open).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/done-toast.jsx",
+      "symbol": "JobNotice"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
     "v2": "new"
   }
 ]
