@@ -32,6 +32,8 @@ import {
   type GradeParams,
 } from '../../clip-ops.ts';
 import type { EditOp, ResolvedEditOp } from '../types.ts';
+import { applyCutSourceRange } from './cut-source-range.ts';
+import { applyCutToBeat } from './cut-to-beat.ts';
 
 export interface ClipTarget {
   /** designRoot-relative canvas (the appliers use it for messages + the parser's file name) */
@@ -222,5 +224,65 @@ export const CLIP_EDIT_VERBS: ReadonlyMap<string, string> = new Map(
   CLIP_VERB_OPS.filter((o) => o.id !== 'clip.remove').map((o) => [o.id.slice('clip.'.length), o.id])
 );
 
+/** The artboard a whole-comp op names (`params.artboard`), or undefined for the file's only comp. */
+const artboardOf = (req: ResolvedEditOp) =>
+  typeof req.params.artboard === 'string' ? req.params.artboard : undefined;
+
+/** `{ [src]: seconds }` — finite, positive, ≤ 500 sources; anything else is dropped. */
+function sourceSeconds(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [k, n] of Object.entries(v as Record<string, unknown>).slice(0, 500))
+    if (typeof n === 'number' && Number.isFinite(n) && n > 0) out[k] = n;
+  return out;
+}
+
+// S7.6 — the V2-1.10 §5.7 ops that are not legacy `/_api/clip-edit` verbs (no alias: new callers use
+// `/_api/edit-op`).
+export const VIDEO_OPS: readonly EditOp[] = [
+  // edit by transcript (#8): one write, split × ≤ 2 + ripple remove
+  clipOp('cut-source-range', (s, t, p) => {
+    const r = applyCutSourceRange(
+      t.file,
+      s,
+      t.artboard,
+      t.stableId,
+      t.hash,
+      finite(t.file, p.srcStart, 'srcStart'),
+      finite(t.file, p.srcEnd, 'srcEnd')
+    );
+    return {
+      source: r.source,
+      removedFrames: r.removedFrames,
+      fromFrame: r.fromFrame,
+      toFrame: r.toFrame,
+    };
+  }),
+  {
+    // Cut to the beat (#9): roll edits, the length unchanged; uncuttable cut points are reported
+    id: 'video.cut-to-beat',
+    scope: 'artboard',
+    apply(source, req) {
+      const p = req.params;
+      if (
+        !Array.isArray(p.beats) ||
+        p.beats.some((b) => typeof b !== 'number' || !Number.isFinite(b))
+      )
+        bad(req.file, 'The beats are not readable.');
+      const every = p.every === undefined ? 1 : Number(p.every);
+      if (every !== 1 && every !== 2 && every !== 4) bad(req.file, 'Every is 1, 2 or 4 beats.');
+      const r = applyCutToBeat(
+        req.file,
+        source,
+        artboardOf(req),
+        p.beats as number[],
+        every as 1 | 2 | 4,
+        sourceSeconds(p.sources)
+      );
+      return { source: r.source, detail: { moved: r.moved, kept: r.kept } };
+    },
+  },
+];
+
 /** Everything S7.6 appends to `EDIT_OPS`. */
-export const CLIP_OPS: readonly EditOp[] = [...CLIP_VERB_OPS];
+export const CLIP_OPS: readonly EditOp[] = [...CLIP_VERB_OPS, ...VIDEO_OPS];
