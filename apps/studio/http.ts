@@ -174,6 +174,7 @@ import {
   allSpecs,
   announceAction,
   heldByAiRefusal,
+  riderPatch,
   runStageHooks,
   trashAccess,
 } from './routes/index.ts';
@@ -1771,6 +1772,11 @@ export function createHttp(
         applyBoardOps: (f, ops) => api.applyAnnotationOps(f, ops),
         acceptedMode: () => !!ctx.syncControl?.current?.()?.acceptedMode?.(),
       }),
+      // S2.10 — an artboard copy's place goes to the layout lane in the same request (routes/edit.ts)
+      meta: {
+        load: (file) => api.loadCanvasMeta(file),
+        patch: (file, patch) => api.patchCanvasMeta(file, patch),
+      },
     },
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
@@ -2690,6 +2696,19 @@ export function createHttp(
           const keys = Object.keys(body.patch);
           if (keys.includes('layout') || keys.some((k) => !CANVAS_META_SESSION_LANES.has(k)))
             return readOnlyRefusalFor(req);
+        }
+        // S2.9b — the `annotations` rider: the move and the annotations riding with it as ONE
+        // action. Needs `annotate` on the target as well as the layout lane's `edit`, and holds
+        // the rider to the move delta on every origin (routes/canvas-meta-rider.ts).
+        const rider = (body as { annotations?: unknown }).annotations;
+        if (rider !== undefined) {
+          const annotates =
+            access.can('annotate', null) || (target !== null && access.can('annotate', target));
+          if (!editsTarget || !annotates) return readOnlyRefusalFor(req);
+          return riderPatch(
+            { api, control: () => ctx.syncControl?.current?.() ?? null },
+            { file: body.file, patch: body.patch, annotations: rider }
+          );
         }
         const next = await api.patchCanvasMeta(body.file, body.patch);
         if (!next) return new Response('Not found or rejected', { status: 404 });

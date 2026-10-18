@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "4aff33605906",
+  "manifestVersion": "75412133e673",
   "actions": [
     {
       "id": "search.open",
@@ -793,10 +793,9 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "file",
-        "format": "canvas-tsx",
-        "skill": "design:design",
-        "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
+        "path": "human",
+        "because": "keys",
+        "note": "ask the person to use Element id; an agent never rewrites the comments file"
       }
     },
     {
@@ -823,6 +822,82 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json"
+      }
+    },
+    {
+      "id": "artboard.tidy",
+      "label": "Tidy up artboards",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards"
+      }
+    },
+    {
+      "id": "artboard.duplicate",
+      "label": "Duplicate artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop → desktop-2), a new label (Desktop → Desktop 2) and no data-cd-id or data-cd-locked inside; put it at the source’s right edge + the row’s gap in layout.artboards[] of the .meta.json — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.duplicate-at-width",
+      "label": "Duplicate at another width",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.rename",
+      "label": "Rename artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the DCArtboard’s label prop (up to 80 characters; accents are kept)"
+      }
+    },
+    {
+      "id": "artboard.reset-position",
+      "label": "Reset artboard position",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot"
+      }
+    },
+    {
+      "id": "artboard.ask-ai",
+      "label": "Ask AI about this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     },
     {

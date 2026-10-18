@@ -265,6 +265,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'artboard.duplicate',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['artboard'] },
+    keys: [
+      {
+        chord: '⌘D',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['artboard'] },
+      },
+    ],
+  },
+  {
     id: 'mode.preview',
     exec: 'canvas',
     keys: [

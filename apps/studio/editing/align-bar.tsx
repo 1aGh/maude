@@ -3,7 +3,10 @@
 // A small bar above a multi-selection: "3 objects" · align left / centre / right / top / middle /
 // bottom · distribute horizontally / vertically. It replaces v1's ContextualToolbar for what it did
 // to several elements (align / distribute; its copy / inspect / comment rows live in the object
-// menu's Advanced ▸, S2.6) and serves artboards the same way (4 artboards, S2.9 adds Tidy up).
+// menu's Advanced ▸, S2.6) and serves artboards the same way (4 artboards) — plus Tidy up (S2.9):
+// one row, even gaps, on the lowest board's line; the pointer on the button shows dashed outlines of
+// the result (tidy-preview.tsx) and nothing moves until the click. Tidy is also the registry's
+// `artboard.tidy` (⌘K). It replaces v1's MultiArtboardToolbar (deleted in S2.9).
 //
 // Objects go through the `align.*` / `distribute.*` edit-ops (the canvas measures, the writer
 // moves); artboards go through `DragStateBus.commitPositions`, so annotations ride along. After an
@@ -38,8 +41,13 @@ import {
   NOT_ENOUGH_LINE,
   objectTargets,
   runArrange,
+  TIDY_ACTION,
+  TIDY_TIP,
+  tidyBoards,
+  tidyPreviewRects,
   worldScaleOf,
 } from './arrange.ts';
+import { tidyPreviewStore } from './tidy-preview.tsx';
 
 const GUIDE = 'var(--guide, var(--guide-magenta, oklch(62% 0.28 350)))';
 
@@ -62,6 +70,7 @@ const CSS_TEXT = `
   background: transparent; color: inherit; cursor: pointer;
 }
 .ed-align-b:hover:not(:disabled) { background: color-mix(in oklab, var(--maude-hud-accent) 10%, transparent); color: var(--maude-hud-accent); }
+.ed-align-tidy { width: auto; padding: 0 10px; font: 600 11px/16px inherit; letter-spacing: 0; }
 .ed-align-b:focus-visible { outline: 2px solid var(--maude-hud-accent); outline-offset: 1px; }
 .ed-align-b:disabled { cursor: default; opacity: 0.4; }
 .ed-align-b[data-tip]:hover::after, .ed-align-b[data-tip]:focus-visible::after {
@@ -158,10 +167,16 @@ const GROUPS: ArrangeAction[][] = [
 export function AlignBarView({
   model,
   onAction,
+  onTidy,
+  onTidyPreview,
   barRef,
 }: {
   model: BarModel;
   onAction: (a: ArrangeAction) => void;
+  /** artboards only: the "Tidy up" button's click */
+  onTidy?: () => void;
+  /** artboards only: the pointer / focus on (true) or off (false) the Tidy button — the dashed preview */
+  onTidyPreview?: (on: boolean) => void;
   barRef?: React.Ref<HTMLDivElement>;
 }) {
   return (
@@ -209,6 +224,24 @@ export function AlignBarView({
           })}
         </span>
       ))}
+      {model.kind === 'artboards' ? (
+        <span style={{ display: 'contents' }}>
+          <span className="ed-align-div" aria-hidden="true" />
+          <button
+            type="button"
+            className="ed-align-b ed-align-tidy"
+            data-testid="edit-tidy"
+            data-tip={TIDY_TIP}
+            onClick={() => onTidy?.()}
+            onPointerEnter={() => onTidyPreview?.(true)}
+            onPointerLeave={() => onTidyPreview?.(false)}
+            onFocus={() => onTidyPreview?.(true)}
+            onBlur={() => onTidyPreview?.(false)}
+          >
+            Tidy up
+          </button>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -296,9 +329,29 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
     });
   }, []);
 
+  // the selected artboards' rects (world px); the same set Align uses
+  const selectedBoards = useCallback((): BoardRect[] => {
+    const { selected: sel, world: w } = live.current;
+    const ids = new Set(sel.filter((s) => !s.id && s.artboardId).map((s) => s.artboardId));
+    return (w?.artboards ?? []).filter((r) => ids.has(r.id));
+  }, []);
+
+  const tidy = useCallback(() => {
+    tidyPreviewStore.set(null);
+    const { bus: b, model: m } = live.current;
+    if (!b || m?.kind !== 'artboards') return;
+    if (!tidyBoards(selectedBoards(), b)) showCanvasToast('Already in a tidy row.', 'info');
+  }, [selectedBoards]);
+
+  const previewTidy = useCallback(
+    (on: boolean) => tidyPreviewStore.set(on ? tidyPreviewRects(selectedBoards()) : null),
+    [selectedBoards]
+  );
+
   useEffect(
     () => () => {
       if (guideTimer.current) clearTimeout(guideTimer.current);
+      tidyPreviewStore.set(null);
     },
     []
   );
@@ -309,11 +362,13 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
       if (e.source !== window.parent || (e.data as { dgn?: unknown } | null)?.dgn !== 'run-action')
         return;
       const m = acceptFromShell(e, window);
-      if (m?.dgn === 'run-action' && isArrangeAction(m.id) && !isReadOnlyCanvas()) run(m.id);
+      if (m?.dgn !== 'run-action' || isReadOnlyCanvas()) return;
+      if (isArrangeAction(m.id)) run(m.id);
+      else if (m.id === TIDY_ACTION) tidy();
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [run]);
+  }, [run, tidy]);
 
   // sit above the selection, flipping below near the top edge, following pan / zoom
   const kind = model?.kind ?? null;
@@ -354,7 +409,13 @@ export function AlignBar({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <>
       <style>{CSS_TEXT}</style>
-      <AlignBarView model={model} onAction={run} barRef={bar} />
+      <AlignBarView
+        model={model}
+        onAction={run}
+        onTidy={tidy}
+        onTidyPreview={previewTidy}
+        barRef={bar}
+      />
       {guide ? (
         <div aria-hidden="true" data-testid="edit-align-guide">
           <span

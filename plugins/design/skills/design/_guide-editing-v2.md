@@ -25,3 +25,15 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
   freely (`position: absolute`) can be aligned. Artboards: change `x` / `y` in `.meta.json`.
 - **Rotate** is `rotate(<n>deg)` in `style.transform` (the handle outside a corner, ⇧ snaps to 15°; also the
   Rotation row). Keep other transform functions; 0° removes the rotate.
+
+## Artboard menu: duplicate, duplicate at another width, rename, reset position (S2.10)
+
+- **⌘D / Duplicate** copies the selected artboard to its right, at the gap the row already uses, and selects the copy
+  ("Desktop" → "Desktop 2"; press again to keep the rhythm). **⌥-drag** copies to where you drop it. **Duplicate at
+  another width ▸** (Laptop 1280, Tablet 834, Mobile 390, Custom) makes the copy with that `width` and the label
+  "Desktop (390px)". To do the same by hand: copy the `<DCArtboard>` JSX after its source with a new `id`, a new
+  `label` and, for a width copy, the new `width`; **delete every `data-cd-id` and `data-cd-locked` inside the copy**;
+  add its `x` / `y` to `layout.artboards[]` in `.meta.json`. Annotations stay with the original.
+- **Rename** is the `label` prop (double-click the name, ↵ saves, esc cancels, Tab opens the next artboard's name).
+- **Reset position** removes the artboard's `layout.artboards[]` entry: it returns to the default grid.
+- Full recipe: `apps/studio/schema/canvas-tsx.md` ("Duplicate an artboard").

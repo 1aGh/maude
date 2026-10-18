@@ -354,12 +354,10 @@ describe('the registry carries the three inspector actions (rule 14: each with i
     }
     expect(ACTIONS_BY_ID.get('element.set-id')?.enabled?.minRole).toBe('edit');
     expect(ACTIONS_BY_ID.get('inspector.copy-css')?.label).toBe('Copy CSS');
-    // writing an id is a project write by the file path (the TSX); the copies write nothing
+    // writing an id is a project write; an agent does not rename ids (A5 lead: the references
+    // live in _comments/ + the board, which agents never write) — the copies write nothing
     expect(AGENT_PATHS['element.set-id'].effect).toBe('project');
-    expect(AGENT_PATHS['element.set-id'].agent).toMatchObject({
-      path: 'file',
-      format: 'canvas-tsx',
-    });
+    expect(AGENT_PATHS['element.set-id'].agent).toMatchObject({ path: 'human', because: 'keys' });
     expect(AGENT_PATHS['inspector.copy-css'].effect).toBe('none');
   });
 

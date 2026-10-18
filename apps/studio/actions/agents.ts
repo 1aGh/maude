@@ -174,9 +174,31 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.add-width': TSX(
     'Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json'
   ),
-  'element.set-id': TSX(
-    'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
+  // S2.9 — Tidy up: positions only, the layout lane of the .meta.json.
+  'artboard.tidy': TSX(
+    'Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards'
   ),
+  // S2.10 — the artboard menu. A copy is a splice of the DCArtboard's JSX; its place is layout.artboards[].
+  'artboard.duplicate': TSX(
+    'Copy the DCArtboard’s JSX right after it with a new id (desktop → desktop-2), a new label (Desktop → Desktop 2) and no data-cd-id or data-cd-locked inside; put it at the source’s right edge + the row’s gap in layout.artboards[] of the .meta.json — see canvas-tsx.md § Duplicate an artboard'
+  ),
+  'artboard.duplicate-at-width': TSX(
+    'Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard'
+  ),
+  'artboard.rename': TSX('Set the DCArtboard’s label prop (up to 80 characters; accents are kept)'),
+  'artboard.reset-position': TSX(
+    'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'
+  ),
+  'artboard.ask-ai': { effect: 'none', agent: human('ai-chat') },
+  // A5 lead (S2.2b): an agent does not rename ids — the references live in lanes it never writes
+  // (_comments/, the board's hosts); `maude design check` reports the old id as id-lost.
+  'element.set-id': {
+    effect: 'project',
+    agent: human(
+      'keys',
+      'ask the person to use Element id; an agent never rewrites the comments file'
+    ),
+  },
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),
