@@ -1574,6 +1574,12 @@ export function createHttp(
     });
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
+    projectUndo: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     ai: {
       registry: runs,
       repoRoot: ctx.paths.repoRoot,
@@ -3263,23 +3269,8 @@ export function createHttp(
         json: { ok: r.status === 'accepted', ...r },
       });
     },
-    '/_api/project/undo': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
-        return new Response('Forbidden', { status: 403 });
-      const body = await readJson<{ actionId?: unknown; redo?: unknown }>(req, 4096);
-      if (typeof body?.actionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.actionId)) {
-        return new Response('body must include { actionId }', { status: 400 });
-      }
-      const r = await ctx.syncControl
-        ?.current?.()
-        ?.acceptedUndo?.(body.actionId, body.redo === true);
-      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({
-        status: r.status === 'accepted' ? 200 : 409,
-        json: { ok: r.status === 'accepted', ...r },
-      });
-    },
+    // `/_api/project/undo` + `/_api/project/undo-stack` are table routes since
+    // S5.5 (routes/project-undo.ts): one id, several, or a whole chat.
     '/_api/sync/resync': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       // REFUSALS ANSWER IN JSON, WITH A REASON.
