@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "b76588da771c",
   "actions": [
     {
       "id": "search.open",
@@ -1574,6 +1574,18 @@
       "agent": {
         "path": "human",
         "because": "links"
+      }
+    },
+    {
+      "id": "share.move-to-cloud",
+      "label": "Move to cloud…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "billing",
+        "note": "moves the project to the person’s billed Maude Cloud account"
       }
     },
     {
