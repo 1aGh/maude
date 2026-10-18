@@ -31,6 +31,10 @@ export function dsWaitingText(peer) {
  * placed with Component (⇧I) arrives current"). A canvas left on a revision (it has a `dsRev`) would render
  * the new instance with that old look, so the instance carries `head`; a canvas that follows head needs
  * nothing. `null` = write no attribute.
+ *
+ * DISPLAY-ONLY: what a placement actually writes is decided by the SERVER (edit-ops/insert-component.ts
+ * `dsRevForPlacement`, from `ctx.dsRev` = the canvas's own `meta.dsRev`), never by the client. Use this for a
+ * hint or a label; do not send its answer as a param. (A6b-3: one rule, server-side.)
  */
 export function dsRevForPlacement({ converted, canvasDsRev }) {
   if (!converted) return null;
