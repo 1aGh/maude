@@ -9905,5 +9905,385 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add",
+    "kind": "testid",
+    "meaning": "Fill › the add row the header \"+\" opens: Colour · Gradient · an Image address.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add-colour",
+    "kind": "testid",
+    "meaning": "Fill › add row: a colour fill (the system's first colour). Disabled while the object has one — change it above.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add-gradient",
+    "kind": "testid",
+    "meaning": "Fill › add row: a top-to-bottom gradient between the system's first two colours, as a layer over the colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-add-image",
+    "kind": "testid",
+    "meaning": "Fill › add row: the Image address field (a file in the project or an https:// address); Enter adds it as a `cover` layer.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-image-error",
+    "kind": "testid",
+    "meaning": "Fill › the one-line reason an image address was refused (\"Use a file in the project or an https:// address.\"). Nothing was written.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-remove-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Fill › removes layer n (gradient or image, top first); the colour has None in its own menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "Layer"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-fill-locked",
+    "kind": "testid",
+    "meaning": "Fill › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/fill.jsx",
+      "symbol": "FillBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-opacity-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The opacity number beside a colour chip (`fill`): below 100 the colour is written as a `color-mix` of its token.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-color-<name>-<token>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One colour token in a colour menu, by the system's own name without `--` (`insp-color-fill-ink`). Picking it writes `var(--<token>)`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-colorcss-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The colour menu's \"A colour, no token…\" row: opens a field for one CSS colour.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-colorin-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The field behind \"A colour, no token…\": Enter writes the colour if it is one colour (anything else is refused, `aria-invalid`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/color-control.jsx",
+      "symbol": "ColorControl"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-corners-unlink",
+    "kind": "testid",
+    "meaning": "Corners › the header toggle: one value for all four corners, or each of ↖ ↗ ↙ ↘. `aria-pressed` while unlinked; corners that already differ open unlinked.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/corners.jsx",
+      "symbol": "UnlinkToggle"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-corners",
+    "kind": "testid",
+    "meaning": "Corners › the unlinked grid (↖ ↗ / ↙ ↘); each corner is a length control `corner-tl|tr|bl|br`, row `insp-row-corner-<k>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/corners.jsx",
+      "symbol": "CornersBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-corners-exotic",
+    "kind": "testid",
+    "meaning": "Corners › the quiet line for an elliptical radius the corner controls cannot say.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/corners.jsx",
+      "symbol": "CornersBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-border-none",
+    "kind": "testid",
+    "meaning": "Border › \"None\": nothing until the header \"+\" adds one (a Pen path or line says Stroke).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-border-width",
+    "kind": "testid",
+    "meaning": "Border › the width in px (0 removes the border); wraps the number field.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-border-position",
+    "kind": "testid",
+    "meaning": "Border › Position: Inside · Centre · Outside. Inside is an inset ring (the object keeps its size); Centre and Outside are an outline.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-border-locked",
+    "kind": "testid",
+    "meaning": "Border › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/border.jsx",
+      "symbol": "BorderBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-shadow",
+    "kind": "testid",
+    "meaning": "Effects › Shadow: Flat, then the design system's own elevation names in the order it declares them (a Select above five steps; \"Custom\" for a shadow the system does not name).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/effects.jsx",
+      "symbol": "EffectsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-shadow-none",
+    "kind": "testid",
+    "meaning": "Effects › the quiet line when the system declares no shadow steps.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/effects.jsx",
+      "symbol": "EffectsBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-num-opacity",
+    "kind": "testid",
+    "meaning": "Opacity in percent (wraps the number field); written as a 0–1 `opacity`, 100 removes it. Under Effects for one object, under Fill for several.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/opacity-row.jsx",
+      "symbol": "OpacityRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-opacity",
+    "kind": "testid",
+    "meaning": "Opacity › \"Mixed\": the selected objects differ; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/opacity-row.jsx",
+      "symbol": "OpacityRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-weight",
+    "kind": "testid",
+    "meaning": "Type › the weight select (Regular · Medium · Semibold · Bold, \"Inherited\" removes it, \"Mixed\" for several that differ).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/type.jsx",
+      "symbol": "TypeBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-type-locked",
+    "kind": "testid",
+    "meaning": "Type › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/type.jsx",
+      "symbol": "TypeBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-multi-note",
+    "kind": "testid",
+    "meaning": "Several objects › \"Changes go to all 3. Text settings show when only text is selected.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiOpacity"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

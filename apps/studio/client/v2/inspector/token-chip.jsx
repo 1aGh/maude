@@ -19,23 +19,41 @@ const pxOf = (value) => {
   return (m[2] || 'px').toLowerCase() === 'rem' ? n * 16 : n;
 };
 
-/** The active design system's space stops, smallest first: `{ space: [{ name: '--space-5', px: 24 }] }`. */
-export function useSpaceTokens(ctx) {
+/**
+ * The active design system's own token lists (S2.4): length families as stops, smallest first
+ * (`{ name: '--space-5', px: 24 }`), and the colour and shadow names as the system declares them.
+ * Nothing here is a built-in list: a system with no `--shadow-*` has no elevation names.
+ */
+export function useDsFamilies(ctx) {
   const cfg = ctx?.cfg;
   const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
   const active = activeDsNameFor(ctx?.canvasFile, cfg);
   const all = useAllDsTokens(cfg, designRel, active);
   return useMemo(() => {
     const ds = all.find((d) => d.name === active) || all[0];
-    const stops = (ds?.space || [])
-      .map((name) => ({ name, px: pxOf(ds.vals?.[name]) }))
-      .filter((s) => s.px != null)
-      .sort((a, b) => a.px - b.px);
-    return { space: stops };
+    const stops = (names) =>
+      (names || [])
+        .map((name) => ({ name, px: pxOf(ds.vals?.[name]) }))
+        .filter((s) => s.px != null)
+        .sort((a, b) => a.px - b.px);
+    return {
+      space: stops(ds?.space),
+      radius: stops(ds?.radius),
+      type: stops(ds?.type),
+      color: ds?.color || [],
+      shadow: ds?.shadow || [],
+      vals: ds?.vals || {},
+    };
   }, [all, active]);
 }
 
-function useDismiss(open, onClose, ref) {
+/** The active design system's space stops, smallest first: `{ space: [{ name: '--space-5', px: 24 }] }`. */
+export function useSpaceTokens(ctx) {
+  const { space } = useDsFamilies(ctx);
+  return useMemo(() => ({ space }), [space]);
+}
+
+export function useDismiss(open, onClose, ref) {
   useEffect(() => {
     if (!open) return undefined;
     const down = (e) => {
@@ -70,6 +88,7 @@ export function LengthControl({
   allowNone = false,
   noneLabel = 'None',
   extraItems = [], // [{ id, label, onSelect }] — rows ahead of the stops (the Gap menu's "Auto")
+  labelOf = tokenLabel, // (token, px) => the system's own name for the stop: "Space 24" · "MD" (S2.4: Corners, Type)
   min = 0,
   step = 1,
 }) {
@@ -100,7 +119,7 @@ export function LengthControl({
     face = (
       <span className="insp-chip-face" data-testid={`insp-chip-${name}`}>
         <i className="insp-chip-dot" aria-hidden="true" />
-        <b>{tokenLabel(value.token, value.px)}</b>
+        <b>{labelOf(value.token, value.px)}</b>
       </span>
     );
   } else if (value && 'css' in value) {
@@ -154,7 +173,7 @@ export function LengthControl({
               className="insp-bind"
               data-testid={`insp-bind-${name}`}
               disabled={disabled}
-              title={`Bind to ${tokenLabel(nearest.name, nearest.px)}`}
+              title={`Bind to ${labelOf(nearest.name, nearest.px)}`}
               onClick={() => onChange({ token: nearest.name, px: nearest.px })}
             >
               Bind
@@ -215,7 +234,7 @@ export function LengthControl({
               data-testid={`insp-stop-${name}-${s.px}`}
               onClick={() => pick(s)}
             >
-              <span>{tokenLabel(s.name, s.px)}</span>
+              <span>{labelOf(s.name, s.px)}</span>
               <i>{s.px}</i>
             </button>
           ))}

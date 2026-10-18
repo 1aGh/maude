@@ -43,16 +43,20 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
   const adder = def.adder ? entries.find((e) => typeof e.add === 'function') : null;
   const aside = entries.find((e) => e.aside != null)?.aside;
   const asideNode = typeof aside === 'function' ? aside({ el, ctx }) : aside;
+  // a body may rename its section for what is selected: Border is "Stroke" on a line or a Pen path
+  const named = entries.find((e) => e.title != null)?.title;
+  const title =
+    (typeof named === 'function' ? named({ el, selection, kind: kindId }) : named) || def.title;
   return (
     <section
       className="insp-sec"
       data-testid={`insp-sec-${def.id}`}
       data-n={def.n}
-      aria-label={def.title}
+      aria-label={title}
     >
       <p className="insp-sec-t">
         <span className="insp-sec-name" title={def.explain}>
-          {def.title}
+          {title}
         </span>
         {asideNode != null ? (
           <span className="insp-sec-a">{asideNode}</span>
@@ -64,8 +68,8 @@ function Section({ def, entries, ctx, el, selection, kindId }) {
             type="button"
             className="insp-add"
             data-testid={`insp-add-${def.id}`}
-            aria-label={`Add ${def.title.toLowerCase()}`}
-            title={`Add ${def.title.toLowerCase()}`}
+            aria-label={`Add ${title.toLowerCase()}`}
+            title={`Add ${title.toLowerCase()}`}
             onClick={() => adder.add({ el, ctx })}
           >
             <StIcon name="plus" size={12} />
@@ -166,7 +170,7 @@ export function InspectorFrame({
         </p>
       ) : null}
       {SECTIONS.map((def) => {
-        const entries = slotsFor(def.id, kind.id);
+        const entries = slotsFor(def.id, kind.id, selected);
         if (!entries.length) return null;
         return (
           <Section

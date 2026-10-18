@@ -54,10 +54,15 @@ export function registerSlot(sectionId, entry) {
   };
 }
 
-/** The entries of a section that show for this kind, in order. */
-export function slotsFor(sectionId, kindId) {
+/**
+ * The entries of a section that show for this kind, in order. An entry may also carry `when({ selection, kind })`
+ * (S2.4: Type shows for several objects only when every one is text); absent = always.
+ */
+export function slotsFor(sectionId, kindId, selection) {
   return (bySection.get(sectionId) ?? []).filter(
-    (e) => !Array.isArray(e.kinds) || e.kinds.includes(kindId)
+    (e) =>
+      (!Array.isArray(e.kinds) || e.kinds.includes(kindId)) &&
+      (typeof e.when !== 'function' || e.when({ selection, kind: kindId }))
   );
 }
 

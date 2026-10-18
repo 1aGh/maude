@@ -290,4 +290,122 @@
   .insp-cons-p--right {
     right: 1px;
   }
+
+  /* ── S2.4: colours, layers, corners, the quiet "None" ── */
+  .insp-sw {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-xs);
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    background-size: cover;
+    background-position: center;
+  }
+  .insp-sw--wide {
+    width: 28px;
+  }
+  .insp-chip-face[data-mixed="true"] {
+    color: var(--fg-2);
+  }
+  .insp-chip-face[data-mixed="true"] .insp-sw + .insp-sw {
+    margin-left: calc(var(--space-1) * -1);
+  }
+  .insp-color {
+    flex-wrap: wrap;
+  }
+  .insp-opacity {
+    display: inline-flex;
+  }
+  .insp-color-in {
+    width: 120px;
+  }
+  .insp-color-in[aria-invalid="true"],
+  .insp-url-in[aria-invalid="true"] {
+    border-color: var(--status-warn, var(--accent));
+  }
+  .insp-url-in {
+    width: 112px;
+  }
+  .insp-menu-sw {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .insp-layer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .insp-quiet-inline {
+    min-width: 0;
+    overflow: hidden;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .insp-x {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .insp-x:hover:not(:disabled) {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .insp-x:focus-visible,
+  .insp-sec-ic:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-addrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+  }
+  .insp-none {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .insp-corners {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-3);
+  }
+  .insp-corner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .insp-sec-ic {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .insp-sec-ic:hover,
+  .insp-sec-ic[data-on="true"] {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
 }
