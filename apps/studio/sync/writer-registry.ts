@@ -123,9 +123,10 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/project/undo': {
     class: 'lane',
     rows: 'S18',
-    via: 'history.undo/redo — effect-aware compensation of one of this actor’s actions',
-    test: 'test/sync-accepted-runtime.test.ts',
+    via: 'history.undo/redo — effect-aware compensation of this actor’s actions: one id, several (actionIds), or a chat (S5.5)',
+    test: 'test/project-undo-routes.test.ts',
   },
+  '/_api/project/undo-stack': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',

@@ -15,12 +15,15 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { syncPresentation } from '../../../sync/presentation.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
+import { indexMeta } from '../canvases/tree-model.js';
+import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
 import { accessStatus, exportsRing, facesOf, outboxPending, saveStatus } from './save-status.js';
 import { ShareCluster } from './share-cluster.jsx';
+import { presentFromLabel } from './present-from-label.js';
 import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
 import { isNativeApp } from '../../github.js';
@@ -70,6 +73,7 @@ export function ShellShareCluster() {
     shellCore: {
       activePath,
       agentActive,
+      canvasActiveArtboard,
       cfg,
       cloudLinkedHub,
       commentsPanelOpen,
@@ -77,6 +81,7 @@ export function ShellShareCluster() {
       gitUser,
       iframesRef,
       project,
+      selected,
       syncStatus,
       viewerMode,
     },
@@ -131,6 +136,18 @@ export function ShellShareCluster() {
     [viewerMode, canvasOpen]
   );
 
+  // S3.2a — the first Present row names the artboard a click would start from: the labels come from the
+  // project index (the Canvases panel reads the same one), the choice from the selection / the view.
+  const indexSnapshot = useCanvasIndex({ stamp: activePath });
+  const boards = useMemo(
+    () => indexMeta(indexSnapshot, cfg?.designRel).get(activePath)?.boards ?? null,
+    [indexSnapshot, cfg?.designRel, activePath]
+  );
+  const fromLabel = useMemo(
+    () => presentFromLabel({ selected, inView: canvasActiveArtboard, boards }),
+    [selected, canvasActiveArtboard, boards]
+  );
+
   const retry = useCallback(async () => {
     try {
       const res = await fetch('/_api/sync/resync', { method: 'POST' });
@@ -170,6 +187,7 @@ export function ShellShareCluster() {
           caps={lane.caps}
           onSelect={lane.select}
           onPresent={lane.present}
+          presentFromLabel={fromLabel}
           canPresent={canvasOpen}
         />
       }
