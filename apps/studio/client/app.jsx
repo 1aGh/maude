@@ -218,6 +218,7 @@ import {
 } from './shell/dock.jsx';
 import { CommandPalette } from './dialogs/command-palette.jsx';
 import { AssetPicker } from './dialogs/asset-picker.jsx';
+import { useLastFinishedAt } from './v2/export/last-finished.js';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
@@ -2873,6 +2874,12 @@ function ShellTree() {
   // V2-4.1 — panel layout (⌘\ hide, View › Advanced pin) and the insets the islands cause.
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   useHydratePanelLayout();
+  // S8.9 — the Export sheet's "From 14:05" while AI is working: the open canvas's last landed change
+  const exportLastFinishedAt = useLastFinishedAt({
+    open: !!exportDialog,
+    activePath,
+    designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+  });
   const floating = !pinned;
   // Opening a panel while the panels are hidden brings them all back (the open panel must be seen).
   // V2-4.4b — the AI chat is its own island: its opening un-hides the panels like any other panel's does.
@@ -3166,6 +3173,9 @@ function ShellTree() {
           request={exportDialog}
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
           projectName={cfg?.name || ''}
+          // S8.9 — Can comment gets the sheet with one line on top; the server is the lock
+          access={{ canEdit: !viewerMode, role: cfg?.cloud?.role }}
+          lastFinishedAt={exportLastFinishedAt}
           {...exportSelectionV2(selected, activePath)}
           activePath={activePath}
           hasComps={activeComps.length > 0}

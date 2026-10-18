@@ -11,6 +11,8 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     icon: 'download',
     exec: 'shell',
     fromCanvas: true,
+    // S8.9 (Gate 0 A19): Can view has no export at all — hidden, not greyed; the server refuses (403) anyway.
+    visible: { minRole: 'comment' },
     keys: [kb('⇧⌘E', 'global', { inText: true })],
     legacy: { palette: 'Export…', menu: 'Export…', sheet: 'Export…' },
   },
@@ -42,6 +44,8 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     icon: 'external',
     exec: 'shell',
     fromCanvas: true,
+    // S8.9: Can comment sees Handoff, greyed with "Needs Can edit" (the sheet says the same words).
+    enabled: { minRole: 'edit' },
     keys: [kb('⇧⌘H', 'global', { inText: true })],
     legacy: {
       palette: 'Handoff to production',
@@ -59,6 +63,7 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     label: 'Export again',
     kind: 'command',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     legacy: { sheet: 'Export again' },
   },
   // S8.4 — "Retry <name>" on a partly done export ("Exported 114 of 115"): runs only the items that

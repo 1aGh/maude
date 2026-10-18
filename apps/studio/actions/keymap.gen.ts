@@ -710,6 +710,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'export.open',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     fromCanvas: true,
     keys: [{ chord: '⇧⌘E', layer: 'global', inText: true }],
   },
@@ -731,6 +732,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'handoff.open',
     exec: 'shell',
+    enabled: { minRole: 'edit' },
     fromCanvas: true,
     keys: [{ chord: '⇧⌘H', layer: 'global', inText: true }],
   },

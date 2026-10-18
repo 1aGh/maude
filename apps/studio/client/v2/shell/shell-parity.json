@@ -1578,6 +1578,7 @@
             "settings.open"
           ],
           "disabled": [
+            "handoff.open",
             "edit.undo",
             "edit.redo",
             "edit.undo-history",
@@ -1842,6 +1843,7 @@
             "settings.open"
           ],
           "disabled": [
+            "handoff.open",
             "edit.undo",
             "edit.redo",
             "edit.undo-history",

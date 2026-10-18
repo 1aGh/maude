@@ -373,7 +373,7 @@ const ws = createWs(
     closureOf: (access) => http.closureOf(access),
   })
 );
-const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
+const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot, { runs: () => runRegistry });
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
 const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {

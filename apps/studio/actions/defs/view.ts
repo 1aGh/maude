@@ -177,6 +177,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     kind: 'toggle',
     icon: 'export',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     // V2-4.3a (CONTRACT §1, C9): the Exports list — also the Share cluster's Exports icon once any export
     // exists, and ⌘K "Exports". No key; shell-side (the export center is the shell's).
   },
