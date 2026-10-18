@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "9849b5e56ae6",
   "actions": [
     {
       "id": "search.open",
@@ -3163,6 +3163,22 @@
       "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
       "source": "hand",
       "skill": "design:design-system"
+    },
+    {
+      "format": "ds-revision",
+      "schema": "apps/studio/schema/ds-revision-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-revision-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system",
+      "runtime": true
+    },
+    {
+      "format": "ds-head",
+      "schema": "apps/studio/schema/ds-head-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-head-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system",
+      "runtime": true
     },
     {
       "format": "design-config",
