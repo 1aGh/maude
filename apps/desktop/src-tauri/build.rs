@@ -70,6 +70,10 @@ fn main() {
                 "new_home_tab",
                 "take_pending_intent",
                 "index_search",
+                // S3.6a (present.rs): displays + the audience window.
+                "present_displays",
+                "present_audience_open",
+                "present_audience_close",
                 "relink_project",
                 "open_project_folder",
                 // V2-3 patches (windows.rs): one-shot values parked per label.
