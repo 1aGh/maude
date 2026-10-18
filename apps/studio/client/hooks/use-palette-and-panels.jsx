@@ -65,8 +65,6 @@ export function usePaletteAndPanels({
   commentsPanelOpen,
   commentsFilter,
   setCommentsFilter,
-  cpMode,
-  setCpMode,
   sidebarOpen,
   showHidden,
   treeExp,
@@ -584,8 +582,6 @@ export function usePaletteAndPanels({
           layersOnly={id === 'layers'}
           artboardCount={id === 'layers' ? activeArtboards : undefined}
           hideLayersTab={layersMode === 'separate'}
-          cpMode={cpMode}
-          onSetCpMode={setCpMode}
           selected={selected}
           cfg={cfg}
           tab={id === 'layers' ? 'layers' : inspectorTab}

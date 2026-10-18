@@ -1200,8 +1200,6 @@ function ShellState({ children }) {
     commentsPanelOpen,
     commentsFilter,
     setCommentsFilter,
-    cpMode,
-    setCpMode,
     sidebarOpen,
     showHidden,
     treeExp,
