@@ -87,6 +87,21 @@ export function createRunsPoke({
  *
  * @returns {number} how many states were changed (tests + logging)
  */
+// S2.18 — the hub rebuilds a hold from its known keys and drops one that is not small and well-typed,
+// so a peer can't fan an oversized or odd-shaped `holding` out to everyone in the room. The id grammar
+// itself is the studio's (`sanitizeHoldingState`, use-collab.tsx); here: types and sizes only.
+const HOLD_STR_MAX = 128;
+const HOLD_PRINT_MAX = 512;
+function holdOf(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const { artboard, element, print, at } = raw;
+  const okStr = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
+  if (!okStr(artboard, HOLD_STR_MAX) || !okStr(element, HOLD_STR_MAX)) return null;
+  if (typeof at !== 'number' || !Number.isFinite(at)) return null;
+  if (print !== undefined && !okStr(print, HOLD_PRINT_MAX)) return null;
+  return print === undefined ? { artboard, element, at } : { artboard, element, print, at };
+}
+
 export function sanitizeHoldingAwareness({ context, connection, states }) {
   if (!states || typeof states.forEach !== 'function') return 0;
   const user = context?.user;
@@ -101,8 +116,10 @@ export function sanitizeHoldingAwareness({ context, connection, states }) {
     const { holding, editing, ...rest } = state;
     let next = rest;
     if (!strip) {
-      if (holding && typeof holding === 'object' && !Array.isArray(holding)) {
-        next = { ...rest, holding: { ...holding, actor: String(actor).slice(0, 200) } };
+      // only a small, well-typed hold crosses (S2.18); anything else is dropped like a non-object
+      const hold = holdOf(holding);
+      if (hold) {
+        next = { ...rest, holding: { ...hold, actor: String(actor).slice(0, 200) } };
       } else if (holding === null) {
         next = { ...rest, holding: null };
       }

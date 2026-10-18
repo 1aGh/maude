@@ -310,6 +310,28 @@ describe('sanitizeHoldingAwareness (unit)', () => {
     assert.equal('holding' in s3.get(1), false);
     assert.equal(s3.get(2).holding, null, 'null = not holding, kept');
   });
+
+  test('S2.18: a hold is rebuilt from its known keys; an oversized or odd-shaped one is dropped', () => {
+    const user = { context: { user: { email: 'tereza@x.test' } }, connection: {} };
+    const ok = new Map([
+      [1, { holding: { artboard: 'p', element: 'cta', at: 5, actor: 'boss@x', lease: 'all' } }],
+    ]);
+    sanitizeHoldingAwareness({ ...user, states: ok });
+    assert.deepEqual(ok.get(1).holding, {
+      artboard: 'p',
+      element: 'cta',
+      at: 5,
+      actor: 'tereza@x.test',
+    });
+    const big = new Map([
+      [1, { holding: { artboard: 'p', element: 'cta', at: 5, print: 'x'.repeat(100_000) } }],
+      [2, { holding: { artboard: 'p'.repeat(500), element: 'cta', at: 5 } }],
+      [3, { holding: { artboard: 'p', element: 'cta', at: 'soon' } }],
+      [4, { holding: [1, 2] }],
+    ]);
+    sanitizeHoldingAwareness({ ...user, states: big });
+    for (const id of [1, 2, 3, 4]) assert.equal('holding' in big.get(id), false, `state ${id}`);
+  });
 });
 
 describe('the runs poke and the history filters (coordinator level)', () => {
