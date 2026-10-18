@@ -170,6 +170,11 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
     // The splash runs on the app-local origin; a page already on its server
     // may ask too (a reload).
     let caller = windows::caller_project(&webview, true)?;
+    // S1.19: a tab whose folder is gone gets the moved-folder card's answer
+    // (`{missing, pid, name, place}` — its own project only) and goes there.
+    if let Some(card) = tabs::missing_answer(webview.app_handle(), &caller) {
+        return Ok(card);
+    }
     if let Some(name) = windows::resting_name(webview.app_handle(), &caller.label) {
         return Ok(serde_json::json!({ "resting": true, "name": name }));
     }
@@ -504,7 +509,7 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         // V2-3.7: Home is pinned and stays; the opened tab becomes active.
-        match windows::open_project_window(&app, &path, caller.as_deref(), None) {
+        match windows::open_project_window(&app, &path, caller.as_deref(), None, app_state::Binding::Adopt) {
             Ok(_) => {}
             Err(e) => sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display())),
         }
@@ -815,6 +820,8 @@ pub fn run() {
             notify::spawn_activity_poller(&handle);
             // V2-3.10: `index://changed` to Home when a running project's index changes.
             home::spawn_index_watch(&handle);
+            // S1.19: a tab whose folder moved on disk shows the card.
+            tabs::spawn_root_watch(&handle);
 
             // The bundled app parks maude:// links; the client validates and
             // opens a file locally or asks before a project switch.
