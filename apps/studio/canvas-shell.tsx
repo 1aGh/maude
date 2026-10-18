@@ -94,6 +94,7 @@ import {
   resolveHoverTarget,
   useInputRouter,
 } from './input-router.tsx';
+import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
@@ -3517,6 +3518,8 @@ function CanvasRouter({
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />
+      {/* S3.10a — the link chip: Edit only, read-only (the component gates its own mode) */}
+      <LinkChipOverlay />
       <EditingLayer />
       {!readOnly && <ElementResizeOverlay />}
       {!readOnly && <SpacingHandlesOverlay />}

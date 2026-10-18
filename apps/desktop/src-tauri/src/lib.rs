@@ -20,6 +20,7 @@ mod bus;
 mod crash_reporter;
 mod deep_link;
 mod doors;
+mod external_link;
 mod home;
 mod keychain;
 mod lifecycle;
@@ -675,6 +676,7 @@ pub fn run() {
             oauth::github_open_verification,
             oauth::open_github_url,
             oauth::open_cloud_url,
+            external_link::open_link_external,
             keychain::github_is_signed_in,
             keychain::github_sign_out,
             pick_directory,

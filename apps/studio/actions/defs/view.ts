@@ -18,6 +18,16 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { keywords: ['mode', 'live', 'interact', 'edit'] },
   },
   {
+    // S3.10a — back out of a followed link (S3-links-format §5 "Back"): the PreviewBar's "‹ Homepage". No key
+    // (esc leaves Preview, it does not go back). A per-window stack in shell memory; nothing to pop = nothing.
+    id: 'preview.back',
+    label: 'Back',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { mode: ['preview'] },
+    search: { keywords: ['link', 'previous', 'return', 'canvas'] },
+  },
+  {
     id: 'view.panels',
     label: 'Hide panels',
     kind: 'toggle',

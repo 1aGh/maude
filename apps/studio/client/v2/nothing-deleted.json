@@ -3369,6 +3369,7 @@
     "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "D7",
     "testid:studio/cursors-overlay.tsx#canvas iframe chrome/dc-cursor-dc-peer-selection-data-peer-gesture": "testid:.dc-cursor / .dc-peer-selection / [data-peer-gesture]",
     "testid:studio/figma/to-artboard.ts#canvas iframe chrome/data-dc-element": "testid:[data-dc-element]",
+    "testid:studio/link-chip-overlay.tsx#canvas/edit-link-chip": "testid:edit-link-chip",
     "testid:studio/measure-overlay.tsx#canvas iframe chrome/dc-cv-measure-line-dc-cv-measure-pill": "testid:.dc-cv-measure-line / .dc-cv-measure-pill",
     "testid:studio/notifications.tsx#banners/maude-notice-action-summary": "testid:.maude-notice / -action / -summary",
     "testid:studio/notifications.tsx#banners/notice-id": "testid:notice-<id>",

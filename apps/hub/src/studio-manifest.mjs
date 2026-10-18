@@ -151,6 +151,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // GET was refused 405 for every role, owner included. `read` on the safe side,
   // nothing on the unsafe side — it writes nothing (inspector-edits RCA).
   '/_api/edit-scope': { safe: 'read', unsafe: null },
+  // S3.10a — the shell's link-follow reads where an on-click link goes (read only, any role)
+  '/_api/links': { safe: 'read', unsafe: null },
   '/_api/insert-artboard': { safe: null, unsafe: 'edit' },
   '/_api/insert-element': { safe: null, unsafe: 'edit' },
   '/_api/insert-sequence': { safe: null, unsafe: 'edit' },

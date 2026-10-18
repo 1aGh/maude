@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ddb766956dc1",
+  "manifestVersion": "db8da43b966b",
   "actions": [
     {
       "id": "search.open",
@@ -683,10 +683,59 @@
       }
     },
     {
+      "id": "element.set-link",
+      "label": "Set link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add data-cd-link=\"#<artboard>\" | \"<canvas>.tsx#<artboard>\" | \"https://…\" to the element, next to its data-cd-id (add an id if it has none)"
+      }
+    },
+    {
+      "id": "element.clear-link",
+      "label": "Clear link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the element’s data-cd-link attribute"
+      }
+    },
+    {
       "id": "mode.preview",
       "label": "Preview",
       "kind": "toggle",
       "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode preview"
+      }
+    },
+    {
+      "id": "preview.back",
+      "label": "Back",
+      "kind": "command",
+      "exec": "shell",
       "effect": "none",
       "agent": {
         "path": "cli",

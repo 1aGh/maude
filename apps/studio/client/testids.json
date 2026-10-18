@@ -11728,6 +11728,20 @@
     "v2": "new"
   },
   {
+    "hook": "edit-link-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe (Edit only): the read-only chip at the top-right of the one selected element that has a link, \"Go to Pricing\" / \"Opens cal.com/studio\".",
+    "producer": {
+      "file": "apps/studio/link-chip-overlay.tsx",
+      "symbol": "LinkChipOverlay"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/link-chip-overlay.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "edit-lock-badge",
     "kind": "testid",
     "pattern": false,
@@ -12438,7 +12452,7 @@
   {
     "hook": "insp-ctl-click",
     "kind": "testid",
-    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). Read-only until the link writer (S3 through S2.1's edit-op) is wired; the select is disabled.",
+    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). The select is disabled when there is no link to change; \"None\" clears it (element.clear-link through /_api/edit-op).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
       "symbol": "InteractionBody"
@@ -12537,6 +12551,182 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Preview's line, top centre: \"Previewing <canvas>\" and what esc does; `data-state` in/out drives the fade, `data-occludes=\"top\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Previewing <canvas>\" inside the PreviewBar (the canvas name is the `<strong>`).",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar-esc",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The esc hint: \"esc to edit\" for editors, \"esc for Viewing\" for a viewing role.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The way back after a followed link (\"‹ Homepage\"); present only when the shell passes a back canvas (S3.10a fills it).",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "zoom-only",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Preview's zoom readout, bottom left: the percentage and nothing else; `data-occludes=\"bottom\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/zoom-only.jsx",
+      "symbol": "ZoomOnly"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The backdrop behind \"Open a website?\" (S3.10b), trusted shell chrome over the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open a website?\" — the shell's own confirmation before a canvas link opens a website (`role=dialog`, `aria-modal`; esc cancels). Shown once per host per window session; `data-fallback=\"true\"` on the desktop when the opener refused or is missing.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The website's host, in bold (punycode for an IDN host — what opens is what shows).",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-display",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Host + path beneath the host (`externalDisplay`); absent in the fallback.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-url",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Desktop fallback: the full URL as selectable text, with \"Paste it in your browser.\" Nothing opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Open (primary): browser `window.open(url, '_blank', 'noopener,noreferrer')` inside the click; desktop `open_link_external`. Absent in the fallback.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy link — primary in the desktop fallback; the label flips to \"Copied\".",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel: closes the sheet; nothing opens and the host is not remembered.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   }
 ]

@@ -19,6 +19,7 @@ import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
+import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
@@ -46,6 +47,8 @@ export interface RouteDeps {
   edit: Omit<EditRouteDeps, 'runs'>;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S3.10a — `GET /_api/links?file=` (main origin only; the shell's link-follow reads it) */
+  links: LinksRouteDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
 }
@@ -63,6 +66,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createPinsRoutes(deps.pins),
     ...createAiRoutes(deps.ai),
     ...createChatRoutes(deps.chat),
+    ...createLinksRoutes(deps.links),
     // S2.1 — AI holds read THE run registry (V2-1.15 §4 #13)
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
     ...createProjectUndoRoutes(

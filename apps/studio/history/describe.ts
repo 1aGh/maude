@@ -52,6 +52,7 @@ import {
   attrLabel,
   colourWord,
   firstWords,
+  linkChangeWords,
   nameInWords,
   plural,
   propLabel,
@@ -117,6 +118,8 @@ export interface Change {
   element?: ElementRef | { artboard: string; print: string };
   /** Source property, for blame keys and object history. */
   prop?: string;
+  /** `added` / `removed`: how many elements the line stands for (its subtree) — S1.10's collapse rule. */
+  weight?: number;
 }
 
 export interface DescribeOptions extends WordsOptions {
@@ -128,9 +131,9 @@ export interface LaneContext {
   canvas: string;
   before: Lanes;
   after: Lanes;
-  /** null = the TSX did not parse. */
-  modelBefore: TsxModel | null;
-  modelAfter: TsxModel | null;
+  /** null = the TSX did not parse. Parsed on first read, and shared when both sides carry the same TSX. */
+  readonly modelBefore: TsxModel | null;
+  readonly modelAfter: TsxModel | null;
   opts: DescribeOptions;
 }
 
@@ -723,6 +726,9 @@ function diffPair(env: Env, a: El, b: El, abKey: string, out: Change[]): void {
       }
     }
   }
+  // S3.10a — the element's On click (`data-cd-link`): the one data-cd-* a person sees changing
+  if (a.link !== b.link)
+    push('attr', 'W1', linkChangeWords(a.link, b.link, nameFor(null)), 'data-cd-link');
   if (isAb && sizeA) {
     const dim = (e: El, k: string): Val | undefined => e.attrs.get(k);
     const lits = [dim(a, 'width'), dim(a, 'height'), dim(b, 'width'), dim(b, 'height')];
@@ -856,6 +862,15 @@ function matchedDescendants(e: El, has: (x: El) => boolean, out: El[] = []): El[
 }
 
 /** All lines of one container pair: pair changes, positions, additions, removals. */
+/** Elements in a subtree (itself included). */
+function subtreeSize(e: El): number {
+  let n = 0;
+  walkEls(e, () => {
+    n++;
+  });
+  return n;
+}
+
 function diffContainer(env: Env, ra: El, rb: El, p: Pairing, out: Change[]): void {
   const abOf = (e: El): string => (env.mode === 'artboard' ? abKeyOf(e.root) : '');
   const isLeafAb = (e: El): boolean => e.tag === 'DCArtboard' && env.mode === 'frame';
@@ -961,6 +976,7 @@ function diffContainer(env: Env, ra: El, rb: El, p: Pairing, out: Change[]): voi
           kind: b.tag === 'DCSection' ? 'section' : 'added',
           words: `${name} added`,
           element: ref(env, b, abOf(b)),
+          weight: subtreeSize(b),
         });
       }
     }
@@ -992,6 +1008,7 @@ function diffContainer(env: Env, ra: El, rb: El, p: Pairing, out: Change[]): voi
           kind: a.tag === 'DCSection' ? 'section' : 'removed',
           words: `${name} removed`,
           element: ref(env, a, abOf(a)),
+          weight: subtreeSize(a),
         });
       }
     }
@@ -1404,12 +1421,32 @@ export function describeChanges(
   opts: DescribeOptions = {}
 ): { changes: Change[]; ms: number } {
   const t0 = performance.now();
-  const modelBefore = parseModel(before.tsx);
-  const modelAfter = parseModel(after.tsx);
+  // Models are parsed on first use and shared when both sides carry the same TSX, so a CSS-, meta- or
+  // annotations-only version costs at most one parse (S1.10; an unchanged side is never parsed twice).
+  let mb: TsxModel | null | undefined;
+  let ma: TsxModel | null | undefined;
+  const getBefore = (): TsxModel | null => {
+    if (mb === undefined) mb = parseModel(before.tsx);
+    return mb;
+  };
+  const getAfter = (): TsxModel | null => {
+    if (ma === undefined) ma = before.tsx === after.tsx ? getBefore() : parseModel(after.tsx);
+    return ma;
+  };
   const changes =
-    before.tsx === after.tsx ? [] : describeTsx(canvas, modelBefore, modelAfter, opts);
-  for (const lane of opts.lanes ?? []) {
-    changes.push(...lane({ canvas, before, after, modelBefore, modelAfter, opts }));
-  }
+    before.tsx === after.tsx ? [] : describeTsx(canvas, getBefore(), getAfter(), opts);
+  const ctx: LaneContext = {
+    canvas,
+    before,
+    after,
+    get modelBefore() {
+      return getBefore();
+    },
+    get modelAfter() {
+      return getAfter();
+    },
+    opts,
+  };
+  for (const lane of opts.lanes ?? []) changes.push(...lane(ctx));
   return { changes, ms: performance.now() - t0 };
 }

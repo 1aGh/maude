@@ -151,6 +151,8 @@ function Level({ nodes, depth, trail, openPath, cur, setCur, onRow, onHover, lab
  * @param state `{ panelsHidden, checked }` for labels / ticks
  * @param run (id) => void — the shell's runner
  * @param docked the pill sits on the pinned left column (no island chrome of its own)
+ * @param folded S3.9 — Preview folds the pill to its mark (04 md-preview); the name, canvas and caret
+ *   return with the mode. The accessible name and the menu are unchanged.
  * @param onOpen (opener) => void — called with the element that had focus before the menu opened
  *   (Cut / Paste act on it)
  * @param pillRef optional ref to the pill button
@@ -162,6 +164,7 @@ export function ProjectPill({
   state,
   run,
   docked = false,
+  folded = false,
   onOpen,
   pillRef: outerRef,
 }) {
@@ -323,6 +326,7 @@ export function ProjectPill({
       data-occludes={docked ? undefined : 'top'}
       data-open={open ? 'true' : undefined}
       data-docked={docked ? 'true' : undefined}
+      data-folded={folded ? 'true' : undefined}
     >
       <button
         ref={btnRef}
@@ -362,18 +366,22 @@ export function ProjectPill({
         <span className="st-pill-mark" data-tour="brand">
           <Mark />
         </span>
-        <span className="st-pill-name">{project || 'maude'}</span>
-        {canvas ? (
+        {folded ? null : (
           <>
-            <span className="st-pill-sep" aria-hidden="true">
-              /
+            <span className="st-pill-name">{project || 'maude'}</span>
+            {canvas ? (
+              <>
+                <span className="st-pill-sep" aria-hidden="true">
+                  /
+                </span>
+                <span className="st-pill-canvas">{canvas}</span>
+              </>
+            ) : null}
+            <span className="st-pill-caret" aria-hidden="true">
+              <StIcon name="chevron-down" size={14} />
             </span>
-            <span className="st-pill-canvas">{canvas}</span>
           </>
-        ) : null}
-        <span className="st-pill-caret" aria-hidden="true">
-          <StIcon name="chevron-down" size={14} />
-        </span>
+        )}
       </button>
       {open ? (
         // biome-ignore lint/a11y/noStaticElementInteractions: key events bubble from the menu's rows
