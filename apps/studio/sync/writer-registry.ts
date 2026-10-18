@@ -234,6 +234,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/acp/chats/restore': { class: 'local' },
   '/_api/acp/chats/search': { class: 'local' },
   '/_api/acp/chats/trash': { class: 'local' },
+  // S5.10 routes/chat-attach.ts: a photo / footage / sound attachment lands in Assets (the same
+  // writer as /_api/asset); a PDF and every folder grant are this Mac's (`_chat/`, `_state/`)
+  '/_api/ai/attach/file': { class: 'file-plane', rows: 'S27' },
+  '/_api/ai/attach/folder': { class: 'local' },
+  '/_api/ai/attach/folder/detach': { class: 'local' },
+  '/_api/ai/attach/folder/revoke': { class: 'local' },
+  '/_api/ai/attach/folders': { class: 'local' },
+  '/_api/ai/attach/folder/list': { class: 'local' },
   '/_api/acp/focus': { class: 'local' },
   '/_api/acp/running': { class: 'local' },
   '/_api/acp/status': { class: 'local' },

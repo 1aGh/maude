@@ -1655,6 +1655,12 @@ export function createHttp(
       outbox: outbox.store,
       isRunning: (id) => runningChats().includes(id),
     },
+    // S5.10 — attachments + folder consent (routes/chat-attach.ts). Main origin only.
+    chatAttach: {
+      designRoot: ctx.paths.designRoot,
+      projectRoot: ctx.paths.repoRoot,
+      saveAsset: (stream) => api.saveAssetFromStream(stream),
+    },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted

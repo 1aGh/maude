@@ -18,6 +18,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
@@ -42,6 +43,8 @@ export interface RouteDeps {
   chat: ChatRouteDeps;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S5.10 — attachments (→ Assets / this Mac's `_chat/attachments/`) + folder consent */
+  chatAttach?: ChatAttachDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -57,6 +60,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createPinsRoutes(deps.pins),
     ...createAiRoutes(deps.ai),
     ...createChatRoutes(deps.chat),
+    ...(deps.chatAttach ? createChatAttachRoutes(deps.chatAttach) : []),
     ...createProjectUndoRoutes(
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),

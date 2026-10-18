@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "404238e54001",
+  "manifestVersion": "0efacec9dc5e",
   "actions": [
     {
       "id": "search.open",
@@ -2267,6 +2267,54 @@
         "path": "human",
         "because": "native-window",
         "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
+      }
+    },
+    {
+      "id": "ai.attach-files",
+      "label": "Attach files…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-folder",
+      "label": "Choose a folder…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-assets",
+      "label": "From Assets",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-screenshot",
+      "label": "Paste a screenshot",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     }
   ],
