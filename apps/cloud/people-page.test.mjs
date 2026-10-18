@@ -79,8 +79,14 @@ describe('roles are explained, not just named', () => {
     // "viewer" is a word we chose. What somebody needs to know is whether that
     // person can change their work.
     const html = peoplePage({ project, people, isOwner: true });
-    assert.match(html, /Can design, edit and comment/);
-    assert.match(html, /Everything, plus billing, people and deleting/);
+    assert.match(
+      html,
+      /<strong>Can edit<\/strong> <span class="quiet">Change the designs, comment and download\./
+    );
+    assert.match(
+      html,
+      /<strong>Owner<\/strong> <span class="quiet">Everything, plus billing, people and deleting/
+    );
   });
 });
 
@@ -101,11 +107,12 @@ describe('copy and safety', () => {
   // moment of the decision.
   it('the role dropdown says what each role means while it is being chosen', () => {
     const html = peoplePage({ project, people: [], isOwner: true });
-    assert.match(html, /<option value="member"[^>]*>Member — can change the designs<\/option>/);
+    assert.match(html, /<option value="member"[^>]*>Can edit — change the designs<\/option>/);
     assert.match(
       html,
-      /<option value="viewer"[^>]*>Viewer — can look and download, not change<\/option>/
+      /<option value="viewer"[^>]*>Can comment — look, comment and download<\/option>/
     );
+    assert.match(html, /<option value="observer"[^>]*>Can view — look only<\/option>/);
     assert.doesNotMatch(html, /<option value="member"[^>]*>member<\/option>/);
   });
 
@@ -123,5 +130,114 @@ describe('copy and safety', () => {
         `"${jargon}" leaked into the people panel`
       );
     }
+  });
+});
+
+// Maude v2 S9.16 — v2 role words, who sees an address, grants and invitations.
+describe('S9.16: the v2 people panel', () => {
+  const team = [
+    { account_id: 'a1', email: 'ana@example.com', name: 'Ana', role: 'owner' },
+    { account_id: 'a2', email: 'tereza@example.com', name: 'Tereza', role: 'member' },
+    { account_id: 'a3', email: 'jonas@example.com', name: null, role: 'viewer' },
+    { account_id: 'a4', email: 'olga@example.com', name: 'Olga', role: 'observer' },
+  ];
+  const grants = [
+    {
+      account_id: 'a5',
+      email: 'grant@example.com',
+      name: 'Petr',
+      role: 'viewer',
+      canvas_path: 'ui/Pricing.tsx',
+    },
+  ];
+  const invites = [
+    {
+      email: 'pending@example.com',
+      role: 'member',
+      canvas_path: null,
+      expires_at: Date.UTC(2026, 9, 20),
+    },
+    {
+      email: 'canvas@example.com',
+      role: 'observer',
+      canvas_path: 'ui/Homepage.tsx',
+      expires_at: Date.UTC(2026, 9, 20),
+    },
+  ];
+  const text = (html) => html.replace(/<style>[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
+
+  it('draws the four v2 words, never a wire id', () => {
+    const html = peoplePage({
+      account: { id: 'a1' },
+      project,
+      people: team,
+      grants,
+      invites,
+      isOwner: true,
+    });
+    for (const word of ['Owner', 'Can edit', 'Can comment', 'Can view']) {
+      assert.ok(html.includes(`<strong>${word}</strong>`), word);
+    }
+    assert.doesNotMatch(text(html), /\b(observer|viewer|member)\b/);
+  });
+
+  it('a non-owner sees names and role words only — no address, no invitation', () => {
+    const html = peoplePage({
+      account: { id: 'a2' },
+      project,
+      people: team,
+      grants,
+      invites,
+      isOwner: false,
+    });
+    assert.doesNotMatch(html, /@example\.com/, 'no one else’s address reaches a non-owner');
+    assert.match(html, /<td>You<\/td>/, 'the signed-in person is You');
+    assert.match(html, /<td>Ana<\/td>/);
+    assert.match(html, /No name yet/, 'a person with no name is not shown by address');
+    assert.match(
+      html,
+      /<td>Petr<\/td><td><strong>Can comment<\/strong> <span class="quiet">on Pricing only/
+    );
+    assert.doesNotMatch(html, /not joined yet/);
+  });
+
+  it('the owner sees addresses, canvas grants and pending invitations with their words', () => {
+    const html = peoplePage({
+      account: { id: 'a1' },
+      project,
+      people: team,
+      grants,
+      invites,
+      isOwner: true,
+    });
+    assert.match(html, /Tereza <span class="quiet">tereza@example\.com<\/span>/);
+    assert.match(html, /grant@example\.com/);
+    assert.match(
+      html,
+      /pending@example\.com<\/td><td><strong>Can edit<\/strong> <span class="quiet">· not joined yet · the link works until 20 Oct/
+    );
+    assert.match(html, /canvas@example\.com<\/td><td><strong>Can view<\/strong> on Homepage/);
+  });
+
+  it('Make owner stays hidden (lead decision v2-lead-make-owner-hidden)', () => {
+    const html = peoplePage({
+      account: { id: 'a1' },
+      project,
+      people: team,
+      grants,
+      invites,
+      isOwner: true,
+    });
+    assert.doesNotMatch(html, /Make owner|value="owner"/);
+  });
+
+  it('escapes names as it escapes addresses', () => {
+    const html = peoplePage({
+      account: { id: 'a1' },
+      project,
+      people: [{ account_id: 'x', email: 'x@example.com', name: '<b>x</b>', role: 'member' }],
+      isOwner: false,
+    });
+    assert.ok(!/<b>x<\/b>/.test(html));
   });
 });
