@@ -11,11 +11,21 @@
 // "this invite was revoked" tells a fired contractor exactly what happened and
 // a guessed UUID must learn nothing at all.
 
-import { writeGrant } from './access-forward.mjs';
+import { ACCESS_VERSION_REFUSAL, declaredAccessOf } from '../studio/access/scope.ts';
+import {
+  accessOf,
+  INVITE_THREAD,
+  loadClaim,
+  validCanvasPath,
+  writeGrant,
+} from './access-forward.mjs';
 import { createAccount, createSession, getAccountByEmail } from './accounts.mjs';
 import { track } from './analytics.mjs';
-import { GOOGLE_BUTTON_CSS, googleButton, lockup, PAGE_CSS } from './brand.mjs';
+import { DESKTOP_DOWNLOAD_URL, googleButton, publicPage, publicResponse } from './brand.mjs';
 import { audit } from './db.mjs';
+import { personalTokenAccount } from './device-auth.mjs';
+import { spend } from './edge.mjs';
+import { mintHandoffCode } from './handoff.mjs';
 import { googleConfigured } from './oauth-google.mjs';
 
 /**
@@ -42,24 +52,12 @@ function esc(s) {
   );
 }
 
-function page(title, body) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)} — Maude</title><style>${PAGE_CSS}${GOOGLE_BUTTON_CSS}\n  main { max-width: 26rem; }</style></head><body><main>${lockup()}${body}</main></body></html>`;
-}
+// The v2 public shell (brand.mjs) — one skeleton and one header set for every
+// page a person reaches from outside.
+const html = (body, status = 200, extraHeaders = {}) => publicResponse(body, status, extraHeaders);
+const deadInvitePage = () => publicPage({ title: 'Invitation', body: `<p>${DEAD_LINK}</p>` });
 
-function html(body, status = 200, extraHeaders = {}) {
-  return new Response(body, {
-    status,
-    headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-content-type-options': 'nosniff',
-      'content-security-policy':
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
-      'referrer-policy': 'no-referrer',
-      ...extraHeaders,
-    },
-  });
-}
+const INVITE_ID = /^[0-9a-f-]{36}$/;
 
 const ROLE_MEANING = {
   observer: 'You’ll be able to look at the work.',
@@ -67,13 +65,38 @@ const ROLE_MEANING = {
   member: 'You’ll be able to design and edit alongside the team.',
 };
 
+/** `ui/Poster.tsx` → `Poster` — the name a person sees for a canvas. */
+export function canvasName(path) {
+  const base =
+    String(path ?? '')
+      .split('/')
+      .pop() ?? '';
+  return base.replace(/\.[^.]+$/, '') || base;
+}
+
 /**
- * The invitation page, in the shape the visitor's situation calls for.
+ * The invitation page (Maude v2 S9.14, canvas 02 ob-invite-page).
  *
- * `mode` is one of:
+ * The link explains itself: who invited you, to what, and the comment it points
+ * at — then ONE download. Already installed? Open in Maude
+ * (`maude://invite/<id>` — the invitation's id and nothing else: no e-mail, no
+ * project name, no credential, S6↔S9 §5.6). After install, signing in from the
+ * app redeems the invitation through the pending cookie this page sets, and
+ * the app lands where the inviter pointed.
+ *
+ * The browser path is still here — "Just looking? See it in the browser" — as
+ * a disclosure holding the account card, in the shape the visitor's situation
+ * calls for. `mode` is one of:
  *   'join'    — signed in as the invited address; one button.
  *   'sign-in' — an account with this address exists; go sign in first.
  *   'create'  — no account; choose a password right here.
+ * The disclosure opens by itself when there is something to say in it (an
+ * error, or signed in as somebody else).
+ *
+ * `fromName` is the inviter's account NAME (never their e-mail; null before
+ * v18 or when they set none). `canvas` is `{ path, name }` for a canvas
+ * invitation; `thread` only ever comes with a canvas. The comment's TEXT lives
+ * in the project, not here — the page says there is one, it does not quote it.
  */
 export function invitePage({
   projectName,
@@ -84,6 +107,9 @@ export function invitePage({
   error = null,
   googleEnabled = false,
   signedInAs = null,
+  fromName = null,
+  canvas = null,
+  thread = null,
 }) {
   const meaning = ROLE_MEANING[role] ?? '';
   const action = `/invite/${esc(inviteId)}`;
@@ -136,47 +162,125 @@ export function invitePage({
       <p style="margin-top:1rem"><button type="submit">Create account and join</button></p>
     </form>`;
   }
-  return page(
-    `Join ${projectName}`,
-    `<h1>Join ${esc(projectName)}</h1>
-     <p class="quiet">This invitation is for <strong>${esc(email)}</strong>. ${esc(meaning)}</p>
-     ${mismatch}
-     ${error ? `<p class="error">${esc(error)}</p>` : ''}
-     <div class="card">${body}</div>`
+  const who = fromName ? String(fromName) : null;
+  const shown = canvas && thread ? thread : null; // a thread only ever with its canvas
+  const pointer = canvas
+    ? `<div class="card"><strong>${esc(canvas.name)}</strong>
+         <span class="quiet">${
+           shown
+             ? who
+               ? `${esc(who)} left a comment for you on this canvas.`
+               : 'A comment is waiting for you on this canvas.'
+             : 'You’ll open straight onto this canvas.'
+}</span></div>`
+    : '';
+  const arrive = canvas
+    ? shown
+      ? `You’re on ${esc(canvas.name)}, by ${who ? `${esc(who)}’s` : 'the'} comment`
+      : `You’re on ${esc(canvas.name)}`
+    : `You’re in ${esc(projectName)}`;
+  return publicPage({
+    title: who ? `${who} invited you to ${projectName}` : `You’re invited to ${projectName}`,
+    sub: meaning,
+    // The tab keeps the plain "Join <project>": it is what the page is FOR.
+    tab: `Join ${projectName}`,
+    body: `<p class="fine">This invitation is for <strong>${esc(email)}</strong>.</p>
+     ${pointer ? `<div class="stack">${pointer}</div>` : ''}
+     <div class="stack">
+       <a class="btn wide" href="${DESKTOP_DOWNLOAD_URL}">Download Maude for Mac</a>
+       <a class="btn secondary wide" href="maude://invite/${esc(inviteId)}">Already installed? Open in Maude</a>
+     </div>
+     <ol class="steps">
+       <li>Download and open</li>
+       <li>Sign in</li>
+       <li>${arrive}</li>
+     </ol>
+     <details${error || wrongPerson ? ' open' : ''}>
+       <summary class="fine">Just looking? See it in the browser — any computer.</summary>
+       <h2 style="margin-top:var(--space-5)">Join ${esc(projectName)}</h2>
+       ${mismatch}
+       ${error ? `<p class="error">${esc(error)}</p>` : ''}
+       <div class="card">${body}</div>
+     </details>`,
+  });
+}
+
+/** An invite row (any state) with its project's name, or null. */
+async function inviteRow(env, inviteId) {
+  if (!INVITE_ID.test(String(inviteId ?? ''))) return null;
+  return (
+    (await env.DB.prepare(
+      `SELECT i.*, p.name AS project_name, p.state AS project_state FROM project_invites i
+         JOIN projects p ON p.id = i.project_id
+        WHERE i.id = ?`
+    )
+      .bind(inviteId)
+      .first()) ?? null
   );
 }
 
+const isLive = (row, now) =>
+  Boolean(row) &&
+  !row.redeemed_at &&
+  !row.revoked_at &&
+  row.expires_at >= now &&
+  row.project_state !== 'purged';
+
 /** Look up an invite and decide whether it can still be used. */
-async function liveInvite(env, inviteId, { now = Date.now() } = {}) {
-  if (!/^[0-9a-f-]{36}$/.test(inviteId)) return null;
-  const row = await env.DB.prepare(
-    `SELECT i.*, p.name AS project_name FROM project_invites i
-       JOIN projects p ON p.id = i.project_id
-      WHERE i.id = ?`
-  )
-    .bind(inviteId)
-    .first();
-  if (!row) return null;
-  if (row.redeemed_at || row.revoked_at || row.expires_at < now) return null;
-  return row;
+export async function liveInvite(env, inviteId, { now = Date.now() } = {}) {
+  const row = await inviteRow(env, inviteId);
+  return isLive(row, now) ? row : null;
 }
 
 /**
- * The address a `next=/invite/<id>` hand-off is FOR, or null.
+ * The invitation a sign-in hand-off is about, or null: `next=/invite/<id>`, or
+ * the app's own `next=/activate?…&invite=<id>` (S6↔S9 §5.1 step 4).
+ */
+function inviteIdFromNext(next) {
+  const raw = String(next ?? '');
+  const direct = /^\/invite\/([0-9a-f-]{36})$/.exec(raw);
+  if (direct) return direct[1];
+  if (!raw.startsWith('/activate?')) return null;
+  try {
+    const id = new URL(raw, 'https://cloud.invalid').searchParams.get('invite') ?? '';
+    return INVITE_ID.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The address a sign-in hand-off is FOR, or null.
  *
- * Read by the Google leg so the account chooser opens on the right person.
- * Deliberately derived from the invitation rather than accepted as a query
- * parameter: a `?hint=` anyone can set is a small phishing surface for no gain,
- * and this is the one address the link is actually about. A dead or spent
- * invitation yields null — the sign-in still works, it just does not preselect.
+ * Read by the Google leg so the account chooser opens on the right person, and
+ * by the sign-in page to fill in the address. Deliberately derived from the
+ * invitation rather than accepted as a query parameter: a `?hint=` anyone can
+ * set is a small phishing surface for no gain, and this is the one address the
+ * link is actually about. A dead or spent invitation yields null — the sign-in
+ * still works, it just does not preselect. The address is never put in a URL.
  */
 export async function inviteHintFor(env, next) {
-  const m = /^\/invite\/([0-9a-f-]{36})$/.exec(next ?? '');
-  if (!m) return null;
+  const id = inviteIdFromNext(next);
+  if (!id) return null;
   try {
-    return (await liveInvite(env, m[1]))?.email ?? null;
+    return (await liveInvite(env, id))?.email ?? null;
   } catch {
     return null; // a hint is a nicety; never fail sign-in over one
+  }
+}
+
+/**
+ * The `set-cookie` value that remembers an invitation across "install the app,
+ * sign in from it" — exactly what `GET /invite/<id>` sets, offered to the
+ * `/activate` page the app opens with `&invite=<id>` (S6↔S9 §5.1 step 3). Null
+ * for a dead or malformed id: one redemption path, one rule.
+ */
+export async function pendingInviteCookieFor(env, inviteId, { now = Date.now() } = {}) {
+  try {
+    const invite = await liveInvite(env, inviteId, { now });
+    return invite ? pendingCookie(invite.id, PENDING_INVITE_MS / 1000) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -223,6 +327,193 @@ async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } =
 }
 
 /**
+ * What an invitation shows, and nothing more: the project's name, the
+ * inviter's NAME (never their e-mail), the canvas and the comment thread. The
+ * same facts feed the page and `peek`, so the API can never say more than the
+ * page a stranger holding the link already sees.
+ */
+async function inviteFacts(env, invite) {
+  let fromName = null;
+  if (invite.invited_by) {
+    try {
+      const who = await env.DB.prepare('SELECT name FROM accounts WHERE id = ?')
+        .bind(invite.invited_by)
+        .first();
+      const name = String(who?.name ?? '').trim();
+      fromName = name ? name : null;
+    } catch {
+      fromName = null; // a name is a nicety (O3: null → "You're invited to …")
+    }
+  }
+  const canvas =
+    invite.canvas_path && validCanvasPath(invite.canvas_path)
+      ? { path: invite.canvas_path, name: canvasName(invite.canvas_path) }
+      : null;
+  const thread =
+    canvas && typeof invite.thread === 'string' && INVITE_THREAD.test(invite.thread)
+      ? invite.thread
+      : null;
+  return { projectName: invite.project_name, fromName, canvas, thread };
+}
+
+/**
+ * Where the app should land for one invitation, re-checked against what this
+ * account can see NOW: `{ project, canvas?, thread? }`, or null when the claim
+ * is gone. A canvas the claim cannot see collapses to `{ project }`; a thread
+ * is kept only together with its canvas (S6↔S9 §5.2, invariant 4).
+ */
+async function checkedLanding(db, { projectId, accountId, canvas, thread }) {
+  const { verdict } = await loadClaim(db, projectId, accountId);
+  if (!verdict?.ok) return null;
+  const access = accessOf(verdict);
+  if (canvas && validCanvasPath(canvas) && access.seesCanvas(canvas)) {
+    const t = typeof thread === 'string' && INVITE_THREAD.test(thread) ? thread : null;
+    return { project: projectId, canvas, ...(t ? { thread: t } : {}) };
+  }
+  return { project: projectId };
+}
+
+/**
+ * The "which project first" hint on the device-token reply (S6↔S9 §5.2): the
+ * newest invitation this account's address redeemed in the last half hour,
+ * re-checked with the claim. Null — key absent — when there is none, when it
+ * was revoked, or when the claim no longer holds.
+ */
+export async function landingAfterSignIn(env, { accountId, email, now = Date.now() }) {
+  if (!accountId || !email) return null;
+  let row = null;
+  try {
+    row = await env.DB.prepare(
+      `SELECT * FROM project_invites
+        WHERE email = ? AND redeemed_at IS NOT NULL AND redeemed_at > ? AND revoked_at IS NULL
+        ORDER BY redeemed_at DESC LIMIT 1`
+    )
+      .bind(String(email).toLowerCase(), now - PENDING_INVITE_MS)
+      .first();
+  } catch {
+    return null; // an unreadable D1 costs the hint, never the sign-in
+  }
+  if (!row) return null;
+  try {
+    return await checkedLanding(env.DB, {
+      projectId: row.project_id,
+      accountId,
+      canvas: row.canvas_path ?? null,
+      thread: row.thread ?? null,
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Each on its own budget, keyed per client like every other paid path
+// (edge.mjs). `peek` is unauthenticated, so its budget is what keeps a guessed
+// id from being cheap to test; `accept` costs a minted code.
+const PEEK_RULE = Object.freeze({ limit: 30, windowMs: 60_000, cost: 'invite-peek' });
+const ACCEPT_RULE = Object.freeze({ limit: 30, windowMs: 60_000, cost: 'invite-accept' });
+const GONE = Object.freeze({ reason: 'gone', error: DEAD_LINK });
+
+function apiJson(body, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      ...extraHeaders,
+    },
+  });
+}
+
+/**
+ * `GET /api/invites/<id>/peek` (no auth) and `POST /api/invites/<id>/accept`
+ * (Bearer `mpt_…`) — the app's half of an invitation (S6↔S9 §5.3).
+ *
+ * peek → the invite page's facts, or ONE 404 for every id that does not work
+ * (wrong, expired, revoked, spent: DEAD_LINK). accept → the invitation redeemed
+ * into the account and a one-time handoff code the app trades on the existing
+ * link lane; idempotent for the same person for half an hour.
+ */
+async function handleInviteApi(request, env, { id, verb, ctx, now = Date.now() }) {
+  const allowed = verb === 'peek' ? ['GET', 'HEAD'] : ['POST'];
+  if (!allowed.includes(request.method)) {
+    return apiJson({ reason: 'method' }, 405, { allow: allowed.join(', ') });
+  }
+  const budget = await spend(env, request, verb === 'peek' ? PEEK_RULE : ACCEPT_RULE, { now });
+  if (!budget.ok) {
+    return apiJson(
+      { reason: 'rate-limited', error: 'Too many attempts. Wait a minute and try again.' },
+      429,
+      { 'retry-after': '60' }
+    );
+  }
+  let asked = '';
+  try {
+    asked = decodeURIComponent(id);
+  } catch {
+    /* a malformed escape is just a wrong id */
+  }
+
+  if (verb === 'peek') {
+    const invite = await liveInvite(env, asked, { now });
+    if (!invite) return apiJson(GONE, 404);
+    const facts = await inviteFacts(env, invite);
+    return apiJson({
+      projectName: facts.projectName,
+      fromName: facts.fromName,
+      email: invite.email,
+      role: invite.role,
+      ...(facts.canvas ? { canvas: facts.canvas } : {}),
+      ...(facts.thread ? { thread: facts.thread } : {}),
+    });
+  }
+
+  // ---- accept
+  const bearer = await personalTokenAccount(env, request, { now });
+  if (!bearer) return apiJson({ reason: 'signed-out' }, 401);
+  const row = await inviteRow(env, asked);
+  const live = isLive(row, now);
+  const mine =
+    Boolean(row) &&
+    typeof bearer.email === 'string' &&
+    row.email.toLowerCase() === bearer.email.toLowerCase();
+  // Idempotent for the SAME person: redeemed by this address in the last half
+  // hour (every redeem path checks the address, so "this address" is "this
+  // person") answers again with a fresh code. Spent by anybody else → gone.
+  const again =
+    !live &&
+    mine &&
+    Boolean(row.redeemed_at) &&
+    !row.revoked_at &&
+    row.redeemed_at > now - PENDING_INVITE_MS &&
+    row.project_state !== 'purged';
+  if (!live && !again) return apiJson(GONE, 404);
+  if (!mine) return apiJson({ reason: 'other-account', email: row.email }, 403);
+  // A canvas-scoped invitation is a v2 claim; an app that does not declare v2
+  // must update first — refused BEFORE anything is redeemed.
+  if (row.canvas_path && declaredAccessOf(request.headers.get('x-maude-access')) !== 2) {
+    return apiJson(ACCESS_VERSION_REFUSAL, 426);
+  }
+  if (live) await redeem(env, row, bearer.id, { now, ctx });
+  const minted = await mintHandoffCode(env, {
+    account: bearer,
+    projectId: row.project_id,
+    now,
+    surface: 'app',
+    declaredAccess: 2,
+    canvas: row.canvas_path ?? null,
+  });
+  if (!minted.ok) return apiJson(GONE, 404);
+  const landing = (await checkedLanding(env.DB, {
+    projectId: row.project_id,
+    accountId: bearer.id,
+    canvas: row.canvas_path ?? null,
+    thread: row.thread ?? null,
+  })) ?? { project: row.project_id };
+  return apiJson({ code: minted.code, landing });
+}
+
+/**
  * Route `/invite/<id>`. Returns a Response, or null when the path is not ours.
  *
  * @param {{ account: {id: string, email: string} | null }} ctx  the signed-in
@@ -230,14 +521,23 @@ async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } =
  */
 export async function handleInviteRoutes(request, env, { account, ctx = null } = {}) {
   const url = new URL(request.url);
+  const api = /^\/api\/invites\/([^/]+)\/(peek|accept)$/.exec(url.pathname);
+  if (api) return handleInviteApi(request, env, { id: api[1], verb: api[2], ctx });
+
   const m = url.pathname.match(/^\/invite\/([^/]+)$/);
   if (!m) return null;
 
-  const invite = await liveInvite(env, decodeURIComponent(m[1]));
-  if (!invite) return html(page('Invitation', `<h1>Invitation</h1><p>${DEAD_LINK}</p>`), 404);
+  let asked = '';
+  try {
+    asked = decodeURIComponent(m[1]);
+  } catch {
+    /* a malformed escape is just a wrong id */
+  }
+  const invite = await liveInvite(env, asked);
+  if (!invite) return html(deadInvitePage(), 404);
 
   const view = {
-    projectName: invite.project_name,
+    ...(await inviteFacts(env, invite)),
     role: invite.role,
     email: invite.email,
     inviteId: invite.id,
@@ -376,6 +676,22 @@ export function allInviteHtml() {
       email: 'n@example.com',
       error: 'Please confirm you’ve read what Maude Cloud stores.',
     }),
-    page('Invitation', `<h1>Invitation</h1><p>${DEAD_LINK}</p>`),
+    invitePage({
+      ...base,
+      role: 'viewer',
+      mode: 'create',
+      email: 'jonas@example.com',
+      fromName: 'Tereza',
+      canvas: { path: 'brand/Combine-kampan.tsx', name: 'Combine-kampan' },
+      thread: 't-1',
+    }),
+    invitePage({
+      ...base,
+      role: 'observer',
+      mode: 'create',
+      email: 'jonas@example.com',
+      canvas: { path: 'brand/Poster.tsx', name: 'Poster' },
+    }),
+    deadInvitePage(),
   ].join('\n');
 }

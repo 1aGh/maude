@@ -99,7 +99,8 @@ test('the flow: code → human approves on /activate → poll → personal token
     }),
     env
   );
-  assert.match(await approve.text(), /You're connected/);
+  // Words per the S6↔S9 contract §5.1 step 6 (Maude v2 S9.14).
+  assert.match(await approve.text(), /You're signed in — go back to Maude\./);
 
   const minted = await (
     await worker.fetch(jpost('/auth/device/token', { device_code: code.device_code }), env)

@@ -414,6 +414,19 @@ export const MIGRATIONS = [
       'ALTER TABLE projects ADD COLUMN default_invite_role TEXT;',
     ],
   },
+  {
+    version: 18, // Maude v2 S9.14a (contract S6↔S9 §5.3) — who invited you, and to which comment
+    // Two nullable columns, nothing rewritten: every invitation sent before
+    // v18 keeps NULL in both, which the invite page reads as "no inviter name"
+    // and "no comment". `invited_by` is an ACCOUNT ID (the page shows that
+    // account's name, never its e-mail); `thread` is a comment thread id on
+    // the invite's canvas, only ever set together with `canvas_path`.
+    atomic: true,
+    statements: [
+      'ALTER TABLE project_invites ADD COLUMN invited_by TEXT;',
+      'ALTER TABLE project_invites ADD COLUMN thread TEXT;',
+    ],
+  },
 ];
 
 /** Run one migration's statements plus its schema_migrations row. */

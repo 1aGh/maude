@@ -27,6 +27,8 @@ import { decideAccess } from './project-access.mjs';
 export const INVITE_CAP_PER_DAY = 50;
 /** Same lifetime as every invitation the people page sends (and its e-mail promises). */
 export const INVITE_TTL_MS = 14 * 86_400_000;
+/** A comment thread id an invitation may point at (S6↔S9 §5.3). */
+export const INVITE_THREAD = /^[A-Za-z0-9_-]{1,64}$/;
 
 const PROJECT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -487,6 +489,12 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
     }
     if (!GRANT_ROLES.includes(role)) return refuse(422, 'unknown-role', 'That is not a role.');
     if (canvas !== null && !validCanvasPath(canvas)) return refuse(422, 'canvas', 'Not a canvas.');
+    // The comment the invitation points at (S6↔S9 §5.3): a thread id on THIS
+    // invitation's canvas, so never without one.
+    const thread = body.thread ?? null;
+    if (thread !== null && (canvas === null || !INVITE_THREAD.test(String(thread)))) {
+      return refuse(422, 'bad-thread', 'That comment cannot be linked to this invitation.');
+    }
     if ((await invitesToday(db, projectId, now)) >= INVITE_CAP_PER_DAY) {
       return refuse(
         429,
@@ -523,13 +531,27 @@ export async function handleAccessForward(request, env, { ctx = null, now = Date
     }
     const id = crypto.randomUUID();
     const expiresAt = now + INVITE_TTL_MS;
-    await db
-      .prepare(
-        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(id, projectId, email, role, now, expiresAt, canvas)
-      .run();
+    try {
+      // v18: who invited (an account id — the invite page shows a NAME, never
+      // this person's e-mail) and the comment it points at.
+      await db
+        .prepare(
+          `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path, invited_by, thread)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(id, projectId, email, role, now, expiresAt, canvas, actor.id, thread)
+        .run();
+    } catch {
+      // The hour a deploy can meet a v17 D1 (the cron migrates): the
+      // invitation still works; only the inviter's name and the comment wait.
+      await db
+        .prepare(
+          `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, canvas_path)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(id, projectId, email, role, now, expiresAt, canvas)
+        .run();
+    }
     await record('access.invite', { id, canvas, role });
     const inviteUrl = `${url.origin}/invite/${id}`;
     const sent = await mailInvite(env, { project, email, role, inviteUrl, invitedBy: actorEmail });
