@@ -356,6 +356,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
   '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
+  '/_api/sync/conflicts': { class: 'read' }, // routes/sync-conflicts.ts (S9.24): this Mac's _state/conflicts/, no effect
+  // S9.24 — a conflict pick is the canvas's own op path: one batch, one annotations lane.replace.
+  '/_api/sync/conflicts/resolve': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'applyAnnotationOps → onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
+    test: 'test/sync-conflicts-route.test.ts',
+  },
   // S3.5 — routes/present.ts: Present order / skip / notes in the versioned .meta.json
   '/_api/present-meta': {
     class: 'lane',

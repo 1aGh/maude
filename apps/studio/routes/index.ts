@@ -31,6 +31,7 @@ import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
+import { createSyncConflictRoutes, type SyncConflictRouteDeps } from './sync-conflicts.ts';
 import type { RouteSpec } from './table.ts';
 import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 
@@ -41,12 +42,12 @@ export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
+export { canvasPathsOfIndex } from './availability.ts';
 // S2.9b — the `annotations` rider of the legacy `/_api/canvas-meta` PATCH (one action, one ⌘Z)
 export { riderPatch } from './canvas-meta-rider.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
-// S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
-export { canvasPathsOfIndex } from './availability.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -77,6 +78,8 @@ export interface RouteDeps {
   annotations?: AnnotationRouteDeps;
   /** S11.4 — `GET /_api/sync/availability`: listed ∖ on disk, a read over the runtime's state */
   availability?: AvailabilityRouteDeps;
+  /** S9.24 — the object-conflict card: `GET /_api/sync/conflicts`, `POST …/resolve` (one lane edit) */
+  syncConflicts?: SyncConflictRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -125,5 +128,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ),
     ...(convert?.specs ?? []),
     ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
+    ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
   ];
 }

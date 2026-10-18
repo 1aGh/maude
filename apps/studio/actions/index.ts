@@ -11,6 +11,7 @@ import { EDIT_ACTIONS } from './defs/edit.ts';
 import { EXPORT_ACTIONS } from './defs/export.ts';
 import { NATIVE_ACTIONS } from './defs/native.ts';
 import { SEARCH_ACTIONS } from './defs/search.ts';
+import { SYNC_ACTIONS } from './defs/sync.ts';
 import { TIMELINE_ACTIONS } from './defs/timeline.ts';
 import { TOOL_ACTIONS } from './defs/tool.ts';
 import { UI_ACTIONS } from './defs/ui.ts';
@@ -33,6 +34,7 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...TEMPLATE_ACTIONS,
   ...NATIVE_ACTIONS,
   ...CHAT_ACTIONS,
+  ...SYNC_ACTIONS,
 ]);
 
 export const ACTIONS_BY_ID: ReadonlyMap<ActionId, ActionDef> = new Map(

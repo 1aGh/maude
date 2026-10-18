@@ -395,6 +395,37 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // going / cancel are human by Q5. Run on a copy is a file edit — the `artboard-busy` deny names
   // it. No `server` field yet: rule 7 wants a per-role refusal row a role suite runs (S9's
   // access-local-gate); the routes are routes/ai.ts. ──
+  // S9.24 — a conflict pick. The record is this Mac's `_state/conflicts/<slug>.json` (the held element,
+  // `mine` = this Mac's version, `theirs` = the head's); the pick is an ordinary board edit an agent
+  // makes in the board file, then drops the entry. The route refuses every role below edit.
+  ...Object.fromEntries(
+    (
+      [
+        [
+          'keep-mine',
+          'replace the element (same id) in <slug>.annotations.json with the record’s `mine`',
+        ],
+        ['keep-theirs', 'leave <slug>.annotations.json as it is'],
+        [
+          'keep-both',
+          'add the record’s `mine` to <slug>.annotations.json under a NEW id, to the right of the element',
+        ],
+      ] as const
+    ).map(([k, how]) => [
+      `sync.conflict.${k}`,
+      {
+        effect: 'project',
+        minRole: 'edit',
+        undo: 'step',
+        server: { route: '/_api/sync/conflicts/resolve', method: 'POST' },
+        agent: file(
+          'annotations',
+          'design:whiteboard',
+          `${how}; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json`
+        ),
+      } satisfies ActionDefAI,
+    ])
+  ),
   'ai.runs.list': {
     effect: 'none',
     minRole: 'edit',

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "75412133e673",
+  "manifestVersion": "7634bed3db93",
   "actions": [
     {
       "id": "search.open",
@@ -2856,6 +2856,63 @@
       "agent": {
         "path": "human",
         "because": "ai-chat"
+      }
+    },
+    {
+      "id": "sync.conflict.keep-mine",
+      "label": "Keep yours",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/sync/conflicts/resolve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "replace the element (same id) in <slug>.annotations.json with the record’s `mine`; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
+      }
+    },
+    {
+      "id": "sync.conflict.keep-theirs",
+      "label": "Keep theirs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/sync/conflicts/resolve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "leave <slug>.annotations.json as it is; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
+      }
+    },
+    {
+      "id": "sync.conflict.keep-both",
+      "label": "Keep both",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/sync/conflicts/resolve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "add the record’s `mine` to <slug>.annotations.json under a NEW id, to the right of the element; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
       }
     }
   ],
