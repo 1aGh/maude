@@ -42,9 +42,11 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
+import { RunsCount } from '../v2/ai/RunList.jsx';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
 import { readSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
+import { WaitingCards } from '../v2/ai/WaitingCard.jsx';
 import PermissionPrompt from './PermissionPrompt.jsx';
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
@@ -447,6 +449,7 @@ function ChatThread({
               {/* "still working" indicator under the latest message */}
               <ActivityBar tools={activeTools} />
             </ThreadPrimitive.Viewport>
+            <WaitingCards chatId={chatId} designRel={designRel} />
             {activePermission ? (
               <PermissionPrompt
                 request={activePermission}
@@ -862,8 +865,6 @@ export default function ChatPanel({
   }, [chats, openChatIds, sessionTitles]);
 
   const connected = status.available !== false;
-  // "✦ N" in the header — YOUR running chats (the busy ones), never anyone else's.
-  const runningChats = Object.values(busyChats || {}).filter(Boolean).length;
 
   return (
     <AiChatIsland hidden={hidden} resizing={resizing} width={width}>
@@ -871,7 +872,6 @@ export default function ChatPanel({
           "✦ N" YOUR running chats · New chat · Hide. Hide folds the island to its spark corner icon. */}
       <ChatHeader
         connected={connected}
-        running={runningChats}
         onToggleList={() => setMenuOpen((v) => !v)}
         onNew={() => {
           newChat();
@@ -991,6 +991,15 @@ export default function ChatPanel({
             </>
           ) : null}
         </div>
+        {/* S5.11 — "✦ N": YOUR live runs (the run registry), never anyone else's; its list jumps to the artboard. */}
+        {connected ? (
+          <RunsCount
+            activeCanvas={activeCanvas}
+            designRel={designRel}
+            currentChatId={activeChatId}
+            onOpenChat={switchTo}
+          />
+        ) : null}
       </ChatHeader>
       <div className="st-rp-body st-rp-body--chat">
         {status.available === false ? (

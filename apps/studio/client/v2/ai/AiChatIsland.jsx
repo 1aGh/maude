@@ -11,12 +11,14 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { restoreFocus } from '../shell/modal-focus.js';
 import { FOCUS_AI_EVENT, focusComposer, isComposerEscape } from './panel-focus.js';
+import { useAiRingsLane } from './ring-relay.js';
 
 export function AiChatIsland({ hidden = false, resizing = false, width, children }) {
   const ref = useRef(null);
   // Where focus was when the panel took it — esc returns there (or to the canvas when it is gone).
   const returnTo = useRef(null);
   const wasHidden = useRef(hidden);
+  useAiRingsLane(); // S5.11: keeps the open canvas told which artboards an AI is on
 
   const remember = useCallback((el) => {
     const root = ref.current;
