@@ -19,6 +19,7 @@ import { capsFor } from '../shell/canvas-mode.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { createLinkFollow } from './link-follow.js';
 import { PreviewBar, previewHint } from './preview-bar.jsx';
+import { clearPreviewBack, runPreviewBack, setPreviewBack } from './preview-back.js';
 import { previewHistory } from './preview-history.js';
 import { useViewportZoom, ZoomOnly } from './zoom-only.jsx';
 
@@ -70,11 +71,8 @@ function panelMs() {
   return 220;
 }
 
-// S3.10a — `preview.back` (registry) runs the mounted host's back; nothing mounted → nothing to go back to.
-let runBack = null;
-export function runPreviewBack() {
-  return runBack ? runBack() : null;
-}
+// S3.10a — `preview.back` (registry) runs the mounted host's back (preview-back.js); re-exported for callers.
+export { runPreviewBack };
 
 const modalOpenNow = () =>
   typeof document !== 'undefined' && !!document.querySelector('[role="dialog"][aria-modal="true"]');
@@ -150,10 +148,10 @@ function useLinkFollow({ live, previewing, cfg }) {
     };
     window.addEventListener('message', onMessage);
     const mine = () => lf.back();
-    runBack = mine;
+    setPreviewBack(mine);
     return () => {
       window.removeEventListener('message', onMessage);
-      if (runBack === mine) runBack = null;
+      clearPreviewBack(mine);
     };
   }, [cfg?.canvasOrigin, cfg?.designRel]);
   const top = back.length ? back[back.length - 1] : null;
