@@ -192,6 +192,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.zoom-controls': PREF(),
   'view.print-guides': PREF(),
   'present.canvas': NAV('<canvas> --mode present'),
+  'present.from-selection': NAV('<canvas> --mode present'),
+  'present.from-start': NAV('<canvas> --mode present'),
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
@@ -264,20 +266,29 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
   'ai.draw-mark': { effect: 'external', agent: cli('maude design draw-build') },
-  // ── AI runs (S5.3, V2-1.15 §5.10). `ai.runs.list` / `ai.stop` become the cli verbs
-  // `maude design runs list|stop` with S5.4, which builds the verb; until then the ✦ N list is
-  // the person's view and Stop the person's control. Keep going / cancel are human by Q5. No
-  // `server` field yet: rule 7 wants a per-role refusal row a role suite runs (S9's
+  // ── AI runs (S5.3, V2-1.15 §5.10). S5.4 built `maude design runs list|stop`: a terminal
+  // Claude sees the busy artboards before it plans, and stops only its person's own runs. Keep
+  // going / cancel are human by Q5. Run on a copy is a file edit — the `artboard-busy` deny names
+  // it. No `server` field yet: rule 7 wants a per-role refusal row a role suite runs (S9's
   // access-local-gate); the routes are routes/ai.ts. ──
   'ai.runs.list': {
     effect: 'none',
     minRole: 'edit',
-    agent: human('view-pref', 'S5.4 makes it `maude design runs list` (V2-1.15 §5.10)'),
+    agent: cli('maude design runs list'),
   },
   'ai.stop': {
     effect: 'project',
     minRole: 'edit',
-    agent: human('ai-chat', 'S5.4 adds `maude design runs stop <run>` for an agent’s own runs'),
+    agent: cli('maude design runs stop <run>'),
+  },
+  'ai.run-on-copy': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Duplicate the busy DCArtboard beside it with a new id and edit the copy (skill section "AI runs and busy artboards")'
+    ),
   },
   'ai.cancel-waiting': {
     effect: 'none',

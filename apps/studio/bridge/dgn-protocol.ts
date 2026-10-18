@@ -782,10 +782,12 @@ const c2s: C2S = {
     owner: 'shell ZoomUndo (V2-4.x)',
     parse: p({ zoom: num }),
   },
+  // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
+  // the shell's mode store keeps it (use-canvas-mode-lane).
   'present-position': {
     gate: 'active',
-    status: 'proposed',
-    owner: 'S3 present',
+    status: 'live',
+    owner: 'v2/shell/use-canvas-mode-lane (S3.1)',
     parse: p({ index: num, total: num, artboardId: str }),
   },
 };
@@ -1081,10 +1083,11 @@ const s2c: S2C = {
     owner: 'bridge/canvas-mode-store',
     parse: p({ seq: num, insets }),
   },
+  // S3.1 — live: the shell lane's `step` sends it; canvas-mode-store keeps it for the Present stage.
   'present-step': {
     gate: 'parent',
-    status: 'proposed',
-    owner: 'S3 present',
+    status: 'live',
+    owner: 'bridge/canvas-mode-store (S3.1)',
     parse: p({ to: (v) => (v === 'next' || v === 'prev' ? v : num(v)) }),
   },
   'key-prefs': {

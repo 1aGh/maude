@@ -14,6 +14,12 @@
 // `set-mode` makes the document GOVERNED; from then on the `ToolProvider`s adopt `mode` from here and
 // a cross-mode gesture becomes a `mode-request`. `claimEcho(seq)` lets exactly one provider echo each
 // applied `set-mode` as `mode-changed` (M2), however many providers the document mounts.
+//
+// S3.1 — Present: the snapshot carries the shell's `present` spec (Present · Artboards or · Canvas).
+// The shell's `present-step` (its controls, presenter view) lands in `step` for the Present stage
+// (S3.2a), and `reportPresentPosition` is the stage's one way to say it moved on: it tells the shell
+// (`present-position`) and this document's HMR applier (`PRESENT_POSITION_EVENT`), which lands a
+// canvas write it held while the audience was looking (A8).
 
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import {
@@ -46,6 +52,9 @@ export interface CanvasModeSnapshot {
   readonly clamped: boolean;
   /** V2-4 gate — the shell's "Single-key shortcuts" switch (`key-prefs`); on until the shell says off. */
   readonly singleKeys: boolean;
+  /** S3.1 — the shell's last `present-step` while presenting (`n` counts them, so the same `to`
+   *  twice is two steps); null outside Present. */
+  readonly step: { readonly to: number | 'next' | 'prev'; readonly n: number } | null;
 }
 
 export interface CanvasModeStore {
@@ -77,7 +86,9 @@ export function canvasModeStore(win: Window): CanvasModeStore {
     prevMode: null,
     clamped: false,
     singleKeys: true,
+    step: null,
   };
+  let steps = 0;
   let echoed = -1;
   let asked = new Map<string, number>(); // key → when (a denied request may be asked again later)
   const subs = new Set<(s: CanvasModeSnapshot) => void>();
@@ -122,7 +133,15 @@ export function canvasModeStore(win: Window): CanvasModeStore {
         tool,
         prevMode: snap.mode,
         clamped: mode !== m.mode,
+        step: mode === 'present' ? snap.step : null,
       };
+      for (const fn of subs) fn(snap);
+      return;
+    }
+    if (m?.dgn === 'present-step') {
+      if (snap.mode !== 'present') return; // a step outside Present means nothing
+      steps += 1;
+      snap = { ...snap, step: Object.freeze({ to: m.to, n: steps }) };
       for (const fn of subs) fn(snap);
       return;
     }
@@ -140,6 +159,38 @@ export function canvasModeStore(win: Window): CanvasModeStore {
   Object.defineProperty(store, 'doc', { value: win.document });
   slot[KEY] = store;
   return store;
+}
+
+/** The document event `_shell.html`'s HMR applier listens on to land a held write (A8). */
+export const PRESENT_POSITION_EVENT = 'maude:present-position';
+
+/**
+ * S3.1 — Present · Artboards moved on: tell the shell (`present-position`, the counter and the
+ * presenter view read it) and this document's HMR applier (it lands the write it held). The Present
+ * stage (S3.2a) calls it on every step, the first one included. A canvas faking it can only make a
+ * held write land sooner — never hold one (the hold itself is the shell's parent-gated `set-mode`).
+ */
+export function reportPresentPosition(
+  win: Window,
+  pos: { index: number; total: number; artboardId: string }
+): void {
+  const index = Math.max(0, Math.trunc(pos.index));
+  const total = Math.max(0, Math.trunc(pos.total));
+  const artboardId = String(pos.artboardId).slice(0, 200);
+  try {
+    const Ctor = (win as Window & { CustomEvent?: typeof CustomEvent }).CustomEvent ?? CustomEvent;
+    win.document.dispatchEvent(
+      new Ctor(PRESENT_POSITION_EVENT, { detail: { index, total, artboardId } })
+    );
+  } catch {
+    /* no document */
+  }
+  if (win.parent === win) return;
+  try {
+    win.parent.postMessage({ dgn: 'present-position', index, total, artboardId }, '*');
+  } catch {
+    /* detached */
+  }
 }
 
 /** The insets the camera consumers honour right now (zero outside a browser document). */

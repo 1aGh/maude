@@ -76,14 +76,12 @@ export function ShellShareCluster() {
       exportCenter,
       gitUser,
       iframesRef,
-      presentMode,
       project,
       syncStatus,
       viewerMode,
     },
     keyboardShortcuts: { totalOpen },
     paletteAndPanels: { rightActive },
-    photoAndTimeline: { togglePresent, exitPresent },
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
@@ -114,15 +112,13 @@ export function ShellShareCluster() {
   }
 
   // V2-4.3b — the mode lane: the switch below sends `set-mode`; the active canvas reports its peers.
+  // S3.1 — the lane's store is the one mode owner, Present included (D1).
   const lane = useCanvasModeLane({
     activePath,
     iframesRef,
     cfg,
     canEdit: !viewerMode,
     role: cfg?.cloud?.role,
-    presenting: !!presentMode,
-    togglePresent,
-    exitPresent,
   });
   const faces = useMemo(
     () => facesOf({ you: gitUser, agentActive, peers: lane.peers }),
@@ -173,7 +169,7 @@ export function ShellShareCluster() {
           mode={lane.mode}
           caps={lane.caps}
           onSelect={lane.select}
-          onPresentCanvas={() => lane.select('present')}
+          onPresent={lane.present}
           canPresent={canvasOpen}
         />
       }

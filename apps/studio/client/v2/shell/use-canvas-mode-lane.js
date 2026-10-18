@@ -5,9 +5,23 @@
 //   a canvas `mode-request`   → M4 (active canvas only, no modal, the role allows it) → the same path
 //   a canvas `mode-changed`   → a clamp is adopted (the canvas is defence in depth behind the role)
 //   a canvas `peers`          → the cluster's faces (active canvas only — the table's gate)
+//   a canvas `present-position` → the store's Present position (S3.2b's counter reads it)
 //   `loaded` / `canvas-rendered` / a new active canvas → that frame is seeded with the current mode
+//
+// S3.1 (D1): `shellMode` is the ONE mode owner, Present included. The shell's `presentMode` is
+// `usePresentMode()` — derived from the store — and every way into Present (the switch, Present ⌄,
+// ⌥⌘↵ / ⇧⌥⌘↵, View › Present the canvas, `maude design open --mode present`, a canvas request) goes
+// through `presentFrom` / `shellMode.present`.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
@@ -17,6 +31,8 @@ import {
   createShellMode,
   decideModeRequest,
   effectiveMode,
+  presentingOf,
+  presentSpecFor,
   sameCaps,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
@@ -26,32 +42,60 @@ import { panelLayout, usePanelLayout } from './use-panel-layout.js';
 /** The window's one mode store (mode is per project window, Q6). */
 export const shellMode = createShellMode();
 
+/** What Present starts from, kept current by the shell core (it owns the selection and the in-view
+ *  artboard): `{ selectedArtboard, inViewArtboard }`. Read when Present is entered, never rendered. */
+const presentSource = { selectedArtboard: null, inViewArtboard: null };
+export function setPresentSource(next) {
+  presentSource.selectedArtboard = next?.selectedArtboard ?? null;
+  presentSource.inViewArtboard = next?.inViewArtboard ?? null;
+}
+
+/** Enter Present: 'selection' (⌥⌘↵, a click on Present), 'start' (⇧⌥⌘↵), 'canvas' (pan freely). */
+export function presentFrom(kind) {
+  return shellMode.present(presentSpecFor(kind, presentSource));
+}
+
+/** View › Present the canvas is a toggle (DDR-117): on presents the canvas, off leaves Present. */
+export function togglePresentCanvas() {
+  if (presentingOf(shellMode.get())) shellMode.back();
+  else presentFrom('canvas');
+}
+
+/** The shell's DDR-117 setter, derived: `on` (or `(v) => on`) enters Present · Canvas / leaves. */
+export function setPresenting(next) {
+  const cur = presentingOf(shellMode.get());
+  const on = typeof next === 'function' ? !!next(cur) : !!next;
+  if (on === cur) return;
+  if (on) presentFrom('canvas');
+  else shellMode.back();
+}
+
+const presentingNow = () => presentingOf(shellMode.get());
+
+/** D1 — `[presentMode, setPresentMode]` for the shell core: derived from the one store. */
+export function usePresentMode() {
+  const presentMode = useSyncExternalStore(shellMode.subscribe, presentingNow, presentingNow);
+  return [presentMode, useCallback(setPresenting, [])];
+}
+
 const modalOpenNow = () =>
   typeof document !== 'undefined' && !!document.querySelector('[role="dialog"][aria-modal="true"]');
 
 export const ROLE_DENIAL = 'You can view this canvas. Ask a project owner for edit access.';
 
 /**
- * @returns {{ mode, segmentMode, caps, peers, select(mode), present(), exitPresent() }}
- *   `mode` is what the canvases are in (Present while presenting); `peers` are the active canvas's
+ * @returns {{ mode, caps, peers, follow(clientID), select(mode), present(kind), step(to) }}
+ *   `mode` is what the canvases are in; `peers` are the active canvas's
  */
-export function useCanvasModeLane({
-  activePath,
-  iframesRef,
-  cfg,
-  canEdit,
-  role,
-  presenting,
-  togglePresent,
-  exitPresent,
-}) {
+export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }) {
   const caps = useMemo(() => capsFor({ canEdit, role }), [canEdit, role]);
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
-  const mode = effectiveMode(snap.mode, caps, presenting);
+  const mode = effectiveMode(snap.mode, caps);
+  const presenting = presentingOf(snap);
   const [peers, setPeers] = useState([]);
 
   const live = useRef({});
-  live.current = { activePath, cfg, caps, presenting, mode, togglePresent, exitPresent };
+  live.current = { activePath, cfg, caps, presenting, mode, present: snap.present };
 
   const activeWin = () => {
     const p = live.current.activePath;
@@ -99,16 +143,21 @@ export function useCanvasModeLane({
     const key = `${mode}|${caps.edit}|${caps.annotate}|${caps.comment}|${snap.nonce}`;
     if (sentRef.current === key) return;
     sentRef.current = key;
-    lane.broadcast({ mode, caps, tool: snap.tool });
-  }, [mode, caps, snap.nonce, snap.tool, lane, folded]);
+    lane.broadcast({ mode, caps, tool: snap.tool, present: snap.present });
+  }, [mode, caps, snap.nonce, snap.tool, snap.present, lane, folded]);
 
   // A newly active canvas is seeded (it may have missed a change while in the background; it re-posts
   // its peers on the seed). The old canvas's faces leave with it.
+  const seedOf = () => ({
+    mode: live.current.mode,
+    caps: live.current.caps,
+    present: live.current.present,
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger
   useEffect(() => {
     setPeers([]);
     const win = activeWin();
-    if (win) lane.seed(win, { mode: live.current.mode, caps: live.current.caps });
+    if (win) lane.seed(win, seedOf());
   }, [activePath, lane]);
 
   useEffect(() => {
@@ -117,8 +166,7 @@ export function useCanvasModeLane({
       for (const ms of SEED_LADDER_MS) {
         const t = setTimeout(() => {
           timers.delete(t);
-          if (frames().includes(win))
-            lane.seed(win, { mode: live.current.mode, caps: live.current.caps });
+          if (frames().includes(win)) lane.seed(win, seedOf());
         }, ms);
         timers.add(t);
       }
@@ -133,13 +181,17 @@ export function useCanvasModeLane({
         const win = frames().find((w) => w && w === e.source);
         if (!win) return;
         if (raw === 'loaded') seedLater(win);
-        else lane.seed(win, { mode: L.mode, caps: L.caps });
+        else lane.seed(win, seedOf());
         return;
       }
       const m = acceptFromCanvas(e, { canvasOrigin, active: activeWin() });
       if (!m) return;
       if (m.dgn === 'peers') {
         setPeers(m.peers);
+      } else if (m.dgn === 'present-position') {
+        // Present · Artboards moved on (S3.2a's stage echoes every step); the canvas's own hold
+        // (_shell.html) lands its held write on the same move. Active canvas only (the table's gate).
+        shellMode.position(m);
       } else if (m.dgn === 'mode-changed') {
         if (m.cause === 'clamp' && m.mode !== 'present') {
           console.warn(`[maude] the canvas clamped the mode to ${m.mode}`);
@@ -157,10 +209,10 @@ export function useCanvasModeLane({
           if (d.reason === 'role') shellToast(ROLE_DENIAL);
           return;
         }
-        if (d.kind === 'present') L.togglePresent?.();
+        if (d.kind === 'present') shellMode.present(d.present);
         else if (d.kind === 'exit-present') {
-          L.exitPresent?.();
           if (d.next) shellMode.select(d.next.mode, { tool: d.next.tool ?? null });
+          else shellMode.back();
         } else shellMode.select(d.mode, { tool: d.tool ?? null });
       }
     };
@@ -182,13 +234,20 @@ export function useCanvasModeLane({
       if (!win || typeof clientID !== 'number') return;
       postToCanvas(win, 'run-action', { v: 1, id: 'peer.follow', params: { clientID } }, '*');
     },
+    /** The switch: a click on Present starts from the selected artboard (04 md-present-menu). */
     select(m) {
       if (m === 'present') {
-        if (!live.current.presenting) live.current.togglePresent?.();
+        presentFrom('selection');
         return;
       }
-      if (live.current.presenting) live.current.exitPresent?.();
       shellMode.select(m);
+    },
+    /** Present ⌄: 'selection' · 'start' · 'canvas'. */
+    present: presentFrom,
+    /** Present · Artboards: next / prev / an index, on the active canvas (S3.2b's controls). */
+    step(to) {
+      if (!presentingOf(shellMode.get())) return;
+      lane.step(activeWin(), to);
     },
   };
 }

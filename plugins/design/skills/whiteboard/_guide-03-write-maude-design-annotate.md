@@ -4,6 +4,8 @@
 maude design annotate "<rel-path>" [--ops <file|-> | --flow <file|-> | --board <file|-|template-id>]
                        [--near <artboardId>] [--in <artboardId>] [--pin <cdId|selector>]
                        [--no-pointer] [--canvas-state <path>] [--rects <path>] [--dry-run]
+                       [--sticker <pack>/<id>] [--to <ab:…|el:…>]
+                       [--wrap-section [<id,…>] [--title <text>]] [--resolve <id,…>]
 ```
 
 Every request becomes the same **element ops** the canvas itself sends (`put | patch | delete`, DDR-242), built from the element registry — so the verb can never write an element the canvas wouldn't accept, and a new element type needs no change here. Every created element is stamped `author: {kind: "ai"}`. The verb prints `{ ok, via, file, created, updated, deleted, refs }`:
@@ -61,6 +63,18 @@ Coordinates are **world** coordinates — the ones `read-annotations` prints. Ta
 - **`reparent`** moves an element into a section (or to top level with `null`) keeping its world position; it refuses a non-section or the element's own subtree.
 - **`reorder`** changes one element's order among its siblings; no neighbour is renumbered.
 - **`delete`** of a section keeps its members (they move up a level, in place); an arrow bound to a deleted element keeps its end where it was.
+
+### Format-2 helpers — resolve, stickers, canvas-bound ends, sections around notes
+
+The four shortcut flags can stand alone (no `--ops`) or ride with any ops/flow/board request; each is also an op.
+
+- **Resolve** — `--resolve a,b` / `{ "op": "resolve", "id" | "ids": […] }` marks stickies resolved *by AI* (`resolved: {by: "AI", at}`; the UI shows the tick). Only stickies resolve. One a person already resolved is skipped — their name and time stay. A locked sticky is refused. `{ "op": "update", "id", "resolved": null }` reopens one; you never write `by`/`at` yourself (`resolved` is `true` or `null` — anything else is an error). Resolve what your change answered, nothing else.
+- **Stickers** — `--sticker project-status/group-100` / `{ "op": "sticker", "sticker": "<pack>/<id>", "x"?, "y"?, "w"?, "h"?, "to"? }` places a Stickers-gallery picture (160 × 160, authored by AI so the UI shows "Placed by AI"). `<pack>` is the bundled pack's slug, `<id>` the picture's file name with or without its extension; an unknown pack or id lists what exists. The picture is copied into the project's content-addressed `assets/`. Use the `project-status` pack for status marks (a "done" mark on what you resolved, a flag on what needs the person). `--dry-run` writes nothing, assets included.
+- **Bound ends on the canvas** — an arrow end may be `"ab:<artboard>"` or `"el:<artboard>/<element-id>[#n]"` (the ids from `canvas-rects`), in `connect` and in `create arrow` (`from` / `to`). The end follows that artboard / element when it moves; if it is moved to the trash the arrow keeps its bind and draws as pointing at something gone — never repair that yourself, a person points it again. The verb needs the host's geometry (`--rects` or `--canvas-state`) to cache where the arrow meets it; without it, give the end's last known point (`x2`/`y2`, `x1`/`y1`) or the request fails — it never guesses. An annotation-to-annotation end is `{from|to: "<id>"}` as before.
+- **Notes that point** — a `create` of a `sticky`, `text` or `sticker` may carry `"to": "ab:…" | "el:…"` (or pass `--to` once for the whole call): the note also gets a bound arrow to that host, and with geometry known it lands beside it. This is the way to answer a note about "the hero picture": a sticky, bound to it. (`from` on a note is an error — it only means something on an arrow.)
+- **Wrap in a section** — `--wrap-section a,b [--title "Round one"]` / `{ "op": "wrap-section", "ids": […], "text"?: "title" }` puts those elements in one new section sized around them (it sits behind them; every member keeps its world position; a locked member is refused). With no ids, `--wrap-section` wraps what *this call* created at the top level (arrows stay out) — "put them in a section" after writing a review.
+- **Riding with an artboard** — with geometry given, a new top-level note whose centre is over an artboard gets `parentArtboard` (it moves with the artboard), and `move` keeps it current. You never set it by hand.
+- **People's elements are read-only to you.** `vote`, `ballot` and `stamp` are people's feedback; every create, update, move or delete of one is refused. Answer with your own sticky or sticker. `author` is never settable, and an edit to a locked element is refused, whichever route (this verb, or a file edit checked by `maude design check --strict`).
 
 A single-element update is a few dozen bytes whatever the board size:
 

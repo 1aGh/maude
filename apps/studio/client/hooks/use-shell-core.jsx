@@ -25,6 +25,7 @@ import {
   isModuleCanvasPath,
 } from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
+import { setPresentSource, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
 import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
@@ -664,6 +665,13 @@ export function useShellCore({}) {
   // The artboard nearest the viewport centre (reported by canvas-lib on pan) —
   // the Timeline follows THIS, so it redraws as you move across the canvas.
   const [canvasActiveArtboard, setCanvasActiveArtboard] = useState(null);
+  // S3.1 — what Present (⌥⌘↵, a click on Present) starts from: the selected artboard (an artboard,
+  // or the one the selected element sits in), else the artboard in view.
+  useEffect(() => {
+    const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
+    const own = one && typeof one.artboardId === 'string' ? one.artboardId : null;
+    setPresentSource({ selectedArtboard: own, inViewArtboard: canvasActiveArtboard });
+  }, [selected, canvasActiveArtboard]);
   // DDR-148 — parsed sequence/keyframe rows for the Timeline (from raw .tsx).
   const [timelineSequences, setTimelineSequences] = useState([]);
   const [timelineAudio, setTimelineAudio] = useState([]);
@@ -1034,10 +1042,12 @@ export function useShellCore({}) {
   // Canvas-chrome visibility (View menu). minimap + zoom-controls are
   // persistent prefs broadcast to every open canvas iframe; presentMode is a
   // non-destructive "hide ALL chrome + shell, artboards only" overlay with an
-  // Esc / floating-pill escape hatch back to the chrome.
+  // Esc / floating-pill escape hatch back to the chrome. S3.1 (D1): it is
+  // DERIVED from the one mode owner (`mode === 'present'`, use-canvas-mode-lane)
+  // — never a second piece of state that could disagree with it.
   const [minimapVisible, setMinimapVisible] = useState(() => readBoolStore(MINIMAP_STORE, false));
   const [zoomCtlVisible, setZoomCtlVisible] = useState(() => readBoolStore(ZOOMCTL_STORE, false));
-  const [presentMode, setPresentMode] = useState(false);
+  const [presentMode, setPresentMode] = usePresentMode();
   // feature-2-print-artboards T3 — "Show print guides". Per-CANVAS persisted
   // (view.json `overlays.print`, via /_api/canvas-meta), not a global
   // localStorage pref like minimap/zoomctl — mirrors the foundation's
