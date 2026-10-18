@@ -416,8 +416,9 @@ export function ElementResizeOverlay(): ReactNode {
   // `data-dc-screen` host) also gets handles, restricted to E/S/SE (growth-only —
   // see the `artboardId` doc on ElResizeDrag for why left/top never move).
   const artboardOnly = one && !cdId && typeof one.artboardId === 'string' ? one.artboardId : null;
-  // A real element OR artboard selection with the move tool active gets handles.
-  const active = tool === 'move' && (!!cdId || !!artboardOnly);
+  // A real ELEMENT selection with the move tool active gets handles. S2.8: a whole-ARTBOARD selection no longer does
+  // — editing/artboard-handles.tsx draws the eight handles with the preset ruler there, one set not two.
+  const active = tool === 'move' && !!cdId;
 
   // rAF loop — follow the selected element's screen box (pan/zoom + layout).
   useEffect(() => {

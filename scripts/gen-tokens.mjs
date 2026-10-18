@@ -72,9 +72,18 @@ const HUD_SOURCE_DS = 'maude';
 // Theme blocks of the source DS: the selector line that opens each block.
 const HUD_BLOCKS = { dark: '.maude[data-theme="dark"] {', light: '.maude[data-theme="light"] {' };
 // {dark:name} / {light:name} = that DS token's value in that theme's block.
+// S2.8 (DDR-046 rename): the guide colour — smart guides, spacing chips, the preset ruler's edge line — is ONE fixed
+// magenta in both themes, owned by maude-v2 (`--x-guide` / `--x-guide-fg`). It is not a theme token, so it is read from
+// that system whatever HUD_SOURCE_DS is, and declared once on `:root` (the light block inherits it).
+const HUD_GUIDE_DS = 'maude-v2';
 const HUD_TEMPLATE = `
 :root,
 :root[data-maude-theme="dark"] {
+  --guide:    {guide:x-guide};
+  --guide-fg: {guide:x-guide-fg};
+  /* the v1 name of --guide (DDR-046); an old canvas that still says var(--guide-magenta) keeps its colour */
+  --guide-magenta: var(--guide);
+
   --maude-hud-accent:        {dark:accent};
   --maude-hud-accent-hover:  {dark:accent-hover};
   --maude-hud-accent-active: {dark:accent-active};
@@ -131,8 +140,14 @@ function hudCss() {
       ? lookup(theme, ref[1], depth + 1)
       : v;
   };
-  return HUD_TEMPLATE.replace(/\{(dark|light):([a-z0-9-]+)\}/g, (_, theme, name) =>
-    lookup(theme, name)
+  const guide = (name) => {
+    const m = ds(HUD_GUIDE_DS).match(new RegExp(`^\\s*--${name}:\\s*([^;]+);`, 'm'));
+    if (!m) throw new Error(`${HUD_GUIDE_DS}: no --${name}`);
+    return m[1].trim();
+  };
+  return HUD_TEMPLATE.replace(/\{guide:([a-z0-9-]+)\}/g, (_, name) => guide(name)).replace(
+    /\{(dark|light):([a-z0-9-]+)\}/g,
+    (_, theme, name) => lookup(theme, name)
   );
 }
 function hudModule() {

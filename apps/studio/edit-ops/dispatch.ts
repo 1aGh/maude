@@ -15,6 +15,7 @@ import { walkIdElements } from '../element-ids.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
+import { artboardResize } from './artboard-resize.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import {
   EDIT_OP_STATUS,
@@ -44,6 +45,7 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSendBack,
   objectLock,
   objectHide,
+  artboardResize, // S2.8 artboard.resize
 ];
 
 export interface AiHoldHit {

@@ -76,6 +76,20 @@ export const APP_ACTIONS: ActionDef[] = [
       sheet: 'This cheat sheet · help',
     },
   },
+  // S11.2 — the empty-artboard hint's button, and its ⌘K twin: opens the AI chat with "Fill <artboard> starting
+  // from <another board>." in the field. It never sends — the person presses ↵. Desktop only (the chat is native).
+  {
+    id: 'ai.ask-fill-artboard',
+    label: 'Ask AI to fill this artboard',
+    kind: 'command',
+    icon: 'sparkle',
+    exec: 'shell',
+    visible: { shell: ['desktop'], minRole: 'edit' },
+    search: {
+      keywords: ['fill', 'empty artboard', 'draft', 'ask ai'],
+      where: 'Empty artboard › Ask AI',
+    },
+  },
   // ── no key in v1: ⌘K / menu entries ──
   {
     id: 'ai.generate',

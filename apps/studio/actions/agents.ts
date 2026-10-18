@@ -170,6 +170,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: file('canvas-tsx', 'design:design', 'Read the element’s data-cd-id in the .tsx'),
   },
+  // S2.8 — an artboard's size is its JSX width/height (+ the bare `fixed` prop); its place is the meta layout.
+  'artboard.resize': TSX(
+    'Set the DCArtboard’s width and height props (64–8192); add the bare `fixed` prop to make the height exact. Its position is layout.artboards[] in the .meta.json, not a prop'
+  ),
+  'artboard.add-width': TSX(
+    'Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json'
+  ),
   'element.set-id': TSX(
     'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
   ),
@@ -337,6 +344,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── app / help / ai ──
   'settings.open': PREF('settings are the user’s'),
   'ai.chat': { effect: 'none', agent: human('summon') },
+  // S11.2: opens the chat with words in the field; the agent writes the artboard itself, no verb needed
+  'ai.ask-fill-artboard': { effect: 'none', agent: human('summon') },
   'help.shortcuts': HELP,
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
