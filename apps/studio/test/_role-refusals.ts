@@ -55,6 +55,9 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S11.6 — the code view: source text is a download (Can view refused; test/canvas-source-route.test.ts).
+  { method: 'GET', route: '/_api/canvas-source', refused: ['view'] },
+  { method: 'GET', route: '/_api/canvas-errors', refused: ['view'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

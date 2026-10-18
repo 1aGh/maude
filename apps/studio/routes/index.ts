@@ -17,6 +17,7 @@
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -48,6 +49,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S11.6 — `GET /_api/canvas-source` + `GET /_api/canvas-errors` (main origin, `export`) */
+  canvasSource: CanvasSourceRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -69,5 +72,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
     ...createPresentRoutes(deps.present),
+    ...createCanvasSourceRoutes(deps.canvasSource),
   ];
 }

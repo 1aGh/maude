@@ -57,6 +57,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // file — `export`, so Can view (`observer`) is refused it. The rendered canvas
   // is still theirs to look at.
   '/_api/canvas-source': { safe: 'export', unsafe: null },
+  // S11.6 — the structured errors quote the broken line (`lineText`): the same download rule.
+  '/_api/canvas-errors': { safe: 'export', unsafe: null },
   '/_api/component-map': { safe: 'read', unsafe: null },
   '/_api/preflight': { safe: 'read', unsafe: null },
   '/_api/setup-readiness': { safe: 'read', unsafe: null },
