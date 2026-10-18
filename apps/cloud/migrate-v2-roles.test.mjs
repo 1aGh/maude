@@ -13,6 +13,10 @@ import { d1FromSqlite } from './db.mjs';
 import { applySchema, MIGRATIONS, schemaStatements } from './migrate.mjs';
 import { SCHEMA_SQL } from './schema.mjs';
 
+// The newest migration, whatever lands after v17 (S9.14's v18, S9.15's v19):
+// these tests pin v17's behaviour, not that v17 stays the last one.
+const LATEST = Math.max(...MIGRATIONS.map((m) => m.version));
+
 /**
  * The D1 binding shape WITH `batch()` — lazy prepare (D1 compiles at run
  * time, so a batch may reference a table an earlier statement creates) and
@@ -111,7 +115,7 @@ test('v17 copies every member and invite row verbatim', async () => {
   const beforeMembers = rows(sqlite, MEMBERS);
   const beforeInvites = rows(sqlite, INVITES);
   const out = await applySchema(d1WithBatch(sqlite), SCHEMA_SQL);
-  assert.equal(out.version, 17);
+  assert.equal(out.version, LATEST);
   assert.deepEqual(rows(sqlite, MEMBERS), beforeMembers);
   assert.deepEqual(rows(sqlite, INVITES), beforeInvites);
   // The new columns start empty on every existing row: no role was rewritten.
@@ -245,7 +249,7 @@ test('v17 is idempotent — a second run neither fails nor re-migrates', async (
   await applySchema(db, SCHEMA_SQL);
   const after = rows(sqlite, MEMBERS);
   const second = await applySchema(db, SCHEMA_SQL);
-  assert.equal(second.version, 17);
+  assert.equal(second.version, LATEST);
   assert.deepEqual(rows(sqlite, MEMBERS), after);
   assert.equal(
     sqlite.prepare('SELECT COUNT(*) AS n FROM schema_migrations WHERE version = 17').get().n,
@@ -253,8 +257,8 @@ test('v17 is idempotent — a second run neither fails nor re-migrates', async (
   );
   // The plain (batch-less) local-tool shape reaches the same end state.
   const fresh = new DatabaseSync(':memory:');
-  assert.equal((await applySchema(d1FromSqlite(fresh), SCHEMA_SQL)).version, 17);
-  assert.equal((await applySchema(d1FromSqlite(fresh), SCHEMA_SQL)).version, 17);
+  assert.equal((await applySchema(d1FromSqlite(fresh), SCHEMA_SQL)).version, LATEST);
+  assert.equal((await applySchema(d1FromSqlite(fresh), SCHEMA_SQL)).version, LATEST);
 });
 
 test('a failure part-way through v17 leaves v16 intact, and a re-run completes', async () => {
@@ -272,6 +276,6 @@ test('a failure part-way through v17 leaves v16 intact, and a re-run completes',
     sqlite.prepare("SELECT name FROM sqlite_master WHERE name = 'project_members_v2'").get(),
     undefined
   );
-  assert.equal((await applySchema(d1WithBatch(sqlite), SCHEMA_SQL)).version, 17);
+  assert.equal((await applySchema(d1WithBatch(sqlite), SCHEMA_SQL)).version, LATEST);
   assert.deepEqual(rows(sqlite, MEMBERS), before);
 });

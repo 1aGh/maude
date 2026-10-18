@@ -16,6 +16,7 @@
 // backstop for the person who closed the tab, and there is no third machine
 // to go wrong.
 
+import { startTrial, trialEmailKey } from './accounts.mjs';
 import { track } from './analytics.mjs';
 import {
   cancelSchedule,
@@ -24,9 +25,16 @@ import {
   invoiceRows,
   pauseClock,
   subscriptionView,
+  TRIALS_PER_VERIFIED_EMAIL,
   validateBillingDetails,
 } from './billing.mjs';
-import { attemptFromRow, checkoutSessionParams, validateNewProject } from './checkout.mjs';
+import {
+  attemptFromRow,
+  checkoutSessionParams,
+  validateNewProject,
+  validatePlanChoice,
+  validateTrialProject,
+} from './checkout.mjs';
 import {
   allCheckoutHtml,
   billingPage,
@@ -36,11 +44,12 @@ import {
 } from './checkout-pages.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
+import { personalTokenAccount } from './device-auth.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
 import { priceIdFor, publicPricing, stripeMode } from './pricing-core.mjs';
-import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
+import { ACCESS_MESSAGES, can, decideAccess, planState } from './project-access.mjs';
 import { ensureCellDomain, ensureProjectCanvasDomain, probeCell } from './provision.mjs';
-import { decideCheckout, waitingRoom } from './provisioning.mjs';
+import { decideCheckout, decideTrialProvision, waitingRoom } from './provisioning.mjs';
 
 export { allCheckoutHtml, pricingCatalog };
 
@@ -60,6 +69,13 @@ function html(body, status = 200) {
 
 function redirect(to) {
   return new Response(null, { status: 303, headers: { location: to } });
+}
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  });
 }
 
 /** One form-encoded call to Stripe. Returns { ok, status, body }. */
@@ -105,6 +121,13 @@ export async function handleCheckoutRoutes(request, env, { account, ctx = null }
   const url = new URL(request.url);
   const { pathname } = url;
   const pricing = pricingCatalog;
+
+  // ------------------------------------- the A3 trial project (Bearer client)
+  // `GET /api/projects` (the list) is device-auth.mjs's and answers first;
+  // the create is here, beside the wizard it is the no-checkout twin of.
+  if (pathname === '/api/projects' && request.method === 'POST') {
+    return createTrialProject(request, env, { ctx });
+  }
 
   // -------------------------------------------------------------- the wizard
   if (pathname === '/projects/new') {
@@ -234,6 +257,15 @@ export async function handleCheckoutRoutes(request, env, { account, ctx = null }
     }
 
     const now = Date.now();
+
+    // Choose a plan (A3): the subscription joins the trial project that
+    // already exists and already runs. No new row, and no provision-first
+    // settlement — the workspace is up, so there is nothing to void, and a
+    // slow probe must never cancel a plan somebody just paid for.
+    if (s.metadata?.convert === '1') {
+      return convertTrialProject(env, { account, projectId, session: s, sessionId, now, ctx });
+    }
+
     // The project row is born here — an abandoned checkout never squats the
     // address. INSERT OR IGNORE makes a refreshed return page harmless.
     await env.DB.prepare(
@@ -398,7 +430,9 @@ export async function handleCheckoutRoutes(request, env, { account, ctx = null }
   }
 
   // ---------------------------------------------------------------- billing
-  m = pathname.match(/^\/projects\/([a-z0-9-]+)\/billing(?:\/(portal|cancel|details|resume))?$/);
+  m = pathname.match(
+    /^\/projects\/([a-z0-9-]+)\/billing(?:\/(portal|cancel|details|resume|plan))?$/
+  );
   if (m) {
     if (!account) return redirect('/login');
     const projectId = m[1];
@@ -432,6 +466,15 @@ export async function handleCheckoutRoutes(request, env, { account, ctx = null }
       }
       track(env, ctx, { name: 'billing_portal_opened', accountId: account.id, projectId });
       return redirect(portal.body.url);
+    }
+
+    // ---- Choose a plan (A3, Maude v2 S9.15) ---------------------------------
+    // Today's Checkout, converting THIS trial project. The picker itself is
+    // the billing page's (S9.16); GET lands there.
+    if (surface === 'plan') {
+      if (request.method === 'GET') return redirect(`/projects/${projectId}/billing`);
+      if (request.method !== 'POST') return html('<p>Not allowed.</p>', 405);
+      return choosePlan(env, { request, url, account, project, pricing, ctx });
     }
 
     // ---- the cancel ladder (Cloud Phase 24 A11, canvas board E0) ------------
@@ -567,6 +610,262 @@ export async function handleCheckoutRoutes(request, env, { account, ctx = null }
   }
 
   return null;
+}
+
+// ------------------------------------------------------------- the A3 trial
+//
+// Maude v2 S9.15. Who may get a free workspace is `decideTrialProvision`'s
+// (pure); what is left here is reading the facts and writing two rows.
+
+/** The `{project}` a trial create answers — the S6↔S9 cloud-move reads `project.id`. */
+function trialProjectBody(env, project) {
+  return {
+    project: {
+      id: project.id,
+      name: project.name,
+      state: project.state,
+      stateLabel: (STATE_COPY[project.state] ?? { label: project.state }).label,
+      role: 'owner',
+      plan: planState(project),
+      trialEndsAt: project.trial_ends_at ?? null,
+      url: `https://${project.id}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
+    },
+  };
+}
+
+/**
+ * Route the address and mark the project live. Idempotent: a `pending` row is
+ * retried (the replay of a create heals a failed route), anything else is left
+ * alone. There is no charge to void, so a route that fails stays `pending` and
+ * says so; the client polls.
+ */
+async function settleTrialProject(env, project) {
+  if (project.state !== 'pending') return project;
+  const routed = await ensureCellDomain(env, project.id);
+  if (!routed.ok) {
+    console.error(`[trial] route ${project.id}: ${routed.error}`);
+    return project;
+  }
+  await ensureProjectCanvasDomain(env, project.id);
+  const now = Date.now();
+  await env.DB.prepare(
+    `UPDATE projects SET state = 'active', state_since = ?, cell_running = 1
+      WHERE id = ? AND state = 'pending'`
+  )
+    .bind(now, project.id)
+    .run();
+  return { ...project, state: 'active', state_since: now, cell_running: 1 };
+}
+
+/** `POST /api/projects {name}` with the device token — the trial-provisioned project. */
+async function createTrialProject(request, env, { ctx }) {
+  const now = Date.now();
+  const bearer = await personalTokenAccount(env, request, { now });
+  if (!bearer) {
+    return json({ ok: false, reason: 'not-signed-in', error: 'Sign in from the app first.' }, 401);
+  }
+  let body = null;
+  try {
+    body = await request.json();
+  } catch {
+    /* not JSON — validated as a missing name below */
+  }
+  const named = validateTrialProject({ name: body?.name });
+  if (!named.ok) return json({ ok: false, reason: 'bad-name', error: named.error }, 400);
+  const key = (request.headers.get('idempotency-key') ?? '').trim();
+  if (key && !/^[A-Za-z0-9_.:-]{8,128}$/.test(key)) {
+    return json({ ok: false, reason: 'bad-request', error: 'That request id is not usable.' }, 400);
+  }
+  const requestId = key || `name:${named.id}`;
+
+  // The first sign-in started the trial; an account signed in before v19
+  // starts it here, at its first use.
+  await startTrial(env.DB, bearer.id, { now });
+  const account = await env.DB.prepare('SELECT * FROM accounts WHERE id = ?')
+    .bind(bearer.id)
+    .first();
+  const emailHash = await trialEmailKey(account.email);
+
+  // A replay is this account's own claim for this request — or for this
+  // name, so a retry that lost its id still finds the project it made.
+  const prior = await env.DB.prepare(
+    `SELECT project_id FROM trial_claims
+      WHERE account_id = ? AND (request_id = ? OR project_id = ?) LIMIT 1`
+  )
+    .bind(account.id, requestId, named.id)
+    .first();
+  const replay = prior
+    ? await env.DB.prepare('SELECT * FROM projects WHERE id = ? AND account_id = ?')
+        .bind(prior.project_id, account.id)
+        .first()
+    : null;
+  const used = await env.DB.prepare('SELECT COUNT(*) AS n FROM trial_claims WHERE email_hash = ?')
+    .bind(emailHash)
+    .first();
+  const taken = await env.DB.prepare('SELECT id FROM projects WHERE id = ?').bind(named.id).first();
+
+  const decision = decideTrialProvision({
+    account,
+    now,
+    replay,
+    claimsUsed: Number(used?.n ?? 0),
+    nameTaken: Boolean(taken),
+  });
+  if (decision.outcome === 'refuse') {
+    return json({ ok: false, reason: decision.reason, error: decision.error }, decision.status);
+  }
+  if (decision.outcome === 'replay') {
+    return json(trialProjectBody(env, await settleTrialProject(env, decision.project)), 200);
+  }
+
+  // The claim first, conditionally in ONE statement, so two racing creates
+  // cannot both pass the count; then the row. A name lost to a race gives
+  // the claim back — a refusal spends nothing.
+  const claimed = await env.DB.prepare(
+    `INSERT OR IGNORE INTO trial_claims (email_hash, request_id, account_id, project_id, claimed_at)
+     SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM trial_claims WHERE email_hash = ?) < ?`
+  )
+    .bind(emailHash, requestId, account.id, named.id, now, emailHash, TRIALS_PER_VERIFIED_EMAIL)
+    .run();
+  if (!claimed?.meta?.changes) {
+    return json({ ok: false, reason: 'plan', error: ACCESS_MESSAGES.plan }, 402);
+  }
+  const inserted = await env.DB.prepare(
+    `INSERT OR IGNORE INTO projects (id, account_id, name, state, state_since, plan, trial_ends_at, created_at)
+     VALUES (?, ?, ?, 'pending', ?, 'project', ?, ?)`
+  )
+    .bind(named.id, account.id, named.name, now, decision.trialEndsAt, now)
+    .run();
+  if (!inserted?.meta?.changes) {
+    await env.DB.prepare('DELETE FROM trial_claims WHERE email_hash = ? AND request_id = ?')
+      .bind(emailHash, requestId)
+      .run();
+    return json(
+      {
+        ok: false,
+        reason: 'name-taken',
+        error: 'That name is already a web address here. Pick another name.',
+      },
+      409
+    );
+  }
+  await audit(env.DB, {
+    accountId: account.id,
+    projectId: named.id,
+    actor: `customer:${account.email}`,
+    action: 'trial.provisioned',
+    detail: JSON.stringify({ endsAt: decision.trialEndsAt }),
+  });
+  const row = await env.DB.prepare('SELECT * FROM projects WHERE id = ?').bind(named.id).first();
+  const project = await settleTrialProject(env, row);
+  if (project.state === 'active') {
+    track(env, ctx, { name: 'project_provisioned', accountId: account.id, projectId: named.id });
+  }
+  return json(trialProjectBody(env, project), 201);
+}
+
+/** Choose a plan: open Checkout for a trial project, with no second trial. */
+async function choosePlan(env, { request, url, account, project, pricing, ctx }) {
+  // Only a trial project converts; one with a plan already has one.
+  if (project.subscription_id || project.trial_ends_at === null) {
+    return html('<p>This project already has a plan.</p>', 409);
+  }
+  const form = await request.formData();
+  const choice = validatePlanChoice({
+    plan: String(form.get('plan') ?? ''),
+    interval: String(form.get('interval') ?? ''),
+    pricing,
+  });
+  if (!choice.ok) return html(`<p>${choice.error}</p>`, 400);
+  let priceId;
+  try {
+    priceId = priceIdFor(choice.plan, choice.interval, { pricing, mode: stripeMode(env) });
+  } catch (err) {
+    console.error(`[plan] price resolution: ${err.message}`);
+    return html('<p>That plan cannot be started right now.</p>', 503);
+  }
+  try {
+    const customerId = await ensureCustomer(env, account);
+    const session = await stripe(
+      env,
+      'POST',
+      '/v1/checkout/sessions',
+      checkoutSessionParams({
+        projectId: project.id,
+        projectName: project.name,
+        plan: choice.plan,
+        priceId,
+        trialDays: null,
+        customerId,
+        origin: url.origin,
+        convert: true,
+      })
+    );
+    if (!session.ok || !session.body?.url) {
+      console.error(`[plan] session create: ${session.status}`);
+      return html('<p>Payment could not be started. Nothing changed — try again.</p>', 502);
+    }
+    track(env, ctx, {
+      name: 'checkout_started',
+      accountId: account.id,
+      projectId: project.id,
+      props: { plan: choice.plan, interval: choice.interval },
+    });
+    return redirect(session.body.url);
+  } catch (err) {
+    console.error(`[plan] ${err.message}`);
+    return html('<p>Payment could not be started. Nothing changed — try again.</p>', 502);
+  }
+}
+
+/** The Checkout return for Choose a plan: attach the subscription to the row. */
+async function convertTrialProject(env, { account, projectId, session, sessionId, now, ctx }) {
+  const subscriptionId = String(session.subscription);
+  const updated = await env.DB.prepare(
+    `UPDATE projects SET subscription_id = ?, plan = ?
+      WHERE id = ? AND account_id = ? AND subscription_id IS NULL AND trial_ends_at IS NOT NULL`
+  )
+    .bind(subscriptionId, session.metadata.plan || 'project', projectId, account.id)
+    .run();
+  if (!updated?.meta?.changes) {
+    const row = await env.DB.prepare('SELECT subscription_id FROM projects WHERE id = ?')
+      .bind(projectId)
+      .first();
+    if (row?.subscription_id !== subscriptionId) {
+      // Two completed Checkouts for one project: the second subscription is
+      // not attached anywhere. Loud, audited, and left for a human — an
+      // automatic cancel of a paid subscription is not this page's to make.
+      console.error(`[plan] ${projectId}: second subscription ${subscriptionId} not attached`);
+      await audit(env.DB, {
+        accountId: account.id,
+        projectId,
+        actor: 'system',
+        action: 'checkout.convert-duplicate',
+        detail: JSON.stringify({ session: sessionId, subscription: subscriptionId }),
+      });
+    }
+    return redirect(`/projects/${projectId}/billing`);
+  }
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO checkout_attempts (session_id, project_id, payment, subscription_id, authorized_at, settled_at, created_at)
+     VALUES (?, ?, 'charged', ?, ?, ?, ?)`
+  )
+    .bind(sessionId, projectId, subscriptionId, now, now, now)
+    .run();
+  await audit(env.DB, {
+    accountId: account.id,
+    projectId,
+    actor: `customer:${account.email}`,
+    action: 'checkout.converted',
+    detail: JSON.stringify({ session: sessionId }),
+  });
+  track(env, ctx, {
+    name: 'checkout_completed',
+    accountId: account.id,
+    projectId,
+    props: { plan: session.metadata.plan === 'dedicated' ? 'dedicated' : 'project' },
+  });
+  return redirect(`/projects/${projectId}/billing`);
 }
 
 // -------------------------------------------------------------- billing reads

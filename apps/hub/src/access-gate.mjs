@@ -40,6 +40,39 @@ export const NOT_IN_SCOPE_REFUSAL = Object.freeze({
 });
 
 /**
+ * A paused cloud project (A3, Maude v2 S9.15 · S9-slices Q11): the trial ended
+ * with no plan. 402, not 403 — a v2 client shows the plan callout on it and
+ * never renews credentials. The owner hears the contract's sentence; anyone
+ * else hears that editing is paused, and nothing about billing. The control
+ * plane's project-access.mjs carries the same two strings.
+ */
+export const PLAN_OWNER_REFUSAL = Object.freeze({
+  error: 'Choose a plan to keep editing.',
+  reason: 'plan',
+});
+export const PLAN_PAUSED_REFUSAL = Object.freeze({
+  error: 'Editing is paused for this project. Its owner can turn it back on.',
+  reason: 'plan',
+});
+
+/**
+ * What a paused project keeps: reading it, keeping your own place in it,
+ * asking for access, and taking a copy home. Everything else changes the
+ * project (or pushes it somewhere), and pauses.
+ */
+const PAUSE_KEEPS = new Set(['read', 'session', 'request', 'export']);
+
+/**
+ * Whether this cell's project is paused. An EXPLICIT value, never inferred
+ * (same rule as `cloudIdentityEnabled`): the control plane starts the cell with
+ * `MAUDE_PLAN_STATE=paused` (`/internal/cell-config` `planState`), and only
+ * that exact value pauses. A self-hosted hub never sets it.
+ */
+export function planPausedFromEnv(env = process.env) {
+  return env.MAUDE_PLAN_STATE === 'paused';
+}
+
+/**
  * Capabilities the `read_only` projection on a peer token can never hold. A token
  * stored read-only stays read-only whatever its role column says — the bit is what
  * every pre-v2 door reads, so the gate must never be wider than it.
@@ -109,10 +142,21 @@ export function presentedBearer(request) {
  * itself — it filters or refuses per target (V2-1.16 L1–L6), so the gate only
  * asks whether ANY granted canvas holds the capability.
  *
- * @param {{ request: object, capability: string | null, scope: string, canvasDoor?: boolean, verify: (token: string) => object | null }} ctx
+ * `plan` (A3): `'paused'` refuses every capability a paused project does not
+ * keep with 402 — AFTER the role check, so a role that could not write anyway
+ * keeps today's 403 and learns nothing new. Defaults to this cell's env.
+ *
+ * @param {{ request: object, capability: string | null, scope: string, canvasDoor?: boolean, verify: (token: string) => object | null, plan?: string | null }} ctx
  * @returns {{ status: number, body: object } | null} a refusal, or null to go on
  */
-export function hubAccessRefusal({ request, capability, scope, canvasDoor = false, verify }) {
+export function hubAccessRefusal({
+  request,
+  capability,
+  scope,
+  canvasDoor = false,
+  verify,
+  plan = planPausedFromEnv() ? 'paused' : null,
+}) {
   if (!capability) return null;
   const token = presentedBearer(request);
   if (!token) return null;
@@ -143,7 +187,15 @@ export function hubAccessRefusal({ request, capability, scope, canvasDoor = fals
   // judges each target itself, so there the claim is authoritative.
   const claimDecides = access.canvasOnly && canvasDoor;
   const allowed = held && (claimDecides || !(peer.readOnly && WRITE_CAPABILITIES.has(capability)));
-  if (allowed) return null;
+  if (allowed) {
+    if (plan === 'paused' && !PAUSE_KEEPS.has(capability)) {
+      return {
+        status: 402,
+        body: { ...(access.role === 'owner' ? PLAN_OWNER_REFUSAL : PLAN_PAUSED_REFUSAL) },
+      };
+    }
+    return null;
+  }
   if (access.role === 'observer') return { status: 403, body: { ...OBSERVER_REFUSAL } };
   return { status: 403, body: { ...READ_ONLY_REFUSAL } };
 }
