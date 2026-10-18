@@ -461,4 +461,22 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
+  // S3.10a — where a click goes: `data-cd-link` on the element (S3-links-format). Both are `edit-op`s
+  // (`edit-ops/{set,clear}-link.ts`) on POST /_api/edit-op. Clear link runs from ⌘K through the inspector's
+  // frame; Set link has no human picker yet (the On click row only clears), so it has no runner — the AI path
+  // and the route are complete.
+  {
+    id: 'element.set-link',
+    label: 'Set link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  {
+    id: 'element.clear-link',
+    label: 'Clear link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
 ];

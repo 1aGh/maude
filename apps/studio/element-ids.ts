@@ -15,6 +15,7 @@
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 import { cleanText, fileText } from '../../cli/lib/finding-text.mjs';
+import { LINK_ATTR, parseLinkTarget } from './bridge/link-target.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc-parser AST nodes are heterogeneous.
 type AnyNode = any;
@@ -117,13 +118,17 @@ export interface IdElement {
   lockAttr: Span | null;
   hiddenPrevDisplay: string | null;
   hiddenAttr: Span | null;
+  /** `data-cd-link` (S3.10a): the cooked literal value; null when absent or an expression. */
+  link: string | null;
+  linkKind: 'literal' | 'expression' | null;
+  linkAttr: Span | null;
   /** Own JSXText, whitespace collapsed, ≤ 80 chars (canvas-edit `ownText`). */
   text: string;
   className: string;
   dcElement: string | null;
   /** Literal attributes in print form, minus `data-cd-*`, `style`, `key` (canvas-edit `literalAttrs`). */
   attrs: Array<[string, string]>;
-  /** Other `data-cd-*` attributes (not id / locked), name → raw source of the value. */
+  /** Other `data-cd-*` attributes (not id / locked / link), name → raw source of the value. */
   cd: Array<[string, string]>;
   /** A few accessibility labels, for messages. */
   aria: string | null;
@@ -210,6 +215,9 @@ export function walkIdElements(source: string, path = 'canvas.tsx'): WalkResult 
     let lockAttr: Span | null = null;
     let hidden: string | null = null;
     let hiddenAttr: Span | null = null;
+    let link: string | null = null;
+    let linkKind: IdElement['linkKind'] = null;
+    let linkAttr: Span | null = null;
     let className = '';
     let dcElement: string | null = null;
     let aria: string | null = null;
@@ -231,6 +239,15 @@ export function walkIdElements(source: string, path = 'canvas.tsx'): WalkResult 
       }
       if (name === 'data-cd-locked') {
         lockAttr = { start: a.start, end: a.end };
+        continue;
+      }
+      if (name === LINK_ATTR) {
+        // the one data-cd-* Claude may write (S3-links-format §7): judged by the link rules, not cdKey
+        linkAttr = { start: a.start, end: a.end };
+        if (v?.type === 'Literal' && typeof v.value === 'string') {
+          link = v.value;
+          linkKind = 'literal';
+        } else linkKind = 'expression';
         continue;
       }
       if (name.startsWith(CANVAS_ONLY_PREFIX)) {
@@ -274,6 +291,9 @@ export function walkIdElements(source: string, path = 'canvas.tsx'): WalkResult 
       lockAttr,
       hiddenPrevDisplay: hidden,
       hiddenAttr,
+      link,
+      linkKind,
+      linkAttr,
       text,
       className,
       dcElement,
@@ -654,12 +674,15 @@ export type IdFindingCode =
   | 'id-expression'
   | 'id-format'
   | 'locked-changed'
-  | 'cd-attr-changed';
+  | 'cd-attr-changed'
+  | 'link-format'
+  | 'link-no-id'
+  | 'link-dangling';
 
 export interface IdFinding {
   code: IdFindingCode;
-  /** `id-removed` is `info` (reported in the run result); everything else blocks. */
-  severity: 'error' | 'info';
+  /** `id-removed` is `info` (reported in the run result); `link-dangling` a warning; everything else blocks. */
+  severity: 'error' | 'warning' | 'info';
   /** `<path>:<line>:<col>`, or `<path>#<artboard>` for an element that is gone. */
   where: string;
   /** One line, plain words. */
@@ -679,6 +702,11 @@ export interface CheckIdsOptions {
   fix?: boolean;
   /** Repo-relative path, for `where` and the parser. */
   path?: string;
+  /**
+   * The artboard ids of another canvas (designRoot-relative `.tsx`), or null when it is not in the project —
+   * judges `link-dangling` for `<canvas>.tsx[#<artboard>]` targets. Absent = those targets are not judged.
+   */
+  canvasArtboards?: (canvas: string) => readonly string[] | null;
 }
 
 export interface CheckIdsResult {
@@ -829,6 +857,50 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
     const list = byId.get(e.id);
     if (list) list.push(e);
     else byId.set(e.id, [e]);
+  }
+  // S3.10a — the link rules (S3-links-format §7)
+  const ownArtboards = new Set<string>();
+  for (const e of newEls) if (e.tag === 'DCArtboard' && e.artboard) ownArtboards.add(e.artboard);
+  for (const e of newEls) {
+    if (!e.linkAttr) continue;
+    const target = e.linkKind === 'literal' ? parseLinkTarget(e.link) : null;
+    if (!target) {
+      push(
+        'link-format',
+        e,
+        `${nameOf(e)} (line ${e.line}): data-cd-link must be "#<artboard>", "<canvas>.tsx#<artboard>" or "https://…".`,
+        'Write one of those three forms as a plain string, or remove data-cd-link.'
+      );
+      continue;
+    }
+    if (e.id === null || e.idKind !== 'literal') {
+      push(
+        'link-no-id',
+        e,
+        `${nameOf(e)} (line ${e.line}) has a link but no data-cd-id — add one (lowercase words joined by -).`,
+        'Add data-cd-id="<id>" next to data-cd-link.'
+      );
+      continue;
+    }
+    let dangling = false;
+    if (target.kind === 'artboard') dangling = !ownArtboards.has(target.artboard);
+    else if (target.kind === 'canvas' && opts.canvasArtboards) {
+      const abs = opts.canvasArtboards(target.canvas);
+      dangling = abs === null || (target.artboard !== null && !abs.includes(target.artboard));
+    }
+    if (dangling) {
+      const raw =
+        target.kind === 'canvas' && target.artboard === null ? target.canvas : (e.link as string);
+      push(
+        'link-dangling',
+        e,
+        `${nameOf(e)} (line ${e.line}) links to ${cleanText(raw, 120)}, which isn't in the project.`,
+        'Point the link at an artboard or canvas that exists — or leave it if that canvas is still to come.',
+        e.id,
+        at(e),
+        'warning'
+      );
+    }
   }
   for (const [id, list] of byId) {
     if (list.length < 2) continue;

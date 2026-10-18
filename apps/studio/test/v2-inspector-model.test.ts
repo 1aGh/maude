@@ -338,12 +338,13 @@ describe('renameElementId asks the dispatch route (S2.1) and says the answer in 
   });
 });
 
-describe('the registry carries the three inspector actions (rule 14: each with its AI path)', () => {
+describe('the registry carries the inspector actions (rule 14: each with its AI path)', () => {
   test('registered as shell commands, greyed without an object, each with an agent path', () => {
     expect([...INSPECTOR_ACTION_IDS]).toEqual([
       'inspector.copy-css',
       'element.copy-id',
       'element.set-id',
+      'element.clear-link', // S3.10a
     ]);
     for (const id of INSPECTOR_ACTION_IDS) {
       const def = ACTIONS_BY_ID.get(id);

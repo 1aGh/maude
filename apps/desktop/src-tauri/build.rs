@@ -21,6 +21,8 @@ fn main() {
                 "github_open_verification",
                 "open_github_url",
                 "open_cloud_url",
+                // S3.10b (external_link.rs): a canvas link to a website, after the shell's confirmation.
+                "open_link_external",
                 "github_is_signed_in",
                 "github_sign_out",
                 // V2-3.8 (profiles.rs): a Maude Cloud sign-in keeps its project's profile.

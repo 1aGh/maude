@@ -64,6 +64,9 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
+  // S3.10a — `element.set-link` / `element.clear-link`: one dispatch route for every structural edit (test/edit-op-route.test.ts;
+  // the viewer's 403 through a booted studio is a row of test/access-role-matrix.test.ts).
+  { method: 'POST', route: '/_api/edit-op', refused: ['view', 'comment'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

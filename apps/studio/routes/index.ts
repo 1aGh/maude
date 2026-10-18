@@ -23,6 +23,7 @@ import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
+import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -60,6 +61,8 @@ export interface RouteDeps {
   edit: Omit<EditRouteDeps, 'runs'>;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S3.10a — `GET /_api/links?file=` (main origin only; the shell's link-follow reads it) */
+  elementLinks: ElementLinksRouteDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
@@ -89,6 +92,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createPinsRoutes(deps.pins),
     ...createAiRoutes(deps.ai),
     ...createChatRoutes(deps.chat),
+    ...createElementLinksRoutes(deps.elementLinks),
     // S2.1 — AI holds read THE run registry (V2-1.15 §4 #13)
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
     ...(deps.chatAttach ? createChatAttachRoutes(deps.chatAttach) : []),

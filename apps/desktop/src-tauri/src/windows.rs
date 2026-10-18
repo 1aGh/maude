@@ -2657,36 +2657,98 @@ mod tests {
             .filter(|p| p.extension().is_some_and(|x| x == "rs"))
             .map(|p| std::fs::read_to_string(p).unwrap())
             .collect();
-        let checks = [
-            "caller_project(",
-            "caller_any(",
-            "caller_home(",
-            "check_home(",
-            "resolve_profile(",
-            "session_for(", // home_session: label + exact Home origin, pure
-            "caller_strip(", // V2-3.7 strip commands: label `strip` + app-local strip.html
-        ];
         let mut unchecked = Vec::new();
         for p in granted.iter().filter(|p| p.starts_with("allow-")) {
             let cmd = p.trim_start_matches("allow-").replace('-', "_");
-            let body = sources.iter().find_map(|s| {
-                [format!("pub fn {cmd}("), format!("pub async fn {cmd}("), format!("\nfn {cmd}("), format!("async fn {cmd}(")]
-                    .iter()
-                    .find_map(|sig| s.find(sig.as_str()).map(|i| &s[i..]))
-                    .map(|rest| {
-                        // The command's own body: up to the next command.
-                        let end = rest[1..].find("#[tauri::command").map_or(rest.len(), |e| e + 1);
-                        rest[..end].to_string()
-                    })
-            });
+            let body = sources.iter().find_map(|s| command_body(s, &cmd));
             let Some(body) = body else {
                 panic!("{p}: no `fn {cmd}` found under src/");
             };
-            if !checks.iter().any(|c| body.contains(c)) {
+            if !CALLER_CHECKS.iter().any(|c| body.contains(c)) {
                 unchecked.push(cmd);
             }
         }
-        assert!(unchecked.is_empty(), "granted commands with no Rust caller check: {unchecked:?}");
+        assert!(
+            unchecked.is_empty(),
+            "granted commands with no Rust caller check: {unchecked:?}"
+        );
+    }
+
+    /// The calls that count as a Rust caller check (see the test above).
+    const CALLER_CHECKS: [&str; 7] = [
+        "caller_project(",
+        "caller_any(",
+        "caller_home(",
+        "check_home(",
+        "resolve_profile(",
+        "session_for(",  // home_session: label + exact Home origin, pure
+        "caller_strip(", // V2-3.7 strip commands: label `strip` + app-local strip.html
+    ];
+
+    /// The source of command `cmd` in `src`: from its signature to the end of
+    /// its own item.
+    fn command_body<'a>(src: &'a str, cmd: &str) -> Option<&'a str> {
+        let rest = [
+            format!("pub fn {cmd}("),
+            format!("pub async fn {cmd}("),
+            format!("\nfn {cmd}("),
+            format!("async fn {cmd}("),
+        ]
+        .iter()
+        .find_map(|sig| src.find(sig.as_str()).map(|i| &src[i..]))?;
+        // The command's own body ends at the first of: its closing brace (a
+        // top-level `}` — commands are free functions, rustfmt'd), the test
+        // module, the next command. Ending early can only turn the ratchet red;
+        // ending late lets later text vouch for this command.
+        let end = ["\n}", "#[cfg(test)]", "#[tauri::command"]
+            .iter()
+            .filter_map(|m| rest[1..].find(m).map(|e| e + 1))
+            .min()
+            .map_or(rest.len(), |e| e);
+        Some(&rest[..end])
+    }
+
+    /// The ratchet reads a command's OWN body. It must not read on into a test
+    /// module (where a test that quotes a check call would vouch for a command
+    /// with none) or into the next item (a helper that checks for itself).
+    #[test]
+    fn command_body_stops_at_the_end_of_the_command() {
+        let checked = |src: &str| {
+            let body = command_body(src, "do_thing").expect("the fixture has the command");
+            CALLER_CHECKS.iter().any(|c| body.contains(c))
+        };
+        // The last command in its file, followed by its tests.
+        let last_then_tests = concat!(
+            "#[tauri::command]\npub async fn do_thing(url: String) -> Result<(), String> {\n",
+            "    launch(&url)\n}\n\n",
+            "#[cfg(test)]\nmod tests {\n    #[test]\n    fn pin() {\n",
+            "        assert!(SRC.contains(\"caller_",
+            "project(&webview, false)?\"));\n    }\n}\n",
+        );
+        assert!(
+            !checked(last_then_tests),
+            "the test module vouched for an unchecked command"
+        );
+        // Followed by an ordinary helper that does its own check.
+        let then_helper = concat!(
+            "#[tauri::command]\npub fn do_thing(webview: tauri::Webview) -> Result<(), String> {\n",
+            "    Ok(())\n}\n\n",
+            "fn other(webview: &tauri::Webview) -> Result<(), String> {\n",
+            "    caller_",
+            "project(webview, false)?;\n    Ok(())\n}\n",
+        );
+        assert!(
+            !checked(then_helper),
+            "the next item vouched for an unchecked command"
+        );
+        // A command that does check still passes, nested braces and all.
+        let real = concat!(
+            "#[tauri::command]\npub async fn do_thing(webview: tauri::Webview) -> Result<(), String> {\n",
+            "    if true {\n        let x = { 1 };\n    }\n",
+            "    crate::windows::caller_", "project(&webview, false)?;\n    Ok(())\n}\n",
+            "#[cfg(test)]\nmod tests {}\n",
+        );
+        assert!(checked(real));
     }
 
     /// V2-3.6 M3: a project page switches its tab only to a registered

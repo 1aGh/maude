@@ -45,7 +45,7 @@ import {
   toDesignRel,
   writeCapability,
 } from './access/request.ts';
-import type { Access } from './access/scope.ts';
+import { type Access, sees as accessSees } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
 import {
   cancelSignin,
@@ -1746,6 +1746,18 @@ export function createHttp(
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
     pins: { designRoot: ctx.paths.designRoot },
+    // S3.10a — where an on-click link goes, read from the versioned TSX (routes/element-links.ts)
+    elementLinks: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      // the session's own predicate (S9.9): a canvas-only session reads its grants' closure and nothing else,
+      // so a link to a canvas it was not granted reads `dangling` (no existence oracle, V2-1.16 U1)
+      sees: (req, rel) => {
+        const access = accessOf(req);
+        // S9.11's closure (the same one readOnlyRefusal / the seer use), null without grants
+        return accessSees(access, closureOf(access), rel);
+      },
+    },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
     chat: {
       designRoot: ctx.paths.designRoot,

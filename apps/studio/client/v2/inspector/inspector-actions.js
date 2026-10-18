@@ -1,8 +1,9 @@
-// client/v2/inspector/inspector-actions.js — S2.2: what the inspector's three registry actions RUN.
+// client/v2/inspector/inspector-actions.js — S2.2: what the inspector's registry actions RUN.
 //
 //   inspector.copy-css   ⌘K "Copy CSS"          the selected element's declarations on the clipboard
 //   element.copy-id      ⌘K "Copy element id"   its id on the clipboard
 //   element.set-id       ⌘K "Edit element id…"  opens › Advanced and puts the cursor in the id field
+//   element.clear-link   ⌘K "Clear link"        drops the object's On click link (one edit-op write)
 //
 // The menu runner (client/v2/shell/menu-runner.js) calls `runInspectorAction(id)`; the mounted frame binds the
 // handlers for the element it shows (frame.jsx), the same shape as left-panel-bus.js. With nothing bound
@@ -12,6 +13,7 @@ export const INSPECTOR_ACTION_IDS = Object.freeze([
   'inspector.copy-css',
   'element.copy-id',
   'element.set-id',
+  'element.clear-link',
 ]);
 
 /** @type {Map<string, () => Promise<string | null> | string | null>} */

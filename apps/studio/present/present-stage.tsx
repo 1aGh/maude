@@ -416,7 +416,6 @@ export function createPresentStage(deps: StageDeps): PresentStage {
         // A click on a playing clip pauses it; on anything else it moves on.
         if (!deps.media?.click()) go('next', true);
       }
-      }
     };
     // S3.3 — the trackpad scrolls a web artboard inside the stage (never the canvas camera). A pinch
     // (ctrl + wheel), a sideways swipe and every other kind do nothing.

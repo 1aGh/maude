@@ -357,7 +357,7 @@ describe('copy', () => {
   });
 });
 
-describe('the three registry actions (⌘K) run on the element the frame shows', () => {
+describe('the registry actions (⌘K) run on the element the frame shows', () => {
   const written: string[] = [];
   beforeEach(() => {
     written.length = 0;
@@ -388,6 +388,29 @@ describe('the three registry actions (⌘K) run on the element the frame shows',
     await act(async () => new Promise((r) => setTimeout(r, 30)));
     expect(q(host, 'fold-inspector-body')).not.toBeNull();
     expect(document.activeElement).toBe(q(host, 'inspector-element-id'));
+  });
+
+  test('Clear link (S3.10a) drops the link through /_api/edit-op and says so; no link says so too', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    await frame({ selected: BUTTON });
+    calls.length = 0;
+    expect(await runInspectorAction('element.clear-link')).toBe('This object has no link.');
+    expect(calls).toEqual([]);
+    for (const r of roots.splice(0)) await act(async () => r.unmount());
+    await frame({
+      selected: { ...BUTTON, attrs: { 'data-cd-link': '#pricing' } },
+    });
+    expect(await runInspectorAction('element.clear-link')).toBe('Cleared the link.');
+    expect(calls.map((c) => [c.url, JSON.parse(c.body ?? '{}')])).toEqual([
+      [
+        '/_api/edit-op',
+        {
+          file: '.design/ui/Homepage.tsx',
+          op: 'element.clear-link',
+          targets: [{ artboard: 'desktop', element: 'book-call' }],
+        },
+      ],
+    ]);
   });
 
   test('a computed id has nothing to copy yet, and says how to get one', async () => {

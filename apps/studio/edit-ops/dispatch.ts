@@ -14,6 +14,7 @@ import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { alignOps } from './align.ts';
 import { artboardResize } from './artboard-resize.ts';
+import { CLEAR_LINK_OP } from './clear-link.ts';
 import { objectConstrain } from './constraints.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
@@ -27,6 +28,7 @@ import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
 import { layoutSetGap } from './set-gap.ts';
 import { elementSetId } from './set-id.ts';
+import { SET_LINK_OP } from './set-link.ts';
 import {
   EDIT_OP_STATUS,
   type EditOp,
@@ -74,6 +76,9 @@ export const EDIT_OPS: readonly EditOp[] = [
   ...reorderOps,
   // S2.11c — ⌥ "every gap at once": one gap value over several auto layouts, one write
   layoutSetGap,
+  // S3.10a — a click's destination: `data-cd-link` (S3-links-format §3)
+  SET_LINK_OP,
+  CLEAR_LINK_OP,
 ];
 
 export interface AiHoldHit {

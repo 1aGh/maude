@@ -15,6 +15,7 @@ import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
 import { bindInspectorActions } from './inspector-actions.js';
+import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { SECTIONS } from './sections.js';
@@ -107,6 +108,20 @@ export function InspectorFrame({
             : 'Not copied; try again.'
           : 'This element has no id yet. Edit element id… gives it one.'
       ),
+      'element.clear-link': only(async (e) => {
+        if (!e.attrs?.['data-cd-link']) return 'This object has no link.';
+        const canvas = e.file ?? canvasFile;
+        if (!canvas || !e.artboardId || !hasUsableId(e))
+          return 'Not changed; select the object again.';
+        const r = await writeLink({
+          canvas,
+          artboardId: e.artboardId,
+          id: e.id,
+          index: e.index,
+          target: null,
+        });
+        return r.ok ? 'Cleared the link.' : r.message;
+      }),
       'element.set-id': only(() => {
         adv.show();
         requestAnimationFrame(() =>
@@ -115,7 +130,7 @@ export function InspectorFrame({
         return null;
       }),
     });
-  }, [el1, adv.show]);
+  }, [el1, adv.show, canvasFile]);
   if (!el) return null;
 
   const kind = resolveKind(selected);

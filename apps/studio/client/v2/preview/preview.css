@@ -132,4 +132,68 @@
     font-variant-numeric: tabular-nums;
     color: var(--fg-1);
   }
+
+  /* S3.10b — "Open a website?" (external-link-confirm.jsx): trusted shell chrome over the canvas. */
+  .st-xlink-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4, 16px);
+    background: var(--scrim);
+  }
+  .st-xlink.island {
+    position: relative;
+    width: min(100%, 360px);
+    padding: var(--space-4, 16px);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--bg-1);
+    box-shadow: var(--shadow-md);
+    animation: st-xlink-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes st-xlink-in {
+    from {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+  .st-xlink-t {
+    margin: 0 0 var(--space-2, 8px);
+    font-size: var(--type-md, 15px);
+    color: var(--fg-0);
+  }
+  .st-xlink-b {
+    display: grid;
+    gap: var(--space-1, 4px);
+    margin-bottom: var(--space-4, 16px);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .st-xlink-host {
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .st-xlink-display {
+    color: var(--fg-2);
+    overflow-wrap: anywhere;
+  }
+  .st-xlink-url {
+    padding: var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font-size: var(--type-xs, 12px);
+    overflow-wrap: anywhere;
+    user-select: all;
+    -webkit-user-select: all;
+  }
+  .st-xlink-hint {
+    color: var(--fg-2);
+  }
+  .st-xlink-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2, 8px);
+  }
 }

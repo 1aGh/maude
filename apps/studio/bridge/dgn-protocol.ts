@@ -252,6 +252,9 @@ export interface CanvasToShell {
   // S3.3 — the clip on the presented artboard (video-comp): the shell's transport mirrors it. `t` and
   // `duration` are seconds, 0..86400.
   'present-media': { playing: boolean; t: number; duration: number; muted: boolean };
+  /** S3.10a — a plain click in Preview on an element with `data-cd-link` + `data-cd-id`. Never the target:
+   *  the shell reads it from the TSX (`GET /_api/links`, S3-links-format §1.3). */
+  'link-follow': { elementId: Id; artboardId: Id | null };
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -440,6 +443,16 @@ const opt =
   (f: V): V =>
   (v) =>
     v === undefined ? undefined : f(v);
+// S3.10a — a linked element's authored id (V2-1.4 §4.2: never 8 hex) and its artboard (S3-links-format §9).
+const linkElementIdV: V = (v) =>
+  typeof v === 'string' &&
+  v.length <= 48 &&
+  /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(v) &&
+  !/^[0-9a-f]{8}$/.test(v)
+    ? v
+    : BAD;
+const linkArtboardIdV: V = (v) =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : BAD;
 const nul =
   (f: V): V =>
   (v) =>
@@ -1061,6 +1074,14 @@ const c2s: C2S = {
     status: 'live',
     owner: 'present/present-media (S3.3)',
     parse: p({ playing: bool, t: seconds, duration: seconds, muted: bool }),
+  },
+  // S3.10a — live: input-router's Preview branch posts it; the shell's link-follow plays it. Extra keys
+  // (`target`, `url`, …) are dropped by `p`, so a planted canvas cannot hand the shell a destination.
+  'link-follow': {
+    gate: 'active', // + shell mode === 'preview' + no modal + ≤ 4/s, in the handler
+    status: 'live',
+    owner: 'S3 links (client/v2/preview/link-follow.js)',
+    parse: p({ elementId: linkElementIdV, artboardId: nul(linkArtboardIdV) }),
   },
 };
 
