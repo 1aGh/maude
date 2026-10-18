@@ -131,7 +131,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'the order the Canvases panel lists in; `maude design index` lists them all'
   ),
   'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
-  'import.brand': { effect: 'project', agent: cli('maude design import-brand') },
+  // S8.18 — a website read is third-party network (the fetch-asset gate); a logo alone writes assets/logos/
+  'import.brand': { effect: 'external', agent: cli('maude design import-brand') },
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
   'view.advanced-close-all': PREF('folds every panel’s Advanced section; a UI preference'),
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),

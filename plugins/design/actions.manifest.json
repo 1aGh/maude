@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f6153a011061",
+  "manifestVersion": "101fbeef06c1",
   "actions": [
     {
       "id": "search.open",
@@ -218,7 +218,7 @@
       "label": "Import a brand…",
       "kind": "command",
       "exec": "shell",
-      "effect": "project",
+      "effect": "external",
       "agent": {
         "path": "cli",
         "verb": "maude design import-brand"
@@ -2878,12 +2878,6 @@
     },
     {
       "scope": "design",
-      "verb": "design import-brand",
-      "effect": "project",
-      "tier": "auto"
-    },
-    {
-      "scope": "design",
       "verb": "design import-tokens",
       "effect": "project",
       "tier": "auto"
@@ -2964,6 +2958,12 @@
     {
       "scope": "design",
       "verb": "design import-figma",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design import-brand",
       "effect": "external",
       "tier": "prompt"
     },
