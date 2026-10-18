@@ -80,7 +80,8 @@
 // ⌘Z is a denied edit — the shell shows the denial notice and sends the canvas neither `run-action edit.undo` nor
 // `undo-barrier-ok`; ⌘K rows are `role=option` with `aria-selected` and `tabindex=-1` (combobox/listbox); the
 // shortcuts sheet takes `tabindex=-1` (focus helper) and lists a key once (fewer rows); Hide panels says its state
-// by its label, not `aria-pressed`; Settings › General gains the Keyboard group. No write changed.
+// by its label, not `aria-pressed`; Settings › General gains the Keyboard group; the "?" sheet then (f1607c3e)
+// shows ⌥⌘1–9 as one range and wraps each "or" with its key. No write changed.
 //
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
