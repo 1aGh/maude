@@ -1658,7 +1658,7 @@ export function createHttp(
     history: () => exportJobs.loadHistory(),
     renderLane: () => resolveRenderLane(),
     // S8.4 — Retry: only the failed items of one of THIS session's group jobs
-    retry: (id, items, session) => exportJobs.retry(id, items, session),
+    retry: (id, items, session, allow) => exportJobs.retry(id, items, session, allow),
   };
   const tableSpecs = allSpecs({
     outbox: { outbox },
@@ -6936,6 +6936,8 @@ export function createHttp(
     // the way the exporter resolves it; a reply's canvas is its comment's, looked up among the
     // comments this session sees — so an invisible id is a missing one (U1).
     if (access.grants.length > 0 && req.method === 'POST') {
+      // S8.4 — Retry names a job, not a canvas: the route gates every canvas its items reach
+      if (pathname === '/_api/export-jobs/retry') return null;
       if (V2_EXPORT_DOORS.has(pathname)) {
         const body = (await req
           .clone()
