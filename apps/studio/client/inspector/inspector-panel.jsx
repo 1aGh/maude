@@ -1,13 +1,14 @@
 // inspector/inspector-panel.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useEffect, useRef, useState } from 'react';
-import { CssKnobs, trackRecordableWrite } from './css-knobs.jsx';
+import { trackRecordableWrite } from './css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
 import { Kbd, StIcon } from '../shell/icons.jsx';
 import { PhotoKnobs } from '../photo-knobs.jsx';
 import { ColorPicker } from './color-picker.jsx';
-import { InspectComputed } from './inspect-computed.jsx';
-import { ArtboardKnobs, resolveArtboardIdFromSelection } from './artboard-knobs.jsx';
+import { renameElementId } from '../v2/inspector/element-id.js';
+import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
 // DOM selection points at (an artboard `<img src="assets/<sha8>.<ext>">`). Prefers
@@ -107,10 +108,8 @@ export function InspectorPanel({
   // V2-4.8b — the open canvas's artboard count (was the status bar's "N artboards"), shown in the
   // standalone Layers panel's header; undefined elsewhere.
   artboardCount,
-  // DDR-171 — CSS-panel vocabulary mode ('advanced' | 'designer'), owned by App
-  // (single source of truth shared with Settings → Appearance).
-  cpMode,
-  onSetCpMode,
+  // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
+  onRenameElementId = renameElementId,
 }) {
   // Tab is controllable from the parent (the guided tour drives it to 'css' /
   // 'layers' so a spotlight step lands on a real row) but falls back to local
@@ -526,7 +525,15 @@ export function InspectorPanel({
   // photo-eligible — onto CSS, the editing tab a fresh selection opens on (Stage
   // C). Landing on read-only Inspect meant that after touching a sticker, the
   // next element you clicked showed facts instead of the controls to change it.
-  const effTab = photoOnly ? 'photo' : tab === 'photo' && !photoTarget ? 'css' : tab;
+  // S2.2 — Inspect and CSS were one idea twice: both open the Inspector frame (its Advanced fold carries what
+  // each showed), so a tab id the tour or a saved state still names lands on the frame.
+  const effTab = photoOnly
+    ? 'photo'
+    : tab === 'photo' && !photoTarget
+      ? 'css'
+      : tab === 'inspect'
+        ? 'css'
+        : tab;
   const tabBtn = (id, label, icon) => (
     <button
       type="button"
@@ -537,7 +544,6 @@ export function InspectorPanel({
       {label}
     </button>
   );
-  const b = el?.bounds || null;
   return (
     <aside
       className={'st-rpanel' + (resizing ? ' is-resizing' : '')}
@@ -553,13 +559,14 @@ export function InspectorPanel({
       >
         {photoOnly ? (
           tabBtn('photo', 'Photo', 'image')
-        ) : (
+        ) : !hideLayersTab || photoTarget ? (
           <>
-            {tabBtn('inspect', 'Inspect', 'sliders')}
+            {tabBtn('css', 'Inspector', 'sliders')}
             {!hideLayersTab && tabBtn('layers', 'Layers', 'layers')}
-            {tabBtn('css', 'CSS', 'code')}
             {photoTarget ? tabBtn('photo', 'Photo', 'image') : null}
           </>
+        ) : (
+          <span className="st-rp-title">Inspector</span>
         )}
         <button
           type="button"
@@ -632,70 +639,6 @@ export function InspectorPanel({
               straight from Browse.
             </p>
           </div>
-        ) : el && effTab === 'inspect' ? (
-          <>
-            {/* V2-4.8b — the selection chip the status bar carried: the selector, then the element's own
-                text, and the DOM path on hover. */}
-            <div
-              className="st-rp-hd"
-              data-testid="inspector-selection"
-              title={
-                Array.isArray(el.dom_path) ? el.dom_path.join(' > ') : el.selector || undefined
-              }
-            >
-              {el.selector || el.tag || 'element'}
-              {el.text ? (
-                <span className="st-rp-hd-count" data-testid="inspector-selection-text">
-                  — “{String(el.text).slice(0, 60)}”
-                </span>
-              ) : null}
-            </div>
-            <div className="st-insp-row">
-              <span className="st-insp-label">Pos</span>
-              <div className="st-insp-fields">
-                <span className="st-fmini">
-                  <span className="st-mtag">X</span>
-                  <input value={b ? Math.round(b.x) : '—'} readOnly aria-label="x position" />
-                </span>
-                <span className="st-fmini">
-                  <span className="st-mtag">Y</span>
-                  <input value={b ? Math.round(b.y) : '—'} readOnly aria-label="y position" />
-                </span>
-              </div>
-            </div>
-            <div className="st-insp-row">
-              <span className="st-insp-label">Size</span>
-              <div className="st-insp-fields">
-                <span className="st-fmini">
-                  <span className="st-mtag">W</span>
-                  <input value={b ? Math.round(b.w) : '—'} readOnly aria-label="width" />
-                </span>
-                <span className="st-fmini">
-                  <span className="st-mtag">H</span>
-                  <input value={b ? Math.round(b.h) : '—'} readOnly aria-label="height" />
-                </span>
-              </div>
-            </div>
-            <div className="st-insp-row">
-              <span className="st-insp-label">Tag</span>
-              <div className="st-insp-fields">
-                <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-0)' }}>
-                  {el.tag || '—'}
-                </span>
-              </div>
-            </div>
-            {el.classes ? (
-              <div className="st-insp-row">
-                <span className="st-insp-label">Class</span>
-                <div className="st-insp-fields">
-                  <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-1)' }}>
-                    {el.classes}
-                  </span>
-                </div>
-              </div>
-            ) : null}
-            <InspectComputed el={el} />
-          </>
         ) : effTab === 'layers' ? (
           <>
             <div className="st-rp-hd">
@@ -780,27 +723,23 @@ export function InspectorPanel({
               </div>
             )}
           </>
-        ) : !el.id && resolveArtboardIdFromSelection(el) ? (
-          <ArtboardKnobs
-            el={el}
+        ) : (
+          <InspectorFrame
+            selected={selected}
+            layersTree={layersTree}
             cfg={cfg}
+            canvasFile={canvasFile}
+            onOptimistic={onOptimistic}
+            onRecordEdit={onRecordEdit}
+            onReplaceMedia={onReplaceMedia}
+            onUndoRedo={onUndoRedo}
+            onRenameElementId={onRenameElementId}
             onResizeArtboard={onResizeArtboard}
             onSetArtboardHug={onSetArtboardHug}
             onSetArtboardStyle={onSetArtboardStyle}
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
             onDuplicateArtboard={onDuplicateArtboard}
-          />
-        ) : (
-          <CssKnobs
-            el={el}
-            cfg={cfg}
-            onOptimistic={onOptimistic}
-            onRecordEdit={onRecordEdit}
-            onReplaceMedia={onReplaceMedia}
-            onUndoRedo={onUndoRedo}
-            mode={cpMode}
-            onSetMode={onSetCpMode}
           />
         )}
       </div>

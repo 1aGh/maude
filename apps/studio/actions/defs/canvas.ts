@@ -74,6 +74,25 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     visible: { minRole: 'edit' },
     enabled: { facts: ['canvasOpen'] },
   },
+  // S1.2 (11 · pn-trash) — the Canvases panel's row menu, on the OPEN canvas from ⌘K. "Rename" is in place
+  // now (`canvas.rename` above turns the row's name into a field; the window.prompt is gone). Copy link is
+  // for anyone who can open the canvas; Move to trash is an editor's (only an owner clears the Trash out).
+  {
+    id: 'canvas.copy-link',
+    label: 'Copy canvas link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { facts: ['canvasOpen'] },
+  },
+  {
+    id: 'canvas.trash',
+    label: 'Move canvas to trash',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+  },
   // Today's panels: the Figma import dialog and the brand upload panel.
   {
     id: 'import.figma',

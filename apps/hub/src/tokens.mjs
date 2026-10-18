@@ -115,6 +115,12 @@ function db(dataDir) {
     // stale-session branch in `browserSession`, which refuses rather than
     // guesses.
     ['role', 'ALTER TABLE tokens ADD COLUMN role TEXT'],
+    // V2-1.7 §5.4 (S9.2) — the ACCESS CLAIM, as JSON (`{v: 1, role, grants?}`).
+    // NULL means `legacyClaim(role)`: every token minted before this shipped,
+    // and every v1-expressible session minted after. `read_only` stays the
+    // projection old code reads; `scope` keeps its DDR-053 meaning and is never
+    // used for canvas scope.
+    ['access', 'ALTER TABLE tokens ADD COLUMN access TEXT'],
   ]) {
     const present = handle
       .prepare('SELECT COUNT(*) AS n FROM pragma_table_info(?) WHERE name = ?')
@@ -205,6 +211,36 @@ function rowToRecord(row) {
     ...(row.owner ? { owner: row.owner } : {}),
     ...(row.dev ? { dev: true } : {}),
   };
+}
+
+/**
+ * Normalize an access claim for storage. Throws on anything that is not a claim —
+ * a mint that cannot say what it grants must fail loud, never store a guess.
+ */
+function accessForStore(access) {
+  if (access === undefined || access === null) return null;
+  const ok =
+    typeof access === 'object' &&
+    !Array.isArray(access) &&
+    access.v === 1 &&
+    (access.role === null || typeof access.role === 'string') &&
+    (access.grants === undefined || Array.isArray(access.grants));
+  if (!ok) throw new Error('access must be an access claim ({ v: 1, role, grants? })');
+  return {
+    v: 1,
+    role: access.role,
+    ...(access.grants?.length ? { grants: access.grants.map(({ c, r }) => ({ c, r })) } : {}),
+  };
+}
+
+/** A stored claim. An unreadable one holds NOTHING — never a fall-back to `role`. */
+function accessFromRow(raw) {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  try {
+    return accessForStore(JSON.parse(raw));
+  } catch {
+    return { v: 1, role: null };
+  }
 }
 
 /** True when a token row's lifetime has elapsed. NULL expires_at = never. */
@@ -301,10 +337,11 @@ export function matchesScope(scope, documentName) {
  */
 export function addToken(
   dataDir,
-  { label, dev = false, scope, expiresAt, owner, readOnly = false, role } = {}
+  { label, dev = false, scope, expiresAt, owner, readOnly = false, role, access } = {}
 ) {
   assertValidLabel(label);
   assertValidScope(scope);
+  const storedAccess = accessForStore(access);
   const handle = db(dataDir);
   const value = generateToken({ dev });
   // Default scope per DDR-053 §3: bind to label. Explicit `scope: '*'` /
@@ -319,7 +356,7 @@ export function addToken(
 
   handle
     .prepare(
-      'INSERT OR REPLACE INTO tokens (label, hash, scope, dev, created_at, last_used_at, expires_at, owner, read_only, role) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO tokens (label, hash, scope, dev, created_at, last_used_at, expires_at, owner, read_only, role, access) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)'
     )
     .run(
       label,
@@ -330,7 +367,8 @@ export function addToken(
       storedExpiry,
       storedOwner,
       readOnly ? 1 : 0,
-      storedRole
+      storedRole,
+      storedAccess ? JSON.stringify(storedAccess) : null
     );
 
   return {
@@ -340,6 +378,7 @@ export function addToken(
     expiresAt: storedExpiry,
     ...(storedOwner ? { owner: storedOwner } : {}),
     ...(storedRole ? { role: storedRole } : {}),
+    ...(storedAccess ? { access: storedAccess } : {}),
     ...(readOnly ? { readOnly: true } : {}),
     ...(dev ? { dev: true } : {}),
     ...(storedScope ? { scope: storedScope } : {}),
@@ -377,6 +416,9 @@ export function rotateToken(dataDir, label) {
     readOnly: !!prior.read_only,
     // Same reasoning one level up: rotation replaces a secret, never a role.
     role: prior.role ?? undefined,
+    // …and the access claim with it (V2-1.7 §5.4): a rotated canvas-only token
+    // that lost its claim would be a role-less row, which no door may guess at.
+    access: accessFromRow(prior.access) ?? undefined,
   });
 }
 
@@ -569,6 +611,8 @@ export function verifyToken(dataDir, candidate, secret) {
         // NULL for every token minted before the role column existed, and for
         // every machine-to-machine token that has no project role at all.
         ...(row.role ? { role: row.role } : {}),
+        // NULL = `legacyClaim(role)`; present = the claim the mint door decided.
+        ...(row.access ? { access: accessFromRow(row.access) } : {}),
         ...(row.owner ? { owner: row.owner } : {}),
         ...(row.dev ? { dev: true } : {}),
       };

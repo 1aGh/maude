@@ -11,7 +11,7 @@ import {
   SECTION_LABEL_H,
   SECTION_MIN_SIZE,
 } from '../constants.ts';
-import { color, str } from '../fields.ts';
+import { bool, color, str } from '../fields.ts';
 import type { AnnotationElement, Box, ElementDef } from '../types.ts';
 import { BOX_FIELDS, boxOf, resizeBox, translateBox } from './_shared.ts';
 
@@ -39,6 +39,8 @@ export function sectionChipBox(el: AnnotationElement, zoom = 1): Box {
 export const section: ElementDef = {
   type: 'section',
   fields: FIELDS,
+  // Format 2 (R5): folded to its title chip. Shared — it is in the file.
+  ext: { folded: bool() },
   caps: {
     box: true,
     rotatable: false,

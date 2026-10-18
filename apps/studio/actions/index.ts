@@ -1,9 +1,11 @@
 // actions/index.ts — the registry aggregate (V2-1.3 contract §5.1): every area's entries,
 // concatenated and frozen. Lanes add entries to `defs/<area>.ts`; the lead owns this file.
 
-import { ANNOTATION_ACTIONS } from './defs/annotation.ts';
+import { AI_RUN_ACTIONS } from './defs/ai-runs.ts';
+import { ANNOTATION_ACTIONS, TEMPLATE_ACTIONS } from './defs/annotation.ts';
 import { APP_ACTIONS } from './defs/app.ts';
 import { CANVAS_ACTIONS } from './defs/canvas.ts';
+import { CHAT_ACTIONS } from './defs/chat.ts';
 import { DIAGNOSTICS_ACTIONS } from './defs/diagnostics.ts';
 import { EDIT_ACTIONS } from './defs/edit.ts';
 import { EXPORT_ACTIONS } from './defs/export.ts';
@@ -25,9 +27,12 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...TIMELINE_ACTIONS,
   ...EXPORT_ACTIONS,
   ...APP_ACTIONS,
+  ...AI_RUN_ACTIONS,
   ...DIAGNOSTICS_ACTIONS,
   ...ANNOTATION_ACTIONS,
+  ...TEMPLATE_ACTIONS,
   ...NATIVE_ACTIONS,
+  ...CHAT_ACTIONS,
 ]);
 
 export const ACTIONS_BY_ID: ReadonlyMap<ActionId, ActionDef> = new Map(

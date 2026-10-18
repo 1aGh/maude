@@ -30,9 +30,10 @@ const sticky = (id: string, index: string, extra: Record<string, unknown> = {}) 
     text: id,
     ...extra,
   }) as unknown as AnnotationElement;
-/** v2's edit: R5 extension fields on s1 + a v2-only element type (R4). */
+const RESOLVED = { by: 'Tereza', at: '2026-10-01T10:00:00Z' };
+/** v2's edit: R5 extension fields on s1 + a newer peer's element type (R4). */
 const V2_BOARD_EDIT = (base: AnnotationElement[]) => [
-  { ...base[0], resolved: true, parentArtboard: 'hero' } as AnnotationElement,
+  { ...base[0], resolved: RESOLVED, parentArtboard: 'hero' } as AnnotationElement,
   ...base.slice(1),
   {
     id: 'v1',
@@ -80,7 +81,7 @@ describe('mixed v1/v2 peers — annotations lane', () => {
           : accept('annotations', b0, v1, v2);
       const els = parseBoard(accepted).elements;
       expect(els.find((e) => e.id === 's1')).toMatchObject({
-        resolved: true,
+        resolved: RESOLVED,
         parentArtboard: 'hero',
       }); // V2 → V1
       expect(els.find((e) => e.id === 's2')).toMatchObject({ x: 300 }); // V1 → V2
@@ -97,7 +98,9 @@ describe('mixed v1/v2 peers — annotations lane', () => {
       e.id === 's2' ? ({ ...e, text: 'edited on 1.x' } as AnnotationElement) : e
     );
     writeReplicaText(doc, serializeBoard(after));
-    expect(readReplica(doc)?.elements.find((e) => e.id === 's1')).toMatchObject({ resolved: true });
+    expect(readReplica(doc)?.elements.find((e) => e.id === 's1')).toMatchObject({
+      resolved: RESOLVED,
+    });
   });
 
   test("D3: the replica marker '~v' stays 2", () => {

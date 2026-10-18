@@ -22,8 +22,9 @@ it is in the DDR-115 runtime-state lists and the file-membership classifiers.
   parent, then `(index, id)`. Keys follow registry order, default-valued keys are
   left out and numbers are rounded to 2 decimals. The same board is the same bytes
   on every machine (`schema.ts` `serializeBoard`).
-- **Record:** `{id, type, parent?, index, …type fields, groups?, author?}`. The
-  types are `sticky | text | shape | arrow | pen | image | link | mediaref | section`.
+- **Record:** `{id, type, parent?, index, …type fields, groups?, author?, locked?,
+  …extension fields}`. The types are `sticky | text | shape | arrow | pen | image |
+  link | mediaref | section`, plus format 2's `stamp | vote | ballot` (below).
   A shape carries `kind` (rect, ellipse, diamond, triangle, triangle-down) and an
   embedded `label` record.
 - **Containment is explicit.** A child names its section in `parent`, and its
@@ -36,6 +37,48 @@ it is in the DDR-115 runtime-state lists and the file-membership classifiers.
   derived when rendered and never stored.
 - **Empty means zero elements** (`elements: []`), never a byte-length heuristic.
   The accepted-revisions lane value is `''` for an empty board (`board-text.ts`).
+
+### Format-2 fields and types (S4.1, V2-1.12 R1–R7)
+
+The file stays `"v": 2` — format 2 only ADDS (R7 would bump `v` and the project
+`formatVersion` together). Every addition is an **extension field** or a **new
+type**, so a 1.x peer (V2-2.14 lossless readers) keeps all of it and draws what it
+knows:
+
+| Field | On | Shape | Meaning |
+| --- | --- | --- | --- |
+| `parentArtboard` | every type | artboard id | membership: rides with that artboard. `x`/`y` stay WORLD (R2) |
+| `source` | every type | `{kind, author?}` | where it came from — `figjam`, `comment`, `template`, … (open word) |
+| `timeRange` | every type | `{artboard, start, end}` (s, `end ≥ start`) | a time pin on a video artboard |
+| `resolved` | sticky | `{by, at}` (ISO UTC) | resolved, by whom, when; absent = open |
+| `folded` | section | `true` | folded to its chip (shared — it is in the file) |
+| `startHost` / `endHost` | arrow | `{ref, nx?, ny?, label, box?}` | an end bound to `ab:<artboard>` or `el:<artboard>/<id>[#occ]`. `start` / `end` stay free points caching the last resolved endpoint, so a 1.x peer draws the arrow frozen. Dangling is derived, never stored |
+| `sticker` | image | `{pack, id, flip?}` | placed from the Stickers gallery |
+
+| Type | Fields | Rule |
+| --- | --- | --- |
+| `stamp` | box, `kind`, `pack?`, `target?` | id `stampId({spot, author, kind})` — one per person, kind and spot (`spot` = target id/ref, or the 40 px world cell). A second stamp is an upsert |
+| `vote` | `targets`, `title`, `perVoter` (3), `state` (`open`/`ended`), `startedBy/At`, `endsAt`, `endedAt`, `votersDone`, `tallies` | metadata (no geometry, never drawn); its surface is the vote bar. Result section id `voteResultId(id)` |
+| `ballot` | `vote`, `voter`, `picks {target: n}`, `castAt` | one per voter, id `ballotId(vote, voter)`, so concurrent voters never write the same element. Others' ballots are hidden in the UI until `state: 'ended'` (`visibleBallots`) — anyone with the FILE can read them. Cloud votes keep ballots on the hub |
+
+- **Byte rule (R5).** Extension fields serialize after `groups`/`author`/`locked`,
+  sorted by key, interleaved with any still-unknown keys; a format-2 type
+  serializes every non-head key sorted (`sortedKeys`) — the order a 1.x reader
+  keeps an unknown type in. A 1.x peer therefore writes the exact bytes a v2 peer
+  wrote, and DDR-241 lane hashes agree. Nested values are sanitizeJson fixed points.
+- **Typed, not trusted.** A v2 reader parses each field with its spec; an invalid
+  value is dropped like any invalid field. A 1.x reader keeps it opaque.
+- **No new shapes in old fields (R3).** `start` / `end` never take an `ab:` / `el:`
+  host (a 1.x reader would drop the whole arrow, probe B).
+- **What a 1.x peer does with it.** Keeps every field and type, renders the arrow
+  frozen, never draws a vote or ballot (unknown types render as a placeholder —
+  a stamp included), and edits what it knows. A hub-less transport whose v1 peer
+  strips unknown keys loses membership and binds (accepted; contract S4 risk 2).
+- **`maude migrate v2 --reverse --strip`** removes every extension field and every
+  format-2 type and reports each in `lost` (`migrate/steps.ts` `annotations.check`).
+  A plain `--reverse` keeps them.
+- Pinned by `test/annotations-v2-fields.test.ts`, `test/sync-annotations-v2-mixed.test.ts`
+  (both directions, in memory) and `test/annotations-migrate-strip.test.ts`.
 
 ## Registry and validator
 

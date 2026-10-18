@@ -17,3 +17,6 @@ process.env.XDG_CONFIG_HOME ??= join(root, 'config');
 process.env.MAUDE_UI_PREFS_PATH ??= join(root, 'config', 'maude', 'prefs.json');
 // cloud.json resolves under homedir() directly, not XDG (cloud/endpoints.ts, cloud/renew.ts).
 process.env.MAUDE_CLOUD_CONFIG ??= join(root, 'config', 'maude', 'cloud.json');
+// S5.1b — the local kernel's machine stamp (~/.config/maude/machine.json), written on any unlinked
+// project's boot. XDG covers it too; pinned in case a test clears XDG for one server.
+process.env.MAUDE_MACHINE_FILE ??= join(root, 'config', 'maude', 'machine.json');

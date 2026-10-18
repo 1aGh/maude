@@ -3,6 +3,7 @@
 // these next to use-keyboard-discipline's element keys when both selections existed (defect 7);
 // Phase 4 scopes them to Preview (A11).
 
+import { TEMPLATES } from '../../annotations/templates.ts';
 import type { ActionDef } from '../types.ts';
 import { IN_CANVAS, kb, mods } from './_v1.ts';
 
@@ -38,3 +39,16 @@ export const ANNOTATION_ACTIONS: ActionDef[] = [
     ...mods('⌦', '⇧', 'selection', { when: ANN }),
   ]),
 ];
+
+// S4.4: one ⌘K row per whiteboard template ("Kanban template"). The shell runs it (menu-runner.js
+// posts `insert-template` to the open canvas, the same message a Templates-panel pick sends), so the
+// row, the panel tile and `maude design annotate <canvas> --board <id>` expand the same spec.
+// Append-only ids: `annotation.template-<templates.ts id>`.
+export const TEMPLATE_ACTIONS: ActionDef[] = TEMPLATES.map((t) => ({
+  id: `annotation.template-${t.id}`,
+  label: `${t.title} template`,
+  kind: 'command',
+  exec: 'shell',
+  enabled: { minRole: 'edit', facts: ['canvasOpen'] },
+  search: { keywords: ['template', 'start', 'section'] },
+}));

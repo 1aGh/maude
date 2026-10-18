@@ -29,7 +29,14 @@ const el = (id: string, index: string, extra: Record<string, unknown> = {}) =>
     ...extra,
   }) as unknown as AnnotationElement;
 
-const V2 = { folded: true, parentArtboard: 'hero', resolved: true, timeRange: { from: 1, to: 2 } };
+// Valid format-2 shapes (S4.1 types them); `folded` stays an unknown key on a sticky.
+const RESOLVED = { by: 'Jonas', at: '2026-10-01T10:00:00Z' };
+const V2 = {
+  folded: true,
+  parentArtboard: 'hero',
+  resolved: RESOLVED,
+  timeRange: { artboard: 'reel', start: 1, end: 2 },
+};
 
 describe('replica + kernel keep extension fields (P2)', () => {
   test('a 1.x-style op on s2 leaves s1’s v2 fields in the replica (probe E)', () => {
@@ -44,13 +51,13 @@ describe('replica + kernel keep extension fields (P2)', () => {
   test('a patch that sets an extension field merges like any field', () => {
     const doc = new Y.Doc();
     writeReplica(doc, parseBoard(serializeBoard([el('s1', 'a0')])).elements);
-    applyOpsToReplica(doc, [{ op: 'patch', id: 's1', set: { resolved: true } }]);
-    expect(readReplica(doc)?.elements[0]).toMatchObject({ resolved: true });
+    applyOpsToReplica(doc, [{ op: 'patch', id: 's1', set: { resolved: RESOLVED } }]);
+    expect(readReplica(doc)?.elements[0]).toMatchObject({ resolved: RESOLVED });
   });
 
   test('the kernel’s concurrent merge keeps `resolved` (probe G)', () => {
     const base = serializeBoard([el('s1', 'a0'), el('s2', 'a1')]);
-    const ours = serializeBoard([el('s1', 'a0', { resolved: true }), el('s2', 'a1')]); // v2: resolve a sticky
+    const ours = serializeBoard([el('s1', 'a0', { resolved: RESOLVED }), el('s2', 'a1')]); // v2: resolve a sticky
     const theirs = serializeBoard([el('s1', 'a0'), el('s2', 'a1', { x: 300 })]); // a peer moved another one
     const m = lanes.mergeLane('annotations', base, ours, theirs) as {
       ok: boolean;
@@ -58,7 +65,7 @@ describe('replica + kernel keep extension fields (P2)', () => {
     };
     expect(m.ok).toBe(true);
     const merged = parseBoard(m.content).elements;
-    expect(merged.find((e) => e.id === 's1')).toMatchObject({ resolved: true });
+    expect(merged.find((e) => e.id === 's1')).toMatchObject({ resolved: RESOLVED });
     expect(merged.find((e) => e.id === 's2')).toMatchObject({ x: 300 });
   });
 });

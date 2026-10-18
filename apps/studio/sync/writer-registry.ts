@@ -226,6 +226,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/acp/attachment': { class: 'local' },
   '/_api/acp/chat': { class: 'local' },
   '/_api/acp/chats': { class: 'local' },
+  // S5.7 routes/chat.ts: chats are per Mac (`_chat/`, DDR-115) - search, Move to trash (a `trashedAt` in the
+  // chat's own sidecar), Restore, Clear out, and the session id Open in terminal resumes
+  '/_api/acp/chat/session': { class: 'local' },
+  '/_api/acp/chats/clear': { class: 'local' },
+  '/_api/acp/chats/restore': { class: 'local' },
+  '/_api/acp/chats/search': { class: 'local' },
+  '/_api/acp/chats/trash': { class: 'local' },
   '/_api/acp/focus': { class: 'local' },
   '/_api/acp/running': { class: 'local' },
   '/_api/acp/status': { class: 'local' },
@@ -233,6 +240,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ai/end': { class: 'local', rows: 'I02' },
   '/_api/ai/heartbeat': { class: 'local', rows: 'I02' },
   '/_api/ai/start': { class: 'local', rows: 'I02' },
+  // S5.3 — the AI run registry (routes/ai.ts): this Mac's `_state/runs/` + its lease home. A
+  // stop's partial version publishes through the run's stage (S5.5), not through this route.
+  '/_api/ai/runs': { class: 'read' },
+  '/_api/ai/runs/stop-all': { class: 'local' },
+  '/_api/ai/runs/:id/stop': { class: 'local' },
+  '/_api/ai/runs/:id/cancel': { class: 'local' },
+  '/_api/ai/runs/:id/keep-going': { class: 'local' },
   '/_api/claude/install': { class: 'local' },
   '/_api/claude/install-status': { class: 'local' },
   '/_api/claude/signin': { class: 'local' },

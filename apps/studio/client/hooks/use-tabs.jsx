@@ -6,6 +6,7 @@ import { remapDirPrefix, revealPath } from '../tree-expansion.js';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from '../share-link.js';
 import { basename, displayName, previewKind, shellToast } from '../shell/util.js';
 import { notify } from '../../notifications.tsx';
+import { trashCanvas } from '../v2/canvases/trash-canvas.js';
 import { invoke, isNativeApp, listenHere } from '../github.js';
 import { applyShellNavigate, startShellEvents } from '../shell-events.js';
 
@@ -546,36 +547,28 @@ export function useTabs({
     [activePath, timelineArtboardId, pushTlUndo]
   );
 
-  // Phase 22 — soft-delete a canvas from the file tree. Confirms (destructive),
-  // DELETEs to the main-origin-only endpoint, refreshes the tree, and resets the
-  // active tab if the deleted canvas was open. The server moves the whole sidecar
-  // set to .design/_trash/ — recoverable locally.
+  // Phase 22 — soft-delete a canvas from the file tree: DELETE to the main-origin-only endpoint (the server
+  // moves the whole sidecar set to .design/_trash/), refresh the tree, and close the tab if that canvas was
+  // open. S1.2 — it asks nothing: "“name” moved to the trash." with Undo, which brings it back (and reopens
+  // it if it was the open one). CONTRACT §4: moved to the trash, never "deleted".
   const deleteBoard = useCallback(
-    async (filePath, label) => {
-      const ok = window.confirm(
-        `Move “${label}” to trash?\n\nIts annotations, history and comments move with it. ` +
-          `You can restore it from .design/_trash/.`
-      );
-      if (!ok) return;
-      try {
-        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, {
-          method: 'DELETE',
-        });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || !j.ok) {
-          window.alert(`Could not delete: ${j.error || `error ${r.status}`}`);
-          return;
-        }
-        await loadTree();
-        if (activePath === filePath) {
-          setTabs([]);
-          setActivePath(null);
-        }
-      } catch (e) {
-        window.alert(`Delete failed: ${e instanceof Error ? e.message : 'network error'}`);
-      }
-    },
-    [loadTree, activePath]
+    (filePath, label) =>
+      trashCanvas({
+        path: filePath,
+        label,
+        toast: shellToast,
+        reload: loadTree,
+        onTrashed: (p) => {
+          if (activePath === p) {
+            setTabs([]);
+            setActivePath(null);
+          }
+        },
+        onUndone: (p) => {
+          if (activePath === p) openTab(p);
+        },
+      }),
+    [loadTree, activePath, openTab]
   );
 
   // feature-file-tree-drag-drop-folders (Task 8/10) — drag-drop AND the
@@ -720,8 +713,10 @@ export function useTabs({
 
   // Plan T25/L04 — rename a canvas in place (its sidecars follow; an open tab
   // follows the new path) and duplicate one beside itself.
+  // S1.2 — answers `{ ok, error? }`; `{ quiet: true }` (the inline rename) leaves the words to the field,
+  // which shows the reason under the name instead of a toast.
   const renameCanvasReq = useCallback(
-    async (filePath, name) => {
+    async (filePath, name, opts = {}) => {
       try {
         const r = await fetch('/_api/fs-move', {
           method: 'POST',
@@ -730,8 +725,9 @@ export function useTabs({
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
-          shellToast(`Could not rename: ${j.error || `error ${r.status}`}`);
-          return;
+          const error = j.error || `error ${r.status}`;
+          if (!opts.quiet) shellToast(`Could not rename: ${error}`);
+          return { ok: false, error };
         }
         const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
           /^\/+|\/+$/g,
@@ -742,8 +738,11 @@ export function useTabs({
         await loadTree();
         setTabs((prev) => prev.map((t) => (t.path === fromFile ? { path: toFile } : t)));
         setActivePath((prev) => (prev === fromFile ? toFile : prev));
+        return { ok: true };
       } catch (e) {
-        shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
+        const error = e instanceof Error ? e.message : 'network error';
+        if (!opts.quiet) shellToast(`Rename failed: ${error}`);
+        return { ok: false, error };
       }
     },
     [loadTree, cfg]

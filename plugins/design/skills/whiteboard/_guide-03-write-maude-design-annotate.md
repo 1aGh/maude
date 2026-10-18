@@ -1,7 +1,7 @@
 ## WRITE — `maude design annotate`
 
 ```bash
-maude design annotate "<rel-path>" [--ops <file|-> | --flow <file|-> | --board <file|->]
+maude design annotate "<rel-path>" [--ops <file|-> | --flow <file|-> | --board <file|-|template-id>]
                        [--near <artboardId>] [--in <artboardId>] [--pin <cdId|selector>]
                        [--no-pointer] [--canvas-state <path>] [--rects <path>] [--dry-run]
 ```
@@ -92,8 +92,9 @@ Layered left→right auto-layout, connected with BOUND arrows. `--near`/`--in` p
 - **`layout: "flow"`** — needs `nodes[]`/`edges[]` instead of `groups[]`; delegates straight to the SAME auto-layout as plain `--flow`, so a user-flow diagram is not a separate implementation.
 - `--near`/`--in`/`--pin` position the WHOLE board as a unit, exactly like a single create op.
 - Mutually exclusive with `--ops`/`--flow`.
+- **`--board <template-id>`** — instead of a file, name one of the eight starter skeletons the studio's Templates panel (and ⌘K "Kanban template" …) offers: `kanban` · `retro` · `flow` (Flowchart) · `calendar` (Content calendar, Mon–Sun) · `roadmap` · `brainstorm` · `checklist` · `blank` (one empty section). They are the same specs (`apps/studio/annotations/templates.ts`) the panel expands, so `annotate <canvas> --board kanban` and a panel pick write the same elements; the stickies come empty, for you or the team to fill. An id wins over a file of the same name; anything else is read as a file or `-`.
 
-**This engine is generic — the named templates below are fixtures YOU compose, not flags the CLI understands.** Fill in real content (the user's actual retro items, actual social posts, actual flow steps) — never placeholder/lorem text.
+**The engine is generic — beyond those eight ids the named templates below are fixtures YOU compose, not flags the CLI understands.** Fill in real content (the user's actual retro items, actual social posts, actual flow steps) — never placeholder/lorem text.
 
 #### Preset fixtures (fill in real content, then pass via `--board`)
 
