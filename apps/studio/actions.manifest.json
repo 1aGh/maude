@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8ac7067f41d7",
+  "manifestVersion": "ff8e46dafe74",
   "actions": [
     {
       "id": "search.open",
@@ -2581,6 +2581,74 @@
       "agent": {
         "path": "cli",
         "verb": "maude design history name <canvas> <ref> \"<name>\""
+      }
+    },
+    {
+      "id": "history.restore",
+      "label": "Restore this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref>"
+      }
+    },
+    {
+      "id": "history.restore-artboard",
+      "label": "Restore only this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --artboard <id>"
+      }
+    },
+    {
+      "id": "history.restore-object",
+      "label": "Restore this object",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --element <artboard>/<id>"
+      }
+    },
+    {
+      "id": "history.go-back",
+      "label": "Go back to the last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
       }
     }
   ],

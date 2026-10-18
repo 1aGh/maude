@@ -40,4 +40,42 @@ export const HISTORY_ACTIONS: ActionDef[] = [
     visible: { minRole: 'edit' },
     search: ROW,
   },
+  // S1.13 — restores (§5.8): each lands as a NEW version, one undo step (the toast's Undo / ⌘Z).
+  // The server half is POST /_api/project/restore, which refuses every role below edit itself.
+  {
+    // "Restore this version" — the whole canvas
+    id: 'history.restore',
+    label: 'Restore this version',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    // Compare › "Restore only <artboard>"
+    id: 'history.restore-artboard',
+    label: 'Restore only this artboard',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    // an object-history row's Restore
+    id: 'history.restore-object',
+    label: 'Restore this object',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    // the render-error card's "Go back to 14:05" (C5)
+    id: 'history.go-back',
+    label: 'Go back to the last good version',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
 ];

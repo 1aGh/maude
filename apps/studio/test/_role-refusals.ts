@@ -55,6 +55,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
+  { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

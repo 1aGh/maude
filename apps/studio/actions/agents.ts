@@ -54,6 +54,13 @@ const UNDO_KEYS: ActionDefAI = {
   ),
 };
 const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comments list') };
+const RESTORE = (verb: string): ActionDefAI => ({
+  effect: 'destructive',
+  minRole: 'edit',
+  undo: 'step',
+  server: { route: '/_api/project/restore', method: 'POST' },
+  agent: cli(verb),
+});
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
@@ -214,6 +221,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: cli('maude design history name <canvas> <ref> "<name>"'),
   },
+  // S1.13 (V2-1.9 §5.8 / §5.11): every restore is a new version over Now — destructive (it prompts),
+  // one undo step, refused below edit by POST /_api/project/restore.
+  'history.restore': RESTORE('maude design history restore <canvas> <ref>'),
+  'history.restore-artboard': RESTORE(
+    'maude design history restore <canvas> <ref> --artboard <id>'
+  ),
+  'history.restore-object': RESTORE(
+    'maude design history restore <canvas> <ref> --element <artboard>/<id>'
+  ),
+  'history.go-back': RESTORE('maude design history restore <canvas> @last-good'),
   'view.exports': { effect: 'none', agent: cli('maude design exports list') },
   // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).
   // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.
