@@ -24,6 +24,30 @@ export function normalizeOpenParam(raw, designRel = '.design') {
   }
 }
 
+/** S3.7b — the one suffix a return address may carry (twin of return-to.mjs FOLLOW_SUFFIX). */
+export const FOLLOW_SUFFIX = '&present=follow';
+
+/**
+ * RETURN_RULES — a sign-in return ADDRESS, the client twin of the hub's
+ * `validateReturnTo` (apps/hub/src/return-to.mjs; `test/return-to-follow.test.mjs`
+ * holds the two equal on one fixture list). Exactly `/?open=<rel>` or
+ * `/?open=<rel>&present=follow`; the canonical form, or null.
+ */
+export function normalizeReturnAddress(value) {
+  if (typeof value !== 'string' || value.length > 7 + 512 * 9 + FOLLOW_SUFFIX.length) return null;
+  const match = /^\/\?open=([^&#]+)(&present=follow)?$/.exec(value);
+  if (!match) return null;
+  let raw;
+  try {
+    raw = decodeURIComponent(match[1].replace(/\+/g, ' '));
+  } catch {
+    return null;
+  }
+  const rel = normalizeOpenPath(raw);
+  if (!rel) return null;
+  return `/?open=${encodeOpenPath(rel)}${match[2] ? FOLLOW_SUFFIX : ''}`;
+}
+
 export function readOpenParam(location, designRel = '.design') {
   const values = new URLSearchParams(location.search).getAll('open');
   // URLSearchParams already decoded the value; a second decode changes filenames.

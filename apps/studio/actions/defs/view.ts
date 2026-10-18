@@ -276,6 +276,22 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { keywords: ['presentation', 'second screen', 'audience', 'notes', 'projector'] },
   },
   {
+    // S3.7b (md-present-link) — the link a cloud viewer with Can view follows (hub `GET /present/<canvas>`,
+    // client/v2/present/copy-link.js). An editor's row; shown greyed with "in a cloud project" outside a
+    // cloud-linked project (the V2-4.9 decision 2 pattern — absence with a notice, never a silent hole).
+    id: 'present.copy-link',
+    label: 'Copy presentation link',
+    kind: 'command',
+    icon: 'link',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
+    search: {
+      keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
+      note: 'in a cloud project',
+    },
+  },
+  {
     id: 'settings.theme',
     label: 'Theme',
     kind: 'toggle',

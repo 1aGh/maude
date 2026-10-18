@@ -58,7 +58,7 @@ import { join, resolve } from 'node:path';
 
 import { SQLite } from '@hocuspocus/extension-sqlite';
 import { Server } from '@hocuspocus/server';
-import { legacyClaim } from '../../studio/access/scope.ts';
+import { legacyClaim, resolveAccess } from '../../studio/access/scope.ts';
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import {
   DOC_REFUSAL_REASON,
@@ -175,6 +175,7 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { stripPresent } from './present-strip.mjs';
 import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
 import {
   createAcceptedRevisions,
@@ -209,6 +210,7 @@ import {
   isHubOwned,
   PAUSED_MESSAGE,
   servicePage,
+  signInUrl,
 } from './studio-door.mjs';
 import { createStudioProxy, sessionKeyFor } from './studio-proxy.mjs';
 import { tenantStats } from './tenant-stats.mjs';
@@ -769,7 +771,7 @@ export function createHub(config = {}) {
         // The canvas token is OPTIONAL by construction — `?? null` at the call
         // site, and the canvas origin simply stays unauthenticated without it.
         // So a mint that cannot happen degrades to "no token", loudly, once.
-        mintCanvasToken: (session, { readOnly = false } = {}) => {
+        mintCanvasToken: (session, { readOnly = false, follow = null } = {}) => {
           try {
             return mintRenderToken({
               secret,
@@ -783,6 +785,9 @@ export function createHub(config = {}) {
               // the viewer floor instead, enforced by the canvas door.
               role: readOnly ? 'viewer' : session.role,
               readOnly,
+              // S3.7c — a presentation follower's capability: ONE canvas,
+              // receive-only, no project role (render-token.mjs drops `r`).
+              follow,
               ttlMs: canvasTokenTtlMs(),
             });
           } catch (err) {
@@ -1264,13 +1269,17 @@ export function createHub(config = {}) {
           canvasHost: Boolean(studioProxy && isCanvasHost(request)),
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
-          // S1.7 — the v2 handlers' doors into the project (routes-v2/trash.mjs).
+          // The v2 handlers' doors into the project (S1.7 routes-v2/trash.mjs, S9.6 access,
+          // S9.7 comments, S4.6 votes) and S3.7b `/present/<canvas>`'s collaborators.
           deps: {
             access: accessService,
             accepted: () => accepted,
             auth: acceptedAuth,
             comments: commentsDeps,
             votes: votesRoutes,
+            browserSession: (req) => browserSession(dataDir, secret, req),
+            designRoot: () => (studioProxy ? designRootFor() : null),
+            signInUrl: (req) => signInUrl({ request: req }),
           },
         })
       ) {
@@ -2146,6 +2155,9 @@ export function createHub(config = {}) {
       stripSummon({ states, context });
       // Gate 0 A18 (S9.13): picks never ride presence, whoever sends them.
       stripVoteAwareness({ states });
+      // S3.7b (S3-present-session §2, D11): `present` + the presenter's `pointer`
+      // need `edit` on this document; `watching` is never stripped.
+      stripPresent({ states, context });
     },
 
     // A content change tells the cell's DO, so a parked desktop's
@@ -3502,7 +3514,14 @@ export function browserSession(dataDir, secret, request) {
   // correctly-minted one. Refusing costs a sign-in; guessing costs either the
   // owner's own project or somebody else's write access.
   const role = ROLES.includes(match.role) ? match.role : null;
-  if (!role) return null;
+  // S3.7b — a CANVAS-ONLY cookie (no project role, a stored claim with canvas
+  // grants: V2-1.7 §5.3, minted by the S9.2 door) is a canvas-scoped session,
+  // not a stale one. It carries its claim and the fail-closed read-only
+  // projection; every project-scope door still refuses it (the S9.3 gate and
+  // the `canvasDoor` rows decide; the studio proxy forwards it with its claim
+  // and the studio's per-request reader decides — S3.7c). A role-null cookie
+  // WITHOUT such a claim is still no session at all.
+  if (!role) return canvasOnlyBrowserSession(match);
   return {
     email: match.owner,
     role,
@@ -3510,6 +3529,25 @@ export function browserSession(dataDir, secret, request) {
     // so Can view reaches the studio as Can view; a v1 session gets its role's legacy claim.
     access: match.access ?? legacyClaim(role),
     readOnly: isReadOnlyRole(role),
+    sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
+      createHash('sha256').update(input).digest('hex')
+    ),
+  };
+}
+
+/** S3.7b — a role-null cookie as a canvas-scoped session, or null (see `browserSession`). */
+function canvasOnlyBrowserSession(match) {
+  const claim = match.access;
+  if (!claim || claim.role !== null || !Array.isArray(claim.grants) || claim.grants.length === 0) {
+    return null;
+  }
+  if (!resolveAccess(claim).canvasOnly) return null;
+  return {
+    email: match.owner,
+    role: null,
+    access: claim,
+    readOnly: true,
+    canvasOnly: true,
     sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
       createHash('sha256').update(input).digest('hex')
     ),

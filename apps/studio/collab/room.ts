@@ -10,10 +10,11 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
+import * as decoding from 'lib0/decoding';
 import { Awareness, removeAwarenessStates } from 'y-protocols/awareness';
 import * as Y from 'yjs';
+import { stripPresenterAwareness, stripToWatching } from '../present/relay-strip.ts';
 import { stripUnheldFields } from './awareness-bridge.ts';
-
 import { isBodyLane, rootTypesTouched } from './origins.ts';
 import {
   applySyncMessage,
@@ -22,6 +23,7 @@ import {
   encodeHandshake,
   encodeSyncUpdate,
   handleMessage,
+  MESSAGE_AWARENESS,
   MESSAGE_SYNC,
   readMessageType,
 } from './protocol.ts';
@@ -60,7 +62,19 @@ export interface RoomConn extends CollabConn {
    * socket's access (`summon`: owner + member).
    */
   summon?: boolean;
+  /**
+   * S3.7c — a presentation FOLLOWER (a socket opened on the hub's receive-only
+   * `follow` capability; server.ts stamps it from the proxy's injected
+   * `x-maude-collab-follow`, canvas listener + workspace only). It receives
+   * everything; it writes NOTHING — every sync update is dropped (only its sync
+   * step 1, the request for the doc, is answered) — and its awareness reaches
+   * the room as `{ watching }` only. Absent = not a follower.
+   */
+  follow?: boolean;
 }
+
+/** y-protocols sync sub-message: the peer's state vector, asking for the doc (writes nothing). */
+const SYNC_STEP_1 = 0;
 
 export interface RoomCallbacks {
   /**
@@ -251,7 +265,11 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
    */
   function receiveGated(conn: RoomConn, payload: Uint8Array): void {
     if (readMessageType(payload) !== MESSAGE_SYNC) {
-      const reply = handleMessage(payload, doc, awareness, conn);
+      // S3.7b (D11) — a read-only conn may watch, never broadcast a
+      // presentation: `present` + `pointer` are stripped before the apply.
+      const frame = conn.readOnly === true ? stripPresenterAwareness(payload) : payload;
+      if (!frame) return;
+      const reply = handleMessage(frame, doc, awareness, conn);
       if (reply) conn.send(reply);
       return;
     }
@@ -371,7 +389,38 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     if (stale.length) removeAwarenessStates(awareness, stale, conn);
   }
 
+  /**
+   * S3.7c — a follower's frames: awareness reduced to `watching`, its sync step 1
+   * answered with the doc, every other sync message (step 2, update — comments
+   * included) and every other frame type dropped unapplied.
+   */
+  function receiveFollow(conn: RoomConn, payload: Uint8Array): void {
+    let type: number;
+    let sub = -1;
+    try {
+      const dec = decoding.createDecoder(payload);
+      type = decoding.readVarUint(dec);
+      if (type === MESSAGE_SYNC) sub = decoding.readVarUint(dec);
+    } catch {
+      return;
+    }
+    if (type === MESSAGE_SYNC) {
+      if (sub !== SYNC_STEP_1) return;
+      const reply = applySyncMessage(payload, doc, conn);
+      if (reply) conn.send(reply);
+      return;
+    }
+    if (type !== MESSAGE_AWARENESS) return;
+    const frame = stripToWatching(payload);
+    if (!frame) return;
+    handleMessage(frame, doc, awareness, conn);
+  }
+
   function receive(conn: RoomConn, payload: Uint8Array): void {
+    if (conn.follow === true) {
+      receiveFollow(conn, payload);
+      return;
+    }
     if (conn.realm === 'canvas' || conn.readOnly === true || callbacks.acceptedMode?.()) {
       receiveGated(conn, payload);
       return;
