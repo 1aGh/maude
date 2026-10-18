@@ -575,6 +575,16 @@ export interface SyncRuntime {
     opts?: { baseText?: string; writeId?: string }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
+   * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
+   * comment conversion). `null` when the project is not in accepted mode or
+   * this runtime does not carry the canvas.
+   */
+  proposeLanes?(
+    slug: string,
+    lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+    opts: { kind: string; label: string; writeId?: string }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
+  /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
    * when the project is not in that mode; otherwise the (possibly queued)
    * outcome. Canvases inside are moved/deleted by the hub, not one by one.
@@ -5503,6 +5513,26 @@ export function createSyncRuntime(
         ...(base !== undefined && base !== null ? { baseContent: base } : {}),
         ...(o?.writeId ? { writeId: o.writeId } : {}),
       });
+    },
+    proposeLanes: (slug, lanes, o) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!projections.has(slug)) return null;
+      const out: Array<{
+        lane: 'comments' | 'annotations' | 'meta';
+        content: string;
+        baseContent: string;
+      }> = [];
+      for (const l of lanes) {
+        const content = laneValueFromFile(l.lane, l.text);
+        const baseContent = laneValueFromFile(l.lane, l.baseText);
+        if (content === null || baseContent === null) return null;
+        out.push({ lane: l.lane, content, baseContent });
+      }
+      return acceptedLink.lanesEdit(slug, out, o).then((r) => ({
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+      }));
     },
     proposeFolder,
     acceptedMode: acceptedOn,
