@@ -19,6 +19,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
+import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
@@ -40,6 +41,8 @@ export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S8.19 — the asset-state service, built once by http.ts over the live sync runtime.
+export { assetStateDepsFor } from './asset-state.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
 
@@ -70,6 +73,8 @@ export interface RouteDeps {
   comments?: CommentRouteDeps;
   /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
   annotations?: AnnotationRouteDeps;
+  /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
+  assetState?: AssetStateRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -117,5 +122,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       }
     ),
     ...(convert?.specs ?? []),
+    ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
   ];
 }

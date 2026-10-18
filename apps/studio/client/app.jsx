@@ -231,6 +231,7 @@ import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
+import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { SystemView } from './system/system-view.jsx';
@@ -2774,6 +2775,7 @@ function ShellTree() {
       startTour,
       syncStatus,
       tabs,
+      wsConnected,
       theme,
       timelineOpen,
       togglePanel,
@@ -2861,6 +2863,15 @@ function ShellTree() {
       panelLayout.show();
       openPanelExclusive('assets');
     },
+  });
+  // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
+  // (dgn `asset-state`); the relink sheet hooks `onRelink` when it lands (asset-placeholder RELINK_LIVE).
+  useAssetStateLane({
+    syncStatus,
+    wsConnected,
+    canvasOrigin: () => cfg?.canvasOrigin || window.location.origin,
+    activeWindow: () =>
+      activePath ? (iframesRef.current.get(activePath)?.contentWindow ?? null) : null,
   });
   // The AI chat island's body. Always mounted (the island is `hidden`, not removed), so its stream survives
   // a Hide (DDR-123).

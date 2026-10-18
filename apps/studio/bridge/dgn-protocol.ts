@@ -233,6 +233,19 @@ export interface CanvasToShell {
     watchers: number;
     ended: boolean;
   };
+  // S8.19 — the placeholder frame's Relink… (a Missing picture): the shell opens its relink sheet for
+  // that rel. The canvas asks; the shell decides (the write is the shell's `asset.relink` edit op).
+  'asset-relink-request': { rel: string };
+}
+
+/** S8.19 — one picture's state, as the shell tells the canvas (contract S8-S9-asset-presence §5.5). */
+export interface AssetStateItem {
+  rel: string;
+  state: 'here' | 'uploading' | 'waiting' | 'missing';
+  /** A display name only — never an e-mail, never a device id. */
+  who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
+  /** The hub already has the bytes; this Mac has not pulled them yet ("Syncing…"). */
+  syncing?: boolean;
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -359,6 +372,10 @@ export interface ShellToCanvas {
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S8.19 — "Waiting for Jonas's Mac" vs Missing for the open canvas's media. State, not an event: the
+  // shell sends the whole list on open, every 60 s while something waits, at reconnect and after a
+  // sweep ends. ≤ 256 items; a name with an `@` is refused whole (the canvas never sees an e-mail).
+  'asset-state': { items: AssetStateItem[] };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -545,6 +562,25 @@ const peerList: V = (v) => {
   }
   return out;
 };
+
+/** S8.19 — `asset-state`: a planted or oversized list is REJECTED whole, never trimmed. */
+export const ASSET_STATE_MAX = 256;
+const ASSET_WHO_NAME_MAX = 64;
+const assetWho = shape({
+  name: nul((v) =>
+    typeof v === 'string' && v.length <= ASSET_WHO_NAME_MAX && !v.includes('@') ? v : BAD
+  ),
+  kind: nul(lit('mac', 'pc', 'linux')),
+  self: bool,
+});
+const assetStateItem = shape({
+  rel: shortStr(512),
+  state: lit('here', 'uploading', 'waiting', 'missing'),
+  who: opt(assetWho),
+  syncing: opt(bool),
+});
+const assetStateList: V = (v) =>
+  Array.isArray(v) && v.length <= ASSET_STATE_MAX ? arrOf(assetStateItem)(v) : BAD;
 
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
@@ -961,6 +997,12 @@ const c2s: C2S = {
       ended: bool,
     }),
   },
+  'asset-relink-request': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/assets/asset-state-lane (S8.19)',
+    parse: p({ rel: shortStr(512) }),
+  },
 };
 
 const s2c: S2C = {
@@ -1304,6 +1346,12 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
+  },
+  'asset-state': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'canvas-lib asset placeholder frame (S8.19, L1)',
+    parse: p({ items: assetStateList }),
   },
 };
 
