@@ -154,7 +154,13 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs, announceAction, heldByAiRefusal, runStageHooks } from './routes/index.ts';
+import {
+  allSpecs,
+  announceAction,
+  heldByAiRefusal,
+  riderPatch,
+  runStageHooks,
+} from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -2582,6 +2588,19 @@ export function createHttp(
           const keys = Object.keys(body.patch);
           if (keys.includes('layout') || keys.some((k) => !CANVAS_META_SESSION_LANES.has(k)))
             return readOnlyRefusalFor(req);
+        }
+        // S2.9b — the `annotations` rider: the move and the annotations riding with it as ONE
+        // action. Needs `annotate` on the target as well as the layout lane's `edit`, and holds
+        // the rider to the move delta on every origin (routes/canvas-meta-rider.ts).
+        const rider = (body as { annotations?: unknown }).annotations;
+        if (rider !== undefined) {
+          const annotates =
+            access.can('annotate', null) || (target !== null && access.can('annotate', target));
+          if (!editsTarget || !annotates) return readOnlyRefusalFor(req);
+          return riderPatch(
+            { api, control: () => ctx.syncControl?.current?.() ?? null },
+            { file: body.file, patch: body.patch, annotations: rider }
+          );
         }
         const next = await api.patchCanvasMeta(body.file, body.patch);
         if (!next) return new Response('Not found or rejected', { status: 404 });
