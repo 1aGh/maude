@@ -137,6 +137,9 @@
     background: var(--bg-2);
     color: var(--fg-2);
   }
+  .so-find input::placeholder {
+    color: var(--fg-2);
+  }
   .so-find input {
     flex: 1;
     min-width: 0;
@@ -180,6 +183,12 @@
   .so-overlay--v2 .so-pair dd {
     min-width: 0;
     max-width: 100%;
+  }
+  .so-overlay--v2 .so-alt {
+    display: inline-flex;
+    align-items: center;
+    gap: inherit;
+    white-space: nowrap;
   }
   .so-overlay--v2 .so-combos {
     flex-wrap: wrap;

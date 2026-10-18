@@ -32,7 +32,10 @@ describe('the Sync panel exists only where a hub link exists', () => {
   });
 
   test('panelAvailable gates sync on a live syncStatus — solo projects get no tab', () => {
-    expect(APP).toContain("if (id === 'sync') return !!syncStatus;");
+    // V2-4.9 moved the rule into the pure client/v2/shell/panel-availability.js (shared with the shell
+    // parity table); the hook hands it the live sync status.
+    expect(APP).toContain("if (id === 'sync') return !!hasSync;");
+    expect(APP).toContain('hasSync: !!syncStatus');
   });
 
   test('the status-bar chip is gone — Details and Menu › Diagnostics › Sync are the way in (V2-4.8b)', () => {

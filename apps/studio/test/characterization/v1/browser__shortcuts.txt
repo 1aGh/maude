@@ -207,10 +207,12 @@ div
                 dd
                   span .so-combos
                     span .kbd "⇧⌘Z"
-                    span .so-or "or"
-                    span .kbd "⌘Y"
-                    span .so-or "or"
-                    span .kbd "⇧⌘Y"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌘Y"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌘Y"
               div .so-pair [data-testid="shortcuts-row-mode.preview"]
                 dt "Preview"
                 dd
@@ -226,8 +228,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘="
-                    span .so-or "or"
-                    span .kbd "⌘+"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌘+"
               div .so-pair [data-testid="shortcuts-row-view.zoom-out"]
                 dt "Zoom out"
                 dd
@@ -247,23 +250,7 @@ div
                 dt "Go to artboard"
                 dd
                   span .so-combos
-                    span .kbd "⌥⌘1"
-                    span .so-or "or"
-                    span .kbd "⌥⌘2"
-                    span .so-or "or"
-                    span .kbd "⌥⌘3"
-                    span .so-or "or"
-                    span .kbd "⌥⌘4"
-                    span .so-or "or"
-                    span .kbd "⌥⌘5"
-                    span .so-or "or"
-                    span .kbd "⌥⌘6"
-                    span .so-or "or"
-                    span .kbd "⌥⌘7"
-                    span .so-or "or"
-                    span .kbd "⌥⌘8"
-                    span .so-or "or"
-                    span .kbd "⌥⌘9"
+                    span .kbd "⌥⌘1–9"
               div .so-pair [data-testid="shortcuts-row-ui.step-back"]
                 dt "Step back"
                 dd
@@ -277,8 +264,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘K"
-                    span .so-or "or"
-                    span .kbd "⇧⌘K"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌘K"
               div .so-pair [data-testid="shortcuts-row-canvases.search"]
                 dt "Search canvases"
                 dd
@@ -289,8 +277,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘F"
-                    span .so-or "or"
-                    span .kbd "⇧⌘F"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌘F"
               div .so-pair [data-testid="shortcuts-row-canvases.refresh"]
                 dt "Refresh canvases"
                 dd
@@ -311,8 +300,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "?"
-                    span .so-or "or"
-                    span .kbd "⌘?"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌘?"
               div .so-pair [data-testid="shortcuts-row-help.guides"]
                 dt "Help and guides"
                 dd
@@ -341,8 +331,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘A"
-                    span .so-or "or"
-                    span .kbd "⇧⌘A"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌘A"
               div .so-pair [data-testid="shortcuts-row-object.duplicate"]
                 dt "Duplicate"
                 dd
@@ -353,15 +344,17 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌥⌘C"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘C"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌥⇧⌘C"
               div .so-pair [data-testid="shortcuts-row-edit.paste-properties"]
                 dt "Paste properties"
                 dd
                   span .so-combos
                     span .kbd "⌥⌘V"
-                    span .so-or "or"
-                    span .kbd "⌥⇧⌘V"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌥⇧⌘V"
               div .so-pair [data-testid="shortcuts-row-object.select-child"]
                 dt "Select first child"
                 dd
@@ -392,14 +385,18 @@ div
                     span .kbd "→"
                     span .kbd "↑"
                     span .kbd "↓"
-                    span .so-or "or"
-                    span .kbd "⇧←"
-                    span .so-or "or"
-                    span .kbd "⇧→"
-                    span .so-or "or"
-                    span .kbd "⇧↑"
-                    span .so-or "or"
-                    span .kbd "⇧↓"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧←"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧→"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧↑"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧↓"
               div .so-pair [data-testid="shortcuts-row-annotation.group"]
                 dt "Group"
                 dd
@@ -451,10 +448,12 @@ div
                   span .so-combos
                     span .kbd "⌫"
                     span .kbd "⌦"
-                    span .so-or "or"
-                    span .kbd "⇧⌫"
-                    span .so-or "or"
-                    span .kbd "⇧⌦"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌫"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌦"
           section .so-section.so-section--timeline [data-testid="shortcuts-group-timeline"]
             h3 .so-section-hd "Timeline"
             dl .so-list
@@ -489,8 +488,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "."
-                    span .so-or "or"
-                    span .kbd "⌘."
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌘."
               div .so-pair [data-testid="shortcuts-row-timeline.undo"]
                 dt "Undo timeline edit"
                 dd
@@ -506,15 +506,17 @@ div
                 dd
                   span .so-combos
                     span .kbd "⌘B"
-                    span .so-or "or"
-                    span .kbd "⇧⌘B"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧⌘B"
               div .so-pair [data-testid="shortcuts-row-timeline.zoom-in"]
                 dt "Zoom timeline in"
                 dd
                   span .so-combos
                     span .kbd "⌘="
-                    span .so-or "or"
-                    span .kbd "⌘+"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⌘+"
               div .so-pair [data-testid="shortcuts-row-timeline.zoom-out"]
                 dt "Zoom timeline out"
                 dd
@@ -530,8 +532,9 @@ div
                 dd
                   span .so-combos
                     span .kbd "C"
-                    span .so-or "or"
-                    span .kbd "⇧C"
+                    span .so-alt
+                      span .so-or "or"
+                      span .kbd "⇧C"
         div .so-adv [data-testid="shortcuts-advanced"]
           button .so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
             span .so-adv-ch
