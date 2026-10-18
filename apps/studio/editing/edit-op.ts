@@ -6,11 +6,13 @@
 //
 // Undo on a legacy link (contract §5): `recordEditOp` pushes ONE DDR-050 record per write whose
 // undo is `revert {writeId}` and whose redo reverts that revert. Op-log projects undo through S5
-// instead (S2.20 retires this record there); no positional id is ever stored.
+// instead: there `editOpRecord` answers null (S2.20b — the iframe keeps no stack in op-log mode,
+// editing/undo-mode.ts); no positional id is ever stored.
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import type { EditOpRequest, EditOpResult } from '../edit-ops/types.ts';
 import { type CommandRecord, type EditCommand, registerCommand } from '../undo-stack.ts';
+import { isOpLogUndo } from './undo-mode.ts';
 
 export const EDIT_OP_TIMEOUT_MS = 15_000;
 export type EditOpAsk = Omit<EditOpRequest, 'file'>;
@@ -114,8 +116,16 @@ export function createEditOpCommand(
   };
 }
 
-/** The record an applied edit-op pushes with `record()` (it already landed; never re-run). */
-export function editOpRecord(writeId: string, label: string): CommandRecord<EditOpPayload> {
+/**
+ * The record an applied edit-op pushes with `record()` (it already landed; never re-run). Null on the
+ * op log: the write is a kernel action there, and ⌘Z is the shell's projection.
+ */
+export function editOpRecord(
+  writeId: string,
+  label: string,
+  win: Window | undefined = globalThis.window
+): CommandRecord<EditOpPayload> | null {
+  if (isOpLogUndo(win)) return null;
   return { kind: EDIT_OP_KIND, label, payload: { writeId } };
 }
 

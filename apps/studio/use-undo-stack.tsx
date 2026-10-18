@@ -27,12 +27,13 @@ import {
   useRef,
   useState,
 } from 'react';
-
+import { useOpLogUndo } from './editing/undo-mode.ts';
 import {
   type CommandRecord,
   type CommandSinks,
   canRedo as canRedoOf,
   canUndo as canUndoOf,
+  dropStackState,
   type EditCommand,
   loadStackState,
   rebuildCommand,
@@ -160,7 +161,25 @@ export function UndoStackProvider({
     setRenderToken((t) => t + 1);
   }, [canvasFile]);
 
+  // S2.20b — on the op log the shell owns ⌘Z (editing/undo-mode.ts): this provider still runs every
+  // command's side effect, but keeps no stack — nothing in memory past the call, nothing in
+  // sessionStorage, no records. A legacy project keeps the DDR-050 stack exactly as before.
+  const opLog = useOpLogUndo();
+  const opLogRef = useRef(opLog);
+  opLogRef.current = opLog;
+  useEffect(() => {
+    if (!opLog) return;
+    stateRef.current = { past: [], future: [] };
+    if (fileRef.current) dropStackState(fileRef.current);
+    setLastTick((t) => t + 1); // canUndo / canRedo re-read the (now empty) stack
+  }, [opLog]);
+
   const writeState = useCallback((next: UndoStackState) => {
+    if (opLogRef.current) {
+      stateRef.current = { past: [], future: [] };
+      setRenderToken((t) => t + 1);
+      return;
+    }
     stateRef.current = next;
     if (fileRef.current) saveStackState(fileRef.current, next);
     setRenderToken((t) => t + 1);
@@ -195,7 +214,7 @@ export function UndoStackProvider({
     const run = async () => {
       // The previous mount may have persisted its ACK after this mount read
       // the initial state. Re-read only at the serialized operation boundary.
-      if (file) stateRef.current = loadStackState(file);
+      if (file && !opLogRef.current) stateRef.current = loadStackState(file);
       await task();
     };
     const next = previous.then(run, run);
@@ -237,13 +256,14 @@ export function UndoStackProvider({
           return;
         }
         writeState(undoReducer(stateRef.current, { type: 'push', record }));
-        bumpLabel(record.label);
+        if (!opLogRef.current) bumpLabel(record.label);
       }),
     [enqueue, build, reportError, bumpLabel, writeState]
   );
 
   const record = useCallback(
     (rec: CommandRecord): void => {
+      if (opLogRef.current) return; // the op log holds the edit; the iframe holds nothing
       void enqueue(async () => {
         writeState(undoReducer(stateRef.current, { type: 'push', record: rec }));
         bumpLabel(rec.label);

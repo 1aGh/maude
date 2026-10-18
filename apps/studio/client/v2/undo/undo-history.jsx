@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { useUndoModeLane } from './use-undo-mode-lane.js';
 import { undoProjection, useUndoProjection } from './use-undo-projection.jsx';
 
 /** One open flag for the shell (the menu row opens it; Esc / outside / a click closes it). */
@@ -253,8 +254,10 @@ export function UndoHistoryHost(p) {
 /** The app mount: reads the shell store (one line in app.jsx). */
 export function ShellUndoHistory() {
   const {
-    shellCore: { activePath, gitUser, postToActiveCanvas, tabs, toggleRightPanel },
+    shellCore: { activePath, cfg, gitUser, iframesRef, postToActiveCanvas, tabs, toggleRightPanel },
   } = useShellStore();
+  // S2.20b — each canvas hears whether its ⌘Z is the op log's, and hands its keys back here.
+  useUndoModeLane({ iframesRef, activePath, cfg });
   const openPaths = useMemo(
     () => (tabs ?? []).map((t) => t?.path).filter((x) => typeof x === 'string' && x !== SYSTEM_TAB),
     [tabs]

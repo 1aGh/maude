@@ -80,7 +80,8 @@ export async function runObjectOp(
     return result;
   }
   if (result.actionId === null && result.writeId) {
-    deps.record?.(editOpRecord(result.writeId, spec.label));
+    const rec = editOpRecord(result.writeId, spec.label);
+    if (rec) deps.record?.(rec);
   }
   if (result.created?.length) deps.select?.(result.created);
   return result;
