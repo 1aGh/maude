@@ -16,6 +16,7 @@ import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
+import { requestViewCode, runErrorOp } from '../code/code-bus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
@@ -125,6 +126,20 @@ export function createMenuHandlers(d) {
     },
     'canvas.move': () => {
       if (d.activePath) d.onPickMoveDestination();
+    },
+    // S11.7 — the code view opens in the Viewport (read-only; the server refuses Can view the source).
+    // The three card actions act on the broken-canvas card that is showing, and on nothing otherwise.
+    'canvas.view-code': () => {
+      if (d.activePath) requestViewCode({ canvas: d.activePath });
+    },
+    'canvas.copy-error': () => {
+      runErrorOp('copy');
+    },
+    'canvas.ask-ai-fix': () => {
+      runErrorOp('ask-ai');
+    },
+    'canvas.last-good': () => {
+      runErrorOp('last-good');
     },
     'import.figma': () => d.onImportFigma(),
     'import.brand': () => d.onImportBrand(),

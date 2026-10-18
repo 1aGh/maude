@@ -103,6 +103,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
+  // S11.7 — the code view and the broken-canvas card. The agent reads the same two routes through verbs
+  // (S11.6): `canvas-source` is the code (or one artboard's lines), `canvas-errors` the structured errors.
+  'canvas.view-code': { effect: 'none', agent: cli('maude design canvas-source') },
+  'canvas.copy-error': { effect: 'none', agent: cli('maude design canvas-errors') },
+  // "Ask AI to fix it" only PRE-FILLS the composer; the agent's own way to the same place is to read the
+  // structured error (file, line, column) and edit the .tsx — so the path is the read verb, not a human gate.
+  'canvas.ask-ai-fix': { effect: 'none', agent: cli('maude design canvas-errors') },
+  'canvas.last-good': RESTORE('maude design history restore <canvas> @last-good'),
   // S1.2 — the row menu's other rows. The link is the canvas's address (`maude design open <canvas>` moves
   // the person's view to it). Trash: until S1.17's `maude design trash`, an agent parks the files the way
   // `DELETE /_api/canvas` does, and the Trash lists them from the manifest.

@@ -71,6 +71,9 @@ const BIN_VERBS = new Set([
   'read-annotations',
   'annotate',
   'canvas-rects',
+  // S11.6 — read-only: the canvases that can't be drawn, and a canvas's source or one artboard's lines.
+  'canvas-errors',
+  'canvas-source',
   'chat-open',
   'ensure-browser',
   'fetch-asset',
@@ -421,7 +424,7 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   screenshot · server-up · prep · slug · bootstrap-check · runtime-health
   smoke · canvas-edit · handoff · asset-sweep · visual-sanity · fetch-asset
   draw-build · draw-proof · svg-optimize · to-lottie · read-annotations · annotate
-  canvas-rects · ingest-footage · probe-footage · smart-frames
+  canvas-rects · canvas-errors · canvas-source · ingest-footage · probe-footage · smart-frames
   generate · transcribe · audio-search
         Invoke the bundled helper of the same name. maude resolves it from its
         own package root and sets CLAUDE_PLUGIN_ROOT for the child; stdout,

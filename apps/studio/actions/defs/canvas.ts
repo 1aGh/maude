@@ -93,6 +93,49 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     visible: { minRole: 'edit' },
     enabled: { facts: ['canvasOpen'] },
   },
+  // S11.7 (06 `ad-code`, `ad-edge-syntax`) — the canvas as code, read-only, and the broken-canvas card's
+  // rows. View code needs the source, which is a download (V2-1.7): Can comment and up. The server
+  // (`GET /_api/canvas-source`, Export on the canvas) refuses Can view whatever the shell draws.
+  {
+    id: 'canvas.view-code',
+    label: 'View code',
+    kind: 'command',
+    icon: 'code',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['code', 'source', 'tsx', 'developer', 'read only'],
+      where: 'Canvases panel › row menu › View code',
+    },
+  },
+  // The card's own buttons: they act on the card that is showing, so they are not ⌘K rows.
+  {
+    id: 'canvas.copy-error',
+    label: 'Copy error',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    search: { hidden: true },
+  },
+  {
+    // PRE-FILLS the AI chat composer; the person presses send (ask-AI rule: never sends).
+    id: 'canvas.ask-ai-fix',
+    label: 'Ask AI to fix it',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'], minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
+    // "Last good version" / "Go back to 14:05" — the same restore as `history.go-back` (S1.13)
+    id: 'canvas.last-good',
+    label: 'Last good version',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: { hidden: true },
+  },
   // Today's panels: the Figma import dialog and the brand upload panel.
   {
     id: 'import.figma',

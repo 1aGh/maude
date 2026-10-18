@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3014bc31a2be",
+  "manifestVersion": "366eb4ed148f",
   "actions": [
     {
       "id": "search.open",
@@ -200,6 +200,56 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it"
+      }
+    },
+    {
+      "id": "canvas.view-code",
+      "label": "View code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-source"
+      }
+    },
+    {
+      "id": "canvas.copy-error",
+      "label": "Copy error",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-errors"
+      }
+    },
+    {
+      "id": "canvas.ask-ai-fix",
+      "label": "Ask AI to fix it",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-errors"
+      }
+    },
+    {
+      "id": "canvas.last-good",
+      "label": "Last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
       }
     },
     {
@@ -2733,6 +2783,18 @@
     {
       "scope": "design",
       "verb": "design canvas-rects",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-errors",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-source",
       "effect": "none",
       "tier": "auto"
     },
