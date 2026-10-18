@@ -8,7 +8,9 @@
 // takes the server's view as truth and adds only what the server cannot know:
 //   - when this canvas opened in this app session (`since`), the stack's lower bound;
 //   - entries marked `stale` here (a ⌘Z came back `undo-conflict`) — skipped from then on;
-//   - pending gestures (`actionId: null`, behind an AI stage) handed in by `notePending`.
+//   - pending gestures (`actionId: null`, behind an AI stage) handed in by `notePending` — the
+//     server's view lists them too (S2.20c); ⌘Z on one sends `{ pendingTx, canvas }`, which queues
+//     its inverse behind the same run, and the entry stays undone (`pendingVia`) until it lands.
 //
 // ⌘Z = `POST /_api/project/undo { actionId, via: 'keys' }` on the newest `done` entry; the answer's
 // action id is kept (`undoneVia`) because ⇧⌘Z names THE UNDO (`{ actionId: undoneVia, redo: true }`).
@@ -115,18 +117,31 @@ export function createUndoProjection(o = {}) {
 
   function adoptView(d, view) {
     const prev = new Map(d.entries.filter((e) => e.actionId).map((e) => [e.actionId, e]));
+    // S2.20c — a pending entry is known by its transaction id until (and after) it lands.
+    const prevTx = new Map();
+    for (const e of d.entries) for (const t of [e.pendingTx, e.tx]) if (t) prevTx.set(t, e);
     const fromServer = [...(view.entries ?? []), ...(view.redo ?? [])]
-      .filter((e) => isObj(e) && str(e.actionId))
+      .filter((e) => isObj(e) && (str(e.actionId) || str(e.pendingTx)))
       .map((e) => {
-        const was = prev.get(e.actionId);
+        const was =
+          (e.actionId ? prev.get(e.actionId) : undefined) ??
+          prevTx.get(e.pendingTx ?? e.tx ?? '') ??
+          undefined;
         // `stale` and the undo id are this session's knowledge; the server's fold has neither.
         if (was?.state === 'stale' && e.state === 'done')
           return { ...e, state: 'stale', ...(was.undoneBy ? { undoneBy: was.undoneBy } : {}) };
         if (e.state === 'undone' && !e.undoneVia && was?.undoneVia)
           return { ...e, undoneVia: was.undoneVia };
+        // S2.20c — its inverse went out behind the run and has not landed yet: still undone.
+        if (e.state === 'done' && was?.state === 'undone' && was.pendingVia)
+          return { ...e, state: 'undone', undoneAt: was.undoneAt, pendingVia: was.pendingVia };
         return e;
       });
-    const known = new Set(fromServer.map((e) => e.actionId));
+    const known = new Set(
+      fromServer
+        .flatMap((e) => [e.actionId, e.pendingTx, e.tx])
+        .filter((t) => typeof t === 'string')
+    );
     // A pending gesture stays until its action shows up (then the server's entry replaces it).
     const pending = d.entries.filter((e) => !e.actionId && !known.has(e.pendingTx));
     d.entries = [...fromServer, ...pending].sort(
@@ -156,10 +171,14 @@ export function createUndoProjection(o = {}) {
     return run;
   };
 
-  function patch(d, actionId, fields) {
-    d.entries = d.entries.map((e) => (e.actionId === actionId ? { ...e, ...fields } : e));
+  /** `key` = an action id, or (S2.20c) the pending entry's transaction id. */
+  function patch(d, key, fields) {
+    d.entries = d.entries.map((e) =>
+      (e.actionId ? e.actionId === key : e.pendingTx === key) ? { ...e, ...fields } : e
+    );
     changed();
   }
+  const keyOf = (e) => e.actionId ?? e.pendingTx;
 
   async function whoChanged(d, entry) {
     const qs = `${HISTORY_ROUTE}?limit=40&path=${encodeURIComponent(d.repoRel)}`;
@@ -175,7 +194,7 @@ export function createUndoProjection(o = {}) {
     const body = r?.body ?? {};
     if (body.code === 'undo-conflict' || body.reason === 'undo-conflict') {
       const name = await whoChanged(d, entry);
-      patch(d, entry.actionId, { state: 'stale', undoneBy: name });
+      patch(d, keyOf(entry), { state: 'stale', undoneBy: name });
       announce(undoWords.stale(entry.label, name));
       return { handled: true, ok: false, stale: true };
     }
@@ -197,9 +216,26 @@ export function createUndoProjection(o = {}) {
       const e = nextUndo(stateOf(d));
       if (!e) return { handled: true, ok: false, reason: 'empty' };
       if (!e.actionId) {
-        // Pending behind your AI run: it has no action yet. The run's staged writes are never touched
-        // (V2-1.5 §5.4); the inverse waits for the edit to land (see `notePending`).
-        return { handled: true, ok: false, reason: 'pending', pendingTx: e.pendingTx };
+        // S2.20c — pending behind your AI run: it has no action yet. Its inverse joins the run's
+        // waiting list right behind it and lands as its undo (V2-1.5 §5.4); the run's staged
+        // writes are never touched. No entry is added — ⌘Z flips this one.
+        const r = await request('POST', UNDO_ROUTE, {
+          pendingTx: e.pendingTx,
+          canvas: d.repoRel,
+          via: 'keys',
+        }).catch(() => null);
+        if (!r?.body?.ok) {
+          // It went out meanwhile (the run ended): the next press undoes the action it became.
+          if (r?.body?.reason === 'not-pending') await refreshNow(d);
+          return onRejected(d, e, r);
+        }
+        patch(d, e.pendingTx, {
+          state: 'undone',
+          undoneAt: version + 1,
+          pendingVia: str(r.body.pendingTx) ?? undefined,
+        });
+        announce(undoWords.undone(e.label));
+        return { handled: true, ok: true, pending: true, pendingTx: r.body.pendingTx ?? null };
       }
       const r = await request('POST', UNDO_ROUTE, { actionId: e.actionId, via: 'keys' }).catch(
         () => null
@@ -224,6 +260,8 @@ export function createUndoProjection(o = {}) {
       if (d.mode !== 'op-log') return { handled: false };
       const e = nextRedo(stateOf(d));
       if (!e) return { handled: true, ok: false, reason: 'empty' };
+      // S2.20c — undone by an inverse still waiting behind the run: nothing to redo until it lands.
+      if (!e.undoneVia && e.pendingVia) return { handled: true, ok: false, reason: 'pending' };
       if (!e.undoneVia) return { handled: true, ok: false, reason: 'no-undo-id' };
       const r = await request('POST', UNDO_ROUTE, {
         actionId: e.undoneVia,
@@ -231,7 +269,12 @@ export function createUndoProjection(o = {}) {
         via: 'keys',
       }).catch(() => null);
       if (!r?.body?.ok) return onRejected(d, e, r);
-      patch(d, e.actionId, { state: 'done', undoneAt: undefined, undoneVia: undefined });
+      patch(d, e.actionId, {
+        state: 'done',
+        undoneAt: undefined,
+        undoneVia: undefined,
+        pendingVia: undefined,
+      });
       announce(undoWords.redone(e.label));
       return { handled: true, ok: true, actionId: r.body.actionId, redid: e.actionId };
     });

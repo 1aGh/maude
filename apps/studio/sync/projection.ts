@@ -198,6 +198,11 @@ export interface LaneProposal {
    * person made through the UI is never stageable.
    */
   stageable?: boolean;
+  /**
+   * S2.20c — ⌘Z on the person's edit with this transaction id while it waits behind an AI run:
+   * this proposal is its inverse (V2-1.5 §5.4), and lands as that edit's undo right behind it.
+   */
+  undoes?: string;
 }
 
 export interface AcceptedLaneLink {
@@ -246,6 +251,13 @@ export interface DocProjection {
     value: string,
     opts?: { baseContent?: string; writeId?: string; stageable?: boolean }
   ): Promise<ProposalOutcome> | null;
+  /**
+   * S2.20c — ⌘Z on the person's html edit `undoes` while it waits behind an AI run: put `value`
+   * (the disk without that edit) on disk now — the projection's own write, so the watcher reads it
+   * as an echo — and propose it as that edit's inverse, another waiting edit behind the same run.
+   * Resolves with the inverse's outcome; null when the projection is not in accepted mode.
+   */
+  proposeInverse(value: string, undoes: string): Promise<ProposalOutcome> | null;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
   /**
@@ -797,7 +809,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     writeId?: string,
     stageable = false,
     op?: SourceOp,
-    replays = 0
+    replays = 0,
+    undoes?: string
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
@@ -891,6 +904,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         ...(prior ? { dependsOn: [prior.lastTx] } : {}),
         ...(writeId ? { writeId } : {}),
         ...(stageable ? { stageable: true } : {}),
+        ...(undoes ? { undoes } : {}),
       })
       .then(settle, (err: unknown) => {
         const code = (err as { code?: unknown })?.code;
@@ -1272,6 +1286,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
       return submit(lane, value, base, value, o?.writeId, o?.stageable === true);
+    },
+    proposeInverse(value, undoes) {
+      if (!acceptedOn() || stopped) return null;
+      const inFlight = pending.get('html');
+      const base = inFlight ? inFlight.lastValue : agreedValue('html');
+      // The disk shows the inverse at once; the projection wrote it, so its fs event is an echo
+      // and the disk stays the candidate (`observedBody`) the doc→file writer leaves alone.
+      observedBody = value;
+      recordEcho(paths.html, value);
+      writeAndAnnounce(paths.html, value);
+      return submit('html', value, base, value, undefined, false, undefined, 0, undoes);
     },
     noteSourceOp(op) {
       if (localWrite) localWrite.op = op;

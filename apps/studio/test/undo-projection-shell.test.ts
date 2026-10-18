@@ -31,6 +31,7 @@ type Row = {
   undoes: string | string[] | null;
   canvases: string[];
   runId?: string;
+  transactionId?: string;
 };
 
 function fakeHome(opts: { legacy?: boolean } = {}) {
@@ -54,7 +55,22 @@ function fakeHome(opts: { legacy?: boolean } = {}) {
     return row;
   };
   let n = 0;
+  // S2.20c — the run's waiting list: your edits behind it, and inverses ⌘Z queued on them.
+  const waiting: Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }> =
+    [];
+  const pendingCalls: unknown[] = [];
   const runtime = {
+    pendingEdits(repoRel: string) {
+      return repoRel === REPO ? waiting.map((w) => ({ ...w })) : [];
+    },
+    async undoPendingEdit(repoRel: string, tx: string) {
+      pendingCalls.push({ repoRel, tx });
+      if (!waiting.some((w) => w.transactionId === tx && !w.undoes))
+        return { status: 'rejected' as const, code: 'not-pending' };
+      const inv = { transactionId: `tx_inv${++n}`, label: 'Undo', madeAt: ++clock, undoes: tx };
+      waiting.push(inv);
+      return { status: 'accepted' as const, transactionId: inv.transactionId };
+    },
     async acceptedHistory(q: { mine?: boolean }) {
       if (opts.legacy) return null;
       return rows.filter((r) => !q.mine || r.mine).map((r) => ({ ...r }));
@@ -110,7 +126,17 @@ function fakeHome(opts: { legacy?: boolean } = {}) {
     );
     return { status: res.status, body: await res.json().catch(() => null) };
   };
-  return { rows, add, conflicts, skips, request, posts, setClock: (t: number) => (clock = t) };
+  return {
+    rows,
+    add,
+    conflicts,
+    skips,
+    request,
+    posts,
+    waiting,
+    pendingCalls,
+    setClock: (t: number) => (clock = t),
+  };
 }
 
 function setup(o: { legacy?: boolean } = {}) {
@@ -222,15 +248,43 @@ describe('S2.20 ⌘Z projection — the U-keys S2 owns', () => {
     expect(home.posts.length).toBe(1); // only the ⌘Z
   });
 
-  test('⌘Z on a pending entry (your edit behind your AI run) sends nothing — never an older entry, never the run', async () => {
-    const { home, store } = setup();
+  test('S2.20c: ⌘Z on a pending entry (your edit behind your AI run) queues its inverse behind the run — never an older entry, never the run', async () => {
+    const { home, store, toasts } = setup();
     await store.open(REPO);
     home.add({ actionId: 'old', kind: 'edit', label: 'Headline text', madeAt: 600 });
-    store.notePending(REPO, { pendingTx: 'tx1', label: 'Moved See pricing 10 px', madeAt: 700 });
-    const r = await store.undo(REPO);
-    expect(r).toMatchObject({ handled: true, ok: false, reason: 'pending', pendingTx: 'tx1' });
-    expect(home.posts).toEqual([]);
+    // the server's view lists the waiting edit (no notePending needed)
+    home.waiting.push({ transactionId: 'tx1', label: 'Moved See pricing 10 px', madeAt: 700 });
+    await store.refresh(REPO);
     expect(store.rows(REPO)[0]).toMatchObject({ actionId: null, pendingTx: 'tx1', top: true });
+
+    const r = await store.undo(REPO);
+    expect(r).toMatchObject({ handled: true, ok: true, pending: true, pendingTx: 'tx_inv1' });
+    expect(ids(home.posts)).toEqual([
+      JSON.stringify({ pendingTx: 'tx1', canvas: REPO, via: 'keys' }),
+    ]);
+    expect(home.pendingCalls).toEqual([{ repoRel: REPO, tx: 'tx1' }]);
+    expect(toasts).toEqual(['Undo: Moved See pricing 10 px']);
+    // undone, and it stays so on the next refresh (the server folds the queued inverse)
+    await store.refresh(REPO);
+    expect(store.rows(REPO).map((e) => e.actionId ?? e.pendingTx)).toEqual(['old']);
+    // ⇧⌘Z while the inverse still waits: nothing to redo yet
+    expect(await store.redo(REPO)).toMatchObject({ handled: true, ok: false, reason: 'pending' });
+
+    // the run publishes: the edit lands behind it, then its inverse as an Undo of it
+    home.waiting.length = 0;
+    home.add({ actionId: 'run', kind: 'ai', label: 'Footer', madeAt: 800 });
+    home.add({
+      actionId: 'p',
+      kind: 'edit',
+      label: 'Moved See pricing 10 px',
+      madeAt: 700,
+      transactionId: 'tx1',
+    });
+    home.add({ actionId: 'u9', kind: 'undo', label: 'Undo', undoes: 'p', madeAt: 750 });
+    await store.refresh(REPO);
+    expect(store.rows(REPO).map((e) => e.actionId)).toEqual(['run', 'old']);
+    // the next ⌘Z takes the run; ⇧⌘Z after it re-applies the run, not the edit
+    expect((await store.undo(REPO)).undid).toBe('run');
   });
 
   test('HMR keeps the stack: re-opening the canvas keeps its session scope (shell-owned, keyed by canvas)', async () => {
