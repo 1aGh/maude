@@ -30,6 +30,8 @@ import {
 import { cameraFor, fitForKind } from './fit.ts';
 import { createFollower, type FollowView, newPresentSid } from './follow.ts';
 import { type PresentMeta, presentRun, startIndex } from './order.ts';
+import { usePointerDot } from './pointer-dot.tsx';
+import { usePresentZoom } from './present-zoom.ts';
 
 export interface Camera {
   x: number;
@@ -621,6 +623,11 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
 
   // Unmount: declared after the start/stop effect, so its cleanup runs second and lands the exit at once.
   useEffect(() => () => engineRef.current?.dispose(), []);
+
+  // S3.2b — the two small things Present · Canvas shares with this stage, mounted here so canvas-lib's
+  // one mount point stays the only one: the presenter's Pointer (L) and the zoom the shell's pill shows.
+  usePointerDot({ viewport: opts.controller.viewport });
+  usePresentZoom(opts.controller.viewport.zoom);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

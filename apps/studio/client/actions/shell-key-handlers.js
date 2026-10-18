@@ -21,7 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
-import { presentFrom } from '../v2/shell/use-canvas-mode-lane.js';
+import { presentFrom, presentStep } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 
 // ── the timeline transport (was use-photo-and-timeline.jsx, DDR-150 P3 Task 9) ─────────────
@@ -329,6 +329,16 @@ SHELL_KEY_HANDLERS['present.from-selection'] = (d, { event: e }) => {
 SHELL_KEY_HANDLERS['present.from-start'] = (d, { event: e }) => {
   e.preventDefault();
   if (!d.presentMode) presentFrom('start');
+};
+// S3.2b — → · space / ← · ⇧space while presenting, from the shell (its controls hold the focus, not the
+// iframe). The lane steps the active canvas; a held key steps once.
+SHELL_KEY_HANDLERS['present.next'] = (_d, { event: e }) => {
+  e.preventDefault();
+  if (!e.repeat) presentStep('next');
+};
+SHELL_KEY_HANDLERS['present.prev'] = (_d, { event: e }) => {
+  e.preventDefault();
+  if (!e.repeat) presentStep('prev');
 };
 SHELL_KEY_HANDLERS['mode.preview'] = (d, { event: e }) => {
   e.preventDefault();

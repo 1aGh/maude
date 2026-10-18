@@ -206,6 +206,32 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { keywords: ['presentation', 'slideshow', 'beginning', 'first'] },
   },
   {
+    // S3.2b (md-keys, `present` scope): → and space go on, ← and ⇧space go back. With the canvas focused the
+    // stage (present/present-stage.tsx) hears the same keys itself; this is the shell half, for when the
+    // shell holds the focus (its controls, a click on its chrome). Only while presenting, so → ← and space
+    // keep their other meanings everywhere else.
+    id: 'present.next',
+    label: 'Next artboard',
+    kind: 'command',
+    exec: 'shell',
+    keys: [
+      kb('→', 'global', { when: { mode: ['present'] } }),
+      kb('Space', 'global', { when: { mode: ['present'] } }),
+    ],
+    search: { keywords: ['presentation', 'slideshow', 'advance', 'forward'] },
+  },
+  {
+    id: 'present.prev',
+    label: 'Previous artboard',
+    kind: 'command',
+    exec: 'shell',
+    keys: [
+      kb('←', 'global', { when: { mode: ['present'] } }),
+      kb('⇧Space', 'global', { when: { mode: ['present'] } }),
+    ],
+    search: { keywords: ['presentation', 'slideshow', 'back', 'backward'] },
+  },
+  {
     // S3.1 — re-pointed: the toggle is a call into the one mode owner (Present · Canvas, D1).
     id: 'present.canvas',
     label: 'Present the canvas',

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "404238e54001",
+  "manifestVersion": "1f9266606ac1",
   "actions": [
     {
       "id": "search.open",
@@ -788,6 +788,28 @@
       }
     },
     {
+      "id": "present.next",
+      "label": "Next artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard> --mode present"
+      }
+    },
+    {
+      "id": "present.prev",
+      "label": "Previous artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard> --mode present"
+      }
+    },
+    {
       "id": "present.canvas",
       "label": "Present the canvas",
       "kind": "toggle",
@@ -1086,6 +1108,18 @@
         "path": "human",
         "because": "view-pref",
         "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.pointer",
+      "label": "Pointer",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "the presenter’s own pointer; an agent has no mouse to show"
       }
     },
     {

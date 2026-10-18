@@ -4576,6 +4576,201 @@
     "v2": "new"
   },
   {
+    "hook": "present-controls",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present · Artboards controls (shell DOM, over the canvas): ‹ · 3 / 14 · › · label · slots · esc to leave. `data-shown` is false while faded; `data-motion=reduced` under Reduce motion.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-zone",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The transparent strip under the controls where a mouse move is heard (the canvas iframe's moves never reach the shell). A click on it steps to the next artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "‹ Previous artboard (disabled on the first). Posts `present-step {to:'prev'}` through the mode lane.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Next artboard (disabled on the last). Posts `present-step {to:'next'}` through the mode lane.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-counter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"3 / 14\" — the place in the run (`present-position`); skipped artboards are not counted.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The presented artboard's name, from the canvas index; absent when it has none.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-slot-transport",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Slot for S3.3's media transport (pause · time · sound); absent while empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-slot-presenter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Slot for S3.6b's Presenter view button (desktop, two displays); absent while empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-leave",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"esc to leave\" — leaves Present for where it was entered from.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present the canvas: \"Presenting the canvas · 21% · esc to leave\". Replaces the v1 exit button and keeps its `.st-present-exit` class and `aria-label=\"Exit presentation mode\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/canvas-pill.jsx",
+      "symbol": "CanvasPill"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pointer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The presenter's Pointer layer in the canvas document (L): a fixed, click-through overlay holding the dot and its trail.",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "createPointerDot"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pointer-dot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Pointer: a ringed dot in the presenter's presence colour (`data-hidden` while the mouse is out of the window).",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "createPointerDot"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pointer-trail",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Pointer's short trail (empty under Reduce motion).",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "createPointerDot"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-peer-pointers",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layer holding other people's Pointers, drawn from awareness `pointer`.",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "PointerPeers"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-peer-pointer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One peer's Pointer dot.",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "PointerPeers"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "artboard-rename-<id>",
     "kind": "testid",
     "pattern": true,
