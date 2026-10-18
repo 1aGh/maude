@@ -37,12 +37,26 @@ interface Spies {
   ran: string[];
   asked: string[];
   opened: [string, string | null][];
+  across: Record<string, unknown>[];
   closed: number;
 }
 
-function setup({ ai = true, index = null as object | null, pins = null as object | null } = {}) {
-  const spies: Spies = { ran: [], asked: [], opened: [], closed: 0 };
+function setup({
+  ai = true,
+  index = null as object | null,
+  pins = null as object | null,
+  across = null as object | null,
+} = {}) {
+  const spies: Spies = { ran: [], asked: [], opened: [], across: [], closed: 0 };
   unbind = bindPaletteEnv({
+    // S1.5: a desktop tab's other projects (a browser tab binds none)
+    ...(across
+      ? {
+          ownProject: { pid: `l${'a'.repeat(16)}`, name: 'Alligators brand' },
+          searchProjects: async () => across,
+          openSearchResult: (row: Record<string, unknown>) => spies.across.push(row),
+        }
+      : {}),
     designRel: '.design',
     canAskAI: () => ai,
     askAI: (t: string) => spies.asked.push(t),
@@ -431,5 +445,112 @@ describe('"?", the real sheet', () => {
     expect(el.querySelector('[data-testid="shortcuts-none"]')?.textContent).toBe(
       'Nothing called “zzzzqq”. Try another word.'
     );
+  });
+});
+
+describe('⌘K across projects (S1.5 · pn-k-across)', () => {
+  const OTHER = `l${'b'.repeat(16)}`;
+  const CLOSED = `l${'c'.repeat(16)}`;
+  const own = {
+    q: 'mobil',
+    closeOnly: false,
+    rows: [
+      {
+        group: 'canvases',
+        key: 'web/responsive.tsx',
+        name: 'responsive',
+        meta: 'web',
+        score: 4,
+        close: false,
+        marks: [],
+      },
+    ],
+  };
+  const across = {
+    groups: [
+      // the shell never sends this tab's own project — and if it did, it is not shown twice
+      { pid: `l${'a'.repeat(16)}`, name: 'Alligators brand', place: 'tab', rows: own.rows },
+      {
+        pid: OTHER,
+        name: 'Studio site',
+        place: 'tab',
+        rows: [
+          {
+            group: 'artboards',
+            key: 'ui/Homepage.tsx#mobile',
+            name: 'Mobile',
+            meta: 'Homepage ui',
+            score: 4,
+            close: false,
+            marks: [],
+          },
+        ],
+      },
+      {
+        pid: CLOSED,
+        name: 'Portfolio 2026',
+        place: 'closed',
+        rows: [
+          {
+            group: 'canvases',
+            key: 'case/Mobilni-app.tsx',
+            name: 'Mobilní app',
+            meta: 'case',
+            score: 3,
+            close: false,
+            marks: [],
+          },
+        ],
+      },
+    ],
+  };
+
+  test('groups by project — this tab first — and ↵ on another project asks the shell, ids only', async () => {
+    const { spies, actions } = setup({ index: own, across });
+    const el = await mount(actions, spies);
+    await type(el, 'mobil');
+    await act(async () => {
+      await sleep(250);
+    });
+    const groups = [...el.querySelectorAll('[data-testid^="palette-group-"]')].map((n) =>
+      n.getAttribute('data-testid')
+    );
+    expect(groups.slice(0, 3)).toEqual([
+      'palette-group-project-self',
+      `palette-group-project-${OTHER}`,
+      `palette-group-project-${CLOSED}`,
+    ]);
+    const head = (id: string) =>
+      el.querySelector(`[data-testid="palette-group-${id}"] .st-pal-group`)?.textContent;
+    expect(head('project-self')).toBe('AAlligators brandthis tab');
+    expect(head(`project-${OTHER}`)).toBe('SStudio sitein another tab');
+    expect(head(`project-${CLOSED}`)).toBe('PPortfolio 2026not open — opens a tab');
+    expect(el.querySelectorAll('[data-testid="palette-project-square"]').length).toBe(3);
+    // this project answers once
+    expect(rowIds(el).filter((id) => id.endsWith('web/responsive.tsx'))).toEqual([
+      'canvas:web/responsive.tsx',
+    ]);
+    const row = el.querySelector(
+      `[data-testid="palette-row-project:${OTHER}:artboard:ui/Homepage.tsx#mobile"]`
+    ) as HTMLElement;
+    await act(async () => {
+      row.click();
+    });
+    expect(spies.across.map((r) => [r.pid, r.canvasRel, r.artboardId])).toEqual([
+      [OTHER, 'ui/Homepage.tsx', 'mobile'],
+    ]);
+    expect(spies.opened).toEqual([]);
+    expect(spies.closed).toBe(1);
+  });
+
+  test('a browser tab asks nobody: Canvases · Artboards as before', async () => {
+    const { spies, actions } = setup({ index: own });
+    const el = await mount(actions, spies);
+    await type(el, 'mobil');
+    await act(async () => {
+      await sleep(250);
+    });
+    expect(el.querySelector('[data-testid="palette-group-canvases"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid^="palette-group-project-"]')).toBeNull();
   });
 });

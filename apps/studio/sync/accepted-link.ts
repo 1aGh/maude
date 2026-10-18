@@ -15,7 +15,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { createActionStage, type StageSummary } from './action-stage.ts';
+import { type ActionStageOptions, createActionStage, type StageSummary } from './action-stage.ts';
 import type { AcceptedLaneLink, LaneProposal, ProposalOutcome } from './projection.ts';
 import {
   type Bootstrap,
@@ -48,6 +48,8 @@ export interface AcceptedLinkOptions {
   client?: TransactionClient;
   /** T16 — an AI action opened, was held, or ended. */
   onStage?: (summary: StageSummary | null) => void;
+  /** S5.5 — the artboards a staged canvas write changed (V2-1.5 §5.7), for the run's `touched`. */
+  attribute?: ActionStageOptions['attribute'];
   /** Every bootstrap the project answered (its manifest and its own config). */
   onBootstrap?: (b: Bootstrap) => void;
 }
@@ -137,6 +139,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     propose: (action) => propose(action),
     newTransactionId: client.newTransactionId,
     onChange: opts.onStage,
+    ...(opts.attribute ? { attribute: opts.attribute } : {}),
     log,
   });
   stage.restore();
@@ -195,7 +198,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       newTransactionId: client.newTransactionId,
       propose: (p) => {
         const doc = opts.docNameFor(slug);
-        if (stage.captures(slug, p.stageable === true)) return stage.capture(slug, doc, p);
+        if (stage.captures(slug, p.stageable === true, p.content))
+          return stage.capture(slug, doc, p);
         const send = (dependsOn: string[] | undefined) =>
           propose({
             kind: 'edit',
@@ -408,10 +412,21 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       return structural('Move folder', 'folder.move', [{ op: 'dir.move', from, to }], waitMs);
     },
     /** Logical history, newest first (optionally one entry's). */
-    history(q: { limit?: number; before?: number | null; entry?: string | null }) {
+    history(q: {
+      limit?: number;
+      before?: number | null;
+      entry?: string | null;
+      chat?: string | null;
+      kind?: string | null;
+      actor?: string | null;
+    }) {
       const params: Record<string, string | number> = { limit: q.limit ?? 50 };
       if (q.before) params.before = q.before;
       if (q.entry) params.entry = q.entry;
+      // S5.1a filters — an old hub ignores them (the caller re-checks rows).
+      if (q.chat) params.chat = q.chat;
+      if (q.kind) params.kind = q.kind;
+      if (q.actor) params.actor = q.actor;
       return client.read('history', params) as Promise<{ history: HistoryAction[] }>;
     },
     /** A canvas lane as it stood at `revision`. */
@@ -430,14 +445,39 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         8_000
       );
     },
-    /** Personal undo / redo of one of this actor's actions. */
-    undo(actionId: string, redo = false): Promise<StructuralOutcome> {
-      return structural(
-        redo ? 'Redo' : 'Undo',
-        redo ? 'redo' : 'undo',
-        [{ op: redo ? 'history.redo' : 'history.undo', actionId }],
-        8_000
-      );
+    /**
+     * Personal undo / redo of this actor's actions: one id, or several as ONE
+     * action (S5.1a `actionIds` — "as if they never happened"). The answer
+     * keeps the kernel's `undoes` and `skipped` (lanes someone changed since).
+     */
+    undo(
+      target: string | { actionId: string } | { actionIds: string[] },
+      redo = false,
+      label?: string
+    ): Promise<
+      StructuralOutcome & {
+        undoes?: string | string[];
+        skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
+      }
+    > {
+      const ids = typeof target === 'string' ? { actionId: target } : target;
+      const answer = propose({
+        kind: redo ? 'redo' : 'undo',
+        label: label ?? (redo ? 'Redo' : 'Undo'),
+        operations: [{ op: redo ? 'history.redo' : 'history.undo', ...ids }],
+      }).then((r) => ({
+        ...outcome(r),
+        ...(typeof r.undoes === 'string' || Array.isArray(r.undoes)
+          ? { undoes: r.undoes as string | string[] }
+          : {}),
+        ...(Array.isArray(r.skipped) && r.skipped.length ? { skipped: r.skipped } : {}),
+      }));
+      return Promise.race([
+        answer,
+        new Promise<StructuralOutcome>((resolve) =>
+          setTimeout(() => resolve({ status: 'accepted', queued: true }), 8_000)
+        ),
+      ]);
     },
     stop() {
       client.stop();
@@ -452,7 +492,9 @@ export interface HistoryAction {
   kind: string;
   label: string | null;
   committedAt: number;
-  undoes: string | null;
+  undoes: string | string[] | null;
+  /** The stored envelope origin (V2-1.5 §5.1 keys among them). */
+  origin?: Record<string, unknown> | null;
   effects: {
     doc: string | null;
     lane: string;

@@ -1158,6 +1158,77 @@ pub async fn index_search(
     Ok(json!({ "groups": groups }))
 }
 
+/// Pure half of `open_search_result` (S1.5, decision
+/// `v2-S1-cross-project-open-command`): the folder and the target a ⌘K row of
+/// ANOTHER project names. Only a pid `index_search` could have answered for
+/// this caller — `index_scope` (same profile, minus the caller) — so a page can
+/// never reach a project of another account through it, nor its own project
+/// (its own rows open in-page). The canvas goes through the same check as a
+/// deep link's `open`; the artboard as a short plain id (`validate_target`).
+pub fn search_result_target(
+    st: &AppState,
+    caller_pid: &str,
+    caller_profile: &str,
+    pid: &str,
+    canvas: String,
+    artboard: Option<String>,
+) -> Result<(PathBuf, windows::OpenTarget), String> {
+    if !index_scope(st, caller_pid, caller_profile)
+        .iter()
+        .any(|p| p == pid)
+    {
+        return Err("That result isn't one this tab can open.".to_string());
+    }
+    let entry = st
+        .projects
+        .get(pid)
+        .ok_or_else(|| "That project isn't in your list.".to_string())?;
+    let target = windows::validate_target(windows::OpenTarget {
+        canvas: Some(canvas),
+        artboard,
+    })?;
+    Ok((PathBuf::from(&entry.root), target))
+}
+
+/// `open_search_result({pid, canvas, artboard?})` — ↵ on a ⌘K row of another
+/// project (11 `pn-k-across`). Project windows only, from the tab in front.
+/// Takes ids, never a URL or a path: the folder comes from the registry entry
+/// of a pid in `index_scope(caller)`. Open once (`open_project_window`): a
+/// project already in a tab is switched to and told `shell://navigate`; a
+/// closed one opens a tab after the caller whose first navigate carries
+/// `?open=<canvas>` and the artboard parked for `take_pending_navigate` — the
+/// same path `open_project` and a deep link take. `async`: building a window
+/// from a sync command deadlocks on Windows.
+#[tauri::command]
+pub async fn open_search_result(
+    app: AppHandle,
+    webview: tauri::Webview,
+    pid: String,
+    canvas: String,
+    artboard: Option<String>,
+) -> Result<windows::OpenedProject, String> {
+    let caller = windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?; // 1g: a background tab may not switch tabs
+    let st = crate::app_state::load(&app);
+    let profile = st.profile_for(&caller.root);
+    let (path, target) =
+        search_result_target(&st, &caller.pid, &profile, &pid, canvas, artboard)?;
+    if !path.is_dir() {
+        return Err("That project folder doesn’t exist.".to_string());
+    }
+    let opened = windows::open_project_window(
+        &app,
+        &path,
+        Some(webview.label()),
+        target.canvas.as_deref(),
+    )?;
+    windows::park_navigate_for_new(&opened, Some(&target));
+    if let windows::Opened::Existing(label) = &opened {
+        crate::bus::send(label, "shell://navigate", target.clone());
+    }
+    Ok(windows::OpenedProject::from(&opened))
+}
+
 /// The machine index root (`$MAUDE_INDEX_DIR`, default `~/.maude/index/v1` —
 /// apps/studio/index/snapshot.ts).
 fn index_dir() -> Option<PathBuf> {
@@ -1449,6 +1520,55 @@ mod tests {
         st.projects.insert("lw".into(), entry("/w", "work", 1));
         st.recent = vec!["lb".into(), "la".into(), "gone".into()];
         st
+    }
+
+    /// S1.5: ↵ on another project's ⌘K row opens only a pid `index_search`
+    /// could have answered for this caller — never another profile's project
+    /// (a planted pid), never the caller's own, never an unknown one — and the
+    /// canvas / artboard go through the deep-link checks.
+    #[test]
+    fn open_search_result_scope() {
+        let st = registry();
+        let ok = search_result_target(&st, "la", "default", "lb", "ui/y.tsx".into(), Some("hero".into()))
+            .expect("a same-profile project opens");
+        assert_eq!(ok.0, PathBuf::from("/b"));
+        assert_eq!(ok.1.canvas.as_deref(), Some("ui/y.tsx"));
+        assert_eq!(ok.1.artboard.as_deref(), Some("hero"));
+        // A pid outside index_scope(caller): another account's project.
+        assert!(
+            search_result_target(&st, "la", "default", "lw", "ui/x.tsx".into(), None).is_err(),
+            "a project of another profile opened from a project tab"
+        );
+        // The caller's own project is not in its scope (its rows open in-page).
+        assert!(search_result_target(&st, "la", "default", "la", "ui/x.tsx".into(), None).is_err());
+        assert!(search_result_target(&st, "la", "default", "nope", "ui/x.tsx".into(), None).is_err());
+        // The profile is the caller's, not the target's: a `work` caller can't reach `default`.
+        assert!(search_result_target(&st, "lw", "work", "lb", "ui/y.tsx".into(), None).is_err());
+        // Ids only — no path out of the design root, no control characters.
+        for bad in ["../secrets.tsx", "/etc/passwd", ""] {
+            assert!(
+                search_result_target(&st, "la", "default", "lb", bad.into(), None).is_err(),
+                "{bad:?} accepted as a canvas"
+            );
+        }
+        assert!(
+            search_result_target(&st, "la", "default", "lb", "ui/y.tsx".into(), Some("a\nb".into())).is_err()
+        );
+        // The command resolves its caller from the webview, asks for the front
+        // tab, scopes through `search_result_target` and opens once.
+        let src = include_str!("home.rs");
+        let i = src.find("pub async fn open_search_result(").unwrap();
+        let body = &src[i..i + src[i + 1..].find("#[tauri::command").map_or(src.len() - i, |e| e + 1)];
+        for needle in [
+            "windows::caller_project(&webview, false)?",
+            "caller_in_front(",
+            "search_result_target(",
+            "open_project_window(",
+            "park_navigate_for_new(",
+        ] {
+            assert!(body.contains(needle), "open_search_result lost {needle}");
+        }
+        assert!(!body.contains("root:"), "a page-supplied path reached the command");
     }
 
     #[test]
