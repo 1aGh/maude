@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 98,
+  "humanMax": 99,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -33,6 +33,12 @@
       "from": 96,
       "by": "decision:maude/v2-S1.2-human-view-prefs",
       "why": "S1.2: Pin canvas, Unpin canvas, Sort canvases and Copy canvas link are per-person view state (pins are the person's, the sort order is a per-project view preference, the link goes to the clipboard) — human (view-pref) by design, the same reason as view.pin-panels and edit.copy-properties. Four human rows."
+    },
+    {
+      "to": 99,
+      "from": 98,
+      "by": "decision:maude/v2-S1.12b-history-filter-human",
+      "why": "S1.12b registers Version history's row actions (V2-1.9 §5.11): history.filter (All · Named · Made by AI · People) is the person's own panel state — human (view-pref), as the contract's registry table has it; history.view-version, history.compare and history.name are cli (`maude design history show|diff|name`). One human row."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row."

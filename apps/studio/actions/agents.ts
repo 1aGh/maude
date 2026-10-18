@@ -177,6 +177,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
   'history.open': { effect: 'none', agent: cli('maude design history list') },
+  // S1.12b (V2-1.9 §5.11). Filtering is the person's own panel (human view-pref, as the contract
+  // has it); an agent reads one version with `history show` (§5.11's `open --at` is not built),
+  // Compare's words with `history diff`, and names with `history name` (shared — it prompts).
+  'history.filter': PREF(
+    'All · Named · Made by AI · People; the rows themselves: maude design history list'
+  ),
+  'history.view-version': { effect: 'none', agent: cli('maude design history show') },
+  'history.compare': { effect: 'none', agent: cli('maude design history diff') },
+  'history.name': {
+    effect: 'shared',
+    minRole: 'edit',
+    agent: cli('maude design history name <canvas> <ref> "<name>"'),
+  },
   'view.exports': { effect: 'none', agent: cli('maude design exports list') },
   // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).
   // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.

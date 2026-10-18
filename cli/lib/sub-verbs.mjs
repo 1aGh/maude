@@ -22,7 +22,14 @@ export const SUB_VERBS = {
     validate: { step: '--validate', plan: true },
   },
   // V2-2.4b (contract V2-1.11 §5.3). Each sub-verb has its own tier entry.
-  history: { list: NATIVE, show: NATIVE, diff: NATIVE, restore: NATIVE, undo: NATIVE },
+  history: {
+    list: NATIVE,
+    show: NATIVE,
+    diff: NATIVE,
+    restore: NATIVE,
+    undo: NATIVE,
+    name: NATIVE,
+  },
   comments: { list: NATIVE },
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.

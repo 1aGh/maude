@@ -134,6 +134,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
   }),
   d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
+  d('history name', 'shared', {
+    note: 'names a version everyone in the project sees (V2-1.9 §5.4)',
+  }),
   d('exports', 'external', {
     note: 'a sub-verb not tiered above (a cloud render lane, a retry) prompts until it gets its own entry',
   }),

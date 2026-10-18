@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "404238e54001",
+  "manifestVersion": "555f0aefbc4a",
   "actions": [
     {
       "id": "search.open",
@@ -2268,6 +2268,52 @@
         "because": "native-window",
         "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
       }
+    },
+    {
+      "id": "history.filter",
+      "label": "Filter versions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "All · Named · Made by AI · People; the rows themselves: maude design history list"
+      }
+    },
+    {
+      "id": "history.view-version",
+      "label": "View this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history show"
+      }
+    },
+    {
+      "id": "history.compare",
+      "label": "Compare",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history diff"
+      }
+    },
+    {
+      "id": "history.name",
+      "label": "Name this version…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history name <canvas> <ref> \"<name>\""
+      }
     }
   ],
   "verbs": [
@@ -2648,6 +2694,12 @@
     {
       "scope": "design",
       "verb": "design history undo",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design history name",
       "effect": "shared",
       "tier": "prompt"
     },
