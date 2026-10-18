@@ -40,6 +40,8 @@ const STUDIO_CSS = `:root,
   --dur-flip: 120ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --x-sky: #5aa9e6;
+  --focus-ring: oklch(0.6 0.2 255);
+  --focus-ring-width: 2px;
 }
 .studio[data-theme="dark"],
 .ds[data-theme="dark"] {
@@ -221,6 +223,9 @@ describe('the model: sections come from the files', () => {
     expect(by('--dur-flip')?.section).toBe('motion');
     expect(by('--ease-out')?.section).toBe('motion');
     expect(by('--x-sky')?.section).toBe('colour'); // a Tier-3 colour is typed by its value
+    // the focus group holds a colour AND a length: only the colour is a swatch
+    expect(by('--focus-ring')?.section).toBe('colour');
+    expect(by('--focus-ring-width')?.section).toBe('space');
     expect(by('--accent')?.label).toBe('Accent');
     expect(by('--accent-hover')?.label).toBe('Accent hover'); // nobody named it: humanised
     expect(by('--accent')?.valueNames).toEqual({ light: 'Azure', dark: 'Sky' });
