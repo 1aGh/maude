@@ -55,6 +55,11 @@ maude design import-figma --tokens "$FIGMA_URL" --root "$REPO"
 # A local .fig / .jam export → offline, no network and no token at all
 maude design import-figma --fig ~/Downloads/board.jam --root "$REPO"
 
+# A FigJam board INTO a canvas you already have → one "From FigJam" section on its whiteboard
+# layer (stickies, shapes, connectors, text; comment threads as stickies with their author;
+# widgets as pictures). One batch of annotation ops: one undo, every open canvas updates.
+maude design import-figma --board "$FIGJAM_URL" --into ui/Retro.tsx --root "$REPO"
+
 # See what it would do, write nothing
 maude design import-figma --pages "$FIGMA_URL" --root "$REPO" --dry-run
 ```

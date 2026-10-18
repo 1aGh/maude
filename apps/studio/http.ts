@@ -137,7 +137,7 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs } from './routes/index.ts';
+import { allSpecs, heldByAiRefusal } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -3832,6 +3832,9 @@ export function createHttp(
         expected?: unknown;
       }>(req, 8 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S5.4 / S2.18 — a live AI run's element is AI's until it's done: 409 held-by-ai.
+      const held = heldByAiRefusal(runs, ctx.paths.designRel, body.canvas, body.id);
+      if (held) return held;
       const result = await api.editCss(body);
       if (!result.ok) {
         return Response.json(
@@ -3868,6 +3871,9 @@ export function createHttp(
         before?: unknown;
       }>(req, 16 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S5.4 / S2.18 — a live AI run's element is AI's until it's done: 409 held-by-ai.
+      const held = heldByAiRefusal(runs, ctx.paths.designRel, body.canvas, body.id);
+      if (held) return held;
       const result = await api.editText(body);
       if (!result.ok) {
         return Response.json(
@@ -3902,6 +3908,9 @@ export function createHttp(
         expected?: unknown;
       }>(req, 8 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S5.4 / S2.18 — a live AI run's element is AI's until it's done: 409 held-by-ai.
+      const held = heldByAiRefusal(runs, ctx.paths.designRel, body.canvas, body.id);
+      if (held) return held;
       const result = await api.editAttr(body);
       if (!result.ok) {
         return Response.json(

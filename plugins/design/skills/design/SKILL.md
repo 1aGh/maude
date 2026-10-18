@@ -46,3 +46,4 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When invoking another skill or its fallback | [Cross-skill calls](./_guide-24-cross-skill-calls.md) |
 | When an operation fails | [Failure modes](./_guide-25-failure-modes.md) |
 | Before choosing an implementation approach | [What NOT to do](./_guide-26-what-not-to-do.md) |
+| Before planning edits on a canvas AI may be changing, or when an edit is denied | [AI runs and busy artboards](./_guide-27-ai-runs-and-busy-artboards.md) |

@@ -13,4 +13,5 @@
    - `data-cd-id` is always a plain string literal (`data-cd-id="see-pricing"`), never `{…}`. A new id is optional: lowercase words joined by `-`, at most 48 characters, never 8 hex characters, unique in the file.
    - A locked element stays exactly as it is — attributes, text and where it sits. Its parent may change around it.
    - `data-cd-hidden` and `data-cd-locked` are written by the person's gestures (Hide, Lock), never by you.
+   - A hover effect is `data-hover="<preset>"` (a plain string literal), never a `data-cd-*` attribute and never an inline `:hover`: `lift-resting`, `lift-floating`, `lift-sheet`, `darken` or `underline`. Nothing else is valid. It is design: keep it when you move, wrap or restyle the element, and carry it onto a copy.
    - The post-edit id check blocks a lost, duplicated or expression-valued id and a changed locked element, and names the element and its line. Fix it with your own one-line Edit (put the id back on that element). The id is not the layer name: the name is `data-dc-element`.

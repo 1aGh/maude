@@ -263,11 +263,40 @@ describe('mode-toggle / the Share cluster switch', () => {
     expect(chev?.getAttribute('aria-haspopup')).toBe('menu');
     act(() => chev?.click());
     expect(chev?.getAttribute('aria-expanded')).toBe('true');
+    const first = document.querySelector('[data-testid="mode-present-from-selection"]');
+    expect(document.activeElement).toBe(first as Element);
     const row = document.querySelector<HTMLButtonElement>('[data-testid="mode-present-canvas"]');
-    expect(document.activeElement).toBe(row as Element);
     act(() => row?.click());
     expect(r.presented()).toBe(1);
     expect(document.querySelector('[data-testid="mode-present-list"]')).toBeNull();
+  });
+
+  test('S3.1 — Present ⌄ lists the artboards one by one (⌥⌘↵, ⇧⌥⌘↵) above the canvas; later rows stay hidden', () => {
+    const asked: string[] = [];
+    mountCluster({ onPresent: (k: string) => asked.push(k), presentFromLabel: 'Post 1:1' });
+    const open = () =>
+      act(() =>
+        document.querySelector<HTMLButtonElement>('[data-testid="mode-present-menu"]')?.click()
+      );
+    open();
+    const list = document.querySelector('[data-testid="mode-present-list"]');
+    expect(
+      [...(list?.querySelectorAll('[role="menuitem"]') ?? [])].map((b) => b.textContent)
+    ).toEqual([
+      'Present from “Post 1:1”⌥⌘↵',
+      'Present from the start⇧⌥⌘↵',
+      'Present the canvasno chrome, no pins',
+    ]);
+    expect(list?.textContent).toContain('Artboards, one by one');
+    // Presenter view, Order and notes…, Copy presentation link: not until their slice (hidden).
+    expect(list?.textContent).not.toMatch(/Presenter view|Order and notes|presentation link/);
+    for (const id of ['from-selection', 'from-start', 'canvas']) {
+      if (!document.querySelector('[data-testid="mode-present-list"]')) open();
+      act(() =>
+        document.querySelector<HTMLButtonElement>(`[data-testid="mode-present-${id}"]`)?.click()
+      );
+    }
+    expect(asked).toEqual(['selection', 'start', 'canvas']);
   });
 
   test('with no canvas open Present is disabled; Edit / Preview still switch', () => {

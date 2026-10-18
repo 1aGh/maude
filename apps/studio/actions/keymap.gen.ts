@@ -222,6 +222,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⇧P', layer: 'global', inText: false, when: { focus: ['canvas'] } }],
   },
   {
+    id: 'present.from-selection',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [{ chord: '⌥⌘↵', layer: 'global', when: { mode: ['edit', 'viewing', 'preview'] } }],
+  },
+  {
+    id: 'present.from-start',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [{ chord: '⌥⇧⌘↵', layer: 'global', when: { mode: ['edit', 'viewing', 'preview'] } }],
+  },
+  {
     id: 'view.zoom-in',
     exec: 'canvas',
     keys: [
