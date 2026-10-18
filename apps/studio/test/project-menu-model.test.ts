@@ -18,7 +18,17 @@ import {
 describe('the registry half of the menu', () => {
   test('every menu id is registered or on the pending list; the list holds nothing registered', () => {
     const missing = [...new Set(menuIds())].filter((id) => !ACTIONS_BY_ID.has(id)).sort();
-    expect(missing).toEqual(Object.keys(PENDING_MENU_IDS).sort());
+    // Every menu id the registry lacks is pending; the list may also hold non-menu ids (S10.0: the DS
+    // review entries other lanes' rows wait on) — those too must not be registered yet.
+    for (const id of missing) expect(PENDING_MENU_IDS[id], id).toBeDefined();
+    for (const id of Object.keys(PENDING_MENU_IDS)) expect(ACTIONS_BY_ID.has(id), id).toBe(false);
+  });
+
+  test('S10.0: the DS review entries are pending, owned by the S10 task that registers them', () => {
+    // S2.12 / S2.17 hide "Update <X> for every canvas…" and "Go to main" until these land.
+    expect(PENDING_MENU_IDS['ds.review-update']).toBe('S10 (S10.8 review update)');
+    expect(PENDING_MENU_IDS['ds.go-to']).toBe('S10 (S10.6 go to master)');
+    expect(PENDING_MENU_IDS['ds.instance-update']).toBe('S10 (S10.8 instance update)');
   });
 
   test('each pending id names the task that registers it', () => {
