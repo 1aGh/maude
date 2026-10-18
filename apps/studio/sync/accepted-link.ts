@@ -534,6 +534,81 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       );
     },
     /**
+     * S1.13 — one artboard / one object / a kept-aside version back (V2-1.9 §5.8): the lanes the
+     * studio computed, as ONE `restore` action; each carries the head it read as `baseContent`, so
+     * the hub merges three-way onto whatever landed since (a conflict → `base-conflict`).
+     */
+    restoreLanes(
+      slug: string,
+      lanes: { lane: LaneProposal['lane']; content: string; baseContent: string }[],
+      label: string
+    ): Promise<StructuralOutcome> {
+      const doc = opts.docNameFor(slug);
+      return structural(
+        label,
+        'restore',
+        lanes.map((l) => ({
+          op: 'lane.replace',
+          doc,
+          lane: l.lane,
+          content: l.content,
+          baseContent: l.baseContent,
+        })),
+        8_000
+      );
+    },
+    /** S1.13 — the body a `history.aside` at exactly `revision` kept for `lane` (null: none). */
+    async asideAt(slug: string, lane: LaneProposal['lane'], revision: number) {
+      const doc = opts.docNameFor(slug);
+      const r = (await client.read('revisions', { after: revision - 1, limit: 1 })) as {
+        revisions?: {
+          revision: number;
+          effects?: { doc: string; lane: string; op: string; afterHash: string | null }[];
+        }[];
+      };
+      const row = r.revisions?.[0];
+      const e =
+        row?.revision === revision
+          ? row.effects?.find(
+              (x) => x.lane === '@aside' && x.doc === doc && x.op === `aside.${lane}`
+            )
+          : undefined;
+      if (!e?.afterHash || !/^[0-9a-f]{64}$/.test(e.afterHash)) return null;
+      const b = (await client.read(`blobs/${e.afterHash}`, {})) as { body?: string };
+      return typeof b.body === 'string' ? b.body : null;
+    },
+    /** S1.12b — name a version (`history.name`, S1-trash.md §3); `null` clears the name. */
+    name(slug: string, revision: number, name: string | null): Promise<StructuralOutcome> {
+      return structural(
+        name ?? 'Name cleared',
+        'name',
+        [{ op: 'history.name', doc: opts.docNameFor(slug), revision, name }],
+        8_000
+      );
+    },
+    /** S1.12b — keep a version nobody kept (`history.aside`): a body, no head moves. */
+    aside(
+      slug: string,
+      lane: 'html' | 'css' | 'meta' | 'annotations',
+      content: string,
+      label?: string
+    ): Promise<StructuralOutcome> {
+      return structural(
+        label ?? 'Version not kept',
+        'aside',
+        [
+          {
+            op: 'history.aside',
+            doc: opts.docNameFor(slug),
+            lane,
+            content,
+            ...(label ? { label } : {}),
+          },
+        ],
+        8_000
+      );
+    },
+    /**
      * Personal undo / redo of this actor's actions: one id, or several as ONE
      * action (S5.1a `actionIds` — "as if they never happened"). The answer
      * keeps the kernel's `undoes` and `skipped` (lanes someone changed since).

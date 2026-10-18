@@ -159,6 +159,20 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S1.12b routes/history.ts — Version history (V2-1.9 §5.11)
+  '/_api/project/versions': { class: 'read' },
+  '/_api/project/changes': { class: 'read' },
+  '/_api/project/source': { class: 'read' },
+  '/_api/project/name': {
+    class: 'structural',
+    via: 'history.name { doc, revision, name|null } — one `name` action, an @name effect + names row, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
+  '/_api/project/aside': {
+    class: 'structural',
+    via: 'history.aside { doc, lane, content, label? } — one `aside` action, the body as an @aside blob, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
   // S1.7 routes/trash.ts — the shared Trash over the one op log (S1-trash.md)
   '/_api/trash': { class: 'read' },
   '/_api/trash/restore': {

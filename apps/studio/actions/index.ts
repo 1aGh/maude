@@ -9,6 +9,7 @@ import { CHAT_ACTIONS } from './defs/chat.ts';
 import { DIAGNOSTICS_ACTIONS } from './defs/diagnostics.ts';
 import { EDIT_ACTIONS } from './defs/edit.ts';
 import { EXPORT_ACTIONS } from './defs/export.ts';
+import { HISTORY_ACTIONS } from './defs/history.ts';
 import { NATIVE_ACTIONS } from './defs/native.ts';
 import { SEARCH_ACTIONS } from './defs/search.ts';
 import { TIMELINE_ACTIONS } from './defs/timeline.ts';
@@ -33,6 +34,7 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...TEMPLATE_ACTIONS,
   ...NATIVE_ACTIONS,
   ...CHAT_ACTIONS,
+  ...HISTORY_ACTIONS,
 ]);
 
 export const ACTIONS_BY_ID: ReadonlyMap<ActionId, ActionDef> = new Map(

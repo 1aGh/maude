@@ -67,6 +67,15 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // S3.10a — `element.set-link` / `element.clear-link`: one dispatch route for every structural edit (test/edit-op-route.test.ts;
   // the viewer's 403 through a booted studio is a row of test/access-role-matrix.test.ts).
   { method: 'POST', route: '/_api/edit-op', refused: ['view', 'comment'] },
+  // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
+  { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
+  // S1.17 — trash.restore: the Trash row's Restore (an edit; test/acl-l18-trash.test.ts consumes it).
+  {
+    method: 'POST',
+    route: '/_api/trash/restore',
+    refused: ['view', 'comment'],
+    body: { id: 'canvas:n_a' },
+  },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;
