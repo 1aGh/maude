@@ -114,6 +114,8 @@ export interface VersionRow {
   /** Project scope only: how many other canvases the row's actions also changed. */
   alsoOn?: number;
   madeAt: number;
+  /** S5.15 — an AI row's chat: "Undo this chat" (V2-1.5 §5.3 `chat.undo`) names it. */
+  chatId?: string;
 }
 
 export interface ReduceOptions {
@@ -362,6 +364,7 @@ function assemble(g: OpenRow, named: Map<number, RowName>, opts: ReduceOptions):
           },
     ...(alsoOn > 0 ? { alsoOn } : {}),
     madeAt: last.madeAt,
+    ...(g.kind === 'ai' && first.chatId ? { chatId: first.chatId } : {}),
   };
 }
 

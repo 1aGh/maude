@@ -14661,6 +14661,38 @@
     "v2": "new"
   },
   {
+    "hook": "vh-undo-chat",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Held AI row (your AI, its chat known) › \"Undo this chat\": every change of that chat as ONE new version; disabled on an old team server. Absent for Can view and Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatUndo.jsx",
+      "symbol": "ChatUndoButton"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-chat-undo.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-undo-chat-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Beside a disabled \"Undo this chat\": \"Undo this chat needs the team server to be updated\".",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatUndo.jsx",
+      "symbol": "ChatUndoButton"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-chat-undo.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "vh-more",
     "kind": "testid",
     "pattern": false,

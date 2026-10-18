@@ -12,6 +12,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
+import { ChatUndoButton } from '../ai/ChatUndo.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { NameDialog } from './name-dialog.jsx';
 import { nowRow } from './rows.ts';
@@ -58,7 +59,18 @@ function Face({ row }) {
   );
 }
 
-function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }) {
+function Row({
+  row,
+  selected,
+  canEdit,
+  restoring,
+  onView,
+  onRestore,
+  onCompare,
+  onChanged,
+  fetchImpl,
+  toast,
+}) {
   return (
     <li className="vh-item">
       <button
@@ -95,6 +107,14 @@ function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }
               {W.compare}
             </button>
           ) : null}
+          {/* S5.15 — your AI's row: every change of its chat, as ONE new version (03 ai-history) */}
+          <ChatUndoButton
+            row={row}
+            canEdit={canEdit}
+            fetchImpl={fetchImpl}
+            toast={toast}
+            onDone={() => onChanged?.()}
+          />
           {canEdit ? (
             <button
               type="button"
@@ -299,6 +319,9 @@ export function VersionHistoryPanel({
                       onCompare={onCompare}
                       onView={(r) => onView?.({ path, ...viewingWords(r) })}
                       onRestore={doRestore}
+                      onChanged={onChanged}
+                      fetchImpl={fetchImpl}
+                      toast={toast}
                     />
                   ))}
                 </ul>

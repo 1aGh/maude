@@ -536,6 +536,8 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `vh-acts` | testid | The held row's actions: Compare (when Compare is wired) and Restore this version (edit only). | `client/v2/history/history-panel.jsx` · `Row` | — | new |
 | `vh-compare` | testid | Held row › Compare (S1.15). | `client/v2/history/history-panel.jsx` · `Row` | — | new |
 | `vh-restore` | testid | Held row › "Restore this version": a new version, then a toast "Restored 5 Oct, 18:40 · Undo". Absent for Can view and Can comment. | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-undo-chat` | testid | Held AI row (your AI, its chat known) › "Undo this chat": every change of that chat as ONE new version; disabled on an old team server. Absent for Can view and Can comment. | `client/v2/ai/ChatUndo.jsx` · `ChatUndoButton` | — | new |
+| `vh-undo-chat-line` | testid | Beside a disabled "Undo this chat": "Undo this chat needs the team server to be updated". | `client/v2/ai/ChatUndo.jsx` · `ChatUndoButton` | — | new |
 | `vh-more` | testid | "Show older versions" at the foot of the list. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-empty` | testid | The empty state: "Versions appear here as you work." (or the filter's own line). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-loading` | testid | Skeleton rows while the first page loads. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
