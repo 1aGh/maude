@@ -489,6 +489,8 @@ export function visibleRows(
  */
 export function panelFootLine({ total, shown, searching, jump = null, foots = null }) {
   if (foots?.sync) return { ...foots.sync, source: 'sync' };
+  // S11.4 — a project still coming down says how far it has got (05 · es-arriving)
+  if (foots?.arriving) return { ...foots.arriving, source: 'arriving' };
   // S1.3 — while a canvas's artboards are listed, the foot counts them (11 · pn-jump)
   if (jump) return { text: jumpFoot(jump.boards, { dynamic: jump.dynamic }), source: 'jump' };
   if (foots?.access) return { ...foots.access, source: 'access' };
