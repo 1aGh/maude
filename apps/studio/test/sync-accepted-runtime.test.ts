@@ -31,6 +31,7 @@ import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
+import { createProjectUndoRoutes } from '../routes/project-undo.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { describeSourceOp } from '../sync/source-ops.ts';
@@ -1102,6 +1103,116 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(undone?.status).toBe('accepted');
     await waitFor(() => !bobBoard().includes('s_run1'), 'Undo this chat on bob');
   }, 60_000);
+
+  test('S2.20c: ⌘Z on your edit made during an AI run queues its inverse behind the run; run, edit and undo land in order; Undo this chat leaves neither', async () => {
+    const rel = 'ui/pending.tsx';
+    const repoRel = 'design/ui/pending.tsx';
+    const body = (title: string, color: string) =>
+      `export default function Pending() {\n  return (\n    <section>\n      <h1 title="${title}">Hi</h1>\n      <p>between</p>\n      <p color="${color}">Body</p>\n    </section>\n  );\n}\n`;
+    alice.write(rel, body('v1', 'black'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read(rel) === body('v1', 'black');
+    }, 'the canvas on bob');
+    const created = (await api(hub, 'revisions?limit=500')).body.revisions.at(-1)
+      ?.revision as number;
+    await waitFor(
+      () =>
+        ((alice.runtime.status?.() as { appliedRevision?: number } | null)?.appliedRevision ?? 0) >=
+        created,
+      'alice to apply the canvas revision'
+    );
+    const specs = createProjectUndoRoutes({ control: () => alice.runtime, designRel: 'design' });
+    const spec = (method: string, p: string) => {
+      const s = specs.find((x) => x.method === method && x.path === p);
+      if (!s) throw new Error(`no ${method} ${p}`);
+      return s;
+    };
+    const stack = async () =>
+      (await (
+        await spec('GET', '/_api/project/undo-stack').handle(
+          new Request(
+            `http://localhost/_api/project/undo-stack?canvas=${encodeURIComponent(repoRel)}`
+          ),
+          {} as never
+        )
+      ).json()) as {
+        ok: boolean;
+        entries: Record<string, unknown>[];
+        redo: Record<string, unknown>[];
+      };
+
+    // Your AI run writes the title; you change the colour while it is open (a UI edit).
+    alice.runtime.beginAiAction?.('acp:chat-pend', 'Claude: retitle', {
+      runId: 'r_pend0001',
+      chatId: 'chat-pend',
+    });
+    alice.write(rel, body('by Claude', 'black'));
+    await new Promise((r) => setTimeout(r, 400));
+    alice.ctx.bus.emit('activity:suppress', rel);
+    alice.write(rel, body('by Claude', 'red'));
+    const [mine] = await waitFor(() => {
+      const w = alice.runtime.pendingEdits?.(repoRel);
+      return w?.length ? w : null;
+    }, 'your edit waiting behind the run');
+    expect(mine).toMatchObject({ label: 'Edit canvas' });
+    const s0 = await stack();
+    expect(s0.entries[0]).toMatchObject({ actionId: null, pendingTx: mine.transactionId });
+
+    // ⌘Z on it: the disk loses YOUR change at once and keeps the run's; nothing is published.
+    const res = await spec('POST', '/_api/project/undo').handle(
+      new Request('http://localhost/_api/project/undo', {
+        method: 'POST',
+        body: JSON.stringify({ pendingTx: mine.transactionId, canvas: repoRel, via: 'keys' }),
+        headers: { 'content-type': 'application/json' },
+      }),
+      {} as never
+    );
+    const undone = (await res.json()) as { ok: boolean; pendingTx: string };
+    expect(undone.ok).toBe(true);
+    expect(alice.read(rel)).toBe(body('by Claude', 'black'));
+    expect(alice.runtime.pendingEdits?.(repoRel)).toEqual([
+      mine,
+      {
+        transactionId: undone.pendingTx,
+        label: 'Undo',
+        madeAt: expect.any(Number),
+        undoes: mine.transactionId,
+      },
+    ]);
+    const s1 = await stack();
+    expect(s1.entries.find((e) => e.pendingTx === mine.transactionId)).toBeUndefined();
+    expect(s1.redo[0]).toMatchObject({ pendingTx: mine.transactionId, state: 'undone' });
+    await new Promise((r) => setTimeout(r, 800));
+    expect(bob.read(rel)).toBe(body('v1', 'black')); // nothing overtook the run
+    expect(alice.read(rel)).toBe(body('by Claude', 'black')); // the inverse write was never re-proposed
+
+    // The run publishes: the run, your edit, then its undo — in that order.
+    const ended = await alice.runtime.endAiAction?.('r_pend0001', 'done');
+    expect(ended?.status).toBe('accepted');
+    await waitFor(() => bob.read(rel) === body('by Claude', 'black'), 'the run on bob');
+    const rows = await waitFor(async () => {
+      const h = (await alice.runtime.acceptedHistory?.({ path: repoRel, limit: 10 })) ?? [];
+      return h.length >= 4 ? h : null;
+    }, 'run, edit and undo in history');
+    const [u, edit, ai] = rows;
+    expect(ai).toMatchObject({ kind: 'ai', label: 'Claude: retitle', runId: 'r_pend0001' });
+    expect(edit).toMatchObject({ kind: 'edit', transactionId: mine.transactionId });
+    expect(u).toMatchObject({ kind: 'undo', label: 'Undo', undoes: edit.actionId });
+    expect(edit.madeAt as number).toBeLessThan(ai.madeAt as number); // your gesture time
+    expect(alice.runtime.pendingEdits?.(repoRel)).toEqual([]);
+    const s2 = await stack();
+    expect(s2.entries[0]).toMatchObject({ actionId: ai.actionId, who: 'ai' });
+    expect(s2.redo[0]).toMatchObject({ actionId: edit.actionId, undoneVia: u.actionId });
+    await waitFor(() => alice.read(rel) === body('by Claude', 'black'), 'alice settled');
+
+    // The run is undone: as if it never happened — your edit and its undo cancel out.
+    const chat = await alice.runtime.acceptedUndo?.({ chatId: 'chat-pend' });
+    expect(chat?.status).toBe('accepted');
+    await waitFor(() => bob.read(rel) === body('v1', 'black'), 'Undo this chat on bob');
+    await waitFor(() => alice.read(rel) === body('v1', 'black'), 'Undo this chat on alice');
+  }, 90_000);
 
   test('a fresh checkout replays the project byte-identically (T14)', async () => {
     const carolRoot = join(root, 'carol');

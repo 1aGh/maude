@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "6a6dc09e0e2b",
+  "manifestVersion": "e63e0fb331d5",
   "actions": [
     {
       "id": "search.open",
@@ -337,6 +337,18 @@
         "path": "human",
         "because": "keys",
         "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
+      }
+    },
+    {
+      "id": "edit.undo-history",
+      "label": "Undo history…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack, shown; an agent reads history with `maude design history list`"
       }
     },
     {

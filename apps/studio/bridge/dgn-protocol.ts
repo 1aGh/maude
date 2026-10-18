@@ -108,6 +108,8 @@ export interface CanvasToShell {
   'edit-text': { id: Id; file: string; text: string; occurrence?: number; before?: string };
   'apply-edit': ApplyEditMessage & { requestId: string };
   'undo-barrier': { requestId: string };
+  /** S2.20b — ⌘Z (`redo: false`) / ⇧⌘Z pressed in an op-log canvas: the shell's projection runs it */
+  'undo-key': { redo: boolean };
   /** S2.1 — one structural edit; the shell pins `file` to the active canvas (S2-edit-ops.md §6) */
   'edit-op': {
     requestId: string;
@@ -382,6 +384,11 @@ export interface ShellToCanvas {
   'ai-holds': {
     holds: Array<{ artboard: Id; element: Id; occurrence?: number; tag: string; mine: boolean }>;
   };
+  // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
+  'undo-preview': { artboards: string[]; tag: string | null };
+  // S2.20b — state, not an event: `opLog: true` → the shell owns ⌘Z (the op log) and the canvas
+  // keeps no durable stack; sent on every change and to a frame on `loaded` / `canvas-rendered`.
+  'undo-mode': { opLog: boolean };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -672,6 +679,12 @@ const c2s: C2S = {
     }),
   },
   'undo-barrier': { gate: 'active', status: 'live', owner: BR, parse: p({ requestId: str }) },
+  'undo-key': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/undo/use-undo-mode-lane (S2.20b)',
+    parse: p({ redo: bool }),
+  },
   'edit-op': {
     gate: 'active',
     status: 'live',
@@ -1387,6 +1400,18 @@ const s2c: S2C = {
     status: 'new',
     owner: 'editing/hold-rings (S2.18)',
     parse: p({ holds: aiHoldList }),
+  },
+  'undo-preview': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-preview (S2.20)',
+    parse: p({ artboards: arrOf(str), tag: nul(str) }),
+  },
+  'undo-mode': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-mode (S2.20b)',
+    parse: p({ opLog: bool }),
   },
 };
 

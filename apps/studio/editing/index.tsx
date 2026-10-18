@@ -41,14 +41,14 @@ import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './obje
 import { PinGuides } from './place-freely.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
+import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
 import { StickyName } from './sticky-name.tsx';
 import { TidyPreview } from './tidy-preview.tsx';
+import { TokenRuler } from './token-ruler.tsx';
+import { UndoPreview } from './undo-preview.tsx';
 
 /** S2.8 — the shell asks the canvas to pin an artboard's theme; canvas-shell listens (it owns the pins). */
 export const SET_ARTBOARD_THEME_EVENT = 'maude:set-artboard-theme';
-
-import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
-import { TokenRuler } from './token-ruler.tsx';
 
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
 export const EDITING_ACTIONS = [
@@ -209,6 +209,8 @@ export function EditingLayer() {
       <TokenRuler />
       <ReorderSlot />
       <PinGuides readOnly={isReadOnlyCanvas()} />
+      {/* S2.20 — an Undo history row lights what it would undo */}
+      <UndoPreview />
     </>
   );
 }

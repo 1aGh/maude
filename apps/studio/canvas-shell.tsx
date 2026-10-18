@@ -90,6 +90,7 @@ import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
+import { forwardUndoKey } from './editing/undo-mode.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import { ExportDialogProvider } from './export-dialog.tsx';
 import {
@@ -2598,6 +2599,14 @@ function CanvasRouter({
   // without making them a hook dependency — avoids re-binding on every undo op.
   const undoStackRef = useRef(undoStack);
   undoStackRef.current = undoStack;
+  // S2.20b — ⌘Z / ⇧⌘Z from this canvas (its keys, or the shell's `run-action edit.undo`): after the
+  // shell's pending writes settle, the op log's projection runs it (`undo-key` to the shell) or, on a
+  // legacy project, the canvas stack does.
+  const canvasUndoKey = (redo: boolean) =>
+    void afterShellRecords().then(() => {
+      if (forwardUndoKey(redo)) return;
+      void (redo ? undoStackRef.current.redo() : undoStackRef.current.undo());
+    });
   // Selection readback can refresh while the user is typing (e.g. the shell's
   // post-HMR halo restore). Keep the editor's lifetime tied to its host, not
   // the changing selection snapshot, or effect cleanup silently ends typing.
@@ -2836,11 +2845,10 @@ function CanvasRouter({
           selSet.clear();
           annotSel.clear();
           setHoverEl(null);
-        } else if (id === 'edit.undo') {
-          // Plan C — Edit menu (shell) bridges to the in-canvas undo stack.
-          void afterShellRecords().then(() => undoStackRef.current.undo());
-        } else if (id === 'edit.redo') {
-          void afterShellRecords().then(() => undoStackRef.current.redo());
+        } else if (id === 'edit.undo' || id === 'edit.redo') {
+          // Plan C — Edit menu (shell) bridges to the in-canvas undo stack. S2.20b — on the op log
+          // the iframe keeps no stack: the key goes back to the shell's projection.
+          canvasUndoKey(id === 'edit.redo');
         } else if (replayToolKey(id, params)) {
           // V2-4.5b — a toolbar key pressed with the shell focused; the router decides.
         } else if (replayActionKey(id)) {
@@ -3538,12 +3546,8 @@ function CanvasRouter({
         ctxMenu.open(ctxTarget);
       },
       onTool: ({ tool: t }) => setTool(t),
-      onUndo: () => {
-        void afterShellRecords().then(() => undoStackRef.current.undo());
-      },
-      onRedo: () => {
-        void afterShellRecords().then(() => undoStackRef.current.redo());
-      },
+      onUndo: () => canvasUndoKey(false),
+      onRedo: () => canvasUndoKey(true),
       onEscape: () => {
         // T21 — abort any mid-stroke draw FIRST. The annotations layer
         // listens for `maude:cancel-stroke` and drops the in-progress

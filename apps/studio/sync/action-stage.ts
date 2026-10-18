@@ -34,7 +34,9 @@
 // What is staged is only a WATCHER change (a tool writing a file). An edit the
 // person makes in the UI is theirs and is proposed at once — unless it is made
 // on top of staged bytes, in which case it waits behind every run it depends on
-// (`dependents`), exactly as U2 waits on U1.
+// (`dependents`), exactly as U2 waits on U1. A waiting edit is listed (`waiting`)
+// as a pending ⌘Z entry; ⌘Z on it queues its inverse as ANOTHER waiting edit that
+// depends on it, so it goes out right behind it (S2.20c, V2-1.5 §5.4).
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -106,10 +108,31 @@ export interface StageSummary {
   runs?: RunStageSummary[];
 }
 
+/**
+ * S2.20c (V2-1.5 §5.4) — a person's edit waiting behind a run: what the ⌘Z stack shows as a pending
+ * entry (`transactionId` / `label` / `madeAt` / `slug`), and the two sides ⌘Z on it takes back.
+ * `undoes` marks the inverse such a ⌘Z queued: another waiting edit, behind the same run, that
+ * takes back the waiting edit with that transaction id (decision v2-lead-pending-inverse-via-stage).
+ */
+export interface WaitingEdit {
+  transactionId: string;
+  slug: string;
+  lane: LaneProposal['lane'];
+  label: string;
+  madeAt: number;
+  content: string;
+  baseContent: string;
+  undoes?: string;
+}
+
+/** A waiting edit without its bytes (what the undo stack reads). */
+export type WaitingEditSummary = Omit<WaitingEdit, 'content' | 'baseContent'>;
+
 interface Dependent {
   send: (dependsOn: string[] | undefined) => void;
   drop: (o: ProposalOutcome) => void;
   dependsOn: string[];
+  edit?: WaitingEdit;
 }
 
 export interface StageProposal {
@@ -503,12 +526,23 @@ export function createActionStage(opts: ActionStageOptions) {
     });
   }
 
-  function runsHolding(dependsOn: string[] | undefined): Set<string> {
+  /**
+   * The runs a proposal waits behind: those that staged a transaction it depends on, and — through
+   * a waiting edit it depends on (an edit on top of a waiting edit, the inverse ⌘Z queued) — the
+   * runs THAT one waits behind, so the second never overtakes the first.
+   */
+  function runsHolding(dependsOn: string[] | undefined, seen = new Set<string>()): Set<string> {
     const out = new Set<string>();
     if (!dependsOn?.length) return out;
     for (const r of runs.values())
       for (const l of r.lanes.values())
         if (l.txs.some((t) => dependsOn.includes(t))) out.add(r.runId);
+    for (const d of dependents) {
+      const tx = d.edit?.transactionId;
+      if (!tx || seen.has(tx) || !dependsOn.includes(tx)) continue;
+      seen.add(tx);
+      for (const id of runsHolding(d.dependsOn, seen)) out.add(id);
+    }
     return out;
   }
 
@@ -519,6 +553,22 @@ export function createActionStage(opts: ActionStageOptions) {
 
   function wait(dep: Dependent): void {
     dependents.push(dep);
+  }
+
+  const summaryOfEdit = ({ content: _c, baseContent: _b, ...rest }: WaitingEdit) => rest;
+
+  /** S2.20c — the person's edits waiting behind a run (oldest first), optionally of one canvas. */
+  function waiting(slug?: string): WaitingEditSummary[] {
+    return dependents
+      .map((d) => d.edit)
+      .filter((e): e is WaitingEdit => !!e && (slug === undefined || e.slug === slug))
+      .map(summaryOfEdit);
+  }
+
+  /** One waiting edit with its bytes (⌘Z on it computes the inverse), null once it went out. */
+  function waitingEdit(transactionId: string): WaitingEdit | null {
+    const e = dependents.find((d) => d.edit?.transactionId === transactionId)?.edit;
+    return e ? { ...e } : null;
   }
 
   /** Rewrite a dependency on a staged proposal to the run that carried it. */
@@ -699,6 +749,8 @@ export function createActionStage(opts: ActionStageOptions) {
     overlapWith,
     holdsDependency,
     wait,
+    waiting,
+    waitingEdit,
     mapDeps,
     summary,
     runs: (): RunStageSummary[] => [...runs.values()].map(runSummary),

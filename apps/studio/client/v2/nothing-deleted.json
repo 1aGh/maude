@@ -3458,6 +3458,8 @@
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler": "v2 code (added after the freeze)",
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-free": "v2 code (added after the freeze)",
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-hint": "v2 code (added after the freeze)",
-    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-stop-px": "v2 code (added after the freeze)"
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-stop-px": "v2 code (added after the freeze)",
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview": "v2 code (added after the freeze)",
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview-tag": "v2 code (added after the freeze)"
   }
 }

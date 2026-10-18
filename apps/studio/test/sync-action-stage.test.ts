@@ -344,4 +344,85 @@ describe('per-run stages', () => {
     stage.touch('r_1', 'ui/a.tsx', ['S', 'P']);
     expect(stage.runs()[0]?.touched).toEqual({ 'ui/a.tsx': ['P', 'S'] });
   });
+
+  // S2.20c (V2-1.5 §5.4) — ⌘Z on your edit while your run is open proposes its inverse as another
+  // waiting edit behind the same run.
+  const edit = (tx: string, extra: Record<string, unknown> = {}) => ({
+    transactionId: tx,
+    slug: 'ui-a',
+    lane: 'html' as const,
+    label: 'Edit canvas',
+    madeAt: 1_500,
+    content: 'A2',
+    baseContent: 'A1',
+    ...extra,
+  });
+
+  test('S2.20c: a waiting edit is listed (no bytes); the inverse queued on it waits behind the SAME run and goes out after it', async () => {
+    const { stage, sent } = rig();
+    stage.begin('k', 'AI', { runId: 'r_1' });
+    void stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx_run'));
+    const order: string[] = [];
+    stage.wait({
+      dependsOn: ['tx_run'],
+      send: () => order.push('edit'),
+      drop: () => order.push('edit dropped'),
+      edit: edit('tx_p'),
+    });
+    // The inverse depends on the waiting edit only — no run staged THAT transaction.
+    expect(stage.holdsDependency(['tx_p'])).toBe(true);
+    stage.wait({
+      dependsOn: ['tx_p'],
+      send: () => order.push('inverse'),
+      drop: () => order.push('inverse dropped'),
+      edit: edit('tx_i', {
+        label: 'Undo',
+        madeAt: 1_600,
+        content: 'A1',
+        baseContent: 'A2',
+        undoes: 'tx_p',
+      }),
+    });
+    expect(stage.waiting('ui-a')).toEqual([
+      { transactionId: 'tx_p', slug: 'ui-a', lane: 'html', label: 'Edit canvas', madeAt: 1_500 },
+      {
+        transactionId: 'tx_i',
+        slug: 'ui-a',
+        lane: 'html',
+        label: 'Undo',
+        madeAt: 1_600,
+        undoes: 'tx_p',
+      },
+    ]);
+    expect(stage.waiting('ui-b')).toEqual([]);
+    expect(stage.waitingEdit('tx_p')).toMatchObject({ content: 'A2', baseContent: 'A1' });
+    expect(order).toEqual([]); // nothing overtakes the run
+    await stage.end('k', 'done');
+    expect(sent).toHaveLength(1);
+    expect(order).toEqual(['edit', 'inverse']); // the run, then the edit, then its inverse
+    expect(stage.waiting()).toEqual([]);
+    expect(stage.waitingEdit('tx_p')).toBeNull();
+  });
+
+  test('S2.20c: discarding the run drops the waiting edit AND the inverse queued on it', async () => {
+    const { stage } = rig();
+    stage.begin('k', 'AI');
+    void stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A0', 'tx_run'));
+    await stage.end('k', 'failed');
+    const out: string[] = [];
+    stage.wait({
+      dependsOn: ['tx_run'],
+      send: () => out.push('edit sent'),
+      drop: () => out.push('edit dropped'),
+      edit: edit('tx_p'),
+    });
+    stage.wait({
+      dependsOn: ['tx_p'],
+      send: () => out.push('inverse sent'),
+      drop: () => out.push('inverse dropped'),
+      edit: edit('tx_i', { undoes: 'tx_p' }),
+    });
+    stage.discard();
+    expect(out).toEqual(['edit dropped', 'inverse dropped']);
+  });
 });

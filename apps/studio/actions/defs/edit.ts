@@ -73,6 +73,15 @@ export const EDIT_ACTIONS: ActionDef[] = [
     legacy: { menu: 'Redo', sheet: 'Undo / redo' },
   },
   {
+    // S2.20 — Menu › Edit › Undo history…: your changes and your AI's on this canvas, newest first
+    // (client/v2/undo/undo-history.jsx, over the ⌘Z projection). No key (V2-1.5 §5.3).
+    id: 'edit.undo-history',
+    label: 'Undo history…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, facts: ['canvasOpen' as const] },
+  },
+  {
     id: 'edit.copy',
     label: 'Copy',
     kind: 'command',
