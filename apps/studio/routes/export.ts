@@ -58,7 +58,12 @@ export interface ExportRouteDeps {
   /** where `lane: 'auto'` renders (workspace-mode.ts `resolveRenderLane`) */
   renderLane(): 'local' | 'remote' | 'none';
   /** S8.4 — run a group job's failed items again; `session` = who asks (the job queue's owner check) */
-  retry(id: string, items: readonly string[] | undefined, session: string): Promise<RetryResult>;
+  retry(
+    id: string,
+    items: readonly string[] | undefined,
+    session: string,
+    allow: (canvas: string | null) => boolean
+  ): Promise<RetryResult>;
 }
 
 /** The role refusal — the same shape the local gate answers a read-only write with. */
@@ -236,10 +241,15 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
         const body = parseRetryBody(text);
         if (!body)
           return json(400, { error: 'bad-retry', message: 'body must be {id, items?: string[]}' });
-        const r = await deps.retry(body.id, body.items, sessionFromRequest(req));
+        // access can change after the job was made: every canvas a retried item reaches is gated again
+        const r = await deps.retry(body.id, body.items, sessionFromRequest(req), (canvas) =>
+          a.can('export', canvas)
+        );
         if (r.ok) return json(202, { jobId: body.id, items: r.items }) as Response;
         // not yours ≡ never existed: the same answer the download route gives
         if (r.reason === 'missing') return new Response('Not found', { status: 404 });
+        if (r.reason === 'not-allowed')
+          return a.canvasOnly ? notInScopeResponse() : capabilityRefusal();
         return json(409, { error: r.reason });
       },
     },

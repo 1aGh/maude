@@ -176,7 +176,10 @@ export type DownloadResult =
 /** S8.4 — why a retry did not start. `missing` is also what another member's job answers (U1). */
 export type RetryResult =
   | { ok: true; items: string[] }
-  | { ok: false; reason: 'missing' | 'not-retryable' | 'nothing-to-retry' | 'busy' };
+  | {
+      ok: false;
+      reason: 'missing' | 'not-retryable' | 'nothing-to-retry' | 'busy' | 'not-allowed';
+    };
 
 export interface ExportJobQueue {
   enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> };
@@ -184,8 +187,15 @@ export interface ExportJobQueue {
    * S8.4 — run again ONLY the failed (or waiting) items of a group job, named by `items` when
    * given. Returns once the re-run is started; the job goes back to `running` and its items
    * and result update in place. The new files join the ones the job already holds.
+   * `allow(canvas)` is asked of every canvas a retried item reaches (`null` = the whole project):
+   * access can change after the job was made, so a retry is gated again, never inherited.
    */
-  retry(id: string, items?: readonly string[], session?: string): Promise<RetryResult>;
+  retry(
+    id: string,
+    items?: readonly string[],
+    session?: string,
+    allow?: (canvas: string | null) => boolean
+  ): Promise<RetryResult>;
   /**
    * Record an export the MEMBER'S BROWSER produced and saved (DDR-231 browser
    * lane) so it appears in the same ledger every other export does. No bytes
@@ -440,6 +450,13 @@ export function createExportJobQueue(
           filename: e.filename as string | undefined,
           error: e.error as string | undefined,
           ...(e.runsOn === 'cloud' || e.runsOn === 'this-mac' ? { runsOn: e.runsOn } : {}),
+          // S8.4 — a v2 row keeps what it was (the panel reads "Exported 114 of 115" after a
+          // restart, and Export again replays the stored spec); the plan to RETRY it is gone.
+          ...(e.spec && typeof e.spec === 'object' ? { spec: e.spec as ExportSpecV2 } : {}),
+          ...(Array.isArray(e.items) ? { items: e.items as ExportJobItem[] } : {}),
+          ...(e.degraded && typeof e.degraded === 'object'
+            ? { degraded: e.degraded as ExportDegradation }
+            : {}),
         });
         // V2-2.8 S5 — a row written before ownership existed has no `session`
         // and stays the shared ('') owner's, which in a cell is nobody.
@@ -655,7 +672,8 @@ export function createExportJobQueue(
   async function retry(
     id: string,
     itemIds?: readonly string[],
-    session: string = currentSession()
+    session: string = currentSession(),
+    allow?: (canvas: string | null) => boolean
   ): Promise<RetryResult> {
     const job = jobs.get(id);
     // Another member's job answers exactly like a missing one (V2-1.16 U1).
@@ -672,6 +690,8 @@ export function createExportJobQueue(
       if (unfinished && (!wanted || wanted.has(item.id))) at.push(i);
     });
     if (at.length === 0) return { ok: false, reason: 'nothing-to-retry' };
+    if (allow && at.some((i) => !allow((group.units[i] as SpecUnit).canvas)))
+      return { ok: false, reason: 'not-allowed' };
 
     const items = job.items;
     const again = at.map((i) => items[i] as ExportJobItem);

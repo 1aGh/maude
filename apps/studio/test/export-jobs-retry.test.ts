@@ -6,7 +6,7 @@
 // call. The queue takes its engine call as a dependency so a unit can fail on cue.
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import JSZip from 'jszip';
@@ -84,6 +84,9 @@ function fakeEngine() {
   return { calls, failing, run };
 }
 
+/** the default name template on canvas ui/Home.tsx: `{canvas} — {artboard}@{scale}` */
+const file = (n: number) => `Home — Board ${n}@1x.png`;
+
 const wait = async (get: () => ExportJob | undefined, until: (j: ExportJob) => boolean) => {
   const deadline = Date.now() + 5000;
   for (;;) {
@@ -120,7 +123,7 @@ describe('Retry runs only the items that failed', () => {
     expect(job.status).toBe('done');
     expect(job.items?.map((i) => i.status)).toEqual(['ok', 'failed', 'ok']);
     expect(job.retryable).toBe(true);
-    expect(await names(queue, id, ALICE)).toEqual(['Club — Board 1.png', 'Club — Board 3.png']);
+    expect(await names(queue, id, ALICE)).toEqual([file(1), file(3)]);
   });
 
   test('retry runs the failed item and nothing else, then the zip holds all three', async () => {
@@ -140,12 +143,8 @@ describe('Retry runs only the items that failed', () => {
     );
     // the engine saw ONE more call: the failed board, not the 2 that made it
     expect(eng.calls).toEqual(['board-1', 'board-2', 'board-3', 'board-2']);
-    expect(job.retryable).toBe(false);
-    expect(await names(queue, id, ALICE)).toEqual([
-      'Club — Board 1.png',
-      'Club — Board 2.png',
-      'Club — Board 3.png',
-    ]);
+    expect(job.retryable).toBeFalsy();
+    expect(await names(queue, id, ALICE)).toEqual([file(1), file(2), file(3)]);
   });
 
   test('a retried item that fails again stays failed and the others stay as they were', async () => {
@@ -160,7 +159,7 @@ describe('Retry runs only the items that failed', () => {
       (j) => j.status === 'done' && j.items?.[1]?.status === 'failed' && j.retryable === true
     );
     expect(job.items?.map((i) => i.status)).toEqual(['ok', 'failed', 'ok']);
-    expect(await names(queue, id, ALICE)).toEqual(['Club — Board 1.png', 'Club — Board 3.png']);
+    expect(await names(queue, id, ALICE)).toEqual([file(1), file(3)]);
   });
 
   test('named items outside the failed ones are not re-run', async () => {
@@ -188,6 +187,72 @@ describe('Retry runs only the items that failed', () => {
     expect(await queue.retry(plain.id, undefined, ALICE)).toEqual({
       ok: false,
       reason: 'not-retryable',
+    });
+  });
+});
+
+describe('after a restart', () => {
+  test('a v2 row still reads "2 of 3" and keeps its spec, but its plan is gone so it cannot be retried', async () => {
+    const dr = designRoot();
+    const items = [
+      { id: 'u1', name: 'Board 1', status: 'ok', files: [file(1)] },
+      { id: 'u2', name: 'Board 2', status: 'failed', reason: 'boom' },
+    ];
+    writeFileSync(
+      join(dr, '_export-history.json'),
+      JSON.stringify([
+        {
+          id: 'old-1',
+          format: 'png',
+          scope: 'artboard',
+          options: {},
+          filename: file(1),
+          at: '2026-10-18T10:00:00.000Z',
+          status: 'done',
+          finishedAt: '2026-10-18T10:00:00.000Z',
+          spec: plan(2).spec,
+          items,
+          degraded: { reason: 'Exported without audio.', audioDropped: true },
+          runsOn: 'cloud',
+        },
+      ])
+    );
+    const queue = createExportJobQueue(createBus(), dr, { runExport: fakeEngine().run });
+    const row = queue.get('old-1', '') as ExportJob;
+    expect(row.items).toEqual(items);
+    expect(row.spec).toEqual(plan(2).spec);
+    expect(row.degraded?.audioDropped).toBe(true);
+    expect(row.runsOn).toBe('cloud');
+    expect(row.retryable).toBeFalsy();
+    expect(await queue.retry('old-1', undefined, '')).toEqual({
+      ok: false,
+      reason: 'not-retryable',
+    });
+  });
+});
+
+describe('Retry is gated again, not inherited', () => {
+  test('a canvas the member can no longer export is refused and nothing re-runs', async () => {
+    const eng = fakeEngine();
+    eng.failing.add('board-2');
+    const queue = createExportJobQueue(createBus(), designRoot(), { runExport: eng.run });
+    const { id, result } = queue.enqueue(args(plan(3), ALICE));
+    await result;
+    eng.failing.clear();
+    const asked: Array<string | null> = [];
+    const refused = await queue.retry(id, undefined, ALICE, (canvas) => {
+      asked.push(canvas);
+      return false;
+    });
+    expect(refused).toEqual({ ok: false, reason: 'not-allowed' });
+    expect(asked).toEqual(['ui/Home.tsx']); // only the canvas the retried item reaches
+    await Bun.sleep(20);
+    expect(eng.calls).toHaveLength(3);
+    expect(queue.get(id, ALICE)?.items?.[1]?.status).toBe('failed');
+    // …and still retryable once allowed
+    expect(await queue.retry(id, undefined, ALICE, () => true)).toEqual({
+      ok: true,
+      items: ['u2'],
     });
   });
 });
