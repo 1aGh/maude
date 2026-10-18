@@ -20,7 +20,8 @@
 // over a `listbox` labelled Results, its dialog takes `tabindex=-1` for the focus helper; the Settings rail's tabs
 // sit in their own `.v2s-tabs` tablist. Then `browser/shortcuts` alone (V2-4 gate, decision:maude/v2-4-gate-help-keys-once):
 // the "?" sheet lists a key once (⌘Z was shown twice for Undo, Esc twice for Step back), drops v1 "any modifier"
-// alias sets (⌥⇧⌘Esc, ⌘⌫ …) and merges same-label same-key rows (Nudge / Remove for objects and annotations).
+// alias sets (⌥⇧⌘Esc, ⌘⌫ …) and merges same-label same-key rows (Nudge / Remove for objects and annotations);
+// then (f1607c3e) ⌥⌘1 … ⌥⌘9 reads as one range ⌥⌘1–9 and each "or" sits with its key in a `.so-alt` span.
 // Verified identical on a second run.
 //
 // Approved delta (V2-4.5–4.8 + 4.10, decision:maude/v2-4.8a-menubar-removed, decision:maude/v2-4.8b-callout-stack,
