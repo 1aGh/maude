@@ -2,10 +2,15 @@
 //   - an A-only session's collab upgrade to B is refused (403 not-in-scope) on the MAIN
 //     origin before it upgrades; A's room is joinable; project sessions join every room;
 //   - a person on B therefore never reaches an A-only socket (rooms are per canvas);
+//   - a socket's role comes from the request's access: a hub-linked DESKTOP viewer's
+//     inspector socket is read-only (it was always writable on a desktop);
 //   - `summon` (Bring everyone here, V2-1.7 §5.5) is stripped from awareness published by a
 //     connection lacking it, before any peer — or the hub bridge — hears it.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import * as encoding from 'lib0/encoding';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
@@ -27,7 +32,7 @@ import {
   OWNER,
   VIEWER,
 } from './_acl-cell.ts';
-import { killProc } from './_helpers.ts';
+import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const B_SLUG = canvasSlugFromRel(B_REL, '.design');
 const A_SLUG = canvasSlugFromRel(A_REL, '.design');
@@ -120,5 +125,50 @@ describe('summon is stripped from a connection lacking it', () => {
       expect(summonOf(hub)).toContainEqual(SUMMON);
       await room.destroy();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// the socket's role on a desktop
+
+describe('a hub-linked desktop viewer (the stored record)', () => {
+  const HUB_URL = 'http://hub.invalid:9';
+  let proc: Awaited<ReturnType<typeof bootServer>> | null = null;
+  let base = '';
+  beforeAll(async () => {
+    const { root, designRoot } = makeSandbox();
+    const cfgPath = join(designRoot, 'config.json');
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+    cfg.linkedHub = { url: HUB_URL, linkedAt: Date.now() };
+    writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+    const hubsPath = join(root, 'hubs.json');
+    writeFileSync(
+      hubsPath,
+      JSON.stringify({ hubs: { [HUB_URL]: { token: 't', linkedAt: Date.now(), role: 'viewer' } } })
+    );
+    const port = nextPort();
+    proc = await bootServer(root, port, { HUBS_CONFIG_PATH: hubsPath });
+    base = `ws://localhost:${port}`;
+  }, 60000);
+  afterAll(async () => {
+    if (proc) await killProc(proc);
+  });
+
+  test("its inspector socket refuses another person's comment delete (read-only)", async () => {
+    const ws = new WebSocket(`${base}/_ws`);
+    const frames: string[] = [];
+    ws.addEventListener('message', (e) => frames.push(String(e.data)));
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('no socket')), 5000);
+      ws.addEventListener('open', () => {
+        clearTimeout(t);
+        resolve();
+      });
+    });
+    ws.send(JSON.stringify({ type: 'comments-delete', id: 'c-someone-else' }));
+    const end = Date.now() + 3000;
+    while (Date.now() < end && !frames.some((f) => f.includes('"refused"'))) await Bun.sleep(50);
+    ws.close();
+    expect(frames.map((f) => JSON.parse(f).type)).toContain('refused');
   });
 });
