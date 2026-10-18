@@ -58,6 +58,7 @@ import { join, resolve } from 'node:path';
 
 import { SQLite } from '@hocuspocus/extension-sqlite';
 import { Server } from '@hocuspocus/server';
+import { legacyClaim } from '../../studio/access/scope.ts';
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
@@ -3333,8 +3334,10 @@ function studioIdentityPaths(env = process.env) {
  * fails closed on purpose (A4): the local gate this replaces returns `false`
  * (i.e. writable) from its own `catch`, which is correct for a local tool and is
  * the whole ballgame on the internet.
+ *
+ * Exported for its test (`test/access-browser-lane.test.mjs`); the hub calls it per request.
  */
-function browserSession(dataDir, secret, request) {
+export function browserSession(dataDir, secret, request) {
   const cookieToken = cookieValue(request, BROWSER_SESSION_COOKIE);
   if (!cookieToken) return null;
   let match;
@@ -3371,6 +3374,9 @@ function browserSession(dataDir, secret, request) {
   return {
     email: match.owner,
     role,
+    // S9.3 — the stored access claim travels with the session (the proxy's `x-maude-access`),
+    // so Can view reaches the studio as Can view; a v1 session gets its role's legacy claim.
+    access: match.access ?? legacyClaim(role),
     readOnly: isReadOnlyRole(role),
     sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
       createHash('sha256').update(input).digest('hex')
