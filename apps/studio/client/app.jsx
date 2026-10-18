@@ -56,7 +56,6 @@ import { FileTree, FileTreeItem } from './file-tree.jsx';
 import { useTreeDrag } from './use-tree-drag.js';
 import ChatPanel from './panels/ChatPanel.jsx';
 import DiffView from './panels/DiffView.jsx';
-import GitPanel from './panels/GitPanel.jsx';
 import SyncConsentDialog from './panels/SyncConsentDialog.jsx';
 import SyncPanel from './panels/SyncPanel.jsx';
 import CloudBar from './panels/CloudBar.jsx';
@@ -83,7 +82,6 @@ import {
 } from './panels/timeline-comp-target.js';
 import { durationFramesForDrop, probeMediaDuration } from './panels/timeline-media-cache.js';
 import GenerateDialog from './generate-dialog.jsx';
-import RepoBranchSwitcher from './panels/RepoBranchSwitcher.jsx';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';

@@ -86,4 +86,81 @@ export const HISTORY_ACTIONS: ActionDef[] = [
     visible: { minRole: 'edit' },
     search: ROW,
   },
+  // S11.10 — Version history › Advanced, the git in plain words (06 · ad-history). Each is a button in the fold
+  // (client/v2/history/git-advanced.jsx) and calls one `/_api/git/*` route, unchanged; the fold is hidden for
+  // Can comment / Can view and the server refuses every write below edit whatever is drawn.
+  {
+    id: 'history.branch-switch',
+    label: 'Switch branch',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    id: 'history.new-branch',
+    label: 'New branch…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    // a fetch moves remote refs only: the role matrix allows it for a viewer, so no `minRole` here (the fold hides it)
+    id: 'history.fetch',
+    label: 'Fetch',
+    kind: 'command',
+    exec: 'shell',
+    search: ROW,
+  },
+  {
+    id: 'history.publish',
+    label: 'Publish',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    id: 'history.save-with-note',
+    label: 'Save a version with a note…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    id: 'history.open-pr',
+    label: 'Add to main · opens a pull request',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    id: 'history.discard-file',
+    label: 'Discard changes to a file',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    // "Drafts › Continue": back to the branch you were working on
+    id: 'history.continue-draft',
+    label: 'Continue on your draft',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
+  {
+    // a row's Undo on a change of yours (V2-1.5 §5.3); the teammate's later edits are kept
+    id: 'history.undo-action',
+    label: 'Undo this change',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: ROW,
+  },
 ];

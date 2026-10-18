@@ -1,12 +1,13 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 115,
+  "humanMax": 123,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
     "accounts": "decision:maude/v2-4-gate-github-doors",
     "ai-chat": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
     "clear-trash": "decision:maude/v2-lead-trash-clear-human-only",
+    "git": "decision:maude/v2-S11.10-git-actions-human",
     "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
     "keys": "decision:maude/v2-2.4b-undo-keys-human",
     "links": "decision:maude/v2-V2-1.11-ai-operability",
@@ -82,6 +83,12 @@
       "from": 114,
       "by": "decision:maude/v2-S1.15-compare-pictures-human",
       "why": "S1.15 registers history.compare-pictures (Version history › Advanced › Compare pictures, today's DiffView): looking at two renders side by side is the person's own view, human 'view-pref', as the contract's registry table has it; an agent reads the same two versions as words with `maude design history diff`. One human row."
+    },
+    {
+      "to": 123,
+      "from": 115,
+      "by": "decision:maude/v2-S11.10-git-actions-human",
+      "why": "S11.10 registers Version history › Advanced's git buttons (branch-switch, new-branch, fetch, publish, save-with-note, open-pr, discard-file, continue-draft): each acts on the person's working tree or remote through an unchanged /_api/git/* route, and an agent runs git itself in the project folder - human 'git' (a new closed reason). Eight human rows; history.undo-action is cli (`maude design history undo --action <id>`)."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. V2-5 A5 integration: measured 113 human actions in the merged registry (107 on feat + trash.clear from S1.7b + four ai.attach-* from S5.10 + present.presenter-view from S3.6b); every other A5 slice adds no human row."
