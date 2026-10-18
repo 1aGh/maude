@@ -237,6 +237,11 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
+import { noteAiRuns } from './v2/ai/runs-store.js';
+import { isFollowLocation } from './v2/present/follow-location.js';
+import FollowView from './v2/present/follow-view.jsx';
+import { OrderNotesMount } from './v2/present/order-notes-mount.jsx';
+import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
 import {
   CSS_ALIGN_SELF,
   CSS_ASPECT_RATIO,
@@ -526,6 +531,8 @@ function ShellState({ children }) {
     wsRef,
     zoomCtlVisible,
   } = useShellCore({});
+  // S3.5 — Present ⌄ › Order and notes… (`present.order-notes`): the sheet on the active canvas.
+  const [orderNotesOpen, setOrderNotesOpen] = useState(false);
 
   // Issue #125 — "Selection area" needs every selected item, canvas elements
   // AND annotations; the shell tracks only one, so ask the canvas. Resolves
@@ -804,6 +811,9 @@ function ShellState({ children }) {
             // surface the native ACP chat sidepanel. Native-only (the panel
             // doesn't exist on the web surface).
             if (isNativeApp()) openRightPanel('assistant');
+          } else if (m.type === 'ai:runs') {
+            // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
+            noteAiRuns(m.seq);
           } else if (m.type === 'ui-open') {
             // V2-2.4b (contract V2-1.11 §5.3) — `maude design open <canvas>[#ab][@el]`: open the
             // tab, then run the same registry actions the UI runs (zoom / select / present).
@@ -1378,6 +1388,7 @@ function ShellState({ children }) {
       setSettingsOpen,
       setShareDialog,
       setShortcutsOpen,
+      setOrderNotesOpen,
       setShowHidden,
       setTheme,
       setTimelineFrame,
@@ -1394,6 +1405,7 @@ function ShellState({ children }) {
       setupReadiness,
       shareDialog,
       shortcutsOpen,
+      orderNotesOpen,
       showHidden,
       sidebarOpen,
       startTour,
@@ -1549,6 +1561,7 @@ function ShellProjectPill() {
       setReportBugOpen,
       setSettingsOpen,
       setShortcutsOpen,
+      setOrderNotesOpen,
       setShowHidden,
       showHidden,
       layersMode,
@@ -1603,6 +1616,7 @@ function ShellProjectPill() {
     setSettingsOpen,
     setHelpOpen,
     setShortcutsOpen,
+    setOrderNotesOpen,
     setReportBugOpen,
     onUsageTour: () => startTour(USAGE_TOUR),
     onCollabTour: () => startTour(COLLAB_TOUR),
@@ -2702,6 +2716,7 @@ function ShellTree() {
       openPanelExclusive,
       paletteOpen,
       presentMode,
+      project,
       quickSetupOpen,
       readinessOpen,
       reportBugOpen,
@@ -2725,11 +2740,13 @@ function ShellTree() {
       setReportBugOpen,
       setShareDialog,
       setShortcutsOpen,
+      setOrderNotesOpen,
       setTourSteps,
       setUpdateReady,
       settingsOpen,
       shareDialog,
       shortcutsOpen,
+      orderNotesOpen,
       startTour,
       syncStatus,
       tabs,
@@ -2744,7 +2761,7 @@ function ShellTree() {
       whatsNew,
     },
     local: { querySelectionFromCanvas },
-    photoAndTimeline: { exitPresent, settleShellPrompt, shellPromptState },
+    photoAndTimeline: { settleShellPrompt, shellPromptState },
     projectData: { loadTree },
     gitActions: {
       acceptedDiff,
@@ -2838,6 +2855,9 @@ function ShellTree() {
       onFinished={handleAssistantFinished}
       onPermissionRequest={handleAssistantAttention}
       onElicitationRequest={handleAssistantAttention}
+      // S5.12 — the chat list's role gate (a Can view session reads, never writes) and its project chip
+      readOnly={viewerMode}
+      projectName={cfg?.cloud?.projectName || project || ''}
     />
   );
 
@@ -2974,26 +2994,9 @@ function ShellTree() {
             above the status bar) — video timelines are horizontal. */}
         {timelineOpen && <ShellTimelinePanel />}
       </div>
-      {presentMode && (
-        <button
-          type="button"
-          className="st-present-exit"
-          onClick={exitPresent}
-          aria-label="Exit presentation mode"
-          title="Exit presentation mode (Esc)"
-        >
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true">
-            <path
-              d="M4 4l8 8M12 4l-8 8"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Exit presentation</span>
-          <kbd className="st-present-exit-kbd">Esc</kbd>
-        </button>
-      )}
+      {/* S3.2b — the only chrome Present shows: the controls (Artboards) or the pill (the canvas). It replaces
+          the v1 `st-present-exit` button; the pill keeps that class. */}
+      {presentMode && <ShellPresentChrome />}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
@@ -3139,6 +3142,15 @@ function ShellTree() {
           }}
         />
       )}
+      {/* S3.5 — Present ⌄ › Order and notes… (editors; the server refuses the rest) */}
+      {orderNotesOpen && activePath && activePath !== SYSTEM_TAB && !viewerMode ? (
+        <OrderNotesMount
+          key={activePath}
+          path={activePath}
+          canvasName={displayName(basename(activePath))}
+          onClose={() => setOrderNotesOpen(false)}
+        />
+      ) : null}
       <ShortcutsOverlay
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
@@ -3205,5 +3217,7 @@ function App() {
 // shell does (prefs, address bar, panels) runs inside another app's frame.
 // V2-3.3 — so is Home (`/_config.mode === 'home'`, client/home/shell-mode.js).
 const root = createRoot(document.getElementById('root'));
-if (isEmbedLocation(location)) root.render(<EmbedView />);
+// S3.7a — a follow link (`?present=follow`, or any `audience` URL) is the follower page: never the editor.
+if (isFollowLocation(location)) root.render(<FollowView />);
+else if (isEmbedLocation(location)) root.render(<EmbedView />);
 else bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />));

@@ -41,6 +41,46 @@ const ACTION_ID_MAX = 160;
 /** `fence.runId` (V2-1.15 §5.1 RunId) and the most leases one publish names. */
 const RUN_ID = /^r_[A-Za-z0-9_-]{6,64}$/;
 export const MAX_FENCE_LEASES = 200;
+// S1.6 (S1-trash.md) — named versions, kept-aside versions, the shared Trash.
+/** A version name: 1–80 characters (code points), no control characters. */
+export const MAX_VERSION_NAME = 80;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point
+const CONTROL = /[\u0000-\u001f\u007f-\u009f]/u;
+/** `origin.trashed[].artboard`: 1–128 characters, no `/`, no control characters. */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: refusing them is the point
+const ARTBOARD_ID = /^[^/\u0000-\u001f\u007f-\u009f]{1,128}$/u;
+export const MAX_TRASHED = 200;
+/** `trash.clear { items }` names 1–500 items. */
+export const MAX_CLEAR_ITEMS = 500;
+const ENTRY = /^[A-Za-z0-9_-]{1,128}$/;
+/** Lanes that make a version of a canvas (V2-1.9 §5.1 — never the comments lane). */
+const VERSION_LANES = ['html', 'css', 'meta', 'annotations'];
+/** The capability each operation needs (V2-1.7 §5.2; `auth.can`, project-level). */
+const CAP_OF = {
+  'lane.replace': 'edit',
+  'doc.create': 'edit',
+  'doc.move': 'edit',
+  'doc.delete': 'trash',
+  'dir.create': 'edit',
+  'dir.move': 'edit',
+  'dir.delete': 'edit',
+  'history.undo': 'edit',
+  'history.redo': 'edit',
+  'history.restore': 'edit',
+  'history.name': 'edit',
+  'history.aside': 'edit',
+  'trash.restore': 'trash',
+  'trash.clear': 'delete',
+};
+/** Operations that must be a proposal's only one (S1-trash.md §3). */
+const SOLE_OPS = new Set(['history.name', 'history.aside', 'trash.restore', 'trash.clear']);
+/** The action kind each sole op commits as (the client's `kind` is not asked). */
+const KIND_OF = {
+  'history.name': 'name',
+  'history.aside': 'aside',
+  'trash.restore': 'restore',
+  'trash.clear': 'trash.clear',
+};
 
 /** Codes whose rejection is terminal for these exact bytes (retained). */
 const TERMINAL = new Set([
@@ -55,6 +95,8 @@ const TERMINAL = new Set([
   'lease-fenced',
   // V2-1.16 U1 (S9.5): final — a v2 client never renews on it.
   'not-in-scope',
+  // S1.6: the item was cleared out of the trash; nothing brings it back.
+  'cleared',
 ]);
 
 const HTTP = {
@@ -73,6 +115,7 @@ const HTTP = {
   'path-conflict': 409,
   'lease-fenced': 409,
   'not-in-scope': 403,
+  cleared: 409,
   retryable: 503,
 };
 
@@ -191,8 +234,28 @@ export function createKernel({
         origin.madeAt = p.origin.madeAt;
       // S5.5 — a stopped AI run's publish (V2-1.5 §5.1 `partial`); only `true`.
       if (p.origin.partial === true) origin.partial = true;
+      // S1.6 — an artboard-trash action names what it removed (S1-trash.md
+      // §2). Kept only on kind `trash` and only when every entry is well
+      // formed; otherwise dropped, never refused.
+      const trashed = kind === 'trash' ? parseTrashed(p.origin.trashed) : null;
+      if (trashed) origin.trashed = trashed;
     }
     return { p, label, kind, origin, fence: parseFence(p.fence) };
+  }
+
+  function parseTrashed(t) {
+    if (!Array.isArray(t) || t.length < 1 || t.length > MAX_TRASHED) return null;
+    const out = [];
+    for (const x of t) {
+      if (!x || typeof x !== 'object' || typeof x.artboard !== 'string') return null;
+      if (!ARTBOARD_ID.test(x.artboard)) return null;
+      out.push(
+        typeof x.label === 'string'
+          ? { artboard: x.artboard, label: x.label.slice(0, 200) }
+          : { artboard: x.artboard }
+      );
+    }
+    return out;
   }
 
   /**
@@ -235,6 +298,9 @@ export function createKernel({
     const dirs = { add: new Set(), remove: new Set() };
     const effects = [];
     const blobs = new Map();
+    // S1.6 — rows for the additive tables, written by the same commit.
+    const names = [];
+    const cleared = [];
 
     const toState = (h) =>
       h
@@ -328,6 +394,8 @@ export function createKernel({
       blobs,
       liveDocAt,
       changed,
+      names,
+      cleared,
     };
   }
 
@@ -718,6 +786,18 @@ export function createKernel({
         throw new Reject('forbidden', { reason: 'undo targets your own actions' });
       targets.push(t);
     }
+    // S1.6 — a cleared trash item stays gone (S1-trash.md §3): a cleared
+    // artboard-trash action is no target (its removal is then "someone else's
+    // later work" the rebase keeps); a cleared canvas is not revived below.
+    const { keys: clearedKeys, gone } = await clearedForUndo(targets);
+    const skippedCleared = [];
+    for (let i = targets.length - 1; i >= 0; i--) {
+      if (!gone.has(targets[i].actionId)) continue;
+      const first = targets[i].effects.find((e) => LANE_NAMES.includes(e.lane));
+      skippedCleared.unshift({ doc: first?.doc ?? null, reason: 'cleared' });
+      targets.splice(i, 1);
+    }
+    if (targets.length === 0) throw new Reject('undo-conflict', { skipped: skippedCleared });
     const targetIds = new Set(targets.map((t) => t.actionId));
     // The oldest target effect on each (entry, lane): where its revert starts.
     // Within one action, the effect whose after is a sibling's before precedes it.
@@ -732,7 +812,7 @@ export function createKernel({
       }
     }
     const reverted = new Set();
-    const skipped = [];
+    const skipped = [...skippedCleared];
     let applied = 0;
     const effects = [...targets]
       .sort((a, b) => b.revision - a.revision)
@@ -755,6 +835,10 @@ export function createKernel({
           deletedHere.add(e.entry);
           applied++;
         } else if (e.op === 'delete') {
+          if (clearedKeys.has(`${e.entry}\u0000\u0000${e.rev}`)) {
+            skipped.push({ doc: e.doc, reason: 'cleared' });
+            continue;
+          }
           const st = await work.load(e.doc);
           if (!st?.retired || (await work.liveDocAt(e.beforePath))) {
             skipped.push({ doc: e.doc, reason: 'path is taken again' });
@@ -827,7 +911,11 @@ export function createKernel({
       else if (r.applied) applied++;
     }
     if (applied === 0) throw new Reject('undo-conflict', { skipped });
-    return { skipped, undoes: many ? ids : targets[0].actionId, many };
+    return {
+      skipped,
+      undoes: many ? ids.filter((id) => !gone.has(id)) : targets[0].actionId,
+      many,
+    };
   }
 
   async function opRestore(work, op) {
@@ -855,6 +943,347 @@ export function createKernel({
       }
     }
     return null;
+  }
+
+  // ------------------------------------------- S1.6: names, aside, trash
+
+  /**
+   * A canvas-only session's judge (S9.5 `inScope.after`) on one canvas path,
+   * asked BEFORE an op can answer anything that names the canvas — unknown,
+   * cleared, not in the trash all read `not-in-scope` (U1). No-op for a
+   * project role.
+   */
+  function judge(auth, path) {
+    const r = auth.inScope?.after([typeof path === 'string' ? path : null]);
+    if (r) throw new Reject(r.code, r.detail);
+  }
+
+  /**
+   * The per-op role gate (S1-trash.md §5): `auth.can(cap)` is project-level.
+   * A caller without `can` keeps today's behaviour, except `trash.clear`
+   * (`delete`, owner-only), which then fails closed. Clear-out is
+   * project-level, so a canvas-only session is out of scope for it.
+   */
+  function gate(opName, auth) {
+    const cap = CAP_OF[opName];
+    if (!cap) return; // the switch answers `invalid`
+    if (cap === 'delete' && auth.inScope) throw new Reject('not-in-scope', {});
+    const can = typeof auth.can === 'function' ? auth.can : (c) => c !== 'delete';
+    if (!can(cap)) {
+      throw new Reject('forbidden', {
+        reason:
+          cap === 'delete'
+            ? 'only the project owner can clear out the trash'
+            : 'this account can view but not edit',
+      });
+    }
+  }
+
+  /** The store's trash readers, or `invalid` (final) on a home without them. */
+  function trashStore() {
+    if (typeof store.trash !== 'function' || typeof store.trashCleared !== 'function')
+      throw new Reject('invalid', { reason: 'the trash needs the team server to be updated' });
+    return store;
+  }
+
+  /** The doc an op names, followed to its live continuation after a move. */
+  async function namedDoc(work, doc) {
+    if (typeof doc !== 'string' || !DOC_NAME.test(doc))
+      throw new Reject('invalid', { reason: 'bad doc' });
+    const named = await work.load(doc);
+    const st = named?.retired && named.movedTo ? await liveContinuation(work, named) : named;
+    return { named, st: st && !st.retired ? st : null };
+  }
+
+  /**
+   * V2-1.9 §5.4 — the newest revision ≤ `revision` that changed the canvas
+   * (`entry`): a version lane or `@manifest` effect on it, of an action that
+   * is not a `name` / `comment`. Null when there is none.
+   */
+  async function snapRevision(entry, revision) {
+    let before = revision + 1;
+    for (let page = 0; page < 1000; page++) {
+      const rows = await store.history({ entry, before, limit: 200 });
+      for (const a of rows) {
+        if (a.revision > revision || a.kind === 'name' || a.kind === 'comment') continue;
+        const touches = (a.effects ?? []).some(
+          (e) => e.entry === entry && (VERSION_LANES.includes(e.lane) || e.lane === '@manifest')
+        );
+        if (touches) return a.revision;
+      }
+      if (rows.length < 200) return null;
+      before = rows[rows.length - 1].revision;
+    }
+    return null;
+  }
+
+  /** `history.name { doc, revision, name | null }` — V2-1.9 §5.4. */
+  async function opHistoryName(work, op, auth, state) {
+    let name = null;
+    if (op.name !== null) {
+      if (typeof op.name !== 'string') throw new Reject('invalid', { reason: 'bad name' });
+      name = op.name.trim();
+      const len = [...name].length;
+      if (len < 1 || len > MAX_VERSION_NAME || CONTROL.test(name))
+        throw new Reject('invalid', {
+          reason: `a name is 1–${MAX_VERSION_NAME} characters, no control characters`,
+        });
+    }
+    if (!Number.isSafeInteger(op.revision) || op.revision < 1 || op.revision > state.revision)
+      throw new Reject('invalid', { reason: 'bad revision' });
+    const { named, st } = await namedDoc(work, op.doc);
+    judge(auth, (st ?? named)?.path);
+    if (!st) throw new Reject('dependency-missing', { doc: op.doc, reason: 'document not live' });
+    const target = await snapRevision(st.entry, op.revision);
+    if (target === null)
+      throw new Reject('invalid', { reason: 'no version of this canvas at or before it' });
+    work.effects.push({
+      effect: `e_${newId()}`,
+      doc: st.doc,
+      entry: st.entry,
+      lane: '@name',
+      op: name === null ? 'name.clear' : 'name',
+      beforePath: st.path,
+    });
+    work.names.push({ entry: st.entry, targetRev: target, name });
+    return { named: { entry: st.entry, rev: target, name }, label: name };
+  }
+
+  /**
+   * `history.aside { doc, lane, content, label? }` — V2-1.9 decision 9: the
+   * version a person did not keep, recorded as an `@aside` effect with its body
+   * as a blob. No head moves; `laneAt`, `effectsAfter` and undo read real lane
+   * names only, so nothing else sees it.
+   */
+  async function opHistoryAside(work, op, auth) {
+    if (!LANE_NAMES.includes(op.lane)) throw new Reject('invalid', { reason: 'unknown lane' });
+    const { named, st } = await namedDoc(work, op.doc);
+    judge(auth, (st ?? named)?.path);
+    if (!st) throw new Reject('dependency-missing', { doc: op.doc, reason: 'document not live' });
+    const checked = checkLane(op.lane, op.content, { path: st.path ?? `${slugOf(st.doc)}.tsx` });
+    if (!checked.ok)
+      throw new Reject(checked.code, { doc: op.doc, lane: op.lane, reason: checked.reason });
+    const before = st.lanes[op.lane]?.hash ?? null;
+    const after = checked.content === '' ? null : laneHash(checked.content);
+    const label = typeof op.label === 'string' ? op.label.slice(0, 200) : undefined;
+    if ((before ?? EMPTY_HASH) === (after ?? EMPTY_HASH)) return { label };
+    if (after) work.blobs.set(after, checked.content);
+    work.effects.push({
+      effect: `e_${newId()}`,
+      doc: st.doc,
+      entry: st.entry,
+      lane: '@aside',
+      op: `aside.${op.lane}`,
+      beforeHash: before,
+      afterHash: after,
+    });
+    return { label };
+  }
+
+  /**
+   * A free `<name> N.<ext>` next to `path` (S1 Q3), or null. A name that
+   * already ends in ` N` counts on from it ("a 2" → "a 3"), as Finder does.
+   */
+  async function freeRestorePath(work, prefix, path) {
+    const m = /^(.*?)(\.[A-Za-z0-9]+)?$/.exec(path);
+    const base = m[1].replace(/ \d{1,2}$/, '');
+    for (let n = 2; n <= 99; n++) {
+      const candidate = `${base} ${n}${m[2] ?? ''}`;
+      const doc = docFor(prefix, candidate);
+      if (!DOC_NAME.test(doc) || checkCanvasPath(doc, candidate)) continue;
+      if (await work.liveDocAt(candidate)) continue;
+      const t = await work.load(doc);
+      if (t && !t.retired) continue;
+      return { path: candidate, doc };
+    }
+    return null;
+  }
+
+  /** The path a canvas-only judge sees for an entry: in the trash, cleared, or live. */
+  async function pathOfEntry(work, entry, item) {
+    if (item) return item.path;
+    const live = await store.liveDocByEntry(entry);
+    if (live) return (await work.load(live))?.path ?? null;
+    const cleared = (await store.trashCleared({ entry })).find((c) => c.artboard === '');
+    if (!cleared) return null;
+    const [a] = await store.history({ entry, before: cleared.rev + 1, limit: 1 });
+    const del = a?.effects?.find((e) => e.entry === entry && e.lane === '@manifest');
+    return del?.beforePath ?? null;
+  }
+
+  /**
+   * `trash.restore { entry }` — S1 Q3: the canvas comes back with the SAME
+   * entry, in place when its path is free, else at `<name> 2`.
+   */
+  async function opTrashRestore(work, op, auth) {
+    if (typeof op.entry !== 'string' || !ENTRY.test(op.entry))
+      throw new Reject('invalid', { reason: 'bad entry' });
+    trashStore();
+    const [item] = (await store.trash({ entry: op.entry })).canvases;
+    judge(auth, await pathOfEntry(work, op.entry, item));
+    if (!item) {
+      const cleared = (await store.trashCleared({ entry: op.entry })).some(
+        (c) => c.artboard === ''
+      );
+      if (cleared && !(await store.liveDocByEntry(op.entry)))
+        throw new Reject('cleared', { reason: 'cleared out of the trash' });
+      throw new Reject('dependency-missing', { reason: 'not in the trash' });
+    }
+    const st = await work.load(item.doc);
+    if (st?.retired && !st.movedTo && st.entry === op.entry && !(await work.liveDocAt(item.path))) {
+      st.retired = false;
+      st.movedTo = null;
+      st.generation += 1;
+      work.effects.push({
+        effect: `e_${newId()}`,
+        doc: st.doc,
+        entry: st.entry,
+        lane: '@manifest',
+        op: 'create',
+        afterPath: st.path,
+      });
+      const c = work.mark(st.doc, 'manifest');
+      c.created = true;
+      c.revived = true;
+      return null;
+    }
+    const target = await freeRestorePath(work, prefixOf(item.doc), item.path);
+    if (!target) throw new Reject('path-conflict', { reason: 'no free name to restore to' });
+    const existing = await work.load(target.doc);
+    const back = {
+      doc: target.doc,
+      entry: op.entry,
+      generation: (existing?.generation ?? 0) + 1,
+      path: target.path,
+      retired: false,
+      movedTo: null,
+      lanes: {},
+      orig: existing?.orig ?? null,
+    };
+    work.docs.set(target.doc, back);
+    for (const lane of LANE_NAMES) {
+      const hash = await store.laneAt(item.doc, lane, item.rev);
+      if (!hash) continue;
+      const checked = checkLane(lane, await work.content(hash), { path: target.path });
+      if (!checked.ok)
+        throw new Reject(checked.code, { doc: target.doc, lane, reason: checked.reason });
+      work.setLane(back, lane, checked.content);
+    }
+    work.effects.push({
+      effect: `e_${newId()}`,
+      doc: target.doc,
+      entry: op.entry,
+      lane: '@manifest',
+      op: 'create',
+      beforePath: item.path,
+      afterPath: target.path,
+    });
+    const c = work.mark(target.doc, 'manifest');
+    c.created = true;
+    return null;
+  }
+
+  /**
+   * `trash.clear { items? }` — S1 Q4: owner-only clear-out. One `@trash`
+   * effect and one `trash_cleared` row per item; lane bodies stay (Q4 default).
+   */
+  async function opTrashClear(work, op) {
+    trashStore();
+    let ids = null;
+    if (op.items !== undefined) {
+      const bad = (reason) => new Reject('invalid', { reason });
+      if (!Array.isArray(op.items) || op.items.length < 1 || op.items.length > MAX_CLEAR_ITEMS)
+        throw bad(`items takes 1–${MAX_CLEAR_ITEMS} ids`);
+      for (const id of op.items) {
+        if (typeof id !== 'string') throw bad('bad item id');
+        const c = /^canvas:(.+)$/.exec(id);
+        const a = /^artboard:([^/]+)\/(.+)$/.exec(id);
+        if (c ? !ENTRY.test(c[1]) : !a || a[1].length > ACTION_ID_MAX || !ARTBOARD_ID.test(a[2]))
+          throw bad('bad item id');
+      }
+      if (new Set(op.items).size !== op.items.length) throw bad('items must be distinct');
+      ids = op.items;
+    }
+    const { canvases, artboards } = await store.trash();
+    const byId = new Map([...canvases, ...artboards].map((i) => [i.id, i]));
+    const cleared = [];
+    const skipped = [];
+    for (const id of ids ?? [...byId.keys()]) {
+      const item = byId.get(id);
+      if (!item) {
+        skipped.push({
+          id,
+          reason: (await wasCleared(id)) ? 'already cleared' : 'not in the trash',
+        });
+        continue;
+      }
+      work.effects.push({
+        effect: `e_${newId()}`,
+        doc: item.doc,
+        entry: item.entry,
+        lane: '@trash',
+        op: 'trash.clear',
+        beforePath: item.path ?? null,
+      });
+      const artboard = item.artboard ?? '';
+      work.cleared.push({ entry: item.entry, artboard, rev: item.rev });
+      cleared.push({
+        id,
+        entry: item.entry,
+        artboard,
+        rev: item.rev,
+        doc: item.doc,
+        path: item.path ?? null,
+      });
+    }
+    return { cleared, skipped };
+  }
+
+  /** Was this (now absent) item id cleared before? */
+  async function wasCleared(id) {
+    const c = /^canvas:(.+)$/.exec(id);
+    if (c) return (await store.trashCleared({ entry: c[1] })).some((x) => x.artboard === '');
+    const [, actionId, artboard] = /^artboard:([^/]+)\/(.+)$/.exec(id);
+    const a = await store.action(actionId);
+    const first = a?.effects?.find((e) => LANE_NAMES.includes(e.lane) && e.entry);
+    if (!first) return false;
+    return (await store.trashCleared({ entry: first.entry })).some(
+      (x) => x.artboard === artboard && x.rev === a.revision
+    );
+  }
+
+  /**
+   * Undo after a clear-out (S1-trash.md §3): the targets that are cleared
+   * artboard-trash actions, and the cleared canvas keys (`entry\0\0rev`).
+   * Empty on a store home without the trash readers (nothing was cleared).
+   */
+  async function clearedForUndo(targets) {
+    const keys = new Set();
+    if (typeof store.trashCleared !== 'function') return { keys, gone: new Set() };
+    const entries = new Set();
+    for (const t of targets) {
+      for (const e of t.effects ?? []) {
+        if (e.entry && (t.kind === 'trash' || (e.lane === '@manifest' && e.op === 'delete')))
+          entries.add(e.entry);
+      }
+    }
+    for (const entry of entries) {
+      for (const c of await store.trashCleared({ entry })) {
+        keys.add(`${c.entry}\u0000${c.artboard}\u0000${c.rev}`);
+      }
+    }
+    const gone = new Set();
+    for (const t of targets) {
+      const trashed =
+        t.kind === 'trash' && Array.isArray(t.origin?.trashed) ? t.origin.trashed : [];
+      const first = t.effects?.find((e) => LANE_NAMES.includes(e.lane) && e.entry);
+      if (
+        first &&
+        trashed.some((x) => keys.has(`${first.entry}\u0000${x.artboard}\u0000${t.revision}`))
+      )
+        gone.add(t.actionId);
+    }
+    return { keys, gone };
   }
 
   // ------------------------------------------------------------ submit
@@ -889,6 +1318,11 @@ export function createKernel({
           .filter((d) => typeof d === 'string')
       ),
     ]);
+    // S1.6 — a named / aside / trash op is its proposal's only operation.
+    const ops = p.action.operations;
+    const sole = ops.find((op) => op && SOLE_OPS.has(op.op))?.op ?? null;
+    if (sole && ops.length !== 1)
+      throw new Reject('invalid', { reason: `${sole} must be the only operation` });
     // V2-1.16 L4 (S9.5): a canvas-only session's ops, judged before any runs.
     const inScope = auth.inScope ?? null;
     const outOfScope = await inScope?.before(p.action.operations, async (d) =>
@@ -897,8 +1331,10 @@ export function createKernel({
     if (outOfScope) throw new Reject(outOfScope.code, outOfScope.detail);
     const merged = [];
     let undo = null;
+    let extra = null;
     for (const op of p.action.operations) {
       if (!op || typeof op !== 'object') throw new Reject('invalid', { reason: 'bad operation' });
+      gate(op.op, auth);
       let r = null;
       switch (op.op) {
         case 'lane.replace':
@@ -924,6 +1360,19 @@ export function createKernel({
           break;
         case 'history.restore':
           r = await opRestore(work, op);
+          break;
+        // S1.6 (S1-trash.md §3).
+        case 'history.name':
+          extra = await opHistoryName(work, op, auth, state);
+          break;
+        case 'history.aside':
+          extra = await opHistoryAside(work, op, auth);
+          break;
+        case 'trash.restore':
+          r = await opTrashRestore(work, op, auth);
+          break;
+        case 'trash.clear':
+          extra = await opTrashClear(work, op);
           break;
         default:
           throw new Reject('invalid', {
@@ -980,6 +1429,16 @@ export function createKernel({
       await store.recordResult({ actor, tx, proposalHash, result: res });
       return { result: res };
     }
+    // S1.6 — a sole op commits as its own kind; `name` takes the name as its
+    // label; the kernel (never the client) stamps what the log must carry.
+    const actionKind = sole ? KIND_OF[sole] : kind;
+    const actionLabel =
+      extra && Object.hasOwn(extra, 'label') && extra.label !== undefined ? extra.label : label;
+    const actionOrigin = extra?.named
+      ? { ...origin, named: extra.named }
+      : extra?.cleared?.length
+        ? { ...origin, cleared: work.cleared }
+        : origin;
     const result = {
       protocol: PROTOCOL,
       status: 'accepted',
@@ -988,15 +1447,18 @@ export function createKernel({
       transactionId: tx,
       proposalHash,
       actorId: actor,
-      origin,
+      origin: actionOrigin,
       actionId,
-      label,
-      kind: undo ? (p.action.operations[0].op === 'history.redo' ? 'redo' : 'undo') : kind,
+      label: actionLabel,
+      kind: undo ? (p.action.operations[0].op === 'history.redo' ? 'redo' : 'undo') : actionKind,
       effects: work.effects.map((e) => ({ effect: e.effect, doc: e.doc, lane: e.lane, op: e.op })),
       merged,
       ...(undo?.skipped?.length ? { skipped: undo.skipped } : {}),
       // A multi-target undo names what it undid; a single one answers as in v1.
       ...(undo?.many ? { undoes: undo.undoes } : {}),
+      ...(extra?.named ? { named: extra.named } : {}),
+      ...(extra?.cleared ? { cleared: extra.cleared.map((c) => c.id) } : {}),
+      ...(extra?.skipped?.length ? { skipped: extra.skipped } : {}),
     };
     let committed;
     try {
@@ -1008,8 +1470,8 @@ export function createKernel({
         proposalHash,
         actionId,
         kind: result.kind,
-        label,
-        origin,
+        label: actionLabel,
+        origin: actionOrigin,
         committedAt: now(),
         undoes: undo?.undoes ?? null,
         blobs: [...work.blobs].map(([hash, body]) => ({
@@ -1023,6 +1485,8 @@ export function createKernel({
         effects: work.effects,
         result,
         ...(fence ? { fence } : {}),
+        ...(work.names.length ? { names: work.names } : {}),
+        ...(work.cleared.length ? { cleared: work.cleared } : {}),
       });
     } catch (err) {
       if (err instanceof StoreConflict) {
@@ -1073,6 +1537,9 @@ export function createKernel({
         changes,
         dirs: { add: [...work.dirs.add], remove: [...work.dirs.remove] },
         actor,
+        // S1.6 — what a clear-out removed: the publisher deletes the per-Mac
+        // `_trash/` copies and the hub quarantine for these (S1 Q4).
+        ...(extra?.cleared?.length ? { trashCleared: extra.cleared } : {}),
       });
     } catch (err) {
       log.error?.(
@@ -1144,5 +1611,11 @@ export function createKernel({
     history: (q) => store.history(q),
     state: () => store.state(),
     blob: (hash) => store.blob(hash),
+    // S1.6 — additive readers (S1-trash.md §4); empty on a home without them.
+    names: async (entry) => (typeof store.names === 'function' ? store.names(entry) : []),
+    trash: async (q) =>
+      typeof store.trash === 'function' ? store.trash(q) : { canvases: [], artboards: [] },
+    trashCleared: async (q) =>
+      typeof store.trashCleared === 'function' ? store.trashCleared(q) : [],
   };
 }

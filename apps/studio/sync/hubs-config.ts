@@ -9,7 +9,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
-import { can, projectRoleForAccount } from '../access/roles.ts';
+import { can, FLOOR_ROLE, projectRoleForAccount } from '../access/roles.ts';
+import { type AccessClaim, legacyClaim, resolveAccess } from '../access/scope.ts';
 
 export interface HubRecord {
   token: string;
@@ -21,10 +22,21 @@ export interface HubRecord {
    * made — the alternative is discovering it from the first refusal, which
    * means showing somebody an editor and taking it away.
    *
-   * Absent means `member`: every credential written before this shipped was
-   * write-capable, and nobody is demoted by an upgrade.
+   * Absent means the FLOOR (`observer`, read-only) until a sign-in heals it —
+   * Phase 4 security D3 / S9.9. It used to mean `member`, so a credential whose
+   * role nobody ever learned (a pasted token, an older hub) counted as writable.
+   *
+   * v1 projection: a v2 writer stores here only a role a 1.x build reads the
+   * right way round (`v1RoleProjection`) — 1.9.x reads `role === 'viewer'` as
+   * its ONLY read-only answer, so `observer` here would be writable there.
    */
   role?: string;
+  /**
+   * The whole access claim the hub vouched (V2-1.7 §5.4) — project role +
+   * canvas grants — when it says more than `role` can (an observer, canvas
+   * grants). Additive: a 1.x build ignores the unknown key and reads `role`.
+   */
+  access?: AccessClaim;
   /**
    * When this credential dies (ms epoch), as the workspace reported at mint.
    *
@@ -136,34 +148,49 @@ function warnIfWorldOrGroupReadable(path: string): void {
   }
 }
 
-/**
- * Is the credential for `url` a READ-ONLY one? (Cloud Phase 25 C2)
- *
- * Answered from the role the workspace vouched for at sign-in, so the app
- * knows at BOOT rather than discovering it from the first refused write —
- * which would mean showing somebody an editor and then taking it away.
- *
- * An ABSENT role, or an unreadable file, answers FALSE, matching every
- * credential written before this shipped. A role that IS stored but is not one
- * that edits answers TRUE (V2-1.7 R1: an unknown role holds nothing) — this is
- * what the http.ts gate on a hub-linked desktop refuses writes from
- * (`roleReadOnly`), so `role === 'viewer'` alone failed OPEN for `observer`
- * (Can view, S9), a renamed or mis-cased role, or anything a newer hub vouches
- * (V2-4 gate, test/access-role-matrix.test.ts). The edit roles are the project
- * roles that hold `edit` in THE matrix (`access/roles.ts`, S9.1) plus the
- * self-hosted account role `admin`, which `projectRoleForAccount` maps to `owner`.
- */
 /** A hub-vouched role that may edit. Anything else a hub names holds nothing (V2-1.7 R1). */
 export const isEditRole = (role: unknown): boolean =>
   typeof role === 'string' && can(projectRoleForAccount(role), 'edit');
 
-export function isHubReadOnly(url: string): boolean {
+/**
+ * The role a 1.x build must read for `role` (the hubs.json `role` field): the role itself
+ * when 1.x reads it right (`owner` / `member` / `viewer` / `admin`), else `viewer` — the
+ * only read-only answer 1.9.x knows (`isHubReadOnly`: `role === 'viewer'`). The real
+ * claim then rides in `access` (V2-1.7 Q3: no second 1.x release).
+ */
+export function v1RoleProjection(role: string | null | undefined): string {
+  if (typeof role === 'string' && ['owner', 'member', 'viewer', 'admin'].includes(role))
+    return role;
+  return 'viewer';
+}
+
+/**
+ * The stored access claim for `url` — what the local gate asks (V2-1.7 §5.7 `accessFor`,
+ * replacing the 1-bit `isHubReadOnly`).
+ *
+ *   - `access` stored → that claim (validated by `resolveAccess` where it is used);
+ *   - a `role` stored → `legacyClaim(role)` (an unknown role holds nothing, R1);
+ *   - a record WITHOUT a role → the floor (`observer`): read-only until a sign-in heals it
+ *     (Phase 4 security D3). It used to be writable;
+ *   - no record (or no readable file) → `member`: a linked project with no credential on
+ *     this Mac syncs nothing, so it is edited like a local one, but is never the owner's.
+ */
+export function accessFor(url: string, path?: string): AccessClaim {
+  let record: HubRecord | undefined;
   try {
-    const record = loadHubsConfig().hubs[normalizeUrl(url)];
-    return record?.role !== undefined && !isEditRole(record.role);
+    record = loadHubsConfig(path).hubs[normalizeUrl(url)];
   } catch {
-    return false;
+    record = undefined;
   }
+  if (!record || typeof record !== 'object') return legacyClaim('member');
+  if (record.access && typeof record.access === 'object') return record.access;
+  if (typeof record.role === 'string' && record.role) return legacyClaim(record.role);
+  return legacyClaim(FLOOR_ROLE);
+}
+
+/** The 1-bit projection of `accessFor`: may NOT edit anything at project level. */
+export function isHubReadOnly(url: string): boolean {
+  return !resolveAccess(accessFor(url)).can('edit', null);
 }
 
 /** Look up a token for `url`. Returns null when no entry exists. */

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f19e826f49b6",
+  "manifestVersion": "ddb766956dc1",
   "actions": [
     {
       "id": "search.open",
@@ -447,6 +447,28 @@
       }
     },
     {
+      "id": "object.enter",
+      "label": "Go inside",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.step-out",
+      "label": "Step out",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
       "id": "object.select-child",
       "label": "Select first child",
       "kind": "command",
@@ -503,6 +525,122 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the element’s position props"
+      }
+    },
+    {
+      "id": "object.frame",
+      "label": "Frame selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Wrap the elements in a <div data-cd-id=\"frame\" style={{display:\"flex\",flexDirection:\"column\"}}> at the first one; every element keeps its data-cd-id"
+      }
+    },
+    {
+      "id": "object.unframe",
+      "label": "Remove frame",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the frame with its children, in order; the frame’s own attributes go"
+      }
+    },
+    {
+      "id": "object.bring-front",
+      "label": "Bring to front",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX after its last sibling (later siblings paint on top)"
+      }
+    },
+    {
+      "id": "object.bring-forward",
+      "label": "Bring forward",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX after the next sibling"
+      }
+    },
+    {
+      "id": "object.send-backward",
+      "label": "Send backward",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX before the previous sibling"
+      }
+    },
+    {
+      "id": "object.send-back",
+      "label": "Send to back",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX before its first sibling"
+      }
+    },
+    {
+      "id": "object.lock",
+      "label": "Lock",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add or remove the data-cd-locked attribute on the element (shared by everyone)"
+      }
+    },
+    {
+      "id": "object.hide",
+      "label": "Hide",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set style.display to \"none\" and add data-cd-hidden=\"<previous display>\"; Show restores it and drops the marker"
+      }
+    },
+    {
+      "id": "object.select-matching",
+      "label": "Select matching",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a selection in the person’s window; an agent greps the canvas for the same className and style"
       }
     },
     {
@@ -788,6 +926,28 @@
       }
     },
     {
+      "id": "present.next",
+      "label": "Next artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard> --mode present"
+      }
+    },
+    {
+      "id": "present.prev",
+      "label": "Previous artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard> --mode present"
+      }
+    },
+    {
       "id": "present.canvas",
       "label": "Present the canvas",
       "kind": "toggle",
@@ -796,6 +956,25 @@
       "agent": {
         "path": "cli",
         "verb": "maude design open <canvas> --mode present"
+      }
+    },
+    {
+      "id": "present.order-notes",
+      "label": "Order and notes…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/present-meta",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:design",
+        "how": "present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json"
       }
     },
     {
@@ -1086,6 +1265,18 @@
         "path": "human",
         "because": "view-pref",
         "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.pointer",
+      "label": "Pointer",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "the presenter’s own pointer; an agent has no mouse to show"
       }
     },
     {
@@ -2290,6 +2481,83 @@
         "path": "human",
         "because": "native-window",
         "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
+      }
+    },
+    {
+      "id": "chat.advanced.ask-before",
+      "label": "Ask before",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.model",
+      "label": "Model",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.effort",
+      "label": "Effort",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.fast-mode",
+      "label": "Fast mode",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.show-in-chat",
+      "label": "Show in chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.suggestions",
+      "label": "Suggestions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.raw-log",
+      "label": "Raw log",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     }
   ],

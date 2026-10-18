@@ -25,6 +25,7 @@ import { join } from 'node:path';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
+import { stageRunAnnotations } from '../annotations/run-tag.ts';
 import { applyEdit } from '../canvas-edit.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
@@ -34,6 +35,7 @@ import { readLaneFromDoc } from '../sync/codec.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { describeSourceOp } from '../sync/source-ops.ts';
 import { signInToWorkspace } from '../sync/workspace-signin.ts';
+import { board, sticky } from './fixtures/annotations-v2/boards.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
 const FIXTURE = join(HUB_DIR, 'test', 'fixtures', 'serve-hub.mjs');
@@ -1057,6 +1059,49 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
     expect(bob.read('ui/ai-b.tsx')).toBe(src('ai-b by Claude'));
   }, 90_000);
+
+  test('T-S4.5b: a run-tagged annotation batch lands in its run’s ONE action; Undo this chat reverts it', async () => {
+    alice.write('ui/runboard.tsx', src('Run board'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/runboard.tsx') === src('Run board');
+    }, 'the run-board canvas on bob');
+    const slug = 'ui-runboard';
+    const bobBoard = () => readLaneFromDoc(bob.registry.getDoc(slug), 'annotations');
+    const base = readLaneFromDoc(alice.registry.getDoc(slug), 'annotations');
+
+    // The chat's run is open (its turn began the stage under the registry's run id).
+    alice.runtime.beginAiAction?.('acp:chat-ann', 'Claude: resolve the stickies', {
+      runId: 'r_annot0001',
+      chatId: 'chat-ann',
+    });
+    const next = board(sticky('s_run1', 'Resolved by Claude'));
+    const staged = stageRunAnnotations(alice.runtime, {
+      runId: 'r_annot0001',
+      open: true,
+      chatId: 'chat-ann',
+      label: 'Claude: resolve the stickies',
+      slug,
+      canvasRel: 'design/ui/runboard.tsx',
+      text: next,
+      base,
+      writeId: 'run:r_annot0001',
+    });
+    expect(staged).not.toBeNull();
+    await new Promise((r) => setTimeout(r, 800));
+    expect(bobBoard()).not.toContain('s_run1'); // staged with the run, not proposed on its own
+
+    const ended = await alice.runtime.endAiAction?.('r_annot0001', 'done');
+    expect(ended?.status).toBe('accepted');
+    await waitFor(() => bobBoard().includes('s_run1'), 'the run’s board on bob');
+    const rows = (await alice.runtime.acceptedHistory?.({ chat: 'chat-ann', limit: 20 })) ?? [];
+    expect(rows.length).toBe(1);
+
+    const undone = await alice.runtime.acceptedUndo?.({ chatId: 'chat-ann' });
+    expect(undone?.status).toBe('accepted');
+    await waitFor(() => !bobBoard().includes('s_run1'), 'Undo this chat on bob');
+  }, 60_000);
 
   test('a fresh checkout replays the project byte-identically (T14)', async () => {
     const carolRoot = join(root, 'carol');

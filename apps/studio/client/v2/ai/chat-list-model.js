@@ -1,0 +1,225 @@
+// client/v2/ai/chat-list-model.js — S5.12 (03 `ai-chat-list`): the chat list as data.
+//
+// PURE (no DOM, no React, no fetch). The list shows YOUR chats only (S5 D5): Running first, then Earlier
+// grouped by canvas with "N more", or — with a query — the search hits with the matched words marked.
+// The words are CONTRACT §3–§4: "Move to trash" (never delete), the dialog asks with the verb the button
+// carries, and says first what the trash takes with it (V2-1.14 G22: a queued prompt won't send).
+
+import { ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { isVisible } from '../../../actions/resolve.ts';
+
+/** Rows a canvas group shows before "N more" (03 `ai-chat-list`). */
+export const VISIBLE_PER_GROUP = 2;
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_MS = 24 * 3600 * 1000;
+
+const startOfDay = (t) => {
+  const d = new Date(t);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+/** "now" · "12 min ago" · "3 h ago" · "yesterday" · "Monday" · "2 Oct" — what a row says instead of a stamp. */
+export function whenLabel(ms, now = Date.now()) {
+  if (!Number.isFinite(ms)) return '';
+  const ago = now - ms;
+  if (ago < 60_000) return 'now';
+  if (ago < 3600_000) return `${Math.floor(ago / 60_000)} min ago`;
+  const days = Math.round((startOfDay(now) - startOfDay(ms)) / DAY_MS);
+  if (days <= 0) return `${Math.floor(ago / 3600_000)} h ago`;
+  if (days === 1) return 'yesterday';
+  if (days < 7) return DAYS[new Date(ms).getDay()];
+  const d = new Date(ms);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** A canvas path (`ui/Kampan.tsx`) → the name a person knows it by; none → "No canvas". */
+export function canvasName(canvas) {
+  if (!canvas) return 'No canvas';
+  const base = String(canvas).split('/').pop() || String(canvas);
+  return base.replace(/\.(tsx|jsx|html)$/i, '');
+}
+
+/** `text` split on `ranges` ([start, end) pairs) → `[{ text, mark }]`. Ranges are clamped, sorted, merged. */
+export function markParts(text, ranges) {
+  const s = String(text ?? '');
+  const rs = (ranges ?? [])
+    .map(([a, b]) => [Math.max(0, a), Math.min(s.length, b)])
+    .filter(([a, b]) => b > a)
+    .sort((x, y) => x[0] - y[0]);
+  const merged = [];
+  for (const r of rs) {
+    const last = merged[merged.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else merged.push([...r]);
+  }
+  const out = [];
+  let at = 0;
+  for (const [a, b] of merged) {
+    if (a > at) out.push({ text: s.slice(at, a), mark: false });
+    out.push({ text: s.slice(a, b), mark: true });
+    at = b;
+  }
+  if (at < s.length) out.push({ text: s.slice(at), mark: false });
+  return out.length ? out : [{ text: s, mark: false }];
+}
+
+/**
+ * The browse view. `groups` is `GET /_api/acp/chats?group=canvas` (`[{ canvas, chats }]`); `busy` is
+ * `{ chatId: true }` for YOUR chats with a turn in flight; `needs` is the set that waits on you (S5.13
+ * fills it); `titles` names a running chat the server has not listed yet (a brand-new one).
+ */
+export function buildChatList({
+  groups = [],
+  busy = {},
+  needs = new Set(),
+  titles = {},
+  expanded = new Set(),
+  now = Date.now(),
+} = {}) {
+  const known = new Map();
+  for (const g of groups)
+    for (const c of g.chats ?? []) known.set(c.id, { ...c, canvas: g.canvas });
+  const liveIds = [...new Set([...Object.keys(busy).filter((id) => busy[id]), ...needs])];
+  const state = (id) => (needs.has(id) ? 'needs' : busy[id] ? 'working' : 'idle');
+  const running = liveIds.map((id) => {
+    const c = known.get(id);
+    return {
+      id,
+      title: c?.title ?? titles[id] ?? 'New chat',
+      where: c ? canvasName(c.canvas) : '',
+      when: needs.has(id) ? '' : 'now',
+      state: state(id),
+    };
+  });
+  // Needs-you chats first: the list says which one is waiting on a person.
+  running.sort((a, b) => (a.state === 'needs' ? 0 : 1) - (b.state === 'needs' ? 0 : 1));
+  const live = new Set(liveIds);
+  const out = [];
+  let total = 0;
+  for (const g of groups) {
+    const chats = (g.chats ?? []).filter((c) => !live.has(c.id) && !c.trashedAt);
+    total += chats.length;
+    if (!chats.length) continue;
+    const open = expanded.has(g.canvas ?? '');
+    const shown = open ? chats : chats.slice(0, VISIBLE_PER_GROUP);
+    out.push({
+      canvas: g.canvas ?? null,
+      name: canvasName(g.canvas),
+      count: chats.length,
+      more: chats.length - shown.length,
+      rows: shown.map((c) => ({
+        id: c.id,
+        title: c.title,
+        when: whenLabel(c.updated, now),
+        state: 'idle',
+      })),
+    });
+  }
+  const all = total + running.length;
+  return { running, groups: out, total: all, foot: footLine(all) };
+}
+
+/** "41 chats · kept with the project" */
+export function footLine(n) {
+  return `${n} ${n === 1 ? 'chat' : 'chats'} · kept with the project`;
+}
+
+/** The search view: hits grouped by canvas, the title and the snippet carrying their marked words. */
+export function buildSearchList(hits = [], query = '', now = Date.now()) {
+  const by = new Map();
+  for (const h of hits) {
+    const key = h.canvas ?? '';
+    const list = by.get(key) ?? [];
+    list.push({
+      id: h.id,
+      title: markParts(h.title, h.titleRanges),
+      rawTitle: h.title,
+      via: h.snippet ? markParts(h.snippet.text, h.snippet.ranges) : null,
+      when: whenLabel(h.updated, now),
+      state: 'idle',
+    });
+    by.set(key, list);
+  }
+  const groups = [...by.entries()].map(([canvas, rows]) => ({
+    canvas: canvas || null,
+    name: canvasName(canvas),
+    rows,
+  }));
+  const n = hits.length;
+  return {
+    groups,
+    foot:
+      n === 0
+        ? `Nothing in your chats matches "${query}".`
+        : `${n} ${n === 1 ? 'result' : 'results'}`,
+  };
+}
+
+/**
+ * The row's ⋯ menu — Open · Rename… · Copy transcript · — · Archive · Move to trash. Each item that is a
+ * registry action carries its id and is dropped where the registry says it is not visible (rule 12: the
+ * server refuses the same writes). `Open` is the row itself.
+ */
+export function rowMenu(ctx, byId = ACTIONS_BY_ID) {
+  const item = (id, extra = {}) => {
+    const def = byId.get(id);
+    if (!def || !isVisible(def, ctx)) return null;
+    return { id, label: def.label, ...extra };
+  };
+  const items = [
+    { id: 'open', label: 'Open' },
+    item('chat.rename'),
+    item('chat.copy-transcript'),
+    'sep',
+    item('chat.archive'),
+    item('chat.trash', { danger: true }),
+  ].filter(Boolean);
+  // never a lonely separator
+  return items.filter((it, i) => it !== 'sep' || (i > 0 && i < items.length - 1));
+}
+
+/** The still-waiting prompts of one chat, from `GET /_api/outbox` (`intents`): lane `ai:<chatId>`. */
+export function queuedPromptsOf(view, chatId) {
+  const intents = Array.isArray(view?.intents) ? view.intents : [];
+  return intents
+    .filter(
+      (r) =>
+        r.kind === 'ai.prompt' &&
+        r.lane === `ai:${chatId}` &&
+        !['done', 'dropped'].includes(r.state)
+    )
+    .map((r) => String(r.label ?? ''));
+}
+
+/**
+ * The trash dialog. The title asks with the verb the button carries (CONTRACT §4); a queued prompt is named
+ * first, because moving the chat to the trash withdraws it (V2-1.14 G22). A chat with a turn in flight is
+ * not trashed — the server answers 409 `running`, so the dialog says "Stop it first" and offers no verb.
+ */
+export function trashDialog(title, { queued = [], running = false } = {}) {
+  const name = String(title || 'New chat');
+  if (running) {
+    return {
+      title: `"${name}" is working`,
+      body: 'Stop it first, then move it to the trash.',
+      confirm: null,
+      cancel: 'Cancel',
+    };
+  }
+  const n = queued.length;
+  const body =
+    n === 0
+      ? 'Trash keeps it until you clear it out.'
+      : n === 1
+        ? `Its queued prompt won't send: "${queued[0]}".`
+        : `Its ${n} queued prompts won't send.`;
+  return {
+    title: `Move "${name}" to the trash?`,
+    body,
+    confirm: 'Move to trash',
+    cancel: 'Cancel',
+  };
+}

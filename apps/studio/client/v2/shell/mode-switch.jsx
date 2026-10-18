@@ -10,8 +10,9 @@
 // Present⌄ is the kit's one 40px slot with two hit targets: the segment presents from the selected
 // artboard, the chevron opens Present's small menu (04 md-present-menu). S3.1 lists the rows that
 // exist: Artboards, one by one (from the selection ⌥⌘↵, from the start ⇧⌥⌘↵) and the canvas, pan
-// freely. Presenter view, Order and notes… and the presentation link stay hidden until their slice
-// (S3.6b, S3.5, S3.7a) — hidden, never greyed.
+// freely. S3.5 adds Order and notes… under a rule, for editors only (`present.order-notes`, minRole
+// edit). Presenter view and the presentation link stay hidden until their slice (S3.6b, S3.7a) —
+// hidden, never greyed.
 //
 // The segments keep the palette's testids (`palette-mode-*`, V2-1.2 §5.5 rule 5 — the multiplayer e2e
 // reads `palette-mode-edit`), plus `palette-mode-viewing`.
@@ -104,13 +105,21 @@ const PRESENT_ROWS = [
     label: 'Present the canvas',
     note: 'no chrome, no pins',
   },
+  // 04 md-present-menu: a rule, then (presenter view, S3.6b) and Order and notes…; editors only.
+  { sep: 'tools', edit: true },
+  {
+    kind: 'order-notes',
+    testid: 'mode-present-order-notes',
+    label: 'Order and notes…',
+    edit: true,
+  },
 ];
 
 /**
  * @param mode the mode the canvas is in: edit | viewing | preview | present
  * @param caps ModeCaps — `caps.edit` decides Edit vs Viewing
  * @param onSelect (mode) => void — a click on Present is `onSelect('present')`: from the selection
- * @param onPresent (kind) => void — Present ⌄ › 'selection' | 'start' | 'canvas'
+ * @param onPresent (kind) => void — Present ⌄ › 'selection' | 'start' | 'canvas' | 'order-notes'
  * @param onPresentCanvas () => void — the older single-row prop, used when `onPresent` is absent
  * @param presentFromLabel the selected artboard's label: the first row reads Present from “…”
  * @param canPresent false with no canvas open (Present has nothing to show)
@@ -219,8 +228,10 @@ export function ModeSwitch({
           aria-label="Present"
           data-testid="mode-present-list"
         >
-          {PRESENT_ROWS.map((row, i) =>
-            row.group ? (
+          {PRESENT_ROWS.filter((row) => !row.edit || caps?.edit).map((row, i) =>
+            row.sep ? (
+              <hr key={`sep-${row.sep}`} className="st-pm-sep" />
+            ) : row.group ? (
               <div key={row.group} className="st-mode-menu-hd" role="presentation">
                 {row.group}
               </div>

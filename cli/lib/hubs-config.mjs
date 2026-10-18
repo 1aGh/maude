@@ -107,6 +107,9 @@ export function addHub(url, token, extra = {}) {
   const cfg = loadHubsConfig();
   const prior = cfg.hubs[norm];
   const priorRole = prior?.role;
+  // S9.9 — `access` is the hub's real claim (role + canvas grants) cached next to the v1 `role`
+  // projection; a relink has no fresher answer, so it survives the same way `role` does.
+  const priorAccess = prior?.access;
   // LOCAL CONSENT SURVIVES EVERY RE-SAVE. `role` is a cache of what the hub
   // said about you at sign-in; `codeModulesAllowed` is what YOU said about the
   // hub, and a login response must not be able to change it.
@@ -132,6 +135,7 @@ export function addHub(url, token, extra = {}) {
     token,
     linkedAt: Date.now(),
     ...(priorRole ? { role: priorRole } : {}),
+    ...(priorAccess && typeof priorAccess === 'object' ? { access: priorAccess } : {}),
     ...(typeof priorExpiry === 'number' ? { expiresAt: priorExpiry } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
     ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),
