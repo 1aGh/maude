@@ -234,6 +234,7 @@ import { undoProjection } from './v2/undo/use-undo-projection.jsx';
 import { ShellInspectPanel } from './v2/inspect/inspect-host.jsx';
 import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-host.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
+import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
@@ -3001,6 +3002,8 @@ function ShellTree() {
           <ViewBarHost activePath={activePath} />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
           <EmptyHost />
+          {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}
+          <SyncStatesHost />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
               tab strip in the panel's OWN header; the AI chat, when docked here, is a separate island under it
               (always mounted, so its stream survives — DDR-123). Folded, the corner icon below is the way back. */}

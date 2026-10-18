@@ -78,14 +78,15 @@ export function rig(codec, { drop = [] } = {}) {
   async function propose(
     actor,
     operations,
-    { kind = 'edit', label = null, origin, auth = {} } = {}
+    // `tx`: a fixed transaction id — a replay of the same proposal (S9.24).
+    { kind = 'edit', label = null, origin, auth = {}, tx: fixedTx } = {}
   ) {
     const { epoch } = await kernel.state();
     const bytes = JSON.stringify({
       protocol: 1,
       projectId: 'p1',
       epoch,
-      transactionId: `tx-${String(++tx).padStart(8, '0')}`,
+      transactionId: fixedTx ?? `tx-${String(++tx).padStart(8, '0')}`,
       action: { kind, label, operations },
       ...(origin ? { origin } : {}),
     });

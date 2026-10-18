@@ -316,6 +316,11 @@ export const STUDIO_ROUTES = Object.freeze({
   // presence. A cell is the hub: its studio has no peer hub to ask, and a browser member's
   // client reads a refusal as the quiet "Not here yet" (contract §5.5, offline row).
   '/_api/asset-state': REFUSED,
+  // S9.24 — the object-conflict card is the PROPOSER's, kept in this checkout's `_state/conflicts/`;
+  // a cell's would be every member's (like pins). A cell proposes in-process and never replays a
+  // day-old outbox, so it has no card to show: refused on the record.
+  '/_api/sync/conflicts': REFUSED,
+  '/_api/sync/conflicts/resolve': REFUSED,
   // Preparing a device for offline work is a desktop's; a cell IS the copy.
   '/_api/sync/offline': REFUSED,
 

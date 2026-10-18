@@ -40,6 +40,7 @@ import { createSettingsRoutes, type SettingsRouteDeps } from './settings.ts';
 import { createShareRoutes, type ShareRouteDeps } from './share.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
+import { createSyncConflictRoutes, type SyncConflictRouteDeps } from './sync-conflicts.ts';
 import type { RouteSpec } from './table.ts';
 import { createVideoRoutes } from './video.ts';
 import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
@@ -111,6 +112,8 @@ export interface RouteDeps {
   assetState?: AssetStateRouteDeps;
   /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
   share: ShareRouteDeps;
+  /** S9.24 — the object-conflict card: `GET /_api/sync/conflicts`, `POST …/resolve` (one lane edit) */
+  syncConflicts?: SyncConflictRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -174,5 +177,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createCloudMoveRoutes(deps.cloudMove),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...createShareRoutes(deps.share),
+    ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
   ];
 }

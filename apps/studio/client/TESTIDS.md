@@ -1607,6 +1607,13 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-project-blank` | testid | "Start with an empty canvas" (Cmd+N): a blank canvas, named by the server. Absent for Can view. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
 | `canvases-none` | testid | The Canvases panel's line for a project with no canvases: "No canvases yet." (the kit's block). | `client/v2/create/empty-project.jsx` · `PanelNoCanvases` | test:v2-empty-project | new |
 | `canvases-none-new` | testid | The "New canvas" row under that line: a blank canvas. Absent for Can view. | `client/v2/create/empty-project.jsx` · `PanelNoCanvases` | test:v2-empty-project | new |
+| `sync-conflict-mark` | testid | "2 versions" (10 · co-sync-back): a sticky changed on this Mac and another while offline; this Mac shows its own version, marked, until someone picks. Opens the conflict card. | `client/v2/sync-states/conflict-card.jsx` · `ConflictMark` | test:v2-sync-states, e2e:offline-conflict | new |
+| `sync-conflict-card` | testid | The object-conflict card (10 · co-conflict): "You and Jonas both changed this sticky while offline." — both versions side by side. `data-conflict` = `<slug>#<element id>`. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
+| `sync-conflict-mine` | testid | The card's left half: this Mac's version ("Yours · this Mac") and Keep yours. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
+| `sync-conflict-theirs` | testid | The card's right half: the version the project kept first, named by its author, and Keep <name>'s. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
+| `sync-conflict-keep-mine` | testid | Keep yours — registry `sync.conflict.keep-mine`; one lane edit (POST /_api/sync/conflicts/resolve choice mine). | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
+| `sync-conflict-keep-theirs` | testid | Keep <name>'s — registry `sync.conflict.keep-theirs`; nothing changes on the board, the card goes. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
+| `sync-conflict-keep-both` | testid | Keep both — registry `sync.conflict.keep-both`; this Mac's version is added beside theirs under a new id. Absent when one side deleted the element. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
 
 ## What's New spotlights
 

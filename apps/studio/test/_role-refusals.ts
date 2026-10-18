@@ -78,6 +78,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
       params: { artboard: 'reel', stableId: 'name:one', zoom: 2 },
     },
   },
+  // S9.24 — `sync.conflict.keep-*`: a conflict pick is a board edit (test/sync-conflicts-route.test.ts).
+  {
+    method: 'POST',
+    route: '/_api/sync/conflicts/resolve',
+    refused: ['view', 'comment'],
+    body: { slug: 'ui-a', id: 's1', choice: 'mine' },
+  },
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },

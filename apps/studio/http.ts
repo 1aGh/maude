@@ -1767,6 +1767,17 @@ export function createHttp(
       access: (req) => accessOf(req),
       project: () => ctx.cfg.name ?? null,
     },
+    // S9.24 — the object conflicts THIS Mac lost (_state/conflicts/): the card's list, and a pick
+    // as one ordinary lane edit through the canvas's own op path (one batch = one undo step).
+    syncConflicts: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      fileForSlug: (slug) => api.fileForSlug(slug),
+      readBoard: (file) => api.readBoard(file),
+      applyAnnotationOps: (file, ops) => api.applyAnnotationOps(file, ops),
+      access: (req) => accessOf(req),
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
     // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
     // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local

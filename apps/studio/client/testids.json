@@ -6527,9 +6527,7 @@
       "symbol": "PresenceFaces"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6542,9 +6540,7 @@
       "symbol": "PresenceFaces"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6557,9 +6553,7 @@
       "symbol": "FaceMenu"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6572,9 +6566,7 @@
       "symbol": "FaceMenu"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6587,9 +6579,7 @@
       "symbol": "FaceMenu"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6602,9 +6592,7 @@
       "symbol": "FaceMenu"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6617,9 +6605,7 @@
       "symbol": "FaceMenu"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6632,9 +6618,7 @@
       "symbol": "PeopleList"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6647,9 +6631,7 @@
       "symbol": "PeopleList"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6662,9 +6644,7 @@
       "symbol": "PeopleList"
     },
     "region": "other",
-    "consumers": [
-      "test:presence-faces"
-    ],
+    "consumers": ["test:presence-faces"],
     "v2": "new"
   },
   {
@@ -6677,9 +6657,7 @@
       "symbol": "PresenceOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "test:presence-canvas"
-    ],
+    "consumers": ["test:presence-canvas"],
     "v2": "new"
   },
   {
@@ -6692,9 +6670,7 @@
       "symbol": "PresenceOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "test:presence-canvas"
-    ],
+    "consumers": ["test:presence-canvas"],
     "v2": "new"
   },
   {
@@ -6707,9 +6683,7 @@
       "symbol": "PresenceOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "test:presence-canvas"
-    ],
+    "consumers": ["test:presence-canvas"],
     "v2": "new"
   },
   {
@@ -6722,9 +6696,7 @@
       "symbol": "PresenceOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "test:presence-canvas"
-    ],
+    "consumers": ["test:presence-canvas"],
     "v2": "new"
   },
   {
@@ -6737,9 +6709,7 @@
       "symbol": "PresenceOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "test:presence-canvas"
-    ],
+    "consumers": ["test:presence-canvas"],
     "v2": "new"
   },
   {
@@ -6752,9 +6722,7 @@
       "symbol": "PresenceOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "test:presence-canvas"
-    ],
+    "consumers": ["test:presence-canvas"],
     "v2": "new"
   },
   {
@@ -20666,6 +20634,104 @@
     "region": "onboarding",
     "consumers": [],
     "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-mark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"2 versions\" (10 · co-sync-back): a sticky changed on this Mac and another while offline; this Mac shows its own version, marked, until someone picks. Opens the conflict card.",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictMark"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The object-conflict card (10 · co-conflict): \"You and Jonas both changed this sticky while offline.\" — both versions side by side. `data-conflict` = `<slug>#<element id>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-mine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's left half: this Mac's version (\"Yours · this Mac\") and Keep yours.",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-theirs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's right half: the version the project kept first, named by its author, and Keep <name>'s.",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-keep-mine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep yours — registry `sync.conflict.keep-mine`; one lane edit (POST /_api/sync/conflicts/resolve, choice mine).",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-keep-theirs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep <name>'s — registry `sync.conflict.keep-theirs`; nothing changes on the board, the card goes.",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "sync-conflict-keep-both",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep both — registry `sync.conflict.keep-both`; this Mac's version is added beside theirs under a new id. Absent when one side deleted the element.",
+    "producer": {
+      "file": "apps/studio/client/v2/sync-states/conflict-card.jsx",
+      "symbol": "ConflictCard"
+    },
+    "region": "sync/cloud",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-sync-states.test.tsx"],
     "v2": "new"
   }
 ]
