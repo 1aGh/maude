@@ -147,6 +147,9 @@ const BIN_VERBS = new Set([
   // word-order / one-typo folding) from the running studio, or builds the static index
   // in-process when none runs. Read-only — writes nothing.
   'index',
+  // S8.11. `assets [--usage <asset>] [--not-used]` — the project's assets, where each is used, and
+  // which are not (V2-1.17 §5.5). Read-only; the studio's index, else a static build.
+  'assets',
   // V2-2.15. `ds-check` is the design-system schema checker (contract V2-1.13 §5.8): system
   // levels 0 / 10 / 11, canvas S-rules (12), `--json`, `--cheatsheet`, `--hook`. Read-only unless
   // `--emit` (tokens.json) or `--fix=mechanical` (canvas autofixes; 13 = a refused write).
@@ -412,6 +415,8 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         This project's comment threads. Read-only.
   exports list · exports again <id|index> [--out <file|folder/>] [--no-wait]
         Recent exports; export one again as the Export sheet does (file lands in the project).
+  assets [--usage <asset>] [--not-used] [--json]
+        The project's assets and the canvases that use them; not-used ones once older versions are checked. Read-only.
   runs list [--canvas <canvas>] [--json] · runs stop <run>
         The AI runs on this project and the artboards each is changing; stop one of yours.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start

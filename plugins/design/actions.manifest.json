@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8ac7067f41d7",
+  "manifestVersion": "f256bbf20d15",
   "actions": [
     {
       "id": "search.open",
@@ -2708,6 +2708,12 @@
     {
       "scope": "design",
       "verb": "design index",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design assets",
       "effect": "none",
       "tier": "auto"
     },
