@@ -25,11 +25,11 @@ The dev-server UI lets the user drop comments on individual elements (Cmd+Shift+
     "thread": [{ "id": "r_…", "author": "…", "body": "…", "created": "<iso-ts>", "authorKind?": "ai" }],
     "mentions": ["@ada"],               // parsed from person-written text, never sent by a client
     // Anchors — every one optional; a shape that fails is dropped and the thread renders detached:
-    "artboard": "<DCArtboard id>",      // the board the thread is on
+    "artboard": "<DCArtboard id>",      // the artboard the thread is on
     "t": 12.5,                          // seconds into that artboard's video (needs `artboard`)
     "mm": { "x": 10, "y": 24.5 },       // millimetres from a print artboard's trim corner (needs `artboard`)
     "timeline": { "clipStableId": "…", "frame": 120, "lane": "V1" },
-    "annotationId": "<board element id>",
+    "annotationId": "<annotation element id>",
     "world": { "x": 0, "y": 0 },
     // A sticky turned into a comment: `author` is the person who converted it, `from.author` wrote it.
     "from": { "kind": "sticky", "id": "<sticky id>", "author": "Jonas", "convertedBy": "…", "at": "<iso-ts>" }
