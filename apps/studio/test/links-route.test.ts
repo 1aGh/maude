@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { CANVAS_SAFE_API, type Http } from '../http.ts';
 import { canvasOriginRoutes } from '../routes/canvas-origin.ts';
 import { allSpecs } from '../routes/index.ts';
-import { createLinksRoutes, type LinksRouteDeps } from '../routes/links.ts';
+import { createCanvasLinksRoutes, type CanvasLinksRouteDeps } from '../routes/canvas-links.ts';
 import { mountRoutes } from '../routes/table.ts';
 import { stubDeps } from './_route-stubs.ts';
 
@@ -51,11 +51,11 @@ writeFileSync(join(DESIGN, 'Home.tsx'), HOME);
 writeFileSync(join(DESIGN, 'site/pricing.tsx'), PRICING);
 writeFileSync(join(DESIGN, 'site/secret.tsx'), PRICING);
 
-const handlerFor = (deps: Partial<LinksRouteDeps> = {}) => {
-  const [spec] = createLinksRoutes({ designRoot: DESIGN, designRel: '.design', ...deps });
+const handlerFor = (deps: Partial<CanvasLinksRouteDeps> = {}) => {
+  const [spec] = createCanvasLinksRoutes({ designRoot: DESIGN, designRel: '.design', ...deps });
   return spec as NonNullable<typeof spec>;
 };
-const get = async (q: string, deps?: Partial<LinksRouteDeps>) => {
+const get = async (q: string, deps?: Partial<CanvasLinksRouteDeps>) => {
   const res = await handlerFor(deps).handle(new Request(`http://127.0.0.1/_api/links${q}`), {});
   return { status: res.status, text: await res.text(), cache: res.headers.get('cache-control') };
 };

@@ -1,0 +1,22 @@
+Row: pn-relaunch (11 · 21 · After a restart — 20 tabs come back, resting) — VERIFIED for restore, resting, only-the-front-runs and the toast; no 20-tab run exists
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae; contract V2-3.7-own-tab-bar.md blob 7443b61b81f6 (section 4).
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file.
+
+PICK: B. decisions maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism; the plan amendment "after a restart, every tab comes back" is in maude/v2-V2-1.1-home-window (relaunch row, contracts/V2-1.1-home-window.md:234); resting: maude/v2-3.2b-rest-policy, maude/v2-3.2b-wake-settle ("a resting tab wakes only if still focused 250 ms after the focus event").
+
+SHIPPED (code -> pin):
+  - every tab comes back, in saved order, each project once, only if its root still has .design/: apps/desktop/src-tauri/src/windows.rs:1334 plan_tabs, :1427 restore_session. Pin windows.rs:2966 plan_tabs_keeps_saved_order_and_only_the_focused_tab_runs.
+  - only the front tab runs, the rest REST (server stopped, resting splash, name kept, dimmed in the strip): windows.rs:1089 rest_window, strip.html:96; wake on focus after WAKE_SETTLE: windows.rs:1045-1052 wake_when_settled. Pin windows.rs:2869 rest_policy_a_resting_tab_is_never_navigated_until_it_wakes.
+  - no stray Home tab, Home pinned, and a Home-focused session restores Home active: windows.rs:2998 plan_tabs_drops_an_old_home_entry_and_restores_home_active.
+  - the toast "20 tabs reopened. Each one starts when you open it.": windows.rs:1486-1496 sends shell://tabs-restored {count} to the active webview when count >= 2; client/shell-events.js:31 tabsRestoredWords, :104 subscription, :111 take_tabs_restored (one-shot, for a page that loads after the event; windows.rs:1812, pin windows.rs:3076). Studio pin: apps/studio/test/shell-events.test.ts:119 (exact 20-tab sentence) and :141, :168.
+  - the cap that makes 20 tabs rest: sidecar.rs:238 RUNNING_CAP = 5, :1245 pick_rest (pins sidecar.rs:1804-1879).
+e2e: apps/desktop/e2e/scenarios/relaunch.e2e.ts
+  :47  1 - first launch: Home alone; open A then B from Home; saved [A, B] with B active
+  :74  2 - relaunch: exactly A and B, B active and running, A resting, no extra tab
+  :111 3 - relaunch: the one-tab session comes back resting, with Home active
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt "test:e2e:desktop:relaunch exit=0 ... 1 passed" and "relaunch (3 launches)" (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2). Not re-run in the phase-3 (10-13, native-tabs era) or phase-4 gate - the lead's wave-gate rerun should include :relaunch.
+
+NAMED GAPS:
+  GAP-RELAUNCH-1  nothing runs 20 tabs: the lane restores 2 (A, B). The 20-tab sentence is pinned only at the toast level (shell-events.test.ts:119), the 5-running cap only at the Rust policy level. A relaunch with > 5 saved tabs (cap rests all but the front at boot) has no e2e.
+  GAP-RELAUNCH-2  the artboard's strip shows "10 more" for the clipped tabs (pn-tab-b20, GAP-TAB-B20-1): not built.
+  GAP-RELAUNCH-3  the toast is asserted at the studio-model level only; no e2e asserts the toast text on screen.

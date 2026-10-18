@@ -319,7 +319,183 @@
     color: var(--fg-2);
     white-space: nowrap;
   }
+  /* S1.22a — the account chip and its card (11 pn-accounts). A circle with the label's initial (W / P),
+     never the person's own "M", so two accounts never look alike. The card is the popover plane. */
+  .st-acct {
+    position: relative;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+    margin-right: 2px;
+    box-shadow: inset -1px 0 0 var(--border-subtle);
+  }
+  .st-acct-chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 6px 0 4px;
+    border: 0;
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-medium, 500);
+    cursor: pointer;
+  }
+  .st-acct-chip:hover,
+  .st-acct-chip.is-on,
+  .st-acct-chip:focus-visible {
+    background: var(--accent-muted, var(--bg-3));
+    outline: none;
+  }
+  .st-acct-name {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-acct-face {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    line-height: 1;
+    color: var(--fg-0);
+    background: color-mix(in oklab, var(--accent) 24%, var(--bg-3));
+  }
+  .st-acct-face[data-tone="b"] {
+    background: color-mix(in oklab, var(--status-warn) 30%, var(--bg-3));
+  }
+  .st-acct-face--lg {
+    width: 32px;
+    height: 32px;
+    font-size: var(--type-sm, 13px);
+  }
+  .st-acct-card {
+    position: absolute;
+    top: calc(100% + var(--space-2, 8px));
+    left: 0;
+    z-index: 40;
+    width: 340px;
+    max-width: calc(100vw - 2 * var(--float-gap, 16px));
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2, 8px);
+    border-radius: var(--island-radius, 14px);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    box-shadow:
+      var(--shadow-lg, 0 12px 32px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    font-size: var(--type-sm, 13px);
+    text-align: left;
+  }
+  .st-acct-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-1, 4px);
+  }
+  .st-acct-txt {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .st-acct-txt strong {
+    font-size: var(--type-sm, 13px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-0);
+  }
+  .st-acct-row--sm .st-acct-txt strong {
+    font-weight: var(--w-medium, 500);
+  }
+  .st-acct-gt {
+    margin: 0;
+    padding: var(--space-1, 4px) var(--space-2, 8px) 0;
+    font-size: var(--type-xs, 12px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .st-acct-sep {
+    border: 0;
+    height: 1px;
+    margin: var(--space-1, 4px) var(--space-2, 8px);
+    background: var(--border-subtle);
+  }
+  .st-acct-act {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    width: 100%;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    text-align: left;
+    cursor: default;
+  }
+  .st-acct-act:hover,
+  .st-acct-act:focus-visible {
+    background: var(--accent-muted, var(--bg-3));
+    outline: none;
+  }
+  .st-acct-act--two {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding-top: var(--space-1, 4px);
+    padding-bottom: var(--space-1, 4px);
+  }
+  .st-acct-sub {
+    white-space: normal;
+    font-size: var(--type-xs, 12px);
+    line-height: var(--lh-xs, 1.4);
+    color: var(--fg-2);
+  }
+  .st-acct-ask {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    padding: var(--space-2, 8px);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-3);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+  .st-acct-ask strong {
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-0);
+  }
+  .st-acct-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2, 8px);
+    padding-top: var(--space-1, 4px);
+  }
+  .st-acct-foot {
+    margin: var(--space-1, 4px) 0 0;
+    padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-1, 4px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+
   /* Preview: the cluster goes compact — the faces and the status word step aside (V2-1.2 §5.4). */
+  .st-share[data-mode="preview"] > .st-acct,
   .st-share[data-mode="preview"] > .st-faces,
   .st-share[data-mode="preview"] > .st-saved,
   .st-share[data-mode="preview"] > .st-share-act {

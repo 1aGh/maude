@@ -54,6 +54,19 @@ export const cloudSignInPrepare = () =>
  *  account, moves it to this project's own profile (`true`: reloading). */
 export const cloudSignedIn = () =>
   isNativeApp() ? invoke('cloud_signed_in') : Promise.resolve(false);
+/** S1.22a — every account on this Mac with the projects bound to it, for the account card:
+ *  `[{ id, label, email, projects: string[] }]`. A shell command that returns it FOR THE CALLER
+ *  (patch request S1.22a-1); an older shell has none, so this resolves `null` — the card then says
+ *  only what the tab itself knows. Never throws. */
+export const accountsList = () =>
+  isNativeApp()
+    ? Promise.resolve()
+        .then(() => invoke('accounts_list'))
+        .then(
+          (v) => (Array.isArray(v) ? v : null),
+          () => null
+        )
+    : Promise.resolve(null);
 /** Whether a token is in the keychain (boolean). Safe to call on launch. */
 export const isSignedIn = () => invoke('github_is_signed_in');
 export const openVerification = () =>

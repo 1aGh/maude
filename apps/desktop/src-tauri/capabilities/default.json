@@ -8,6 +8,7 @@
   },
   "permissions": [
     "allow-shell-subscribe",
+    "allow-quit-answer",
     "allow-github-sign-in",
     "allow-github-open-verification",
     "allow-open-github-url",

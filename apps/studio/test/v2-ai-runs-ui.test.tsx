@@ -193,14 +193,14 @@ describe('the waiting card (ai-same-artboard)', () => {
     void React;
   });
 
-  test('Run on a copy is not drawn until the server half exists; when it is, it posts /copy', async () => {
+  test('S5.11b: Run on a copy is drawn on the waiting card (the server half exists); it posts /copy', async () => {
     const React = await import('react');
     const mod = await import('../client/v2/ai/WaitingCard.jsx');
-    expect(mod.RUN_ON_COPY_LIVE).toBe(false);
+    expect(mod.RUN_ON_COPY_LIVE).toBe(true);
     const run = waiting();
     const { store } = await storeWith({ mine: [run], others: [holder] });
     await mount(<mod.WaitingCards store={store} chatId="c-wait" designRel=".design" />);
-    expect(q('ai-waiting-copy')).toBeNull();
+    expect(q('ai-waiting-copy')).not.toBeNull();
     const calls: string[] = [];
     const { act } = await mount(
       <mod.WaitingCard

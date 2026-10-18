@@ -157,6 +157,8 @@ interface Comment {                 // today's record, unchanged …
     convertedBy: string;            // = author
     at: string;                     // ISO time of the conversion
     spot?: { x: number; y: number; artboard?: string };  // where the sticky sat, for "Turn back"
+    fill?: string;                  // its paper, a palette colour (#rgb / #rrggbb / #rrggbbaa)   — A5 lead,
+    w?: number; h?: number;         // its size, 0 < n ≤ 4096                    decision v2-lead-from-carries-sticky-look
   };
 }
 ```
@@ -207,14 +209,15 @@ S2.1 revert-fallback pattern.
 
 | Route | Body | Needs | Answer |
 | --- | --- | --- | --- |
-| `POST /_api/annotations/to-comment` | `{ file, id }` | `annotate` **and** `comment` | 200 `{ ok, commentId, actionId }` · 403 `read-only` · 404 `gone` · 409 `not-a-sticky` |
+| `POST /_api/annotations/to-comment` | `{ file, id }` | `annotate` **and** `comment` | 200 `{ ok, commentId, actionId }` · 403 `read-only` · 404 `gone` · 409 `not-a-sticky` · 409 `empty` (a sticky with no words has nothing to say as a comment) |
 | `POST /_api/comments/to-sticky` | `{ commentId }` (a comment with `from.kind === 'sticky'`) | `annotate` | 200 `{ ok, stickyId, actionId }` · 409 `has-replies` (replies by anyone but the caller) · 409 `not-converted` |
 
 - A locked sticky converts (lock is a UX guard, DDR-246; the menu row is a deliberate act).
 - The thread anchors where the sticky's arrow pointed (its bound `el:` / `ab:` host) else at the sticky's
   world centre (`world`), never at the trashed sticky's id.
 - "Turn back into a sticky" re-creates the sticky with its old id when that id is free, else a new id, at
-  `from.spot`, colour and author from `from` — authorship of a sticky is a board field, and the board is the
+  `from.spot`, colour (`from.fill`) and size (`from.w` / `from.h`, recorded at the conversion; a `from` without
+  them gets the default 200 × 200 sticky) and author from `from` — authorship of a sticky is a board field, and the board is the
   editor's to write (`annotate` = edit).
 - The canvas asks through the shell: dgn `annotation-to-comment { id }` (c2s, active; S4.12's row). The shell
   sets `file` itself.

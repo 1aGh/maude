@@ -1,154 +1,71 @@
-// routes/links.ts — `GET /_api/links?file=` (S3.10a; contract client/v2/contracts/S3-links-format.md §4).
+// Stable canvas links — S1.18 (S1 Q6, 11 · pn-deeplink).
 //
-// The trusted shell's one source for where an on-click link goes. The canvas never hands the shell a
-// target (DDR-054: the canvas origin is untrusted): in Preview it posts `link-follow {elementId,
-// artboardId}`, and the shell reads the target HERE, parsed server-side from the versioned TSX.
+//   GET /_api/link/resolve?c=<entry>     → { ok, status: 'live', entry, path } | { ok, status: 'trashed', entry }
+//                                           | { ok, status: 'unknown' }
+//   GET /_api/link/resolve?path=<rel>    → the entry a new link names (Copy link): live, or unknown
+//   either, with no op log                → { ok: false, reason: 'legacy' } (the caller keeps today's path link)
 //
-// MAIN ORIGIN ONLY — in neither canvas allowlist (`origin: 'main'`). A read: `readOnly: 'allowed'`, any role
-// (a Can view session opens a canvas in Preview and must follow its links).
-//
-// No existence oracle (V2-1.16 U1): a target canvas this session cannot read reports `dangling` with the
-// fallback label — byte-equal to a canvas that is not there; a `file` it cannot read answers the same 404 as
-// a missing one. `sees` is the session predicate (access/scope.ts `sees`); the local studio has one project
-// role and passes none (everything readable).
+// MAIN ORIGIN ONLY (never `origin: 'canvas'`): it maps ids to paths across the whole project, which the
+// untrusted canvas iframe has no business asking (DDR-054). A canvas-only session (`scope`) resolves only its
+// granted canvases; everything else is the same `unknown` (history/links.ts — no existence oracle). A read:
+// a viewer may follow a link.
 
-import { readFileSync } from 'node:fs';
-
-import { canvasWords, type LinkTarget, linkLabel } from '../bridge/link-target.ts';
-import { readLinks } from '../canvas-edit.ts';
-import { artboardsOfSource, type CanvasArtboard, canvasFileIn } from '../check/link-resolver.ts';
+import {
+  entryForPath,
+  type LinkRuntime,
+  type LinkScope,
+  linkSourceOf,
+  resolveEntry,
+} from '../history/links.ts';
 import type { RouteSpec } from './table.ts';
-
-export interface LinksRouteDeps {
-  designRoot: string;
-  /** `.design` — a `file` may carry it as a prefix */
-  designRel: string;
-  /** may this request's session read `rel` (designRoot-relative)? absent = yes (one local project role) */
-  sees?(req: Request, rel: string): boolean;
-}
-
-export interface LinkEntry {
-  id: string;
-  artboard: string | null;
-  target: string;
-  kind: 'artboard' | 'canvas' | 'external' | 'invalid';
-  canvas?: string;
-  toArtboard?: string | null;
-  url?: string;
-  host?: string;
-  state: 'ok' | 'dangling' | 'invalid';
-  label: string;
-}
 
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
-const NOT_FOUND = { error: 'not-found' } as const;
-
-/** designRoot-relative `.tsx` from a `file` param, or null when the grammar is wrong (→ 400). */
-export function linksFileRel(designRel: string, file: string | null): string | null {
-  if (!file || file.length > 1024) return null;
-  let p = file;
-  const dr = designRel.replace(/^\.\//, '').replace(/^\/+|\/+$/g, '');
-  if (dr && p.startsWith(`${dr}/`)) p = p.slice(dr.length + 1);
-  if (!p.endsWith('.tsx') || p.startsWith('/') || p.includes('\\') || p.includes('\0')) return null;
-  if (p.split('/').some((s) => s === '' || s === '.' || s === '..')) return null;
-  return p;
+export interface LinksRouteDeps {
+  /** `ctx.syncControl.current()` — null while no home answers. */
+  control: () => LinkRuntime | null | undefined;
+  /** `.design` — a `path=` may name the canvas repo-relative too. */
+  designRel: string;
+  /**
+   * The calling session's access (V2-1.7, `access/scope.ts` `Access`); null = a project session. Wired
+   * once the studio reads the proxy's claim per request (S9.9 `currentAccess`).
+   */
+  scope?: (req: Request) => LinkScope | null;
 }
 
-const labelOf = (a: CanvasArtboard | undefined) => a?.label || undefined;
-
-/** The entries of one canvas's links — pure over the source + a resolver for other canvases. */
-export function linkEntries(
-  source: string,
-  file: string,
-  otherCanvas: (rel: string) => CanvasArtboard[] | null
-): LinkEntry[] {
-  const own = artboardsOfSource(source, file) ?? [];
-  const out: LinkEntry[] = [];
-  for (const row of readLinks(source, file)) {
-    if (!row.id) continue; // `link-no-id`: nothing can address it, nothing follows it
-    const base = { id: row.id, artboard: row.artboardId, target: row.raw };
-    const t: LinkTarget | null = row.target;
-    if (!t) {
-      out.push({ ...base, kind: 'invalid', state: 'invalid', label: '' });
-    } else if (t.kind === 'artboard') {
-      const hit = own.find((a) => a.id === t.artboard);
-      out.push({
-        ...base,
-        kind: 'artboard',
-        toArtboard: t.artboard,
-        state: hit ? 'ok' : 'dangling',
-        label: linkLabel(t, { artboard: labelOf(hit) }),
-      });
-    } else if (t.kind === 'canvas') {
-      const abs = t.canvas === file ? own : otherCanvas(t.canvas);
-      const hit = abs && t.artboard !== null ? abs.find((a) => a.id === t.artboard) : undefined;
-      const ok = abs !== null && (t.artboard === null ? abs.length > 0 : hit !== undefined);
-      out.push({
-        ...base,
-        kind: 'canvas',
-        canvas: t.canvas,
-        // no artboard named → the first in source order (the shell's fallback for Present order, D5)
-        toArtboard: ok ? (t.artboard ?? (abs as CanvasArtboard[])[0]?.id ?? null) : t.artboard,
-        state: ok ? 'ok' : 'dangling',
-        label: linkLabel(t, { canvas: canvasWords(t.canvas) }),
-      });
-    } else {
-      out.push({
-        ...base,
-        kind: 'external',
-        url: t.url,
-        host: t.host,
-        state: 'ok',
-        label: linkLabel(t),
-      });
-    }
-  }
-  return out;
-}
+const designRelOf = (raw: string, designRel: string): string => {
+  const p = raw.replace(/\\/g, '/').replace(/^\/+/, '');
+  const prefix = `${designRel.replace(/^\.\//, '').replace(/^\/+|\/+$/g, '')}/`;
+  return prefix !== '/' && p.startsWith(prefix) ? p.slice(prefix.length) : p;
+};
 
 export function createLinksRoutes(deps: LinksRouteDeps): RouteSpec[] {
   return [
     {
       method: 'GET',
-      path: '/_api/links',
+      path: '/_api/link/resolve',
       origin: 'main',
       readOnly: 'allowed',
-      handle: (req) => {
-        const rel = linksFileRel(deps.designRel, new URL(req.url).searchParams.get('file'));
-        if (!rel) return json(400, { error: 'bad-file' });
-        const sees = (r: string) => (deps.sees ? deps.sees(req, r) : true);
-        const abs = sees(rel) ? canvasFileIn(deps.designRoot, rel) : null;
-        if (!abs) return json(404, NOT_FOUND);
-        let source: string;
+      handle: async (req) => {
+        const url = new URL(req.url);
+        const entries = url.searchParams.getAll('c');
+        const paths = url.searchParams.getAll('path');
+        if (entries.length + paths.length !== 1)
+          return json(400, { ok: false, reason: 'one of c=<entry> or path=<canvas> is required' });
+        const source = linkSourceOf(deps.control());
+        const scope = deps.scope?.(req) ?? null;
+        let answer: Awaited<ReturnType<typeof resolveEntry>>;
         try {
-          source = readFileSync(abs, 'utf8');
+          answer =
+            entries.length === 1
+              ? await resolveEntry(source, entries[0] as string, scope)
+              : await entryForPath(source, designRelOf(paths[0] as string, deps.designRel), scope);
         } catch {
-          return json(404, NOT_FOUND);
+          return json(200, { ok: false, reason: 'unreachable' });
         }
-        const cache = new Map<string, CanvasArtboard[] | null>();
-        const other = (r: string): CanvasArtboard[] | null => {
-          if (cache.has(r)) return cache.get(r) ?? null;
-          let out: CanvasArtboard[] | null = null;
-          const f = sees(r) ? canvasFileIn(deps.designRoot, r) : null;
-          if (f) {
-            try {
-              out = artboardsOfSource(readFileSync(f, 'utf8'), r) ?? [];
-            } catch {
-              out = null;
-            }
-          }
-          cache.set(r, out);
-          return out;
-        };
-        let links: LinkEntry[];
-        try {
-          links = linkEntries(source, rel, other);
-        } catch {
-          links = []; // a file that does not parse has no followable links
-        }
-        return json(200, { v: 1, file: rel, links });
+        if (!answer) return json(200, { ok: false, reason: 'legacy' });
+        return json(200, { ok: true, ...answer });
       },
     },
   ];

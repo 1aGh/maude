@@ -72,12 +72,17 @@ interface Captured {
 /** Run one turn against the fixture and report what the client SAW. `text` is
  *  the mock's echo of the outcome it received, which is the only proof of what
  *  the bridge actually answered the adapter. */
-async function runTurn(repoRoot: string, autoRespond?: (c: Captured) => string) {
+async function runTurn(
+  repoRoot: string,
+  autoRespond?: (c: Captured) => string,
+  readOnlyRoots?: () => readonly string[]
+) {
   const prompts: Captured[] = [];
   const transparency: RequestPermissionRequest[] = [];
   const updates: Array<{ content?: { text?: string } }> = [];
   const bridge = new AcpBridge({
     repoRoot,
+    readOnlyRoots,
     permissionTimeoutMs: 4000,
     onUpdate: (u) => updates.push(u as { content?: { text?: string } }),
     onPermission: (req) => transparency.push(req),
@@ -99,6 +104,34 @@ async function runTurn(repoRoot: string, autoRespond?: (c: Captured) => string) 
     await bridge.stop();
   }
 }
+
+// S5.10 — a folder the person allowed AI to read is read-only to the bridge's gate, inside the
+// project too: the same in-project write that auto-approves above goes to the prompt.
+describe('write gate — a granted read-only folder is never a write path (S5.10)', () => {
+  test('an in-project write inside a granted folder prompts, with allow_always stripped', async () => {
+    useWriteAgent({ path: join(projectA, '.design', 'ui', 'home.tsx') });
+    const r = await runTurn(
+      projectA,
+      () => 'reject',
+      () => [join(projectA, '.design', 'ui')]
+    );
+    expect(r.prompts).toHaveLength(1);
+    expect(r.prompts[0]?.scope?.reason).toBe('read-only-grant');
+    expect(r.prompts[0]?.req.options?.some((o) => o.kind === 'allow_always')).toBe(false);
+  });
+
+  test('a getter that throws fails closed — every write prompts', async () => {
+    useWriteAgent({ path: join(projectA, '.design', 'ui', 'home.tsx') });
+    const r = await runTurn(
+      projectA,
+      () => 'reject',
+      () => {
+        throw new Error('grants unreadable');
+      }
+    );
+    expect(r.prompts).toHaveLength(1);
+  });
+});
 
 describe('write gate — in-project writes never prompt (DDR-184 regression guard)', () => {
   test('Write to an existing in-project file is auto-approved with NO client frame', async () => {
