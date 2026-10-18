@@ -188,6 +188,7 @@ import {
 } from './index/extractors/attribution-cache.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
+import { feedVersionsToIndex } from './index/version-feed.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
@@ -2149,6 +2150,13 @@ export function createHttp(
   });
   ctx.bus.on('config-updated', () => projectIndex.rebuild());
   projectIndex.on('changed', (e) => ctx.bus.emit('index-changed', e));
+  // S8.11 — a version recorded after the history scan joins the asset index ("Not used" counts it).
+  feedVersionsToIndex({
+    control: () => ctx.syncControl?.current?.(),
+    designRel: ctx.paths.designRel,
+    index: projectIndex,
+    on: (e, fn) => ctx.bus.on(e, fn),
+  });
   // V2-2.17 — the thumbnail service (contract V2-1.17 §5.8): renders only on the read-only capture
   // origin (R1), pictures in the machine cache next to the index, served below on the main origin
   // only (R4). Cells render nothing (R7). Nothing renders until a consumer asks (Home / ⌘K).
