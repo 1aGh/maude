@@ -21,6 +21,8 @@
     "allow-pick-directory",
     "allow-resolve-dev-server-url",
     "allow-save-export",
+    "allow-reveal-export",
+    "allow-clipboard-write-png",
     "allow-pick-media-file",
     "allow-pick-media-files",
     "allow-read-picked-media",
@@ -54,6 +56,12 @@
     "allow-resolve-project-for-link",
     "allow-send-notification",
     "allow-managed-project-open",
-    "allow-managed-projects-list"
+    "allow-managed-projects-list",
+    "allow-accounts-list",
+    "allow-pick-attach-folder",
+    "allow-project-reveal-path",
+    "allow-project-open-in-editor",
+    "allow-diagnostics-reveal-logs",
+    "allow-take-crash-notice"
   ]
 }

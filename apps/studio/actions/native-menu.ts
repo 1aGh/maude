@@ -34,6 +34,12 @@ export type NativeNode =
       nativeId: string;
       /** The menu label (title case). */
       label: string;
+      /** S1.22b: the accelerator is this ALIAS chord of the action, not its primary binding — a
+       *  menu item carries one accelerator, so a second key for the same action is its own item. */
+      chord?: string;
+      /** S1.22b (macOS): not drawn in the menu; its accelerator still works
+       *  (`allowsKeyEquivalentWhenHidden`, menu.rs). Only with `chord`. */
+      hidden?: true;
     }
   | { predefined: NativePredefined; macos?: true }
   | { separator: true; macos?: true };
@@ -92,6 +98,22 @@ export const NATIVE_MENU: readonly NativeSubmenu[] = [
       // V2-3.9: our own tab bar's tabs (no window is native-tabbed any more).
       { action: 'tab.next', nativeId: 'next_tab', label: 'Show Next Tab' },
       { action: 'tab.prev', nativeId: 'prev_tab', label: 'Show Previous Tab' },
+      // S1.22b: ⇧⌘] / ⇧⌘[ — the same commands, hidden (Safari's second pair).
+      {
+        action: 'tab.next',
+        nativeId: 'next_tab_alt',
+        label: 'Show Next Tab',
+        chord: '⇧⌘]',
+        hidden: true,
+      },
+      {
+        action: 'tab.prev',
+        nativeId: 'prev_tab_alt',
+        label: 'Show Previous Tab',
+        chord: '⇧⌘[',
+        hidden: true,
+      },
+      { action: 'tab.overview', nativeId: 'show_all_tabs', label: 'Show All Tabs' },
       { separator: true },
       ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
         action: `tab.select-${n}`,
