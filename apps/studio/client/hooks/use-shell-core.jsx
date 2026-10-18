@@ -497,6 +497,10 @@ export function useShellCore({}) {
           formatVersion: data.formatVersion ?? 1,
           formatGate: data.formatGate ?? null,
           readOnlyReason: data.readOnlyReason ?? null,
+          // S9.22b — the server says this session may comment (Can comment and up) even when it is
+          // read-only; canvasUrl() then adds `cm=1` beside `ro=1`, and the Comments panel keeps
+          // Resolve / Reopen. Absent (an older server) = no.
+          canComment: data.canComment === true,
           // V2-3.4 — the account profile this tab's server runs as ({ id, label? }); the
           // profile chip (V2-3.x) reads it. Older servers send none ⇒ the default profile.
           profile: data.profile ?? { id: 'default' },

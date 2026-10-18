@@ -239,6 +239,56 @@ export function mergeRings(live, done) {
   return { ...(done || {}), ...(live || {}) };
 }
 
+// ── the objects a run holds (dgn `ai-holds`, S2.18 / S9.22b) ───────────────────────────────────────
+
+/** The canvas parser's caps (bridge/dgn-protocol.ts HOLD_LABEL_MAX / AI_HOLDS_MAX): a row past them would
+ *  make the canvas drop the WHOLE message, so it is left out here instead. */
+const HOLD_TEXT_MAX = 120;
+const HOLDS_MAX = 256;
+const holdText = (v) => typeof v === 'string' && v.length > 0 && v.length <= HOLD_TEXT_MAX;
+
+/**
+ * `[{artboard, element, occurrence?, tag, mine}]` — the objects running / needs-you runs hold on the open
+ * canvas (a run's `objects`). The tag is the ring's fixed phrase (v2-lead-neutral-ai-ring-tags): built from
+ * the state and the holder's NAME only. A run's label (its prompt), question and progress line never reach
+ * the canvas — it is the untrusted side (DDR-054). One row per object; your run wins a shared object.
+ */
+export function holdsFor(view, { activeCanvas, entryOf } = {}) {
+  const out = [];
+  const seen = new Set();
+  const add = (o, tag, mine) => {
+    if (out.length >= HOLDS_MAX || !o || !onCanvas(o, activeCanvas, entryOf)) return;
+    if (!holdText(o.artboard) || !holdText(o.element)) return;
+    const occ =
+      Number.isInteger(o.occurrence) && o.occurrence >= 0 && o.occurrence < 10000
+        ? o.occurrence
+        : undefined;
+    const key = `${o.artboard}\u0000${o.element}\u0000${occ ?? ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      artboard: o.artboard,
+      element: o.element,
+      ...(occ !== undefined ? { occurrence: occ } : {}),
+      tag,
+      mine,
+    });
+  };
+  const holding = (s) => s === 'running' || s === 'needs-you';
+  for (const r of view?.mine || []) {
+    if (!r || !holding(r.state)) continue;
+    const tag = r.state === 'needs-you' ? TAG_NEEDS_YOU : TAG_WORKING;
+    for (const o of r.objects || []) add(o, tag, true);
+  }
+  for (const o of view?.others || []) {
+    if (!o || !holding(o.state)) continue;
+    const name = actorName(o.actor);
+    const tag = o.state === 'needs-you' ? `Waiting for ${name}` : `${name}'s AI`;
+    for (const x of o.objects || []) add(x, tag.slice(0, HOLD_TEXT_MAX), false);
+  }
+  return out;
+}
+
 // ── the waiting card ───────────────────────────────────────────────────────────────────────────────
 
 /** The waiting runs of one chat, oldest first. */

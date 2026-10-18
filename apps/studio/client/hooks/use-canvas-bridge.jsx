@@ -25,6 +25,11 @@ import { downloadCapturedBlob } from '../dialogs/export-dialog.jsx';
 import { moveLayerNode } from '../inspector/layers.jsx';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
+import {
+  acceptCommentBridge,
+  handleCommentBridgeMessage,
+  isCommentBridgeMessage,
+} from '../v2/comments/comment-bridge.js';
 
 export function useCanvasBridge({
   activePath,
@@ -79,6 +84,8 @@ export function useCanvasBridge({
   broadcastChrome,
   wsSend,
   reloadActive,
+  // S9.22b — the viewer's display name (left out of the mention people); optional
+  gitUser = null,
 }) {
   // ----- Inbound messages from iframes -----
   useEffect(() => {
@@ -126,6 +133,31 @@ export function useCanvasBridge({
             ? iframesRef.current.get(activePath)?.contentWindow
             : null;
         if (!activeWin || e.source !== activeWin) return;
+      }
+      // S9.22b — the overlay's comment door + mention people (comment-bridge.js). Accepted only from the
+      // active canvas's own window and only once the dgn table's parser has cleaned it; the answer goes
+      // back to that window alone. An `add` is pinned to `activePath` inside the handler.
+      if (isCommentBridgeMessage(m)) {
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
+        const msg = acceptCommentBridge(e, activeWin);
+        if (!msg) return;
+        const replyTo = e.source;
+        void handleCommentBridgeMessage(msg, {
+          activePath,
+          designRel: cfg?.designRel,
+          me: typeof gitUser === 'string' ? gitUser : null,
+          reply: (answer) => {
+            try {
+              replyTo?.postMessage(answer, expectedOrigin);
+            } catch {
+              /* detached */
+            }
+          },
+        });
+        return;
       }
       if (m.dgn === 'tool-cursor') {
         // Phase 24 — show the active canvas tool's cursor across the WHOLE app
@@ -1209,6 +1241,7 @@ export function useCanvasBridge({
     activePath,
     postToActiveCanvas,
     captureFromCanvas,
+    gitUser,
   ]);
 
   // Tell the active canvas iframe to drop any persistent selection (canvas

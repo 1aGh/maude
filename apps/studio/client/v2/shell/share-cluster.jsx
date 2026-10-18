@@ -103,6 +103,7 @@ export function ShareCluster({
   status,
   access = null,
   commentsCount = 0,
+  commentsCountKind = 'open',
   commentsOpen = false,
   exports: ex = { show: false, ring: undefined, busy: 0 },
   exportsOpen = false,
@@ -119,7 +120,11 @@ export function ShareCluster({
 }) {
   const panelsLabel = panelsHidden ? 'Show panels' : 'Hide panels';
   const exportsLabel = ex.ring !== undefined ? `Exports — ${ex.ring} % done` : 'Exports';
-  const commentsLabel = commentsCount > 0 ? `Comments — ${commentsCount} open` : 'Comments';
+  // S9.22b — the shell passes the unread @mention threads (canvas 10's "unread count on Comments")
+  const commentsLabel =
+    commentsCount > 0
+      ? `Comments — ${commentsCount} ${commentsCountKind === 'unread' ? 'unread' : 'open'}`
+      : 'Comments';
   return (
     <div
       className="st-share island"

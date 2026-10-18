@@ -95,6 +95,8 @@ export function ShellShareCluster() {
     },
     keyboardShortcuts: { totalOpen },
     paletteAndPanels: { rightActive },
+    // S9.22b — the unread @mention count (useCommentsShell); a shell without it keeps the open count
+    comments,
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
@@ -219,7 +221,8 @@ export function ShellShareCluster() {
       onFollow={lane.follow}
       status={shown}
       access={access}
-      commentsCount={Number(totalOpen) || 0}
+      commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}
+      commentsCountKind={comments ? 'unread' : 'open'}
       commentsOpen={!!commentsPanelOpen}
       exports={ex}
       exportsOpen={!!exportCenter?.panelOpen}

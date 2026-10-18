@@ -38,6 +38,9 @@ import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
+import { commentPanelActions } from '../v2/comments/comment-client.js';
+import { useBoardLabels } from '../v2/ai/RunList.jsx';
+import { artboardLabel as artboardLabelOf } from '../v2/ai/runs-model.js';
 
 export function usePaletteAndPanels({
   activeArtboards,
@@ -165,7 +168,20 @@ export function usePaletteAndPanels({
   reopenComment,
   deleteComment,
   jumpToComment,
+  // S9.22b / S4.17 — the viewer's display name (comment "Mine", annotation "You"); optional
+  gitUser = null,
 }) {
+  // S9.22b — the Comments panel's actions for whoever holds `comment` (comment-client.js).
+  const commentActions = commentPanelActions({
+    viewerMode,
+    canComment: cfg?.canComment === true,
+    ws: { resolve: resolveComment, reopen: reopenComment, remove: deleteComment },
+    notify: (msg) => shellToast(msg),
+  });
+  const meName = typeof gitUser === 'string' && gitUser.trim() ? gitUser.trim() : null;
+  // S4.17 / S9.22 — artboard names from the project index (an id until the index lists it).
+  const boardLabels = useBoardLabels(cfg?.designRel, activePath);
+  const labelOfArtboard = (file, abId) => artboardLabelOf(boardLabels, file, abId);
   // ⌘K palette actions — shell-doable only (in-canvas export lives in the iframe).
   // T4 (Plan C) — grouped command set per `.design/ui/Studio.tsx` AB-D.
   // `group` drives the section headers; the list stays a flat array so keyboard
@@ -667,7 +683,13 @@ export function usePaletteAndPanels({
     if (id === 'inspector' || id === 'layers')
       return annotationLayersFor(
         id,
-        { file: activePath, post: postToActiveCanvas },
+        {
+          file: activePath,
+          post: postToActiveCanvas,
+          // S4.17 — "You" resolves to the signed-in person; a row names its artboard, not its id
+          me: meName ? { name: meName } : null,
+          artboardLabel: (abId) => labelOfArtboard(activePath, abId),
+        },
         <InspectorPanel
           // Cloud Phase 27 E4 — the parity spec asserts these two panels exist
           // in BOTH shells, so each needs a name a spec can ask for.
@@ -769,11 +791,11 @@ export function usePaletteAndPanels({
           activePath={activePath}
           focusedId={focusedCommentId}
           onJump={jumpToComment}
-          // Cloud Phase 25 C2 — a viewer READS threads; the mutating actions
-          // are absent until C3 lands comments on the cell's allowlist.
-          onResolve={viewerMode ? undefined : resolveComment}
-          onReopen={viewerMode ? undefined : reopenComment}
-          onDelete={viewerMode ? undefined : deleteComment}
+          // Cloud Phase 25 C2 — a Can view session READS threads. S9.22b — a Can comment one
+          // (read-only, `/_config.canComment`) resolves / reopens / deletes its own through the op door.
+          {...commentActions}
+          me={meName}
+          artboardLabel={labelOfArtboard}
           resizing={resizingFor('comments')}
         />
       );

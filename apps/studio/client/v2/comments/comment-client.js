@@ -49,6 +49,30 @@ export async function postCommentOp(op, fetchImpl = globalThis.fetch) {
 }
 
 /**
+ * S9.22b — the Comments panel's Resolve / Reopen / Delete for whoever holds `comment`.
+ *   can edit (not read-only)   today's socket lane (`ws` — comments-patch / comments-delete)
+ *   Can comment, read-only     the op door (`resolve` / `reopen` / `delete-own`): the socket refuses a
+ *                              read-only session, the door judges the op as the session
+ *   neither                    no actions — and the door would refuse them anyway (hidden ≠ refused)
+ * `canComment` is `/_config.canComment`, the server's answer. A refusal is said in a sentence (`notify`).
+ */
+export function commentPanelActions({
+  viewerMode,
+  canComment,
+  ws,
+  notify,
+  post = postCommentOp,
+}) {
+  if (!viewerMode) return { onResolve: ws.resolve, onReopen: ws.reopen, onDelete: ws.remove };
+  if (!canComment) return { onResolve: undefined, onReopen: undefined, onDelete: undefined };
+  const door = (op) => (id) =>
+    void Promise.resolve(post({ op, id })).then((r) => {
+      if (r && !r.ok) notify?.(r.error || 'That did not go through.');
+    });
+  return { onResolve: door('resolve'), onReopen: door('reopen'), onDelete: door('delete-own') };
+}
+
+/**
  * @param {string} canvas designRoot-relative canvas path (`ui/a.tsx`), or '' for the whole project
  * @param {string | null} me the viewer's display name (left out of the list)
  * @returns {Promise<import('../../../comments/people.ts').MentionRow[] | null>}
