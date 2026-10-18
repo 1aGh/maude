@@ -239,6 +239,9 @@ export interface ShellToCanvas {
     follow?: boolean;
     sticker?: { pack: string; id: string; flip?: boolean };
   };
+  // S4.4: a Templates-panel pick (`id` is an annotations/templates.ts id); the canvas expands the same
+  // spec `annotate --board <id>` does and, with `follow`, the ghost trails the pointer until a click (S4.13)
+  'insert-template': { id: string; follow?: boolean };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -919,6 +922,14 @@ const s2c: S2C = {
       follow: opt(bool),
       sticker: opt(shape({ pack: str, id: str, flip: opt(bool) })),
     }),
+  },
+  'insert-template': {
+    gate: 'parent',
+    status: 'live',
+    // S4.4 sends it (Templates panel, ⌘K rows); the annotations layer's handler lands in S4.13
+    orphan: 'no-handler',
+    owner: 'annotations-layer',
+    parse: p({ id: str, follow: opt(bool) }),
   },
   'insert-annotation-media': {
     gate: 'parent',
