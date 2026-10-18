@@ -11470,6 +11470,20 @@
     "v2": "new"
   },
   {
+    "hook": "edit-link-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe (Edit only): the read-only chip at the top-right of the one selected element that has a link, \"Go to Pricing\" / \"Opens cal.com/studio\".",
+    "producer": {
+      "file": "apps/studio/link-chip-overlay.tsx",
+      "symbol": "LinkChipOverlay"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/link-chip-overlay.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "edit-lock-badge",
     "kind": "testid",
     "pattern": false,
@@ -12180,7 +12194,7 @@
   {
     "hook": "insp-ctl-click",
     "kind": "testid",
-    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). The select is disabled when there is no link to change; "None" clears it (element.clear-link through /_api/edit-op).",
+    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). The select is disabled when there is no link to change; \"None\" clears it (element.clear-link through /_api/edit-op).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
       "symbol": "InteractionBody"
