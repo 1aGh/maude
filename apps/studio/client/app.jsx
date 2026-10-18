@@ -86,6 +86,8 @@ import GenerateDialog from './generate-dialog.jsx';
 import RepoBranchSwitcher from './panels/RepoBranchSwitcher.jsx';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
+import TemplatesPanel from './v2/annotations/templates-panel.jsx';
+import { getPaletteEnv } from './v2/search/search-env.js';
 import {
   AlignPad,
   AngleDial,
@@ -2680,6 +2682,7 @@ function ShellTree() {
       assistantOpen,
       bodyRef,
       iframesRef,
+      postToActiveCanvas,
       brandUploadOpen,
       canvasActiveArtboard,
       captureFromCanvas,
@@ -2805,12 +2808,15 @@ function ShellTree() {
   });
   // V2-4.5c — the canvas toolbar's panels (Stickers, Assets) are the shell's: `toolbar-rect` +
   // `tool-panel-open`, active canvas only.
+  // S4.4 — the Templates panel the Section tool's "Templates" slot opens (same gate as Stickers).
+  const [templatesReq, setTemplatesReq] = useState(null);
   useToolPanels({
     activePath,
     iframesRef,
     cfg,
     canEdit: !viewerMode,
     openStickers: setStickerPickerReq,
+    openTemplates: setTemplatesReq,
     openAssets: () => {
       panelLayout.show();
       openPanelExclusive('assets');
@@ -3089,6 +3095,15 @@ function ShellTree() {
           onPick={onStickerPicked}
           onClose={() => setStickerPickerReq(null)}
           anchor={stickerPickerReq.anchor ?? null}
+        />
+      )}
+      {templatesReq && (
+        <TemplatesPanel
+          onPick={({ id }) => postToActiveCanvas({ dgn: 'insert-template', id, follow: true })}
+          onDescribe={(text) => getPaletteEnv().askAI(text)}
+          canAsk={getPaletteEnv().canAskAI()}
+          onClose={() => setTemplatesReq(null)}
+          anchor={templatesReq.anchor ?? null}
         />
       )}
       {diffTarget && (
