@@ -222,6 +222,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // the Pointer is a mouse gesture, human below.
   'present.next': NAV('<canvas>#<artboard> --mode present'),
   'present.prev': NAV('<canvas>#<artboard> --mode present'),
+  // S3.5 — the agent writes the same keys the sheet does, in the canvas's .meta.json (V2-1.12 R6);
+  // the studio's own writes go through PATCH /_api/present-meta, which refuses every role below edit.
+  'present.order-notes': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/present-meta', method: 'PATCH' },
+    agent: file(
+      'canvas-meta',
+      'design:design',
+      'present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json'
+    ),
+  },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),

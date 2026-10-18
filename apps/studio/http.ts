@@ -1647,6 +1647,40 @@ export function createHttp(
       actionFor: (repoRel, after) =>
         ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
     },
+    // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
+    // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
+    // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot
+    // list is complete once the renderer harvested them (V2-1.17 §5.8).
+    present: {
+      repoRoot: ctx.paths.repoRoot,
+      designRoot: ctx.paths.designRoot,
+      artboards: (srcAbs) => {
+        const rel = relative(ctx.paths.designRoot, srcAbs).replace(/\\/g, '/');
+        try {
+          const row = extractCanvas(
+            {
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              groups: ctx.cfg.canvasGroups,
+              defaultDs: null,
+              designSystems: ctx.cfg.designSystems ?? [],
+            },
+            rel
+          );
+          if (row.parse !== 'ok') return null;
+          if (!row.dynamic) return { ids: row.artboards.map((a) => a.id), complete: true };
+          const live = projectIndex.canvas(rel);
+          return live?.artboardsFrom === 'runtime'
+            ? { ids: [...row.artboards, ...live.artboards].map((a) => a.id), complete: true }
+            : { ids: row.artboards.map((a) => a.id), complete: false };
+        } catch {
+          return null;
+        }
+      },
+      write: async (file, nextText, baseText) => {
+        await api.writeCanvasMetaText(file, nextText, baseText);
+      },
+    },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted

@@ -10505,6 +10505,171 @@
     "v2": "new"
   },
   {
+    "hook": "present-order-notes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Order and notes…\" sheet (`role=dialog`): the Present order, the skipped artboards and the speaker notes of the open canvas (S3.5).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard in the Order and notes list, in the order Present plays it; `<id>` is the artboard id. `aria-current` on the selected row (its notes show below).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-up-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Move this artboard one place earlier in the Present order (also ⌥↑ on the row).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-down-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Move this artboard one place later in the Present order (also ⌥↓ on the row).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-skip-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Skip toggle (`aria-pressed`): the artboard stays on the canvas, out of the run and the counter.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-notes-field",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The speaker-notes field of the selected artboard (`artboardMeta.<id>.notes`).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-counts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The counter line: \"N artboards · M skipped\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Use canvas order\" — present only while a custom order is set.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-save",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Save: sends only what changed, with the ETag the sheet read (PATCH /_api/present-meta).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel: closes the sheet without saving (esc does the same).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why a read or a save failed (`role=alert`), e.g. a stale ETag.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/order-notes-sheet.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "canvases-drop-tag",
     "kind": "testid",
     "pattern": false,

@@ -8,7 +8,8 @@
 // canvas-safe only when it says `origin: 'canvas'`.
 
 export interface RouteSpec {
-  method: 'GET' | 'POST';
+  /** `PATCH` since S3.5 (`/_api/present-meta`); `guardTableRoute` gives every non-GET the write guard. */
+  method: 'GET' | 'POST' | 'PATCH';
   /** Bun-style path; `:id` segments are params. */
   path: string;
   /**
