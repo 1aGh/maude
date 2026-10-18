@@ -21,6 +21,7 @@ export function Consent({ consent, onAllow, onNotNow }) {
   if (!consent) return null;
   const w = consentWords(consent);
   return (
+    // biome-ignore lint/a11y/useSemanticElements: an inline consent card with two buttons, not a form fieldset
     <div
       className="ai-consent"
       role="group"

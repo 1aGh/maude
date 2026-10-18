@@ -29,6 +29,7 @@ export function ConnectSheet({
   const titleId = useId();
   const busy = phase !== 'idle';
   return (
+    // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-modal is set only while role is "dialog" (inline, the sheet is a group and carries none)
     <div
       className={`ai-conn-sheet${inline ? ' ai-conn-sheet--inline' : ''}`}
       style={{ width: inline ? undefined : width, maxWidth: '100%' }}

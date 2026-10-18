@@ -18,34 +18,34 @@ const g = {
 
 /** Paperclip — the family's hand (16 grid, 1.5 round stroke), as drawn on the 03 canvas. */
 export const Clip = ({ size = 16 }) => (
-  <svg {...g} width={size} height={size}>
+  <svg aria-hidden="true" {...g} width={size} height={size}>
     <path d="M11 5.25L6.6 9.65a1.2 1.2 0 0 0 1.7 1.7l4.4-4.4a2.6 2.6 0 0 0-3.68-3.68L4.6 7.7a4 4 0 0 0 5.66 5.66l3.24-3.26" />
   </svg>
 );
 export const FileGlyph = () => (
-  <svg {...g}>
+  <svg aria-hidden="true" {...g}>
     <path d="M9 2.5H4.75a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h6.5a1 1 0 0 0 1-1V5.75L9 2.5Z" />
     <path d="M9 2.5v3.25h3.25" />
   </svg>
 );
 export const FolderGlyph = () => (
-  <svg {...g}>
+  <svg aria-hidden="true" {...g}>
     <path d="M2.5 4.5a1 1 0 0 1 1-1h3l1.5 1.5h4.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-7.5Z" />
   </svg>
 );
 export const ImageGlyph = () => (
-  <svg {...g}>
+  <svg aria-hidden="true" {...g}>
     <rect x="2.5" y="3" width="11" height="10" rx="1" />
     <path d="M2.5 11l3-3 2.5 2.5L10 8.5l3.5 3.5" />
   </svg>
 );
 const Play = () => (
-  <svg {...g} width={8} height={8}>
+  <svg aria-hidden="true" {...g} width={8} height={8}>
     <path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor" />
   </svg>
 );
 const Close = ({ size = 10 }) => (
-  <svg {...g} width={size} height={size}>
+  <svg aria-hidden="true" {...g} width={size} height={size}>
     <path d="M4 4l8 8M12 4l-8 8" />
   </svg>
 );
@@ -128,6 +128,7 @@ export function AttachChips({ attach }) {
   return (
     <div className="ai-ask-chips-wrap">
       {attach.chips.length ? (
+        // biome-ignore lint/a11y/useSemanticElements: a wrapping flex row of chip cards inside the prompt; a <ul> would bring list styling and bullets back into the field
         <div
           className="ai-ask-chips"
           role="list"

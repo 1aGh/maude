@@ -19,6 +19,7 @@ export function OrderMap({ cells, width, height, boxW, boxH, onJump, renderArt =
   const k = width > 0 && height > 0 ? Math.min(boxW / width, boxH / height) : 0;
   const runTotal = cells.filter((c) => !c.skipped).length;
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a scaled map of absolutely placed artboard cells, not a form fieldset
     <div
       className="pv-map"
       data-testid="presenter-order-map"

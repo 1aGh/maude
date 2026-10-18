@@ -37,6 +37,7 @@ export default function ChoiceCard({ request, onRespond, model: given }) {
   };
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: an inline card of answer buttons in the chat, not a form fieldset (it would bring its own border and legend)
     <div
       className="ai-nc ai-nc-choice"
       role="group"
@@ -97,7 +98,7 @@ export default function ChoiceCard({ request, onRespond, model: given }) {
         <input
           type="text"
           className="ai-nc-input"
-          // eslint-disable-next-line jsx-a11y/no-autofocus
+          // biome-ignore lint/a11y/noAutofocus: the field appears only when the person picks "Other", so focus follows their own click
           autoFocus
           placeholder="Type your own answer…"
           aria-label="Your own answer"

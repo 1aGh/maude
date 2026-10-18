@@ -55,6 +55,7 @@ export default function PermissionCard({ request, onRespond, queueLength = 1 }) 
   const { outside } = model;
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: an inline card of answer buttons in the chat, not a form fieldset
     <div
       className={`ai-nc ai-nc-perm${outside ? ' ai-nc-perm--outside' : ''}`}
       // A group, not a dialog: it sits in the chat and the rest of the app stays usable (never modal).
