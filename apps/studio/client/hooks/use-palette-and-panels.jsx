@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
+import { normalizeOpenPath } from '../share-link.js';
+import { copyPresentationLink } from '../v2/present/copy-link.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -207,6 +209,15 @@ export function usePaletteAndPanels({
         const link = links.web ?? links.app ?? links.local;
         if (link) copyShareLink(link);
       },
+      // S3.7b — the presentation link (hub `/present/<canvas>`), off the share link's public origin.
+      'present.copy-link': () =>
+        copyPresentationLink({
+          rel: normalizeOpenPath(sharePath, cfg.designRel),
+          webLink: shareLinksFor(sharePath).web,
+          online: typeof navigator === 'undefined' || navigator.onLine !== false,
+          writeText: (s) => navigator.clipboard.writeText(s),
+          notify: ({ title, kind }) => shellToast(title, kind === 'success'),
+        }),
       'handoff.open': () => setExportDialog({ mode: 'handoff' }),
       'ai.generate': () => setGenerateOpen(true),
       'settings.open': () => setSettingsOpen(true),
@@ -232,6 +243,7 @@ export function usePaletteAndPanels({
       cloudTab: !!cfg.cloud, // V2-4.8a: "Back to Home" and "Sign out" are a cloud tab's rows
       readOnly: viewerMode,
       canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
+      linkedHub: !!cloudLinkedHub?.url,
     });
     // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
     // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the

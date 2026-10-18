@@ -114,6 +114,9 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
     '/internal/revocation-sweep',
     '/join',
     '/join/*',
+    // S3.7b — the presentation link writes nothing: GET/HEAD redirect, every
+    // other method is the handler's 405 (cookie or bearer, judged per canvas).
+    '/present/*',
     '/studio/signin',
   ];
 

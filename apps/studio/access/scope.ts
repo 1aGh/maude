@@ -14,6 +14,7 @@
 
 import type { Closure } from './closure.ts';
 import {
+  CAPABILITIES,
   type Capability,
   maxRole,
   PROJECT_ONLY,
@@ -125,6 +126,27 @@ export function resolveAccess(
 /** A v1 credential (role only) as a claim: the role translated at the one boundary. */
 export function legacyClaim(role: string | null | undefined): AccessClaim {
   return { v: 1, role: projectRoleForAccount(role) };
+}
+
+/**
+ * S9.12b (V2-1.16 U6) — does `a` hold anything `b` does not? Any capability on the project or
+ * on a canvas either names, or sight of a canvas `b` cannot see. A socket stamped with `a` is
+ * closed when the session's current access is `b` and this is true; an equal or narrower stamp
+ * (a re-sign-in at the same role, a raise) keeps its socket. `request` (Ask to edit) is not a
+ * power: only a role that cannot edit holds it, so losing it is a raise, never a narrowing.
+ */
+const NARROWABLE = CAPABILITIES.filter((c) => c !== 'request');
+export function accessWiderThan(a: Access, b: Access): boolean {
+  if (a.role !== null && b.role === null) return true;
+  for (const g of a.grants) if (!b.seesCanvas(g.c)) return true;
+  const scopes: Array<string | null> = [
+    null,
+    ...a.grants.map((g) => g.c),
+    ...b.grants.map((g) => g.c),
+  ];
+  for (const cap of NARROWABLE)
+    for (const at of scopes) if (a.can(cap, at) && !b.can(cap, at)) return true;
+  return false;
 }
 
 /**
