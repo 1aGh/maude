@@ -194,6 +194,35 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.select-matching': PREF(
     'a selection in the person’s window; an agent greps the canvas for the same className and style'
   ),
+  // S2.7 — the align bar and the rotate handle. Objects: set left / top on the element's inline style
+  // (the same result by hand); artboards: set x / y in the canvas's .meta.json layout.
+  'align.left': TSX(
+    'Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards'
+  ),
+  'align.hcentre': TSX(
+    'Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json'
+  ),
+  'align.right': TSX(
+    'Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json'
+  ),
+  'align.top': TSX(
+    'Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards'
+  ),
+  'align.vmiddle': TSX(
+    'Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json'
+  ),
+  'align.bottom': TSX(
+    'Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json'
+  ),
+  'distribute.h': TSX(
+    'Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json'
+  ),
+  'distribute.v': TSX(
+    'Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json'
+  ),
+  'object.rotate': TSX(
+    'Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),

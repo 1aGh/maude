@@ -254,6 +254,39 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'canvas',
     enabled: { selection: ['object'] },
   },
+  // S2.7 (ed-obj-multi) — the align bar: 2+ objects or 2+ artboards (distribute: 3+). The bar and ⌘K are
+  // the homes; no chords (the Figma ⌥-letters collide with macOS dead keys, S2.21 may add some).
+  // Objects run `edit-ops/{align,distribute}.ts`; artboards commit positions through the drag bus.
+  ...(
+    [
+      ['align.left', 'Align left', ['align', 'left', 'edge']],
+      ['align.hcentre', 'Align horizontal centres', ['align', 'centre', 'center', 'middle']],
+      ['align.right', 'Align right', ['align', 'right', 'edge']],
+      ['align.top', 'Align top', ['align', 'top', 'edge']],
+      ['align.vmiddle', 'Align vertical middles', ['align', 'middle', 'centre', 'center']],
+      ['align.bottom', 'Align bottom', ['align', 'bottom', 'edge']],
+      ['distribute.h', 'Distribute horizontally', ['distribute', 'space', 'even', 'gaps']],
+      ['distribute.v', 'Distribute vertically', ['distribute', 'space', 'even', 'gaps']],
+    ] as const
+  ).map(
+    ([id, label, keywords]): ActionDef => ({
+      id,
+      label,
+      kind: 'command',
+      exec: 'canvas',
+      enabled: { ...EDITS, selection: ['object', 'artboard'] },
+      search: { keywords: [...keywords] },
+    })
+  ),
+  {
+    // ⌘K: turn the selection 90°. The rotate handle (drag, ⇧ = 15°) and the Rotation row do the rest.
+    id: 'object.rotate',
+    label: 'Rotate 90°',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['rotate', 'turn', 'angle'] },
+  },
   // S2.2 (D18) — the inspector's Advanced actions. Shell commands on the selected element, ⌘K only
   // (their homes are the buttons and the id field inside Inspector › Advanced, client/v2/inspector/).
   // Greyed without an object selected. Setting an id is a write, so it is greyed below Can edit too.
