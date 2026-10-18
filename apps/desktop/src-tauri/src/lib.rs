@@ -648,6 +648,7 @@ pub fn run() {
             windows::take_tabs_restored,
             windows::take_pending_navigate,
             home::index_search,
+            home::open_search_result,
             home::relink_project,
             windows::window_labels,
             windows::e2e_focus_window,
