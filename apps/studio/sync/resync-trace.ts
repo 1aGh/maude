@@ -46,7 +46,8 @@ export interface ResyncView {
   summary: ResyncSummary;
 }
 
-type StatusLike = Pick<SyncStatusPayload, 'canvases' | 'coldOpen'> & {
+/** The slice of `SyncRuntime.status()` the trace reads. */
+export type ResyncStatusSource = Pick<SyncStatusPayload, 'canvases' | 'coldOpen'> & {
   files?: Partial<NonNullable<SyncStatusPayload['files']>>;
 };
 
@@ -57,7 +58,7 @@ export { groupDigits };
  * Pure. `phase` is the file plane's own verdict (seed-progress.ts), not ours.
  */
 export function readResync(
-  status: StatusLike | null | undefined,
+  status: ResyncStatusSource | null | undefined,
   expectFiles: boolean
 ): Omit<ResyncView, 'startedAt'> | null {
   if (!status) return null;
@@ -105,7 +106,7 @@ export function resyncLogLine(s: ResyncSummary): string {
 
 export interface ResyncTraceOpts {
   /** The live runtime's status payload (null while the runtime is down / between cycles). */
-  read: () => StatusLike | null | undefined;
+  read: () => ResyncStatusSource | null | undefined;
   /** Does this project sync files (the plane's `syncFiles` setting)? Decides when "no files yet" means "none". */
   expectFiles?: () => boolean;
   log?: (line: string) => void;
@@ -157,7 +158,10 @@ export function createResyncTrace(opts: ResyncTraceOpts): ResyncTrace {
   };
 
   const tick = (): void => {
-    if (!current || current.state !== 'running') return halt();
+    if (!current || current.state !== 'running') {
+      halt();
+      return;
+    }
     const r = readResync(opts.read(), opts.expectFiles?.() ?? false);
     let next: ResyncView = r ? { ...current, ...r } : current;
     if (next.state === 'running' && now() - next.startedAt > giveUpMs)

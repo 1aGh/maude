@@ -9152,7 +9152,7 @@
     "hook": "diag-logs-copy-all",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Copy the scrubbed diagnostic report (`GET /_api/diagnostics/report`).",
+    "meaning": "Copy the lines the Logs card shows (filter and search applied), as `14:05:12  sync  pushed a.tsx` (S11.11; the server already redacted them).",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
       "symbol": "LogsView"
@@ -9165,7 +9165,7 @@
     "hook": "diag-logs-lines",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The log tail (`ol`; each `li` carries `data-source` and `data-level`).",
+    "meaning": "The log tail (`ol`; each `li` carries `data-source` and `data-level`, a time, a source and the message).",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
       "symbol": "LogsView"
@@ -9308,7 +9308,7 @@
     "hook": "diag-ai",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The AI setup card: the readiness list whole (`rdy-row-<id>` rows, the claude binary path, Re-check).",
+    "meaning": "The AI setup card: four answers (`diag-ai-row-<id>`); anything unsatisfied keeps its full `rdy-row-<id>` row; the whole probe sits in the All checks fold.",
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
       "symbol": "AiView"
@@ -9338,6 +9338,123 @@
     "producer": {
       "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
       "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-logs-show-in-finder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Show the log folder in Finder (S11.11). Desktop app only: the Tauri command `diagnostics_reveal_logs`; absent in a browser tab.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "LogsView"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-rows",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The four answers of AI setup (S11.11): Claude Code installed, Found at, Signed in, Plugins ready.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One of the four AI setup answers; `<id>` is one of installed, found, signed-in, plugins. `data-state` is ok, missing or unknown.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiRow"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-needs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Needs setup\" caption above the full probe rows (`rdy-row-<id>`, Set up / Sign in) of anything not satisfied.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"All checks\" fold in AI setup: the whole readiness probe, optional checks included.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-ai-all-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"All checks\" fold's disclosure button (`aria-expanded`; remembered as fold `diagnostics`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "AiView"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-resync",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Sync tab's Resync card (S11.11, 06 ad-trace): the bar while it runs, the result sentence after. `data-state` is running, done or attention. Absent until a Resync has run.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ResyncCard"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-resync-progress",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Resyncing… 1 204 of 1 318\" beside the bar.",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ResyncCard"
+    },
+    "region": "other",
+    "consumers": ["test:v2-diagnostics-render"],
+    "v2": "new"
+  },
+  {
+    "hook": "diag-resync-result",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Resync done — 3 files sent, nothing else differed.\" (`role=status`).",
+    "producer": {
+      "file": "apps/studio/client/v2/diagnostics/diagnostics-sheet.jsx",
+      "symbol": "ResyncCard"
     },
     "region": "other",
     "consumers": ["test:v2-diagnostics-render"],

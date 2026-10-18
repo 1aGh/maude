@@ -88,7 +88,10 @@ async function status(words) {
           done: st.resync.done,
           total: st.resync.total,
           summary: st.resync.summary,
-          text: st.resync.state === 'running' ? resyncProgressText(st.resync) : resyncResultText(st.resync),
+          text:
+            st.resync.state === 'running'
+              ? resyncProgressText(st.resync)
+              : resyncResultText(st.resync),
         }
       : null,
   };
@@ -131,7 +134,9 @@ async function resync(words) {
   }
   if (!j.sync?.syncing) {
     // a restart that declined (not linked, no credential…) is the only thing worth saying
-    process.stderr.write(`maude design sync: ${field(j.sync?.detail || 'Resync could not start.')}\n`);
+    process.stderr.write(
+      `maude design sync: ${field(j.sync?.detail || 'Resync could not start.')}\n`
+    );
     return 1;
   }
   if (flags['--no-wait']) {
@@ -152,7 +157,9 @@ async function resync(words) {
     return 1;
   }
   if (flags['--json']) {
-    process.stdout.write(`${JSON.stringify({ state: view.state, summary: view.summary, text: resyncResultText(view) })}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ state: view.state, summary: view.summary, text: resyncResultText(view) })}\n`
+    );
   } else {
     process.stdout.write(`${resyncResultText(view)}\n`);
   }
