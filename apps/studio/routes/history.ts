@@ -40,6 +40,7 @@ import {
   type VersionsRuntime,
 } from '../history/versions.ts';
 import type { AttributionCache } from '../index/extractors/attribution-cache.ts';
+import type { ThumbRequest, ThumbResult } from '../thumbs/service.ts';
 import type { RestoreOptions } from '../sync/local-kernel.ts';
 import { announceAction } from './project-undo.ts';
 import type { RouteSpec } from './table.ts';
@@ -120,7 +121,16 @@ export interface HistoryRouteDeps {
   /** ctx.bus.emit — `project:action` after an accepted name / aside / restore. */
   emit?: (event: string, payload: unknown) => void;
   now?: () => number;
+  /**
+   * S1.14 — the project's picture service (`thumbs/service.ts` `thumb`). With it, every versions row
+   * carries `picture` (ready url · pending key · unavailable), so the panel learns a key from the one
+   * answer it already fetched (L14: no route answers "is key X cached"). Absent: no `picture` field.
+   */
+  thumb?: (req: ThumbRequest) => Promise<ThumbResult>;
 }
+
+/** The first screenful of rows is rendered at once; the rest waits behind it (§5.10). */
+const VISIBLE_PICTURES = 8;
 
 async function readBody(
   req: Request,
@@ -180,6 +190,26 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     lastGood.set(key, { answer, at: clock() });
     if (lastGood.size > 64) lastGood.delete(lastGood.keys().next().value as string);
   };
+
+  /** S1.14: each row's picture, asked of the service in row order (the first screenful `visible`). */
+  async function withPictures<R extends { thumb: object | null }>(
+    rows: R[]
+  ): Promise<Array<R & { picture?: ThumbResult }>> {
+    const ask = deps.thumb;
+    if (!ask) return rows;
+    return Promise.all(
+      rows.map(async (r, i) => {
+        if (!r.thumb) return r;
+        const priority = i < VISIBLE_PICTURES ? 'visible' : 'background';
+        try {
+          const picture = await ask({ ...r.thumb, priority } as ThumbRequest);
+          return { ...r, picture };
+        } catch {
+          return { ...r, picture: { status: 'unavailable', reason: 'failed' } as ThumbResult };
+        }
+      })
+    );
+  }
 
   async function outcomeResponse(
     r: Outcome | null | undefined,
@@ -503,7 +533,7 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
         }
         remember(key, answer);
         const { newest, ...rest } = answer;
-        return json(200, { ...rest, now: now(newest) });
+        return json(200, { ...rest, rows: await withPictures(rest.rows), now: now(newest) });
       },
     },
     {

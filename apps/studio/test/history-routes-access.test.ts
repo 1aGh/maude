@@ -459,3 +459,57 @@ describe('both homes carry lanes + named (additive)', () => {
     expect(top?.chips).toContain('Named');
   });
 });
+
+// S1.14: a row's picture. The versions answer carries, per row, what the picture service said about
+// `thumb({ at: { rev } })` — a ready picture's url, a pending key (the panel waits for `thumb-ready`),
+// or unavailable — so the panel never needs a second route to learn a key (V2-1.17 §5.8, L14).
+describe('rows carry their picture (S1.14)', () => {
+  type Req = {
+    canvas: string;
+    artboard: string | null;
+    at?: unknown;
+    size: string;
+    priority: string;
+  };
+  test('ready / pending / unavailable per row; a throw is never a 500', async () => {
+    const { rt } = fakeRuntime(history());
+    const asked: Req[] = [];
+    const { specs } = routes(rt, OBSERVER, {
+      thumb: async (req: Req) => {
+        asked.push(req);
+        const rv = (req.at as { rev: number }).rev;
+        if (rv === 7) return { status: 'ready', key: 'k7', url: '/_api/thumb/k7', w: 160, h: 100 };
+        if (rv === 6) return { status: 'unavailable', reason: 'no-engine' };
+        if (rv === 3) throw new Error('renderer died');
+        return { status: 'pending', key: `k${rv}` };
+      },
+    });
+    const r = await get(specs, '/_api/project/versions', { path: 'ui/a.tsx' });
+    const pics = r.body.rows.map((x: { picture?: unknown }) => x.picture);
+    expect(pics[0]).toEqual({ status: 'ready', key: 'k7', url: '/_api/thumb/k7', w: 160, h: 100 });
+    expect(pics[1]).toEqual({ status: 'unavailable', reason: 'no-engine' });
+    expect(pics[2]).toEqual({ status: 'unavailable', reason: 'failed' });
+    expect(pics[3]).toEqual({ status: 'pending', key: 'k2' });
+    expect(asked.every((q) => q.size === 'row' && q.canvas === 'ui/a.tsx')).toBe(true);
+    expect(asked.map((q) => q.priority)).toEqual(['visible', 'visible', 'visible', 'visible']);
+  });
+
+  test('past the first screenful pictures wait in the background; without a service, no picture field', async () => {
+    rev = 0;
+    const many = Array.from({ length: 20 }, (_, i) => row({ at: T0 + i * 30 * MIN }));
+    const { rt } = fakeRuntime(many);
+    const priorities: string[] = [];
+    const withThumbs = routes(rt, OBSERVER, {
+      thumb: async (req: Req) => {
+        priorities.push(req.priority);
+        return { status: 'pending', key: 'k' };
+      },
+    });
+    await get(withThumbs.specs, '/_api/project/versions', { path: 'ui/a.tsx' });
+    expect(priorities.filter((p) => p === 'visible')).toHaveLength(8);
+    expect(priorities.filter((p) => p === 'background')).toHaveLength(12);
+    const bare = routes(rt, OBSERVER);
+    const r = await get(bare.specs, '/_api/project/versions', { path: 'ui/a.tsx' });
+    expect(r.body.rows.some((x: { picture?: unknown }) => 'picture' in x)).toBe(false);
+  });
+});

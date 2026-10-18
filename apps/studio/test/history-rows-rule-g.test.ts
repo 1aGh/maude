@@ -199,6 +199,26 @@ describe('rule G — which versions share a row', () => {
     expect(by.outside?.sub).toContain('· changed outside Maude');
   });
 
+  // S1.14: the kernel only knows a restore by its label ("Restored “Before helmets”", "Restored Helma z boku
+  // to 5 Oct, 18:40", "Went back to 14:05"); the row reads those words, not "Restored a version".
+  test('a restore row takes its title from the action label', () => {
+    fresh();
+    const rows = reduceRows([
+      v({ at: 0, kind: 'history.restore', label: 'Restored “Schváleno trenéry”', restored: {} }),
+      v({ at: 20, kind: 'history.restore', label: 'Restored 5 Oct, 18:40', restored: {} }),
+      v({ at: 40, kind: 'history.restore', label: 'Went back to 14:05', restored: {} }),
+      v({ at: 60, kind: 'history.restore', label: null, restored: {} }),
+      v({ at: 80, kind: 'history.restore', label: 'x'.repeat(200), restored: {} }),
+    ]);
+    expect(rows.map((r) => r.title)).toEqual([
+      `${'x'.repeat(79)}…`,
+      'Restored a version',
+      'Went back to 14:05',
+      'Restored 5 Oct, 18:40',
+      'Restored “Schváleno trenéry”',
+    ]);
+  });
+
   test('a stopped run carries the Stopped chip', () => {
     fresh();
     const rows = reduceRows([v({ at: 0, kind: 'ai', prompt: 'p', partial: true })]);
