@@ -183,6 +183,9 @@ export function createMenuHandlers(d) {
     'present.from-selection': () => presentFrom('selection'),
     'present.from-start': () => presentFrom('start'),
     'present.canvas': () => togglePresentCanvas(),
+    // S3.5 — the Order and notes… sheet on the active canvas (the shell mounts it; the server refuses
+    // every role below edit on PATCH /_api/present-meta).
+    'present.order-notes': () => d.setOrderNotesOpen(true),
     // ── Help ──
     'help.shortcuts': () => d.setShortcutsOpen(true),
     'help.guides': () => d.setHelpOpen(true),

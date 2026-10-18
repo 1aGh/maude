@@ -12,14 +12,18 @@ describe('A4 host mounts', () => {
     expect(app).toContain("import { noteAiRuns } from './v2/ai/runs-store.js';");
     expect(app).toMatch(/m\.type === 'ai:runs'\) \{\s*noteAiRuns\(m\.seq\);/);
     const shell = await read('canvas-shell.tsx');
-    expect(shell).toContain("import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';");
+    expect(shell).toContain(
+      "import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';"
+    );
     expect(shell).toMatch(/<ArtboardMarqueeOverlay \/>\s*<ArtboardRingsLayer \/>/);
   });
 
   test('S3.5 — Present ⌄ › Order and notes… opens the sheet on the active canvas', async () => {
     const app = await read('client/app.jsx');
     expect(app).toContain('const [orderNotesOpen, setOrderNotesOpen] = useState(false);');
-    expect(app).toMatch(/<OrderNotesSheet\s/);
+    expect(app).toMatch(/<OrderNotesMount\s/);
+    const mount = await read('client/v2/present/order-notes-mount.jsx');
+    expect(mount).toMatch(/<OrderNotesSheet file=\{path\}/);
     const runner = await read('client/v2/shell/menu-runner.js');
     expect(runner).toContain("'present.order-notes': () => d.setOrderNotesOpen(true),");
     const host = await read('client/v2/shell/share-cluster-host.jsx');

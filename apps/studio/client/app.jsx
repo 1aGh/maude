@@ -239,6 +239,7 @@ import { ShellCallouts } from './v2/shell/callouts-host.jsx';
 import { noteAiRuns } from './v2/ai/runs-store.js';
 import { isFollowLocation } from './v2/present/follow-location.js';
 import FollowView from './v2/present/follow-view.jsx';
+import { OrderNotesMount } from './v2/present/order-notes-mount.jsx';
 import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
 import {
   CSS_ALIGN_SELF,
@@ -529,6 +530,8 @@ function ShellState({ children }) {
     wsRef,
     zoomCtlVisible,
   } = useShellCore({});
+  // S3.5 — Present ⌄ › Order and notes… (`present.order-notes`): the sheet on the active canvas.
+  const [orderNotesOpen, setOrderNotesOpen] = useState(false);
 
   // Issue #125 — "Selection area" needs every selected item, canvas elements
   // AND annotations; the shell tracks only one, so ask the canvas. Resolves
@@ -1384,6 +1387,7 @@ function ShellState({ children }) {
       setSettingsOpen,
       setShareDialog,
       setShortcutsOpen,
+      setOrderNotesOpen,
       setShowHidden,
       setTheme,
       setTimelineFrame,
@@ -1400,6 +1404,7 @@ function ShellState({ children }) {
       setupReadiness,
       shareDialog,
       shortcutsOpen,
+      orderNotesOpen,
       showHidden,
       sidebarOpen,
       startTour,
@@ -1555,6 +1560,7 @@ function ShellProjectPill() {
       setReportBugOpen,
       setSettingsOpen,
       setShortcutsOpen,
+      setOrderNotesOpen,
       setShowHidden,
       showHidden,
       layersMode,
@@ -1609,6 +1615,7 @@ function ShellProjectPill() {
     setSettingsOpen,
     setHelpOpen,
     setShortcutsOpen,
+    setOrderNotesOpen,
     setReportBugOpen,
     onUsageTour: () => startTour(USAGE_TOUR),
     onCollabTour: () => startTour(COLLAB_TOUR),
@@ -2732,11 +2739,13 @@ function ShellTree() {
       setReportBugOpen,
       setShareDialog,
       setShortcutsOpen,
+      setOrderNotesOpen,
       setTourSteps,
       setUpdateReady,
       settingsOpen,
       shareDialog,
       shortcutsOpen,
+      orderNotesOpen,
       startTour,
       syncStatus,
       tabs,
@@ -3132,6 +3141,15 @@ function ShellTree() {
           }}
         />
       )}
+      {/* S3.5 — Present ⌄ › Order and notes… (editors; the server refuses the rest) */}
+      {orderNotesOpen && activePath && activePath !== SYSTEM_TAB && !viewerMode ? (
+        <OrderNotesMount
+          key={activePath}
+          path={activePath}
+          canvasName={displayName(basename(activePath))}
+          onClose={() => setOrderNotesOpen(false)}
+        />
+      ) : null}
       <ShortcutsOverlay
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}

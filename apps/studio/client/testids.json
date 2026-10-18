@@ -4576,6 +4576,19 @@
     "v2": "new"
   },
   {
+    "hook": "mode-present-order-notes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Order and notes… (editors only, under a rule): runs `present.order-notes`, the sheet for the Present order, skips and speaker notes.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "present-controls",
     "kind": "testid",
     "pattern": false,
@@ -11156,9 +11169,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11171,9 +11182,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11186,9 +11195,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11201,9 +11208,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11216,9 +11221,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11231,9 +11234,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11246,9 +11247,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11261,9 +11260,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11276,9 +11273,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11291,9 +11286,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -11306,9 +11299,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
