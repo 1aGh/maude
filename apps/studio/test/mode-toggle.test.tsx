@@ -287,10 +287,11 @@ describe('mode-toggle / the Share cluster switch', () => {
       'Present from “Post 1:1”⌥⌘↵',
       'Present from the start⇧⌥⌘↵',
       'Present the canvasno chrome, no pins',
+      'Order and notes…',
     ]);
     expect(list?.textContent).toContain('Artboards, one by one');
-    // Presenter view, Order and notes…, Copy presentation link: not until their slice (hidden).
-    expect(list?.textContent).not.toMatch(/Presenter view|Order and notes|presentation link/);
+    // Presenter view, Copy presentation link: not until their slice (hidden).
+    expect(list?.textContent).not.toMatch(/Presenter view|presentation link/);
     for (const id of ['from-selection', 'from-start', 'canvas']) {
       if (!document.querySelector('[data-testid="mode-present-list"]')) open();
       act(() =>
@@ -298,6 +299,35 @@ describe('mode-toggle / the Share cluster switch', () => {
       );
     }
     expect(asked).toEqual(['selection', 'start', 'canvas']);
+  });
+
+  test('S3.5 — Order and notes… sits under a rule after the canvas row, for editors only', () => {
+    const asked: string[] = [];
+    const open = () =>
+      act(() =>
+        document.querySelector<HTMLButtonElement>('[data-testid="mode-present-menu"]')?.click()
+      );
+    mountCluster({ onPresent: (k: string) => asked.push(k) });
+    open();
+    const row = document.querySelector<HTMLButtonElement>(
+      '[data-testid="mode-present-order-notes"]'
+    );
+    expect(row?.getAttribute('role')).toBe('menuitem');
+    expect(row?.closest('.st-pm-li')?.previousElementSibling?.tagName).toBe('HR');
+    act(() => row?.click());
+    expect(asked).toEqual(['order-notes']);
+    act(() => root?.unmount());
+    host?.remove();
+    root = null;
+    // Can view / Can comment: the row is hidden, never greyed.
+    mountCluster({
+      onPresent: (k: string) => asked.push(k),
+      caps: { edit: false, annotate: false, comment: true },
+    });
+    open();
+    expect(document.querySelector('[data-testid="mode-present-list"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="mode-present-order-notes"]')).toBeNull();
+    expect(document.querySelector('[data-testid="mode-present-list"] hr')).toBeNull();
   });
 
   test('with no canvas open Present is disabled; Edit / Preview still switch', () => {

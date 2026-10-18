@@ -18,6 +18,18 @@ import type { ActionDef, Pred } from '../types.ts';
 const DESKTOP: Pred = { shell: ['desktop'] };
 const DESKTOP_EDIT: Pred = { shell: ['desktop'], minRole: 'edit' };
 const ROW = { hidden: true } as const;
+const ADVANCED_WHERE = 'AI chat panel › Advanced';
+
+function advanced(id: string, label: string, keywords: string[]): ActionDef {
+  return {
+    id: `chat.advanced.${id}`,
+    label,
+    kind: 'command',
+    exec: 'shell',
+    visible: DESKTOP,
+    search: { keywords, where: ADVANCED_WHERE },
+  };
+}
 
 export const CHAT_ACTIONS: ActionDef[] = [
   {
@@ -72,6 +84,23 @@ export const CHAT_ACTIONS: ActionDef[] = [
     // 'native' = the Tauri shell (ctx.ts adds the fact for desktop windows only).
     visible: { shell: ['desktop'], facts: ['native'] },
     // ⌘K finds it from the Advanced fold (S5.12); a chat is always in hand there.
-    search: { keywords: ['terminal', 'resume', 'claude'] },
+    search: { keywords: ['terminal', 'resume', 'claude'], where: ADVANCED_WHERE },
   },
+  // S5.12 — the rows of the AI chat panel's Advanced fold, findable by name in ⌘K ("AI chat panel ›
+  // Advanced"). Picking one opens the panel and the fold and takes that row (client/v2/ai/advanced-handlers.js).
+  // They change nothing by themselves — each is "go to that setting" — so none has a key or a menu home.
+  advanced('ask-before', 'Ask before', [
+    'mode',
+    'permission',
+    'plan',
+    'suggest only',
+    'bypass',
+    'auto',
+  ]),
+  advanced('model', 'Model', ['opus', 'sonnet', 'haiku', 'claude']),
+  advanced('effort', 'Effort', ['thinking', 'think harder', 'low', 'high']),
+  advanced('fast-mode', 'Fast mode', ['fast', 'speed']),
+  advanced('show-in-chat', 'Show in chat', ['verbose', 'thinking', 'transcript', 'detail', 'view']),
+  advanced('suggestions', 'Suggestions', ['chips', 'suggest', 'quick']),
+  advanced('raw-log', 'Raw log', ['tool log', 'tools', 'calls', 'debug', 'log']),
 ];

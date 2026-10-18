@@ -108,6 +108,10 @@ export const STUDIO_ROUTES = Object.freeze({
   // finer than a path can express — and it is exactly why the studio's own gate
   // is kept rather than replaced.
   '/_api/canvas-meta': { safe: 'read', unsafe: 'session' },
+  // S3.5 — Present order, skip and speaker notes in the versioned `.meta.json` (routes/present.ts).
+  // PATCH only (a body without changes is how the sheet reads them), and an edit: unlike
+  // canvas-meta there is no per-user lane to split out.
+  '/_api/present-meta': { safe: null, unsafe: 'edit' },
 
   // ---- the one write a viewer holds --------------------------------------
   '/_comments': { safe: 'read', unsafe: 'comment' },

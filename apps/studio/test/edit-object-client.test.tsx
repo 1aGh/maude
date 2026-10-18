@@ -396,6 +396,35 @@ describe('chord scope', () => {
     expect(run('L', { metaKey: true, shiftKey: true }, 'edit')).toBeNull();
     expect(run(']', {}, 'edit')).toBeNull();
   });
+
+  test('V2-5 A4 — the board’s own document listener (⌘G / ⇧⌘L / ] [) stands down in Edit', async () => {
+    const { boardChordsLive } = await import('../annotations-layer.tsx');
+    let seq = 1000;
+    const setMode = (mode: string) =>
+      window.dispatchEvent(
+        new window.MessageEvent('message', {
+          data: {
+            dgn: 'set-mode',
+            v: 2,
+            seq: ++seq,
+            mode,
+            present: null,
+            caps: { edit: true, annotate: true, comment: true },
+          },
+          source: window.parent as unknown as MessageEventSource,
+        })
+      );
+    boardChordsLive(window); // the store starts listening on its first read
+    setMode('edit');
+    expect(boardChordsLive(window)).toBe(false);
+    setMode('preview');
+    expect(boardChordsLive(window)).toBe(true);
+    // …and the listener asks it before anything else.
+    const src = await Bun.file(new URL('../annotations-layer.tsx', import.meta.url)).text();
+    const at = src.indexOf('FigJam v3 — manipulation shortcuts');
+    const body = src.slice(src.indexOf('const onKey = (e: KeyboardEvent) => {', at));
+    expect(body.split('\n')[1]?.trim()).toBe('if (!boardChordsLive(window)) return;');
+  });
 });
 
 // ── the lock badge, the Layers tools, the arrows ───────────────────────────────────────────────

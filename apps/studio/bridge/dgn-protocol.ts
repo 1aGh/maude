@@ -220,7 +220,20 @@ export interface CanvasToShell {
     replace?: Id;
   };
   'viewport-zoom': { zoom: number };
-  'present-position': { index: number; total: number; artboardId: Id };
+  // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
+  'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
+  // S3.7a — a follower canvas tells its follower page (client/v2/present/follow-view.jsx) what it shows.
+  // Untrusted: `presenterName` is rendered as text only and re-clamped by the page.
+  'present-follow-state': {
+    live: boolean;
+    sid: string | null;
+    presenterName: string;
+    presenterIndex: number;
+    index: number;
+    total: number;
+    watchers: number;
+    ended: boolean;
+  };
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -294,6 +307,15 @@ export interface ShellToCanvas {
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
   // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
   'reveal-artboard': { artboardId: Id; glide: boolean; flash: boolean };
+  // S5.11 (V2-1.15 §5.8, P3): which artboards an AI is on, for the ring + tag the canvas draws. A state, a
+  // name and a count per artboard — never a prompt, a question or a progress line (the canvas is untrusted).
+  // `done` is the settled ring after a run (driven by the V2-1.5 action event, not the registry).
+  'ai-runs': {
+    artboards: Record<
+      Id,
+      { state: 'running' | 'needs-you' | 'done'; who: string; tag: string; waiting: number }
+    >;
+  };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -331,6 +353,9 @@ export interface ShellToCanvas {
   };
   'occluded-insets': { seq: number; insets: Insets };
   'present-step': { to: number | 'next' | 'prev' };
+  // S3.7a — the follower page tells its canvas which session to follow (`sid: null` = the first
+  // presenter seen), whether it is live, and whether it is the locked audience window.
+  'present-follow': { sid: string | null; live: boolean; locked: boolean };
   // V2-4 gate (WCAG 2.1.4) — the per-Mac "Single-key shortcuts" switch: `false` → the canvas resolves no
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
@@ -434,6 +459,30 @@ const strMap: V = (v) => {
   }
   return out;
 };
+/** A map of validated values with a bounded key count; `__proto__`/`constructor`/`prototype` keys are REJECTED. */
+export const RING_KEYS_MAX = 256;
+const recOf =
+  (f: V, max = RING_KEYS_MAX): V =>
+  (v) => {
+    if (!isPlain(v)) return BAD;
+    const keys = Object.keys(v);
+    if (keys.length > max) return BAD;
+    const out: Record<string, unknown> = Object.create(null);
+    for (const k of keys) {
+      if (k.length > 200 || k === '__proto__' || k === 'constructor' || k === 'prototype')
+        return BAD;
+      const r = f(v[k]);
+      if (r === BAD) return BAD;
+      out[k] = r;
+    }
+    return out;
+  };
+const shortStr =
+  (max: number): V =>
+  (v) =>
+    typeof v === 'string' && v.length <= max ? v : BAD;
+const count: V = (v) =>
+  typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 9999 ? v : BAD;
 const shape =
   (fields: Record<string, V>): V =>
   (v) => {
@@ -457,7 +506,16 @@ const rect = shape({ x: num, y: num, w: num, h: num });
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
-const caps = shape({ edit: bool, annotate: bool, comment: bool });
+const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
+/** S3.7a — bounded ints, like the awareness `present` field (S3-present-session §2). */
+const intIn =
+  (lo: number, hi: number): V =>
+  (v) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : BAD;
+const PRESENT_SID = /^[a-z0-9]{8,32}$/;
+const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
+export const PRESENT_NAME_MAX = 64;
+const presenterName: V = (v) => (typeof v === 'string' && v.length <= PRESENT_NAME_MAX ? v : BAD);
 const insets: V = (v) => clampInsets(v) ?? BAD;
 /** `peers` (V2-4.3b): a planted or oversized list is REJECTED whole, never trimmed. */
 export const PEERS_MAX = 32;
@@ -867,10 +925,11 @@ const c2s: C2S = {
       replace: opt(str),
     }),
   },
+  // S3.2b — live: Present the canvas posts its zoom for the pill (present/present-zoom.ts).
   'viewport-zoom': {
     gate: 'active',
-    status: 'new',
-    owner: 'shell ZoomUndo (V2-4.x)',
+    status: 'live',
+    owner: 'present/present-zoom.ts',
     parse: p({ zoom: num }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
@@ -879,7 +938,29 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: 'v2/shell/use-canvas-mode-lane (S3.1)',
-    parse: p({ index: num, total: num, artboardId: str }),
+    parse: p({
+      index: num,
+      total: num,
+      artboardId: str,
+      sid: opt(sid),
+      seq: opt(intIn(0, 2 ** 31 - 1)),
+    }),
+  },
+  // S3.7a — the follower canvas (present-stage.tsx `usePresentFollow`) → its follower page.
+  'present-follow-state': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/present/follow-view (S3.7a)',
+    parse: p({
+      live: bool,
+      sid: nul(sid),
+      presenterName,
+      presenterIndex: intIn(0, 2000),
+      index: intIn(0, 2000),
+      total: intIn(0, 2000),
+      watchers: intIn(0, 100000),
+      ended: bool,
+    }),
   },
 };
 
@@ -1044,6 +1125,21 @@ const s2c: S2C = {
     owner: 'canvas-lib',
     parse: p({ artboardId: str, glide: bool, flash: bool }),
   },
+  'ai-runs': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'artboard-activity-overlay',
+    parse: p({
+      artboards: recOf(
+        shape({
+          state: lit('running', 'needs-you', 'done'),
+          who: shortStr(200),
+          tag: shortStr(120),
+          waiting: count,
+        })
+      ),
+    }),
+  },
   'insert-template': {
     gate: 'parent',
     status: 'live',
@@ -1196,6 +1292,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (S3.1)',
     parse: p({ to: (v) => (v === 'next' || v === 'prev' ? v : num(v)) }),
+  },
+  // S3.7a — honoured only by a follower canvas (`follow=1`, present/follow.ts `isFollowCanvas`).
+  'present-follow': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'bridge/canvas-mode-store (S3.7a)',
+    parse: p({ sid: nul(sid), live: bool, locked: bool }),
   },
   'key-prefs': {
     gate: 'parent',
