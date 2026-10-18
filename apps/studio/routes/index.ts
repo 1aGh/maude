@@ -18,6 +18,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -48,6 +49,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S6.0b — `POST|GET /_api/cloud/move`: a local folder becomes a cloud project (S6-S9 §5.5) */
+  cloudMove: CloudMoveDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -69,5 +72,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
     ...createPresentRoutes(deps.present),
+    ...createCloudMoveRoutes(deps.cloudMove),
   ];
 }

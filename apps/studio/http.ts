@@ -78,6 +78,7 @@ import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
 import {
+  asFormat,
   canvasFormatLine,
   formatConfigFields,
   formatGate,
@@ -1684,6 +1685,13 @@ export function createHttp(
       write: async (file, nextText, baseText) => {
         await api.writeCanvasMetaText(file, nextText, baseText);
       },
+    },
+    // S6.0b — POST|GET /_api/cloud/move (routes/cloud-move.ts): main origin only, on the attach lane.
+    cloudMove: {
+      designRoot: ctx.paths.designRoot,
+      projectName: () => ctx.cfg.name ?? null,
+      localFormat: () => asFormat(ctx.cfg.formatVersion),
+      cloud: cloudApi,
     },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
