@@ -9,6 +9,7 @@ import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
 import { applyEditRequest } from '../apply-edit-request.ts';
+import { editOpBody, readEditOpAnswer } from '../edit-op-relay.ts';
 import { localSelectRecord } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
@@ -185,6 +186,7 @@ export function useCanvasBridge({
         m.dgn === 'clear-select' ||
         m.dgn === 'edit-text' ||
         m.dgn === 'apply-edit' ||
+        m.dgn === 'edit-op' ||
         m.dgn === 'undo-barrier'
       ) {
         const activeWin =
@@ -210,18 +212,29 @@ export function useCanvasBridge({
         // the bare object) — comments + halo only act on one element at a
         // time today. Multi-target editing is an explicit Phase-4.1 non-goal.
         const payload = m.selection;
+        // S2.1 (S2-edit-ops.md §7) — refs / crumbs / kind ride the selection into the shell's
+        // state (the inspector reads them), never into the ws `select` broadcast.
+        const described = (sel) =>
+          sel && (m.crumbs || m.kind || m.refs)
+            ? {
+                ...sel,
+                ...(Array.isArray(m.crumbs) ? { crumbs: m.crumbs } : {}),
+                ...(typeof m.kind === 'string' ? { kind: m.kind } : {}),
+                ...(Array.isArray(m.refs) ? { refs: m.refs } : {}),
+              }
+            : sel;
         if (payload == null) {
           wsSend({ type: 'clear-select' });
           setSelected(null);
         } else if (Array.isArray(payload)) {
           const head = payload[0] ?? null;
           if (head) wsSend({ type: 'select', selection: head });
-          setSelected(head);
+          setSelected(payload.length === 1 ? described(head) : head);
           // Stage C — auto-open only for a genuine SINGLE selection, never multi.
           if (payload.length === 1) maybeAutoOpenInspectorOnSelect(head);
         } else {
           wsSend({ type: 'select', selection: payload });
-          setSelected(payload);
+          setSelected(described(payload));
           maybeAutoOpenInspectorOnSelect(payload); // Stage C
         }
       } else if (m.dgn === 'clear-select') {
@@ -322,6 +335,37 @@ export function useCanvasBridge({
                 reply({ ok: false, error: j.error || 'failed', conflict: j.conflict === true });
               })
               .catch(() => reply({ ok: false, error: 'network error' }))
+          );
+      } else if (m.dgn === 'edit-op') {
+        // S2.1 (S2-edit-ops.md §6) — one structural edit from the active canvas. The shell pins
+        // `file` to the active canvas (a canvas edits only its own file) and forwards a well-formed
+        // request to the main-origin-only dispatch route; the answer goes back by requestId. On the
+        // same chain as apply-edit so two source writes to one file never race.
+        const body = editOpBody(m, activePath && activePath !== SYSTEM_TAB ? activePath : null);
+        if (!body) return;
+        const replyTo = e.source;
+        const reply = (result) => {
+          try {
+            replyTo?.postMessage({ dgn: 'edit-op-result', requestId: m.requestId, ...result }, '*');
+          } catch {}
+        };
+        editApplyChainRef.current = editApplyChainRef.current
+          .catch(() => {})
+          .then(() =>
+            fetch('/_api/edit-op', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            })
+              .then(readEditOpAnswer)
+              .then(reply)
+              .catch(() =>
+                reply({
+                  ok: false,
+                  code: 'invalid',
+                  message: 'The studio could not be reached; try again.',
+                })
+              )
           );
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.
@@ -879,6 +923,8 @@ export function useCanvasBridge({
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         if (activeWin && e.source === activeWin) {
           runForwardedKey(m.chord.slice(0, 32), {
+            // EH-P4-3 (S2.1) — the session's role decides, as for a key pressed in the shell
+            readOnly: !!viewerMode,
             setPaletteOpen,
             reloadActive,
             toggleRightPanel,

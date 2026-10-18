@@ -3,11 +3,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
+// The island follows the shell's layout store (S5.9), so a root left mounted would re-render on a later
+// suite's store change, after the DOM is gone. Every root is unmounted before the DOM goes.
+const roots: Array<{ unmount(): void }> = [];
+
 beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => {
+afterAll(async () => {
+  const { act } = await import('react');
+  await act(async () => {
+    for (const r of roots.splice(0)) r.unmount();
+  });
   GlobalRegistrator.unregister();
 });
 
@@ -29,6 +37,7 @@ async function mount(hidden: boolean) {
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
+  roots.push(root);
   const view = (h: boolean) => (
     <div>
       <button type="button" id="canvas">

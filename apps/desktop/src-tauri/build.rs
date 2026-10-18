@@ -78,6 +78,10 @@ fn main() {
                 "new_home_tab",
                 "take_pending_intent",
                 "index_search",
+                // S3.6a (present.rs): displays + the audience window.
+                "present_displays",
+                "present_audience_open",
+                "present_audience_close",
                 // S1.5: ⌘K across projects — open another project's result.
                 "open_search_result",
                 "relink_project",

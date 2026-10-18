@@ -8,7 +8,15 @@
 
 import { StIcon } from '../shell/icons.jsx';
 
-export function ChatHeader({ connected, running = 0, onToggleList, onNew, onHide, children }) {
+export function ChatHeader({
+  connected,
+  running = 0,
+  onToggleList,
+  onNew,
+  onHide,
+  pin = null,
+  children,
+}) {
   const n = running > 0 ? running : 0;
   const runLabel = `${n} ${n === 1 ? 'chat' : 'chats'} running`;
   return (
@@ -42,6 +50,7 @@ export function ChatHeader({ connected, running = 0, onToggleList, onNew, onHide
           <StIcon name="plus" size={14} />
         </button>
       ) : null}
+      {pin}
       <button
         type="button"
         className="st-iconbtn"

@@ -30,7 +30,7 @@ import {
 } from '../agent-runs.ts';
 import type { RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
-import { checkFile } from '../check/index.ts';
+import { artboardIdsOfSource, checkFile } from '../check/index.ts';
 import { checkIds, walkIdElements } from '../element-ids.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -759,7 +759,11 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const text = readDesignFile(deps, rel);
       if (text === null) return json(404, { error: `no file ${rel}`, code: 'not-found' });
       const against = typeof b.snapshot === 'string' ? readDesignFile(deps, b.snapshot) : null;
-      const r = checkFile(rel, text, { against, tier: b.tier, strict: true });
+      // S3.5 — a sidecar's Present ids are checked against its canvas's artboards.
+      const srcRel = rel.endsWith('.meta.json') ? rel.replace(/\.meta\.json$/, '.tsx') : null;
+      const src = srcRel ? readDesignFile(deps, srcRel) : null;
+      const artboards = srcRel && src !== null ? artboardIdsOfSource(srcRel, src) : null;
+      const r = checkFile(rel, text, { against, tier: b.tier, strict: true, artboards });
       if (r.ok) return json(200, { ok: true });
       return json(200, {
         ok: false,
