@@ -82,6 +82,10 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
 export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
   '/_api/annotations',
   '/_api/annotations/ops',
+  // S4.7 — sticky ↔ comment (routes/annotations.ts): a board write either way, and its undo token
+  '/_api/annotations/to-comment',
+  '/_api/comments/to-sticky',
+  '/_api/annotations/convert-undo',
 ]);
 
 /** Clearing out the trash is the owner's (§5.5 `delete`); the per-Mac `_trash/` prune is not this. */

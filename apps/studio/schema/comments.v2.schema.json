@@ -109,7 +109,14 @@
                 "y": { "type": "number" },
                 "artboard": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$" }
               }
-            }
+            },
+            "fill": {
+              "description": "The sticky's paper, a palette colour — Turn back gives the same sticky back.",
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            },
+            "w": { "type": "number", "exclusiveMinimum": 0, "maximum": 4096 },
+            "h": { "type": "number", "exclusiveMinimum": 0, "maximum": 4096 }
           }
         }
       }

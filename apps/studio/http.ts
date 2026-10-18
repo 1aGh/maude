@@ -43,6 +43,7 @@ import {
   notInScopeResponse,
   SESSION_WRITES,
   toDesignRel,
+  writeCapability,
 } from './access/request.ts';
 import type { Access } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
@@ -1639,6 +1640,9 @@ export function createHttp(
     links: {
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,
+      // S9.9 — the session's access, read per request: a canvas-only visitor resolves only the
+      // canvases it holds (history/links.ts answers `unknown` for the rest — no existence oracle).
+      scope: (req) => accessOf(req),
     },
     // S4.7 — sticky ↔ comment as one action; the converter is the session (a cell's vouched
     // member, else this machine's git identity) — never the body (contract S4-S9 §3.1).
@@ -1648,6 +1652,13 @@ export function createHttp(
       person: async (req) => {
         const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
         return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
+      // S9.9 — a canvas-only session converts only on a canvas it sees (`not-in-scope`, like missing).
+      scope: (req, file) => {
+        const see = seerFor(req);
+        if (!see) return null;
+        const rel = toDesignRel(file, ctx.paths.designRel);
+        return rel === null || !see(rel) ? notInScopeResponse() : null;
       },
     },
     ai: {
@@ -6807,13 +6818,15 @@ export function createHttp(
     if (scope) return scope;
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
     const gate = gateNow();
-    if (!gate && access.can('edit', null)) return null;
     let pathname: string;
     try {
       pathname = new URL(req.url).pathname;
     } catch {
       return readOnlyRefusalFor(req);
     }
+    // An editor passes every write it holds the capability for — not `delete` (S1.7b's Trash
+    // clear-out is the owner's, V2-1.7 §5.2): that one goes on to `localGate`, which refuses it.
+    if (!gate && access.can(writeCapability(pathname, g.tableSession), null)) return null;
     // The format gate: per-user runtime, export, reports and sign-in still
     // work; comments are look-only (V2-1.12 §9 Q3); "Update project" is the
     // one write that leads out.
