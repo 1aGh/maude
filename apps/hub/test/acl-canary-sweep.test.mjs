@@ -142,7 +142,12 @@ after(async () => {
 /** Replace the request's own target strings (an echo reveals nothing) before comparing. */
 function normalize(text, targets) {
   let out = String(text);
-  for (const v of Object.values(targets)) {
+  // Longest first: a target can contain another (the missing side's slug
+  // `nothing-here` sits inside its asset `assets/nothing-here.png`), and a
+  // short one replaced first leaves the long one half-masked — an echo that
+  // differs only in how it was masked, not in what the hub said.
+  const values = Object.values(targets).sort((a, b) => b.length - a.length);
+  for (const v of values) {
     out = out.split(v).join('<T>').split(encodeURIComponent(v)).join('<T>');
   }
   // Volatile fields a refusal may carry (proposal ids, timestamps).
