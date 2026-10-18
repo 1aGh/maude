@@ -216,8 +216,9 @@ describe('ds-check on this repo’s systems (A16)', () => {
       expect(r.reasons).toEqual([]);
       expect(r.exit).toBe(0);
       expect(r.c7.families).toBe(1);
-      // the icon gaps stay visible (decision v2-2.15-icon-null-declared-gap)
-      expect(r.components.declaredMissing.icons.length).toBeGreaterThan(0);
+      // S10.20 closed the icon gaps; a null stays a valid declared gap (v2-2.15-icon-null-declared-gap,
+      // pinned by the fixture tests above) but neither shipped system declares one any more
+      expect(r.components.declaredMissing.icons).toEqual([]);
     });
   }
 });
