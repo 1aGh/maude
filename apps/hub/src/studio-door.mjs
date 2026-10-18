@@ -231,7 +231,7 @@ export function oidcButton(env = process.env) {
     try {
       label = new URL(String(env.HUB_OIDC_ISSUER ?? '')).hostname;
     } catch {
-      label = 'your identity provider';
+      label = "your company's sign-in";
     }
   }
   return `<p><a class="button" href="/auth/oidc/start">Sign in with ${escapeHtml(label)}</a></p>`;
