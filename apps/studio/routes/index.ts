@@ -23,6 +23,7 @@ import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
+import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createCanvasLinksRoutes, type CanvasLinksRouteDeps } from './canvas-links.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
@@ -76,6 +77,8 @@ export interface RouteDeps {
   comments?: CommentRouteDeps;
   /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
   annotations?: AnnotationRouteDeps;
+  /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
+  history?: HistoryRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -100,7 +103,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createProjectUndoRoutes(
       convert ? { ...projectUndo, guard: convert.undoGuard } : projectUndo
     ),
-    ...createPresentRoutes(deps.present),
     ...createCanvasSourceRoutes(deps.canvasSource),
     ...createTrashRoutes(
       deps.trash ?? {
@@ -125,5 +127,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       }
     ),
     ...(convert?.specs ?? []),
+    ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
+    ...createPresentRoutes(deps.present),
   ];
 }

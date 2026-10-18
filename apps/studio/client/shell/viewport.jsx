@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { canvasUrl } from '../canvas-url.js';
+import { useViewing } from '../v2/history/history-host.jsx';
 import { SYSTEM_TAB } from './constants.js';
 import { FilePreview, sanitizeDisplayText } from '../panels/file-preview.jsx';
 import { basename, previewKind } from './util.js';
@@ -50,12 +51,20 @@ export function Viewport({
   for (const [key, entry] of srcCache.current) {
     if (!openPaths.has(entry.path)) srcCache.current.delete(key);
   }
+  // S1.14 — Version history's Viewing: the held canvas is framed at that version (`?sha=`, read-only);
+  // the frame is a different document, so it remounts (below) and comes back at now when the hold ends.
+  const viewing = useViewing();
   const stableSrc = (path) => {
-    const bare = canvasUrl(path, { ...cfg, canvasToken: undefined });
+    const opts = viewing?.path === path ? { viewing: viewing.at } : undefined;
+    // A frame that changes between now and a past version is a new frame: the entry it comes back to is
+    // built afresh, so it carries the capability that is live THEN, not the one of the first open.
+    for (const [k, e] of srcCache.current)
+      if (e.path === path && !!e.viewing !== !!opts) srcCache.current.delete(k);
+    const bare = canvasUrl(path, { ...cfg, canvasToken: undefined }, opts);
     const key = `${path}#${canvasReloadNonce}|${bare}`;
     let entry = srcCache.current.get(key);
     if (!entry) {
-      entry = { path, src: canvasUrl(path, cfg) };
+      entry = { path, src: canvasUrl(path, cfg, opts), viewing: !!opts };
       srcCache.current.set(key, entry);
     }
     return entry.src;
@@ -126,7 +135,7 @@ export function Viewport({
             // The nonce is part of the key ONLY so the #115 Retry can force a
             // remount; it is otherwise constant, so normal switching keys on the
             // path exactly as before.
-            key={`${t.path}#${canvasReloadNonce}`}
+            key={`${t.path}#${canvasReloadNonce}${viewing?.path === t.path ? `@${viewing.at}` : ''}`}
             ref={(el) => registerIframe(t.path, el)}
             src={stableSrc(t.path)}
             title={`Canvas: ${t.path}`}

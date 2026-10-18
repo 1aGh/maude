@@ -70,6 +70,8 @@
 @import url("../v2/left-panel/left-panel.css");
 /* S1.1 — the Canvases list at scale: Pinned, Sort, folders with counts, virtualised rows. */
 @import url("../v2/canvases/canvases.css");
+/* S1.14 — Version history: rows with pictures, the Now row, the Viewing bar, Name this version. */
+@import url("../v2/history/history.css");
 /* V2-4.7b — Menu › Diagnostics: the status words in the menu, the Logs · Server · AI setup · Sync sheet. */
 @import url("../v2/diagnostics/diagnostics.css");
 /* V2-4.7a — Settings: General · Connections · Advanced. */

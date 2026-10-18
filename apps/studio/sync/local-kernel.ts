@@ -57,6 +57,7 @@ import { createActionStage, type RunFence, type RunStageSummary } from './action
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
+import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { hashBytes } from './echo-guard.ts';
 import { mergeSource } from './source-merge.ts';
 import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
@@ -410,6 +411,10 @@ export interface LocalHistoryRow {
   undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** S1.12b — per canvas, the lanes the action touched there (additive). */
+  lanes: Record<string, string[]>;
+  /** S1.12b — a `name` action's target revision and name (`origin.named`; null clears). */
+  named?: RowNamed;
   /** V2-1.5 §5.1 origin keys (S5.5). */
   runId?: string;
   chatId?: string;
@@ -435,6 +440,21 @@ export type LocalOutcome = {
   cleared?: string[];
 };
 
+/**
+ * S1.13 (V2-1.9 §5.8) — a restore that is not "the whole canvas at a revision": the studio computed
+ * the lanes (history/restore-artboard.ts, restore-object.ts, an aside body) and proposes them as ONE
+ * `kind: 'restore'` action, each `lane.replace` carrying `baseContent` = the head it read, so the
+ * kernel merges three-way onto whatever landed since. `label` alone relabels a whole restore.
+ */
+export interface RestoreOptions {
+  label?: string;
+  lanes?: Array<{
+    lane: 'html' | 'css' | 'meta' | 'annotations';
+    content: string;
+    baseContent: string;
+  }>;
+}
+
 /** The `ctx.syncControl.current()` surface a local project answers through. */
 export interface LocalRuntime {
   cancelAssetSweep(): boolean;
@@ -452,8 +472,27 @@ export interface LocalRuntime {
     kind?: string | null;
     mine?: boolean;
   }): Promise<LocalHistoryRow[]>;
-  acceptedVersion(repoRel: string, revision: number): Promise<string | null>;
-  acceptedRestore(repoRel: string, revision: number): Promise<LocalOutcome>;
+  /**
+   * S1.11 — `lane`: the source (default), or its meta; the local store has no CSS lane (→ null).
+   * S1.13 — `{ aside: true }`: the body a `history.aside` at exactly `revision` kept for that lane.
+   */
+  acceptedVersion(
+    repoRel: string,
+    revision: number,
+    lane?: 'html' | 'css' | 'meta' | 'annotations',
+    o?: { aside?: boolean }
+  ): Promise<string | null>;
+  /** S1.13 — `o.lanes`: one artboard / object / kept-aside restore, ONE `restore` action. */
+  acceptedRestore(repoRel: string, revision: number, o?: RestoreOptions): Promise<LocalOutcome>;
+  /** S1.12b — `history.name` (V2-1.9 §5.4); `null` clears. */
+  acceptedName(repoRel: string, revision: number, name: string | null): Promise<LocalOutcome>;
+  /** S1.12b — `history.aside`: a version nobody kept, no head moves. */
+  acceptedAside(
+    repoRel: string,
+    lane: 'html' | 'css' | 'meta' | 'annotations',
+    content: string,
+    label?: string
+  ): Promise<LocalOutcome>;
   acceptedUndo(
     target: string | UndoTarget,
     redo?: boolean,
@@ -1375,14 +1414,20 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       committedAt: number;
       undoes: string | string[] | null;
       origin?: Record<string, unknown> | null;
-      effects: { doc: string | null; beforePath: string | null; afterPath: string | null }[];
+      effects: {
+        doc: string | null;
+        lane: string;
+        beforePath: string | null;
+        afterPath: string | null;
+      }[];
     }[];
     return history.map((a) => {
-      const canvases = new Set<string>();
-      for (const e of a.effects) {
-        const p = e.afterPath ?? (e.doc ? pathOf.get(e.doc) : null) ?? e.beforePath;
-        if (p && /\.tsx$/i.test(p)) canvases.add(p);
-      }
+      const { canvases, lanes } = canvasLanes(
+        a.effects,
+        (d) => pathOf.get(d),
+        (p) => /\.tsx$/i.test(p)
+      );
+      const named = namedField(a.kind, a.origin);
       return {
         revision: a.revision,
         actionId: a.actionId,
@@ -1392,7 +1437,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         label: a.label,
         committedAt: a.committedAt,
         undoes: a.undoes,
-        canvases: [...canvases].sort(),
+        canvases,
+        lanes,
+        ...(named ? { named } : {}),
         ...originFields(a.origin),
       };
     });
@@ -1435,24 +1482,87 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         actor: q.mine ? actor : null,
       });
     },
-    async acceptedVersion(repoRel, revision) {
+    async acceptedVersion(repoRel, revision, lane = 'html', opt) {
+      if (!(LOCAL_LANES as readonly string[]).includes(lane)) return null;
       await readyP;
       const o = opened;
       if (!o) return null;
       const doc = await docOf(o, repoRel);
       if (!doc) return null;
-      const hash = await o.store.laneAt(doc, 'html', revision);
+      if (opt?.aside) {
+        // The `@aside` effect of that one action (kernel opHistoryAside): its body, by hash.
+        const [r] = (await o.store.revisions({ after: revision - 1, limit: 1 })) as {
+          revision: number;
+          effects?: { doc: string; lane: string; op: string; afterHash: string | null }[];
+        }[];
+        const e =
+          r?.revision === revision
+            ? r.effects?.find(
+                (x) => x.lane === '@aside' && x.doc === doc && x.op === `aside.${lane}`
+              )
+            : undefined;
+        return e?.afterHash ? ((await o.store.blob(e.afterHash)) as string | null) || null : null;
+      }
+      const hash = await o.store.laneAt(doc, lane, revision);
       return hash ? ((await o.store.blob(hash)) as string | null) || null : null;
     },
-    async acceptedRestore(repoRel, revision) {
+    async acceptedRestore(repoRel, revision, opt) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const doc = await docOf(opened, repoRel);
+      if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
+      if (opt?.lanes) {
+        // The local store keeps no CSS lane (LOCAL_LANES): a splice never carries one here.
+        if (
+          !opt.lanes.length ||
+          opt.lanes.some((l) => !(LOCAL_LANES as readonly string[]).includes(l.lane))
+        )
+          return { status: 'rejected', code: 'invalid' };
+        const lanes = opt.lanes;
+        return serial(() =>
+          submit(
+            lanes.map((l) => ({
+              op: 'lane.replace',
+              doc,
+              lane: l.lane,
+              content: l.content,
+              baseContent: l.baseContent,
+            })),
+            { kind: 'restore', label: opt.label ?? `Restore ${NAME(repoRel)}` }
+          )
+        );
+      }
+      return serial(() =>
+        submit([{ op: 'history.restore', revision, docs: [doc] }], {
+          kind: 'history.restore',
+          label: opt?.label ?? `Restore ${NAME(repoRel)} to version ${revision}`,
+        })
+      );
+    },
+    async acceptedName(repoRel, revision, name) {
       await settled();
       if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
       const doc = await docOf(opened, repoRel);
       if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
       return serial(() =>
-        submit([{ op: 'history.restore', revision, docs: [doc] }], {
-          kind: 'history.restore',
-          label: `Restore ${NAME(repoRel)} to version ${revision}`,
+        submit([{ op: 'history.name', doc, revision, name }], {
+          kind: 'name',
+          label: name ?? 'Name cleared',
+        })
+      );
+    },
+    async acceptedAside(repoRel, lane, content, label) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      // The local store keeps no CSS lane (LOCAL_LANES): nothing to set aside there.
+      if (!(LOCAL_LANES as readonly string[]).includes(lane))
+        return { status: 'rejected', code: 'invalid' };
+      const doc = await docOf(opened, repoRel);
+      if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
+      return serial(() =>
+        submit([{ op: 'history.aside', doc, lane, content, ...(label ? { label } : {}) }], {
+          kind: 'aside',
+          label: label ?? 'Version not kept',
         })
       );
     },

@@ -524,6 +524,33 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `.dv-zoom-sync` | selector | Zoom-sync label in the diff zoom bar. *CSS consumer.* | `client/panels/DiffView.jsx` · `ZoomBar` | test:shell-text-contrast | stable — re-emit |
 | `git-compare` | testid | The compare-before/after button on a changed canvas in the Changes list. | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
 | `git-discard` | testid | The discard button on a changed file (or canvas with its supporting files) in the Changes list. Desktop only (read-only elsewhere). | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
+| `vh-panel` | testid | Version history (⌥⌘H): the panel in the right slot; the dock id stays `changes`. Header, the four filters, the Now row, the rows, the Advanced fold. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-close` | testid | Version history's close button. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-filter-<id>` | testid (pattern) | One filter of Version history (`aria-pressed`): `<id>` is all, named, ai or people — All · Named · Made by AI · People. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-now` | testid | The Now row: "Now", the canvas and its save word, and Name this version…. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-now-status` | testid | The Now row's second line: "<canvas> · Saved" (the save word of CONTRACT §6). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-now-back` | testid | The Now row while a past version is held: a click returns to now. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-name` | testid | Now row › "Name this version…" ("Saving…", disabled, while the canvas has unsent changes); absent for Can view and Can comment. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-list` | testid | The grouped rows (Today / Yesterday / 4 Oct …). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-row-<ref>` | testid (pattern) | One version row; `<ref>` is its last revision (`r41`). A click looks at that version (the Viewing hold); `aria-current` marks the one held. | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-acts` | testid | The held row's actions: Compare (when Compare is wired) and Restore this version (edit only). | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-compare` | testid | Held row › Compare (S1.15). | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-restore` | testid | Held row › "Restore this version": a new version, then a toast "Restored 5 Oct, 18:40 · Undo". Absent for Can view and Can comment. | `client/v2/history/history-panel.jsx` · `Row` | — | new |
+| `vh-more` | testid | "Show older versions" at the foot of the list. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-empty` | testid | The empty state: "Versions appear here as you work." (or the filter's own line). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-loading` | testid | Skeleton rows while the first page loads. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-failed` | testid | "Couldn't load versions" (`role=alert`) with Retry versions. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-retry` | testid | Retry versions: pressed by hand, never automatic. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-offline` | testid | "Offline — showing versions up to 14:05" above the rows. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-nocanvas` | testid | "Open a canvas to see its versions." when no canvas is in front. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-viewbar` | testid | The Viewing bar: "Viewing “…” · 5 Oct, 18:40 · Jonas" and "esc back to now", shown while the mode store holds a past version. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
+| `vh-viewbar-text` | testid | The Viewing bar's words. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
+| `vh-viewbar-back` | testid | The Viewing bar's "esc back to now" button. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
+| `vh-name-dialog` | testid | The "Name this version" dialog (`role=dialog`, modal). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-scrim` | testid | The dim behind the Name this version dialog. | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-input` | testid | The name field (1–80 characters). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-save` | testid | Name version (the dialog's primary button). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-name-error` | testid | The reason under the name field (`role=alert`). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 
 ### sync/cloud
 

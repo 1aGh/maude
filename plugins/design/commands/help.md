@@ -94,11 +94,11 @@ Flags on `/design:new`: `--blank` (create a board), `--from-annotations` (force 
 <!-- BEGIN GENERATED: studio capabilities (scripts/gen-actions.mjs) -->
 ## Studio capabilities
 
-Every studio action has one AI path: 64 by editing a file, 52 by a `maude` verb, 113 only the person can do, 0 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
+Every studio action has one AI path: 64 by editing a file, 59 by a `maude` verb, 114 only the person can do, 0 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
 
 | Tier | `maude design` verbs |
 | --- | --- |
 | auto (no prompt in the Maude chat) | prep · bootstrap-check · slug · server-up · runtime-health · screenshot · smoke · visual-sanity · perf · canvas-rects · read-annotations · svg-optimize · asset-sweep · draw-proof · probe-footage · smart-frames · agent-browser-safe · chat-open · serve · status · index · help · check · place · layout-check · open · history list · history show · history diff · comments list · exports list · exports again · runs list · runs stop · annotate · canvas-edit · handoff · import-asset · import-brand · import-tokens · ingest-footage · photo-adjust · ds-check · ds-upgrade analyse · ds-upgrade plan · ds-upgrade validate |
-| prompt (permission card) | hook · export · curl-local · draw-build · to-lottie · generate · audio-search · fetch-asset · ensure-browser · transcribe · import-figma · photo-bg-remove · init · ds-upgrade · bulk-deletes · history restore · history undo · exports · runs · comments reply · comments resolve · comments reopen · comments add · comments · history |
+| prompt (permission card) | hook · export · curl-local · draw-build · to-lottie · generate · audio-search · fetch-asset · ensure-browser · transcribe · import-figma · photo-bg-remove · init · ds-upgrade · bulk-deletes · history restore · history undo · history name · exports · runs · comments reply · comments resolve · comments reopen · comments add · comments · history |
 | person only | link · adopt · unlink · detach |
 <!-- END GENERATED: studio capabilities -->
