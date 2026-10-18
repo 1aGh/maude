@@ -16,6 +16,13 @@ import {
   ZOOMCTL_STORE,
 } from '../shell/constants.js';
 import { parseCompTimeline } from '../panels/timeline-parse.js';
+import { trackRecordableWrite } from '../inspector/css-knobs.jsx';
+import {
+  clipVerbLabel,
+  refusalText,
+  runClipVerb,
+  seqUndoPayload,
+} from '../v2/timeline/clip-verb.js';
 import { PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import {
   collectDirPaths,
@@ -199,53 +206,24 @@ export function usePhotoAndTimeline({
     canvas: activePath,
   };
 
-  // DDR-150 dogfood #1 — Timeline undo/redo. Every successful clip op (move /
-  // trim / remove / insert / z-reorder / replace-src) returns a server `seq`
-  // registered in the whole-file undo log; Cmd+Z / Shift+Cmd+Z replay it via
-  // /_api/reorder-revert (guarded swap — 409s honestly if the canvas diverged).
-  const tlUndoRef = useRef({ undo: [], redo: [] });
-  const pushTlUndo = useCallback((canvas, seq, label) => {
-    if (typeof seq !== 'number') return;
-    tlUndoRef.current.undo.push({ canvas, seq, label });
-    tlUndoRef.current.redo = []; // a new edit invalidates the redo branch
-    if (tlUndoRef.current.undo.length > 50) tlUndoRef.current.undo.shift();
-  }, []);
-  const tlUndoRedo = useCallback((dir) => {
-    const s = tlUndoRef.current;
-    const src = dir === 'undo' ? s.undo : s.redo;
-    const dst = dir === 'undo' ? s.redo : s.undo;
-    const canvas = tlKeyRef.current.canvas;
-    // Last entry for THIS canvas (stacks are global; ops are per-canvas).
-    let idx = -1;
-    for (let i = src.length - 1; i >= 0; i--) {
-      if (src[i].canvas === canvas) {
-        idx = i;
-        break;
-      }
-    }
-    if (idx < 0) {
-      shellToast(dir === 'undo' ? 'Nothing to undo on this timeline.' : 'Nothing to redo.');
-      return;
-    }
-    const entry = src[idx];
-    fetch('/_api/reorder-revert', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ canvas: entry.canvas, seq: entry.seq, dir }),
-    })
-      .then((r) => r.json().catch(() => ({})))
-      .then((j) => {
-        src.splice(idx, 1);
-        if (j?.ok) {
-          dst.push(entry);
-          shellToast(`${dir === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`, true);
-        } else {
-          // 409 canvas diverged / 404 server restarted — entry is dead, drop it.
-          shellToast(`${dir === 'undo' ? 'Undo' : 'Redo'} skipped: ${j?.error || 'failed'}`);
-        }
-      })
-      .catch(() => shellToast(`${dir === 'undo' ? 'Undo' : 'Redo'} failed: network error`));
-  }, []);
+  // S7.6 — Timeline undo IS the canvas's undo (decision `maude/v2-S7-timeline-undo-is-project-undo`):
+  // one log, so ⌘Z (`edit.undo`, timeline focused or not) takes back the last edit whoever made it.
+  // A clip verb records its edit-op `writeId` (client/v2/timeline/clip-verb.js); a v1 clip route
+  // that still answers a revert `seq` records the canvas's existing `reorder` record. Both go to the
+  // ACTIVE canvas's stack via `record-edit` (parent-origin only there, DDR-054).
+  const recordOnCanvas = useCallback(
+    (payload) => {
+      if (payload) postToActiveCanvas({ dgn: 'record-edit', payload });
+    },
+    [postToActiveCanvas]
+  );
+  const pushTlUndo = useCallback(
+    (canvas, seq, label) => {
+      if (canvas !== tlKeyRef.current.canvas) return; // the record belongs to the canvas on screen
+      recordOnCanvas(seqUndoPayload(canvas, seq, label));
+    },
+    [recordOnCanvas]
+  );
   // Task 3 — resolve a `{ stableId, index }` clipRef against a fresh comp-clips
   // response. stableId wins (multi-comp-safe, survives reorder); the row index
   // stays as the legacy fallback for rows the enumerator couldn't identify.
@@ -264,104 +242,56 @@ export function usePhotoAndTimeline({
     return seqs[clipRef] || null;
   }, []);
 
-  // Task 3 — remove a clip (with server-side ripple for series beats). Shared by
-  // the panel's ×/context-menu and the Delete/Backspace key on the selection.
-  const timelineRemoveClip = useCallback(
-    (clipRef) => {
-      const canvas = tlKeyRef.current.canvas;
-      if (!canvas || canvas === SYSTEM_TAB) return;
-      const artboardId = timelineArtboardIdRef.current || undefined;
-      const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(canvas)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-      fetch(ccUrl)
-        .then((r) => r.json().catch(() => ({})))
-        .then((cc) => {
-          const clip = resolveClipRef(cc, clipRef);
-          if (!clip?.stableId) return null;
-          return fetch('/_api/remove-sequence', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              canvas,
-              artboardId,
-              stableId: clip.stableId,
-              contentHash: clip.contentHash,
-            }),
-          });
-        })
-        .then((r) => (r ? r.json() : null))
-        .then((j) => {
-          if (j && !j.ok) {
-            console.warn('[remove-clip]', j.error || 'failed');
-            timelineOpFailed('Remove refused', j.error);
-          } else if (j?.ok) {
-            shellToast('Clip removed.', true);
-            if (j.seq != null) pushTlUndo(canvas, j.seq, 'remove clip');
-            setTimelineSelectedClip(null);
-          }
-        })
-        .catch(() => shellToast('Remove failed: network error'));
-    },
-    [resolveClipRef, pushTlUndo]
-  );
-  // Phase 2/3 — the parametric verb pipe (speed/trim-in/audio/detach-audio/
-  // framing/grade/transition/split/insert-transition/remove-transition), shared
-  // by the inspector popover, context menu, seam chips, and keyboard (⌘B).
+  // Phase 2/3 — the parametric verb pipe (speed/trim-in/audio/detach-audio/framing/grade/
+  // transition/split/insert-transition/remove-transition/remove …), shared by the inspector popover,
+  // context menu, seam chips, ⌫ and ⌘B. S7.6: every verb is `clip.<verb>` through `/_api/edit-op`.
   const timelineClipVerb = useCallback(
     (clipRef, verb, params) => {
       const canvas = tlKeyRef.current.canvas;
       if (!canvas || canvas === SYSTEM_TAB) return;
       const artboardId = timelineArtboardIdRef.current || undefined;
-      const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(canvas)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-      fetch(ccUrl)
-        .then((r) => r.json().catch(() => ({})))
-        .then((cc) => {
+      const run = runClipVerb({
+        fetch: (url, init) => fetch(url, init),
+        canvas,
+        artboardId,
+        clipRef,
+        verb,
+        params,
+        resolveClip: (cc, ref) => {
           const all = cc?.ok && Array.isArray(cc.clips) ? cc.clips : [];
-          const clip = clipRef?.transition
-            ? all.find((c) => c.kind === 'transition' && c.stableId === clipRef.stableId) || null
-            : resolveClipRef(cc, clipRef);
-          if (!clip?.stableId) return null;
-          return fetch('/_api/clip-edit', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              canvas,
-              artboardId,
-              stableId: clip.stableId,
-              contentHash: clip.contentHash,
-              verb,
-              ...params,
-            }),
-          });
-        })
-        .then((r) => (r ? r.json() : null))
+          return ref?.transition
+            ? all.find((c) => c.kind === 'transition' && c.stableId === ref.stableId) || null
+            : resolveClipRef(cc, ref);
+        },
+        record: recordOnCanvas,
+      });
+      // ⌘Z right after a verb waits for its record (the canvas's undo barrier, css-knobs.jsx).
+      trackRecordableWrite(run);
+      run
         .then((j) => {
           if (j && !j.ok) {
-            console.warn('[clip-edit]', verb, j.error || 'failed');
-            timelineOpFailed(`${verb} refused`, j.error);
+            console.warn('[clip-op]', verb, refusalText(j));
+            timelineOpFailed(
+              verb === 'remove' ? 'Remove refused' : `${verb} refused`,
+              refusalText(j)
+            );
           } else if (j?.ok) {
-            const labels = {
-              speed: 'set speed',
-              'trim-in': 'trim in-point',
-              audio: 'clip audio',
-              'detach-audio': 'detach audio',
-              framing: 'crop clip',
-              grade: 'grade clip',
-              transition: 'edit transition',
-              split: 'split clip',
-              'insert-transition': 'add transition',
-              'remove-transition': 'remove transition',
-              'set-text': 'edit text',
-              'to-overlay': 'move to overlay layer',
-              'to-storyline': 'move to storyline',
-              'layer-order': 'reorder layers',
-            };
-            shellToast(`Applied: ${labels[verb] || verb}.`, true);
-            if (j.seq != null) pushTlUndo(canvas, j.seq, labels[verb] || verb);
+            shellToast(
+              verb === 'remove' ? 'Clip removed.' : `Applied: ${clipVerbLabel(verb)}.`,
+              true
+            );
+            if (verb === 'remove') setTimelineSelectedClip(null);
           }
         })
         .catch(() => shellToast(`${verb} failed: network error`));
     },
-    [resolveClipRef, pushTlUndo, timelineOpFailed]
+    [resolveClipRef, recordOnCanvas, timelineOpFailed]
+  );
+  // Task 3 — remove a clip (with server-side ripple for series beats): `clip.remove`, the same op
+  // `/_api/remove-sequence` applies. Shared by the panel's ×/context-menu and Delete/Backspace.
+  const timelineRemoveClip = useCallback(
+    (clipRef) => timelineClipVerb(clipRef, 'remove'),
+    [timelineClipVerb]
   );
   // Tauri's WKWebView does NOT implement window.prompt() (returns null
   // synchronously — the "click does nothing" desktop bug), so every text ask
@@ -409,7 +339,6 @@ export function usePhotoAndTimeline({
   tlKeyRef.current.clipVerb = timelineClipVerb;
   tlKeyRef.current.addComment = timelineAddComment;
   tlKeyRef.current.askText = askText;
-  tlKeyRef.current.undoRedo = tlUndoRedo;
 
   // DDR-148 — reset the Timeline's comp meta when the active canvas changes (a
   // non-comp canvas fires no announce, so stale comps would linger), then ask

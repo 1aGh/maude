@@ -82,6 +82,7 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { editOpRecordFromShell } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -3026,6 +3027,13 @@ function CanvasRouter({
               )
             );
           }
+          return;
+        }
+        // S7.6 — a shell-side edit-op (a Timeline clip verb) landed: record its `revert {writeId}`
+        // here so ⌘Z — timeline focused or not — undoes it from this one stack.
+        const shellEditOp = editOpRecordFromShell(p);
+        if (shellEditOp) {
+          undoStack.record(shellEditOp);
           return;
         }
         if (
