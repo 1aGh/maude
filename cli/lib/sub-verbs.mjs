@@ -30,6 +30,8 @@ export const SUB_VERBS = {
     undo: NATIVE,
     name: NATIVE,
   },
+  // S1.17 (S1-trash.md): `list` reads, `restore` brings one item back, `clear` is the owner's (human tier).
+  trash: { list: NATIVE, restore: NATIVE, clear: NATIVE },
   comments: { list: NATIVE },
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
