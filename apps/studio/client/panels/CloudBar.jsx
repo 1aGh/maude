@@ -592,6 +592,8 @@ export default function CloudBar({
       claimedProject: pending.project,
     });
     setPending(null);
+    // A browser door (S9.17b) opened a cell tab: nothing switches here, so nothing stays busy.
+    if (r.ok && r.via) setBusy('');
     if (!r.ok) {
       setBusy('');
       setError(r.error || 'The project could not be opened.');

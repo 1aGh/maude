@@ -39,7 +39,17 @@ export interface PreparedProject {
   mode: string | null;
 }
 
-export type PrepareResult = PreparedProject | { ok: false; error: string; status: number };
+export type PrepareResult =
+  | PreparedProject
+  | {
+      ok: false;
+      error: string;
+      status: number;
+      /** S9.17b: a Can view account's `409 browser-door` — `url` is a validated cell front door
+       *  (cloud/endpoints.ts); the page opens it as a cell tab. No credential was stored. */
+      reason?: 'browser-door';
+      url?: string;
+    };
 
 const GROUP = /^[\p{L}\p{N}][\p{L}\p{N} _-]{0,59}$/u;
 
@@ -134,7 +144,17 @@ export async function prepareManagedProject(
       role?: string;
       project?: string;
       error?: string;
+      reason?: string;
     };
+    if (!j.ok && j.reason === 'browser-door' && typeof j.url === 'string') {
+      return {
+        ok: false,
+        status: 409,
+        reason: 'browser-door',
+        url: j.url,
+        error: j.error ?? 'The project could not be opened.',
+      };
+    }
     if (!j.ok || !j.url)
       return { ok: false, error: j.error ?? 'The project could not be opened.', status: r.status };
     serverUrl = j.url;
