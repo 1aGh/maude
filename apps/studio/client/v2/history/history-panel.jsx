@@ -261,7 +261,11 @@ export function VersionHistoryPanel({
             viewing={viewing}
             onView={onView}
             onChanged={() => onChanged?.()}
-            onTail={(t) => setLearned({ key: scoped.key, tail: t })}
+            onTail={(t) =>
+              setLearned((cur) =>
+                cur?.key === scoped.key && cur.tail === t ? cur : { key: scoped.key, tail: t }
+              )
+            }
             refreshKey={refreshKey}
             toast={toast}
             fetchImpl={fetchImpl}

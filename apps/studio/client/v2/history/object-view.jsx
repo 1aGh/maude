@@ -5,7 +5,7 @@
 //   "Restore the artboard instead." · a version kept aside is a "Not kept" row (S9.24 Keep both)
 //
 // Reads `GET /_api/project/object-history` (history/object-history.ts); the Restore is the same
-// `POST /_api/project/restore` with `element` that `maude design history restore --element` makes. Everything
+// restore request with `element` (built by history/surface-requests.ts via use-versions.js) that `maude design history restore --element` makes. Everything
 // is judged again on the server — hiding Restore from a viewer is presentation.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -158,9 +158,12 @@ export function ObjectHistoryView({
 }) {
   const v = useObjectHistory({ path, objectKey, refreshKey, fetchImpl });
   const [restoring, setRestoring] = useState(false);
+  // the caller's callback is a fresh function every render: read it through a ref so it never re-arms this
+  const tailRef = useRef(onTail);
+  tailRef.current = onTail;
   useEffect(() => {
-    if (v.header) onTail?.(v.header);
-  }, [v.header, onTail]);
+    if (v.header) tailRef.current?.(v.header);
+  }, [v.header]);
   const doRestore = useCallback(
     async (row) => {
       if (restoring) return;
