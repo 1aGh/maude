@@ -7,7 +7,8 @@
 // renderer (S1/S8) — this service owns the rows they hang off.
 
 import { randomBytes } from 'node:crypto';
-
+import path from 'node:path';
+import { type AssetIndex, createAssetIndex } from './assets.ts';
 import {
   extractCanvas,
   type IndexContext,
@@ -15,10 +16,14 @@ import {
   listCanvases,
   stampOf,
 } from './extract.ts';
+import type { HistoryLanes, HistorySource } from './history-refs.ts';
 import { match } from './match.ts';
-import { pidOf, readSnapshot, sweepTemps, writeSnapshot } from './snapshot.ts';
+import { pidOf, projectDir, readSnapshot, sweepTemps, writeSnapshot } from './snapshot.ts';
 import type {
   ArtboardRow,
+  AssetRow,
+  AssetsAnswer,
+  AssetView,
   CanvasRow,
   ProjectIndexSnapshot,
   SearchResult,
@@ -43,6 +48,11 @@ export interface IndexServiceOptions {
   now?: () => number;
   debounceMs?: number;
   minIntervalMs?: number;
+  /** S8.11: where older versions are read from (the sync runtime / a legacy hub); null = none, so
+   *  "Not used" stays "checking" (the host calls `startHistoryScan()` when one appears) */
+  history?: (() => HistorySource | null) | HistorySource | null;
+  /** hash asset bytes in the background for tile keys (default true) */
+  hashAssets?: boolean;
 }
 
 export interface IndexService {
@@ -65,6 +75,25 @@ export interface IndexService {
   stop(): void;
   /** the last build's wall time, ms (budget ≤ 250 ms on Alligators) */
   buildMs(): number;
+  /** S8.11 — the rows of `assets/`; a `view` (canvas-only session) keeps only assets that a granted canvas references */
+  assets(view?: AssetView): AssetRow[];
+  usage(
+    assetRel: string,
+    view?: AssetView
+  ): { canvases: string[]; olderVersions: boolean | 'checking' };
+  /** "Not used": nothing while `checking` (the history scan is unfinished) */
+  notUsed(view?: AssetView): { checking: boolean; assets: AssetRow[] };
+  /** what `GET /_api/index?part=assets` answers */
+  assetsAnswer(view?: AssetView): AssetsAnswer;
+  /** canvases / files that build an asset path at runtime (cannot be resolved) */
+  dynamicReferences(): string[];
+  startHistoryScan(): void;
+  /** a version was recorded (V2-1.9): its asset references join the history cache */
+  noteVersion(canvas: string, ref: string, lanes: HistoryLanes): void;
+  /** V2-1.9 pruned a version */
+  forgetVersion(canvas: string, at: { rev: number } | { sha: string }): void;
+  /** hashing and the history scan are idle (tests, one-shot CLIs) */
+  settled(): Promise<void>;
 }
 
 const isCanvasRel = (rel: string) => rel.endsWith('.tsx');
@@ -98,6 +127,17 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
   let lastWriteAt = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let dirty = false;
+  // S8.11: asset rows, usage and history refs live in assets.ts; this service forwards fs events
+  const history = o.history;
+  const assetIdx: AssetIndex = createAssetIndex({
+    designRoot: o.context().designRoot,
+    canvases: () => [...rows.keys()],
+    history: () => (typeof history === 'function' ? history() : (history ?? null)),
+    historyFile: persist ? path.join(projectDir(pid), 'history-refs.json') : null,
+    now,
+    emit: (rels) => emit(rels),
+    hash: o.hashAssets,
+  });
 
   function counts(): ProjectIndexSnapshot['counts'] {
     const byKind: ProjectIndexSnapshot['counts']['byKind'] = {};
@@ -183,6 +223,7 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       if (row) rows.set(rel, row);
     }
     lastBuildMs = performance.now() - t0;
+    assetIdx.reset();
     emit([...rows.keys()]);
   }
 
@@ -190,6 +231,7 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
     const ctx = o.context();
     const touched: string[] = [];
     for (const raw of rels) {
+      if (assetIdx.touch(raw)) touched.push(raw);
       const rel = isCanvasRel(raw) ? raw : canvasOfMeta(raw);
       if (!rel) continue;
       if (isListedCanvas(ctx, rel)) {
@@ -201,11 +243,12 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       } else continue;
       touched.push(rel);
     }
-    if (touched.length) emit(touched);
+    if (touched.length) emit([...new Set(touched)]);
     return seq;
   }
 
   rebuild();
+  if (history) assetIdx.startHistoryScan();
 
   const svc: IndexService = {
     ready: async () => {},
@@ -267,13 +310,25 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       if (timer) clearTimeout(timer);
       dirty = true;
       write();
+      assetIdx.flush();
     },
     stop() {
       if (timer) clearTimeout(timer);
       timer = null;
+      assetIdx.stop();
       live.delete(svc);
     },
     buildMs: () => lastBuildMs,
+    assets: (view) => assetIdx.assets(view),
+    usage: (rel, view) => assetIdx.usage(rel, view),
+    notUsed: (view) => assetIdx.notUsed(view),
+    assetsAnswer: (view) => assetIdx.answer(seq, view),
+    dynamicReferences: () => assetIdx.dynamicReferences(),
+    startHistoryScan: () => assetIdx.startHistoryScan(),
+    noteVersion: (canvas, ref, lanes) => assetIdx.noteVersion(canvas, ref, lanes),
+    forgetVersion: (canvas, at) =>
+      assetIdx.forgetVersion(canvas, 'rev' in at ? `r${at.rev}` : `git:${at.sha}`),
+    settled: () => assetIdx.settled(),
   };
   if (persist) live.add(svc);
   return svc;
