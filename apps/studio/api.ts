@@ -30,6 +30,15 @@ import { renderBriefBoard, validateCanvasName, validateFolderName } from './canv
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
+import { readAnchors, withSanitizedAnchors } from './comments/anchors.ts';
+import { mentionsOf } from './comments/mentions.ts';
+import {
+  applyCommentOp,
+  type CommentOp,
+  type CommentRecord,
+  type OpActor,
+  type OpResult,
+} from './comments/ops.ts';
 import { dropPin, rekeyUserState } from './home/user-state.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
@@ -477,6 +486,9 @@ export interface Api {
   commentsPatch(id: string, patch: Partial<Comment>): Promise<Comment | null>;
   commentsDelete(id: string): Promise<boolean>;
   commentsAddReply(id: string, payload: { body: string; author?: string }): Promise<Comment | null>;
+  /** S9.7b — `POST /_api/comments/op` (routes/comments.ts): one op on `file`'s threads. */
+  commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult>;
+  commentFileOf(id: string): Promise<string | null>;
   gitCommitters(): Promise<GitCommitter[]>;
   /**
    * Phase 8 — local `git config user.name`, cached for the process lifetime.
@@ -1385,41 +1397,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  // Security (adversarial review 2026-07-30): the timeline anchor is read by
-  // the /design:edit agent (edit.md §0.6b treats `lane` as navigation), and a
-  // comment can arrive from an UNTRUSTED hub peer (DDR-054) via the sync-persist
-  // path — which does NOT go through commentsAdd's validation. So re-clamp the
-  // anchor HERE, at the read boundary every consumer (incl. /_comments served to
-  // the agent) passes through: bound `lane`/`clipStableId` length, coerce frame
-  // ints, and drop unknown fields — a poisoned over-long `lane` can't smuggle an
-  // instruction past the 40-char label the feature is documented to carry.
-  function sanitizeTimelineAnchor(raw: unknown): Comment['timeline'] | undefined {
-    if (!raw || typeof raw !== 'object') return undefined;
-    const t = raw as Record<string, unknown>;
-    const anchor: NonNullable<Comment['timeline']> = {};
-    if (typeof t.clipStableId === 'string' && t.clipStableId.length <= 200)
-      anchor.clipStableId = t.clipStableId;
-    if (Number.isFinite(Number(t.frameOffset)))
-      anchor.frameOffset = Math.max(0, Math.round(Number(t.frameOffset)));
-    if (Number.isFinite(Number(t.frame))) anchor.frame = Math.max(0, Math.round(Number(t.frame)));
-    if (typeof t.lane === 'string' && t.lane.length <= 40) anchor.lane = t.lane;
-    return anchor.clipStableId != null || anchor.frame != null ? anchor : undefined;
-  }
-
+  // Security (adversarial review 2026-07-30): every anchor is read by the /design:edit agent as
+  // navigation, and a comment can arrive from an UNTRUSTED hub peer (DDR-054) via the sync-persist
+  // path, which does NOT go through commentsAdd. So the anchors are re-clamped HERE, at the read
+  // boundary every consumer passes through (comments/anchors.ts — one reader for the studio and
+  // the hub door): a shape that fails is dropped, the comment renders detached, never deleted.
   function backfillComment(raw: unknown): Comment {
-    const c = (raw ?? {}) as Partial<Comment>;
-    const timeline = sanitizeTimelineAnchor((c as { timeline?: unknown }).timeline);
+    const c = withSanitizedAnchors((raw ?? {}) as Partial<Comment>);
     return {
       ...(c as Comment),
       author: typeof c.author === 'string' ? c.author : '',
       thread: Array.isArray(c.thread) ? c.thread : [],
       mentions: Array.isArray(c.mentions) ? c.mentions : [],
-      ...(timeline ? { timeline } : { timeline: undefined }),
-      // Same trust boundary for the #134/#136 anchors: a peer-synced comment
-      // never passed commentsAdd, so an anchor that fails its shape is dropped
-      // (the comment then renders from `bounds`, detached — never deleted).
-      annotationId: isAnnotationId(c.annotationId) ? c.annotationId : undefined,
-      world: isWorldPoint(c.world) ? { x: c.world.x, y: c.world.y } : undefined,
     };
   }
 
@@ -1580,11 +1569,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return out;
   }
 
-  function mentionsUnion(c: Comment): string[] {
-    const all = [c.text, ...c.thread.map((r) => r.body)].join('\n');
-    return parseMentions(all);
-  }
-
   async function commentsAdd(payload: Partial<Comment> & { file: string; text: string }) {
     if (!payload || typeof payload.file !== 'string' || !payload.file) return null;
     if (typeof payload.text !== 'string' || !payload.text.trim()) return null;
@@ -1640,6 +1624,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // #134/#136 — annotation / world anchors (peer-supplied: shape-checked).
     if (isAnnotationId(payload.annotationId)) c.annotationId = payload.annotationId;
     if (isWorldPoint(payload.world)) c.world = { x: payload.world.x, y: payload.world.y };
+    Object.assign(c, readAnchors(payload)); // S9.7 — + artboard / t / mm
     list.push(c);
     await publishComments(payload.file, list, base);
     return c;
@@ -1669,7 +1654,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         created: new Date().toISOString(),
       };
       entry.thread = [...entry.thread, reply];
-      entry.mentions = mentionsUnion(entry);
+      entry.mentions = mentionsOf(entry);
       await publishComments(file, list, base);
       return entry;
     }
@@ -1698,12 +1683,29 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }
         if (typeof patch.text === 'string' && patch.text.trim()) {
           entry.text = patch.text.trim().slice(0, 4000);
-          entry.mentions = mentionsUnion(entry);
+          entry.mentions = mentionsOf(entry);
         }
       }
       await publishComments(file, list, base);
       return first;
     }
+    return null;
+  }
+
+  /** S9.7b — one comment op (comments/ops.ts) on `file`'s threads, as the session's `actor`. */
+  async function commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult> {
+    const list = await loadCommentsForFile(file);
+    const now = new Date().toISOString();
+    const ctx = { actor, now, newId: newCommentId, newReplyId };
+    const result = applyCommentOp(list as CommentRecord[], op, ctx);
+    if (result.ok) await publishComments(file, result.list, list);
+    return result;
+  }
+
+  /** The canvas file a thread lives in — how the op route judges a reply by id alone. */
+  async function commentFileOf(id: string): Promise<string | null> {
+    for (const [file, list] of Object.entries(await loadAllComments()))
+      if (list.some((c) => c.id === id)) return file;
     return null;
   }
 
@@ -7257,6 +7259,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     commentsPatch,
     commentsDelete,
     commentsAddReply,
+    commentOp,
+    commentFileOf,
     gitCommitters,
     gitCurrentUser,
     parseMentions,

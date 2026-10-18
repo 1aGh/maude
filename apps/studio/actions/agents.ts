@@ -54,6 +54,13 @@ const UNDO_KEYS: ActionDefAI = {
   ),
 };
 const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comments list') };
+// S9.7b — the comment TOOL's agent path is the write verb: an agent leaves a comment by posting it
+// (`POST /_api/comments/op`, as the session, AI-written). The action itself only picks a tool
+// (fromCanvas ⇒ effect none); the verb's own tier is shared → prompt (verbs.ts).
+const COMMENT_ADD: ActionDefAI = {
+  effect: 'none',
+  agent: cli('maude design comments add --as-ai'),
+};
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
@@ -205,7 +212,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.select': PREF('a pointer mode'),
   'tool.hand': PREF('a pointer mode'),
   'tool.hand-hold': PREF('a pointer mode'),
-  'tool.comment': COMMENTS,
+  'tool.comment': COMMENT_ADD,
   'tool.pen': BOARD('Add a pen element to the canvas’s .annotations.json'),
   'tool.highlighter': BOARD('Add a highlighter element to the canvas’s .annotations.json'),
   'tool.shape': BOARD('Add a shape element to the canvas’s .annotations.json'),
@@ -248,7 +255,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),
   'timeline.zoom-fit': PREF(),
-  'timeline.comment-mode': COMMENTS,
+  'timeline.comment-mode': COMMENT_ADD,
   // ── export / share ──
   'export.open': { effect: 'none', agent: cli('maude design export') },
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },

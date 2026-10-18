@@ -18,6 +18,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
@@ -42,6 +43,8 @@ export interface RouteDeps {
   chat: ChatRouteDeps;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S9.7b — `POST /_api/comments/op`: one comment op (comments/ops.ts) as the session */
+  comments?: CommentRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -59,6 +62,19 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createChatRoutes(deps.chat),
     ...createProjectUndoRoutes(
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+    ),
+    ...createCommentRoutes(
+      deps.comments ?? {
+        designRel: deps.ai.designRel,
+        actor: async () => ({ name: '' }),
+        fileOf: async () => null,
+        apply: async () => ({
+          ok: false,
+          status: 404,
+          code: 'not-found',
+          error: 'No such comment.',
+        }),
+      }
     ),
   ];
 }

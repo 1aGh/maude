@@ -111,6 +111,9 @@ export const STUDIO_ROUTES = Object.freeze({
 
   // ---- the one write a viewer holds --------------------------------------
   '/_comments': { safe: 'read', unsafe: 'comment' },
+  // S9.7b — the studio's comment door (routes/comments.ts): one comments/ops.ts op as the
+  // session. The studio judges a canvas-only session on the thread's own canvas.
+  '/_api/comments/op': { safe: 'read', unsafe: 'comment' },
   // An annotation is drawn ON the design and versioned with it
   // (`*.annotations.json`, DDR-115/DDR-242), which is why the matrix files it
   // with `edit` and not with `comment`. `/ops` is the canvas's element-op write
