@@ -12268,6 +12268,76 @@
     "v2": "new"
   },
   {
+    "hook": "edit-hold-ring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ring (their colour) + name tag on an object another person is editing — their soft lock (A10). Advisory: you can still select it.",
+    "producer": {
+      "file": "apps/studio/editing/hold-rings.tsx",
+      "symbol": "HoldRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-hold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed spark outline + tag (\"AI is drawing the footer\") on an object a live AI run holds; only that object.",
+    "producer": {
+      "file": "apps/studio/editing/hold-rings.tsx",
+      "symbol": "HoldRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ai-hold-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line by the pointer after a click on an AI-held object, \"Footer is AI's until it's done · Stop in the AI chat\".",
+    "producer": {
+      "file": "apps/studio/editing/hold-rings.tsx",
+      "symbol": "HoldRings"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-hold-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The view-mode line while someone else holds the selection (\"Tereza is editing See pricing. You can look; the fields open when they move on.\") or AI holds an object of its artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/view-mode.jsx",
+      "symbol": "HoldLine"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-hold-comment",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Comment on the view-mode line of a person's hold: the one action meanwhile (runs tool.comment).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/view-mode.jsx",
+      "symbol": "HoldLine"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "edit-nudge-tag",
     "kind": "testid",
     "pattern": false,

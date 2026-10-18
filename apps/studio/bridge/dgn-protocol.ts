@@ -186,6 +186,14 @@ export interface CanvasToShell {
   // V2-4.3b — who else is on the active canvas, from its Yjs awareness, for the Share cluster's faces.
   // Untrusted text: ≤ PEERS_MAX peers, names ≤ PEER_NAME_MAX, rendered as text only.
   peers: { peers: Array<{ clientID: number; name: string; color?: string; following?: boolean }> };
+  // S2.18 (A10, V2-1.15 §5.8) — the single selection's holds, for the inspector's view mode: a person
+  // holding it (their name), and an AI run holding it (`held`) or another object of its artboard.
+  // Untrusted text, rendered as text only; ≤ HOLD_LABEL_MAX.
+  'hold-view': {
+    person: { name: string } | null;
+    label: string;
+    ai: { label: string; held: boolean; mine: boolean } | null;
+  };
   // legacy, no in-tree sender (accepted today; removal needs a characterization proof)
   select: { selection: Selection };
   'clear-select': Empty;
@@ -359,6 +367,15 @@ export interface ShellToCanvas {
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S2.18 (V2-1.15 §5.12) — what the canvas can't see for this person's `holding`: an inspector field has
+  // focus (`field`), the app has focus (`app`), an inspector edit just landed (`gesture`). State, sent on
+  // every change to the active canvas.
+  'hold-intent': { field: boolean; app: boolean; gesture?: boolean };
+  // S2.18 (V2-1.15 §5.8) — the objects live AI runs hold on this canvas (a run's `objects`): the canvas
+  // draws the spark outline + tag and the click tip. A tag and a flag per object — never a prompt.
+  'ai-holds': {
+    holds: Array<{ artboard: Id; element: Id; occurrence?: number; tag: string; mine: boolean }>;
+  };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -545,6 +562,25 @@ const peerList: V = (v) => {
   }
   return out;
 };
+
+/** S2.18 — hold labels / tags (`hold-view`, `ai-holds`): bounded text, rendered as text only. */
+export const HOLD_LABEL_MAX = 120;
+export const AI_HOLDS_MAX = 256;
+const holdText: V = (v) => (typeof v === 'string' && v.length <= HOLD_LABEL_MAX ? v : BAD);
+const aiHoldList: V = (v) =>
+  Array.isArray(v) && v.length <= AI_HOLDS_MAX
+    ? arrOf(
+        shape({
+          artboard: holdText,
+          element: holdText,
+          occurrence: opt((x) =>
+            typeof x === 'number' && Number.isInteger(x) && x >= 0 && x < 10000 ? x : BAD
+          ),
+          tag: holdText,
+          mine: bool,
+        })
+      )(v)
+    : BAD;
 
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
@@ -845,6 +881,16 @@ const c2s: C2S = {
     status: 'live',
     owner: 'v2/shell/use-canvas-mode-lane (V2-4.3b)',
     parse: p({ peers: peerList }),
+  },
+  'hold-view': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/inspector/view-mode (S2.18)',
+    parse: p({
+      person: nul(shape({ name: holdText })),
+      label: holdText,
+      ai: nul(shape({ label: holdText, held: bool, mine: bool })),
+    }),
   },
   select: {
     gate: 'active',
@@ -1304,6 +1350,19 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
+  },
+  'hold-intent': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/hold-rings (S2.18)',
+    parse: p({ field: bool, app: bool, gesture: opt(bool) }),
+  },
+  // the handler lands first; the sender is the shell's run list (S5.11 runs-store) at integration
+  'ai-holds': {
+    gate: 'parent',
+    status: 'new',
+    owner: 'editing/hold-rings (S2.18)',
+    parse: p({ holds: aiHoldList }),
   },
 };
 

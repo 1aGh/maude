@@ -140,6 +140,13 @@ export interface CollabAwarenessState {
    */
   pointer?: { x: number; y: number } | null;
   /**
+   * S2.18 (V2-1.15 §5.12, Gate 0 A10) — the object this person is editing: a SOFT lock others see as a
+   * ring + read-only inspector fields. Advisory between people; no server refuses on it. Published by
+   * `createHoldPublisher`; null / absent = holding nothing. The hub stamps `actor` (V2-1.15 §5.3);
+   * a receiver ignores it. Untrusted on the way in: `sanitizeHoldingState` drops a bad one WHOLE.
+   */
+  holding?: HoldingAwareness | null;
+  /**
    * Server-side `disconnect` matches awareness states to outgoing peers by
    * this token (must equal the ws.data.id the server assigns at upgrade).
    * Until the server pushes the assigned id back to the client, we use a
@@ -426,6 +433,182 @@ export function sanitizePresent(raw: unknown): PresentAwareness | null {
   return { v: 1, sid, index, total, artboardId, seq, media: m };
 }
 
+// ── S2.18 — a person's hold (V2-1.15 §5.12) ─────────────────────────────────────────────────────
+// A hold is advisory, but it is drawn on every peer's canvas and it closes their inspector fields, so
+// the boundary is strict: known keys only, V2-1.4 id grammars, a bounded print, and an `at` that is
+// finite and not in the future (+5 s skew). Any bad member drops the whole hold. `actor` is the hub's
+// stamp (§5.3) — nothing here reads it, so a peer's own claim buys nothing.
+
+export interface HoldingAwareness {
+  /** DCArtboard id */
+  artboard: string;
+  /** ElementId (V2-1.4) or a computed 8-hex id */
+  element: string;
+  /** the element print, for a computed id */
+  print?: string;
+  /** epoch-ms of the last refresh (each edit gesture, ≤ every 5 s; a heartbeat while a field is focused) */
+  at: number;
+}
+
+/** A hold nobody refreshed for this long is free — measured by the RECEIVER's clock. */
+export const HOLD_FREE_MS = 30_000;
+/** A gesture refreshes `at` at most this often. */
+export const HOLD_REFRESH_MS = 5000;
+/** While a field stays focused (no gestures), `at` is refreshed this often so receivers keep it. */
+export const HOLD_HEARTBEAT_MS = 10_000;
+const HOLD_SKEW_MS = 5000;
+const HOLD_PRINT_MAX = 512;
+const HOLD_KEYS = ['artboard', 'element', 'print', 'at', 'actor'];
+// mirrors annotations/elements/_shared.ts ARTBOARD_ID_RE / ELEMENT_ID_RE (V2-1.4) — kept local so the
+// canvas bundle does not pull the annotations module in
+const HOLD_ARTBOARD_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+const HOLD_ELEMENT_RE = /^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[0-9a-f]{8})$/;
+const HOLD_ELEMENT_MAX = 48;
+
+/** The awareness `holding` field, validated whole (null = holding nothing, or a bad hold). */
+export function sanitizeHoldingState(
+  raw: unknown,
+  now: number = Date.now()
+): HoldingAwareness | null {
+  if (!isPlainObj(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.length > HOLD_KEYS.length || keys.some((k) => !HOLD_KEYS.includes(k))) return null;
+  const { artboard, element, print, at } = raw;
+  if (typeof artboard !== 'string' || !HOLD_ARTBOARD_RE.test(artboard)) return null;
+  if (typeof element !== 'string' || element.length > HOLD_ELEMENT_MAX) return null;
+  if (!HOLD_ELEMENT_RE.test(element)) return null;
+  if (print !== undefined && (typeof print !== 'string' || print.length > HOLD_PRINT_MAX))
+    return null;
+  if (!isFiniteNum(at) || at <= 0 || at > now + HOLD_SKEW_MS) return null;
+  return print === undefined ? { artboard, element, at } : { artboard, element, print, at };
+}
+
+/**
+ * The optional fields every local `setLocalState` carries over, so a cursor publish never drops a
+ * presenter's position, a follower's watch, a Pointer dot or a hold. Seed and publish both use it.
+ */
+export function carryLocal(cur: Partial<CollabAwarenessState>): {
+  editing: CollabAwarenessState['editing'];
+  present: PresentAwareness | null;
+  watching: string | null;
+  pointer: { x: number; y: number } | null;
+  holding: HoldingAwareness | null;
+} {
+  return {
+    editing: cur.editing ?? null,
+    present: cur.present ?? null,
+    watching: cur.watching ?? null,
+    pointer: cur.pointer ?? null,
+    holding: cur.holding ?? null,
+  };
+}
+
+export interface HoldTarget {
+  artboard: string;
+  element: string;
+  print?: string;
+}
+
+export interface HoldPublisher {
+  /** the single selected object (null = deselect, or several, or an artboard) */
+  select(target: HoldTarget | null): void;
+  /** an inspector field for the selection has focus */
+  field(focused: boolean): void;
+  /** the window / the app has focus */
+  app(focused: boolean): void;
+  /** an edit gesture on the selection (drag, nudge, a typed value, a text edit) */
+  gesture(): void;
+  /** unmount: frees the hold, clears the timer */
+  dispose(): void;
+}
+
+/**
+ * The local `holding` matrix (V2-1.15 §5.12). Held = an object is selected AND the app has focus AND
+ * (a field for it has focus OR a gesture happened within 30 s). Anything else is null. `publish` gets
+ * every change; one timer covers both the 30 s idle and the focused-field heartbeat.
+ */
+export function createHoldPublisher(deps: {
+  publish: (holding: HoldingAwareness | null) => void;
+  now?: () => number;
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (id: unknown) => void;
+}): HoldPublisher {
+  const now = deps.now ?? Date.now;
+  const setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+  const clearTimer = deps.clearTimer ?? ((id) => clearTimeout(id as ReturnType<typeof setTimeout>));
+  let target: HoldTarget | null = null;
+  let focused = false;
+  let appOn = true;
+  let lastGesture: number | null = null;
+  let sent: HoldingAwareness | null = null;
+  let timer: unknown = null;
+  let disposed = false;
+
+  const same = (a: HoldTarget | null, b: HoldTarget | null) =>
+    !!a && !!b && a.artboard === b.artboard && a.element === b.element;
+  const stopTimer = () => {
+    if (timer !== null) clearTimer(timer);
+    timer = null;
+  };
+  const send = (h: HoldingAwareness | null) => {
+    sent = h;
+    deps.publish(h);
+  };
+
+  function evaluate(refresh: boolean): void {
+    stopTimer();
+    const t = now();
+    const recent = lastGesture !== null && t - lastGesture < HOLD_FREE_MS;
+    const held = !disposed && !!target && appOn && (focused || recent);
+    if (!held || !target) {
+      if (sent !== null) send(null);
+      return;
+    }
+    if (!sent || !same(sent, target) || refresh) {
+      const h: HoldingAwareness = { artboard: target.artboard, element: target.element, at: t };
+      if (target.print) h.print = target.print;
+      send(h);
+    }
+    // the next moment something changes: the focused-field heartbeat, or the gesture going stale
+    const beat = (sent as HoldingAwareness).at + HOLD_HEARTBEAT_MS - t;
+    const idle = !focused && lastGesture !== null ? lastGesture + HOLD_FREE_MS - t : Infinity;
+    const wait = Math.max(0, Math.min(focused ? beat : Infinity, idle));
+    if (Number.isFinite(wait)) {
+      timer = setTimer(() => {
+        timer = null;
+        const due = !!sent && now() - sent.at >= HOLD_HEARTBEAT_MS;
+        evaluate(due);
+      }, wait);
+    }
+  }
+
+  return {
+    select(next) {
+      const moved = !same(target, next);
+      target = next ? { ...next } : null;
+      if (moved) lastGesture = null;
+      evaluate(false);
+    },
+    field(v) {
+      focused = v;
+      evaluate(false);
+    },
+    app(v) {
+      appOn = v;
+      evaluate(false);
+    },
+    gesture() {
+      if (!target) return;
+      lastGesture = now();
+      evaluate(!!sent && same(sent, target) && now() - sent.at >= HOLD_REFRESH_MS);
+    },
+    dispose() {
+      disposed = true;
+      evaluate(false);
+    },
+  };
+}
+
 /** The awareness `watching` field: a presenter's sid, or null. */
 export function sanitizeWatching(raw: unknown): string | null {
   return typeof raw === 'string' && PRESENT_SID_RE.test(raw) ? raw : null;
@@ -456,6 +639,7 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     present: sanitizePresent(s.present),
     watching: sanitizeWatching(s.watching),
     pointer: sanitizePointer(s.pointer),
+    holding: sanitizeHoldingState(s.holding),
   };
 }
 
@@ -765,10 +949,8 @@ function createSession(slug: string): CollabSession {
       annotationSelection: cur.annotationSelection ?? [],
       annotationGesture: null,
       viewport: cur.viewport ?? { x: 0, y: 0, zoom: 1 },
-      editing: cur.editing ?? null,
-      present: cur.present ?? null,
-      watching: cur.watching ?? null,
-      pointer: cur.pointer ?? null,
+      // editing / present / watching / pointer / holding (S2.18) — one list, carryLocal
+      ...carryLocal(cur),
       __connId: connId,
     } satisfies CollabAwarenessState);
   };
@@ -1078,12 +1260,9 @@ export function CollabProvider({ slug, children }: CollabProviderProps): JSX.Ele
           // Kept across other fields' publishes (a cursor move mid-drag).
           annotationGesture: current.annotationGesture ?? null,
           viewport: current.viewport ?? { x: 0, y: 0, zoom: 1 },
-          editing: current.editing ?? null,
-          // S3.7a — a cursor publish must not drop the presenter's position (or a follower's watch).
-          present: current.present ?? null,
-          watching: current.watching ?? null,
-          // S3.2b — nor the presenter's Pointer dot.
-          pointer: current.pointer ?? null,
+          // S3.7a — a cursor publish must not drop the presenter's position (or a follower's watch);
+          // S3.2b nor the Pointer dot; S2.18 nor a hold. One list: carryLocal.
+          ...carryLocal(current),
           __connId: myConnId,
           ...next,
         } satisfies CollabAwarenessState);

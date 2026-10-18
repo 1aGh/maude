@@ -14,8 +14,9 @@ import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { AlignBar } from './align-bar.tsx';
-import { ArtboardHandles } from './artboard-handles.tsx';
 import { ARRANGE_ACTIONS } from './arrange.ts';
+import { ArtboardHandles } from './artboard-handles.tsx';
+import { HoldRings } from './hold-rings.tsx';
 import { LockBadge } from './lock-badge.tsx';
 import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
@@ -120,6 +121,8 @@ export function EditingLayer() {
       <ArtboardHandles />
       {editChrome ? <StickyName /> : null}
       {editChrome ? <MinimapContext /> : null}
+      {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
+      <HoldRings />
     </>
   );
 }
