@@ -24,8 +24,10 @@ import {
   ARTBOARD_ID,
   ARTBOARD_NOT_YET_LINE,
   type ArtboardItem,
+  bumpTrashSeq,
   CANVAS_ID,
   canClearTrash,
+  currentTrashSeq,
   deriveTrash,
   NEEDS_HUB_UPDATE_LINE,
   parseClearItems,
@@ -91,11 +93,7 @@ const refused = (code: string | undefined, extra: Record<string, unknown> = {}) 
 };
 
 export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
-  let seq = 0;
-  const changed = () => {
-    seq += 1;
-    deps.emit?.('trash:changed', { seq });
-  };
+  const changed = () => bumpTrashSeq(deps.emit);
 
   /** The items this session sees, or null when the home has no shared Trash. */
   async function itemsFor(access: Access): Promise<TrashItem[] | null | undefined> {
@@ -118,6 +116,7 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
       handle: async (req) => {
         const access = deps.access(req);
         const items = await itemsFor(access);
+        const seq = currentTrashSeq();
         if (items === undefined) return json(200, { ok: false, reason: 'unreachable', seq });
         if (items === null)
           return json(200, { ok: true, legacy: true, items: [], canClear: false, seq });
@@ -163,6 +162,8 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
             id,
             path: item.path,
             ...(r.queued ? { queued: true } : {}),
+            // S11.5: Restore N undoes as one step — the caller collects every restore's action id
+            ...(r.actionId ? { actionId: r.actionId } : {}),
           });
         }
         const entry = (CANVAS_ID.exec(id) as RegExpExecArray)[1] as string;

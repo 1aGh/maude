@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
+import { presenterOn, presentRunStore, usePresenterState } from '../present/presenter-store.js';
 import { presentZoomStore } from '../present/present-zoom-store.js';
 import { shellToast } from '../../shell/util.js';
 import {
@@ -108,6 +109,10 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   const sent = heldMode(snap, mode, caps);
   const [peers, setPeers] = useState([]);
 
+  // S3.6b — presenter view on: a role that cannot edit still publishes its Present position, so the audience
+  // window has a session to follow (`set-mode caps.present`, S3-present-session §3).
+  const presenterView = presenterOn(usePresenterState());
+
   const live = useRef({});
   live.current = {
     activePath,
@@ -118,6 +123,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     present: snap.present,
     viewing: snap.viewing,
     sent,
+    presenterView,
   };
 
   const activeWin = () => {
@@ -176,10 +182,10 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         return;
       }
     }
-    const key = `${sent.mode}|${sent.caps.edit}|${sent.caps.annotate}|${sent.caps.comment}|${snap.nonce}|${snap.viewing ? 'v' : ''}`;
+    const key = `${sent.mode}|${sent.caps.edit}|${sent.caps.annotate}|${sent.caps.comment}|${snap.nonce}|${snap.viewing ? 'v' : ''}|${presenterView}`;
     if (sentRef.current === key) return;
     sentRef.current = key;
-    lane.broadcast({ mode: sent.mode, caps: sent.caps, tool: snap.tool, present: snap.present });
+    lane.broadcast({ mode: sent.mode, caps: sent.caps, tool: snap.tool, present: snap.present, presenterView });
   }, [
     mode,
     caps,
@@ -189,6 +195,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     snap.nonce,
     snap.tool,
     snap.present,
+    presenterView,
     lane,
     folded,
   ]);
@@ -199,6 +206,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     mode: live.current.sent.mode,
     caps: live.current.sent.caps,
     present: live.current.present,
+    presenterView: live.current.presenterView,
   });
   // biome-ignore lint/correctness/useExhaustiveDependencies: activePath is the trigger
   useEffect(() => {
@@ -239,6 +247,10 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         // Present · Artboards moved on (S3.2a's stage echoes every step); the canvas's own hold
         // (_shell.html) lands its held write on the same move. Active canvas only (the table's gate).
         shellMode.position(m);
+      } else if (m.dgn === 'present-run') {
+        // S3.6b — the artboards with their world rects, in canvas order: the presenter view's order map
+        // (the canvas is the only place the live layout exists). Active canvas only, like the position.
+        presentRunStore.set({ file: L.activePath, artboards: m.artboards });
       } else if (m.dgn === 'viewport-zoom') {
         // Present the canvas: the pill shows the canvas's zoom (present/present-zoom.ts posts it).
         if (L.presenting) presentZoomStore.set(m.zoom);

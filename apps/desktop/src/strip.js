@@ -38,12 +38,20 @@
     el.tabIndex = t.label === active ? 0 : -1;
     el.title = t.name;
 
-    if (t.dot === 'done' || t.dot === 'needs-you') {
+    // S5.14 (03 ai-other-tab / ai-needs-tab): a spark while AI works there, an azure "?"
+    // while it needs you, the done dot after it finished. A fixed glyph per value — Rust
+    // sends only the enum, never project text.
+    if (t.dot === 'done' || t.dot === 'needs-you' || t.dot === 'working') {
       const dot = document.createElement('span');
       dot.className = 'dot ' + t.dot;
       dot.setAttribute('data-testid', 'tab-dot');
       dot.setAttribute('data-dot', t.dot);
-      dot.setAttribute('aria-label', t.dot === 'needs-you' ? 'Needs you' : 'Done');
+      dot.setAttribute(
+        'aria-label',
+        t.dot === 'needs-you' ? 'AI needs you' : t.dot === 'working' ? 'AI is working' : 'Done'
+      );
+      if (t.dot === 'needs-you') dot.textContent = '?';
+      if (t.dot === 'working') dot.textContent = '✦';
       el.appendChild(dot);
     }
 

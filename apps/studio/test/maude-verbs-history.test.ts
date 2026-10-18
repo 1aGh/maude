@@ -274,12 +274,37 @@ describe('maude design history restore / undo (prompt tier)', () => {
     ]);
   });
 
-  test('undo --chat is not available yet (no chat-undo route): exit 1 before any request', async () => {
-    studio = fakeStudio(writer({ ok: true }));
+  test('undo --chat <id> posts { chatId, via: panel }: the whole chat as ONE new version (S5.5b)', async () => {
+    studio = fakeStudio(
+      writer({ ok: true, status: 'accepted', actionId: 'a_30', undoes: ['a_1', 'a_2'] })
+    );
+    const r = await studio.run('history', ['undo', '--chat', 'c1']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('undid chat c1 (new version a_30)');
+    expect(writes(studio.seen).map((s) => s.body)).toEqual([
+      { chatId: 'c1', redo: false, via: 'panel' },
+    ]);
+    // one of the two, never both, never neither; a chat id is an id
+    expect((await studio.run('history', ['undo'])).code).toBe(2);
+    expect((await studio.run('history', ['undo', '--chat', 'c1', '--action', 'a_1'])).code).toBe(2);
+    expect((await studio.run('history', ['undo', '--chat', 'c 1'])).code).toBe(2);
+    expect(writes(studio.seen)).toHaveLength(1);
+  });
+
+  test('undo --chat against an old team server prints the update line, exit 1', async () => {
+    studio = fakeStudio(
+      writer(
+        {
+          ok: false,
+          reason: 'needs-hub-update',
+          line: 'Undo this chat needs the team server to be updated',
+        },
+        409
+      )
+    );
     const r = await studio.run('history', ['undo', '--chat', 'c1']);
     expect(r.code).toBe(1);
-    expect(writes(studio.seen)).toEqual([]);
-    expect((await studio.run('history', ['undo'])).code).toBe(2);
+    expect(r.stderr).toContain('Undo this chat needs the team server to be updated');
   });
 });
 

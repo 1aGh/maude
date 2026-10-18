@@ -18,7 +18,12 @@
 // `owner` (an exact match in tokens.mjs), never by prefix or label pattern.
 
 import { randomBytes } from 'node:crypto';
-import { declaredAccessOf, peerTokenDoor } from '../../studio/access/scope.ts';
+import {
+  ACCESS_VERSION,
+  ACCESS_VERSION_REFUSAL,
+  declaredAccessOf,
+  peerTokenDoor,
+} from '../../studio/access/scope.ts';
 import {
   formOriginAllowed,
   readForm,
@@ -43,7 +48,6 @@ import {
 } from './invites.mjs';
 import { joinPage } from './join-page.mjs';
 import { isRevoked } from './revocations.mjs';
-import { isReadOnlyRole, projectRoleForAccount } from './role-matrix.mjs';
 import { servicePage } from './studio-door.mjs';
 
 import {
@@ -412,12 +416,28 @@ export async function handleAuthRoutes(ctx) {
       else respondJson(400, { ok: false, error: err.message });
       return true;
     }
+    // THE MINT DOOR (S9.6b). The landing form IS the browser lane — the cell's
+    // own studio understands a v2 claim and the cookie never becomes a local
+    // file-plane copy, so it declares v2 and admits an observer (as
+    // `/auth/browser` does). An API caller declares with `X-Maude-Access`.
+    const declaredAccess = isForm
+      ? ACCESS_VERSION
+      : declaredAccessOf(ctx.request?.headers?.['x-maude-access']);
+    // A caller that cannot honour a canvas invite's claim never SPENDS it: the
+    // redeem refuses before the account exists (`access-version`), and the
+    // client is told to update below — the invite survives the upgrade.
     const result = redeemInvite(dataDir, {
       value: body?.token,
       email: body?.email,
       password: body?.password,
-      createAccount: ({ email, password, role }) => createUser(dataDir, { email, password, role }),
+      honoursAccess: declaredAccess === ACCESS_VERSION,
+      createAccount: ({ email, password, role, access }) =>
+        createUser(dataDir, { email, password, role, ...(access ? { access } : {}) }),
     });
+    if (!result.ok && result.reason === 'access-version') {
+      respondJson(426, ACCESS_VERSION_REFUSAL);
+      return true;
+    }
     if (!result.ok) {
       const status = result.reason === 'account-failed' ? 400 : 410;
       // A duplicate address is an account-existence oracle for whoever holds
@@ -469,16 +489,36 @@ export async function handleAuthRoutes(ctx) {
     // `browserSession` treats a token without one as no session at all. Until
     // 2026-08-21 this door minted without it — a freshly invited member held a
     // token every HTTP write surface answered with 401.
-    const projectRole = projectRoleForAccount(result.user.role);
+    //
+    // THROUGH THE MINT DOOR (S9.6b): the claim is the account's `access` when it
+    // has one (a canvas invite), else the account role translated — never the
+    // account role alone, which handed a one-canvas guest a member session.
+    const door = peerTokenDoor(
+      claimOf({
+        user: result.user,
+        ...(result.user.access ? { access: result.user.access } : {}),
+      }),
+      { declaredAccess, doorUrl: ctx.publicUrl, browserLane: isForm }
+    );
+    if (door.outcome === 'update' || door.outcome === 'browser-door') {
+      // The account exists now; the person signs in through the door named.
+      respondJson(door.status, door.body);
+      return true;
+    }
+    if (door.outcome !== 'mint') {
+      console.warn(`[hub] invite redeem minted nothing (no-access) for ${result.user.email}`);
+      const error = 'This invitation gives no access yet. Ask whoever invited you.';
+      if (isForm) respondPage(403, servicePage('You do not have access', error));
+      else respondJson(403, { ok: false, reason: 'no-access', error });
+      return true;
+    }
     const ttlMs = isForm ? STUDIO_SESSION_TTL_MS : userTokenTtlMs();
     const expiresAt = Date.now() + ttlMs;
     const minted = addToken(dataDir, {
       label: isForm ? `studio-${randomBytes(4).toString('hex')}` : mintLabel(),
-      scope: '*',
       owner: result.user.email,
       expiresAt,
-      role: projectRole,
-      readOnly: isReadOnlyRole(projectRole),
+      ...peerSessionFields(door, { scope: '*' }),
     });
     ctx.pushActivity?.({ type: 'invite-redeem', user: result.user.email, doc: result.invite.id });
     if (isForm) {

@@ -128,6 +128,62 @@ function bleedPxOf(world: HTMLElement | null, id: string): number {
   return 0;
 }
 
+/** S3.6b — one cell of the `present-run` report (dgn-protocol `present-run`). */
+export interface PresentRunCell {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const PRESENT_RUN_MAX = 2000;
+const finiteOr0 = (n: number) => (Number.isFinite(n) ? n : 0);
+
+/**
+ * S3.6b — the artboards the presenter view's order map draws: canvas order, world rects, the label the
+ * canvas shows (else the id). Clamped to what the dgn row accepts, so a big canvas never sends a
+ * report the shell refuses whole.
+ */
+export function presentRunReport(
+  artboards: readonly ArtboardRect[],
+  labelOf: (id: string) => string | null
+): PresentRunCell[] {
+  return artboards.slice(0, PRESENT_RUN_MAX).map((a) => {
+    const id = String(a.id).slice(0, 200);
+    const label = (labelOf(a.id) ?? '').trim().slice(0, 200) || id;
+    return {
+      id,
+      label,
+      x: finiteOr0(a.x),
+      y: finiteOr0(a.y),
+      w: finiteOr0(a.w),
+      h: finiteOr0(a.h),
+    };
+  });
+}
+
+/** The label an artboard shows on the canvas (its `.dc-artboard-label`), or null. */
+function artboardLabel(world: HTMLElement | null, id: string): string | null {
+  if (!world) return null;
+  for (const el of Array.from(world.querySelectorAll('[data-dc-screen]'))) {
+    if (el.getAttribute('data-dc-screen') !== id) continue;
+    return el.querySelector('.dc-artboard-label')?.textContent ?? null;
+  }
+  return null;
+}
+
+/** Canvas → shell: the Present run (dgn `present-run`, active canvas only). */
+export function reportPresentRun(win: Window, artboards: PresentRunCell[]): void {
+  if (win.parent === win) return;
+  try {
+    win.parent.postMessage({ dgn: 'present-run', artboards }, '*');
+  } catch {
+    /* detached */
+  }
+}
+
 export function createPresentStage(deps: StageDeps): PresentStage {
   let active = false;
   let index = 0;
@@ -620,6 +676,18 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
   useEffect(() => {
     if (active) engineRef.current?.refresh();
   }, [opts.artboards]);
+
+  // S3.6b — the presenter view's order map draws the run from the canvas's own layout: report it at
+  // Present start and whenever the artboard list changes under a running stage.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the report follows the artboard list
+  useEffect(() => {
+    if (!active || !win) return;
+    const world = optsRef.current.worldRef.current;
+    reportPresentRun(
+      win,
+      presentRunReport(opts.artboards, (id) => artboardLabel(world, id))
+    );
+  }, [active, opts.artboards]);
 
   // Unmount: declared after the start/stop effect, so its cleanup runs second and lands the exit at once.
   useEffect(() => () => engineRef.current?.dispose(), []);

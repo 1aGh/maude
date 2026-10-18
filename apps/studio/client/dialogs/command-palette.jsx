@@ -232,7 +232,17 @@ export function CommandPalette({ open, onClose, actions }) {
             </span>
           ) : null}
         </span>
-        {item.where ? <span className="st-pal-where">{item.where}</span> : null}
+        {item.project ? (
+          // another project's row in "Did you mean" (S15-A2): which project ↵ goes to, and where it is
+          <span className="st-pal-where st-pal-proj" data-testid="palette-project-label">
+            <span className={`st-pal-sq st-pal-sq--${item.project.square.tone}`} aria-hidden="true">
+              {item.project.square.initial}
+            </span>
+            {item.project.name} · {item.project.aside}
+          </span>
+        ) : item.where ? (
+          <span className="st-pal-where">{item.where}</span>
+        ) : null}
         {item.keys ? (
           <span className="st-pal-kbd">
             <Kbd>{item.keys}</Kbd>

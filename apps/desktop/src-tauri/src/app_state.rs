@@ -102,6 +102,17 @@ impl ProjectEntry {
     }
 }
 
+/// May an open bind an unbound project to `lastSignInProfile` (V2-3.8)?
+/// `Adopt`: an open from Home, or of a folder the person picked. `Keep`: a
+/// project tab opening ANOTHER registered project by pid (⌘K across,
+/// `open_project({pid})`) — the tab was scoped on that project's current
+/// profile, so the open must not move it to another one (S15-A1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Binding {
+    Adopt,
+    Keep,
+}
+
 fn default_profile() -> String {
     profiles::DEFAULT_ID.to_string()
 }
@@ -216,11 +227,19 @@ impl AppState {
     /// V2-3.8: an unbound entry adopts `lastSignInProfile` here and is bound
     /// from then on; a bound one keeps its profile.
     fn open(&mut self, root: &str, now: u64) -> String {
+        self.open_with(root, now, Binding::Adopt)
+    }
+
+    /// `open`, choosing whether an unbound entry may adopt `lastSignInProfile`
+    /// (S15-A1): an open the person made from Home, or of a folder they
+    /// picked, does; a project tab opening ANOTHER project keeps that
+    /// project's binding as it is — the tab was scoped on it.
+    pub(crate) fn open_with(&mut self, root: &str, now: u64, binding: Binding) -> String {
         let pid = self.upsert(root, now);
         let recent = self
             .last_sign_in_profile
             .clone()
-            .filter(|p| profiles::validate_id(p).is_ok());
+            .filter(|p| binding == Binding::Adopt && profiles::validate_id(p).is_ok());
         if let Some(e) = self.projects.get_mut(&pid) {
             e.last_opened_at = now;
             if let (false, Some(p)) = (e.is_bound(), recent) {
@@ -473,11 +492,11 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
 /// (`open_project`, Home, File › Open Project…): `lastOpenedAt` + the MRU head
 /// that Home's `ShellState.recent` reads (V2-3.3). The session is left alone —
 /// the tab set is part b's. Returns its pid.
-pub fn upsert_project(app: &tauri::AppHandle, root: &Path) -> String {
+pub fn upsert_project(app: &tauri::AppHandle, root: &Path, binding: Binding) -> String {
     let root = root.to_string_lossy().to_string();
     update(app, |st, now| {
         forget_missing_recent(st);
-        st.open(&root, now)
+        st.open_with(&root, now, binding)
     })
 }
 
@@ -1079,6 +1098,31 @@ mod tests {
         let e = fresh.open("/v238/v238recent/e", 1);
         assert_eq!(fresh.projects[&e].profile, "default");
         assert!(!fresh.projects[&e].is_bound());
+    }
+
+    /// S15-A1: a project tab opening ANOTHER project (⌘K across, the pid path
+    /// of `open_project`) never binds it — an unbound project stays unbound
+    /// on `default`, the profile the tab's scope check saw — and still counts
+    /// as opened. Home's first open keeps adopting (the test above).
+    #[test]
+    fn an_open_from_a_project_tab_never_adopts_a_profile() {
+        let (reg, mut st, _shared) = shared_fixture("s15a1");
+        let out = github_sign_in(&mut st, &reg, "/s15/s15a1/work", "s15a1-x");
+        assert!(st.last_sign_in_profile.is_some());
+        let d = st.upsert("/s15/s15a1/d", 0);
+        let pid = st.open_with("/s15/s15a1/d", 9, Binding::Keep);
+        assert_eq!(pid, d);
+        assert_eq!(st.profile_for("/s15/s15a1/d"), "default", "a tab open re-bound the project");
+        assert!(!st.projects[&d].is_bound());
+        assert_eq!(st.projects[&d].last_opened_at, 9);
+        assert_eq!(st.recent.first(), Some(&d));
+        // The next open from Home is the first-open binding, unchanged.
+        st.open_with("/s15/s15a1/d", 10, Binding::Adopt);
+        assert_eq!(st.projects[&d].profile, out.profile);
+        // And the commands pick `Keep` for a project caller (source pin).
+        let src = include_str!("windows.rs");
+        assert!(src.contains("Caller::Project(_) => crate::app_state::Binding::Keep"));
+        assert!(include_str!("home.rs").contains("crate::app_state::Binding::Keep"));
     }
 
     #[test]

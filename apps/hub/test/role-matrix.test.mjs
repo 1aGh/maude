@@ -54,6 +54,7 @@ test('the matrix is complete — every role answers every capability', () => {
       'session',
       'request',
       'comment',
+      'vote',
       'export',
       'annotate',
       'edit',
@@ -241,4 +242,12 @@ test('the mint site translates rather than passing the account role through', ()
     !/isReadOnlyRole\(user\.role\)/.test(src),
     'user.role is an account role and must not reach the project-role matrix raw'
   );
+});
+
+test('a ballot (vote) is Can comment and up, never Can view; a canvas grant may confer it', async () => {
+  // Gate 0 A18 / contract S4-S9-votes-comments §2.3 (S4.6 + S9.13).
+  assert.equal(can('observer', 'vote'), false);
+  for (const role of ['viewer', 'member', 'owner']) assert.equal(can(role, 'vote'), true, role);
+  const { PROJECT_ONLY } = await import('../../studio/access/roles.ts');
+  assert.equal(PROJECT_ONLY.includes('vote'), false);
 });

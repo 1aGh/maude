@@ -11,7 +11,8 @@
 //
 // Leaf-ish: node built-ins + studio-locate.mjs.
 
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const OPEN_USAGE = `usage: maude design open <canvas>[#artboard][@element] [--mode edit|preview|present]
@@ -61,6 +62,36 @@ export function parseOpenArgs(words) {
   return out;
 }
 
+/**
+ * S3.7b — the presentation link for a canvas of a cloud-linked project:
+ * `<hub>/present/<rel without .tsx>`, each segment encoded. Twin of
+ * `presentationLinkFor` in apps/studio/client/v2/present/copy-link.js (a test
+ * holds them equal). Null for a non-http(s) or loopback hub (never a public link).
+ */
+export function presentationLinkFor(rel, hubUrl) {
+  if (typeof rel !== 'string' || !rel.endsWith('.tsx') || rel.length <= 4) return null;
+  let url;
+  try {
+    url = new URL(String(hubUrl ?? ''));
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(url.protocol) || url.username || url.password) return null;
+  if (/^(localhost|127\.[\d.]+|\[::1\])$/.test(url.hostname) || url.hostname.endsWith('.localhost'))
+    return null;
+  return `${url.origin}/present/${rel.slice(0, -4).split('/').map(encodeURIComponent).join('/')}`;
+}
+
+/** The project's linked hub URL (`.design/config.json` → `linkedHub.url`), or null. */
+function linkedHubUrlOf(root) {
+  try {
+    const cfg = JSON.parse(readFileSync(join(root, DESIGN_REL, 'config.json'), 'utf8'));
+    return typeof cfg?.linkedHub?.url === 'string' ? cfg.linkedHub.url : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The designRoot-relative POSIX path of `canvas`, or null when it is outside the design root. */
 export function toDesignRel(root, canvas) {
   const designRoot = resolve(root, DESIGN_REL);
@@ -102,6 +133,11 @@ export async function runOpen({
     err.write(`maude design open: ${a.target.canvas} is not inside ${DESIGN_REL}/\n`);
     return 2;
   }
+  // S3.7b — `--mode present` in a cloud-linked project also prints the link
+  // viewers follow (`GET /present/<canvas>` on the hub; Can view and up).
+  const presentLink =
+    a.mode === 'present' ? presentationLinkFor(canvas, linkedHubUrlOf(root)) : null;
+  if (presentLink && !a.json) out.write(`presentation link: ${presentLink}\n`);
   const noWindow = () => {
     err.write(
       'maude design open: No Maude window is showing this project. Open it in Maude (or `maude design serve`) and try again.\n'
@@ -138,7 +174,7 @@ export async function runOpen({
   const where = `${canvas}${payload.artboard ? `#${payload.artboard}` : ''}${payload.element ? `@${payload.element}` : ''}`;
   out.write(
     a.json
-      ? `${JSON.stringify({ ok: true, open: r.body?.open ?? payload })}\n`
+      ? `${JSON.stringify({ ok: true, open: r.body?.open ?? payload, ...(presentLink ? { presentationLink: presentLink } : {}) })}\n`
       : `→ showing ${where} in Maude\n`
   );
   return 0;

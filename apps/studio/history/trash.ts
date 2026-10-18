@@ -51,6 +51,8 @@ export interface TrashListing {
   artboards: StoreArtboardItem[];
   /** entry → the live canvas carrying it (only entries an artboard item names). */
   live: Record<string, { doc: string; path: string }>;
+  /** S1.7b — the actor this session is (`bootstrap.you.actor`), for `mine`. */
+  you?: string | null;
 }
 
 export interface TrashOutcome {
@@ -79,13 +81,21 @@ export interface TrashRuntime {
 
 /* ------------------------------------------------------------------ items */
 
-export interface CanvasItem extends StoreCanvasItem {
+/** S1.7b — who trashed it, as the row shows it ("Jonas, 14:05"): never an e-mail. */
+interface ItemWho {
+  /** This session trashed it. */
+  mine: boolean;
+  /** A display name, or null when the actor names no person (a machine, the operator). */
+  who: string | null;
+}
+
+export interface CanvasItem extends StoreCanvasItem, ItemWho {
   id: `canvas:${string}`;
   kind: 'canvas';
   group: 'today' | 'earlier';
 }
 
-export interface ArtboardItem extends StoreArtboardItem {
+export interface ArtboardItem extends StoreArtboardItem, ItemWho {
   id: `artboard:${string}/${string}`;
   kind: 'artboard';
   group: 'today' | 'earlier';
@@ -114,6 +124,24 @@ const sameDay = (a: number, b: number) => {
 };
 
 /**
+ * An actor → the name a row shows. The log's actor is an e-mail (a hub
+ * session), a token label, or `local:<machine>` (the local home); the e-mail
+ * never leaves the server as a name — its local part does ("jonas.novak@…" →
+ * "Jonas Novak"). Machines and the operator name no person: null.
+ */
+export function displayNameOf(actor: string | null | undefined): string | null {
+  if (!actor || /^local:/.test(actor) || actor === 'operator' || actor === 'anon') return null;
+  const at = actor.indexOf('@');
+  if (at < 0) return actor.slice(0, 80);
+  const words = actor
+    .slice(0, at)
+    .split(/[._+-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  return words.length ? words.join(' ').slice(0, 80) : null;
+}
+
+/**
  * The store's records → what the Trash shows, newest first, Today / Earlier.
  * `readSource(path)` reads a live canvas's source (design-root-relative path);
  * null when it cannot be read — the artboard then stays listed (it is not
@@ -125,12 +153,23 @@ export function deriveTrash(
 ): TrashItem[] {
   const now = o.now ?? Date.now();
   const group = (at: number): 'today' | 'earlier' => (sameDay(at, now) ? 'today' : 'earlier');
+  const you = listing.you ?? null;
+  const whoOf = (actor: string): ItemWho => ({
+    mine: you !== null && actor === you,
+    who: displayNameOf(actor),
+  });
   const out: TrashItem[] = [];
   const trashedCanvas = new Map<string, StoreCanvasItem>();
   for (const c of listing.canvases) {
     if (!CANVAS_ID.test(c.id) || !c.path) continue;
     trashedCanvas.set(c.entry, c);
-    out.push({ ...c, id: c.id as CanvasItem['id'], kind: 'canvas', group: group(c.at) });
+    out.push({
+      ...c,
+      ...whoOf(c.actor),
+      id: c.id as CanvasItem['id'],
+      kind: 'canvas',
+      group: group(c.at),
+    });
   }
   const idsOf = new Map<string, Set<string> | null>();
   for (const a of listing.artboards) {
@@ -138,6 +177,7 @@ export function deriveTrash(
     const live = listing.live[a.entry];
     const base = {
       ...a,
+      ...whoOf(a.actor),
       id: a.id as ArtboardItem['id'],
       kind: 'artboard' as const,
       group: group(a.at),
@@ -202,6 +242,24 @@ export function trashAccess(o: {
 }): Access {
   if (o.workspace) return resolveAccess(decodeAccessHeader(o.header));
   return resolveAccess(legacyClaim(o.localRole ?? 'member'));
+}
+
+/* -------------------------------------------------------------------- seq */
+
+// `trash:changed { seq }` has more than one source in one studio: the routes
+// (an accepted restore / clear-out here) and the sync runtime (someone else's
+// delete, restore or clear-out, S1.7b). One process-wide counter, so `seq`
+// only ever grows whichever of them bumped it, and a GET answers the latest.
+let trashSeq = 0;
+
+/** The current `trash:changed` seq (what `GET /_api/trash` answers). */
+export const currentTrashSeq = (): number => trashSeq;
+
+/** Bump the seq and say so on the bus. */
+export function bumpTrashSeq(emit?: (event: string, payload: unknown) => void): number {
+  trashSeq += 1;
+  emit?.('trash:changed', { seq: trashSeq });
+  return trashSeq;
 }
 
 /* ---------------------------------------------------------------- answers */

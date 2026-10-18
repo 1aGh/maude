@@ -27,7 +27,14 @@ import type { Access } from '../access/scope.ts';
 import { offlineLine, parseFilter, type SaveWord } from '../client/v2/history/rows.ts';
 import { describeBetween, parseRef } from '../history/changes.ts';
 import { lastGood as findLastGood } from '../history/last-good.ts';
-import { restoreArtboard, type SpliceLane, type SpliceSide } from '../history/restore-artboard.ts';
+import type { SpliceLane, SpliceSide } from '../history/restore-artboard.ts';
+import {
+  type LanesOutcome,
+  proposeRestoreLanes,
+  readSide,
+  refusalStatus,
+  restoreArtboardAt,
+} from '../history/restore-artboard-action.ts';
 import { type ObjectKey, parseObjectKey, restoreObject } from '../history/restore-object.ts';
 import { formatTime } from '../history/titles.ts';
 import {
@@ -151,12 +158,6 @@ async function readBody(
   }
 }
 
-const refusalStatus = (code: string | undefined): number => {
-  if (code === 'forbidden' || code === 'not-in-scope' || code === 'read-only') return 403;
-  if (code === 'retryable' || code === 'unreachable' || code === 'store-locked') return 503;
-  return 409;
-};
-
 export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
   const accessOf = deps.access ?? (() => currentAccess());
   const runtime = () => deps.control() as HistoryRuntime | null | undefined;
@@ -271,19 +272,6 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     return row ? `Restored ${fmt(row.madeAt ?? row.committedAt)}` : undefined;
   }
 
-  async function readSide(
-    rt: HistoryRuntime,
-    repoRel: string,
-    rev: number
-  ): Promise<SpliceSide | null> {
-    const read = (lane: SpliceLane) =>
-      rt.acceptedVersion ? rt.acceptedVersion(repoRel, rev, lane).catch(() => null) : null;
-    const [html, css, meta, annotations] = await Promise.all(
-      (['html', 'css', 'meta', 'annotations'] as const).map(read)
-    );
-    return html ? { html, css, meta, annotations } : null;
-  }
-
   /** One `restore` action from the studio's lanes, each based on the head it read. */
   async function proposeLanes(
     rt: HistoryRuntime,
@@ -294,25 +282,16 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     label: string,
     extra: Record<string, unknown>
   ): Promise<Response> {
-    const list = (Object.entries(lanes) as [SpliceLane, string][]).map(([lane, content]) => ({
-      lane,
-      content,
-      baseContent: head[lane] ?? '',
-    }));
-    if (!list.length) return json(200, { ok: true, unchanged: true, line: label, ...extra });
-    const r = await rt
-      .acceptedRestore?.(t.repoRel, rev, { lanes: list, label })
-      .catch(() => undefined);
-    if (r === undefined) return json(503, { ok: false, reason: 'unreachable' });
-    if (r === null) return json(409, { ok: false, reason: 'legacy' });
-    if (r.status !== 'accepted') {
-      // A head that moved under the splice and does not merge: read again, then decide.
-      if (r.code === 'base-conflict') return json(409, { ok: false, reason: 'stale' });
-      return json(refusalStatus(r.code), { ok: false, reason: r.code ?? 'rejected' });
-    }
+    return landed(await proposeRestoreLanes(rt, t.repoRel, rev, head, lanes, label), label, extra);
+  }
+
+  /** A splice restore's answer (history/restore-artboard-action.ts) as this route's Response. */
+  function landed(r: LanesOutcome, label: string, extra: Record<string, unknown>): Response {
+    if (!r.ok) return json(r.status, { ok: false, reason: r.reason });
+    if (r.unchanged) return json(200, { ok: true, unchanged: true, line: label, ...extra });
     if (r.queued) return json(202, { ok: true, queued: true, line: label, ...extra });
     if (r.actionId) void announceAction({ control: runtime, emit: deps.emit }, r.actionId);
-    return json(200, { ok: true, actionId: r.actionId ?? null, line: label, ...extra });
+    return json(200, { ok: true, actionId: r.actionId, line: label, ...extra });
   }
 
   /** `at` names a version nobody kept → that body back over Now (§5.8 last row), else null. */
@@ -382,22 +361,28 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
       });
     const newest = await revisionOf(rt, 'now', t).catch(() => undefined);
     if (newest === undefined) return json(503, { ok: false, reason: 'unreachable' });
-    const [row, old, head] = await Promise.all([
-      rowAt(rt, t.repoRel, ref.rev).catch(() => null),
+    const row = await rowAt(rt, t.repoRel, ref.rev).catch(() => null);
+    if (!row || row.kind === 'aside') return json(409, { ok: false, reason: 'not-in-version' });
+    const when = fmt(row.committedAt);
+    if (isArtboard) {
+      // The splice half is shared with the Trash's artboard restore (S1.13b).
+      const s = await restoreArtboardAt(rt, {
+        repoRel: t.repoRel,
+        canvas: t.canvas,
+        oldRev: ref.rev,
+        headRev: newest,
+        artboard: b.artboard as string,
+        label: (l) => `Restored ${l} to ${when}`,
+      });
+      if (!s.ok)
+        return json(s.status, { ok: false, reason: s.reason, ...(s.line ? { line: s.line } : {}) });
+      return landed(s, s.line, { sharedKept: s.sharedKept, ...(s.why ? { why: s.why } : {}) });
+    }
+    const [old, head] = await Promise.all([
       readSide(rt, t.repoRel, ref.rev),
       newest === null ? null : readSide(rt, t.repoRel, newest),
     ]);
-    if (!old || !head || !row || row.kind === 'aside')
-      return json(409, { ok: false, reason: 'not-in-version' });
-    const when = fmt(row.committedAt);
-    if (isArtboard) {
-      const s = restoreArtboard(t.canvas, head, old, b.artboard as string);
-      if (!s.ok) return json(409, { ok: false, reason: s.reason, line: s.line });
-      return proposeLanes(rt, t, ref.rev, head, s.lanes, `Restored ${s.label} to ${when}`, {
-        sharedKept: s.sharedKept,
-        ...(s.why ? { why: s.why } : {}),
-      });
-    }
+    if (!old || !head) return json(409, { ok: false, reason: 'not-in-version' });
     const o = restoreObject(head, old, key as ObjectKey);
     if (!o.ok) return json(409, { ok: false, reason: o.reason, line: o.line });
     return proposeLanes(rt, t, ref.rev, head, o.lanes, `Restored ${o.label} to ${when}`, {});

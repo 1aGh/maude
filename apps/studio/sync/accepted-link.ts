@@ -15,6 +15,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import type { TrashListing } from '../history/trash.ts';
 import { type ActionStageOptions, createActionStage, type StageSummary } from './action-stage.ts';
 import type { AcceptedLaneLink, LaneProposal, ProposalOutcome } from './projection.ts';
 import {
@@ -411,6 +412,31 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     dirMove(from: string, to: string, waitMs = 8_000): Promise<StructuralOutcome> {
       return structural('Move folder', 'folder.move', [{ op: 'dir.move', from, to }], waitMs);
     },
+    /**
+     * S4.7 — several lanes of ONE canvas as ONE action (a sticky ↔ comment
+     * conversion: `annotations` + `comments`). One proposal, so one undo
+     * restores every lane together (contract S4-S9-votes-comments §3.2).
+     */
+    lanesEdit(
+      slug: string,
+      lanes: Array<{ lane: LaneProposal['lane']; content: string; baseContent: string }>,
+      action: { kind: string; label: string; writeId?: string }
+    ): Promise<StructuralOutcome> {
+      const doc = opts.docNameFor(slug);
+      return structural(
+        action.label,
+        action.kind,
+        lanes.map((l) => ({
+          op: 'lane.replace',
+          doc,
+          lane: l.lane,
+          content: l.content,
+          baseContent: l.baseContent,
+          ...(action.writeId ? { writeId: action.writeId } : {}),
+        })),
+        Number.POSITIVE_INFINITY
+      );
+    },
     /** Logical history, newest first (optionally one entry's). */
     history(q: {
       limit?: number;
@@ -554,6 +580,50 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         ),
       ]);
     },
+    /**
+     * S1.7b — does the project speak the shared Trash? Only a hub that lists
+     * `trash.restore` + `trash.clear` in its bootstrap `capabilities.operations`
+     * (S1-trash.md §3); an older hub answers null everywhere below, and the
+     * Trash view falls back to this Mac's own list.
+     */
+    trashOps(): boolean {
+      const ops = (manifest as { capabilities?: { operations?: unknown } } | null)?.capabilities
+        ?.operations;
+      return Array.isArray(ops) && ops.includes('trash.restore') && ops.includes('trash.clear');
+    },
+    /** `GET v1/trash` — the store's records, L18-filtered by the hub. */
+    trash(): Promise<TrashListing> {
+      return client.read('trash', {}) as Promise<TrashListing>;
+    },
+    /** `trash.restore { entry }` — one action; the canvas comes back with the same entry. */
+    trashRestore(entry: string, label: string): Promise<StructuralOutcome> {
+      return structural(label, 'restore', [{ op: 'trash.restore', entry }], 8_000);
+    },
+    /** `trash.clear { items? }` — the owner's clear-out (the kernel re-checks the role). */
+    trashClear(
+      items: string[] | undefined,
+      label: string
+    ): Promise<
+      StructuralOutcome & { cleared?: string[]; skipped?: { id?: string; reason: string }[] }
+    > {
+      const answer = propose({
+        kind: 'trash.clear',
+        label,
+        operations: [{ op: 'trash.clear', ...(items ? { items } : {}) }],
+      }).then((r) => ({
+        ...outcome(r),
+        ...(Array.isArray(r.cleared) ? { cleared: r.cleared as string[] } : {}),
+        ...(Array.isArray(r.skipped) && r.skipped.length
+          ? { skipped: r.skipped as { id?: string; reason: string }[] }
+          : {}),
+      }));
+      return Promise.race([
+        answer,
+        new Promise<StructuralOutcome>((resolve) =>
+          setTimeout(() => resolve({ status: 'accepted', queued: true }), 8_000)
+        ),
+      ]);
+    },
     stop() {
       client.stop();
     },
@@ -572,6 +642,8 @@ export interface HistoryAction {
   origin?: Record<string, unknown> | null;
   effects: {
     doc: string | null;
+    /** The canvas's stable id (S1 Q6); a hub before it may leave it out. */
+    entry?: string | null;
     lane: string;
     op: string;
     beforePath: string | null;
