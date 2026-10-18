@@ -7,7 +7,7 @@
 // renderer (S1/S8) — this service owns the rows they hang off.
 
 import { randomBytes } from 'node:crypto';
-
+import { createDsUsage, type DsUsageIndex } from './ds-usage.ts';
 import {
   extractCanvas,
   type IndexContext,
@@ -43,6 +43,10 @@ export interface IndexServiceOptions {
   now?: () => number;
   debounceMs?: number;
   minIntervalMs?: number;
+  /** Host the design-system usage index (S10.5, V2-1.6 §5.13). `true` persists it under
+   *  `<designRoot>/_cache/index/ds-usage.json`; `{ persist: false }` keeps it in memory. Off by
+   *  default: Home's closed-project rebuild and one-shot CLIs must not write into a project. */
+  dsUsage?: boolean | { persist?: boolean };
 }
 
 export interface IndexService {
@@ -65,6 +69,8 @@ export interface IndexService {
   stop(): void;
   /** the last build's wall time, ms (budget ≤ 250 ms on Alligators) */
   buildMs(): number;
+  /** the hosted design-system usage index, or null when the host did not ask for it */
+  dsUsage(): DsUsageIndex | null;
 }
 
 const isCanvasRel = (rel: string) => rel.endsWith('.tsx');
@@ -183,6 +189,7 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       if (row) rows.set(rel, row);
     }
     lastBuildMs = performance.now() - t0;
+    usage?.resync();
     emit([...rows.keys()]);
   }
 
@@ -201,9 +208,20 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       } else continue;
       touched.push(rel);
     }
+    // the rows are current now; the usage index also reads stylesheets, system files and config
+    usage?.changed(rels);
     if (touched.length) emit(touched);
     return seq;
   }
+
+  const usage: DsUsageIndex | null = o.dsUsage
+    ? createDsUsage({
+        designRoot: () => o.context().designRoot,
+        canvases: () => [...rows.values()].map((c) => ({ rel: c.rel, ds: c.ds })),
+        persist: o.dsUsage === true || o.dsUsage.persist === true,
+        now,
+      })
+    : null;
 
   rebuild();
 
@@ -267,13 +285,16 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       if (timer) clearTimeout(timer);
       dirty = true;
       write();
+      usage?.flush();
     },
     stop() {
       if (timer) clearTimeout(timer);
       timer = null;
+      usage?.stop();
       live.delete(svc);
     },
     buildMs: () => lastBuildMs,
+    dsUsage: () => usage,
   };
   if (persist) live.add(svc);
   return svc;
