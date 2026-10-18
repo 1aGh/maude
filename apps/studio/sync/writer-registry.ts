@@ -267,6 +267,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/debug-bundle': { class: 'local' },
   '/_api/export': { class: 'local' },
   '/_api/export-assemble': { class: 'local' },
+  '/_api/export-estimate': { class: 'local' }, // S8.1 — numbers only, writes nothing
   '/_api/export-jobs': { class: 'local' },
   '/_api/export-jobs/download': { class: 'local' },
   '/_api/export-warmup': { class: 'local' },

@@ -39,6 +39,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },
   { method: 'POST', route: '/_api/export-history', refused: ['view'] },
   { method: 'POST', route: '/_api/export-assemble', refused: ['view'] },
+  // S8.1 — the estimate is the export class too (numbers about an export)
+  { method: 'POST', route: '/_api/export-estimate', refused: ['view'] },
   // annotate — stickies, marker, arrows (D5: Can comment may not annotate)
   { method: 'POST', route: '/_api/annotations/ops', refused: ['view', 'comment'] },
   { method: 'PUT', route: '/_api/annotations', refused: ['view', 'comment'] },

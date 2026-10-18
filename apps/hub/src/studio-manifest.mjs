@@ -78,6 +78,9 @@ export const STUDIO_ROUTES = Object.freeze({
   // .pptx in-cell with PptxGenJS — pure JS over pure data, the zip containment
   // class. POST because it takes work; `export` is an all-roles capability.
   '/_api/export-assemble': { safe: null, unsafe: 'export' },
+  // S8.1 — the export sheet's estimate: a POST that writes nothing and evaluates nothing (it
+  // reads the index); the export capability, like every export row.
+  '/_api/export-estimate': { safe: null, unsafe: 'export' },
   // DDR-231 T7 — warm-up ping: a proxied render-service /_health GET so the
   // container wakes while the member is still picking options. Read-class.
   '/_api/export-warmup': { safe: 'read', unsafe: null },

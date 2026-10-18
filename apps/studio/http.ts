@@ -70,10 +70,12 @@ import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { frameAncestors } from './embed-origins.ts';
+import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
 import type { ActiveJsonShape } from './exporters/scope.ts';
+import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
@@ -154,7 +156,13 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs, heldByAiRefusal } from './routes/index.ts';
+import {
+  allSpecs,
+  type ExportRouteDeps,
+  gateSpecV2,
+  heldByAiRefusal,
+  planExportV2,
+} from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -1570,6 +1578,21 @@ export function createHttp(
   outboxSenders['ai.prompt'] = askQueue.sender;
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
+  // S8.1 — what the v2 export doors read: the index rows (the expansion runs over the ones the
+  // session sees), the active canvas, this session's access and export history, the lane.
+  const exportV2Deps: ExportRouteDeps = {
+    designRel: ctx.paths.designRel,
+    projectName: () => ctx.cfg.name || ctx.projectLabel || 'export',
+    canvases: () => projectIndex.snapshot().canvases,
+    activeCanvas: () => {
+      const active = (inspect().state as { active?: string | null }).active;
+      return active ? toDesignRel(active, ctx.paths.designRel) : null;
+    },
+    // a cell child's session is the proxy's claim ON THE REQUEST (never the ambient default)
+    access: (req) => accessOf(req),
+    history: () => exportJobs.loadHistory(),
+    renderLane: () => resolveRenderLane(),
+  };
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
@@ -1685,6 +1708,8 @@ export function createHttp(
         await api.writeCanvasMetaText(file, nextText, baseText);
       },
     },
+    // S8.1 — ExportSpec v2: the estimate route, and the v2 half of /_api/export(-jobs) below
+    export: exportV2Deps,
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
@@ -5145,22 +5170,34 @@ export function createHttp(
         options?: Record<string, unknown>;
       }>(req, 64 * 1024);
       if (!body) return new Response('body required', { status: 400 });
-      if (!isFormat(body.format)) return new Response('unknown or missing format', { status: 400 });
-      if (!isScope(body.scope)) return new Response('unknown or missing scope', { status: 400 });
+      // S8.1 — `{v:2, spec}` beside the v1 body: one spec = one group job (routes/export.ts).
+      const v2 = isV2Body(body) ? planExportV2(body.spec, exportV2Deps, req) : null;
+      if (v2 && !v2.ok) return v2.response;
+      if (!v2 && !isFormat(body.format))
+        return new Response('unknown or missing format', { status: 400 });
+      if (!v2 && !isScope(body.scope))
+        return new Response('unknown or missing scope', { status: 400 });
       // DDR-231 Phase 2 T4 — the PAIR, not just each half. `pdf` + `project-raw`
       // is two individually-valid values that resolve to a `file-tree` target,
       // which the render service refuses as `invalid render job` — a refusal
       // that named neither the field nor the remedy. Reproduced locally against
       // a real maude-render; see test/export-format-scope-coherence.test.ts.
-      if (!isScopeValidForFormat(body.format, body.scope)) {
-        return new Response(scopeRefusalMessage(body.format, body.scope), { status: 400 });
+      if (!v2 && !isScopeValidForFormat(body.format as Format, body.scope as Scope)) {
+        return new Response(scopeRefusalMessage(body.format as Format, body.scope as Scope), {
+          status: 400,
+        });
       }
-      const format = body.format;
-      const scope = body.scope;
+      const format = (v2?.ok ? v2.first.format : body.format) as Format;
+      const scope = (v2?.ok ? v2.first.scope : body.scope) as Scope;
       try {
-        const { result } = exportJobs.enqueue(
-          buildExportArgs(req, { format, scope, options: body.options })
-        );
+        const { result } = exportJobs.enqueue({
+          ...buildExportArgs(req, {
+            format,
+            scope,
+            options: v2?.ok ? v2.first.options : body.options,
+          }),
+          ...(v2?.ok ? { group: v2.group } : {}),
+        });
         const finished = await result;
         // Bun.serve accepts Uint8Array directly; the cast satisfies the
         // SharedArrayBuffer-strict BodyInit narrowing on @types/bun.
@@ -5168,7 +5205,8 @@ export function createHttp(
           status: 200,
           headers: {
             'Content-Type': finished.contentType,
-            'Content-Disposition': `attachment; filename="${finished.filename}"`,
+            // S8.1 — an ASCII name is the v1 header byte for byte; a v2 name adds `filename*`
+            'Content-Disposition': contentDisposition(finished.filename),
             'Cache-Control': 'no-store',
           },
         });
@@ -5206,6 +5244,30 @@ export function createHttp(
         options?: Record<string, unknown>;
       }>(req, 64 * 1024);
       if (!body) return new Response('body required', { status: 400 });
+      // S8.1 — `{v:2, spec}` beside the v1 body (same plan as /_api/export above).
+      const v2 = isV2Body(body) ? planExportV2(body.spec, exportV2Deps, req) : null;
+      if (v2 && !v2.ok) return v2.response;
+      if (v2?.ok) {
+        try {
+          const { id, result } = exportJobs.enqueue({
+            ...buildExportArgs(req, {
+              format: v2.first.format as Format,
+              scope: v2.first.scope,
+              options: v2.first.options,
+            }),
+            group: v2.group,
+          });
+          result.catch(() => {});
+          return Response.json(
+            { jobId: id },
+            { status: 202, headers: { 'Cache-Control': 'no-store' } }
+          );
+        } catch (err) {
+          if (err instanceof ExportQueueFullError)
+            return new Response(err.message, { status: 429 });
+          throw err;
+        }
+      }
       if (!isFormat(body.format)) return new Response('unknown or missing format', { status: 400 });
       if (!isScope(body.scope)) return new Response('unknown or missing scope', { status: 400 });
       // DDR-231 Phase 2 T4 — the PAIR, not just each half. `pdf` + `project-raw`
@@ -5259,7 +5321,7 @@ export function createHttp(
         status: 200,
         headers: {
           'Content-Type': dl.contentType,
-          'Content-Disposition': `attachment; filename="${dl.filename}"`,
+          'Content-Disposition': contentDisposition(dl.filename),
           'Cache-Control': 'no-store',
         },
       });
@@ -6640,10 +6702,27 @@ export function createHttp(
     // one write that leads out.
     if (gate && !formatGateAllowsWrite(pathname, readOnlyAllowed))
       return formatRefusalResponse(gate);
+    // S8.1 (V2-1.16 L7) — an ExportSpec v2 body names its target INSIDE `spec`, which the
+    // generic target reader cannot see. For a session whose grants decide, the spec's own gate
+    // answers (routes/export.ts `gateSpecV2`): Folder / Whole project and an ungranted canvas
+    // are `not-in-scope` — the missing-file body — and every reached canvas must hold export.
+    if (access.grants.length > 0 && req.method === 'POST' && V2_EXPORT_DOORS.has(pathname)) {
+      const body = (await req
+        .clone()
+        .json()
+        .catch(() => null)) as { spec?: unknown } | null;
+      if (pathname === '/_api/export-estimate' || isV2Body(body)) {
+        const v2 = gateSpecV2(body?.spec, exportV2Deps, req);
+        return v2.ok ? null : v2.response;
+      }
+    }
     const verdict = await localGate(req, pathname, g);
     if (verdict.ok) return null;
     return verdict.reason === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
   }
+
+  /** S8.1 — the routes that take an ExportSpec v2 body (the estimate takes nothing else). */
+  const V2_EXPORT_DOORS = new Set(['/_api/export', '/_api/export-jobs', '/_api/export-estimate']);
 
   const guardedRoutes = Object.fromEntries(
     Object.entries(routes).map(([path, handler]) => [
