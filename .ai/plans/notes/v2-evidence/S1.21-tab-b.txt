@@ -1,0 +1,20 @@
+Row: pn-tab-b (11 · B · Figma-style strip — the tabs say more) — variant B WAS picked; PARTLY shipped
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae; contract V2-3.7-own-tab-bar.md blob 7443b61b81f6.
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file.
+
+PICK: B. decisions maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism (kg search "tab bar"); see S1.21-ab.txt.
+
+SHIPPED (code -> pin):
+  - the strip is its own webview over the shell window: apps/desktop/src-tauri/src/tabs.rs:189 ensure_shell, :146 child_bounds (strip height 38), apps/desktop/src/strip.html:166 <nav data-testid="tab-strip">.
+  - one tab per project in open order, Home last, icon-only, never closable: tabs.rs:90 strip_state; strip.js:102 render; strip.html:171-176 (testid tab-home, aria-label "Home"). Pins: tabs.rs:623; e2e project-tabs.e2e.ts:189.
+  - the project name on every tab, text only (never markup): strip.js:46-52, tabs.rs:63 StripTab.name (sanitize_title).
+  - activate on press, middle-click closes, Enter/Space on a focused tab: strip.js:73-100. e2e project-tabs.e2e.ts:189 (strip click activates, only that webview visible) and :429 (the strip's x closes a background tab, the active tab stays).
+  - AI state on the tab as a dot, two values done / needs-you: tabs.rs:57 enum Dot, :375 set_dot, notify.rs:320 dot_for, strip.js:41-47 (testid tab-dot, aria-label "Needs you" / "Done"); cleared when the tab is activated (tabs.rs:270). Pins: tabs.rs:649 activate clears the dot, :711 needs-you outranks done, :738 the poller sets the dot before the cooldown; e2e project-tabs-identity.e2e.ts:129.
+  - a resting tab is dimmed: strip.html:96; tabs.rs:63 StripTab.resting.
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt tabs 1/1 + tabs-identity 1/1 (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2); V2-phase4-gate-2026-10-18.txt tabs 1/1 (sha256 5ea83e54ed1b08a689f01a3f34dca351e8e8feb26a38656c397c78c4c52641c8; tabs-identity not re-run there).
+
+NAMED GAPS (the artboard draws it, the app does not):
+  GAP-TAB-B-1  "Square + name": a tab has no project square / initial. strip.js:31-52 draws dot + name + x. Home and Cmd+K draw the square (client/v2/search/search-projects.js projectSquare / PROJECT_TONES) but the strip does not.
+  GAP-TAB-B-2  "W = a second account": no account badge on a tab. The data exists (profiles.rs:585 cloud_sign_in_prepare, V2-3.8) and Home groups by account (client/home/home-app.jsx ProfileGroup), but StripTab (tabs.rs:63-74) has no account field, on purpose: only the sanitized name may reach the strip (contract section 8).
+  GAP-TAB-B-3  "AI working, or ? when it needs you": the strip has no "working" glyph. It has done and needs-you dots only (contract section 6: a two-value enum). Needs-you is a dot, not a "?".
+  All three need a Rust change to StripTab + strip.js + a security note (the canvas names it T14). Not S1 scope; handed to the lead.
