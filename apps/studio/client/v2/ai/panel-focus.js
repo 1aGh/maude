@@ -11,6 +11,20 @@ export function requestFocusAI(target = globalThis) {
   target.dispatchEvent?.(new CustomEvent(FOCUS_AI_EVENT));
 }
 
+/** ⌘/ with the AI chat panel already showing and focus somewhere else: focus its field rather than fold it.
+ *  True when that is the case (the caller then calls `requestFocusAI`); false → the caller toggles. */
+export function aiPanelWantsFocus(doc = globalThis.document) {
+  const island = doc?.querySelector?.('[data-testid="ai-chat-island"]');
+  if (
+    !island ||
+    island.getAttribute('aria-hidden') === 'true' ||
+    island.style?.display === 'none'
+  ) {
+    return false;
+  }
+  return !island.contains(doc.activeElement);
+}
+
 /** Is `el` shown? Inline `display:none` on it or any ancestor up to `root` (the panel hides a chat that way). */
 function shown(el, root) {
   for (let n = el; n && n !== root?.parentElement; n = n.parentElement) {

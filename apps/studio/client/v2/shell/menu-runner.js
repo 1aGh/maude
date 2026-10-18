@@ -14,6 +14,7 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
@@ -191,6 +192,11 @@ export function createMenuHandlers(d) {
     'ai.chat': () => {
       if (!d.native) {
         d.toast('AI chat is in the Maude desktop app.');
+        return;
+      }
+      // S5.8 — the panel already open with focus elsewhere: ⌘/ puts focus in its field, it does not fold
+      if (aiPanelWantsFocus()) {
+        requestFocusAI();
         return;
       }
       d.toggleRightPanel('assistant');

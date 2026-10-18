@@ -148,3 +148,47 @@ describe('the AI chat panel opens focused (⌘/)', () => {
     expect(aside?.getAttribute('aria-hidden')).toBe('true');
   });
 });
+
+// V2-5 A1 (S5.8 lead patch): the ⌘/ menu action. The panel already open with focus outside it →
+// focus its field (it does not fold shut under the person); focus inside, or the panel folded →
+// the toggle, as before.
+describe('the ai.chat menu action (⌘/) with the panel already open', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+  const handlers = async () => {
+    const { createMenuHandlers } = await import('../client/v2/shell/menu-runner.js');
+    const toggled: string[] = [];
+    const h = createMenuHandlers({
+      native: true,
+      toggleRightPanel: (id: string) => toggled.push(id),
+      toast: () => {},
+    }) as Record<string, () => void>;
+    return { h, toggled };
+  };
+
+  test('focus outside an open panel → its field takes focus, the panel stays open', async () => {
+    const t = await mount(false);
+    t.el('canvas').focus();
+    const { h, toggled } = await handlers();
+    await t.act(async () => h['ai.chat']());
+    expect(toggled).toEqual([]);
+    expect(document.activeElement).toBe(t.el('field'));
+  });
+
+  test('focus inside the open panel → the toggle folds it, as before', async () => {
+    const t = await mount(false);
+    t.el('field').focus();
+    const { h, toggled } = await handlers();
+    await t.act(async () => h['ai.chat']());
+    expect(toggled).toEqual(['assistant']);
+  });
+
+  test('a folded panel → the toggle opens it', async () => {
+    const t = await mount(true);
+    t.el('canvas').focus();
+    const { h, toggled } = await handlers();
+    await t.act(async () => h['ai.chat']());
+    expect(toggled).toEqual(['assistant']);
+  });
+});

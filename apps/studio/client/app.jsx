@@ -2828,6 +2828,8 @@ function ShellTree() {
       activeCanvas={activeCanvasFile}
       selected={selected}
       openComments={activeOpenComments}
+      // S5.8 — the scope chip's "this artboard" is the one the canvas view is on
+      viewArtboardId={canvasActiveArtboard}
       designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
       resizing={resizingFor('assistant')}
       onClose={() => setAssistantOpen(false)}
