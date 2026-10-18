@@ -81,6 +81,7 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
+import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
@@ -621,6 +622,32 @@ export interface SyncRuntime {
     revision: number,
     lane?: 'html' | 'css' | 'meta'
   ): Promise<string | null>;
+  /**
+   * S1.12b — name a version of a canvas (`history.name`, V2-1.9 §5.4): the kernel snaps
+   * `revision` to the newest one at or before it that changed the canvas; `null` clears.
+   */
+  acceptedName?(
+    repoRel: string,
+    revision: number,
+    name: string | null
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
+  /** S1.12b — keep a version nobody kept (`history.aside`, no head moves). */
+  acceptedAside?(
+    repoRel: string,
+    lane: 'html' | 'css' | 'meta' | 'annotations',
+    content: string,
+    label?: string
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
   /** Restore a canvas to a revision as a NEW action. */
   acceptedRestore?(
     repoRel: string,
@@ -711,6 +738,10 @@ export interface AcceptedHistoryRow {
   undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** S1.12b — per canvas, the lanes the action touched there (additive). */
+  lanes?: Record<string, string[]>;
+  /** S1.12b — a `name` action's target revision and name (`origin.named`; null clears). */
+  named?: RowNamed;
   /** V2-1.5 §5.1 — the AI run / chat that made it, the person's clock, a stopped run. */
   runId?: string;
   chatId?: string;
@@ -5455,6 +5486,17 @@ export function createSyncRuntime(
     return next;
   }
 
+  /**
+   * S1.12b — does the linked hub take this op? It lists its ops in
+   * `bootstrap.capabilities.operations` (S1-trash.md §3); an older hub's list
+   * lacks the S1.6 ones. No list at all: unknown, so the kernel decides.
+   */
+  function hubOffers(op: string): boolean {
+    const ops = (acceptedLink?.manifest as { capabilities?: { operations?: unknown } } | null)
+      ?.capabilities?.operations;
+    return !Array.isArray(ops) || ops.includes(op);
+  }
+
   return {
     start,
     stop,
@@ -5544,11 +5586,13 @@ export function createSyncRuntime(
         ...(q.mine && you ? { actor: you } : {}),
       });
       return history.map((a) => {
-        const canvases = new Set<string>();
-        for (const e of a.effects) {
-          const p = e.afterPath ?? (e.doc ? pathOf.get(e.doc) : null) ?? e.beforePath;
-          if (p && /\.(tsx|html)$/i.test(p)) canvases.add(p);
-        }
+        // S1.12b — per-canvas lanes (comments-only actions are not versions) + `origin.named`.
+        const { canvases, lanes } = canvasLanes(
+          a.effects,
+          (d) => pathOf.get(d),
+          (p) => /\.(tsx|html)$/i.test(p)
+        );
+        const named = namedField(a.kind, a.origin);
         return {
           revision: a.revision,
           actionId: a.actionId,
@@ -5558,10 +5602,26 @@ export function createSyncRuntime(
           label: a.label,
           committedAt: a.committedAt,
           undoes: a.undoes,
-          canvases: [...canvases].sort(),
+          canvases,
+          lanes,
+          ...(named ? { named } : {}),
           ...originFields(a.origin),
         };
       });
+    },
+    acceptedName: async (repoRel, revision, name) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
+      if (!hubOffers('history.name')) return { status: 'rejected', code: 'hub-too-old' };
+      return acceptedLink.name(slug, revision, name);
+    },
+    acceptedAside: async (repoRel, lane, content, label) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
+      if (!hubOffers('history.aside')) return { status: 'rejected', code: 'hub-too-old' };
+      return acceptedLink.aside(slug, lane, content, label);
     },
     acceptedVersion: async (repoRel, revision, lane = 'html') => {
       if (!acceptedOn() || !acceptedLink) return null;

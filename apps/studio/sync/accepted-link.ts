@@ -445,6 +445,37 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         8_000
       );
     },
+    /** S1.12b — name a version (`history.name`, S1-trash.md §3); `null` clears the name. */
+    name(slug: string, revision: number, name: string | null): Promise<StructuralOutcome> {
+      return structural(
+        name ?? 'Name cleared',
+        'name',
+        [{ op: 'history.name', doc: opts.docNameFor(slug), revision, name }],
+        8_000
+      );
+    },
+    /** S1.12b — keep a version nobody kept (`history.aside`): a body, no head moves. */
+    aside(
+      slug: string,
+      lane: 'html' | 'css' | 'meta' | 'annotations',
+      content: string,
+      label?: string
+    ): Promise<StructuralOutcome> {
+      return structural(
+        label ?? 'Version not kept',
+        'aside',
+        [
+          {
+            op: 'history.aside',
+            doc: opts.docNameFor(slug),
+            lane,
+            content,
+            ...(label ? { label } : {}),
+          },
+        ],
+        8_000
+      );
+    },
     /**
      * Personal undo / redo of this actor's actions: one id, or several as ONE
      * action (S5.1a `actionIds` — "as if they never happened"). The answer
