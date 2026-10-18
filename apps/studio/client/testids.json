@@ -4657,13 +4657,65 @@
     "hook": "present-slot-transport",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Slot for S3.3's media transport (pause · time · sound); absent while empty.",
+    "meaning": "Slot for S3.3's media transport (pause · time · sound); absent while the presented artboard has no clip.",
     "producer": {
       "file": "apps/studio/client/v2/present/present-controls.jsx",
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-transport",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The media transport inside the controls' transport slot: pause · 0:06 / 0:15 · sound. Shown only while the presented artboard plays a clip (`present-media`); absent otherwise, never greyed.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentTransport"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-media-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Pause / Play for the clip on the presented artboard (`aria-label` Pause while it plays, Play while it is paused). Posts `present-media-cmd` through the mode lane.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentTransport"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-media-time",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The clip's place in its length, \"0:06 / 0:15\" (hours only when it has some).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentTransport"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-media-sound",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sound for the clip: `aria-pressed` true = sound on, false = muted. Posts `present-media-cmd` mute / unmute.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentTransport"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
     "v2": "new"
   },
   {
