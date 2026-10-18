@@ -9,32 +9,19 @@
 // decision happens, not on a page nobody visits. `disclosure_accepted_at` is
 // written only when the box was actually ticked.
 
-import { GOOGLE_BUTTON_CSS, googleButton, lockup, PAGE_CSS } from './brand.mjs';
+import { backToAppLink, googleButton, isAppState, publicPage } from './brand.mjs';
 import { allDashboardHtml } from './dashboard.mjs';
 import { allHandoffHtml } from './handoff.mjs';
 import { allInviteHtml } from './invites.mjs';
 import { allPeopleHtml } from './people-page.mjs';
 
-// Styling comes from the design system (brand.mjs), not from ad-hoc CSS.
-// These pages are the first thing anyone sees of Maude and were the one
-// surface not wearing it.
-const BASE_CSS =
-  PAGE_CSS +
-  GOOGLE_BUTTON_CSS +
-  `
-  body { display: grid; place-items: center; min-height: 100vh; padding: var(--space-8) var(--space-5); }
-  main { width: 100%; max-width: 26rem; }
-  main > :last-child { margin-bottom: 0; }
-  .cta { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
-`;
-
 /**
- * Escape a value bound for an HTML attribute.
+ * Escape a value bound for HTML.
  *
- * Only the reset link needs this today, and it arrives already narrowed —
- * `peekEmailToken` refuses anything that is not a live `mer_<hex>` value, so
- * nothing hostile can reach the template. Escaping anyway, because "the caller
- * validates it" is a property of today's caller, not of this function.
+ * The reset link arrives already narrowed — `peekEmailToken` refuses anything
+ * that is not a live `mer_<hex>` value — and an address hint comes from a live
+ * invitation row. Escaping anyway, because "the caller validates it" is a
+ * property of today's caller, not of this function.
  */
 function esc(s) {
   return String(s).replace(
@@ -43,17 +30,42 @@ function esc(s) {
   );
 }
 
-function page(title, body) {
-  // The home page's title IS the product name — suffixing it again would read
-  // "Maude Cloud — Maude Cloud" in the tab (Cloud Phase 23 A4).
-  const tab = title === 'Maude Cloud' ? title : `${title} — Maude Cloud`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${tab}</title><style>${BASE_CSS}</style></head><body><main>${body}</main></body></html>`;
+/**
+ * One page in the v2 public shell (brand.mjs `publicPage`, Maude v2 S9.14):
+ * the mark on top, one heading, optional help line, then the body. Styling
+ * comes from the design system, not from ad-hoc CSS.
+ */
+function page({ heading, body, sub = null, tab = null }) {
+  // The home page's tab IS the product name — suffixing it again would read
+  // "Maude Cloud — Maude Cloud" (Cloud Phase 23 A4).
+  return publicPage({ title: heading, sub, body, tab: tab ?? heading }).replace(
+    /<title>Maude Cloud — Maude<\/title>/,
+    '<title>Maude Cloud</title>'
+  );
 }
 
 // `googleButton` + its CSS moved to brand.mjs in Cloud Phase 24 (A12b) — the
 // invitation's join screen needs the same button, and a second copy is how two
 // of them drift. Re-exported so existing importers keep working.
 export { googleButton };
+
+/**
+ * The app's sign-in nonce when this page was reached from the app's own
+ * `/activate?…&state=<hex>` hand-off, else null (S6↔S9 §5.1 steps 3–7).
+ * Anything that is not exactly 32 lowercase hex is dropped silently.
+ */
+export function appStateFrom(next) {
+  const raw = String(next ?? '');
+  if (!raw.startsWith('/activate?')) return null;
+  try {
+    const s = new URL(raw, 'https://cloud.invalid').searchParams.get('state');
+    return isAppState(s) ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+const withNext = (path, next) => (next ? `${path}?next=${encodeURIComponent(next)}` : path);
 
 /**
  * The bill of materials, said BEFORE anybody reaches a card (Cloud Phase 24 A1).
@@ -67,7 +79,7 @@ export { googleButton };
  * It is framed as the reason the work stays private rather than as a caveat,
  * because that is what it actually is — the disclosure's own argument, told
  * forwards. Same block on the landing and in the wizard: the two places
- * somebody decides.
+ * somebody decides. (v2 voice, CONTRACT §4: no "we", no "us".)
  */
 export const BILL_OF_MATERIALS_HTML = `
   <div class="card">
@@ -75,30 +87,40 @@ export const BILL_OF_MATERIALS_HTML = `
     <p class="quiet">Maude runs on your own computer — a Mac or a PC, not a phone or a tablet.
     You’ll install the free Maude app, and the AI that draws with you runs on
     <strong>your own Claude subscription</strong> (about €20 a month, paid to Anthropic,
-    not to us).</p>
-    <p class="quiet" style="margin-bottom:0">That is also why your work stays private: we sync and
-    version your project, but it is only ever drawn on your machine.</p>
+    not to Maude).</p>
+    <p class="quiet" style="margin-bottom:0">That is also why your work stays private: your
+    project is synced and versioned here, but it is only ever drawn on your machine.</p>
   </div>`;
 
 export const DISCLOSURE_HTML = `
   <div class="card">
     <strong>What Maude Cloud can and cannot see</strong>
-    <p class="quiet">We store and sync your project: your designs, your edit history, and who is
-    editing. We never open, run, or render your work on our computers — designs
-    are only ever drawn on your own device. You can download everything and
+    <p class="quiet">Maude Cloud stores and syncs your project: your designs, your edit history,
+    and who is editing. It never opens, runs, or renders your work on its own computers —
+    designs are only ever drawn on your own device. You can download everything and
     leave at any time.</p>
   </div>`;
 
-export function signupPage({ googleEnabled = false, error = null } = {}) {
-  return page(
-    'Create your account',
-    `
-    <h1>Create your account</h1>
+export function signupPage({
+  googleEnabled = false,
+  error = null,
+  next = null,
+  email = null,
+} = {}) {
+  // `next` is carried exactly like the sign-in page's: a new person the app (or
+  // an invitation) sent here must land back there, not on a dashboard (S9.14).
+  const state = appStateFrom(next);
+  return page({
+    heading: 'Create your account',
+    sub: state ? 'Then this page sends you back to the app.' : null,
+    body: `
     ${error ? `<p class="error">${error}</p>` : ''}
-    ${googleEnabled ? `${googleButton({ wide: true })}<div class="or">or</div>` : ''}
-    <form method="post" action="/auth/signup">
+    ${googleEnabled ? `${googleButton({ next, wide: true })}<div class="or">or</div>` : ''}
+    <form method="post" action="${withNext('/auth/signup', next)}">
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" autocomplete="email" required>
+      <input id="email" name="email" type="email" autocomplete="email" required${
+        email ? ` value="${esc(email)}"` : ''
+      }>
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" required>
       <p class="quiet">At least 12 characters.</p>
@@ -108,33 +130,50 @@ export function signupPage({ googleEnabled = false, error = null } = {}) {
       <p class="quiet">Creating an account means you accept the
         <a href="https://maude.sh/terms">Terms</a> and the
         <a href="https://maude.sh/privacy">Privacy notice</a>.</p>
-      <button type="submit">Create account</button>
+      <button type="submit" class="wide">Create account</button>
     </form>
-    <p class="quiet">Already have an account? <a href="/login">Sign in</a>.</p>`
-  );
+    <p class="fine">Already have an account? <a href="${esc(withNext('/login', next))}">Sign in</a>.</p>
+    ${backToAppLink(state)}`,
+  });
 }
 
-export function loginPage({ googleEnabled = false, error = null, next = null } = {}) {
-  // `next` carries the page that sent them here (an invite, mostly), so
-  // signing in lands them back where they were going — not on a dashboard
-  // they then have to leave to re-find the email (Cloud Phase 23 A5).
-  const action = next ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login';
-  return page(
-    'Sign in',
-    `
-    <h1>Sign in</h1>
+/**
+ * Sign in (canvas 02 ob-signin-browser). `next` carries the page that sent
+ * them here — an invitation, or the app's own `/activate` hand-off — so
+ * signing in lands them back where they were going (Cloud Phase 23 A5). From
+ * the app it says so, and offers the quiet way back to it.
+ *
+ * `email` is a server-side hint (`inviteHintFor`: the address an invitation is
+ * FOR), never read from the URL.
+ */
+export function loginPage({
+  googleEnabled = false,
+  error = null,
+  next = null,
+  email = null,
+  host = 'cloud.maude.sh',
+} = {}) {
+  const state = appStateFrom(next);
+  return page({
+    heading: state ? `Sign in to ${host}` : 'Sign in',
+    tab: 'Sign in',
+    sub: state ? 'Then this page sends you back to the app.' : null,
+    body: `
     ${error ? `<p class="error">${error}</p>` : ''}
     ${googleEnabled ? `${googleButton({ next, wide: true })}<div class="or">or</div>` : ''}
-    <form method="post" action="${action}">
+    <form method="post" action="${esc(withNext('/auth/login', next))}">
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" autocomplete="email" required>
+      <input id="email" name="email" type="email" autocomplete="email" required${
+        email ? ` value="${esc(email)}"` : ''
+      }>
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button type="submit">Sign in</button>
+      <p style="margin-top:var(--space-5)"><button type="submit" class="wide">Sign in</button></p>
     </form>
-    <p class="quiet"><a href="/forgot">Forgot your password?</a></p>
-    <p class="quiet">New here? <a href="/signup">Create an account</a>.</p>`
-  );
+    <p class="fine"><a href="/forgot">Forgot your password?</a></p>
+    <p class="fine">New here? <a href="${esc(withNext('/signup', next))}">Create an account</a>.</p>
+    ${backToAppLink(state)}`,
+  });
 }
 
 /**
@@ -146,21 +185,18 @@ export function loginPage({ googleEnabled = false, error = null, next = null } =
  * confirmed. Neither door had a handle.
  */
 export function forgotPage({ error = null, next = null } = {}) {
-  const action = next ? `/auth/forgot?next=${encodeURIComponent(next)}` : '/auth/forgot';
-  return page(
-    'Forgot your password',
-    `
-    <h1>Forgot your password</h1>
-    <p class="quiet">Tell us the address you signed up with and we’ll email you a link to
-      choose a new password.</p>
+  return page({
+    heading: 'Forgot your password',
+    sub: 'Type the address you signed up with, and a link to choose a new password is emailed to it.',
+    body: `
     ${error ? `<p class="error">${error}</p>` : ''}
-    <form method="post" action="${action}">
+    <form method="post" action="${esc(withNext('/auth/forgot', next))}">
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="email" required>
-      <button type="submit">Email me a link</button>
+      <p style="margin-top:var(--space-5)"><button type="submit" class="wide">Email me a link</button></p>
     </form>
-    <p class="quiet">Remembered it? <a href="/login">Sign in</a>.</p>`
-  );
+    <p class="fine">Remembered it? <a href="/login">Sign in</a>.</p>`,
+  });
 }
 
 /**
@@ -172,23 +208,21 @@ export function forgotPage({ error = null, next = null } = {}) {
  * list.
  */
 export function checkInboxPage({ heading = 'Check your email' } = {}) {
-  return page(
+  return page({
     heading,
-    `<h1>${heading}</h1>
-     <p>If that address has a Maude account, a link is on its way. It works once and
+    body: `<p>If that address has a Maude account, a link is on its way. It works once and
        expires, so use the most recent mail if you asked more than once.</p>
      <p class="quiet">Nothing arrived after a few minutes? Check the spam folder, then
        <a href="/forgot">try again</a>.</p>
-     <p><a href="/login">Back to sign in</a></p>`
-  );
+     <p><a href="/login">Back to sign in</a></p>`,
+  });
 }
 
 /** Choose a new password, reached only by following the emailed link. */
 export function resetPage({ token, error = null } = {}) {
-  return page(
-    'Choose a new password',
-    `
-    <h1>Choose a new password</h1>
+  return page({
+    heading: 'Choose a new password',
+    body: `
     ${error ? `<p class="error">${error}</p>` : ''}
     <form method="post" action="/auth/reset">
       <input type="hidden" name="t" value="${esc(token)}">
@@ -197,9 +231,9 @@ export function resetPage({ token, error = null } = {}) {
              minlength="12" required>
       <p class="quiet">At least 12 characters. Saving it signs out anything already signed
         in as you, everywhere.</p>
-      <button type="submit">Save and sign in</button>
-    </form>`
-  );
+      <button type="submit" class="wide">Save and sign in</button>
+    </form>`,
+  });
 }
 
 /**
@@ -210,43 +244,45 @@ export function resetPage({ token, error = null } = {}) {
  * the button that refused them.
  */
 export function verifiedPage({ googleEnabled = false } = {}) {
-  return page(
-    'Address confirmed',
-    `<h1>Address confirmed</h1>
-     <p>Thank you — we know this address is yours.</p>
-     <p class="quiet">You can now sign in with Google as well as with your password.</p>
-     <div class="cta">
-       ${googleEnabled ? googleButton() : ''}
-       <a class="btn" href="/login">Sign in</a>
-     </div>`
-  );
+  return page({
+    heading: 'Address confirmed',
+    sub: 'This address is confirmed as yours.',
+    body: `<p class="quiet">You can now sign in with Google as well as with your password.</p>
+     <div class="stack">
+       ${googleEnabled ? googleButton({ wide: true }) : ''}
+       <a class="btn secondary wide" href="/login">Sign in</a>
+     </div>`,
+  });
 }
 
 export function homePage({ account = null, googleEnabled = false } = {}) {
   // Google both creates the account and signs in (accountForGoogle), so on
   // the landing page it earns a first-class button — one click instead of
   // signup page → buried link (owner feedback 2026-07-30).
-  return page(
-    'Maude Cloud',
-    account
-      ? `<h1>You're signed in</h1>
-         <p>${account.email}</p>
-         <p><a class="btn" href="/">Your projects</a></p>
-         <form method="post" action="/auth/logout"><button type="submit">Sign out</button></form>`
-      : `${lockup()}
-         <h1>A home for your design projects</h1>
-         <p class="quiet">Synced, versioned, and always yours to take with you.</p>
-         <div class="cta">
-           ${googleEnabled ? googleButton() : ''}
-           <a class="btn" href="/signup">Create an account</a>
+  if (account) {
+    return page({
+      heading: 'You’re signed in',
+      tab: 'Maude Cloud',
+      body: `<p class="fine">${esc(account.email)}</p>
+         <div class="stack"><a class="btn wide" href="/">Your projects</a></div>
+         <form method="post" action="/auth/logout"><button type="submit" class="ghost wide">Sign out</button></form>`,
+    });
+  }
+  return page({
+    heading: 'A home for your design projects',
+    tab: 'Maude Cloud',
+    sub: 'Synced, versioned, and always yours to take with you.',
+    body: `<div class="stack">
+           ${googleEnabled ? googleButton({ wide: true }) : ''}
+           <a class="btn secondary wide" href="/signup">Create an account</a>
          </div>
-         <p class="quiet">Already have an account? <a href="/login">Sign in</a>.</p>
-         ${BILL_OF_MATERIALS_HTML}`
-  );
+         <p class="fine">Already have an account? <a href="/login">Sign in</a>.</p>
+         ${BILL_OF_MATERIALS_HTML}`,
+  });
 }
 
 export function messagePage(title, text) {
-  return page(title, `<h1>${title}</h1><p>${text}</p><p><a href="/">Back</a></p>`);
+  return page({ heading: title, body: `<p>${text}</p><p><a href="/">Back</a></p>` });
 }
 
 /**
@@ -264,6 +300,8 @@ export function allCustomerFacingHtml() {
     allPeopleHtml(),
     signupPage({ googleEnabled: true }),
     loginPage({ googleEnabled: true, error: 'That email and password don’t match.' }),
+    loginPage({ googleEnabled: true, next: `/activate?code=ABCD-EFGH&state=${'a'.repeat(32)}` }),
+    signupPage({ googleEnabled: true, next: `/activate?code=ABCD-EFGH&state=${'a'.repeat(32)}` }),
     forgotPage(),
     checkInboxPage(),
     resetPage({ token: 'x'.repeat(48), error: 'That link has expired.' }),

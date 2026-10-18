@@ -20,7 +20,7 @@ import {
   raiseMembership,
   writeGrant,
 } from './access-forward.mjs';
-import { lockup, PAGE_CSS } from './brand.mjs';
+import { publicPage, publicResponse } from './brand.mjs';
 import { audit } from './db.mjs';
 
 /** The roles a link may give. */
@@ -213,28 +213,29 @@ function esc(s) {
   );
 }
 
+/**
+ * A link page in the v2 public shell (brand.mjs, Maude v2 S9.14) — the same
+ * skeleton, headers and words as the sign-in and invitation pages.
+ */
 function page(title, body, status = 200) {
-  return new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)} — Maude</title><style>${PAGE_CSS}\n  main { max-width: 26rem; }</style></head><body><main>${lockup()}${body}</main></body></html>`,
-    {
-      status,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'cache-control': 'no-store',
-        'x-content-type-options': 'nosniff',
-        'content-security-policy':
-          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
-        'referrer-policy': 'no-referrer',
-      },
-    }
-  );
+  return publicResponse(publicPage({ title, body }), status);
 }
 
 export const LINK_OFF = 'This link was turned off.';
 export const LINK_INVALID = 'This link is not valid. Ask the person who shared it for a new one.';
 export const LINK_NO_ACCESS = 'This link is for people on the project. Ask its owner to add you.';
 
-const deadPage = (message) => page('Link', `<h1>Link</h1><p>${esc(message)}</p>`, 404);
+/**
+ * A link that does not open: the first sentence is the heading, the rest is
+ * the one thing to do about it ("This link was turned off." stands alone).
+ */
+function messagePage(message, status) {
+  const cut = message.indexOf('. ');
+  const heading = cut === -1 ? message : message.slice(0, cut + 1);
+  const rest = cut === -1 ? null : message.slice(cut + 2);
+  return publicResponse(publicPage({ title: heading, sub: rest, tab: 'Link' }), status);
+}
+const deadPage = (message) => messagePage(message, 404);
 
 /** Resolve `<id>[.<secret>]` → `{ link }` or `{ message }`. */
 async function resolveToken(db, token, now) {
@@ -301,12 +302,11 @@ export async function handleLinkRoutes(
   if (!account) return loginFor(token);
   // A POST, so the answer replaces this URL (the one holding the secret).
   return page(
-    'Open',
-    `<h1>Open in Maude</h1>
-     <p class="quiet">You are signed in as <strong>${esc(account.email)}</strong>.</p>
+    'Open in Maude',
+    `<p class="fine">You are signed in as <strong>${esc(account.email)}</strong>.</p>
      <form method="post" action="/l/redeem">
        <input type="hidden" name="link" value="${esc(token)}">
-       <button type="submit">Open</button>
+       <button type="submit" class="wide">Open</button>
      </form>`
   );
 }
@@ -361,7 +361,7 @@ async function redeem(env, link, account, { now, ctx }) {
   const { verdict } = await loadClaim(db, link.project_id, account.id);
   const access = accessOf(verdict);
   if (!verdict.ok || (canvas ? !access.seesCanvas(canvas) : access.role === null)) {
-    return page('Link', `<h1>Link</h1><p>${esc(LINK_NO_ACCESS)}</p>`, 403);
+    return messagePage(LINK_NO_ACCESS, 403);
   }
   const q = canvas ? `?canvas=${encodeURIComponent(canvas)}` : '';
   return new Response(null, {
@@ -377,4 +377,18 @@ async function redeem(env, link, account, { now, ctx }) {
 /** Customer-facing strings, for the vocabulary lint. */
 export function allLinkHtml() {
   return [LINK_OFF, LINK_INVALID, LINK_NO_ACCESS].join('\n');
+}
+
+/** The rendered link pages, for the page lint (S9.14). */
+export async function allLinkPages() {
+  const pages = [
+    deadPage(LINK_OFF),
+    deadPage(LINK_INVALID),
+    messagePage(LINK_NO_ACCESS, 403),
+    page(
+      'Open in Maude',
+      '<p class="fine">You are signed in as <strong>a@example.com</strong>.</p>'
+    ),
+  ];
+  return (await Promise.all(pages.map((r) => r.text()))).join('\n');
 }

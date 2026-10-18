@@ -26,7 +26,7 @@ import { audit, getProject } from './db.mjs';
 import { passwordResetEmail, sendEmail, verifyEmail } from './email.mjs';
 import { consumeEmailToken, mintEmailToken, peekEmailToken } from './email-tokens.mjs';
 import { mintGrant } from './grants.mjs';
-import { inviteHintFor } from './invites.mjs';
+import { inviteHintFor, redeemPendingInvite } from './invites.mjs';
 import {
   authorizationUrl,
   exchangeCode,
@@ -73,6 +73,30 @@ function json(body, status = 200) {
 
 function redirect(location, extraHeaders = {}) {
   return new Response(null, { status: 303, headers: { location, ...extraHeaders } });
+}
+
+/**
+ * A completed sign-in's 303: the session cookie, plus — when this browser
+ * remembered an invitation (S9 Q6) — that invitation redeemed into the account
+ * and its reminder cleared (S6↔S9 §5.1 step 5). Every sign-in completion ends
+ * here, so none of them can forget the invitation. Each cookie is its own
+ * Set-Cookie header (see the Google callback for why one joined header kills
+ * the session).
+ */
+async function signedInRedirect(env, request, account, location, { ctx = null, extra = [] } = {}) {
+  const headers = new Headers({ location });
+  const session = await createSession(env.DB, account.id);
+  headers.append('set-cookie', setCookie(SESSION_COOKIE, session.token));
+  for (const c of extra) headers.append('set-cookie', c);
+  try {
+    const pending = await redeemPendingInvite(env, request, account, { ctx });
+    if (pending.clear) headers.append('set-cookie', pending.clear);
+  } catch (err) {
+    // An invitation that cannot be redeemed right now must not undo a
+    // sign-in that already succeeded; the person can still follow the link.
+    console.error(`[auth] pending invitation not redeemed: ${err.message}`);
+  }
+  return new Response(null, { status: 303, headers });
 }
 
 /**
@@ -206,14 +230,26 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
     );
   }
   if (method === 'GET' && pathname === '/signup') {
-    return html(signupPage({ googleEnabled: google }));
+    const next = safeNext(url);
+    return html(signupPage({ googleEnabled: google, next, email: await inviteHintFor(env, next) }));
   }
   if (method === 'GET' && pathname === '/login') {
-    return html(loginPage({ googleEnabled: google, next: safeNext(url) }));
+    const next = safeNext(url);
+    return html(
+      loginPage({
+        googleEnabled: google,
+        next,
+        email: await inviteHintFor(env, next),
+        host: url.host,
+      })
+    );
   }
 
   // ----------------------------------------------------------------- signup
   if (method === 'POST' && pathname === '/auth/signup') {
+    // Carried like login's: a new person who arrived from the app (or an
+    // invitation) must land back there, not on a dashboard (S9.14).
+    const next = safeNext(url);
     const form = await request.formData();
     const email = String(form.get('email') ?? '');
     const password = String(form.get('password') ?? '');
@@ -222,6 +258,7 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
       return html(
         signupPage({
           googleEnabled: google,
+          next,
           error: 'Please confirm you’ve read what Maude Cloud stores.',
         }),
         400
@@ -244,9 +281,8 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
       // account later. Sending it HERE is what turns that refusal from a dead
       // end into a step (RCA 2026-08-04).
       await sendVerifyLink(env, url.origin, account);
-      const session = await createSession(env.DB, account.id);
       track(env, ctx, { name: 'signup', accountId: account.id, props: { method: 'password' } });
-      return redirect('/', { 'set-cookie': setCookie(SESSION_COOKIE, session.token) });
+      return signedInRedirect(env, request, account, next ?? '/', { ctx });
     } catch (err) {
       // One neutral sentence for both "exists" and validation shapes the user
       // can fix; the distinction lives in logs, not in the response.
@@ -254,7 +290,7 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
         err.code === 'account-exists'
           ? 'That address can’t be used here. If it’s yours, try signing in.'
           : 'That didn’t work — check the address and use at least 12 characters.';
-      return html(signupPage({ googleEnabled: google, error: friendly }), 400);
+      return html(signupPage({ googleEnabled: google, next, error: friendly }), 400);
     }
   }
 
@@ -272,17 +308,21 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
       // of three declared values, never the address that was tried.
       track(env, ctx, { name: 'login_failed', props: { reason: 'bad-password' } });
       return html(
-        loginPage({ googleEnabled: google, error: 'That email and password don’t match.', next }),
+        loginPage({
+          googleEnabled: google,
+          error: 'That email and password don’t match.',
+          next,
+          host: url.host,
+        }),
         401
       );
     }
-    const session = await createSession(env.DB, verdict.account.id);
     track(env, ctx, {
       name: 'login',
       accountId: verdict.account.id,
       props: { method: 'password' },
     });
-    return redirect(next ?? '/', { 'set-cookie': setCookie(SESSION_COOKIE, session.token) });
+    return signedInRedirect(env, request, verdict.account, next ?? '/', { ctx });
   }
 
   // ------------------------------------------- confirming an address / reset
@@ -391,7 +431,7 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
       return html(
         messagePage(
           'That link has expired',
-          'Confirmation links work once and expire after a day. Sign in and we’ll send another.'
+          'Confirmation links work once and expire after a day. Sign in and a new one is sent to you.'
         ),
         410
       );
@@ -526,8 +566,8 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
         return html(
           messagePage(
             'One more step',
-            'An account with this address already exists, and we haven’t confirmed the address yet. ' +
-              'We’ve just emailed you a link — follow it and Google will work here.'
+            'An account with this address already exists, and the address isn’t confirmed yet. ' +
+              'Maude Cloud just emailed you a link — follow it and Google will work here.'
           ),
           409,
           { 'set-cookie': clearCookie(OAUTH_COOKIE) }
@@ -549,7 +589,6 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
         action: 'signup-google',
       });
     }
-    const session = await createSession(env.DB, resolved.account.id);
     // A first Google sign-in is a signup AND a login; recorded as whichever it
     // was, so the funnel does not double-count the same moment.
     track(env, ctx, {
@@ -561,11 +600,11 @@ export async function handleAuth(request, env, { ctx = null, account: given } = 
     // header made the browser read the whole string as ONE cookie whose later
     // `Max-Age=0` (from the oauth clear) overrode the session's — the session
     // died on arrival and Google sign-in silently bounced back to the landing
-    // page signed out.
-    const headers = new Headers({ location: next ?? '/' });
-    headers.append('set-cookie', setCookie(SESSION_COOKIE, session.token));
-    headers.append('set-cookie', clearCookie(OAUTH_COOKIE));
-    return new Response(null, { status: 303, headers });
+    // page signed out. `signedInRedirect` appends each one separately.
+    return signedInRedirect(env, request, resolved.account, next ?? '/', {
+      ctx,
+      extra: [clearCookie(OAUTH_COOKIE)],
+    });
   }
 
   // ------------------------------------------------- project grant minting
