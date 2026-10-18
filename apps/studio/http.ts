@@ -147,7 +147,13 @@ import {
   laneAtRef,
   type VersionSource,
 } from './history/version-lanes.ts';
+import type { GitEntry } from './history/versions.ts';
 import { extractCanvas } from './index/extract.ts';
+import {
+  type AttributionCache,
+  attributionDir,
+  createAttributionCache,
+} from './index/extractors/attribution-cache.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
 import type { InspectRegistry } from './inspect.ts';
@@ -1641,6 +1647,34 @@ export function createHttp(
     projectUndo: {
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S1.12b — Version history (V2-1.9 §5.11): rows, words, names, kept-aside versions. The
+    // session's access is `currentAccess()` (S9.9, server.ts withSession).
+    history: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      cache: (() => {
+        let cache: AttributionCache | null = null;
+        return () => {
+          cache ??= createAttributionCache({ dir: attributionDir(pidOf(ctx.paths.repoRoot)) });
+          return cache;
+        };
+      })(),
+      // a hub without accepted revisions: its commit history of the canvas (§5.2 last line)
+      gitHistory: async (repoRel, limit) => {
+        const r = await cloudApi.history(repoRel, String(limit));
+        const j = r.json as { ok?: boolean; reason?: string; entries?: GitEntry[] } | null;
+        if (j?.ok) return j.entries ?? [];
+        return j?.reason === 'unreachable' ? undefined : null;
+      },
+      gitLane: async (repoRel, sha, lane) => {
+        const readers = versionReaders(ctx);
+        if (lane !== 'html') return laneAtRef(readers, repoRel, `git:${sha}`, lane);
+        const fromCommit = await readers.git?.(sha, repoRel).catch(() => null);
+        if (fromCommit != null) return fromCommit;
+        return (await readers.cloud?.(sha, repoRel).catch(() => null)) ?? null;
+      },
       emit: (e, p) => ctx.bus.emit(e, p),
     },
     ai: {
@@ -3320,44 +3354,8 @@ export function createHttp(
     // (DDR-054) and must not be able to command the desktop to re-push a whole
     // project — a canvas that could would be an amplification primitive against
     // the person's own hub, and a way to spend their rate-limit budget.
-    // ACCEPTED REVISIONS — the project's logical history (DDR-241, T27/T28).
-    // Main origin only: history names people, restore and undo are writes.
-    '/_api/project/history': async (req: Request) => {
-      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
-      const url = new URL(req.url);
-      const runtime = ctx.syncControl?.current?.();
-      const rows = runtime?.acceptedHistory
-        ? await runtime
-            .acceptedHistory({
-              limit: Number(url.searchParams.get('limit') ?? 50) || 50,
-              before: Number(url.searchParams.get('before') ?? 0) || null,
-              path: url.searchParams.get('path'),
-            })
-            .catch(() => undefined)
-        : null;
-      if (rows === undefined) {
-        return gitJson({ status: 200, json: { ok: false, reason: 'unreachable' } });
-      }
-      if (rows === null) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({ status: 200, json: { ok: true, history: rows } });
-    },
-    '/_api/project/restore': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
-        return new Response('Forbidden', { status: 403 });
-      const body = await readJson<{ path?: unknown; revision?: unknown }>(req, 4096);
-      const revision = Number(body?.revision);
-      if (typeof body?.path !== 'string' || !Number.isSafeInteger(revision) || revision < 0) {
-        return new Response('body must include { path, revision }', { status: 400 });
-      }
-      const r = await ctx.syncControl?.current?.()?.acceptedRestore?.(body.path, revision);
-      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({
-        status: r.status === 'accepted' ? 200 : 409,
-        json: { ok: r.status === 'accepted', ...r },
-      });
-    },
+    // ACCEPTED REVISIONS — `/_api/project/history` + `/_api/project/restore` are table routes
+    // since S1.12b (routes/history.ts), judged per session with Version history's new routes.
     // `/_api/project/undo` + `/_api/project/undo-stack` are table routes since
     // S5.5 (routes/project-undo.ts): one id, several, or a whole chat.
     '/_api/sync/resync': async (req: Request) => {

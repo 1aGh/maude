@@ -19,6 +19,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
@@ -50,6 +51,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
   trash?: TrashRouteDeps;
+  /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
+  history?: HistoryRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -76,5 +79,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
         readSource: () => null,
       }
     ),
+    ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
   ];
 }
