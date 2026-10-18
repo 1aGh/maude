@@ -149,21 +149,23 @@ export interface KernelOutcome {
 
 /** The Plane-A half: several canvas files proposed as ONE action (S10 Q1). */
 export interface DsKernelPort {
+  /** null: no home answers right now (a linked project not in accepted mode) */
   propose(
     files: { rel: string; text: string }[],
     action: { kind: string; label: string }
-  ): Promise<KernelOutcome>;
+  ): Promise<KernelOutcome | null>;
 }
 
 /**
- * The port over `ctx.syncControl.current()`: the local home answers `proposeFiles` (S10.2). A
- * runtime without it answers null, and every DS write that needs the kernel refuses
+ * The port over `ctx.syncControl.current()`: the local home answers `proposeFiles` (S10.2), and
+ * so does a linked hub's sync runtime in accepted mode (S10.3b; null outside it). A runtime
+ * without it answers null, and every DS write that needs the kernel refuses
  * `ds-kernel-unavailable` rather than writing metas behind the log's back.
  */
 export function kernelPortFrom(control: () => unknown): () => DsKernelPort | null {
   return () => {
     const rt = control() as
-      | { proposeFiles?: (f: unknown, a: unknown) => Promise<KernelOutcome> }
+      | { proposeFiles?: (f: unknown, a: unknown) => Promise<KernelOutcome | null> }
       | null
       | undefined;
     if (!rt || typeof rt.proposeFiles !== 'function') return null;
@@ -760,6 +762,11 @@ export function createDsEngine(opts: EngineOptions) {
         'no project home answers right now — nothing was changed'
       );
     const r = await k.propose(files, { kind: DS_ACTION_KIND, label: label.slice(0, 200) });
+    if (!r)
+      throw fail(
+        'ds-kernel-unavailable',
+        'no project home answers right now — nothing was changed'
+      );
     if (r.status !== 'accepted')
       throw fail('ds-kernel-rejected', `the project refused the change (${r.code ?? 'rejected'})`, {
         kernel: r.code ?? null,

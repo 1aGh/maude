@@ -588,6 +588,19 @@ export interface SyncRuntime {
     opts: { kind: string; label: string; writeId?: string }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
   /**
+   * S10.3b — the linked-hub twin of the local kernel's `proposeFiles` (S10.2): several canvas
+   * files (design-root-relative `rel`: a body, its `.meta.json` or its board) as ONE action.
+   * Each file's lane value is proposed against what this Mac and the accepted replica agreed on;
+   * a file already holding the value adds nothing (none left → accepted, no action). Nothing is
+   * written here: on acceptance the hub publishes and the projections write the files, which
+   * this waits for, so the answer means "on disk". `null` when the project is not in accepted
+   * mode — the DS engine then refuses `ds-kernel-unavailable`.
+   */
+  proposeFiles?(
+    files: { rel: string; text: string }[],
+    action: { kind: string; label: string | null }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+  /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
    * when the project is not in that mode; otherwise the (possibly queued)
    * outcome. Canvases inside are moved/deleted by the hub, not one by one.
@@ -5262,6 +5275,8 @@ export function createSyncRuntime(
                 renewalsSinceProgress = 0;
                 lastFileProgressAt = Date.now();
               },
+              // S10.3b — a delivered file is a PEER's change (the DS outside watcher's `peer`).
+              onDelivered: (rel) => ctx.bus.emit('file-plane:delivered', { rel }),
               ledger: fileLedger,
               canvasGroups: ctx.cfg.canvasGroups,
               allowCodeModules,
@@ -5574,6 +5589,56 @@ export function createSyncRuntime(
         ...(r.code ? { code: r.code } : {}),
         ...(r.actionId ? { actionId: r.actionId } : {}),
       }));
+    },
+    proposeFiles: async (files, action) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const link = acceptedLink;
+      const edits: Array<{
+        slug: string;
+        lane: 'html' | 'meta' | 'annotations';
+        content: string;
+        baseContent: string;
+      }> = [];
+      const seen = new Set<string>();
+      for (const f of files) {
+        const clean = String(f?.rel ?? '')
+          .replace(/\\/g, '/')
+          .replace(/^\/+/, '');
+        if (!clean || clean.split('/').some((s) => s === '..') || typeof f.text !== 'string')
+          return { status: 'rejected', code: 'invalid' };
+        const abs = path.join(ctx.paths.designRoot, clean);
+        let hit: { slug: string; lane: 'html' | 'meta' | 'annotations' } | null = null;
+        for (const [slug, d] of descriptors) {
+          if (d.html === abs) hit = { slug, lane: 'html' };
+          else if (d.meta === abs) hit = { slug, lane: 'meta' };
+          else if (d.annotations === abs) hit = { slug, lane: 'annotations' };
+          if (hit) break;
+        }
+        const projection = hit ? projections.get(hit.slug) : undefined;
+        if (!hit || !projection) return { status: 'rejected', code: 'unknown-canvas' };
+        const key = `${hit.slug}\0${hit.lane}`;
+        if (seen.has(key)) return { status: 'rejected', code: 'invalid' };
+        seen.add(key);
+        const content = laneValueFromFile(hit.lane, f.text);
+        if (content === null) return { status: 'rejected', code: 'invalid' };
+        const baseContent = projection.agreedLane(hit.lane);
+        if (content === baseContent) continue;
+        edits.push({ ...hit, content, baseContent });
+      }
+      if (!edits.length) return { status: 'accepted' };
+      const r = await link.docsEdit(edits, {
+        kind: action.kind,
+        label: action.label ?? 'Edit canvases',
+      });
+      if (r.status === 'accepted')
+        await Promise.all(
+          edits.map((e) => projections.get(e.slug)?.settleLane(e.lane, e.content) ?? true)
+        );
+      return {
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+      };
     },
     proposeFolder,
     acceptedMode: acceptedOn,
