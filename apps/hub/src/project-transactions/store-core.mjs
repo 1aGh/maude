@@ -141,7 +141,10 @@ export const IDENTITY_CODEC = Object.freeze({ encode: (text) => text, decode: (s
 /** Meta flag: the additive `run_id` / `chat_id` action columns exist (S5.1a). */
 const RUN_CHAT_COLUMNS = 'actionsRunChat';
 
-export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_CODEC } = {}) {
+export function createStoreCore(
+  sql,
+  { now = () => Date.now(), codec = IDENTITY_CODEC, onBallotsDeleted = null } = {}
+) {
   const encode = (text) => codec.encode(text);
   const decode = (stored) => codec.decode(stored);
   function meta(k, fallback = null) {
@@ -157,7 +160,7 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
   }
 
   const runs = createRunsCore(sql, { now, meta, setMeta });
-  const votes = createVotesCore(sql, { now });
+  const votes = createVotesCore(sql, { now, onBallotsDeleted });
 
   function migrate() {
     sql.transaction(() => {

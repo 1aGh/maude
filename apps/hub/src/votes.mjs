@@ -134,7 +134,16 @@ function defaultVoteId() {
  * @param {{ exec: Function, transaction: Function }} sql
  * @param {{ now?: () => number, newId?: () => string }} [opts]
  */
-export function createVotesCore(sql, { now = () => Date.now(), newId = defaultVoteId } = {}) {
+/**
+ * @param {object} [o]
+ * @param {() => void} [o.onBallotsDeleted] told (inside the transaction) when a
+ *   vote's end deletes its ballots, so a store whose bytes outlive a DELETE
+ *   (SQLite's WAL) can purge them once the transaction commits.
+ */
+export function createVotesCore(
+  sql,
+  { now = () => Date.now(), newId = defaultVoteId, onBallotsDeleted = null } = {}
+) {
   const one = (rows) => (rows.length ? rows[0] : null);
 
   const seqOf = (project) =>
@@ -208,6 +217,7 @@ export function createVotesCore(sql, { now = () => Date.now(), newId = defaultVo
       voters: done.length,
     };
     sql.exec(`DELETE FROM ballots WHERE project = ? AND vote_id = ?`, project, row.id);
+    onBallotsDeleted?.();
     sql.exec(
       `UPDATE votes SET body_json = ?, state = 'ended', seq = ? WHERE project = ? AND id = ?`,
       JSON.stringify(ended),
