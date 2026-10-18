@@ -180,6 +180,14 @@ const ROWS: Row[] = [
     viewer: 'refused',
     editor: true,
   },
+  // ── AI runs (S5.11b: Run on a copy writes the canvas — a viewer / canvas-only session never) ──
+  {
+    family: 'ai',
+    method: 'POST',
+    path: '/_api/ai/runs/r_nosuchrun1/copy',
+    viewer: 'refused',
+    editor: true,
+  },
   // ── sync ──
   { family: 'sync', method: 'POST', path: '/_api/sync/resync', viewer: 'refused' },
   { family: 'sync', method: 'POST', path: '/_api/sync/settings', viewer: 'refused' },

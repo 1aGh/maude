@@ -13,6 +13,8 @@
 // interpolated values are sanitized so canvas-controlled strings can't break
 // out of the fence or forge attributes.
 
+import { runScopeOf } from '../v2/ai/ask-frame.js';
+
 /** Max elements listed in the block; the rest collapse to a `+N more` line. */
 export const CONTEXT_MAX_ELEMENTS = 12;
 
@@ -83,7 +85,7 @@ function elementLabel(el) {
  * The ids are the canvas's own strings: sanitised like every other interpolated value.
  *
  * @param {{ canvas?: string|null, selected?: object|object[]|null, scope?: { kind: string, ids?: string[] }|null }} input
- * @returns {{ chipLabel: string, block: string, count: number, stale: boolean } | null}
+ * @returns {{ chipLabel: string, block: string, count: number, stale: boolean, runScope?: { canvas: string, artboards: string[]|'*' } } | null}
  */
 export function buildChatContext({ canvas, selected, scope } = {}) {
   if (!canvas || typeof canvas !== 'string') return null;
@@ -135,5 +137,13 @@ export function buildChatContext({ canvas, selected, scope } = {}) {
     lines.push(`[selected: …+${els.length - CONTEXT_MAX_ELEMENTS} more]`);
   }
 
-  return { chipLabel, block: lines.join('\n'), count: els.length, stale };
+  // S5.13 — the same scope as DATA for the prompt frame (`{canvas, artboards}`): the server leases the
+  // artboards from this, while the `[maude-scope …]` line above is what an older server and the agent read.
+  return {
+    chipLabel,
+    block: lines.join('\n'),
+    count: els.length,
+    stale,
+    runScope: runScopeOf({ canvas, scope }),
+  };
 }

@@ -1086,7 +1086,7 @@
       "v2": {
         "action": "view.trash",
         "testid": "canvases-trash-clear",
-        "where": "Canvases › Trash (the last row; ⌘K “Trash”) › Clear out… — removes what has been in the trash 30 days or more; Restore brings a thing back",
+        "where": "Canvases › Advanced › Kept on this Mac › Clear out… — removes what has been parked on this Mac 30 days or more; Restore brings a thing back (S1.8: the per-Mac list moved out of the shared Trash; it is also the whole Trash view while the team server has no shared Trash). The shared Trash (Canvases › Trash, ⌘K “Trash”) has its own owner-only Clear out… under the same testid",
         "reach": [
           "desktop",
           "browser",
@@ -2846,6 +2846,11 @@
     "panel:studio/ui-prefs.ts#DOCK_PANEL_IDS/inspector": "action:view.inspector",
     "panel:studio/ui-prefs.ts#DOCK_PANEL_IDS/layers": "action:view.layers",
     "panel:studio/ui-prefs.ts#DOCK_PANEL_IDS/tree": "testid:canvas-list",
+    "testid:desktop/src/root-missing.html#home/root-missing-card": "testid:root-missing-card",
+    "testid:desktop/src/root-missing.html#home/root-missing-error": "testid:root-missing-error",
+    "testid:desktop/src/root-missing.html#home/root-missing-find": "testid:root-missing-find",
+    "testid:desktop/src/root-missing.html#home/root-missing-place": "testid:root-missing-place",
+    "testid:desktop/src/root-missing.html#home/root-missing-title": "testid:root-missing-title",
     "testid:studio/annotations-context-toolbar.tsx#canvas iframe chrome/annot-ctx-lock": "testid:annot-ctx-lock",
     "testid:studio/annotations-context-toolbar.tsx#canvas iframe chrome/annot-ctx-unlock": "testid:annot-ctx-unlock",
     "testid:studio/annotations-context-toolbar.tsx#canvas iframe chrome/annotation-toolbar-labels": "testid:Annotation toolbar labels",
@@ -3000,6 +3005,7 @@
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-group-id": "testid:palette-group-<id>",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-input": "A-generate-with-ai-provider-model-aspect",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-list": "testid:palette-list",
+    "testid:studio/client/dialogs/command-palette.jsx#palette/palette-project-label": "testid:palette-project-label",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-project-square": "testid:palette-project-square",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-recent-empty": "testid:palette-recent-empty",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-row-id": "testid:palette-row-<id>",

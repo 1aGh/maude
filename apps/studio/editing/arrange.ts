@@ -185,8 +185,10 @@ export async function runArranged(
     deps.toast?.(result.message || 'That did not go through.', 'error');
     return result;
   }
-  if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, label));
+  if (result.actionId === null && result.writeId) {
+    const rec = editOpRecord(result.writeId, label);
+    if (rec) deps.record?.(rec);
+  }
   return result;
 }
 

@@ -47,16 +47,19 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { MIGRATION_ACTOR } from '../../hub/src/project-transactions/baseline.mjs';
 import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transactions/kernel.mjs';
-import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
+import { laneHash, mergeLane } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
+import { serializeBoard } from '../annotations/schema.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
 import { createActionStage, type RunFence, type RunStageSummary } from './action-stage.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
 import { hashBytes } from './echo-guard.ts';
 import { mergeSource } from './source-merge.ts';
+import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
   asTarget,
   chatActionIds,
@@ -88,6 +91,19 @@ const SQLITE_SIDECARS = ['', '-wal', '-shm'] as const;
 /** The lanes a local canvas carries. Comments stay per machine (`_comments/`). */
 export const LOCAL_LANES = ['html', 'meta', 'annotations'] as const;
 type LocalLane = (typeof LOCAL_LANES)[number];
+/**
+ * The lanes the watcher records from disk. The board (and the comments a
+ * conversion touches) have a second writer — the collab room projects onto
+ * them — so, as on a hub link (projection.ts), they are never proposed from a
+ * file event: they reach the store only as an explicit action (S4.7
+ * `proposeLanes`), and an accepted undo merges back into what the disk holds.
+ */
+const WATCHED_LANES = ['html', 'meta'] as const;
+/** S4.7 — lanes only an explicit action writes; published three-way onto the disk. */
+const EXPLICIT_LANES = ['annotations', 'comments'] as const;
+type ExplicitLane = (typeof EXPLICIT_LANES)[number];
+const isExplicit = (lane: string): lane is ExplicitLane =>
+  (EXPLICIT_LANES as readonly string[]).includes(lane);
 
 /** What the watcher's actions say (V2-1.9 §5.2). */
 export const OUTSIDE_KIND = 'outside';
@@ -413,12 +429,27 @@ export type LocalOutcome = {
   actionId?: string;
   revision?: number;
   undoes?: string | string[];
-  skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
+  skipped?: Array<{
+    doc?: string;
+    lane?: string;
+    id?: string;
+    reason: string;
+    conflictWith?: string;
+  }>;
+  /** S1.7 — trash.restore: where the canvas came back; trash.clear: the ids cleared. */
+  path?: string;
+  cleared?: string[];
 };
 
 /** The `ctx.syncControl.current()` surface a local project answers through. */
 export interface LocalRuntime {
   cancelAssetSweep(): boolean;
+  /** S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). */
+  proposeLanes(
+    slug: string,
+    lanes: Array<{ lane: string; text: string; baseText: string }>,
+    o: { kind: string; label: string }
+  ): Promise<LocalOutcome>;
   acceptedHistory(q: {
     limit?: number;
     before?: number | null;
@@ -434,6 +465,14 @@ export interface LocalRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
+  acceptedTrash(): Promise<TrashListing | null>;
+  acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
+  acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+  acceptedLinkDocs(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
+  /** S1.18 — is the entry in the shared Trash (cleared items excluded)? */
+  acceptedTrashed(entry: string): Promise<boolean>;
   /** S5.5b (U21) — the same run-stage surface the hub runtime has (sync/index.ts). */
   beginAiAction(
     key: string,
@@ -490,6 +529,8 @@ export interface LocalHomeOptions {
   /** S5.5b — how long a run's last tool write gets to reach the watcher before the run ends. */
   aiSettleMs?: number;
   log?: Pick<Console, 'warn' | 'error'>;
+  /** S1.7b — ctx.bus.emit: `trash:changed` when an accepted action changed the Trash. */
+  emit?: (event: string, payload: unknown) => void;
 }
 
 export interface ForeignStore {
@@ -792,6 +833,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           ? { undoes: body.undoes }
           : {}),
         ...(Array.isArray(body.skipped) && body.skipped.length ? { skipped: body.skipped } : {}),
+        ...(Array.isArray(body.cleared) ? { cleared: body.cleared } : {}),
       };
     }
     return { status: 'rejected', code: String(body?.code ?? 'retryable') };
@@ -800,14 +842,19 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   /* ------------------------------------------------------------ disk ⇄ lanes */
 
   const abs = (rel: string) => path.join(opts.designRoot, ...rel.split('/'));
-  // The layout sits beside the source; the board at the design root under the canvas slug
-  // (api.ts `canvasMetaPath` / `annotationsPath`).
+  // The board is NOT a sibling: it sits at the design root under the canvas's
+  // flat slug (`<slug>.annotations.json`, api.ts `annotationsPath`, DDR-242).
   const sibling = (rel: string, lane: LocalLane) =>
     lane === 'html'
       ? rel
       : lane === 'meta'
         ? rel.replace(/\.tsx$/i, '.meta.json')
         : `${canvasSlugFromRel(rel, designRel)}.annotations.json`;
+  /** S4.7 — the file an explicit lane is published to. */
+  const explicitFile = (rel: string, lane: ExplicitLane) =>
+    lane === 'annotations'
+      ? sibling(rel, 'annotations')
+      : `_comments/${canvasSlugFromRel(rel, designRel)}.json`;
   const readText = (rel: string): string | null => {
     try {
       return readFileSync(abs(rel), 'utf8');
@@ -863,7 +910,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     if (!inGroups(rel)) return null;
     slugs.set(canvasSlugFromRel(rel, designRel), rel);
     const values: Partial<Record<LocalLane, string>> = {};
-    for (const lane of LOCAL_LANES) {
+    for (const lane of WATCHED_LANES) {
       const v = diskLane(rel, lane);
       if (v !== null) values[lane] = v;
     }
@@ -887,7 +934,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     type Group = { ops: unknown[]; seen: Array<[string, string]>; lanes: LocalLane[]; at: number };
     const edit: Group = { ops: [], seen: [], lanes: [], at: Number.POSITIVE_INFINITY };
     const other: Group = { ops: [], seen: [], lanes: [], at: 0 };
-    for (const lane of LOCAL_LANES) {
+    for (const lane of WATCHED_LANES) {
       const v = values[lane];
       if (v === undefined) continue;
       const k = `${rel}|${lane}`;
@@ -1010,9 +1057,73 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       retiredFor: string | null;
       movedFrom: string | null;
     }[];
+    /** S1.6 — what a clear-out removed (kernel `extra.cleared`). */
+    trashCleared?: {
+      entry: string;
+      artboard: string;
+      rev: number;
+      doc?: string;
+      path?: string | null;
+    }[];
   }): Promise<void> {
     const store = opened?.store;
     if (!store) return;
+    try {
+      await publishChanges(store, p);
+    } finally {
+      if (p.trashCleared?.length) await clearCopies(store, p.trashCleared);
+      if (
+        p.trashCleared?.length ||
+        p.changes.some((c) => (c.deleted && !c.retiredFor) || c.revived)
+      )
+        bumpTrashSeq(opts.emit);
+    }
+  }
+
+  /**
+   * S1.7b — the owner cleared items out (S1 Q4): this machine's own parked
+   * copies of exactly those canvases go (sync/trash-clear-copies.ts). The
+   * bytes compared are the canvas as the store held it when it was trashed.
+   */
+  async function clearCopies(
+    store: NonNullable<typeof opened>['store'],
+    cleared: NonNullable<Parameters<typeof publish>[0]['trashCleared']>
+  ): Promise<void> {
+    try {
+      const bodyAt = async (doc: string, rev: number) => {
+        const h = await store.laneAt(doc, 'html', Math.max(rev - 1, 0));
+        return h ? ((await store.blob(h)) ?? '') : '';
+      };
+      const items: ParkedCanvas[] = [];
+      for (const c of cleared)
+        if (c.artboard === '' && c.doc && c.path)
+          items.push({ path: c.path, body: await bodyAt(c.doc, c.rev) });
+      if (!items.length) return;
+      const paths = new Set(items.map((i) => i.path));
+      const remaining: ParkedCanvas[] = [];
+      if (typeof store.trash === 'function')
+        for (const c of (await store.trash({})).canvases as {
+          doc: string;
+          path: string;
+          rev: number;
+        }[])
+          if (paths.has(c.path)) remaining.push({ path: c.path, body: await bodyAt(c.doc, c.rev) });
+      removeClearedCopies({
+        designRoot: opts.designRoot,
+        designRel,
+        cleared: items,
+        remaining,
+        log: (line) => log.warn(line),
+      });
+    } catch (err) {
+      log.warn(`[local-kernel] clear-out cleanup failed: ${(err as Error).message}`);
+    }
+  }
+
+  async function publishChanges(
+    store: NonNullable<typeof opened>['store'],
+    p: Parameters<typeof publish>[0]
+  ): Promise<void> {
     // S5.5b — a proposal made from the disk (a watched write, a run landing): nothing to write.
     if (fromDisk > 0) return;
     // What the store held before this action, per lane — the disk must still
@@ -1061,6 +1172,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         }
       }
       for (const [lane, value] of Object.entries(lanes)) {
+        if (isExplicit(lane)) {
+          if (!c.created && !c.revived)
+            await publishExplicit(c.path, c.doc, lane, value, p.revision);
+          continue;
+        }
         if (!(LOCAL_LANES as readonly string[]).includes(lane)) continue;
         const l = lane as LocalLane;
         const rel = sibling(c.path, l);
@@ -1076,6 +1192,104 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         writeLane(c.path, l, value);
       }
     }
+  }
+
+  /**
+   * S4.7 — an accepted change of an explicit lane reaches the disk THREE-WAY:
+   * what the store held before → what it holds now, replayed onto what the disk
+   * holds (by element / comment id — mergeLane). Nothing the store never saw is
+   * overwritten: an unrecorded sticky edit or a new comment stays.
+   */
+  async function publishExplicit(
+    rel: string,
+    doc: string,
+    lane: ExplicitLane,
+    value: string,
+    revision: number
+  ): Promise<void> {
+    const store = opened?.store;
+    if (!store) return;
+    const h = await store.laneAt(doc, lane, revision - 1);
+    const before = h ? (((await store.blob(h)) as string | null) ?? '') : '';
+    const fileRel = explicitFile(rel, lane);
+    const raw = readText(fileRel);
+    const disk = raw === null ? '' : laneValueFromFile(lane, raw);
+    if (disk === null) {
+      log.warn(`[local-kernel] ${fileRel} is unreadable — left as it is`);
+      return;
+    }
+    const m = mergeLane(lane, before, value, disk);
+    if (!m.ok) {
+      log.warn(`[local-kernel] ${fileRel} changed on disk since — left as it is`);
+      return;
+    }
+    if (m.content === disk) return;
+    if (m.content === '') {
+      if (lane === 'comments') {
+        try {
+          unlinkSync(abs(fileRel));
+        } catch {
+          /* absent */
+        }
+      } else atomicWrite(abs(fileRel), serializeBoard([]));
+      return;
+    }
+    // The bytes the studio itself writes: api.ts `saveCommentsForFile` / the canonical board.
+    const text = lane === 'comments' ? JSON.stringify(JSON.parse(m.content), null, 2) : m.content;
+    mkdirSync(path.dirname(abs(fileRel)), { recursive: true });
+    atomicWrite(abs(fileRel), text);
+  }
+
+  /**
+   * S4.7 — several lanes of one canvas as ONE action (a sticky ↔ comment
+   * conversion). The studio writes the files itself (the room bridge, the
+   * sidebar); this records what they became. An explicit lane the store has
+   * fallen behind on (a board edit the watcher does not record) is first
+   * brought up to the disk's `baseText` by an `outside` row, so the action's
+   * before-content IS what the disk held — its undo takes back exactly it.
+   */
+  async function proposeLanes(
+    slug: string,
+    lanes: Array<{ lane: string; text: string; baseText: string }>,
+    o: { kind: string; label: string }
+  ): Promise<LocalOutcome> {
+    await readyP;
+    return serial(async () => {
+      if (!opened || !kernel) return { status: 'rejected', code: 'store-locked' } as LocalOutcome;
+      const store = opened.store;
+      const m = await store.manifest();
+      const live = (m.docs as { doc: string; path: string; retired: boolean }[]).find(
+        (d) => !d.retired && d.path && canvasSlugFromRel(d.path, designRel) === slug
+      );
+      if (!live) return { status: 'rejected', code: 'unknown-canvas' } as LocalOutcome;
+      const head = (await store.heads([live.doc]))[live.doc] as {
+        lanes: Record<string, { hash: string | null }>;
+      };
+      const catchUp: unknown[] = [];
+      const ops: unknown[] = [];
+      for (const l of lanes) {
+        if (!isExplicit(l.lane) && !(LOCAL_LANES as readonly string[]).includes(l.lane))
+          return { status: 'rejected', code: 'invalid' } as LocalOutcome;
+        const lane = l.lane as LocalLane | ExplicitLane;
+        const content = laneValueFromFile(lane, l.text);
+        const base = laneValueFromFile(lane, l.baseText);
+        if (content === null || base === null)
+          return { status: 'rejected', code: 'invalid' } as LocalOutcome;
+        const headHash = hashOr(head?.lanes?.[lane]?.hash);
+        if (laneHash(base) !== headHash)
+          catchUp.push({ op: 'lane.replace', doc: live.doc, lane, content: base, base: headHash });
+        ops.push({ op: 'lane.replace', doc: live.doc, lane, content, base: laneHash(base) });
+      }
+      if (catchUp.length) {
+        const r = await submit(catchUp, { kind: OUTSIDE_KIND, label: null }, actor, {}, true);
+        if (r.status !== 'accepted') return r;
+      }
+      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, {}, true);
+      if (r.status === 'accepted') {
+        for (const l of lanes) if (!isExplicit(l.lane)) seen.set(`${live.path}|${l.lane}`, l.text);
+      }
+      return r;
+    });
   }
 
   /** Write one lane's value to its file (an empty side lane removes the file). */
@@ -1274,6 +1488,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   const runtime: LocalRuntime = {
     cancelAssetSweep: () => false,
+    proposeLanes: (slug, lanes, o) => proposeLanes(slug, lanes, o),
     async acceptedHistory(q) {
       await settled();
       const o = opened;
@@ -1334,6 +1549,66 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           label,
         })
       );
+    },
+    // S1.7 — the shared Trash over the store's readers (S1-trash.md §1). A local
+    // project is its owner's, so `submit` passes every cap (S1.6).
+    async acceptedTrash() {
+      await settled();
+      const o = opened;
+      if (!o || typeof o.store.trash !== 'function') return null;
+      const { canvases, artboards } = await o.store.trash({});
+      const live: TrashListing['live'] = {};
+      for (const entry of new Set((artboards as { entry: string }[]).map((a) => a.entry))) {
+        const doc = await o.store.liveDocByEntry(entry);
+        const h = doc ? (await o.store.heads([doc]))[doc] : null;
+        if (doc && h?.path) live[entry] = { doc, path: h.path };
+      }
+      return { canvases, artboards, live, you: actor };
+    },
+    async acceptedTrashRestore(entry) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const o = opened;
+      const [item] = (await o.store.trash({ entry })).canvases as { path: string }[];
+      const r = await serial(() =>
+        submit([{ op: 'trash.restore', entry }], {
+          kind: 'restore',
+          label: item ? `Restored “${NAME(item.path)}” from the trash` : 'Restored from the trash',
+        })
+      );
+      if (r.status !== 'accepted') return r;
+      const doc = await o.store.liveDocByEntry(entry);
+      const h = doc ? (await o.store.heads([doc]))[doc] : null;
+      return h?.path ? { ...r, path: h.path } : r;
+    },
+    async acceptedTrashClear(items) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      return serial(() =>
+        submit([{ op: 'trash.clear', ...(items ? { items } : {}) }], {
+          kind: 'trash.clear',
+          label: 'Cleared out the trash',
+        })
+      );
+    },
+    // S1.18 — the manifest rows a stable link resolves over (history/links.ts).
+    async acceptedLinkDocs() {
+      await settled();
+      const o = opened;
+      if (!o) return null;
+      const m = await o.store.manifest();
+      return (m.docs as { entry: string; path: string | null; retired: boolean }[]).map((d) => ({
+        entry: d.entry,
+        path: d.path,
+        retired: !!d.retired,
+      }));
+    },
+    async acceptedTrashed(entry) {
+      await settled();
+      const o = opened;
+      if (!o) return false;
+      const t = (await o.store.trash({ entry })) as { canvases?: unknown[] } | null;
+      return (t?.canvases?.length ?? 0) > 0;
     },
     beginAiAction(key, label, meta) {
       if (!kernel) return;
@@ -1513,7 +1788,10 @@ export function withLocalHome<S extends SupervisorLike>(
 interface StudioLike {
   cfg: { linkedHub?: unknown; canvasGroups?: { path: string }[] };
   paths: { designRoot: string; designRel: string };
-  bus: { on(event: string, fn: (payload: any) => void): unknown };
+  bus: {
+    on(event: string, fn: (payload: any) => void): unknown;
+    emit?(e: string, p: unknown): void;
+  };
 }
 
 /**
@@ -1539,6 +1817,7 @@ export function attachLocalHome<S extends SupervisorLike>(
           designRoot: ctx.paths.designRoot,
           designRel: ctx.paths.designRel,
           canvasGroups: () => ctx.cfg.canvasGroups ?? null,
+          ...(ctx.bus.emit ? { emit: (e, p) => ctx.bus.emit?.(e, p) } : {}),
         });
       } catch (err) {
         // Never take the studio down: the project keeps working without

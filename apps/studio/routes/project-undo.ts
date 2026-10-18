@@ -110,6 +110,13 @@ export interface ProjectUndoDeps {
   designRel: string;
   /** ctx.bus.emit — `project:action` (V2-1.5 §5.3). */
   emit?: (event: string, payload: unknown) => void;
+  /**
+   * Asked before the runtime: a Response refuses the undo. S4.7 registers the
+   * conversion guard here — a sticky turned into a thread someone else has
+   * replied to since is refused `has-replies`, so the kernel never restores the
+   * sticky while keeping the thread (contract S4-S9-votes-comments §3.2).
+   */
+  guard?: (target: UndoTarget, req: Request) => Promise<Response | null>;
 }
 
 /** V2-1.5 §5.3 bus payload, from a history row (+ the attribution when known). */
@@ -291,6 +298,8 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
             : 'actionId' in parsed.target
               ? 'keys'
               : 'panel';
+        const refused = await deps.guard?.(parsed.target, req);
+        if (refused) return refused;
         const runtime = deps.control();
         const r = runtime?.acceptedUndo
           ? await runtime.acceptedUndo(parsed.target, parsed.redo, { via })

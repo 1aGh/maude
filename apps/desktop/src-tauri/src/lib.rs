@@ -34,6 +34,8 @@ mod prefs;
 mod present;
 mod profiles;
 mod project_resolve;
+// S5.14: ⌘Q asks first while AI is working, then stops and keeps what AI finished.
+mod quit;
 mod server_json;
 mod sidecar;
 mod tabs;
@@ -171,6 +173,11 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
     // The splash runs on the app-local origin; a page already on its server
     // may ask too (a reload).
     let caller = windows::caller_project(&webview, true)?;
+    // S1.19: a tab whose folder is gone gets the moved-folder card's answer
+    // (`{missing, pid, name, place}` — its own project only) and goes there.
+    if let Some(card) = tabs::missing_answer(webview.app_handle(), &caller) {
+        return Ok(card);
+    }
     if let Some(name) = windows::resting_name(webview.app_handle(), &caller.label) {
         return Ok(serde_json::json!({ "resting": true, "name": name }));
     }
@@ -505,7 +512,7 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         // V2-3.7: Home is pinned and stays; the opened tab becomes active.
-        match windows::open_project_window(&app, &path, caller.as_deref(), None) {
+        match windows::open_project_window(&app, &path, caller.as_deref(), None, app_state::Binding::Adopt) {
             Ok(_) => {}
             Err(e) => sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display())),
         }
@@ -641,6 +648,7 @@ pub fn run() {
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
+            notify::e2e_dock_badge,
             open_project_folder,
             home::shell_state,
             home::home_session,
@@ -680,6 +688,8 @@ pub fn run() {
             deep_link::e2e_deliver_deep_link,
             project_resolve::resolve_project_for_link,
             notify::send_notification,
+            // S5.14: the asked tab's answer to the quit dialog.
+            quit::quit_answer,
             managed::managed_project_open,
             managed::managed_projects_list,
             profiles::profiles_list,
@@ -819,6 +829,8 @@ pub fn run() {
             notify::spawn_activity_poller(&handle);
             // V2-3.10: `index://changed` to Home when a running project's index changes.
             home::spawn_index_watch(&handle);
+            // S1.19: a tab whose folder moved on disk shows the card.
+            tabs::spawn_root_watch(&handle);
 
             // The bundled app parks maude:// links; the client validates and
             // opens a file locally or asks before a project switch.
@@ -842,6 +854,12 @@ pub fn run() {
                 WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
                     let _ = window.hide();
+                }
+                // S5.14: elsewhere closing the shell quits — the same ask-first round trip.
+                #[cfg(not(target_os = "macos"))]
+                WindowEvent::CloseRequested { api, .. } if !quit::approved() => {
+                    api.prevent_close();
+                    quit::request(window.app_handle());
                 }
                 WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                     tabs::layout(window.app_handle());
@@ -898,8 +916,10 @@ pub fn run() {
         } => {
             api.prevent_exit();
         }
-        // Kill every sidecar on Cmd+Q / app termination.
+        // Kill every sidecar on Cmd+Q / app termination. S5.14: an exit that skipped the quit
+        // dialog (the Dock's Quit, logout, an update restart) stops the runs first, bounded.
         RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+            quit::last_chance(app_handle);
             sidecar::kill_server(app_handle);
             home::kill(app_handle);
         }
@@ -928,6 +948,11 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
             menu::action_target(&s.windows.lock().unwrap_or_else(|e| e.into_inner()))
         })
     };
+    // S5.14: Maude ▸ Quit ⌘Q is a native item (menu.rs) — ask first while AI is working.
+    if id == quit::MENU_QUIT {
+        quit::request(app);
+        return;
+    }
     let Some(route) = menu::route(id) else {
         return; // a predefined item: AppKit handled it
     };

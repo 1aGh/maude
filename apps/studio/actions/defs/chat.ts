@@ -114,4 +114,44 @@ export const CHAT_ACTIONS: ActionDef[] = [
   advanced('show-in-chat', 'Show in chat', ['verbose', 'thinking', 'transcript', 'detail', 'view']),
   advanced('suggestions', 'Suggestions', ['chips', 'suggest', 'quick']),
   advanced('raw-log', 'Raw log', ['tool log', 'tools', 'calls', 'debug', 'log']),
+  // ── S5.10: the paperclip's four ways in (03 `ai-attach-menu`). Row-level, in the prompt. ──
+  // Each writes (Assets, or this Mac's `_chat/` / `_state/`), so below Can edit they are hidden
+  // and routes/chat-attach.ts refuses them (`readOnly: 'refused'`).
+  {
+    id: 'ai.attach-files',
+    label: 'Attach files…',
+    kind: 'command',
+    icon: 'file',
+    exec: 'shell',
+    visible: DESKTOP_EDIT,
+    search: ROW,
+  },
+  {
+    // The folder picker is the desktop app's (a browser hands over no folder path): absent in a
+    // browser tab, and the server refuses a path it can't resolve to a real folder anyway.
+    id: 'ai.attach-folder',
+    label: 'Choose a folder…',
+    kind: 'command',
+    icon: 'folder',
+    exec: 'shell',
+    visible: { shell: ['desktop'], minRole: 'edit', facts: ['native'] },
+    search: ROW,
+  },
+  {
+    id: 'ai.attach-assets',
+    label: 'From Assets',
+    kind: 'command',
+    icon: 'image',
+    exec: 'shell',
+    visible: DESKTOP_EDIT,
+    search: ROW,
+  },
+  {
+    id: 'ai.attach-screenshot',
+    label: 'Paste a screenshot',
+    kind: 'command',
+    exec: 'shell',
+    visible: DESKTOP_EDIT,
+    search: ROW,
+  },
 ];

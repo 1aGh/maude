@@ -63,6 +63,12 @@ export interface AcpBridgeOptions {
    */
   chatId?: string;
   /**
+   * S5.10 — folders the person allowed AI to READ (`ai/attach-grants.ts`). Read live on every
+   * write-shaped permission request: a write landing inside one is never auto-approved.
+   * Absent → none (tests / non-studio embedders).
+   */
+  readOnlyRoots?: () => readonly string[];
+  /**
    * Session-scoped local plugins auto-loaded into every new session via
    * `_meta.claudeCode.options.plugins` (DDR-143; resolved by
    * plugin-bootstrap.ts). Empty/absent → no injection (power-user no-op, web
@@ -1555,9 +1561,17 @@ export class AcpBridge {
     const named = isWriteToolName(toolName);
     if (!named && !looksLikeWriteToolCall(params.toolCall)) return {};
 
+    // S5.10 — the folders granted read-only. Fail closed: a getter that throws makes the whole
+    // project read-only for this request, so every write goes to the prompt.
+    let readOnly: readonly string[] = [];
+    try {
+      readOnly = this.opts.readOnlyRoots?.() ?? [];
+    } catch {
+      readOnly = [this.scopeRoot];
+    }
     const verdict = named
-      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName)
-      : resolveWriteTargets(params.toolCall, this.scopeRoot);
+      ? writeTargetsInsideProject(params.toolCall, this.scopeRoot, toolName, readOnly)
+      : resolveWriteTargets(params.toolCall, this.scopeRoot, readOnly);
     if (!verdict.inside) {
       return {
         stripAlways: true,

@@ -40,6 +40,7 @@ import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
 import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '../context.ts';
+import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
 import { acceptedColdStart } from './accepted-cold-start.ts';
@@ -122,6 +123,7 @@ import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
+import { createTrashWatch } from './trash-watch.ts';
 import {
   asTarget,
   chatActionIds,
@@ -577,6 +579,16 @@ export interface SyncRuntime {
     opts?: { baseText?: string; writeId?: string; stageable?: boolean }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
+   * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
+   * comment conversion). `null` when the project is not in accepted mode or
+   * this runtime does not carry the canvas.
+   */
+  proposeLanes?(
+    slug: string,
+    lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+    opts: { kind: string; label: string; writeId?: string }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
+  /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
    * when the project is not in that mode; otherwise the (possibly queued)
    * outcome. Canvases inside are moved/deleted by the hub, not one by one.
@@ -616,6 +628,8 @@ export interface SyncRuntime {
   }): Promise<AcceptedHistoryRow[] | null>;
   /** A canvas source (repo-relative path) as it stood at a revision. */
   acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
+  acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
   /** Restore a canvas to a revision as a NEW action. */
   acceptedRestore?(
     repoRel: string,
@@ -638,6 +652,15 @@ export interface SyncRuntime {
     undoes?: string | string[];
     skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
   } | null>;
+  /**
+   * S1.7b — the shared Trash of a linked project (history/trash.ts
+   * `TrashRuntime`). Null while the project is legacy or its hub does not
+   * advertise `trash.restore` / `trash.clear`: the view then falls back to
+   * this Mac's own list.
+   */
+  acceptedTrash?(): Promise<TrashListing | null>;
+  acceptedTrashRestore?(entry: string): Promise<TrashOutcome | null>;
+  acceptedTrashClear?(items?: string[]): Promise<TrashOutcome | null>;
   /**
    * T16 — an AI run begins: file changes its tools make until it ends are
    * published together as one action (see action-stage.ts). `key` names the
@@ -663,6 +686,8 @@ export interface SyncRuntime {
   } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+  acceptedCanvas?(repoRel: string): string | null;
   /**
    * S2.20c (V2-1.5 §5.4) — this person's edits to canvas `repoRel` waiting behind an AI run, oldest
    * first (an inverse ⌘Z queued names the edit it `undoes`). Null when no hub answers.
@@ -1188,6 +1213,15 @@ export function createSyncRuntime(
           // synced, until a restart. Knowing the mode, hand it back now.
           if (b.mode === 'transactions') for (const p of projections.values()) p.retryDeferred();
         },
+      })
+    : null;
+  const trashWatch = acceptedLink
+    ? createTrashWatch({
+        link: acceptedLink,
+        designRoot: ctx.paths.designRoot,
+        designRel: ctx.paths.designRel,
+        emit: (e, p) => ctx.bus.emit(e, p),
+        log: (line) => console.log(line),
       })
     : null;
   /**
@@ -4510,6 +4544,10 @@ export function createSyncRuntime(
       if (acceptedLink) {
         await acceptedLink.refresh();
         if (acceptedOn()) applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
+        // S1.7b — someone else's delete / restore / clear-out reaches this
+        // Mac's Trash view, and a clear-out removes this Mac's copies.
+        if (acceptedOn() && acceptedLink.manifest)
+          void trashWatch?.noteRevision(acceptedLink.manifest.revision);
       }
       const listing = withAcceptedDocs(rawListing);
       // null = unreachable, refused, or a hub without the route. Not an error
@@ -4521,6 +4559,17 @@ export function createSyncRuntime(
       // immediately pulled back — the resurrection this lane exists to end,
       // reintroduced inside one tick.
       await applyTombstones(listing.tombstones);
+      // S1.7b — a canvas restored from the Trash (or a ⌘Z of its delete) is
+      // live in the accepted manifest again and its tombstone is gone: this
+      // run's memory of the delete must not keep it from coming back.
+      if (acceptedOn() && acceptedLink?.manifest && tombstoned.size) {
+        const stoned = new Set(listing.tombstones.map((t) => t.name));
+        for (const d of acceptedLink.manifest.docs) {
+          if (d.retired || stoned.has(d.doc)) continue;
+          const slug = slugFromDocName(d.doc);
+          if (slug) tombstoned.delete(slug);
+        }
+      }
       noteHubListing(listing.documents);
       const diff = diffRemoteDocs(
         [...descriptors.keys()].map((slug) => docNameFor(slug)),
@@ -5527,6 +5576,26 @@ export function createSyncRuntime(
         ...(o?.stageable === true ? { stageable: true } : {}),
       });
     },
+    proposeLanes: (slug, lanes, o) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!projections.has(slug)) return null;
+      const out: Array<{
+        lane: 'comments' | 'annotations' | 'meta';
+        content: string;
+        baseContent: string;
+      }> = [];
+      for (const l of lanes) {
+        const content = laneValueFromFile(l.lane, l.text);
+        const baseContent = laneValueFromFile(l.lane, l.baseText);
+        if (content === null || baseContent === null) return null;
+        out.push({ lane: l.lane, content, baseContent });
+      }
+      return acceptedLink.lanesEdit(slug, out, o).then((r) => ({
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+      }));
+    },
     proposeFolder,
     acceptedMode: acceptedOn,
     commentsConfirmedOnHub: (slug) => {
@@ -5588,6 +5657,15 @@ export function createSyncRuntime(
         };
       });
     },
+    // S1.18 — a stable link's entry → path, over a FRESH manifest (a canvas moved since the last
+    // bootstrap must resolve to where it is now). No cleared set here: history/links.ts reads a
+    // retired entry with no live document as trashed.
+    acceptedLinkDocs: async () => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const manifest = (await acceptedLink.refresh().catch(() => null)) ?? acceptedLink.manifest;
+      if (!manifest) return null;
+      return manifest.docs.map((d) => ({ entry: d.entry, path: d.path, retired: !!d.retired }));
+    },
     acceptedVersion: async (repoRel, revision) => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
@@ -5629,6 +5707,39 @@ export function createSyncRuntime(
         return acceptedLink.undo({ actionIds: ids.actionIds }, false, label);
       }
       return acceptedLink.undo(target, redo, label);
+    },
+    acceptedTrash: async () => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!acceptedLink.manifest) await acceptedLink.refresh().catch(() => null);
+      if (!acceptedLink.trashOps()) return null;
+      const listing = await acceptedLink.trash();
+      return { ...listing, you: acceptedLink.manifest?.you?.actor ?? null };
+    },
+    acceptedTrashRestore: async (entry) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!acceptedLink.manifest) await acceptedLink.refresh().catch(() => null);
+      if (!acceptedLink.trashOps()) return null;
+      const before = (await acceptedLink.trash().catch(() => null))?.canvases.find(
+        (c) => c.entry === entry
+      );
+      const name = before ? path.posix.basename(before.path).replace(/\.(tsx|html)$/i, '') : null;
+      const r = await acceptedLink.trashRestore(
+        entry,
+        name ? `Restored “${name}” from the trash` : 'Restored from the trash'
+      );
+      if (r.status !== 'accepted' || r.queued) return r;
+      // Where it came back: in place, or at `<name> 2` when the path was taken.
+      const manifest = await acceptedLink.refresh().catch(() => null);
+      const doc = manifest?.docs.find((d) => d.entry === entry && !d.retired);
+      return doc?.path ? { ...r, path: doc.path } : r;
+    },
+    acceptedTrashClear: async (items) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!acceptedLink.manifest) await acceptedLink.refresh().catch(() => null);
+      if (!acceptedLink.trashOps()) return null;
+      const r = await acceptedLink.trashClear(items, 'Cleared out the trash');
+      if (r.status === 'accepted' && !r.queued) await trashWatch?.cleanup();
+      return r;
     },
     prepareOffline: async () => {
       if (!filePlane) return null;
@@ -5743,6 +5854,11 @@ export function createSyncRuntime(
         return { status: o.status, ...(o.code ? { code: o.code } : {}) };
       }
       return { status: 'accepted', transactionId: queued.transactionId };
+    },
+    // S5.11b — Run on a copy builds the copy from this, never from a busy run's staged bytes
+    acceptedCanvas: (repoRel) => {
+      const slug = slugForRepoRel(repoRel);
+      return slug && acceptedLink ? acceptedLink.stage.accepted(slug, 'html') : null;
     },
     resolveAiAction: async (choice, runId) => {
       if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;

@@ -333,7 +333,8 @@
           ],
           "when": {
             "share-cluster-exports": "once any export exists",
-            "share-cluster-faces": "when other people (or Claude) are in the project"
+            "share-cluster-faces": "when other people (or Claude) are in the project",
+            "share-cluster-account": "signed in, with two or more accounts on this Mac"
           },
           "access": null,
           "action": "Share"

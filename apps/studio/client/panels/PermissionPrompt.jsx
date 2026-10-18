@@ -110,9 +110,13 @@ export function describeOutOfProject(scope) {
           // kind: not "where is this going" but "this file runs".
           scope.reason === 'in-project-denied'
           ? 'This file is part of how your project RUNS, not part of its design.'
-          : paths.length > 1
-            ? 'Claude wants to write files outside this project.'
-            : 'Claude wants to write a file outside this project.';
+          : // S5.10 — a folder the person attached for AI to READ. Never "outside": it may be
+            // inside the project, and what matters is the promise "nothing on disk changes".
+            scope.reason === 'read-only-grant'
+            ? 'This is in a folder you let AI read only. Nothing there changes unless you allow it now.'
+            : paths.length > 1
+              ? 'Claude wants to write files outside this project.'
+              : 'Claude wants to write a file outside this project.';
   return {
     lead,
     paths,
@@ -124,6 +128,7 @@ export function describeOutOfProject(scope) {
     /** Inside the project, but denied for an execution reason — the copy above
      *  must not claim "outside". */
     inProjectDenied: scope.reason === 'in-project-denied',
+    readOnlyGrant: scope.reason === 'read-only-grant',
   };
 }
 
@@ -148,7 +153,9 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
   const headline =
     request.scope?.reason === 'in-project-denied'
       ? 'Write to a file that runs'
-      : 'Write outside this project';
+      : request.scope?.reason === 'read-only-grant'
+        ? 'Write to a folder AI may only read'
+        : 'Write outside this project';
   const headerTarget = outOfProject
     ? outOfProject.paths.length === 1
       ? String(outOfProject.paths[0]).split('/').pop()
@@ -183,7 +190,9 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
         outOfProject
           ? outOfProject.inProjectDenied
             ? 'Permission request — file that runs code'
-            : 'Permission request — file outside this project'
+            : outOfProject.readOnlyGrant
+              ? 'Permission request — folder AI may only read'
+              : 'Permission request — file outside this project'
           : 'Permission request'
       }
       tabIndex={-1}
@@ -233,6 +242,8 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
                   Git hooks and Claude settings can execute code later, so Maude asks even though
                   they live inside this project.
                 </>
+              ) : outOfProject.readOnlyGrant ? (
+                <>You attached this folder for AI to read. Folders AI may read are in Advanced.</>
               ) : (
                 <>
                   This project is <span className="chat-perm-root">{outOfProject.scopeRoot}</span>.

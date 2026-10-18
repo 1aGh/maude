@@ -46,7 +46,9 @@ export async function runSetGap(
     params: { gap: token ? { token } : { px } },
   });
   if (!result.ok) deps.toast?.(result.message || 'That did not go through.', 'error');
-  else if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, SET_GAP_LABEL));
+  else if (result.actionId === null && result.writeId) {
+    const rec = editOpRecord(result.writeId, SET_GAP_LABEL);
+    if (rec) deps.record?.(rec);
+  }
   return result;
 }
