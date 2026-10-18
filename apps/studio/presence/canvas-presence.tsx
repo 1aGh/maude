@@ -34,9 +34,9 @@ import {
 } from './model.ts';
 import { toneColor, toneFor, YOU_TONE } from './tones.ts';
 
-/** The `run-action` ids the shell sends (the legacy `peer.follow` is kept; the registry ids are new). */
+/** The `run-action` ids the shell sends: the registry's `presence.*` rows (`peer.follow` is retired). */
 export const PRESENCE_RUN_IDS = {
-  follow: ['peer.follow', 'presence.follow'],
+  follow: ['presence.follow'],
   goTo: ['presence.go-to'],
   bring: ['presence.bring-everyone'],
   stop: ['presence.stop'],

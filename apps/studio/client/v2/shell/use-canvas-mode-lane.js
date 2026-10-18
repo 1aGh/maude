@@ -254,11 +254,11 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     mode,
     caps,
     peers,
-    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`peer.follow`). */
+    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`presence.follow`). */
     follow(clientID) {
       const win = activeWin();
       if (!win || typeof clientID !== 'number') return;
-      postToCanvas(win, 'run-action', { v: 1, id: 'peer.follow', params: { clientID } }, '*');
+      postToCanvas(win, 'run-action', { v: 1, id: 'presence.follow', params: { clientID } }, '*');
     },
     /** S9.23 — a `presence.*` action (face menu, ⌘K) for the active canvas, over the `run-action` lane. */
     presence(id, params) {

@@ -160,13 +160,14 @@ describe('Follow (co-follow)', () => {
     expect(published.at(-1)).toEqual({ followTarget: 7 });
   });
 
-  test('the legacy peer.follow id still toggles it', async () => {
+  test('following again stops it; the retired peer.follow id is no longer presence’s', async () => {
     const { deps } = makeDeps();
     const { q } = await mount([tereza()], deps);
-    runPresenceAction(latest as never, 'peer.follow', { clientID: 7 });
+    expect(runPresenceAction(latest as never, 'peer.follow', { clientID: 7 })).toBe(false);
+    runPresenceAction(latest as never, 'presence.follow', { clientID: 7 });
     await act(async () => {});
     expect(q('presence-follow-pill')).not.toBeNull();
-    runPresenceAction(latest as never, 'peer.follow', { clientID: 7 });
+    runPresenceAction(latest as never, 'presence.follow', { clientID: 7 });
     await act(async () => {});
     expect(q('presence-follow-pill')).toBeNull();
   });
