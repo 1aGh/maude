@@ -58,6 +58,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
   // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
   { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
+  // S1.17 — trash.restore: the Trash row's Restore (an edit; test/acl-l18-trash.test.ts consumes it).
+  {
+    method: 'POST',
+    route: '/_api/trash/restore',
+    refused: ['view', 'comment'],
+    body: { id: 'canvas:n_a' },
+  },
   // Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
 ];

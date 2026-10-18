@@ -85,6 +85,17 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // Clearing it out is owner-only [A6].
   },
   {
+    id: 'trash.restore',
+    label: 'Restore',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    // S1.17 (S1-slices row S1.7, V2-1.7 §5.2 `trash`): the Trash row's hover Restore (S1.8 draws it).
+    // POST /_api/trash/restore refuses a viewer/commenter itself. Needs a row, so ⌘K hides it. No key.
+    visible: { minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
     id: 'trash.clear',
     label: 'Clear out the trash…',
     kind: 'command',
