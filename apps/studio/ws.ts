@@ -259,6 +259,12 @@ export function createWs(
   ctx.bus.on('canvas-list-update', (payload: unknown) =>
     broadcast({ type: 'canvas-list-update', payload })
   );
+  // S1.7b — the shared Trash changed (here, or on another Mac: sync/trash-watch.ts). `{ seq }`
+  // only, never an item — the view re-reads `GET /_api/trash`, which is L18-filtered per session.
+  // S9.11's frame classes: project-level, but it names nothing, so canvas-only sockets may get it.
+  ctx.bus.on('trash:changed', (p: { seq?: unknown }) =>
+    broadcast({ type: 'trash:changed', payload: { seq: typeof p?.seq === 'number' ? p.seq : 0 } })
+  );
 
   // Config hot-reload (server.ts fs:json subscriber) — the shell refetches
   // /_config so cfg-derived state (designSystems, tokensCssRel, canvasGroups)

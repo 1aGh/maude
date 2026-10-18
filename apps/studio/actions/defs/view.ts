@@ -85,6 +85,16 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // Clearing it out is owner-only [A6].
   },
   {
+    id: 'trash.clear',
+    label: 'Clear out the trash…',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    // S1.7b (S1-slices row S1.7, V2-1.7 §5.2 `delete`): the Trash foot's "Clear out…" (S1.8 draws
+    // it, owner only). POST /_api/trash/clear refuses everyone else (hidden ≠ refused). No key.
+    visible: { minRole: 'owner' },
+  },
+  {
     id: 'view.comments',
     label: 'Comments',
     kind: 'toggle',

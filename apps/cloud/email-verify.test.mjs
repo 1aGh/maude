@@ -386,14 +386,14 @@ test('the raw link value is never stored', async () => {
 test('migration 16 backfills invite-created accounts and NOTHING else', async () => {
   const sqlite = new DatabaseSync(':memory:');
   const DB = d1FromSqlite(sqlite);
-  // Apply everything EXCEPT the new migration, so the fixture is genuinely a
-  // pre-fix database rather than a post-fix one with the flag cleared.
-  const upTo15 = MIGRATIONS.filter((m) => m.version < 16);
   const { applySchema: apply } = await import('./migrate.mjs');
+  // Apply everything, then rewind only migration 16: a genuinely pre-fix database.
   await apply(DB, SCHEMA_SQL);
   sqlite.prepare('DELETE FROM schema_migrations WHERE version = 16').run();
   sqlite.prepare('UPDATE accounts SET email_verified_at = NULL').run();
-  assert.equal(upTo15.length, MIGRATIONS.length - 1, 'exactly one new migration');
+  // The migration this test owns exists exactly once; later migrations (17+)
+  // are not its business and must not break it by merely existing.
+  assert.equal(MIGRATIONS.filter((m) => m.version === 16).length, 1, 'migration 16 exists once');
 
   const t = 1_700_000_000_000;
   sqlite
