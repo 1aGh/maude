@@ -198,6 +198,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // the Pointer is a mouse gesture, human below.
   'present.next': NAV('<canvas>#<artboard> --mode present'),
   'present.prev': NAV('<canvas>#<artboard> --mode present'),
+  // S3.7b — in a cloud-linked project `maude design open <canvas> --mode present` also prints the link.
+  'present.copy-link': { ...NAV('<canvas> --mode present'), minRole: 'edit' },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
