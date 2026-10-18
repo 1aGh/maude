@@ -95,6 +95,7 @@ const withKey = (label, def, ctx) => {
  * @param docked the cluster heads the pinned right column (no island chrome, no edge)
  * @param modeSlot the mode switch (V2-4.3b, mode-switch.jsx)
  * @param mode the canvas mode — `preview` makes the cluster compact
+ * @param accountSlot the account chip + card (S1.22a, account-card.jsx) — first, desktop only
  */
 export function ShareCluster({
   faces,
@@ -114,6 +115,7 @@ export function ShareCluster({
   docked = false,
   modeSlot = null,
   mode = null,
+  accountSlot = null,
 }) {
   const panelsLabel = panelsHidden ? 'Show panels' : 'Hide panels';
   const exportsLabel = ex.ring !== undefined ? `Exports — ${ex.ring} % done` : 'Exports';
@@ -127,6 +129,7 @@ export function ShareCluster({
       data-docked={docked ? 'true' : undefined}
       data-mode={mode ?? undefined}
     >
+      {accountSlot}
       <Faces faces={faces} onFollow={onFollow} />
       {access ? (
         <span

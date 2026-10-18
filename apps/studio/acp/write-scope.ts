@@ -93,7 +93,10 @@ export type WriteScopeReason =
   /** Inside the root, but under a path that reaches EXECUTION — see
    *  `PROTECTED_IN_PROJECT`. In-project is a necessary condition for
    *  auto-approval, not a sufficient one. */
-  | 'in-project-denied';
+  | 'in-project-denied'
+  /** Inside a folder the person allowed AI to READ (S5.10, `ai/attach-grants.ts`). A read grant
+   *  never adds a write path — not even inside the project. */
+  | 'read-only-grant';
 
 export interface WriteScopeVerdict {
   /** True ONLY when every resolvable target is inside the pinned project root. */
@@ -371,10 +374,11 @@ export function pinScopeRoot(repoRoot: string): string {
 export function writeTargetsInsideProject(
   toolCall: ToolCallLike | null | undefined,
   scopeRoot: string,
-  toolName: unknown
+  toolName: unknown,
+  readOnlyRoots: readonly string[] = []
 ): WriteScopeVerdict {
   if (!isWriteToolName(toolName)) return { inside: false, reason: 'no-target', resolved: [] };
-  return resolveWriteTargets(toolCall, scopeRoot);
+  return resolveWriteTargets(toolCall, scopeRoot, readOnlyRoots);
 }
 
 /**
@@ -413,7 +417,8 @@ export function looksLikeWriteToolCall(toolCall: ToolCallLike | null | undefined
  */
 export function resolveWriteTargets(
   toolCall: ToolCallLike | null | undefined,
-  scopeRoot: string
+  scopeRoot: string,
+  readOnlyRoots: readonly string[] = []
 ): WriteScopeVerdict {
   const { fromLocations, fromRawInput } = collectTargets(toolCall);
   if (fromLocations.length === 0 && fromRawInput.length === 0) {
@@ -447,6 +452,20 @@ export function resolveWriteTargets(
   }
 
   const resolved = [...new Set([...resolvedLocations, ...resolvedRawInput])];
+  // S5.10 — a folder the person allowed AI to READ stays read-only, inside the project or not.
+  // Judged on the resolved target (symlinks followed by resolveRealPath) against each grant's real
+  // path, and the root itself counts: a grant never turns into a write path.
+  if (
+    readOnlyRoots.length &&
+    resolved.some((p) =>
+      readOnlyRoots.some((r) => {
+        const root = resolveRealPath(r, scopeRoot);
+        return p === root || isInsideRoot(p, root);
+      })
+    )
+  ) {
+    return { inside: false, reason: 'read-only-grant', resolved };
+  }
   // EVERY target must pass — a multi-location write with one escape is an escape.
   const inside = resolved.every((p) => isInsideRoot(p, scopeRoot));
   if (!inside) return { inside: false, reason: 'outside', resolved };

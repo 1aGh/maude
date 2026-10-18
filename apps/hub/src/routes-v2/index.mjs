@@ -35,7 +35,11 @@ import { hubAccessRefusal } from '../access-gate.mjs';
 import { ASSET_PRESENCE_ROWS } from '../asset-presence.mjs';
 import { CAPABILITIES } from '../role-matrix.mjs';
 import { ACCESS_ROWS } from './access.mjs';
+import { COMMENT_ROWS } from './comments.mjs';
 import { LEGACY_ROWS } from './legacy.mjs';
+import { PRESENT_ROWS } from './present.mjs';
+import { TRASH_ROWS } from './trash.mjs';
+import { VOTES_ROWS } from './votes.mjs';
 
 /** V2-1.16 U3 — the four scope classes. Anything else is unclassified. */
 export const SCOPES = Object.freeze(['none', 'canvas', 'filtered', 'project']);
@@ -47,6 +51,10 @@ export const HUB_ROUTE_ROWS = Object.freeze([
   ...LEGACY_ROWS,
   ...ACCESS_ROWS,
   ...ASSET_PRESENCE_ROWS, // S8.19
+  ...COMMENT_ROWS,
+  ...TRASH_ROWS,
+  ...VOTES_ROWS,
+  ...PRESENT_ROWS,
 ]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */

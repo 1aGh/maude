@@ -288,6 +288,12 @@ export interface Context {
         text: string,
         opts?: { baseText?: string; writeId?: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
+      /** S4.7 — several lanes of one canvas as ONE action (SyncRuntime / the local home). */
+      proposeLanes?(
+        slug: string,
+        lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+        opts: { kind: string; label: string; writeId?: string }
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeFolder. */
       proposeFolder?(
         op:
@@ -306,6 +312,12 @@ export interface Context {
         mine?: boolean;
       }): Promise<unknown[] | null>;
       acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+      acceptedLinkDocs?(): Promise<
+        { entry: string; path: string | null; retired: boolean }[] | null
+      >;
+      /** S1.18 — the shared Trash, where the home knows it (the local op log). */
+      acceptedTrashed?(entry: string): Promise<boolean>;
       acceptedRestore?(
         repoRel: string,
         revision: number
@@ -352,9 +364,17 @@ export interface Context {
             leases: Array<{ entry: string; artboard: string; token: number }>;
           };
         }
-      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+      ): Promise<{
+        status: 'accepted' | 'rejected';
+        code?: string;
+        actionId?: string;
+        /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+        touched?: Record<string, string[]>;
+      } | null>;
       /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
       claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+      /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+      acceptedCanvas?(repoRel: string): string | null;
       resolveAiAction?(
         choice: 'publish' | 'discard',
         runId?: string
@@ -362,6 +382,8 @@ export interface Context {
         status: 'accepted' | 'rejected' | 'discarded';
         code?: string;
         canvases?: number;
+        actionId?: string;
+        touched?: Record<string, string[]>;
       } | null>;
     } | null;
   };

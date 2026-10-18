@@ -94,6 +94,27 @@ describe('relaunch (native-desktop)', () => {
       interval: 500,
       timeoutMsg: 'the restored active tab never reached its server',
     });
+    // S1.22a (GAP-RELAUNCH-3): the front tab says what just happened, in the words of
+    // `tabsRestoredWords` (client/shell-events.js; pinned at model level by shell-events.test.ts).
+    // The shell sends `shell://tabs-restored {count}` to the active tab only, once, for two or more
+    // tabs; the toast is a notification card in the TOP document.
+    const reopened = '2 tabs reopened. Each one starts when you open it.';
+    await browser.switchToWindow(tabB);
+    await browser.waitUntil(
+      async () =>
+        browser.execute(
+          (want: string) =>
+            Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
+              (el.textContent ?? '').includes(want)
+            ),
+          reopened
+        ),
+      {
+        timeout: 30_000,
+        interval: 200,
+        timeoutMsg: `no on-screen toast said "${reopened}" in the restored front tab`,
+      }
+    );
     expect(await onSplash(tabA)).toBe(true);
     expect(await browser.execute(() => document.hidden)).toBe(true);
     await capture('relaunch-2-restored');
