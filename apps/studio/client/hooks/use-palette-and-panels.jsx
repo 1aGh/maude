@@ -29,7 +29,6 @@ import {
   stableLinkFor,
   takeOpenLinks,
 } from '../v2/canvases/open-link.js';
-import { normalizeOpenPath } from '../share-link.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
