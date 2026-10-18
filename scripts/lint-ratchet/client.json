@@ -74,9 +74,7 @@
     "apps/studio/client/panels/ChatPanel.jsx": {
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 1,
-      "lint/a11y/useKeyWithClickEvents": 3,
-      "lint/a11y/useSemanticElements": 2,
-      "lint/suspicious/noAssignInExpressions": 2
+      "lint/a11y/useKeyWithClickEvents": 1
     },
     "apps/studio/client/panels/ClipInspector.jsx": {
       "lint/a11y/noLabelWithoutControl": 8
@@ -175,6 +173,15 @@
       "lint/a11y/useAriaPropsSupportedByRole": 6,
       "lint/a11y/useButtonType": 1,
       "lint/a11y/useKeyWithClickEvents": 1
+    },
+    "apps/studio/client/v2/ai/Composer.jsx": {
+      "lint/a11y/useSemanticElements": 2
+    },
+    "apps/studio/client/v2/ai/Feed.jsx": {
+      "lint/a11y/useKeyWithClickEvents": 2
+    },
+    "apps/studio/client/v2/ai/paste-chips.jsx": {
+      "lint/suspicious/noAssignInExpressions": 2
     },
     "apps/studio/client/whats-new.jsx": {
       "lint/a11y/noStaticElementInteractions": 1

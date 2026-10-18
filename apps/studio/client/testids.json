@@ -966,7 +966,7 @@
     "pattern": false,
     "meaning": "The chat composer (input area).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "Composer"
     },
     "region": "chat/ACP",
@@ -985,8 +985,8 @@
     "pattern": false,
     "meaning": "The context chip in the composer (what the agent will see).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "Composer"
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1024,7 +1024,7 @@
     "pattern": false,
     "meaning": "One tool-call row inside a tool card.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "ChatToolCard"
     },
     "region": "chat/ACP",
@@ -1050,7 +1050,7 @@
     "pattern": false,
     "meaning": "The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "UserMessage"
     },
     "alsoProducedBy": [
@@ -1070,7 +1070,7 @@
     "pattern": false,
     "meaning": "The transcript menu button in the chat status row.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "StatusRow"
     },
     "region": "chat/ACP",
@@ -1083,7 +1083,7 @@
     "pattern": false,
     "meaning": "\"Chat info\" button in the chat footer.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "ChatFootInfo"
     },
     "region": "chat/ACP",
@@ -1096,7 +1096,7 @@
     "pattern": false,
     "meaning": "The chat info popover opened by `chat-foot-info-btn`.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "ChatFootInfo"
     },
     "region": "chat/ACP",
@@ -1109,7 +1109,7 @@
     "pattern": false,
     "meaning": "Rate-limit / usage banner in the chat.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "RateLimitBanner"
     },
     "region": "chat/ACP",
@@ -1122,7 +1122,7 @@
     "pattern": false,
     "meaning": "Error card in the chat transcript (`role=\"alert\"`).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
       "symbol": "ErrorCard"
     },
     "region": "chat/ACP",
@@ -1135,7 +1135,7 @@
     "pattern": false,
     "meaning": "Quick action \"implement comments\".",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
       "symbol": "QuickActions"
     },
     "region": "chat/ACP",
@@ -1148,7 +1148,7 @@
     "pattern": false,
     "meaning": "The slash-command popover (`role=\"listbox\"`).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "CommandPopover"
     },
     "region": "chat/ACP",
@@ -1161,7 +1161,7 @@
     "pattern": true,
     "meaning": "One slash-command item; `<name>` = command name with non-alphanumerics → `-`.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "CommandPopover"
     },
     "region": "chat/ACP",
@@ -4745,6 +4745,123 @@
     "v2": "stable"
   },
   {
+    "hook": "ai-chat-island",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat panel itself (the `aside` frame, landmark \"AI chat panel\"). Hidden, never unmounted, while folded.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AiChatIsland.jsx",
+      "symbol": "AiChatIsland"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scope chip's menu (`role=menu`): Whole canvas · the artboard in view · Choose artboards… · No canvas — just ask.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-scope-item-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the scope menu. `<id>` = whole | artboard:<artboardId> | choose | none; while choosing artboards: artboard-<artboardId> and done.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
+      "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The suggestion strip above the composer: up to three chips and one why line. `data-context` = comments | clips | shared | last-ask.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One suggestion chip (fills the composer, never sends). The comments chip keeps its v1 id `chat-qa-implement-comments`.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-suggest-why",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one quiet line that says why the suggestions are there (\"Because 3 comments are open on this canvas\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "SuggestStrip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The empty chat's hint line (\"Ask for a change, a few variants, or an answer.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Suggest.jsx",
+      "symbol": "ChatEmpty"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-canvas-unchanged",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The note that ends an answer which touched nothing: \"The canvas didn't change.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Feed.jsx",
+      "symbol": "AssistantMessage"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "dock-slot-<side>",
     "kind": "testid",
     "pattern": true,
@@ -5686,7 +5803,7 @@
     "pattern": false,
     "meaning": "The composer textarea.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "HighlightedInput"
     },
     "region": "chat/ACP",
@@ -5704,7 +5821,7 @@
     "pattern": false,
     "meaning": "Composer send button.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "Composer"
     },
     "region": "chat/ACP",
@@ -5720,7 +5837,7 @@
     "pattern": false,
     "meaning": "The composer's Stop button; rendered only while the thread is running.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "file": "apps/studio/client/v2/ai/Composer.jsx",
       "symbol": "Composer"
     },
     "region": "chat/ACP",
