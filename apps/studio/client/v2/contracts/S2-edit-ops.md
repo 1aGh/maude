@@ -106,9 +106,11 @@ The canvas (untrusted origin) never calls the route. It posts `edit-op` to the s
 | `edit-op` | c2s | `active` | `{ requestId, op, targets, params?, expectRev? }` |
 | `edit-op-result` | s2c | `parent` | `{ requestId } & EditOpResult` |
 
-The shell **sets `file` to the active canvas itself** — a canvas can only edit its own file — and refuses
-`op` values that are not in the op list it knows (`EDIT_OP_IDS`, shared from `edit-ops/types.ts`) before any
-request. The shell's role gate is the registry's (`enabled: EDITS`); the server refuses anyway.
+The shell **sets `file` to the active canvas itself** — a canvas can only edit its own file — and forwards
+only a request that `parseEditOpRequest` accepts (`client/edit-op-relay.ts`); the server re-parses and stays
+the authority (op table, role, holds, locks). The shell's role gate is the registry's (`enabled: EDITS`). The
+canvas side is `editing/index.tsx` `runEditOp(req)`: it posts, awaits the result by `requestId`, and on a
+legacy link pushes the §5 revert record onto the DDR-050 stack.
 
 ## 7. Selection payload (`select-set`)
 

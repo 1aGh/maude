@@ -1,0 +1,164 @@
+// routes/edit.ts — `POST /_api/edit-op` (S2.1; contract client/v2/contracts/S2-edit-ops.md).
+//
+// The ONE dispatch route for S2's structural writes and S3's links: the op name is the registry
+// action id, the writers are pure (`edit-ops/<op>.ts`), the order of refusals is the dispatcher's
+// (`edit-ops/dispatch.ts`). MAIN ORIGIN ONLY — in neither canvas allowlist; the untrusted canvas
+// iframe asks through the shell (`dgn:'edit-op'`, client/hooks/use-canvas-bridge.jsx) and the
+// shell pins `file` to the active canvas. `readOnly: 'refused'`: a viewer, a Can comment session
+// and a format-gated project get the read-only gate's 403 before this handler runs (minRole edit).
+//
+// One request = one file write = one kernel action (V2-1.5). Writes to one file are serialized.
+
+import { readFileSync, realpathSync, statSync } from 'node:fs';
+import path from 'node:path';
+
+import type { RunRegistry } from '../ai/runs.ts';
+import { type AiHoldHit, dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
+import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
+import { type EditOp, MAX_BODY } from '../edit-ops/types.ts';
+import type { RouteSpec } from './table.ts';
+
+const json = (status: number, body: unknown) =>
+  Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+
+export interface EditRouteDeps {
+  designRoot: string;
+  /** `.design` — a `file` may carry it as a prefix */
+  designRel: string;
+  repoRoot: string;
+  /** `activity:suppress` / `activity:unsuppress` on the studio bus (the base announcement) */
+  emit(event: string, payload?: unknown): void;
+  /** the pre-op snapshot for /design:rollback (best effort) */
+  snapshot?(rel: string, before: string, reason: string): Promise<unknown>;
+  /** THE run registry — AI holds (V2-1.15 §4 #13) */
+  runs?: Pick<RunRegistry, 'live' | 'view' | 'canvasKey'>;
+  /** accepted-revisions mode: the action a write became, by repo-relative path + bytes */
+  actionFor?(repoRel: string, after: string): string | null;
+  /** tests only: an op table instead of `EDIT_OPS` */
+  ops?: readonly EditOp[];
+  log?: WriteLog;
+}
+
+/**
+ * The live AI run that holds `element` of `rel` — S5.4's `heldByAi` (routes/agent.ts) shape: a
+ * running run's `objects` plus its scope elements; a waiting run holds nothing. A person's hold is
+ * never here (advisory). Replace with S5.4's export when integ-a2 lands (one implementation).
+ */
+export function aiHoldOf(
+  registry: Pick<RunRegistry, 'live' | 'view' | 'canvasKey'>,
+  rel: string,
+  element: string
+): AiHoldHit | null {
+  const key = registry.canvasKey(rel);
+  const on = (c: string) => c === key || c === rel;
+  for (const r of registry.live()) {
+    if (r.state === 'waiting') continue;
+    const refs = [...r.objects, ...(r.scope?.elements ?? [])];
+    if (refs.some((x) => on(x.canvas) && x.element === element)) return { mine: true };
+  }
+  for (const r of registry.view().others) {
+    if (r.state === 'waiting') continue;
+    if (r.objects.some((x) => on(x.canvas) && x.element === element)) return { mine: false };
+  }
+  return null;
+}
+
+/** designRoot-relative `.tsx` path of an existing canvas inside the design root, or null. */
+export function resolveCanvasRel(
+  designRoot: string,
+  designRel: string,
+  file: string
+): string | null {
+  let p = file.replace(/\\/g, '/').replace(/^\/+/, '');
+  const dr = designRel.replace(/^\.\//, '').replace(/^\/+|\/+$/g, '');
+  if (dr && p.startsWith(`${dr}/`)) p = p.slice(dr.length + 1);
+  if (!p.endsWith('.tsx')) p = `${p}.tsx`;
+  if (p.split('/').some((s) => s === '' || s === '.' || s === '..')) return null;
+  // Runtime state is never a canvas (DDR-115: `_history/`, `_draw/`, …).
+  if (p.startsWith('_')) return null;
+  try {
+    const root = realpathSync(designRoot);
+    const real = realpathSync(path.join(designRoot, ...p.split('/')));
+    if (!real.startsWith(root + path.sep) || !statSync(real).isFile()) return null;
+    return path.relative(root, real).split(path.sep).join('/');
+  } catch {
+    return null;
+  }
+}
+
+export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
+  const log = deps.log ?? createWriteLog();
+  const chains = new Map<string, Promise<unknown>>();
+  const abs = (rel: string) => path.join(deps.designRoot, ...rel.split('/'));
+  const serialized = <T>(key: string, run: () => Promise<T>): Promise<T> => {
+    const prev = chains.get(key) ?? Promise.resolve();
+    const next = prev.catch(() => {}).then(run);
+    chains.set(key, next);
+    void next.finally(() => {
+      if (chains.get(key) === next) chains.delete(key);
+    });
+    return next;
+  };
+
+  return [
+    {
+      method: 'POST',
+      path: '/_api/edit-op',
+      origin: 'main',
+      readOnly: 'refused',
+      handle: async (req) => {
+        if (Number(req.headers.get('content-length')) > MAX_BODY)
+          return json(413, { ok: false, code: 'invalid', message: 'That edit is too large.' });
+        const text = await req.text();
+        if (text.length > MAX_BODY)
+          return json(413, { ok: false, code: 'invalid', message: 'That edit is too large.' });
+        let body: unknown;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          return json(400, { ok: false, code: 'invalid', message: 'The edit is not readable.' });
+        }
+        const file = (body as { file?: unknown } | null)?.file;
+        const key =
+          typeof file === 'string'
+            ? (resolveCanvasRel(deps.designRoot, deps.designRel, file) ?? '')
+            : '';
+        const result = await serialized(key, () =>
+          dispatchEditOp(body, {
+            resolve: (f) => resolveCanvasRel(deps.designRoot, deps.designRel, f),
+            read: (rel) => {
+              try {
+                return readFileSync(abs(rel), 'utf8');
+              } catch {
+                return null;
+              }
+            },
+            write: async (rel, before, after, label) => {
+              deps.emit('activity:suppress', rel);
+              try {
+                await Bun.write(abs(rel), after);
+              } catch (e) {
+                deps.emit('activity:unsuppress', rel);
+                throw e;
+              }
+              try {
+                await deps.snapshot?.(rel, before, label);
+              } catch {
+                /* snapshot best-effort */
+              }
+            },
+            heldByAi: (rel, element) => (deps.runs ? aiHoldOf(deps.runs, rel, element) : null),
+            actionFor: (rel, after) =>
+              deps.actionFor?.(
+                path.relative(deps.repoRoot, abs(rel)).split(path.sep).join('/'),
+                after
+              ) ?? null,
+            log,
+            ...(deps.ops ? { ops: deps.ops } : {}),
+          })
+        );
+        return json(statusOf(result), result);
+      },
+    },
+  ];
+}
