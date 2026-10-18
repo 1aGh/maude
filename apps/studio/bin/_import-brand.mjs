@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Window } from 'happy-dom';
+import { classifyFontFamilyList } from './_brand-fonts.mjs';
 import { withSandboxedRender } from './_import-asset.mjs';
 import { isValidColorValue } from './_import-tokens.mjs';
 
@@ -37,159 +38,9 @@ export class ImportBrandError extends Error {
 // Exit codes: 0 ok · 2 usage · 3 validation/hardening reject · 4 read/parse
 // error · 6 write/containment error · 1 other.
 
-// ============================================================================
-// Decision 1 — font-family classification: exact match against a curated
-// allowlist of real, known font names. The RAW extracted string is NEVER
-// forwarded — only the matched entry from this list, or a fixed generic
-// keyword. A value that doesn't exact-match is discarded, never guessed.
-// ============================================================================
-
-export const FONT_ALLOWLIST = [
-  // System / web-safe
-  'Arial',
-  'Helvetica',
-  'Helvetica Neue',
-  'Times New Roman',
-  'Times',
-  'Georgia',
-  'Verdana',
-  'Tahoma',
-  'Trebuchet MS',
-  'Courier New',
-  'Courier',
-  'Impact',
-  'Comic Sans MS',
-  'Lucida Console',
-  'Lucida Sans Unicode',
-  'Palatino',
-  'Garamond',
-  'Book Antiqua',
-  'Segoe UI',
-  'Calibri',
-  'Cambria',
-  'Candara',
-  'Consolas',
-  'Constantia',
-  'Corbel',
-  'Franklin Gothic Medium',
-  // Common web fonts (Google Fonts + popular type foundries)
-  'Inter',
-  'Inter Tight',
-  'Roboto',
-  'Roboto Mono',
-  'Roboto Condensed',
-  'Open Sans',
-  'Lato',
-  'Montserrat',
-  'Poppins',
-  'Source Sans Pro',
-  'Source Serif Pro',
-  'Source Code Pro',
-  'Nunito',
-  'Nunito Sans',
-  'Raleway',
-  'Ubuntu',
-  'Playfair Display',
-  'Merriweather',
-  'PT Sans',
-  'PT Serif',
-  'Work Sans',
-  'DM Sans',
-  'DM Serif Display',
-  'Space Grotesk',
-  'Space Mono',
-  'IBM Plex Sans',
-  'IBM Plex Serif',
-  'IBM Plex Mono',
-  'JetBrains Mono',
-  'Fira Sans',
-  'Fira Code',
-  'Fira Mono',
-  'Noto Sans',
-  'Noto Serif',
-  'Oswald',
-  'Bebas Neue',
-  'Archivo',
-  'Archivo Black',
-  'Manrope',
-  'Karla',
-  'Rubik',
-  'Barlow',
-  'Cabin',
-  'Quicksand',
-  'Josefin Sans',
-  'Libre Franklin',
-  'Libre Baskerville',
-  'Crimson Text',
-  'EB Garamond',
-  'Cormorant',
-  'Cormorant Garamond',
-  'Lora',
-  'Bitter',
-  'Zilla Slab',
-  'Domine',
-  'Spectral',
-  'Alegreya',
-  'Vollkorn',
-  'Geist',
-  'Geist Mono',
-  'SF Mono',
-  'SF Pro',
-  'SF Pro Display',
-  'SF Pro Text',
-  'Menlo',
-  'Monaco',
-  'Cooper Black',
-  'Futura',
-  'Gotham',
-  'Din',
-  'DIN Next',
-  'Avenir',
-  'Avenir Next',
-  'Proxima Nova',
-  'Circular',
-  'Neue Haas Grotesk',
-].map((n) => Object.freeze(n));
-
-const FONT_GENERIC_KEYWORDS = new Set([
-  'serif',
-  'sans-serif',
-  'monospace',
-  'system-ui',
-  'ui-monospace',
-  'ui-sans-serif',
-  'ui-serif',
-  'cursive',
-  'fantasy',
-]);
-
-const FONT_ALLOWLIST_LOWER = new Map(FONT_ALLOWLIST.map((n) => [n.toLowerCase(), n]));
-
-/**
- * Decision 1 — classify a font-family LIST value (comma-separated, as found
- * in an SVG `font-family` attribute — no CSS quoting assumed). Returns ONLY
- * entries that exact-match (case-insensitive, plain ASCII lowercase — never
- * a locale-sensitive fold) the curated allowlist or a fixed generic keyword;
- * unmatched entries are dropped silently (never fuzzy-matched, never
- * forwarded raw). Grammar gate runs first: any entry containing a
- * non-printable-ASCII character is rejected before the match ever runs.
- */
-export function classifyFontFamilyList(rawValue) {
-  if (typeof rawValue !== 'string') return [];
-  const entries = rawValue.split(',').map((s) => s.trim().replace(/^["']|["']$/g, ''));
-  const matched = [];
-  for (const entry of entries) {
-    if (!/^[\x20-\x7E]*$/.test(entry) || entry.length === 0 || entry.length > 64) continue;
-    const lower = entry.toLowerCase();
-    if (FONT_GENERIC_KEYWORDS.has(lower)) {
-      matched.push(lower);
-      continue;
-    }
-    const canonical = FONT_ALLOWLIST_LOWER.get(lower);
-    if (canonical) matched.push(canonical);
-  }
-  return matched;
-}
+// Decision 1 — the font allowlist + classifier live in _brand-fonts.mjs (pure, S8.18); re-exported
+// here so every existing importer is unchanged.
+export { classifyFontFamilyList, FONT_ALLOWLIST } from './_brand-fonts.mjs';
 
 // ============================================================================
 // Decision 6 — exhaustive per-attribute-type grammar for the `--from-brand`
@@ -549,7 +400,7 @@ export async function importBrand({ sanitizedSvgPath, root, designRootRel = '.de
 // ============================================================================
 
 function parseArgv(argv) {
-  const out = { file: null, root: null, designRoot: '.design', json: false };
+  const out = { file: null, url: null, root: null, designRoot: '.design', json: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     switch (a) {
@@ -558,6 +409,10 @@ function parseArgv(argv) {
         break;
       case '--design-root':
         out.designRoot = argv[++i];
+        break;
+      // S8.18 — a website, read through the fetch-asset gate (_brand-site.mjs)
+      case '--url':
+        out.url = argv[++i] ?? '';
         break;
       case '--json':
         out.json = true;
@@ -579,6 +434,7 @@ const HELP = `import-brand — brand-file typed-cue extraction (reached via \`ma
 
 Usage:
   maude design import-brand <sanitized-svg-path> --root <repo> [--design-root .design] [--json]
+  maude design import-brand [<sanitized-svg-path>] --url <website> --root <repo>
 
 Extracts palette + font-family cues from a LOGO SVG that has ALREADY been
 sanitized by \`maude design import-asset\` (DDR-167) — never re-reads or
@@ -588,6 +444,13 @@ DDR-173 Decision 6), writes it to <designRoot>/assets/logos/<sha8>.svg, and
 rasterizes a PNG fallback when the logo's wordmark was live text. Prints the
 typed payload \`{ palette, fonts, logoRef, logoRasterRef }\` for the caller to
 seed into the ux-research-agent discovery payload — see DDR-173.
+
+--url reads the website's colours and fonts (S8.18) through the fetch-asset gate: https
+only, public addresses only, every redirect re-checked, 2 MB / 20 s caps. Only typed
+values come back — \`#rrggbb\` colours and allowlisted font names, never page text.
+The result adds \`site\` ({ ok, host, palette, fonts } or { ok: false, host, reason })
+and \`colours\` (named, with roles: accent / text / background / second / none).
+Exit 5 when only --url was given and the site could not be read.
 
 Exit: 0 ok · 2 usage · 3 validation/hardening reject · 4 read/parse error ·
       6 write/containment error · 1 other.`;
@@ -604,11 +467,15 @@ async function main() {
     process.stdout.write(`${HELP}\n`);
     return;
   }
-  if (!opts.file) {
-    process.stderr.write('import-brand: <sanitized-svg-path> required\n');
+  if (!opts.file && opts.url === null) {
+    process.stderr.write('import-brand: <sanitized-svg-path> or --url <website> required\n');
     process.exit(2);
   }
   const root = opts.root || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  if (opts.url !== null) {
+    await runWithUrl(opts, root);
+    return;
+  }
   try {
     const result = await importBrand({
       sanitizedSvgPath: opts.file,
@@ -620,6 +487,23 @@ async function main() {
     process.stderr.write(`import-brand: ${err.message}\n`);
     process.exit(err instanceof ImportBrandError ? err.code : 1);
   }
+}
+
+// S8.18 — `--url` (with or without a logo): the same request body the studio's sheet posts.
+async function runWithUrl(opts, root) {
+  const { importBrandRequest } = await import('./_brand-site.mjs');
+  const { relative } = await import('node:path');
+  let assetPath;
+  if (opts.file) {
+    const designAbs = resolve(root, opts.designRoot);
+    assetPath = relative(designAbs, resolve(opts.file)).split(sep).join('/');
+  }
+  const { status, body } = await importBrandRequest(
+    { url: opts.url, ...(assetPath !== undefined ? { assetPath } : {}) },
+    { repoRoot: root, designRel: opts.designRoot }
+  );
+  process.stdout.write(`${JSON.stringify(body)}\n`);
+  if (status >= 400) process.exit(status === 422 ? 5 : status === 404 ? 4 : 3);
 }
 
 // import.meta.main is the reliable "am I the entry module?" flag under bun

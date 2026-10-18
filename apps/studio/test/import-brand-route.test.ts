@@ -105,6 +105,56 @@ describe('POST /_api/import-brand', () => {
     }
   }, 30_000);
 
+  // S8.18 — the url body, through the real booted server and real DNS: a private address (or a
+  // name for one) is refused by the fetch-asset gate, answered as typed data (no page text).
+  test('a website on a private address is refused, and a logo beside it is kept', async () => {
+    const { root } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      const base = `http://localhost:${port}`;
+      for (const url of [
+        `https://127.0.0.1:${port}/`,
+        'https://localhost/',
+        'http://169.254.169.254/',
+      ]) {
+        const res = await fetch(`${base}/_api/import-brand`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: base },
+          body: JSON.stringify({ url }),
+        });
+        expect(res.status).toBe(422);
+        const body = (await res.json()) as { ok: boolean; code: string; site: { reason: string } };
+        expect(body.ok).toBe(false);
+        expect(body.code).toBe('site-unreadable');
+        expect(body.site.reason).toBe('refused');
+      }
+
+      const importAsset = await fetch(`${base}/_api/import-asset`, {
+        method: 'POST',
+        headers: { 'X-Import-Kind': 'svg', Origin: base },
+        body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff6f61"/></svg>',
+      });
+      const { path } = (await importAsset.json()) as { path: string };
+      const both = await fetch(`${base}/_api/import-brand`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: base },
+        body: JSON.stringify({ assetPath: path, url: 'https://localhost/' }),
+      });
+      expect(both.status).toBe(201);
+      const b = (await both.json()) as {
+        palette: string[];
+        site: { ok: boolean; reason: string };
+        colours: { value: string; role: string }[];
+      };
+      expect(b.palette).toContain('#ff6f61');
+      expect(b.site).toMatchObject({ ok: false, reason: 'refused' });
+      expect(b.colours[0]).toMatchObject({ value: '#ff6f61', role: 'accent' });
+    } finally {
+      await killProc(proc);
+    }
+  }, 45_000);
+
   test('rejects GET', async () => {
     const { root } = makeSandbox();
     const port = nextPort();

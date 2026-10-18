@@ -74,6 +74,8 @@
 /* S3.5 — Present ⌄ › Order and notes…: the order, the skipped artboards and the speaker notes. */
 @import url("../v2/present/order-notes.css");
 @import url("../v2/present/presenter-view.css");
+/* S8.18 — Import a brand: drop a logo or type a website, Reading, the result with roles + preview. */
+@import url("../v2/import/brand.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
 /* S11.1 — the empty kit: Empty, Spot (the one spring), Ask AI, Suggestions, arriving rows (client/v2/empty/). */
