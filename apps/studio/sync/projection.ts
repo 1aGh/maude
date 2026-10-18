@@ -181,6 +181,21 @@ export interface ProposalOutcome {
   head?: string;
   /** On acceptance: the project action that carries it (T26 — Cmd+Z binds to it). */
   actionId?: string;
+  /**
+   * S9.24 — accepted with elements HELD at the head's version (sync/object-conflict.ts): both
+   * sides changed them. The proposal's board is kept aside in the same action; the card offers
+   * Keep yours / Keep theirs / Keep both.
+   */
+  objectConflicts?: HeldObjectConflict[];
+}
+
+/** One held element as the kernel answers it (`merged[].conflicts`). */
+export interface HeldObjectConflict {
+  id: string;
+  type: string;
+  fields: string[];
+  mine: Record<string, unknown> | null;
+  theirs: Record<string, unknown> | null;
 }
 
 export interface LaneProposal {

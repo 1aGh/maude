@@ -26,7 +26,12 @@ import path from 'node:path';
 
 import type { TrashListing } from '../history/trash.ts';
 import { type ActionStageOptions, createActionStage, type StageSummary } from './action-stage.ts';
-import type { AcceptedLaneLink, LaneProposal, ProposalOutcome } from './projection.ts';
+import type {
+  AcceptedLaneLink,
+  HeldObjectConflict,
+  LaneProposal,
+  ProposalOutcome,
+} from './projection.ts';
 import {
   type Bootstrap,
   createTransactionClient,
@@ -85,6 +90,33 @@ const LANE_LABEL: Record<LaneProposal['lane'], string> = {
   annotations: 'Edit annotations',
   comments: 'Edit comments',
 };
+
+/**
+ * S9.24 — the elements the kernel held at the head's version (`merged[].conflicts`), shape-checked:
+ * the answer is the hub's, and only a well-formed record may reach the card.
+ */
+export function heldObjects(r: ProposalResult): { objectConflicts?: HeldObjectConflict[] } {
+  const out: HeldObjectConflict[] = [];
+  const isRec = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === 'object' && !Array.isArray(v);
+  for (const m of Array.isArray(r.merged) ? r.merged : []) {
+    const list = (m as { conflicts?: unknown }).conflicts;
+    if (!Array.isArray(list)) continue;
+    for (const c of list.slice(0, 200)) {
+      if (!isRec(c) || typeof c.id !== 'string' || typeof c.type !== 'string') continue;
+      out.push({
+        id: c.id,
+        type: c.type,
+        fields: Array.isArray(c.fields)
+          ? c.fields.filter((f): f is string => typeof f === 'string')
+          : [],
+        mine: isRec(c.mine) ? c.mine : null,
+        theirs: isRec(c.theirs) ? c.theirs : null,
+      });
+    }
+  }
+  return out.length ? { objectConflicts: out } : {};
+}
 
 export function createAcceptedLink(opts: AcceptedLinkOptions) {
   const log = opts.log ?? console;
@@ -271,6 +303,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     ...(r.code ? { code: r.code } : {}),
     ...(typeof r.head === 'string' ? { head: r.head } : {}),
     ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+    ...heldObjects(r),
   });
 
   function laneLink(slug: string): AcceptedLaneLink {
@@ -295,6 +328,9 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
                 content: p.content,
                 baseContent: p.baseContent,
                 ...(p.writeId ? { writeId: p.writeId } : {}),
+                // S9.24 — an element both sides changed is held, never char-merged into a third
+                // text nobody wrote (sync/object-conflict.ts). A v1 hub ignores the field.
+                ...(p.lane === 'annotations' ? { objects: 'hold' } : {}),
               },
             ],
           }).then(outcome);

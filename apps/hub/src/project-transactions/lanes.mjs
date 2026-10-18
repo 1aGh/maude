@@ -23,6 +23,7 @@ import {
   MAX_HTML_BYTES,
   MAX_META_BYTES,
 } from '../../../studio/sync/limits.ts';
+import { mergeHoldingObjects } from '../../../studio/sync/object-conflict.ts';
 import { mergeSource } from '../../../studio/sync/source-merge.ts';
 import { sourceError } from '../../../studio/sync/source-validation.ts';
 
@@ -179,8 +180,13 @@ function mergeById(base, ours, theirs) {
  * Merge `ours` (the proposal) and `theirs` (the current head), both derived
  * from `base`. `{ok:true, content}` or `{ok:false}` — an overlap is a
  * `base-conflict` for the caller, never a guess.
+ *
+ * S9.24 — `holdObjects` (a v2 proposal's `objects: 'hold'`): on the annotations
+ * lane, an element both sides changed in a way that cannot keep both is HELD at
+ * the head's version and reported in `conflicts` (sync/object-conflict.ts). A
+ * proposal without the flag (every v1 peer) merges exactly as before.
  */
-export function mergeLane(lane, base, ours, theirs) {
+export function mergeLane(lane, base, ours, theirs, { holdObjects = false } = {}) {
   if (ours === theirs || theirs === base) return { ok: true, content: ours };
   if (ours === base) return { ok: true, content: theirs };
   if (lane === 'html' || lane === 'css') {
@@ -192,6 +198,14 @@ export function mergeLane(lane, base, ours, theirs) {
     // head as element ops: different elements / fields never conflict, the
     // same field follows acceptance order, the same text merges by character.
     const board = (t) => new Map(boardElements(t).map((e) => [e.id, e]));
+    if (holdObjects) {
+      const h = mergeHoldingObjects(board(base), board(ours), board(theirs));
+      return {
+        ok: true,
+        content: h.elements.length ? serializeBoard(h.elements) : '',
+        conflicts: h.conflicts,
+      };
+    }
     const ops = diffToOps(board(base), board(ours));
     const r = applyOps(board(theirs), ops);
     return { ok: true, content: r.state.size ? serializeBoard([...r.state.values()]) : '' };
