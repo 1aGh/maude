@@ -100,6 +100,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
@@ -110,7 +111,10 @@ import {
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
+import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
 import { usePresentStage } from './present/present-stage.tsx';
+import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
+import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
@@ -950,7 +954,12 @@ export interface ViewportControllerOptions {
    * state. Omit / return `false` to keep the Phase-4 behavior (drag only
    * with Space or middle-mouse).
    */
-  isPanDragActive?: () => boolean;
+  isPanDragActive?: (e: PointerEvent) => boolean;
+  /**
+   * S3.9 (Preview) — true hands this wheel event to the design underneath instead of panning (a web
+   * artboard scrolling inside itself). Read per event; omit to keep today's wheel (always the canvas').
+   */
+  wheelPassthrough?: (e: WheelEvent) => boolean;
 }
 
 export interface ViewportControllerHandle {
@@ -1129,9 +1138,12 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     onSettle,
     jumpTargets,
     isPanDragActive,
+    wheelPassthrough,
   } = opts;
-  const isPanDragActiveRef = useRef<(() => boolean) | undefined>(isPanDragActive);
+  const isPanDragActiveRef = useRef<((e: PointerEvent) => boolean) | undefined>(isPanDragActive);
   isPanDragActiveRef.current = isPanDragActive;
+  const wheelPassthroughRef = useRef<((e: WheelEvent) => boolean) | undefined>(wheelPassthrough);
+  wheelPassthroughRef.current = wheelPassthrough;
 
   // Canonical viewport in a ref — synchronous, drives the world transform.
   const vpRef = useRef<ViewportState>({ x: 0, y: 0, zoom: 1 });
@@ -1592,7 +1604,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // signals hand-mode via `isPanDragActive`. Read per-event so the live
       // tool state controls the gate.
       const isLeftWithHandTool =
-        e.button === 0 && !spaceHeld.current && !!isPanDragActiveRef.current?.();
+        e.button === 0 && !spaceHeld.current && !!isPanDragActiveRef.current?.(e);
       if (!isMiddle && !isLeftWithSpace && !isLeftWithHandTool) return;
       e.preventDefault();
       try {
@@ -1689,6 +1701,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const doc = host.ownerDocument || document;
     const captureWheel = (e: WheelEvent) => {
       if (!host.contains(e.target as Node)) return;
+      if (wheelPassthroughRef.current?.(e)) return; // S3.9: Preview — the design scrolls itself
       onWheel(e);
     };
     const captureKeyDown = (e: KeyboardEvent) => {
@@ -2159,7 +2172,16 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   const toolModeCtx = useToolModeOptional();
   const toolRef = useRef(toolModeCtx?.tool ?? 'move');
   toolRef.current = toolModeCtx?.tool ?? 'move';
-  const isPanDragActive = useCallback(() => toolRef.current === 'hand', []);
+  // S3.9 — Hand pans anywhere; Preview's Hand (`browse`) pans only off the design (V2-1.2 Q3).
+  const isPanDragActive = useCallback(
+    (e: PointerEvent) => dragPansCanvas(toolRef.current, isDesignSurface(e.target)),
+    []
+  );
+  // S3.9 — a web artboard scrolls inside itself in Preview; any other wheel pans as before.
+  const wheelPassthrough = useCallback(
+    (e: WheelEvent) => previewWheelPassthrough(e, canvasModeStore(window).get().mode),
+    []
+  );
 
   const controller = useViewportController({
     hostRef,
@@ -2169,6 +2191,19 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     onSettle,
     jumpTargets: artboards,
     isPanDragActive,
+    wheelPassthrough,
+  });
+
+  // S3.9 — Edit ⇄ Preview: the camera eases onto the artboard in view, once (preview/preview-camera.tsx).
+  usePreviewCamera({
+    hostRef,
+    artboards,
+    controller,
+    getCamera: getLiveViewport,
+    fit: (rect) => {
+      const host = hostRef.current;
+      return host ? computeFit([rect], host, 24, canvasInsets()) : { x: 0, y: 0, zoom: 1 };
+    },
   });
 
   // V2-1.2 §5.6 I2 — boot re-fit, once only. The shell's first `occluded-insets` usually lands after
@@ -2350,6 +2385,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
           ToolPalette's inline zoom is removed in tool-palette.tsx). It carries
           MORE than the mock — fit + actual-size — so no capability is lost. */}
       {showZoom ? <DCZoomToolbar /> : null}
+      <ViewportZoomReporter />
     </div>
   );
 
@@ -4087,7 +4123,9 @@ export function DCZoomToolbar() {
   // Before the early returns — hooks cannot sit behind a branch. Live, because
   // a zoom readout that only updates on settle reads as a frozen UI.
   const liveVp = useLiveViewport();
-  if (!controller) return null;
+  // S3.9 — Preview shows the shell's ZoomOnly readout instead (04 md-preview), so this pill steps aside.
+  const previewing = usePreviewing();
+  if (!controller || previewing) return null;
   // Menubar "View ▸ Zoom controls" toggle + Presentation Mode.
   if (chrome && (!chrome.zoom || chrome.present)) return null;
   const pct = Math.round(liveVp.zoom * 100);
@@ -4117,6 +4155,37 @@ export function DCZoomToolbar() {
   );
 }
 DCZoomToolbar.displayName = 'DCZoomToolbar';
+
+/**
+ * S3.9 — tells the shell the zoom (`viewport-zoom`): its ZoomOnly readout in Preview (and ZoomUndo later)
+ * draws it. `useLiveViewport` is the same ≤ 20 Hz cadence the pill above reads — live during a gesture,
+ * the settled value after — and an unchanged percentage posts nothing.
+ */
+function ViewportZoomReporter() {
+  const vp = useLiveViewport();
+  // A fresh `set-mode` (the shell seeds a canvas that just became the active one) re-posts the zoom: the
+  // shell only listens to the ACTIVE canvas, so a background canvas' last post was dropped.
+  const store = typeof window === 'undefined' ? null : canvasModeStore(window);
+  const modeSeq = useSyncExternalStore(
+    store ? store.subscribe : () => () => {},
+    () => (store ? store.get().modeSeq : -1),
+    () => -1
+  );
+  const lastKey = useRef('');
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}`;
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+    try {
+      window.parent.postMessage({ dgn: 'viewport-zoom', zoom: vp.zoom }, '*');
+    } catch {
+      /* detached */
+    }
+  }, [vp.zoom, modeSeq]);
+  return null;
+}
+ViewportZoomReporter.displayName = 'ViewportZoomReporter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Specimen helpers
