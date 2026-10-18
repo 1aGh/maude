@@ -7,6 +7,11 @@
 //   it ends                         the last frame stays up (nothing seeks it back); → moves on
 //   `present-media`                 {playing, t, duration, muted} to the shell: its transport mirrors it
 //   `present-media-cmd`             the shell's transport (and presenter view's `mute`) drives it
+//   a file that is not here         the clip's media fails to load (S3.8, md-edge-offline): it HOLDS its first
+//                                   frame — paused on frame 0, never played — and `present-media` says
+//                                   `missing`; the audience window runs this same engine, so it holds too.
+//                                   `sources` names the media files the clip uses: the shell checks them
+//                                   against what is on this Mac (media-presence.ts) to tell the presenter why.
 //
 // The clip is found by its artboard in the registry video-comp.tsx fills (`__maudeVideoComps`); this file
 // drives the Remotion Player through the same handle the Timeline uses, so there is no second playback
@@ -50,7 +55,22 @@ export interface MediaState {
   t: number;
   duration: number;
   muted: boolean;
+  /** S3.8 — the media files the clip uses (src URLs, ≤ MAX_SOURCES). Absent until the Player has mounted them. */
+  sources?: string[];
+  /** S3.8 — true once the clip's media failed to load: it holds its first frame. */
+  missing?: true;
 }
+
+/** S3.8 — the media elements of one artboard, watched for a load failure (present-stage.tsx wires the DOM). */
+export interface MediaWatch {
+  /** The media files in use now. */
+  sources(): string[];
+  /** Stop watching. */
+  off(): void;
+}
+
+/** The most `sources` the engine reports (the `present-media` row refuses more). */
+export const MAX_SOURCES = 8;
 
 export interface MediaDeps {
   /** The window that listens for the shell's `present-media-cmd`. Absent: no listener (tests). */
@@ -59,6 +79,11 @@ export interface MediaDeps {
   post(msg: Record<string, unknown>): void;
   setTimer(fn: () => void, ms: number): number;
   clearTimer(handle: number): void;
+  /**
+   * S3.8 — watch the presented artboard's media elements: `onFail` runs when one fails to load (or already
+   * had). Absent: no watching, so nothing is ever held (the engine's older tests).
+   */
+  watch?(artboardId: string, onFail: () => void): MediaWatch;
 }
 
 /** What the Present stage calls (present-stage.tsx `StageDeps.media`). */
@@ -89,8 +114,53 @@ const EVENTS = ['play', 'pause', 'ended', 'volumechange', 'timeupdate', 'seeked'
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+const MEDIA_SELECTOR = 'video, audio';
+
+/** True when a media element has already failed to load its file. */
+function failed(el: Element): boolean {
+  return !!(el as HTMLMediaElement).error;
+}
+
+/**
+ * S3.8 — the DOM half of `MediaDeps.watch`: the `<video>`/`<audio>` elements inside the artboard's
+ * `[data-dc-screen]` frame. A media element's `error` does not bubble, so one capturing listener on the
+ * frame hears every element in it, however late the Player mounts them.
+ */
+export function watchArtboardMedia(
+  doc: Document,
+  artboardId: string,
+  onFail: () => void
+): MediaWatch {
+  const frame =
+    [...doc.querySelectorAll('[data-dc-screen]')].find(
+      (e) => e.getAttribute('data-dc-screen') === artboardId
+    ) ?? null;
+  if (!frame) return { sources: () => [], off: () => {} };
+  const onError = (e: Event) => {
+    const t = e.target as Element | null;
+    if (t?.matches?.(`${MEDIA_SELECTOR}, source`)) onFail();
+  };
+  frame.addEventListener('error', onError, true);
+  if ([...frame.querySelectorAll(MEDIA_SELECTOR)].some(failed)) onFail();
+  return {
+    sources: () => {
+      const out: string[] = [];
+      for (const el of frame.querySelectorAll(MEDIA_SELECTOR)) {
+        const m = el as HTMLMediaElement;
+        const src = m.currentSrc || m.getAttribute('src') || m.querySelector('source')?.src || '';
+        if (src && src.length <= 400 && !out.includes(src)) out.push(src);
+      }
+      return out.slice(0, MAX_SOURCES);
+    },
+    off: () => frame.removeEventListener('error', onError, true),
+  };
+}
+
 export function createPresentMedia(deps: MediaDeps): PresentMedia {
-  let cur: { clip: ClipRef; p: PlayerLike; off: () => void } | null = null;
+  let cur: { clip: ClipRef; p: PlayerLike; off: () => void; watch: MediaWatch | null } | null =
+    null;
+  /** S3.8 — the clip's media failed to load: it holds frame 0 until the artboard changes. */
+  let missing = false;
   /** The presenter wants it playing (a click or a pause command sets it false). */
   let wantPlaying = false;
   let ended = false;
@@ -123,11 +193,14 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
     const fps = clip.fps > 0 ? clip.fps : 30;
     const duration = Math.min(86400, clip.durationInFrames / fps);
     const raw = ended ? duration : p.getCurrentFrame() / fps;
+    const sources = (cur.watch?.sources() ?? []).slice(0, MAX_SOURCES);
     return {
       playing: p.isPlaying(),
       t: r2(Math.min(duration, Math.max(0, raw))),
       duration: r2(duration),
       muted: p.isMuted(),
+      ...(sources.length ? { sources } : {}),
+      ...(missing ? { missing: true as const } : {}),
     };
   };
 
@@ -135,7 +208,7 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
   const echo = () => {
     const s = state();
     if (!s) return;
-    const key = `${s.playing}|${s.t}|${s.duration}|${s.muted}`;
+    const key = `${s.playing}|${s.t}|${s.duration}|${s.muted}|${s.missing ?? ''}|${(s.sources ?? []).join('\n')}`;
     if (key === last) return;
     last = key;
     deps.post({ dgn: 'present-media', ...s });
@@ -166,13 +239,30 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
     clearTimers();
     gen += 1;
     cur?.off();
+    cur?.watch?.off();
     const was = cur;
     cur = null;
     wantPlaying = false;
+    missing = false;
     return was;
   };
 
-  const begin = (clip: ClipRef, p: PlayerLike) => {
+  /** S3.8 — the media will not load: stop on the first frame and say so. Once per clip. */
+  const hold = () => {
+    if (!cur || missing) return;
+    missing = true;
+    wantPlaying = false;
+    const { p } = cur;
+    try {
+      p.pause();
+      p.seekTo(0);
+    } catch {
+      /* the Player is mid-mount: it was never going to show more than its first frame */
+    }
+    echo();
+  };
+
+  const begin = (clip: ClipRef, p: PlayerLike, artboardId: string) => {
     const onEvent = (ev: string) => () => {
       if (ev === 'ended') ended = true;
       else if (ev === 'play' || ev === 'seeked') ended = false;
@@ -192,7 +282,9 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
           }
         }
       },
+      watch: null,
     };
+    missing = false;
     ended = false;
     last = '';
     if (!originals.has(p)) originals.set(p, { frame: p.getCurrentFrame(), muted: p.isMuted() });
@@ -204,12 +296,20 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
     }
     applySound(p);
     playNow(p);
+    // S3.8 — a media file that is not here holds the first frame (a failure already on the page runs `hold`
+    // from inside the watch, after the play above, so it always wins).
+    const watch = deps.watch?.(artboardId, hold) ?? null;
+    if (cur) cur.watch = watch;
+    else watch?.off();
     echo();
     // A Player that took the call and played nothing (sound refused where it cannot throw): once, muted.
     const mine = gen;
     later(() => {
       if (mine !== gen || !cur || !wantPlaying) return;
-      if (cur.p.isPlaying()) return;
+      if (cur.p.isPlaying()) {
+        echo(); // the Player has mounted its media by now: report the files it uses
+        return;
+      }
       try {
         if (!cur.p.isMuted()) cur.p.mute();
         cur.p.play();
@@ -249,7 +349,7 @@ export function createPresentMedia(deps: MediaDeps): PresentMedia {
         if (mine !== gen) return;
         const p = clip.ref.current;
         if (p) {
-          begin(clip, p);
+          begin(clip, p, artboardId);
           return;
         }
         if (left > 0) later(() => tryMount(left - 1), MOUNT_WAIT_MS);

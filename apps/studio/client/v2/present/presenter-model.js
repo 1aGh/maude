@@ -9,6 +9,7 @@
 // Present plays is `order-notes-model.js`'s `initialModel` — the same one the "Order and notes…" sheet
 // edits and `present/order.ts` plays — so the numbers here never disagree with the counter.
 
+import { saveStatus } from '../shell/save-status.js';
 import { initialModel, runNumbers } from './order-notes-model.js';
 
 const finite = (n) => typeof n === 'number' && Number.isFinite(n);
@@ -150,4 +151,17 @@ export function audienceLine(audience) {
   if (audience?.status === 'opening' || audience?.status === 'waiting')
     return `Opening the audience screen${name}…`;
   return `Audience${name}`;
+}
+
+// ── S3.8 · offline (04 md-edge-offline) ────────────────────────────────────────────────────────────────
+
+/** The top bar's word while the project is kept on this Mac — the Share cluster's own (CONTRACT §Save status). */
+export const OFFLINE_WORD = saveStatus({ linked: true, online: false }).word;
+
+/**
+ * Is the project offline in the sense the Share cluster says so? The same rule (`saveStatus`), so the two
+ * never disagree: a project that was never linked is "Local project" and has nothing to keep.
+ */
+export function presenterOffline({ linked, online, phase = null }) {
+  return saveStatus({ linked: !!linked, online, phase }).kind === 'offline';
 }

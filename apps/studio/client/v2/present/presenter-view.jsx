@@ -13,9 +13,11 @@
 import { StIcon } from '../../shell/icons.jsx';
 import { canStep } from './present-controls-model.js';
 import { OrderMap } from './order-map.jsx';
+import { CLIP_MISSING_NOTICE } from '../../../present/media-presence.ts';
 import {
   audienceLine,
   elapsedText,
+  OFFLINE_WORD,
   noteParagraphs,
   nowAndNext,
   orderCaption,
@@ -26,7 +28,7 @@ import {
 const MAP_BOX = { w: 520, h: 232 };
 
 /** One of the two screen boxes (Now / Next): the artboard in its own shape, named. */
-function ArtBox({ cell, testid, renderArt }) {
+function ArtBox({ cell, testid, renderArt, children = null }) {
   const ratio = cell && cell.h > 0 ? cell.w / cell.h : 16 / 9;
   return (
     <div className="pv-box" data-testid={testid} style={{ aspectRatio: String(ratio) }}>
@@ -38,6 +40,7 @@ function ArtBox({ cell, testid, renderArt }) {
       ) : (
         <span className="pv-box-label pv-box-label--quiet">The end</span>
       )}
+      {children}
     </div>
   );
 }
@@ -49,6 +52,9 @@ function ArtBox({ cell, testid, renderArt }) {
  * @param saved `{ present, notes }` from the canvas's `.meta.json`
  * @param elapsedMs / now the clock
  * @param audience `{ status: 'on' | 'opening' | 'waiting' | 'failed', displayName, message }`
+ * @param offline S3.8 — the project is kept on this Mac: its word replaces "Audience on …" (a failure to open the
+ *   audience screen still outranks it — that one has a way out)
+ * @param clipMissing S3.8 — the presented artboard's clip is not on this Mac: the Now box says so, with Skip
  * @param onStep (to: 'next' | 'prev' | number) => void
  * @param onEnd () => void — End (esc)
  * @param onRetry () => void — try the audience screen again
@@ -62,6 +68,8 @@ export function PresenterView({
   elapsedMs = 0,
   now = null,
   audience = { status: 'on' },
+  offline = false,
+  clipMissing = false,
   onStep,
   onEnd,
   onRetry,
@@ -91,14 +99,21 @@ export function PresenterView({
           </span>
         </span>
         <span className="pv-right">
-          <span
-            className={`pv-aud${failed ? ' is-failed' : ''}`}
-            data-testid="presenter-audience"
-            role={failed ? 'alert' : undefined}
-          >
-            <StIcon name="laptop" size={14} />
-            <span>{audienceLine(audience)}</span>
-          </span>
+          {offline && !failed ? (
+            <span className="pv-aud is-offline" data-testid="presenter-offline">
+              <StIcon name="offline" size={14} />
+              <span>{OFFLINE_WORD}</span>
+            </span>
+          ) : (
+            <span
+              className={`pv-aud${failed ? ' is-failed' : ''}`}
+              data-testid="presenter-audience"
+              role={failed ? 'alert' : undefined}
+            >
+              <StIcon name="laptop" size={14} />
+              <span>{audienceLine(audience)}</span>
+            </span>
+          )}
           {failed ? (
             <button
               type="button"
@@ -125,7 +140,23 @@ export function PresenterView({
           <p className="island-title pv-l" data-testid="presenter-now-label">
             {nowCell ? `Now · ${at + 1} of ${runTotal} · ${nowCell.label}` : 'Now'}
           </p>
-          <ArtBox cell={nowCell} testid="presenter-now" renderArt={renderArt} />
+          <ArtBox cell={nowCell} testid="presenter-now" renderArt={renderArt}>
+            {clipMissing && nowCell ? (
+              <span className="pv-miss" data-testid="presenter-clip-missing" role="status">
+                <StIcon name="offline" size={14} />
+                <span>{CLIP_MISSING_NOTICE}</span>
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  data-testid="presenter-clip-skip"
+                  disabled={!canStep(position, 'next')}
+                  onClick={() => onStep?.('next')}
+                >
+                  Skip
+                </button>
+              </span>
+            ) : null}
+          </ArtBox>
           <div className="pv-under">
             <button
               type="button"

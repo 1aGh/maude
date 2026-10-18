@@ -33,7 +33,12 @@ import { cameraFor, type Fit, fitForKind, scrolled } from './fit.ts';
 import { createFollower, type FollowView, newPresentSid } from './follow.ts';
 import { type PresentMeta, presentRun, startIndex } from './order.ts';
 import { usePointerDot } from './pointer-dot.tsx';
-import { type ClipRef, createPresentMedia, type StageMedia } from './present-media.ts';
+import {
+  type ClipRef,
+  createPresentMedia,
+  type StageMedia,
+  watchArtboardMedia,
+} from './present-media.ts';
 import { usePresentZoom } from './present-zoom.ts';
 
 export interface Camera {
@@ -416,7 +421,6 @@ export function createPresentStage(deps: StageDeps): PresentStage {
         // A click on a playing clip pauses it; on anything else it moves on.
         if (!deps.media?.click()) go('next', true);
       }
-      }
     };
     // S3.3 — the trackpad scrolls a web artboard inside the stage (never the canvas camera). A pinch
     // (ctrl + wheel), a sideways swipe and every other kind do nothing.
@@ -685,6 +689,7 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
         },
         setTimer: (fn, ms) => win.setTimeout(fn, ms),
         clearTimer: (h) => win.clearTimeout(h),
+        watch: (id, onFail) => watchArtboardMedia(win.document, id, onFail),
       }),
     });
   }
