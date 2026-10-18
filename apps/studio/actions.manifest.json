@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9849b5e56ae6",
+  "manifestVersion": "faf033327d32",
   "actions": [
     {
       "id": "search.open",
@@ -2535,6 +2535,136 @@
       "agent": {
         "path": "human",
         "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ds.publish",
+      "label": "Update canvases",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds publish <ds> [--leave-out <canvas>…]"
+      }
+    },
+    {
+      "id": "ds.cancel-pending",
+      "label": "Cancel",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --cancel"
+      }
+    },
+    {
+      "id": "ds.keep-outside",
+      "label": "Keep",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds keep <ds>"
+      }
+    },
+    {
+      "id": "ds.undo-outside",
+      "label": "Undo",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds undo <ds>"
+      }
+    },
+    {
+      "id": "ds.pick",
+      "label": "Use this",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pick <ds> <css> --use canvas|file"
+      }
+    },
+    {
+      "id": "ds.canvas-update",
+      "label": "Update",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds canvas update <canvas>"
+      }
+    },
+    {
+      "id": "ds.canvas-leave",
+      "label": "Keep this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds canvas leave <canvas>"
+      }
+    },
+    {
+      "id": "ds.trash-token",
+      "label": "Move to Trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds trash <ds> <css> --replacement <css>"
+      }
+    },
+    {
+      "id": "ds.restore-token",
+      "label": "Restore",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds restore <ds> <css>"
+      }
+    },
+    {
+      "id": "ds.clear-token",
+      "label": "Clear out",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "owner",
+      "undo": "version",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds clear <ds> <css>"
       }
     }
   ],
