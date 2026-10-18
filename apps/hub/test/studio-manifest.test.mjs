@@ -418,3 +418,11 @@ test('the raw source and raw patches are export, not read (A19)', () => {
   assert.equal(decide('POST', '/_comments', 'observer').allow, false);
   assert.equal(decide('POST', '/_api/edit-text', 'observer').allow, false);
 });
+
+test('S1.18 — a cell visitor may resolve a stable link; the studio narrows it to their canvases', () => {
+  // The studio reads each session's claim per request (S9.9) and answers a canvas-only visitor
+  // `unknown` for any canvas outside their grants (history/links.ts), so the cell lets the read through.
+  assert.deepEqual(STUDIO_ROUTES['/_api/link/resolve'], { safe: 'read', unsafe: 'read' });
+  for (const role of ['observer', 'viewer', 'member', 'owner'])
+    assert.equal(decide('GET', '/_api/link/resolve', role).allow, true, role);
+});
