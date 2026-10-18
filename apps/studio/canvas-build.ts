@@ -115,6 +115,124 @@ export interface BuildCanvasOptions {
    * Absent ⇒ the bundler's own handling, unchanged.
    */
   assetUrlBase?: string;
+  /**
+   * S1.11 — historical build overlays (contract V2-1.9 §5.6). Absolute path of
+   * a stylesheet → the text to build it from INSTEAD of the file on disk.
+   *
+   * A past version renders from its own lanes: the version's TSX is `source`,
+   * and its same-name CSS lane arrives here (`{ <canvas>.css: cssAt(ref) }`).
+   * Every other import — shared modules, the design system, assets — still
+   * resolves as it is now ("Shared parts show as they are now").
+   *
+   * The CALLER owns provenance: the text must come from the server's own
+   * history store (git object / accepted revision), never from a request. The
+   * build owns containment, whatever the caller passes:
+   *   • keys are absolute, normalized `.css` paths inside the design root
+   *     (`restrictImportsTo`, else `designRoot`); no root ⇒ no overrides. A
+   *     module (`.tsx`/`.ts`/`.js`) can never be swapped through this door.
+   *   • an overridden stylesheet is CONTENT, not a pass: its `@import` and
+   *     `url()` go through the same allowlist / asset rewrite as a live one.
+   *   • the override applies even when today's file is gone (a lane the
+   *     version had and the working tree no longer does).
+   * Anything else throws — a bad key is a programming error, never ignored.
+   *
+   * No cache lives here; a build with overrides shares nothing with the next
+   * build without them. Callers that cache (http.ts `serveHistoricalCanvas`)
+   * key by `(path, ref)` in a map apart from the live one.
+   */
+  overrides?: CanvasOverrides;
+}
+
+/** `BuildCanvasOptions.overrides` — absolute `.css` path → that version's text. */
+export type CanvasOverrides = Readonly<Record<string, string>>;
+
+/** The one spelling an override is matched by: the real directory + the basename (the file
+ *  itself may not exist). The bundler reports paths by their real path (macOS `/var` →
+ *  `/private/var`), callers pass the logical one. */
+function overrideIdentity(abs: string): string {
+  let dir = path.dirname(abs);
+  let rest = '';
+  for (;;) {
+    try {
+      const real = realpathSync(dir);
+      return path.join(real, rest, path.basename(abs));
+    } catch {
+      const parent = path.dirname(dir);
+      if (parent === dir) return abs;
+      rest = path.join(path.basename(dir), rest);
+      dir = parent;
+    }
+  }
+}
+
+/** Validate + normalize the overrides against the design root (see `overrides`). */
+function normalizeOverrides(
+  overrides: CanvasOverrides,
+  root: string | undefined
+): Map<string, string> {
+  const out = new Map<string, string>();
+  const entries = Object.entries(overrides);
+  if (entries.length === 0) return out;
+  if (!root) throw new Error('Canvas build overrides need a design root to hold them to.');
+  const roots = [path.resolve(root)];
+  try {
+    const real = realpathSync(roots[0]);
+    if (real !== roots[0]) roots.push(real);
+  } catch {
+    // a root that does not exist holds nothing — every key below fails the check
+  }
+  for (const [key, text] of entries) {
+    const bad = (why: string): never => {
+      throw new Error(`Canvas build override refused (${why}): ${key}`);
+    };
+    if (typeof text !== 'string') bad('not text');
+    if (!path.isAbsolute(key)) bad('not an absolute path');
+    if (path.normalize(key) !== key || key.split(/[\\/]/).includes('..')) bad('not normalized');
+    if (!/\.css$/i.test(key)) bad('only a stylesheet can be overridden');
+    const id = overrideIdentity(key);
+    if (!roots.some((r) => isUnderOrEqual(key, r) && key !== r)) bad('outside the design root');
+    if (!roots.some((r) => isUnderOrEqual(id, r) && id !== r)) bad('outside the design root');
+    out.set(id, text);
+  }
+  return out;
+}
+
+/**
+ * Serve the overridden stylesheets. Registered FIRST so its `onLoad` wins over
+ * the asset-url plugin's disk read; the text still passes through `rewrite`
+ * (the same `url()` rewrite a live stylesheet gets) and then the bundler, whose
+ * `@import`/`url()` resolution runs every plugin — the allowlist included.
+ * `onResolve` only answers for an override whose file is gone today, and it
+ * runs AFTER the allowlist (see the plugin order), which has judged it already.
+ */
+function cssOverrides(
+  byIdentity: Map<string, string>,
+  rewrite: ((css: string, cssFile: string) => string) | null
+): { load: import('bun').BunPlugin; resolveMissing: import('bun').BunPlugin } {
+  return {
+    load: {
+      name: 'maude-css-overrides',
+      setup(builder) {
+        builder.onLoad({ filter: /\.css$/i }, (args: { path: string }) => {
+          const text = byIdentity.get(overrideIdentity(args.path));
+          if (text === undefined) return undefined; // not overridden — next plugin / disk
+          return { contents: rewrite ? rewrite(text, args.path) : text, loader: 'css' };
+        });
+      },
+    },
+    resolveMissing: {
+      name: 'maude-css-overrides-missing',
+      setup(builder) {
+        builder.onResolve({ filter: /\.css$/i }, (args: { path: string; importer: string }) => {
+          if (!args.importer || !args.path.startsWith('.')) return null;
+          const abs = path.resolve(path.dirname(args.importer), args.path);
+          const id = overrideIdentity(abs);
+          if (!byIdentity.has(id) || existsSync(id)) return null;
+          return { path: id };
+        });
+      },
+    },
+  };
 }
 
 /**
@@ -128,7 +246,7 @@ export interface BuildCanvasOptions {
  * URLs are then marked external on resolve, so the bundler never reads them.
  * Anything outside the root is left as written, for the allowlist to judge.
  */
-function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin {
+function cssUrlRewriter(designRoot: string, base: string) {
   const prefix = base.replace(/\/+$/, '');
   const real = (p: string) => {
     try {
@@ -155,6 +273,11 @@ function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin
       const rel = path.relative(realRoot, target).split(path.sep).map(encodeURIComponent);
       return `url(${quote}${prefix}/${rel.join('/')}${ref.slice(bare.length)}${quote})`;
     });
+  return { prefix, rewrite };
+}
+
+function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin {
+  const { prefix, rewrite } = cssUrlRewriter(designRoot, base);
   return {
     name: 'maude-css-url-assets',
     setup(builder) {
@@ -211,6 +334,20 @@ export async function buildCanvasModule(
   // (below), so the open canvas has no <link> to swap when one changes; the
   // injector records them for the iframe's HMR client (see buildCssInjector).
   const cssSources = new Set<string>();
+  // S1.11 — a past version's own stylesheets (validated before any build work).
+  const overridden = normalizeOverrides(
+    options.overrides ?? {},
+    options.restrictImportsTo ?? options.designRoot
+  );
+  const overrides =
+    overridden.size > 0
+      ? cssOverrides(
+          overridden,
+          options.assetUrlBase && options.designRoot
+            ? cssUrlRewriter(options.designRoot, options.assetUrlBase).rewrite
+            : null
+        )
+      : null;
 
   const built = await Bun.build({
     entrypoints: [canvasAbsPath],
@@ -233,6 +370,8 @@ export async function buildCanvasModule(
       'process.env.NODE_ENV': '"production"',
     },
     plugins: [
+      // FIRST: an overridden stylesheet's onLoad must win over the disk read below.
+      ...(overrides ? [overrides.load] : []),
       ...(options.assetUrlBase && options.designRoot
         ? [cssUrlAssets(options.designRoot, options.assetUrlBase)]
         : []),
@@ -279,6 +418,8 @@ export async function buildCanvasModule(
       // what is left is exactly "everything else" — which, from a tenant's
       // own file, must stay inside the design root.
       ...(options.restrictImportsTo ? [importAllowlist(options.restrictImportsTo, denials)] : []),
+      // After the allowlist: only an override whose file is gone today, already judged above.
+      ...(overrides ? [overrides.resolveMissing] : []),
     ],
   });
 
