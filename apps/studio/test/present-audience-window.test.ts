@@ -44,16 +44,31 @@ const TWO = [
 ];
 
 describe('audience window seam', () => {
-  test('opens with display, canvas and session id only — the shell builds the URL', async () => {
+  test('opens with display, canvas, session id and the lock — the shell builds the URL', async () => {
     const calls = shell(() => null);
-    await openAudience({ displayId: 'bbbbbbbbbbbbbbbb', canvas: 'ui/deck.tsx', sid: 'abcd1234' });
+    await openAudience({
+      displayId: 'bbbbbbbbbbbbbbbb',
+      canvas: 'ui/deck.tsx',
+      sid: 'abcd1234',
+      lock: 1,
+    });
     expect(calls).toEqual([
       {
         cmd: 'present_audience_open',
-        args: { displayId: 'bbbbbbbbbbbbbbbb', canvas: 'ui/deck.tsx', sid: 'abcd1234' },
+        args: { displayId: 'bbbbbbbbbbbbbbbb', canvas: 'ui/deck.tsx', sid: 'abcd1234', lock: 1 },
       },
     ]);
     expect(Object.keys(calls[0].args as object)).not.toContain('url');
+  });
+
+  test('without the follower root declaring the audience lock it refuses not-ready (F2)', async () => {
+    const calls = shell(() => null);
+    for (const lock of [undefined, 0, 2, '1']) {
+      await expect(
+        openAudience({ displayId: 'b', canvas: 'd.tsx', sid: 'abcd1234', lock } as never)
+      ).rejects.toThrow('not-ready');
+    }
+    expect(calls).toEqual([]);
   });
 
   test('a refusal reaches the caller; close is idempotent and swallows a refusal', async () => {
@@ -61,7 +76,7 @@ describe('audience window seam', () => {
       cmd === 'present_audience_open' ? new Error('Switch to this tab first.') : new Error('x')
     );
     await expect(
-      openAudience({ displayId: 'b', canvas: 'd.tsx', sid: 'abcd1234' })
+      openAudience({ displayId: 'b', canvas: 'd.tsx', sid: 'abcd1234', lock: 1 })
     ).rejects.toThrow('Switch to this tab first.');
     await closeAudience();
     expect(calls.map((c) => c.cmd)).toEqual(['present_audience_open', 'present_audience_close']);
@@ -100,8 +115,10 @@ describe('audience window seam', () => {
     }
     const open = present.slice(present.indexOf('pub async fn present_audience_open('));
     expect(open.slice(0, open.indexOf(') -> Result')).replace(/\s+/g, ' ')).toContain(
-      'webview: tauri::Webview, display_id: String, canvas: String, sid: String,'
+      'webview: tauri::Webview, display_id: String, canvas: String, sid: String, lock: u32,'
     );
+    // The lock the seam accepts is the one Rust accepts.
+    expect(present).toContain('pub const AUDIENCE_LOCK: u32 = 1;');
   });
 
   test('outside the desktop app it is inert', async () => {
@@ -110,7 +127,7 @@ describe('audience window seam', () => {
     expect(canPresentToAnotherDisplay(TWO)).toBe(false);
     await closeAudience();
     await expect(
-      openAudience({ displayId: 'b', canvas: 'd.tsx', sid: 'abcd1234' })
+      openAudience({ displayId: 'b', canvas: 'd.tsx', sid: 'abcd1234', lock: 1 })
     ).rejects.toThrow('Maude app');
   });
 });

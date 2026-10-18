@@ -677,8 +677,8 @@ pub enum NavRole {
     Project,
     /// `c-*` cell tabs (not built yet): https inside the configured cloud zone.
     Cell,
-    /// S3.6a `audience-<pid>`: a project's follower root on its recorded
-    /// origin, nothing else (`present::audience_*_allowed`).
+    /// S3.6a `audience-<pid>`: never admitted by these generic rules — its
+    /// navigations are judged by `present::audience_nav_check` (its entry).
     Audience,
 }
 
@@ -713,7 +713,8 @@ pub fn navigation_allowed(
     canvas: Option<&str>,
 ) -> bool {
     if role == NavRole::Audience {
-        return crate::present::audience_navigation_allowed(url, origin, canvas);
+        // Judged only by `present::audience_nav_check`, against its entry.
+        return false;
     }
     if is_app_local(url) {
         return true;
@@ -759,7 +760,8 @@ pub fn navigation_allowed(
 /// splash.
 pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) -> bool {
     if role == NavRole::Audience {
-        return crate::present::audience_top_level_allowed(url, origin);
+        // Judged only by `present::audience_nav_check`, against its entry.
+        return false;
     }
     if is_app_local(url) || (url.scheme() == "about" && url.path() == "blank") {
         return true;
@@ -781,16 +783,7 @@ pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) 
 /// its project tab still vouches for them; otherwise it may load nothing.
 pub(crate) fn nav_check<R: Runtime>(app: &AppHandle<R>, label: &str, url: &tauri::Url, top: bool) -> bool {
     if crate::present::is_audience_label(label) {
-        let view = crate::present::nav_view(app, label);
-        let (origin, canvas) = match &view {
-            Some((o, c)) => (Some(o.as_str()), c.as_deref()),
-            None => (None, None),
-        };
-        return if top {
-            top_level_allowed(NavRole::Audience, url, origin)
-        } else {
-            navigation_allowed(NavRole::Audience, url, origin, canvas)
-        };
+        return crate::present::audience_nav_check(app, label, url, top);
     }
     let view = app
         .try_state::<SidecarState>()

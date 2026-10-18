@@ -32,12 +32,24 @@ export function audienceDisplay(displays) {
   return others.find((d) => !d.primary) || others[0] || null;
 }
 
-/** Open (or move) this project's audience window, full screen, on `displayId`. Rejects with the
- *  shell's own message (a display that went away, a tab not in front). */
-export function openAudience({ displayId, canvas, sid }) {
+// The audience-lock version this seam and the shell (present.rs `AUDIENCE_LOCK`) accept. Not
+// exported on purpose: the caller must hand in the number the FOLLOWER ROOT declares (S3.7a,
+// `./follow-location.js` `AUDIENCE_LOCK` — `audience=1` renders no editor and takes no keys), so
+// until that root ships, nothing opens a full-screen window onto the editor.
+const AUDIENCE_LOCK_ACCEPTED = 1;
+
+/** Open (or move) this project's audience window, full screen, on `displayId`. `lock` is the
+ *  follower root's declared audience lock; any other value rejects `not-ready` before the shell
+ *  is asked. Otherwise rejects with the shell's own message (a display that went away, the
+ *  presenter's own display, a tab not in front). */
+export function openAudience({ displayId, canvas, sid, lock }) {
   if (!isNativeApp())
     return Promise.reject(new Error('Presenting on another display needs the Maude app.'));
-  return invoke('present_audience_open', { displayId, canvas, sid });
+  if (lock !== AUDIENCE_LOCK_ACCEPTED)
+    return Promise.reject(
+      new Error("not-ready: this version of Maude can't show an audience screen yet.")
+    );
+  return invoke('present_audience_open', { displayId, canvas, sid, lock });
 }
 
 /** Close this project's audience window (End, esc). Idempotent; a no-op outside the app. */
