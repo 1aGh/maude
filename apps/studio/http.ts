@@ -1870,7 +1870,7 @@ export function createHttp(
         const access = accessOf(req);
         return accessSees(
           access,
-          access.grants.length > 0 ? closureFor(access, projectReader, closureCache) : null,
+          access.grants.length > 0 ? closureOf(access) : null,
           rel
         );
       },
