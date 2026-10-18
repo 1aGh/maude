@@ -42,7 +42,10 @@ fn main() {
                 "prefs_set_crash_reporting",
                 "prefs_get_claude_auto_setup",
                 "prefs_set_claude_auto_setup",
+                // S8.23 (export_save.rs): Save to, Show in Finder for a saved export, Copy as PNG.
                 "save_export",
+                "reveal_export",
+                "clipboard_write_png",
                 "pick_media_file",
                 "pick_media_files",
                 "read_picked_media",
