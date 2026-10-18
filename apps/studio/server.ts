@@ -16,6 +16,12 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import {
+  accessForDesktop,
+  acpRefusal,
+  runWithAccess,
+  setAccessFallback,
+} from './access/request.ts';
 import type { AskQueue } from './acp/ask-queue.ts';
 import { type Acp, createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
@@ -51,7 +57,7 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
-import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
+import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
@@ -303,8 +309,10 @@ const activity = createActivity(ctx);
 const acp = createAcp(ctx, aiActivity, {
   runs: runRegistry,
   queue: () => askQueue,
+  // S9.9 (D2) — `acpRefusal`: the chat needs `edit` (C30), from the linked hub's stored
+  // access (`accessFor`, re-read per frame), the same answer the HTTP gate gives.
   readOnly: () =>
-    (ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false) ||
+    acpRefusal(accessForDesktop(ctx.cfg.linkedHub?.url, accessFor)) !== null ||
     formatGate(ctx, STAGED_FORMAT_GATE_OPTS) !== null,
 });
 acpTurns = acp;
@@ -319,6 +327,8 @@ const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs
   runs: runRegistry,
 });
 askQueue = http.askQueue;
+// S9.9 — `currentAccess()` outside a request (timers, boot): this process's own answer.
+setAccessFallback(() => http.accessOf());
 const fsWatch = createFsWatch(ctx);
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.
@@ -392,9 +402,13 @@ const pruned = WORKSPACE ? pruneForWorkspace(http.routes) : { routes: http.route
 function withSession<T extends unknown[]>(
   handler: (req: Request, ...rest: T) => Response | Promise<Response>
 ): (req: Request, ...rest: T) => Response | Promise<Response> {
+  // S9.9 — and WHAT it may do: the request's Access (V2-1.7 §5.4) in AsyncLocalStorage,
+  // so a leaf asks `currentAccess()` instead of re-deriving a role.
   return (req, ...rest) =>
-    runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
-      handler(req, ...rest)
+    runWithAccess(http.accessOf(req), () =>
+      runInSession(WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '', () =>
+        handler(req, ...rest)
+      )
     );
 }
 
@@ -552,6 +566,11 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
         if (!isSameOriginWs(req)) {
           return new Response('ACP chat is same-origin only', { status: 403 });
         }
+        // D2 (S9.9) — and only for a session that may edit (C30: no AI below `edit`).
+        // The socket used to check WHERE the handshake came from, never WHO; a
+        // hub-linked viewer's chat could drive edits its sync would then refuse.
+        const refusal = acpRefusal(http.accessOf(req));
+        if (refusal) return refusal;
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
