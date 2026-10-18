@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
+import { historyScope } from './object-filter.js';
 import { VersionHistoryPanel } from './history-panel.jsx';
 import { ViewBar } from './view-bar.jsx';
 
@@ -18,6 +19,12 @@ export function useViewing() {
 }
 
 const leave = () => shellMode.leaveViewing();
+const clearScope = () => historyScope.clear();
+
+/** S1.16 - the object filter openHistory({ element }) set, or null. */
+export function useHistoryScope() {
+  return useSyncExternalStore(historyScope.subscribe, historyScope.get, historyScope.get);
+}
 
 export function ViewBarHost({ activePath }) {
   const viewing = useViewing();
@@ -30,6 +37,11 @@ export function ViewBarHost({ activePath }) {
 /** @param p VersionHistoryPanel's props minus the hold; `refreshKey` is what the shell knows moved. */
 export function VersionHistoryHost({ refreshKey = 0, onChanged, ...rest }) {
   const viewing = useViewing();
+  const scope = useHistoryScope();
+  // another canvas in front: its panel is plain again (the filter belonged to the one it was set on)
+  useEffect(() => {
+    if (scope && rest.path !== scope.path) historyScope.clear();
+  }, [scope, rest.path]);
   const [bump, setBump] = useState(0);
   const changed = useCallback(
     (res) => {
@@ -42,6 +54,8 @@ export function VersionHistoryHost({ refreshKey = 0, onChanged, ...rest }) {
     <VersionHistoryPanel
       {...rest}
       viewing={viewing}
+      scope={scope}
+      onClearScope={clearScope}
       refreshKey={`${refreshKey}:${bump}`}
       onView={(words) => shellMode.view(words)}
       onLeaveViewing={leave}

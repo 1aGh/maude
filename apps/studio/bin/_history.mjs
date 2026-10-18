@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
-import { nameRequest, restoreRequest } from '../history/surface-requests.ts';
+import { nameRequest, objectHistoryRequest, restoreRequest } from '../history/surface-requests.ts';
 import {
   call,
   canvasRepoRel,
@@ -27,6 +27,7 @@ import {
 export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [--json] [--root <project>]
        maude design history show <ref> [<canvas>] [--json] [--root <project>]
        maude design history diff [<canvas>] [--from <ref>] [--json] [--root <project>]
+       maude design history object <canvas> <artboard>/<id> | <annotation-id> [--json] [--root <project>]
        maude design history restore <canvas> <ref> [--artboard <id> | --element <artboard>/<id>] [--json] [--root <project>]
        maude design history undo --action <id> | --chat <id> [--redo] [--json] [--root <project>]
        maude design history name <canvas> <ref> "<name>" | --clear [--json] [--root <project>]
@@ -35,12 +36,14 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
   list      the versions, newest first
   show      one version: who, when, what it was, the canvases it touched
   diff      what changed since <ref> (default: the last commit) — local projects
+  object    one object's versions, newest first (a canvas element by <artboard>/<id>, or a sticky /
+            arrow / sticker by its annotation id); rows followed back by matching say so — synced
   restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced;
             --artboard <id> only that artboard, --element <artboard>/<id> only that element,
             <ref> @last-good = the newest version this Mac drew without an error
   undo      undo (or --redo) one action, or every action your AI made in a chat (--chat), as ONE new version — synced
   name      name a version of the canvas (<ref> may be now); --clear removes its name — synced
-list / show / diff read only; restore / undo / name change the project and ask first.
+list / show / diff / object read only; restore / undo / name change the project and ask first.
 Exit 0 ok · 1 not found / refused / not available · 2 usage · 3 no studio running.
 `;
 
@@ -190,6 +193,61 @@ async function diff(words) {
   }
   if (files.length === 0) process.stdout.write(`no changes since ${from}\n`);
   else writeUntrusted(files.map((f) => cleanLines(unified(f))).join(''));
+  return 0;
+}
+
+/** `object <canvas> <artboard>/<id> | <annotation-id>` — one object's history (S1.16, V2-1.9 §5.9).
+ *  Read only: the same request the panel's "Version history · this object" makes. */
+async function object(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  if (pos.length !== 2)
+    throw new UsageError('object takes <canvas> <artboard>/<id> | <annotation-id>');
+  const [canvas, key] = /\.(tsx|html)$/i.test(pos[0]) ? pos : [pos[1], pos[0]];
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}(?:\/[A-Za-z0-9][A-Za-z0-9_:.-]{0,127})?$/.test(key))
+    throw new UsageError(`${clean(key)} is not <artboard>/<id> or an annotation id`);
+  const c = await connect('history', flags['--root']);
+  if (c.exit) return c.exit;
+  const repoRel = canvasArg(c.root, canvas);
+  const req = objectHistoryRequest({ path: repoRel, object: key });
+  const r = await call(c.studio, `${req.route}?${new URLSearchParams(req.query)}`, {
+    method: req.method,
+  });
+  if (!r) throw new Error('the studio did not answer');
+  const b = r.body ?? {};
+  if (r.status === 400) throw new UsageError(clean(b.reason ?? r.text).slice(0, 200));
+  if (r.status === 404 || (r.status === 200 && b.reason === 'not-found')) {
+    process.stderr.write(
+      `maude design history: no versions of ${clean(key)} in ${repoRel.replace(/^\.design\//, '')} — \`maude design history list\` lists the canvas's\n`
+    );
+    return 1;
+  }
+  if (r.status === 200 && b.reason === 'legacy') {
+    process.stderr.write(
+      'maude design history: an object’s history needs a synced project — this one keeps its history in git\n'
+    );
+    return 1;
+  }
+  if (r.status !== 200 || !b.ok) {
+    process.stderr.write(
+      `maude design history: refused (${clean(b.reason ?? `HTTP ${r.status}`)})\n`
+    );
+    return 1;
+  }
+  if (flags['--json']) out(b);
+  else {
+    const lines = (b.rows ?? []).map((row) => {
+      const tags = [row.matched ? 'found by matching' : '', row.aside ? 'not kept' : '']
+        .filter(Boolean)
+        .join(', ');
+      return `${field(row.ref)}  ${field(row.sub)}  ${field(row.what)}  ${field(row.title)}${row.value ? `  ${field(row.value)}` : ''}${tags ? `  (${tags})` : ''}\n`;
+    });
+    process.stdout.write(`Version history · ${field(b.header)}\n`);
+    writeUntrusted(lines.join(''));
+    if (b.stoppedAt?.reason === 'ambiguous' || b.stoppedAt?.reason === 'no-match')
+      process.stdout.write(
+        `earlier versions are not shown: ${field(b.stoppedAt.reason === 'ambiguous' ? 'two elements looked alike' : 'no match')} at r${field(b.stoppedAt.rev)}\n`
+      );
+  }
   return 0;
 }
 
@@ -383,7 +441,7 @@ export function unified({ file, before, now }) {
   return s;
 }
 
-const SUBS = { list, show, diff, restore, undo, name };
+const SUBS = { list, show, diff, object, restore, undo, name };
 
 if (import.meta.main) {
   runVerb('history', USAGE, async (words) => {

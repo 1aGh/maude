@@ -152,6 +152,7 @@ describe('every history route is main-origin only', () => {
     expect(specs.map((s) => `${s.method} ${s.path}`).sort()).toEqual([
       'GET /_api/project/changes',
       'GET /_api/project/history',
+      'GET /_api/project/object-history',
       'GET /_api/project/source',
       'GET /_api/project/versions',
       'POST /_api/project/aside',

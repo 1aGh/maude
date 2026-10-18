@@ -6,7 +6,10 @@
 //   foot: Advanced (the git body, until S1.15 / S11 re-home it)
 //
 // The rows are the server's (rule G); this file draws them and sends three things back: look (`onView`),
-// restore (POST /_api/project/restore, one new version + a toast with Undo) and name (POST /_api/project/name).
+// restore (one new version + a toast with Undo) and name — both built by history/surface-requests.ts, the one
+// source the `maude design history …` verbs share.
+// S1.16: with a `scope` (openHistory in object-filter.js) the body is ONE object's versions (object-view.jsx),
+// the header says "· this object" and "All versions" lifts the filter.
 // Everything here is judged again on the server (§5.12): hiding Restore from a viewer is presentation.
 
 import { useCallback, useRef, useState } from 'react';
@@ -14,6 +17,8 @@ import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { NameDialog } from './name-dialog.jsx';
+import { OBJECT_WORDS as OW } from './object-filter.js';
+import { ObjectHistoryView } from './object-view.jsx';
 import { nowRow } from './rows.ts';
 import {
   dayGroups,
@@ -122,6 +127,8 @@ function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }
  * @param p.onChanged       a version landed (name / restore / undo): the shell refreshes what shows it
  * @param p.refreshKey      anything that says a version may have landed
  * @param p.onCompare       (row) — S1.15's Compare; absent = no button
+ * @param p.scope           S1.16 — `{ path, key, tail }` when the panel is filtered to one object, else null
+ * @param p.onClearScope    "All versions"
  * @param p.advanced        the Advanced fold's body (the git body until S11 re-words it)
  */
 export function VersionHistoryPanel({
@@ -135,16 +142,22 @@ export function VersionHistoryPanel({
   refreshKey = 0,
   onClose,
   onCompare,
+  scope = null,
+  onClearScope,
   advanced = null,
   toast = shellToast,
   fetchImpl,
   nowMs,
   resizing = false,
 }) {
+  const scoped = scope && scope.path === path ? scope : null;
+  const [learned, setLearned] = useState(null);
+  const tail =
+    (scoped && learned?.key === scoped.key ? learned.tail : null) ?? scoped?.tail ?? 'this object';
   const [filter, setFilter] = useState('all');
   const [naming, setNaming] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const v = useVersions({ path, filter, refreshKey, fetchImpl });
+  const v = useVersions({ path, filter, refreshKey, fetchImpl, enabled: !scoped });
   const listRef = useRef(null);
   const sel = viewing && viewing.path === path ? viewing.at : null;
 
@@ -196,6 +209,11 @@ export function VersionHistoryPanel({
       <div className="vh-hd">
         <HistoryGlyph />
         <strong>{W.title}</strong>
+        {scoped ? (
+          <span className="vh-tail" data-testid="vh-scope">
+            {`· ${tail}`}
+          </span>
+        ) : null}
         <Kbd>⌥⌘H</Kbd>
         <button
           type="button"
@@ -207,22 +225,50 @@ export function VersionHistoryPanel({
           <StIcon name="x" size={12} />
         </button>
       </div>
-      <div className="vh-seg" role="group" aria-label={W.filters}>
-        {FILTERS.map((f) => (
+      {scoped ? (
+        <div className="vh-seg">
           <button
-            key={f.id}
             type="button"
             className="vh-seg-b"
-            aria-pressed={filter === f.id}
-            data-testid={`vh-filter-${f.id}`}
-            onClick={() => setFilter(f.id)}
+            data-testid="vh-scope-clear"
+            onClick={() => onClearScope?.()}
           >
-            {f.label}
+            {OW.all}
           </button>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="vh-seg" role="group" aria-label={W.filters}>
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className="vh-seg-b"
+              aria-pressed={filter === f.id}
+              data-testid={`vh-filter-${f.id}`}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="vh-body" ref={listRef} onKeyDown={onListKey}>
-        {now ? (
+        {scoped ? (
+          <ObjectHistoryView
+            path={path}
+            objectKey={scoped.key}
+            canEdit={canEdit}
+            viewing={viewing}
+            onView={onView}
+            onChanged={() => onChanged?.()}
+            onTail={(t) => setLearned({ key: scoped.key, tail: t })}
+            refreshKey={refreshKey}
+            toast={toast}
+            fetchImpl={fetchImpl}
+            nowMs={nowMs}
+          />
+        ) : null}
+        {!scoped && now ? (
           <div className={`vh-now${sel ? '' : ' is-sel'}`} data-testid="vh-now">
             <span className="vh-dot" aria-hidden="true" />
             {sel ? (
@@ -254,12 +300,12 @@ export function VersionHistoryPanel({
             ) : null}
           </div>
         ) : null}
-        {v.offline ? (
+        {!scoped && v.offline ? (
           <p className="vh-offline" role="status" data-testid="vh-offline">
             {v.offline}
           </p>
         ) : null}
-        {!path ? (
+        {scoped ? null : !path ? (
           <p className="vh-note" data-testid="vh-nocanvas">
             Open a canvas to see its versions.
           </p>

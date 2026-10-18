@@ -13429,6 +13429,182 @@
     "v2": "new"
   },
   {
+    "hook": "vh-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history header tail when filtered to one object (\"· this object\" / \"· this sticky\", S1.16).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-scope-clear",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Filtered panel › \"All versions\": lifts the object filter.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The filtered panel's grouped rows (one object's versions).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Skeleton while one object's versions load.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Couldn't load this object's versions\" card.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Retry versions\" on the failed object read (by hand, never automatic).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"No versions of this object yet.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-stopped",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Earlier versions are not shown — …\": the matching chain stopped at a doubt.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectHistoryView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-row-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One version of the object; `<ref>` is its revision (`r4`), `r3-aside` for a version kept aside (S9.24). A click looks at that version.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectRow"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-restore-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Per-row Restore of just this object (edit only; absent on found-by-matching, removed and kept-aside rows).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectRow"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-obj-hint-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Restore the artboard instead.\" on a found-by-matching row (edit only).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/object-view.jsx",
+      "symbol": "ObjectRow"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-object.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "vh-viewbar",
     "kind": "testid",
     "pattern": false,

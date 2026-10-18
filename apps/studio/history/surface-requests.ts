@@ -13,6 +13,8 @@
 export interface SurfaceRequest {
   route: string;
   method: 'GET' | 'POST';
+  /** Absent on a POST. */
+  query?: Record<string, string>;
   /** Absent on a GET. */
   body?: Record<string, unknown>;
 }
@@ -65,6 +67,18 @@ export function nameRequest(a: { path: string; at: string; name: string | null }
     body: { path: a.path, at: a.at, name: a.name },
   };
 }
+
+/**
+ * `history.object` — "Version history · this object" (S1.16): one object's versions. `object` is
+ * `<artboard>/<id>` for a canvas element, or the id of an annotation element (sticky, arrow, …).
+ * A read: the server answers every role that can read the canvas, and the rows carry which of them
+ * can be restored (that is judged again by `restoreRequest`'s route).
+ */
+export const objectHistoryRequest = (a: { path: string; object: string }): SurfaceRequest => ({
+  route: '/_api/project/object-history',
+  method: 'GET',
+  query: { path: a.path, object: a.object },
+});
 
 /** `view.trash` — the Trash list (S1.7). */
 export const trashListRequest = (): SurfaceRequest => ({ route: '/_api/trash', method: 'GET' });

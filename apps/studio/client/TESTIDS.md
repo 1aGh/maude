@@ -543,6 +543,17 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `vh-retry` | testid | Retry versions: pressed by hand, never automatic. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-offline` | testid | "Offline — showing versions up to 14:05" above the rows. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-nocanvas` | testid | "Open a canvas to see its versions." when no canvas is in front. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-scope` | testid | Version history header tail when filtered to one object ("· this object" / "· this sticky", S1.16). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-scope-clear` | testid | Filtered panel › "All versions": lifts the object filter. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-obj-list` | testid | The filtered panel's grouped rows (one object's versions). | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-loading` | testid | Skeleton while one object's versions load. | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-failed` | testid | "Couldn't load this object's versions" card. | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-retry` | testid | "Retry versions" on the failed object read (by hand, never automatic). | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-empty` | testid | "No versions of this object yet." | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-stopped` | testid | "Earlier versions are not shown — …": the matching chain stopped at a doubt. | `client/v2/history/object-view.jsx` · `ObjectHistoryView` | — | new |
+| `vh-obj-row-<ref>` | testid (pattern) | One version of the object; `<ref>` is its revision (`r4`), `r3-aside` for a version kept aside (S9.24). A click looks at that version. | `client/v2/history/object-view.jsx` · `ObjectRow` | — | new |
+| `vh-obj-restore-<ref>` | testid (pattern) | Per-row Restore of just this object (edit only; absent on found-by-matching, removed and kept-aside rows). | `client/v2/history/object-view.jsx` · `ObjectRow` | — | new |
+| `vh-obj-hint-<ref>` | testid (pattern) | "Restore the artboard instead." on a found-by-matching row (edit only). | `client/v2/history/object-view.jsx` · `ObjectRow` | — | new |
 | `vh-viewbar` | testid | The Viewing bar: "Viewing “…” · 5 Oct, 18:40 · Jonas" and "esc back to now", shown while the mode store holds a past version. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
 | `vh-viewbar-text` | testid | The Viewing bar's words. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |
 | `vh-viewbar-back` | testid | The Viewing bar's "esc back to now" button. | `client/v2/history/view-bar.jsx` · `ViewBar` | — | new |

@@ -12,6 +12,7 @@
 // "Couldn't load versions" + "Retry versions" — pressed by hand, never automatic (CONTRACT §4, C20).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { restoreRequest } from '../../../history/surface-requests.ts';
 
 export const FILTERS = Object.freeze([
   { id: 'all', label: 'All' },
@@ -150,14 +151,22 @@ const postJson = (fetchImpl, url, body) =>
 /**
  * "Restore this version": a NEW version (C5), one undo step. Success toasts the action's own line
  * ("Restored 5 Oct, 18:40") with Undo; a hub that did not take it says so with Retry restore (C20).
+ * `element` (`<artboard>/<id>` or an annotation id) restores only that object (S1.13 / S1.16) — the request is
+ * the one `maude design history restore --element` makes (history/surface-requests.ts).
  * @returns { ok, actionId?, reason? }
  */
-export async function restoreVersion({ path, row, toast, fetchImpl, onChanged }) {
+export async function restoreVersion({ path, row, toast, fetchImpl, onChanged, element }) {
   const f = fetchImpl || ((...a) => fetch(...a));
   let r = null;
   let j = null;
   try {
-    r = await postJson(f, '/_api/project/restore', { path, at: row.ref });
+    r = await postJson(
+      f,
+      '/_api/project/restore',
+      element === undefined
+        ? { path, at: row.ref }
+        : restoreRequest({ path, at: row.ref, element }).body
+    );
     j = await r.json().catch(() => null);
   } catch {
     /* unreachable: below */
@@ -190,7 +199,7 @@ export async function restoreVersion({ path, row, toast, fetchImpl, onChanged })
   if (!r || r.status === 503 || reason === 'unreachable')
     toast?.(HISTORY_WORDS.restoreServer, false, {
       label: HISTORY_WORDS.retryRestore,
-      onClick: () => restoreVersion({ path, row, toast, fetchImpl, onChanged }),
+      onClick: () => restoreVersion({ path, row, toast, fetchImpl, onChanged, element }),
     });
   else toast?.(j?.line || HISTORY_WORDS.restoreFailed, false);
   return { ok: false, reason };

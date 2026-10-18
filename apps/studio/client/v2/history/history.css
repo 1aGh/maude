@@ -374,6 +374,32 @@
     outline-offset: 1px;
   }
 
+  /* S1.16 - Version history filtered to one object (10 / co-vh). */
+  .vh-tail {
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    white-space: nowrap;
+  }
+  .vh-obj-row .vh-t strong {
+    font-weight: 600;
+  }
+  .vh-obj-value {
+    font-style: italic;
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .vh-obj-words {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .vh-obj-hint {
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-1);
+  }
+  .vh-obj[data-aside="true"] .vh-obj-row {
+    opacity: 0.8;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .vh-pic[data-state="pending"],
     .vh-skel,
