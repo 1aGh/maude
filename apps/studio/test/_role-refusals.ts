@@ -34,6 +34,13 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // comment — Can comment and up (D5: Can view may not comment)
   { method: 'POST', route: '/_comments', refused: ['view'] },
   { method: 'POST', route: '/_api/comments/c1/reply', refused: ['view'] },
+  // S9.7b — the comment door (routes/comments.ts): every op needs `comment`
+  {
+    method: 'POST',
+    route: '/_api/comments/op',
+    refused: ['view'],
+    body: { op: 'add', file: '.design/ui/a.tsx', text: 'x' },
+  },
   // export — every download and export
   { method: 'POST', route: '/_api/export', refused: ['view'] },
   { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },
