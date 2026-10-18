@@ -436,3 +436,145 @@
   color: var(--maude-hud-accent-fg, #faf6ef);
   opacity: 0.85;
 }
+
+/* ─── Comments v2 (S9.22) — 10 · co-comment-thread / -video / -print ───────────────────────────────
+ * Header = where the thread is + Resolve; a chip says the moment ("at 0:12") or the point on paper;
+ * messages carry a face; a refused write says so in a sentence. Same tokens as the rest of this file. */
+.cm-thread__where {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--maude-chrome-fg-1, #6e6660);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cm-thread__head-end {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.cm-thread__head-end .cm-thread__close {
+  margin-left: 0;
+  align-self: center;
+}
+
+.cm-thread__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.cm-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 8%, transparent);
+  color: var(--maude-chrome-fg-1, #6e6660);
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+button.cm-chip--seek {
+  cursor: pointer;
+}
+
+button.cm-chip--seek:hover {
+  color: var(--maude-chrome-fg-0, #2a2520);
+}
+
+button.cm-chip--seek:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--maude-hud-accent, #d63b1f);
+}
+
+.cm-thread__from {
+  color: var(--maude-chrome-fg-1, #6e6660);
+  font-size: 11px;
+}
+
+.cm-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cm-msg__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cm-msg__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cm-av {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--maude-chrome-fg-0, #2a2520) 10%, transparent);
+  color: var(--maude-chrome-fg-1, #6e6660);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.cm-av--ai {
+  background: var(--maude-hud-accent, #d63b1f);
+  color: var(--maude-hud-accent-fg, #fff);
+}
+
+.cm-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, 90vw);
+  padding: 8px 12px;
+  border: 1px solid var(--maude-chrome-border, #3a352f);
+  border-radius: 2px;
+  background: var(--maude-chrome-bg-1, #faf6ef);
+  color: var(--maude-chrome-fg-0, #2a2520);
+  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
+  font:
+    13px / 1.4 system-ui,
+    sans-serif;
+  pointer-events: auto;
+  z-index: 7;
+}
+
+.cm-notice__x {
+  background: transparent;
+  border: 0;
+  color: var(--maude-chrome-fg-1, #6e6660);
+  cursor: pointer;
+}
+
+.cm-mention-popup__role {
+  color: var(--maude-chrome-fg-1, #6e6660);
+  font-size: 11px;
+}
+
+.cm-mention-popup__item[aria-selected="true"] .cm-mention-popup__role {
+  color: var(--maude-hud-accent-fg, #faf6ef);
+  opacity: 0.85;
+}

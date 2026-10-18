@@ -93,6 +93,9 @@ export function canvasUrl(p, cfg, opts) {
   // reads this flag). Boot-static on purpose — a role is per-session, and a
   // query param can't race the way a post-load message could.
   if (cfg?.readOnly) params.set('ro', '1');
+  // S9.22 — a Can comment session is read-only for the design but may still reply, resolve and reopen:
+  // `/_config.canComment` (a role that holds `comment`) says so, and the thread offers those buttons.
+  if (cfg?.readOnly && cfg?.canComment) params.set('cm', '1');
   // DDR-247 — the chromeless `?embed=1` view another app frames. Read-only
   // whatever the viewer's role (the embed offers looking, nothing else), no
   // comment layer, and `embed=1` so the canvas keeps its camera to itself

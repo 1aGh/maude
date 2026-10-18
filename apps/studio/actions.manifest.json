@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1ade062db596",
+  "manifestVersion": "3695cbc3a270",
   "actions": [
     {
       "id": "search.open",
@@ -814,6 +814,61 @@
       "kind": "toggle",
       "exec": "shell",
       "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list"
+      }
+    },
+    {
+      "id": "comments.filter-open",
+      "label": "Show open comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --open"
+      }
+    },
+    {
+      "id": "comments.filter-mine",
+      "label": "Show my comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --mine"
+      }
+    },
+    {
+      "id": "comments.filter-resolved",
+      "label": "Show resolved comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --resolved"
+      }
+    },
+    {
+      "id": "comments.filter-all",
+      "label": "Show all comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --all"
+      }
+    },
+    {
+      "id": "comments.open-thread",
+      "label": "Open comment thread",
+      "kind": "command",
+      "exec": "shell",
       "effect": "none",
       "agent": {
         "path": "cli",
