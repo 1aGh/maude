@@ -18,6 +18,7 @@ import {
   rowMenu,
   trashDialog,
 } from './chat-list-model.js';
+import { useChatUndoReady, useUndoChat } from './ChatUndo.jsx';
 import { fetchChats, searchChats, trashChat } from './chat-store-api.js';
 
 const SEARCH_DEBOUNCE_MS = 150;
@@ -88,9 +89,12 @@ function RowMenu({ items, anchorRef, onPick, onClose }) {
             role="menuitem"
             className={`ai-cl-menu-item${it.danger ? ' ai-cl-menu-item--danger' : ''}`}
             data-action={it.id}
+            disabled={it.disabled || undefined}
+            title={it.hint || undefined}
             onClick={() => onPick(it)}
           >
             {it.label}
+            {it.hint ? <span className="ai-cl-menu-hint">{it.hint}</span> : null}
           </button>
         )
       )}
@@ -196,6 +200,9 @@ export function ChatList({
   const [trashBusy, setTrashBusy] = useState(false);
   const [trashError, setTrashError] = useState('');
   const dotsRefs = useRef(new Map());
+  // S5.15 — Undo this chat: the server's probe says whether this team server can (U22)
+  const chatUndo = useChatUndoReady({ fetchImpl, key: refreshKey });
+  const undo = useUndoChat({ fetchImpl });
   const needsSet = useMemo(() => needs ?? new Set(), [needs]);
 
   // browse data
@@ -293,6 +300,7 @@ export function ChatList({
     } else if (it.id === 'chat.copy-transcript') onCopyTranscript?.(row.id);
     else if (it.id === 'chat.archive') onArchive?.(row.id);
     else if (it.id === 'chat.trash') startTrash(row.id, row.rawTitle);
+    else if (it.id === 'chat.undo' && !it.disabled) void undo.run(row.id);
   };
 
   const commitRename = (id) => {
@@ -301,7 +309,7 @@ export function ChatList({
     if (value) onRename?.(id, value);
   };
 
-  const items = useMemo(() => rowMenu(ctx), [ctx]);
+  const items = useMemo(() => rowMenu(ctx, undefined, { chatUndo }), [ctx, chatUndo]);
 
   const renderRow = (r) => {
     const rawTitle =

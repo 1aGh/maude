@@ -30,10 +30,11 @@ describe('A5 shell wiring (app.jsx)', () => {
     );
   });
 
-  test('S5.11 — project:action settles a Done ring on every artboard it touched', async () => {
+  test('S5.15 — ONE project:action branch feeds the ⌘Z projection and Made by AI (the second was dead)', async () => {
     const app = await read('client/app.jsx');
+    expect(app.match(/m\.type === 'project:action'/g)?.length).toBe(1);
     expect(app).toMatch(
-      /m\.type === 'project:action'\) \{(\s*\/\/[^\n]*)*\s*getRunsStore\(\)\.markDone\(\s*Object\.values\(m\.action\?\.artboards \?\? \{\}\)\.flat\(\)\s*\);/
+      /m\.type === 'project:action' && m\.action\) \{(\s*\/\/[^\n]*)*\s*undoProjection\.onAction\(m\.action\);\s*noteMadeByAi\(m\.action\);/
     );
   });
 

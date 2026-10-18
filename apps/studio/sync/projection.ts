@@ -889,6 +889,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         } else if (lane === 'meta') {
           lastMeta = null;
         }
+      } else if (
+        outcome.code === 'run-overlap' &&
+        lane === 'html' &&
+        readLocal(paths.html) === local
+      ) {
+        // S5.15 (A13 rollback) — a run's tool write that changes what another open run changed was
+        // refused: it leaves the disk. What the file held before it (both runs' staged bytes) comes
+        // back as an echo, so it is never read as a new change.
+        observedBody = baseContent;
+        recordEcho(paths.html, baseContent);
+        writeAndAnnounce(paths.html, baseContent);
       } else {
         onRejected(lane, local, outcome, baseContent);
       }

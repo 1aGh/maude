@@ -194,10 +194,21 @@ describe('the row ⋯ menu: Open · Rename… · Copy transcript · Archive · M
       'Open',
       'Rename…',
       'Copy transcript',
+      'Undo this chat',
       '—',
       'Archive',
       'Move to trash',
     ]);
+  });
+
+  test('S5.15 U22: an old team server disables Undo this chat with its line', () => {
+    const items = rowMenu(desktop, undefined, {
+      chatUndo: { ok: false, line: 'Undo this chat needs the team server to be updated' },
+    }) as Array<{ id: string; disabled?: boolean; hint?: string }>;
+    expect(items.find((i) => i.id === 'chat.undo')).toMatchObject({
+      disabled: true,
+      hint: 'Undo this chat needs the team server to be updated',
+    });
   });
 
   test('the verbs are the registry labels, and the trash row is the danger one', () => {

@@ -161,6 +161,16 @@ export interface ActionStageOptions {
   now?: () => number;
   /** Where held runs persist (default `_state/ai-stage.json`; the local home keeps its own). */
   stateFile?: string;
+  /**
+   * S5.15 (A13 rollback) — a write refused `run-overlap` already reached the disk: the home puts
+   * `base` (what the lane held before it) back when the disk still holds `content`.
+   */
+  onRefused?: (w: {
+    slug: string;
+    lane: LaneProposal['lane'];
+    base: string;
+    content: string;
+  }) => void;
 }
 
 const STOPPED = ' — stopped';
@@ -487,6 +497,11 @@ export function createActionStage(opts: ActionStageOptions) {
         log.warn(
           `[sync/ai] ${r.label}: a write to ${slug} changes what ${other ? `run ${other}` : 'another run'} changed — refused (run-overlap).`
         );
+        try {
+          opts.onRefused?.({ slug, lane: p.lane, base: p.baseContent, content: p.content });
+        } catch {
+          /* the refusal stands whatever the rollback did */
+        }
         resolve({ status: 'rejected', code: 'run-overlap' });
         return;
       }

@@ -60,6 +60,7 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
+import { createActionFeed } from './sync/action-feed.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
 import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
@@ -291,6 +292,18 @@ const runRegistry = createRunRegistry({
   }),
 });
 await runRegistry.boot();
+// S5.15 — every accepted action reaches the shell as `project:action`, not only a run's publish and the
+// undo routes': a person's edit (yours, or a teammate's arriving from the hub) clears "Made by AI".
+const actionFeed = createActionFeed({
+  control: () => ctx.syncControl?.current?.() ?? null,
+  designRel: ctx.paths.designRel,
+  emit: (e, p) => ctx.bus.emit(e, p),
+  on: (e, fn) => ctx.bus.on(e, fn),
+});
+ctx.bus.on('fs:any', (rel: unknown) => {
+  if (typeof rel === 'string' && /\.tsx$/i.test(rel)) actionFeed.poke();
+});
+ctx.bus.on('sync:projected', () => actionFeed.poke());
 // runningChats() / activitySnapshot() read the registry (unioned with the bridge until S5.6)
 registerLiveRuns(() => runRegistry.live());
 // the hub's `{t:'runs', seq}` on the control channel (sync/ctl-provider.ts → bus)

@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
+import { ChatUndoButton } from '../ai/ChatUndo.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import {
   COMPARE_WORDS as CW,
@@ -101,6 +102,9 @@ function Row({
   onRestore,
   onCompare,
   compareActs,
+  onChanged,
+  fetchImpl,
+  toast,
 }) {
   return (
     <li className="vh-item">
@@ -143,6 +147,14 @@ function Row({
               {W.compare}
             </button>
           ) : null}
+          {/* S5.15 — your AI's row: every change of its chat, as ONE new version (03 ai-history) */}
+          <ChatUndoButton
+            row={row}
+            canEdit={canEdit}
+            fetchImpl={fetchImpl}
+            toast={toast}
+            onDone={() => onChanged?.()}
+          />
           {canEdit ? (
             <button
               type="button"
@@ -510,6 +522,9 @@ export function VersionHistoryPanel({
                           : onView?.({ path, ...viewingWords(r) })
                       }
                       onRestore={doRestore}
+                      onChanged={onChanged}
+                      fetchImpl={fetchImpl}
+                      toast={toast}
                     />
                   ))}
                 </ul>

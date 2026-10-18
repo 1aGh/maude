@@ -59,6 +59,11 @@ export interface ProjectUndoRuntime {
   pendingEdits?(
     repoRel: string
   ): Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }> | null;
+  /**
+   * S5.15 (U22) — can this home undo several actions as ONE (`actionIds`)? The local home always
+   * can; a hub link asks its bootstrap (`capabilities.undoTargets`); null = not known yet.
+   */
+  chatUndoReady?(): boolean | null;
   /** S2.20c — ⌘Z on one of them: its inverse waits behind the same run. */
   undoPendingEdit?(
     repoRel: string,
@@ -208,6 +213,16 @@ export function runStageHooks(deps: {
   };
 }
 
+/** S5.15 (U22) — what the shell shows for "Undo this chat" before anyone clicks. */
+export function chatUndoState(
+  runtime: Pick<ProjectUndoRuntime, 'chatUndoReady'> | null | undefined
+): { ok: true } | { ok: false; line: string } | null {
+  const ready = runtime?.chatUndoReady?.();
+  if (ready === true) return { ok: true };
+  if (ready === false) return { ok: false, line: NEEDS_HUB_UPDATE };
+  return null;
+}
+
 function designRelOf(repoRel: string, designRel: string): string {
   const p = repoRel.replace(/\\/g, '/').replace(/^\/+/, '');
   const prefix = `${designRel.replace(/^\/+|\/+$/g, '')}/`;
@@ -247,7 +262,8 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
             waiting
           )
         );
-        return json(200, { ok: true, ...view(state) });
+        const chatUndo = chatUndoState(runtime);
+        return json(200, { ok: true, ...view(state), ...(chatUndo ? { chatUndo } : {}) });
       },
     },
     {
@@ -301,6 +317,11 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         const refused = await deps.guard?.(parsed.target, req);
         if (refused) return refused;
         const runtime = deps.control();
+        const multi0 = !('actionId' in parsed.target);
+        if (multi0 && runtime?.chatUndoReady?.() === false) {
+          // U22 — the probe already says this team server cannot: refused before the kernel.
+          return json(409, { ok: false, reason: 'needs-hub-update', line: NEEDS_HUB_UPDATE });
+        }
         const r = runtime?.acceptedUndo
           ? await runtime.acceptedUndo(parsed.target, parsed.redo, { via })
           : null;
