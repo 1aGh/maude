@@ -283,7 +283,9 @@ export function ArtboardHandles(): React.ReactNode {
       const origin = movedOrigin(d.m.box, r.box);
       if (!params && !origin) return restorePreview(d.m, d.saved);
       // the origin first (layout lane: positions only), then the size — one write each, in their own lanes
-      if (origin) dragBus?.commitPositions([{ id, ...origin }], { label: 'resize artboard' });
+      // S2.9b — a resize is not a rider (contract §2): members keep their world positions.
+      if (origin)
+        dragBus?.commitPositions([{ id, ...origin }], { label: 'resize artboard', riders: false });
       if (params) {
         const res = await runEditOp({ op: 'artboard.resize', targets: [], params });
         // a refused write gives the page back its old size; a move already sent to the layout lane stays (⌘Z)
