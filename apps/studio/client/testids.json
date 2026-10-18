@@ -840,7 +840,7 @@
     "pattern": false,
     "meaning": "Comments panel filter: All.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
@@ -853,7 +853,7 @@
     "pattern": false,
     "meaning": "Comments panel filter: Open.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
@@ -866,7 +866,7 @@
     "pattern": false,
     "meaning": "Comments panel filter: Resolved.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
@@ -879,12 +879,205 @@
     "pattern": true,
     "meaning": "One comment thread row in the Comments panel (`<id>` = comment id).",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
     "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
+  },
+  {
+    "hook": "comments-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Comments panel (S9.22): the floating right panel; filters Open · Mine · Resolved · All, grouped by canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comments-panel-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The × in the Comments panel header (present when the host passes `onClose`).",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-filter-mine",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Comments panel filter: Mine — threads you started, in every status (the verb `comments list --mine`).",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-group-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One canvas group in the Comments panel (`<slug>` = the canvas file name, kebab-cased); its header opens the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comments-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Comments panel empty state; names the empty filter (\"No open comments.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-resolve-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Resolve a thread: the Comments panel row button, and the Resolve button in the in-canvas thread header (`<id>` = comment id).",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/comments-overlay.tsx",
+        "symbol": "CommentThread"
+      }
+    ]
+  },
+  {
+    "hook": "comment-reopen-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Reopen a resolved thread: the Comments panel row (`aria-label=\"Reopen\"`, kept) and the in-canvas thread header.",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/comments-overlay.tsx",
+        "symbol": "CommentThread"
+      }
+    ]
+  },
+  {
+    "hook": "comment-delete-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Delete comment — on YOUR OWN threads only (CONTRACT §6, D8): the Comments panel row and the in-canvas thread header. The server refuses anyone else’s (`not-yours`).",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/comments-overlay.tsx",
+        "symbol": "CommentThread"
+      }
+    ]
+  },
+  {
+    "hook": "comment-where-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Where a thread sits, in words: the artboard name (\"A4 · plakát\"), with \"at 0:12\" for a video moment — the Comments panel row, and the in-canvas thread header (artboard name).",
+    "producer": {
+      "file": "apps/studio/client/v2/comments/comments-panel.jsx",
+      "symbol": "CommentsPanel"
+    },
+    "region": "comments panel",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/comments-overlay.tsx",
+        "symbol": "CommentThread"
+      }
+    ]
+  },
+  {
+    "hook": "comment-chip-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The chip under a thread header: \"at 0:12\" (a button that parks the video there) or \"14 mm from the left · 2 mm above the trim\" on a print artboard.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-from-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Thread header line for a converted sticky: \"From Jonas’s sticky · turned into a comment by You\" (S4-S9-votes-comments §3.4; Undo and \"Turn back into a sticky\" wait for the S4.7 routes).",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentThread"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-composer-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The composer header chip: where the new comment will be pinned (\"at 0:12\", millimetres) before it is saved.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentComposer"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "comment-notice",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A refused comment write said in one sentence (\"That did not go through.\"); the typed text stays in the composer.",
+    "producer": {
+      "file": "apps/studio/comments-overlay.tsx",
+      "symbol": "CommentsOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "notice-<id>",
@@ -4839,7 +5032,7 @@
     "hook": "comment-edit",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Edit textarea inside an in-canvas comment thread.",
+    "meaning": "Edit button on your own comment in an in-canvas comment thread (the thread header, beside Resolve).",
     "producer": {
       "file": "apps/studio/comments-overlay.tsx",
       "symbol": "CommentThread"
@@ -5845,7 +6038,7 @@
     "hook": "share-cluster-comments-count",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The open-comments count badge on the comments button; absent at zero.",
+    "meaning": "The open-comments count badge on the comments button; absent at zero. S9.22: it also carries the unread @mention count (threads that name you and are unread) via `commentsCount`.",
     "producer": {
       "file": "apps/studio/client/v2/shell/share-cluster.jsx",
       "symbol": "ShareCluster"
@@ -10549,7 +10742,7 @@
     "hook": "callout-<kind>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One callout; `<kind>` is `sync-diverged`, `sync-rejected`, `sync-offline-long`, `sync-back` (the reconnect flash), `role`, `update` or `repo-changed`. `data-tone` is `ok`, `info`, `warn` or `error`. A short offline spell has NO callout: the Share cluster word `share-cluster-status` says it.",
+    "meaning": "One callout; `<kind>` is `sync-diverged`, `sync-rejected`, `sync-offline-long`, `sync-back` (the reconnect flash), `role`, `update` or `repo-changed`, `mention` (S9.22: \"Jonas mentioned you on A4 · plakát\", action Open). `data-tone` is `ok`, `info`, `warn` or `error`. A short offline spell has NO callout: the Share cluster word `share-cluster-status` says it.",
     "producer": {
       "file": "apps/studio/client/v2/shell/callouts.jsx",
       "symbol": "Callout"

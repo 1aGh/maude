@@ -59,6 +59,14 @@ describe('maude design comments list', () => {
     expect(studio.seen.map((s) => s.path)).toEqual(['/_comments-all']);
   });
 
+  test('--resolved lists the resolved threads only (S9.22: the panel’s Resolved filter)', async () => {
+    studio = fakeStudio(handler);
+    expect(ids((await studio.run('comments', ['list', '--resolved', '--json'])).stdout)).toEqual([
+      'c2',
+      'c4',
+    ]);
+  });
+
   test('--all includes resolved; a canvas scopes to its file', async () => {
     studio = fakeStudio(handler);
     expect(ids((await studio.run('comments', ['list', '--all', '--json'])).stdout)).toEqual([
@@ -112,6 +120,8 @@ describe('maude design comments list', () => {
       ['list', '--resolve'],
       ['list', 'a.tsx', 'b.tsx'],
       ['list', '--open', '--all'],
+      ['list', '--resolved', '--all'],
+      ['list', '--resolved', '--open'],
       [],
     ]) {
       const r = await studio.run('comments', args);

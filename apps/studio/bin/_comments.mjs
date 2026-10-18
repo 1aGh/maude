@@ -30,7 +30,7 @@ import {
 
 const MAX_FINDINGS = 50;
 
-export const USAGE = `usage: maude design comments list [<canvas>] [--open | --all] [--mine] [--json] [--root <project>]
+export const USAGE = `usage: maude design comments list [<canvas>] [--open | --resolved | --all] [--mine] [--json] [--root <project>]
        maude design comments reply <id> --text <text> [--json] [--root <project>]
        maude design comments resolve|reopen <id> [--json] [--root <project>]
        maude design comments add --as-ai <canvas> --text <text> [--artboard <id>] [--t <seconds>]
@@ -38,6 +38,7 @@ export const USAGE = `usage: maude design comments list [<canvas>] [--open | --a
        maude design comments add --as-ai <canvas> --findings <file.json> [--json] [--root <project>]
   <canvas>    design-root-relative (ui/home.tsx), .design/…, or absolute; default: every canvas
   --open      open threads only (the default)
+  --resolved  resolved threads only
   --all       open and resolved
   --mine      only the threads you started (the studio's user name)
   <id>        a thread id from \`comments list\` (c_…)
@@ -54,11 +55,12 @@ Exit 0 ok · 1 the studio refused · 2 usage · 3 no studio running.
 
 async function list(words) {
   const { flags, pos } = parseWords(words, {
-    bool: ['--open', '--all', '--mine', '--json'],
+    bool: ['--open', '--resolved', '--all', '--mine', '--json'],
     value: ['--root'],
   });
   if (pos.length > 1) throw new UsageError('list takes at most one canvas');
-  if (flags['--open'] && flags['--all']) throw new UsageError('--open and --all are exclusive');
+  if ([flags['--open'], flags['--resolved'], flags['--all']].filter(Boolean).length > 1)
+    throw new UsageError('--open, --resolved and --all are exclusive');
   const c = await connect('comments', flags['--root']);
   if (c.exit) return c.exit;
   let repoRel = null;
@@ -76,7 +78,8 @@ async function list(words) {
     if (r?.status !== 200) return refused(r);
     threads = Object.values(r.body ?? {}).flat();
   }
-  if (!flags['--all']) threads = threads.filter((t) => t?.status !== 'resolved');
+  if (flags['--resolved']) threads = threads.filter((t) => t?.status === 'resolved');
+  else if (!flags['--all']) threads = threads.filter((t) => t?.status !== 'resolved');
   if (flags['--mine']) {
     const me = await call(c.studio, '/_api/git-user');
     const name = typeof me?.body?.name === 'string' ? me.body.name : '';
