@@ -43,6 +43,8 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'external',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     fromCanvas: true,
     // S8.9: Can comment sees Handoff, greyed with "Needs Can edit" (the sheet says the same words).
     enabled: { minRole: 'edit' },
@@ -84,6 +86,8 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'share',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     legacy: { menu: 'Share link…' },
   },
   {

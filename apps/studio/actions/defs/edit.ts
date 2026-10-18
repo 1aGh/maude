@@ -85,6 +85,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Undo history…',
     kind: 'command',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     enabled: { ...EDITS, facts: ['canvasOpen' as const] },
   },
   {
@@ -92,6 +94,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Copy',
     kind: 'command',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     // v1 shell ⌘C only logs the retired comment-drop chord's deprecation and falls through to the
     // native copy (no preventDefault).
     keys: [kb('⌘C', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
@@ -104,6 +108,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Cut',
     kind: 'command',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     // Greyed below Can edit: the row's canvas branch cuts annotations. ⌘X / ⌘V are WebKit's own
     // (no shell handler), so a commenter still cuts and pastes in the comment composer.
     enabled: EDITS,
@@ -114,6 +120,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Paste',
     kind: 'command',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     enabled: EDITS,
     keys: [kb('⌘V', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
   },
@@ -122,6 +130,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Select all',
     kind: 'command',
     exec: 'canvas',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     // v1 use-keyboard-discipline matches `e.key === 'a'` with any ⇧ — so ⇧⌘A selects every element
     // too (V2-1.3 defect 1).
     keys: mods('⌘A', '⇧', 'selection', { when: OBJ }),
@@ -133,6 +143,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Deselect all',
     kind: 'command',
     exec: 'canvas',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     legacy: { menu: 'Deselect all' },
   },
   {
@@ -158,6 +170,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Copy properties',
     kind: 'command',
     exec: 'canvas',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     keys: mods('⌥⌘C', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
   },
   {
@@ -165,6 +179,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Paste properties',
     kind: 'command',
     exec: 'canvas',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     enabled: EDITS, // V2-4 gate (roles): writes styles; Copy properties is a read and stays
     keys: mods('⌥⌘V', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
   },

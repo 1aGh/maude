@@ -18,6 +18,8 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     // window. A project window opens IdentityBar's create dialog; Home's create sheet is the
     // target ("focus/open Home, then emit to it") once Home has one.
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     keys: [kb('⇧⌘N', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'File', order: 2 },
   },
@@ -28,20 +30,22 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Pull a local copy…',
     kind: 'command',
     exec: 'shell',
-    visible: DESKTOP,
+    visible: { ...DESKTOP, minRole: 'comment' },
   },
   {
     id: 'project.share-github',
     label: 'Share on GitHub…',
     kind: 'command',
     exec: 'shell',
-    visible: DESKTOP,
+    visible: { ...DESKTOP, minRole: 'comment' },
   },
   {
     id: 'project.open',
     label: 'Open project…',
     kind: 'command',
     exec: 'native',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     keys: [kb('⌘O', 'global', { inText: true, when: DESKTOP })],
     help: { group: 'finding', order: 20 },
     native: { menu: 'File', order: 3 },
@@ -68,7 +72,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'home',
     exec: 'native',
-    visible: { shell: ['desktop', 'cloud'] },
+    visible: { shell: ['desktop', 'cloud'], minRole: 'comment' },
   },
   // ── V2-3.9: the own tab bar's tab commands (contract V2-3.7 §5). Native: the shell owns the
   // tab list, so lib.rs runs them; no web binding fires them (AppKit takes the accelerator). ──

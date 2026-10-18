@@ -20,6 +20,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'canvas.reload',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     fromCanvas: true,
     keys: [{ chord: '⌘R', layer: 'global', inText: true }],
   },
@@ -41,6 +42,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'select.all',
     exec: 'canvas',
+    visible: { minRole: 'comment' },
     keys: [
       { chord: '⌘A', layer: 'selection', when: { focus: ['canvas'] } },
       { chord: '⇧⌘A', layer: 'selection', when: { focus: ['canvas'] }, alias: true },
@@ -54,6 +56,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'edit.copy-properties',
     exec: 'canvas',
+    visible: { minRole: 'comment' },
     keys: [
       { chord: '⌥⌘C', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {
@@ -67,6 +70,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'edit.paste-properties',
     exec: 'canvas',
+    visible: { minRole: 'comment' },
     enabled: { minRole: 'edit' },
     keys: [
       { chord: '⌥⌘V', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
@@ -743,6 +747,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'handoff.open',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     enabled: { minRole: 'edit' },
     fromCanvas: true,
     keys: [{ chord: '⇧⌘H', layer: 'global', inText: true }],
@@ -916,11 +921,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'project.new',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     keys: [{ chord: '⇧⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'project.open',
     exec: 'native',
+    visible: { minRole: 'comment' },
     keys: [{ chord: '⌘O', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {

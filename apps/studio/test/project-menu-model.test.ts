@@ -101,6 +101,41 @@ describe('buildProjectMenu', () => {
     expect(ro).toContain('settings.open');
   });
 
+  // A6c (S3.12, 04 Modes note 23): a viewer's menu lists only what someone who can view may do —
+  // the rest isn't listed, not greyed — by the registry's `visible.minRole`, never a hand filter.
+  // Two named departures from the canvas: Export… stays hidden (Gate 0 A19 / S8.9: Can view has no
+  // export at all), and Undo / Redo stay greyed (V2-4 gate: ⌘Z answers with the denial line).
+  test('Can view: Edit (Undo, Redo greyed), View, Help, Version history, Sign in — nothing else', () => {
+    for (const ctx of [
+      menuCtx({ native: true, readOnly: true, observer: true, linkedHub: true, canvasOpen: true }),
+      menuCtx({ cloudTab: true, readOnly: true, observer: true, canvasOpen: true }),
+    ]) {
+      const model = buildProjectMenu(ctx);
+      const top = model.map((n) => (n.type === 'sub' ? `[${n.label}]` : n.id));
+      expect(top).toEqual(['[File]', '[Edit]', '[View]', '[Help]', 'history.open']);
+      const sub = (label) => model.find((n) => n.type === 'sub' && n.label === label).children;
+      expect(modelIds(sub('File'))).toEqual(['account.switch']);
+      expect(sub('Edit').map((n) => [n.id, n.disabled])).toEqual([
+        ['edit.undo', true],
+        ['edit.redo', true],
+      ]);
+      // Looking is a viewer's: annotations shown or hidden, presenting on this screen (S3 §D11).
+      const view = modelIds(sub('View'));
+      for (const id of [
+        'view.annotations',
+        'present.from-start',
+        'present.canvas',
+        'view.zoom-fit',
+      ])
+        expect(view).toContain(id);
+      expect(view).not.toContain('view.exports');
+    }
+    // Can comment keeps today's rows: File › New / Open project, Copy, Settings, Diagnostics.
+    const comment = modelIds(buildProjectMenu(menuCtx({ native: true, readOnly: true })));
+    for (const id of ['project.new', 'project.open', 'edit.copy', 'settings.open', 'diag.sync'])
+      expect(comment).toContain(id);
+  });
+
   test('the key hint is the primary binding live in this shell', () => {
     expect(keyHint(ACTIONS_BY_ID.get('export.open'), desktop)).toBe('⇧⌘E');
     // ⌘N is a desktop binding; the browser shell shows the bare-N one (N) or nothing, never ⌘N

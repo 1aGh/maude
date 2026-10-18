@@ -36,6 +36,8 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'reload',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     fromCanvas: true,
     keys: [kb('⌘R', 'global', { inText: true })],
     legacy: { palette: 'Reload active canvas', menu: 'Reload canvas', sheet: 'Reload canvas' },
@@ -55,6 +57,8 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     label: 'Close canvas',
     kind: 'command',
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     legacy: { menu: 'Close canvas' },
   },
   // V2-4.2 — the File menu's canvas rows (CONTRACT §1). Each wraps what the Files tree's row menu
