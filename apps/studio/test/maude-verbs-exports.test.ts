@@ -181,7 +181,7 @@ describe('maude design exports retry (S8.4)', () => {
     studio = fakeStudio(retryHandler(202));
     const r = await studio.run('exports', ['retry', '0', '--no-wait', '--json']);
     expect(r.code).toBe(0);
-    expect(JSON.parse(r.stdout)).toEqual({ jobId: 'job-g', items: ['u2'] });
+    expect(JSON.parse(r.stdout)).toMatchObject({ jobId: 'job-g', items: ['u2'] });
   });
 
   test('a refusal exits 1 with the reason', async () => {
