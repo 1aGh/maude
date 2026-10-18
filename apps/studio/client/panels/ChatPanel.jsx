@@ -26,7 +26,6 @@ import {
   lastUserText,
   makeAcpAdapter,
 } from './acp-runtime.js';
-import ElicitationPrompt from './ElicitationPrompt.jsx';
 import { ChatHeader } from './chat-header.jsx';
 import { menuCtx } from '../v2/shell/project-menu-model.js';
 import { ChatAdvanced, SuggestOnlyBanner } from '../v2/ai/Advanced.jsx';
@@ -40,19 +39,21 @@ import {
   ChatLightbox,
   ChatMediaContext,
   ContinuationBubble,
-  ErrorCard,
   StatusRow,
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
 import { RunSurface } from '../v2/ai/RunSurface.jsx';
 import { RunsCount } from '../v2/ai/RunList.jsx';
+import NeedsYouSlot from '../v2/ai/NeedsYouSlot.jsx';
+import { QuotaLine } from '../v2/ai/NotReady.jsx';
+import { doneNotice, OPEN_AI_EVENT, openAiChat } from '../v2/ai/needs-you-toast.js';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
 import { readSuggestPref, writeSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
 import { WaitingCards } from '../v2/ai/WaitingCard.jsx';
 import { useAttachments } from '../v2/ai/use-attachments.js';
-import PermissionPrompt from './PermissionPrompt.jsx';
+import { notify } from '../../notifications.tsx';
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
 
@@ -207,6 +208,9 @@ function ChatThread({
   onCopyTranscript,
   suggestOn,
   onSetSuggestOn,
+  unavailable = false,
+  notConnected = null,
+  onConnected,
 }) {
   // Live session capabilities (feature-acp-panel-dynamic-claude-code-
   // capabilities) — `caps` is THIS chat's own connection's mode roster +
@@ -227,11 +231,12 @@ function ChatThread({
   // the panel costs nothing" intent — only the chat actually on screen warms.
   const warmedOnVisibleRef = useRef(false);
   useEffect(() => {
-    if (hidden || warmedOnVisibleRef.current) return;
+    // S5.13: nothing to warm while Claude Code is not ready; the effect runs again when it is.
+    if (hidden || unavailable || warmedOnVisibleRef.current) return;
     warmedOnVisibleRef.current = true;
     const p = picksRef.current;
     conn.warm(chatId, p.model, p.effort, p.mode);
-  }, [hidden, conn, chatId, picksRef]);
+  }, [hidden, unavailable, conn, chatId, picksRef]);
 
   // One-time reconciliation: if the user's persisted pick (from a DIFFERENT
   // chat, or an earlier session) isn't what THIS freshly-established session
@@ -384,6 +389,29 @@ function ChatThread({
     const text = lastUserText(runtime.thread.getState().messages);
     if (text) runtime.thread.append(text);
   }, [runtime]);
+  // S5.13 (03 `ai-panel-closed`): hiding the panel never stops AI, and a toast says when the chat is done.
+  const panelHiddenRef = useRef(panelHidden);
+  panelHiddenRef.current = panelHidden;
+  useEffect(() => {
+    let was = false;
+    return conn.onBusy((busy) => {
+      const finished = was && !busy;
+      was = busy;
+      if (!finished || !panelHiddenRef.current) return;
+      const msgs = runtime.thread.getState().messages;
+      const last = [...msgs].reverse().find((m) => m.role === 'assistant');
+      const text = (last?.content || [])
+        .filter((c) => c.type === 'text')
+        .map((c) => c.text)
+        .join(' ');
+      const notice = doneNotice({
+        id: `ai-done-${chatId}`,
+        text,
+        onShow: () => openAiChat(chatId),
+      });
+      if (notice) notify(notice);
+    });
+  }, [conn, runtime, chatId]);
 
   // Usage (Milestone D) — context-window gauge + session cost + an event-
   // driven single-window rate-limit banner. Per-chat: each ChatThread has its
@@ -431,17 +459,23 @@ function ChatThread({
               <JumpToLatest hidden={hidden} />
             </ThreadPrimitive.Viewport>
             <WaitingCards chatId={chatId} designRel={designRel} />
-            {activePermission ? (
-              <PermissionPrompt
-                request={activePermission}
-                onRespond={respondPermission}
-                queueLength={pendingPermissions.length}
-              />
-            ) : activeElicitation ? (
-              <ElicitationPrompt request={activeElicitation} onRespond={respondElicitation} />
-            ) : (
-              <ErrorCard error={turnError} onRetry={retryLastTurn} />
-            )}
+            {/* S5.13 — the open question, a failure, or the kept prompt's line (client/v2/ai/NeedsYouSlot.jsx):
+                a permission waits here, inline, never modal. */}
+            <NeedsYouSlot
+              conn={conn}
+              chatId={chatId}
+              away={hidden || panelHidden}
+              pendingPermissions={pendingPermissions}
+              pendingElicitations={pendingElicitations}
+              onRespondPermission={respondPermission}
+              onRespondElicitation={respondElicitation}
+              turnError={turnError}
+              onRetry={retryLastTurn}
+              unavailable={unavailable}
+              notConnected={notConnected}
+              onConnected={onConnected}
+            />
+            <QuotaLine rateLimit={usage.rateLimit} />
             <Composer
               activeCanvas={activeCanvas}
               scope={aiScope.scope}
@@ -466,7 +500,9 @@ function ChatThread({
               attachmentsRef={attachmentsRef}
               attach={attach}
               usage={usage}
-              showRateLimitBanner={showRateLimitBanner}
+              showRateLimitBanner={
+                showRateLimitBanner && usage.rateLimit?.status !== 'allowed_warning'
+              }
               onDismissRateLimitBanner={dismissRateLimitBanner}
             />
             {/* S5.12 — everything that used to sit in the field's toolbar, under one quiet row. */}
@@ -722,6 +758,13 @@ export default function ChatPanel({
     },
     [activeChatId, openChat]
   );
+  // S5.13 — a "Needs you" / "Done" toast's Open / Show lands on the chat it was about (the shell opens the
+  // panel itself on the same event).
+  useEffect(() => {
+    const on = (e) => switchTo(e?.detail?.chat);
+    window.addEventListener(OPEN_AI_EVENT, on);
+    return () => window.removeEventListener(OPEN_AI_EVENT, on);
+  }, [switchTo]);
 
   // A chat moved to the trash (the list did that, server-side) — kill its claude (close the conn), forget
   // it here, and fall back to another open chat (or a fresh one) if it was active.
@@ -924,7 +967,10 @@ export default function ChatPanel({
         className="st-rp-body st-rp-body--chat"
         style={menuOpen && connected ? { display: 'none' } : undefined}
       >
-        {status.available === false ? (
+        {/* S5.13 (rule `ai-not-connected-yet`): Ask AI looks the same when Claude Code is not ready. The
+            field stays, a prompt sent now is KEPT (the server queues it) and the ConnectSheet asks once;
+            the v1 setup list (`acp-not-connected`) sits in the slot above the field until then. */}
+        {openChatIds.length === 0 && status.available === false ? (
           <NotConnected
             reason={status.reason}
             readiness={readiness}
@@ -961,6 +1007,18 @@ export default function ChatPanel({
                 onCopyTranscript={copyTranscript}
                 suggestOn={suggestOn}
                 onSetSuggestOn={onSetSuggestOn}
+                unavailable={status.available === false}
+                notConnected={
+                  id === activeChatId ? (
+                    <NotConnected
+                      reason={status.reason}
+                      readiness={readiness}
+                      readinessLoading={readinessLoading}
+                      onRecheck={recheck}
+                    />
+                  ) : null
+                }
+                onConnected={recheck}
               />
             );
           })
