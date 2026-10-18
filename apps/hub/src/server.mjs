@@ -2250,6 +2250,8 @@ export function createHub(config = {}) {
     projectId: process.env.MAUDE_TENANT_ID || 'local',
     auth: (req) => acceptedAuth(req),
     poke: createVotesPoke({ instance: server, visibility: pokeVisibility }),
+    // Per-person write budget (`VOTES_WRITE_LIMIT`); off with the hub's other limits.
+    ...(rateLimit ? {} : { writeLimit: null }),
   });
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it
