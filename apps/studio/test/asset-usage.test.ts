@@ -9,6 +9,7 @@ import { staticAssetRefs } from '../access/closure.ts';
 import type { IndexContext } from '../index/extract.ts';
 import { assetRefsOf } from '../index/extractors/asset-usage.ts';
 import type { HistorySource } from '../index/history-refs.ts';
+import { historySourceFromRuntime } from '../index/history-source.ts';
 import { createIndexService, type IndexService } from '../index/service.ts';
 import { pidOf, projectDir } from '../index/snapshot.ts';
 import { assetKey } from '../thumbs/keys.ts';
@@ -362,5 +363,52 @@ describe('canvas-only sessions', () => {
         .assets.map((r) => r.rel)
         .sort()
     ).toEqual([A, C]);
+  });
+});
+
+describe('the sync runtime as a history source', () => {
+  const rowOf = (revision: number, canvas: string, kind = 'edit') => ({
+    revision,
+    actionId: `a${revision}`,
+    actor: 'u',
+    mine: true,
+    kind,
+    label: null,
+    committedAt: revision,
+    undoes: null,
+    canvases: [canvas],
+  });
+  const runtime = (fail = false) => ({
+    async acceptedHistory(q: { path?: string | null }) {
+      if (fail) throw new Error('hub unreachable');
+      return q.path === '.design/ui/a.tsx'
+        ? [rowOf(2, 'ui/a.tsx'), rowOf(1, 'ui/a.tsx'), rowOf(3, 'ui/a.tsx', 'comment')]
+        : [];
+    },
+    async acceptedVersion(repoRel: string, rev: number, lane = 'html') {
+      return repoRel === '.design/ui/a.tsx' && rev === 1 && lane === 'html'
+        ? '<img src="../assets/ffffffff.png" />'
+        : null;
+    },
+  });
+
+  test('versions are r<rev>, comments are not versions, and lanes read through acceptedVersion', async () => {
+    const src = historySourceFromRuntime(runtime(), '.design');
+    expect((await src?.versions('ui/a.tsx'))?.sort()).toEqual(['r1', 'r2']);
+    expect(await src?.text('ui/a.tsx', 'r1', 'html')).toContain('ffffffff');
+    expect(await src?.text('ui/a.tsx', 'r2', 'html')).toBeNull();
+    expect(await src?.text('ui/a.tsx', 'git:abc', 'html')).toBeNull();
+    expect(historySourceFromRuntime({}, '.design')).toBeNull();
+  });
+
+  test('end to end: the older picture stays out of Not used; an unreachable home never concludes', async () => {
+    const svc = make({ history: historySourceFromRuntime(runtime(), '.design') });
+    await svc.settled();
+    expect(row(svc, F)).toMatchObject({ olderVersions: true, notUsed: false });
+    expect(row(svc, E)?.notUsed).toBe(true);
+    const down = make({ history: historySourceFromRuntime(runtime(true), '.design') });
+    await down.settled();
+    expect(row(down, E)?.notUsed).toBe('checking');
+    expect(down.notUsed()).toEqual({ checking: true, assets: [] });
   });
 });
