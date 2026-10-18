@@ -12,6 +12,8 @@
 //   setRowSlots(source, Map<path, slot> | null)        a source's whole set at once (null clears it)
 //   setFootSlot('sync' | 'access', { text, tone? } | null)
 //   setGhostRows('trash', GhostRow[])                  canvases open in a tab but gone from the index
+//   setGhostRows('sync', GhostRow[])                   S11.4: canvases listed by the hub, not on this Mac yet
+//                                                      (slot `{ dim, arriving }` pulses, `{ dim, notLocal }`)
 //
 // `source` is 'ai' | 'sync' | 'access' | 'trash'; `path` is the canvas's designRoot-relative path
 // ("ui/club-web/A.tsx" — the panel's `row.rel`). A RowSlot is
@@ -23,14 +25,17 @@
 //   meta  ai > sync > access > trash       ("Needs you" > "not sent" / "sending"; one word per row)
 //   sub   trash > access > sync > ai       (a search's own sub beats all of them — the panel decides)
 //   dim   any source
-//   foot  sync > jump > access > default   (the jump foot lives in tree-model.js `panelFootLine`)
+//   foot  sync > arriving > jump > access > default   (the jump foot lives in tree-model.js `panelFootLine`)
+//   ghost trash > sync                    (one row per path: a trashed canvas is not "arriving")
 //
 // The store holds no React and no DOM; `useRowSlots` is the one hook.
 
 import { useSyncExternalStore } from 'react';
 
 export const SLOT_SOURCES = Object.freeze(['ai', 'sync', 'access', 'trash']);
-export const FOOT_SOURCES = Object.freeze(['sync', 'access']);
+// S11.4 — `arriving` ("Getting <project> · 41 of 93 canvases") is its own foot: S9.24's offline foot is `sync`.
+export const FOOT_SOURCES = Object.freeze(['sync', 'arriving', 'access']);
+export const GHOST_SOURCES = Object.freeze(['trash', 'sync']);
 const META_ORDER = Object.freeze(['ai', 'sync', 'access', 'trash']);
 const SUB_ORDER = Object.freeze(['trash', 'access', 'sync', 'ai']);
 const FOOT_ORDER = FOOT_SOURCES; // sync first
@@ -106,14 +111,18 @@ export function resolveFoot(foots) {
 
 const empty = () => ({ ai: new Map(), sync: new Map(), access: new Map(), trash: new Map() });
 let rows = empty();
-let foots = { sync: null, access: null };
-let ghosts = { trash: [] };
+let foots = { sync: null, arriving: null, access: null };
+let ghosts = { trash: [], sync: [] };
 const listeners = new Set();
 
 function build() {
   const frozenRows = rows; // maps are replaced (never mutated) on every change: this snapshot stays valid
   const frozenFoots = foots;
-  const ghostList = Object.freeze([...ghosts.trash]);
+  const trashed = new Set(ghosts.trash.map((g) => g.path));
+  const ghostList = Object.freeze([
+    ...ghosts.trash,
+    ...ghosts.sync.filter((g) => !trashed.has(g.path)),
+  ]);
   return Object.freeze({
     slotFor: (path) => resolveSlot(frozenRows, path),
     foot: resolveFoot(frozenFoots),
@@ -188,18 +197,18 @@ export function setFootSlot(source, foot) {
  * `path` (repo path or designRoot-relative), not counted by its folder; `onOpen()` focuses the tab.
  */
 export function setGhostRows(source, list) {
-  need(['trash'], source, 'ghost');
+  need(GHOST_SOURCES, source, 'ghost');
   const next = (list || []).filter((g) => g && typeof g.path === 'string' && g.path);
-  if (!next.length && !ghosts.trash.length) return;
-  ghosts = { ...ghosts, trash: next };
+  if (!next.length && !ghosts[source].length) return;
+  ghosts = { ...ghosts, [source]: next };
   publish();
 }
 
 /** Forget everything (tests, and a project switch). */
 export function resetRowSlots() {
   rows = empty();
-  foots = { sync: null, access: null };
-  ghosts = { trash: [] };
+  foots = { sync: null, arriving: null, access: null };
+  ghosts = { trash: [], sync: [] };
   publish();
 }
 

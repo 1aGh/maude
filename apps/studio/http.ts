@@ -172,6 +172,7 @@ import { probeReadiness } from './readiness.ts';
 import {
   allSpecs,
   announceAction,
+  canvasPathsOfIndex,
   heldByAiRefusal,
   riderPatch,
   runStageHooks,
@@ -1607,6 +1608,15 @@ export function createHttp(
   void outbox.drain.wake().catch(() => null);
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    // S11.4 — what is on this Mac vs still coming: the runtime's in-memory listing against the
+    // index's own disk scan (never a hub request); filtered by the request's access.
+    availability: {
+      source: () => ctx.syncControl?.current?.()?.availability?.() ?? null,
+      local: async () => canvasPathsOfIndex(await api.buildIndexData()),
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      project: () => ctx.cfg.name ?? null,
+    },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
     // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
     // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local
