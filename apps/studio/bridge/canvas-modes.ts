@@ -258,13 +258,12 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
     ]),
   }),
   // Present has no toolbar; its one tool is the Pointer (L), data here so the key table knows it.
-  // Pending until S3.2b builds the dot (rule 13: no key before its tool).
+  // S3.2b builds the dot (present/pointer-dot.tsx): the canvas owns the key while presenting, the
+  // registry derives `tool.pointer` from this slot. Any role may point (`minRole: 'view'`).
   present: Object.freeze({
     rest: 'browse' as const,
     hidden: true,
-    slots: Object.freeze([
-      slot({ key: 'L', label: 'Pointer', tool: 'pointer', minRole: 'view', pending: 'S3' }),
-    ]),
+    slots: Object.freeze([slot({ key: 'L', label: 'Pointer', tool: 'pointer', minRole: 'view' })]),
   }),
 });
 

@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
+import { presentZoomStore } from '../present/present-zoom-store.js';
 import { shellToast } from '../../shell/util.js';
 import {
   capsFor,
@@ -78,6 +79,15 @@ export function usePresentMode() {
   return [presentMode, useCallback(setPresenting, [])];
 }
 
+// S3.2b — the shell's own controls (and the keys the shell hears) step the presenting canvas through the
+// lane the mounted hook owns; there is one lane per window, so one registered stepper.
+let presentStepper = null;
+
+/** Step Present · Artboards: 'next' · 'prev' · an index. Nothing outside Present. */
+export function presentStep(to) {
+  if (presentingOf(shellMode.get())) presentStepper?.(to);
+}
+
 const modalOpenNow = () =>
   typeof document !== 'undefined' && !!document.querySelector('[role="dialog"][aria-modal="true"]');
 
@@ -110,6 +120,19 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       flushInsets: () => insetsLane.flushNow(),
     });
   const lane = laneRef.current;
+
+  useEffect(() => {
+    presentStepper = (to) => lane.step(activeWin(), to);
+    return () => {
+      presentStepper = null;
+    };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: activeWin reads live refs
+  }, [lane]);
+
+  // The pill's zoom belongs to one Present: leaving it clears the number.
+  useEffect(() => {
+    if (!presenting) presentZoomStore.set(null);
+  }, [presenting]);
 
   // A role change clamps (§5.4 "role change": demoted / promoted).
   const capsRef = useRef(null);
@@ -192,6 +215,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         // Present · Artboards moved on (S3.2a's stage echoes every step); the canvas's own hold
         // (_shell.html) lands its held write on the same move. Active canvas only (the table's gate).
         shellMode.position(m);
+      } else if (m.dgn === 'viewport-zoom') {
+        // Present the canvas: the pill shows the canvas's zoom (present/present-zoom.ts posts it).
+        if (L.presenting) presentZoomStore.set(m.zoom);
       } else if (m.dgn === 'mode-changed') {
         if (m.cause === 'clamp' && m.mode !== 'present') {
           console.warn(`[maude] the canvas clamped the mode to ${m.mode}`);
