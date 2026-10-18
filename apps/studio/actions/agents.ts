@@ -532,9 +532,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     agent: cli('maude design ds clear <ds> <css>'),
   },
   // S10.6 — the Design system canvas: opening it is navigation (`maude design open` moves the
-  // person's view); Light | Dark is the canvas's own viewing preference and writes nothing.
+  // person's view). Light | Dark is the canvas's own viewing preference and writes nothing; an
+  // agent sees the other mode by capturing the canvas URL with `&dsMode=dark`.
   'ds.open': NAV('<ds.path>/design-system.tsx'),
-  'ds.set-theme-preview': PREF(
-    'previews the system in its own Light or Dark on the Design system canvas; an agent reads tokens.json'
-  ),
+  'ds.set-theme-preview': {
+    effect: 'none',
+    agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),
+  },
 };

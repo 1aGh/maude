@@ -44,7 +44,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 
 ## Capabilities
 
-233 capabilities: 58 by file, 61 by verb, 114 the person's only, 0 not yet.
+233 capabilities: 58 by file, 62 by verb, 113 the person's only, 0 not yet.
 
 ### Edit a file (58)
 
@@ -109,7 +109,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Text | `tool.text` | `annotations` | Add a text element to the canvas’s .annotations.json | `design:whiteboard` |
 | Ungroup | `annotation.ungroup` | `annotations` | Clear the elements’ group id | `design:whiteboard` |
 
-### Run a verb (61)
+### Run a verb (62)
 
 | Capability | Action id | Verb | Tier |
 | --- | --- | --- | --- |
@@ -164,6 +164,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Select next sibling | `object.select-next` | `maude design open <canvas>@<element>` | auto |
 | Select parent | `object.select-parent` | `maude design open <canvas>@<element>` | auto |
 | Server | `diag.server` | `maude design status` | auto |
+| Show the system in Light or Dark | `ds.set-theme-preview` | `maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>` | auto |
 | Step out | `object.step-out` | `maude design open <canvas>@<element>` | auto |
 | Stop | `ai.stop` | `maude design runs stop <run>` | auto |
 | Sync | `diag.sync` | `maude design status` | auto |
@@ -175,7 +176,7 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Version history | `history.open` | `maude design history list` | auto |
 | Zoom to artboard | `view.zoom-to-artboard` | `maude design open <canvas>#<artboard>` | auto |
 
-### Only the person (114)
+### Only the person (113)
 
 | Capability | Action id | Why |
 | --- | --- | --- |
@@ -273,7 +274,6 @@ The app writes these. Never edit them by hand; the hook refuses it. Change them 
 | Show tab 6 | `tab.select-6` | native-window |
 | Show tab 7 | `tab.select-7` | native-window |
 | Show tab 8 | `tab.select-8` | native-window |
-| Show the system in Light or Dark | `ds.set-theme-preview` | view-pref — previews the system in its own Light or Dark on the Design system canvas; an agent reads tokens.json |
 | Sign in as another account… | `account.switch` | native-window — the desktop app’s profiles; an agent never picks an account |
 | Sort canvases | `canvases.sort` | view-pref — the order the Canvases panel lists in; `maude design index` lists them all |
 | Step a frame | `timeline.step` | view-pref — playback |

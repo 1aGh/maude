@@ -2787,9 +2787,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "previews the system in its own Light or Dark on the Design system canvas; an agent reads tokens.json"
+        "path": "cli",
+        "verb": "maude design screenshot --url \"<canvas-url>&dsMode=dark\" --full --out <png>"
       }
     }
   ],
