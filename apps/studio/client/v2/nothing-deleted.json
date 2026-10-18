@@ -377,7 +377,10 @@
         "action": null,
         "testid": "canvas-row-unsaved",
         "where": "Canvases — a changed canvas or file row carries an M / A / D / U badge until its version is saved (a project under git, local shells)",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -391,7 +394,9 @@
         "action": null,
         "testid": "repo-switcher-trigger",
         "where": "Canvases panel foot (desktop) — the project / draft switcher; a browser tab shows a read-only “branch: X” badge; a project somebody else saves keeps only the project half",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -405,7 +410,9 @@
         "action": "project.pull-copy",
         "testid": "project-menu-row-project.pull-copy",
         "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -419,7 +426,9 @@
         "action": null,
         "testid": "switcher-resume",
         "where": "Canvases panel foot (desktop) — on the shared version, with a draft you worked on, a “Continue on <draft>?” strip sits above the switcher (Dismiss hides it for the session)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -459,7 +468,13 @@
         "action": null,
         "testid": "settings-open-dashboard",
         "where": "Settings › General › Account › Open the cloud dashboard",
-        "reach": ["desktop", "browser", "cloud-owner", "cloud-member", "cloud-viewer"],
+        "reach": [
+          "desktop",
+          "browser",
+          "cloud-owner",
+          "cloud-member",
+          "cloud-viewer"
+        ],
         "reachNote": "V2-4.9: the local read-only link (viewer) has no account row — it is the Mac owner’s account, and that link is somebody else’s Mac. A cloud viewer keeps it (its hub told the tab where the dashboard is)."
       }
     },
@@ -825,7 +840,9 @@
         "action": null,
         "testid": "switcher-new-branch",
         "where": "Canvases panel foot (desktop) › switcher › New draft… (name it, Create); drafts list by name",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -839,7 +856,10 @@
         "action": null,
         "testid": ".gp-version",
         "where": "Menu › Version history › History — every saved version reads “author · short sha” (until S1)",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -853,7 +873,9 @@
         "action": null,
         "testid": "switcher-fetch",
         "where": "Canvases panel foot (desktop) › switcher › Refresh (fetches the remote drafts)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -867,7 +889,9 @@
         "action": null,
         "testid": "switcher-merge",
         "where": "Canvases panel foot (desktop) › switcher, on a draft › Add to shared (a GitHub project opens a pull request)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -881,7 +905,9 @@
         "action": null,
         "testid": "git-commit-message",
         "where": "Menu › Version history ⇧⌘G › Changes — describe what changed, then Save version / Save all (desktop; until S1)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -895,7 +921,9 @@
         "action": null,
         "testid": "git-publish",
         "where": "Menu › Version history ⇧⌘G › Changes › Publish changes (desktop, shown with saved versions to send; until S1)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -909,7 +937,9 @@
         "action": null,
         "testid": "git-discard",
         "where": "Menu › Version history ⇧⌘G › Changes › the discard button on a changed file (desktop; until S1)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -923,7 +953,10 @@
         "action": null,
         "testid": "diag-get-latest",
         "where": "Menu > Diagnostics > Sync > Get latest (shown while the team has new versions)",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1054,7 +1087,12 @@
         "action": "view.trash",
         "testid": "canvases-trash-clear",
         "where": "Canvases › Trash (the last row; ⌘K “Trash”) › Clear out… — removes what has been in the trash 30 days or more; Restore brings a thing back",
-        "reach": ["desktop", "browser", "cloud-owner", "cloud-member"]
+        "reach": [
+          "desktop",
+          "browser",
+          "cloud-owner",
+          "cloud-member"
+        ]
       }
     },
     {
@@ -1120,7 +1158,10 @@
         "action": null,
         "testid": "share-local-url",
         "where": "Share cluster › Share… › Local link (this Mac only), with Copy",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1134,7 +1175,10 @@
         "action": null,
         "testid": "share-app-url",
         "where": "Share cluster › Share… › Open in Maude app, with Copy",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1148,7 +1192,9 @@
         "action": "project.share-github",
         "testid": "project-menu-row-project.share-github",
         "where": "Menu › File › Share on GitHub… (desktop) — invite by GitHub username; the Share sheet takes it over with S9",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1162,7 +1208,9 @@
         "action": null,
         "testid": "chat-caps-bar",
         "where": "AI chat (⇧⌘A) › the capability bar under the composer — model, effort, fast mode (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1176,7 +1224,9 @@
         "action": null,
         "testid": "chat-mode-picker",
         "where": "AI chat (⇧⌘A) › the capability bar › Permission mode (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1190,7 +1240,9 @@
         "action": null,
         "testid": "chat-transcript-menu",
         "where": "AI chat (⇧⌘A) › the transcript view menu — thinking, verbose (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1204,7 +1256,9 @@
         "action": null,
         "testid": "chat-foot-info-btn",
         "where": "AI chat (⇧⌘A) › the info button in the chat foot — context % and token counts (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1218,7 +1272,9 @@
         "action": null,
         "testid": "chat-cmd-menu",
         "where": "AI chat (⇧⌘A) › type “/” in the composer — the slash-command list (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1232,7 +1288,9 @@
         "action": null,
         "testid": "chat-tool-group",
         "where": "AI chat (⇧⌘A) › the feed — one card per group of tool calls (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1753,7 +1811,9 @@
         "action": "ai.chat",
         "testid": "chat-overflow-menu",
         "where": "AI chat (⇧⌘A) › the chat’s ⋯ menu: Rename, Archive, Delete, Copy transcript; the empty state’s buttons and “Implement N comments” sit in the feed (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
