@@ -1686,6 +1686,18 @@ export function createHttp(
         if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
       },
     },
+    // S9.7b — POST /_api/comments/op (routes/comments.ts). The author is the session: a cell's
+    // vouched member, else this machine's git identity — never a name in the body.
+    comments: {
+      designRel: ctx.paths.designRel,
+      actor: async (req) => ({
+        name:
+          (isWorkspaceMode() ? req.headers.get('x-maude-user') : null)?.slice(0, 120) ||
+          (await api.gitCurrentUser()),
+      }),
+      fileOf: (id) => api.commentFileOf(id),
+      apply: (file, op, actor) => api.commentOp(file, op, actor),
+    },
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
     pins: { designRoot: ctx.paths.designRoot },
@@ -6673,6 +6685,8 @@ export function createHttp(
           ? () => closureFor(access, projectReader, closureCache)
           : undefined,
       exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
+      // S9.7b — a table route's own target (a reply by comment id: the thread's canvas)
+      targetFor: laneRoutes.targetFor,
     };
   }
 

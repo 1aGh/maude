@@ -20,6 +20,7 @@ import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
+import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -64,6 +65,8 @@ export interface RouteDeps {
   links?: LinksRouteDeps;
   /** S5.10 — attachments (→ Assets / this Mac's `_chat/attachments/`) + folder consent */
   chatAttach?: ChatAttachDeps;
+  /** S9.7b — `POST /_api/comments/op`: one comment op (comments/ops.ts) as the session */
+  comments?: CommentRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -95,5 +98,18 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       }
     ),
     ...createLinksRoutes(deps.links ?? { control: () => null, designRel: deps.ai.designRel }),
+    ...createCommentRoutes(
+      deps.comments ?? {
+        designRel: deps.ai.designRel,
+        actor: async () => ({ name: '' }),
+        fileOf: async () => null,
+        apply: async () => ({
+          ok: false,
+          status: 404,
+          code: 'not-found',
+          error: 'No such comment.',
+        }),
+      }
+    ),
   ];
 }

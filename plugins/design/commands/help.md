@@ -99,6 +99,6 @@ Every studio action has one AI path: 58 by editing a file, 49 by a `maude` verb,
 | Tier | `maude design` verbs |
 | --- | --- |
 | auto (no prompt in the Maude chat) | prep · bootstrap-check · slug · server-up · runtime-health · screenshot · smoke · visual-sanity · perf · canvas-rects · read-annotations · svg-optimize · asset-sweep · draw-proof · probe-footage · smart-frames · agent-browser-safe · chat-open · serve · status · index · help · check · place · layout-check · open · history list · history show · history diff · comments list · exports list · exports again · runs list · runs stop · annotate · canvas-edit · handoff · import-asset · import-brand · import-tokens · ingest-footage · photo-adjust · ds-check · ds-upgrade analyse · ds-upgrade plan · ds-upgrade validate |
-| prompt (permission card) | hook · export · curl-local · draw-build · to-lottie · generate · audio-search · fetch-asset · ensure-browser · transcribe · import-figma · photo-bg-remove · init · ds-upgrade · bulk-deletes · history restore · history undo · exports · runs · comments · history |
+| prompt (permission card) | hook · export · curl-local · draw-build · to-lottie · generate · audio-search · fetch-asset · ensure-browser · transcribe · import-figma · photo-bg-remove · init · ds-upgrade · bulk-deletes · history restore · history undo · exports · runs · comments reply · comments resolve · comments reopen · comments add · comments · history |
 | person only | link · adopt · unlink · detach |
 <!-- END GENERATED: studio capabilities -->
