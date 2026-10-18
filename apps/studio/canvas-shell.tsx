@@ -42,6 +42,7 @@ import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
+import { runEscRung } from './bridge/esc-ladder.ts';
 import { type Insets, revealViewBox } from './bridge/occlusion.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
@@ -3483,21 +3484,48 @@ function CanvasRouter({
         void afterShellRecords().then(() => undoStackRef.current.redo());
       },
       onEscape: () => {
-        // T21 — abort any mid-stroke draw FIRST. The annotations layer
-        // listens for `maude:cancel-stroke` and drops the in-progress
-        // shape without committing.
+        const governed = canvasModeStore(window).get().mode;
+        if (governed) {
+          // S3.12 — a governed canvas takes ONE rung per press (bridge/esc-ladder.ts, 04 md-esc): a cleared
+          // selection, a left tool or a set-down stroke is the step; the mode steps back only when none applied.
+          const outcome = runEscRung(governed, tool, {
+            stroke: () => {
+              // T21 — abort any mid-stroke draw. The annotations layer listens for `maude:cancel-stroke`,
+              // drops the in-progress shape without committing, and marks the event when it did.
+              const detail = { cancelled: false };
+              try {
+                document.dispatchEvent(new CustomEvent('maude:cancel-stroke', { detail }));
+              } catch {
+                /* non-DOM env */
+              }
+              return detail.cancelled;
+            },
+            selection: () => {
+              if (selSet.selected.length === 0 && annotSel.selectedIds.length === 0) return false;
+              // S2.1 — `object.step-out`, esc's selection rung: one level up; at the top, deselect.
+              if (!stepOut(selSet)) selSet.clear();
+              annotSel.clear();
+              return true;
+            },
+            tool: () => {
+              // T19 — clear the sticky-tool lock and flip back to the mode's resting tool.
+              clearSticky();
+              resetTool();
+              return true;
+            },
+          });
+          setHoverEl(null);
+          return outcome !== 'back' && outcome !== 'stay';
+        }
+        // An ungoverned canvas (no shell yet): v1's single-press ladder, byte for byte.
         try {
           document.dispatchEvent(new CustomEvent('maude:cancel-stroke'));
         } catch {
           /* non-DOM env */
         }
-        // T19 — clear sticky-tool lock + flip back to the mode's resting tool
-        // (DDR-223: move in edit, browse in preview). Esc is the canonical
-        // "back to default state" gesture across canvas apps.
         clearSticky();
         resetTool();
         ctxMenu.close();
-        // S2.1 — `object.step-out`, esc's selection rung: one level up; at the top, deselect.
         if (!stepOut(selSet)) selSet.clear();
         annotSel.clear();
         setHoverEl(null);

@@ -48,6 +48,8 @@ import {
   toolKeyAction,
   V1_TOOL_IDS,
 } from './bridge/canvas-modes.ts';
+import { escOwnerOpen } from './bridge/esc-ladder.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { isEmbedCanvas, isHistoricalCanvas } from './read-only-mode.ts';
 import { lastMarkerTip } from './toolbars/marker-tip.ts';
 
@@ -470,7 +472,9 @@ export interface RouterCallbacks {
   onDropComment?: (a: Extract<RouterAction, { kind: 'drop-comment' }>) => void;
   onContextMenu?: (a: Extract<RouterAction, { kind: 'context-menu' }>) => void;
   onTool?: (a: Extract<RouterAction, { kind: 'tool' }>) => void;
-  onEscape?: () => void;
+  /** S3.12 — `true` when the press ran a rung (the ladder in bridge/esc-ladder.ts): the mode is not
+   *  asked to step back as well. Anything else (`void` included) is v1's "ran everything". */
+  onEscape?: () => boolean | void;
   /** Phase 20 — Cmd+Z / Ctrl+Z. */
   onUndo?: () => void;
   /** Phase 20 — Cmd+Shift+Z / Ctrl+Y / Cmd+Y. */
@@ -662,7 +666,8 @@ export function linkFollowOf(
   target: EventTarget | null,
   click: { mode: CanvasModeV2 | null | undefined; button: number; mod: boolean; shift?: boolean }
 ): { elementId: string; artboardId: string | null } | null {
-  if (click.mode !== 'preview' || click.button !== 0 || click.mod || click.shift) return null;
+  if (!modeShows(click.mode, 'live-design') || click.button !== 0 || click.mod || click.shift)
+    return null;
   const el = (target as Element | null)?.closest?.('[data-cd-link]');
   const id = el?.getAttribute('data-cd-id');
   if (!el || !id || id.length > 48 || !LINK_ELEMENT_ID_RE.test(id) || /^[0-9a-f]{8}$/.test(id))
@@ -762,11 +767,13 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
         case 'tool':
           callbacks.onTool?.(action);
           break;
-        case 'escape':
-          callbacks.onEscape?.();
-          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep).
-          if (action.back) postModeRequest({ mode: 'back', cause: 'esc' });
+        case 'escape': {
+          const ranRung = callbacks.onEscape?.();
+          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep). S3.12: only when
+          // the press ran no rung — a cleared selection is the step, the mode stays (04 md-esc, one at a time).
+          if (action.back && ranRung !== true) postModeRequest({ mode: 'back', cause: 'esc' });
           break;
+        }
         case 'mode-request':
           postModeRequest(action);
           if (action.panel) postPanelOpen(action.panel);
@@ -988,6 +995,9 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           singleKeys: gov?.singleKeys ?? true,
         })
       );
+      // S3.12 — a context menu / thread popover / picker owns this esc and closes itself: no rung runs,
+      // the mode does not move, the key is not consumed here.
+      if (action.kind === 'escape' && escOwnerOpen(host.ownerDocument ?? document)) return;
       if (
         action.kind === 'tool' ||
         action.kind === 'mode-request' ||

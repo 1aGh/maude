@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { linkLabel, parseLinkTarget } from './bridge/link-target.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { resolveSelectionEl } from './dom-selection.ts';
 import { type Selection, useSelectionSet } from './use-selection-set.tsx';
 
@@ -71,7 +72,7 @@ function useEditing(): boolean {
     () => store?.get().mode ?? null,
     () => null
   );
-  return mode === null || mode === 'edit';
+  return modeShows(mode, 'object-tools');
 }
 
 export function LinkChipOverlay() {

@@ -6,6 +6,8 @@
 // helpers (`toolKeyAction`, `escStep`, `baseMode`, `initialMode`, `clampMode`,
 // `holdsModuleUpdates`) and `MODE_TOOLS` land with the dormant governed path (V2-2.10e, T8).
 
+import { holdsAiChanges } from './mode-shows.ts';
+
 export const CANVAS_MODES = ['edit', 'viewing', 'preview', 'present'] as const;
 export type CanvasModeV2 = (typeof CANVAS_MODES)[number];
 
@@ -484,7 +486,7 @@ export function homeModeOfTool(
 export function holdsModuleUpdates(
   snap: { mode: CanvasModeV2 | null; present: PresentSpec | null } | null | undefined
 ): boolean {
-  return !!snap && snap.mode === 'present' && snap.present?.kind === 'artboards';
+  return !!snap && !!snap.mode && holdsAiChanges(snap.mode, snap.present);
 }
 
 /** A well-formed Present spec (the shell's own, or one a `mode-request` asked for): `artboards`

@@ -18,6 +18,7 @@ import { shellToast } from '../../shell/util.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { askToEdit } from './ask-to-edit.js';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
@@ -230,11 +231,12 @@ export function ShellShareCluster() {
       onStatusAction={(id) => {
         if (id === 'retry') retry();
       }}
-      // Nobody receives an "Ask to edit" yet — the request path is S9's (outbox kind
-      // `share.ask-to-edit`, no sender registered). Until then it says what to do, as the menubar does.
-      onAskToEdit={() => shellToast('Ask a project owner for edit access.')}
+      // S3.12 — Viewing's one way out. The flow is S9.21's (outbox kind `share.ask-to-edit`): the button runs
+      // that registry action the day it exists; until then it says what to do, as the menubar does.
+      onAskToEdit={() => askToEdit((id) => menuRunner.run(id), shellToast)}
       docked={pinned && !panelsHidden && !!rightActive}
       mode={lane.mode}
+      present={lane.presentSpec}
       modeSlot={
         <ModeSwitch
           mode={lane.mode}

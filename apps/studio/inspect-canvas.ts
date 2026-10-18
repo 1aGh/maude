@@ -12,11 +12,12 @@
  */
 
 import type { CanvasModeV2 } from './bridge/canvas-modes.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 
 /** An inspection: Preview/Viewing, or the `inspect` tool armed while no shell governs the canvas. */
 export function inspectsSelection(mode: CanvasModeV2 | null, tool: string): boolean {
   if (mode === null) return tool === 'inspect';
-  return mode === 'preview' || mode === 'viewing';
+  return modeShows(mode, 'inspect-panel');
 }
 
 /** ⌘-click from Browse flips to Move on a free canvas; a governed Preview keeps its mode (inspect). */

@@ -21,7 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
-import { presentFrom, presentStep } from '../v2/shell/use-canvas-mode-lane.js';
+import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
@@ -107,7 +107,13 @@ export const SHELL_KEY_HANDLERS = {
       return;
     }
     if (shortcutsTyping(ctx)) return;
-    if (d.focusedCommentId) d.setFocusedCommentId(null);
+    if (d.focusedCommentId) {
+      d.setFocusedCommentId(null);
+      return; // one step per press (04 md-esc): the pin first, the mode on the next
+    }
+    // S3.12 — the mode's own step back, with the shell focused (Preview → Edit, a held past version →
+    // now). The canvas keeps its tools/selection rungs; this is what is left once they are not in play.
+    if (shellStepBack({ canEdit: !d.viewerMode }) === 'set') e.preventDefault();
   },
   'search.open': (d, { event: e }) => {
     e.preventDefault();

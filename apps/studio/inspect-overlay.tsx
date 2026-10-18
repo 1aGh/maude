@@ -14,6 +14,7 @@
 
 import { useEffect, useRef } from 'react';
 import { canvasModeStore } from './bridge/canvas-mode-store.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { resolveSelectionEl, shortText } from './dom-selection.ts';
 import { isEditableTarget } from './input-router.tsx';
@@ -57,7 +58,7 @@ function ensureStyles(): void {
 /** ↵ in an inspection: ask the shell for Edit. Pure over the stores it is handed, so a test can call it. */
 export function askEditFromInspect(win: Window = window): boolean {
   const snap = canvasModeStore(win).get();
-  if (snap.mode !== 'preview' && snap.mode !== 'viewing') return false;
+  if (!snap.mode || !modeShows(snap.mode, 'inspect-panel')) return false;
   if (!snap.caps?.edit) return false; // Viewing / Can comment: there is no Edit to go to
   if (!canvasModeStore(win).claimRequest('edit|inspect')) return true;
   try {

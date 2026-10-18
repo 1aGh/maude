@@ -190,6 +190,7 @@ import {
   type SnapGuide,
 } from './annotations-snap.ts';
 import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
 import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
 import {
@@ -744,7 +745,8 @@ export interface StrokesStoreValue {
  *  ⌘Enter) are Preview's: in Edit the same chords are the OBJECT's (editing/object-keys.ts), so this
  *  listener stands down there. A canvas that never got a `set-mode` (null) keeps v1's behaviour. */
 export function boardChordsLive(win: Window): boolean {
-  return canvasModeStore(win).get().mode !== 'edit';
+  const mode = canvasModeStore(win).get().mode;
+  return !mode || !modeShows(mode, 'object-tools');
 }
 
 export const StrokesStoreContext = createContext<StrokesStoreValue | null>(null);
@@ -2392,16 +2394,22 @@ export function AnnotationsLayer() {
   // canvas-shell Esc handler (`maude:cancel-stroke`). Safe to call when
   // nothing is being drawn — the early-return on drawingRef keeps it
   // a no-op.
-  const cancelStroke = useCallback(() => {
-    if (!drawingRef.current) return;
+  const cancelStroke = useCallback((): boolean => {
+    if (!drawingRef.current) return false;
     drawAnchorRef.current = null;
     lastDrawPointRef.current = null;
     setDrawing(null);
+    return true;
   }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const onCancel = () => cancelStroke();
+    // S3.12 — the event carries `{ cancelled }` so the esc ladder knows this press WAS the stroke's rung.
+    const onCancel = (e: Event) => {
+      const hit = cancelStroke();
+      const detail = (e as CustomEvent<{ cancelled?: boolean } | null>).detail;
+      if (hit && detail && typeof detail === 'object') detail.cancelled = true;
+    };
     document.addEventListener('maude:cancel-stroke', onCancel);
     return () => document.removeEventListener('maude:cancel-stroke', onCancel);
   }, [cancelStroke]);

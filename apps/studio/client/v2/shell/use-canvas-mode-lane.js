@@ -23,6 +23,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
+import { foldsPanels } from '../../../bridge/mode-shows.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { presenterOn, presentRunStore, usePresenterState } from '../present/presenter-store.js';
 import { presentZoomStore } from '../present/present-zoom-store.js';
@@ -37,6 +38,7 @@ import {
   presentingOf,
   presentSpecFor,
   sameCaps,
+  shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
 import { insetsLane } from './use-occluded-insets.js';
@@ -62,6 +64,31 @@ export function presentFrom(kind) {
 export function togglePresentCanvas() {
   if (presentingOf(shellMode.get())) shellMode.back();
   else presentFrom('canvas');
+}
+
+/**
+ * S3.12 — esc pressed with the shell focused: take the mode's one step back (`shellEscDecision`). `typing` is a
+ * text field, `overlayOpen` any menu / sheet / popover that closes itself first. Returns what it did, or null.
+ */
+export function shellStepBack({ canEdit, typing = false } = {}) {
+  const snap = shellMode.get();
+  const overlayOpen =
+    modalOpenNow() ||
+    (typeof document !== 'undefined' &&
+      !!document.querySelector('[role="menu"], [data-esc-owner], .st-overlay'));
+  const d = shellEscDecision({
+    mode: snap.mode,
+    presenting: presentingOf(snap),
+    viewing: !!snap.viewing,
+    caps: capsFor({ canEdit: !!canEdit }),
+    typing,
+    overlayOpen,
+  });
+  if (!d) return null;
+  if (d.kind === 'exit-viewing') shellMode.leaveViewing();
+  else if (d.kind === 'exit-present') shellMode.back();
+  else shellMode.select(d.mode);
+  return d.kind;
 }
 
 /** The shell's DDR-117 setter, derived: `on` (or `(v) => on`) enters Present · Canvas / leaves. */
@@ -176,7 +203,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       foldedForRef.current = foldKey;
       // Only a mode someone CHOSE folds (nonce > 0): a view-only link's boot Preview keeps today's
       // panels, so the Canvases list is there to open a canvas from.
-      const want = mode === 'preview' && snap.nonce > 0;
+      const want = foldsPanels(mode, snap.present) && snap.nonce > 0;
       if (panelLayout.get().folded !== want) {
         panelLayout.setFolded(want);
         return;
@@ -185,7 +212,13 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     const key = `${sent.mode}|${sent.caps.edit}|${sent.caps.annotate}|${sent.caps.comment}|${snap.nonce}|${snap.viewing ? 'v' : ''}|${presenterView}`;
     if (sentRef.current === key) return;
     sentRef.current = key;
-    lane.broadcast({ mode: sent.mode, caps: sent.caps, tool: snap.tool, present: snap.present, presenterView });
+    lane.broadcast({
+      mode: sent.mode,
+      caps: sent.caps,
+      tool: snap.tool,
+      present: snap.present,
+      presenterView,
+    });
   }, [
     mode,
     caps,
@@ -294,6 +327,8 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   return {
     mode,
     caps,
+    /** The Present spec while presenting (Artboards · Canvas), else null. */
+    presentSpec: snap.present,
     peers,
     /** A peer's face in the cluster: Follow / Stop following on the active canvas (`peer.follow`). */
     follow(clientID) {

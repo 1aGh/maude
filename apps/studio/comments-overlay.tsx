@@ -1235,6 +1235,7 @@ export function CommentThread({
       ref={dialogRef}
       className="cm-thread"
       role="dialog"
+      data-esc-owner="focus"
       aria-labelledby={headId}
       tabIndex={-1}
       onClick={(e) => e.stopPropagation()}

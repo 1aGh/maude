@@ -14,6 +14,7 @@
 // marks the cluster so Preview can make it compact (the faces and the status word step aside).
 
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { modeCell } from '../../../bridge/mode-shows.ts';
 import { StIcon } from '../../shell/icons.jsx';
 import { keyHint } from './project-menu-model.js';
 
@@ -94,7 +95,9 @@ const withKey = (label, def, ctx) => {
  * @param onAskToEdit () => void
  * @param docked the cluster heads the pinned right column (no island chrome, no edge)
  * @param modeSlot the mode switch (V2-4.3b, mode-switch.jsx)
- * @param mode the canvas mode — `preview` makes the cluster compact
+ * @param mode the canvas mode — the cluster's form is the what-shows table's `share-cluster` row
+ *   (bridge/mode-shows.ts): Preview is `compact`, Viewing `full-access`; `data-cluster` carries it
+ * @param present the Present spec while presenting (Artboards · Canvas are two columns of the table)
  * @param accountSlot the account chip + card (S1.22a, account-card.jsx) — first, desktop only
  */
 export function ShareCluster({
@@ -115,8 +118,10 @@ export function ShareCluster({
   docked = false,
   modeSlot = null,
   mode = null,
+  present = null,
   accountSlot = null,
 }) {
+  const cluster = mode ? modeCell('share-cluster', mode, present) : 'full';
   const panelsLabel = panelsHidden ? 'Show panels' : 'Hide panels';
   const exportsLabel = ex.ring !== undefined ? `Exports — ${ex.ring} % done` : 'Exports';
   const commentsLabel = commentsCount > 0 ? `Comments — ${commentsCount} open` : 'Comments';
@@ -128,6 +133,7 @@ export function ShareCluster({
       data-occludes={docked ? undefined : 'top'}
       data-docked={docked ? 'true' : undefined}
       data-mode={mode ?? undefined}
+      data-cluster={cluster}
     >
       {accountSlot}
       <Faces faces={faces} onFollow={onFollow} />
