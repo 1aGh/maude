@@ -118,7 +118,6 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('canvas-edit', 'project'),
   d('handoff', 'project'),
   d('import-asset', 'project'),
-  d('import-brand', 'project'),
   d('import-tokens', 'project'),
   d('ingest-footage', 'project'),
   d('photo-adjust', 'project'),
@@ -136,6 +135,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('ensure-browser', 'external', { note: 'download' }),
   d('transcribe', 'external', { note: 'engine may be a paid cloud fallback' }),
   d('import-figma', 'external', { note: 'network; --explode' }),
+  d('import-brand', 'external', { note: 'network with --url (S8.18): reads a website' }),
   d('photo-bg-remove', 'external', { note: 'first-use ~40 MB model-weight fetch (§5.3 †)' }),
   d('init', 'destructive', { note: '--force overwrites (§5.3 †)' }),
   // ds-upgrade: the read-only steps are their own sub-verbs, so a prefix rule can name them; the

@@ -4284,7 +4284,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+        "symbol": "BrandSheet"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "brand-up-error",
@@ -4297,7 +4304,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+        "symbol": "BrandSheet"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "brand-up-result",
@@ -4310,7 +4324,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-result.jsx",
+        "symbol": "BrandResult"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "brand-up-palette",
@@ -4323,7 +4344,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-result.jsx",
+        "symbol": "BrandResult"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "brand-up-fonts",
@@ -4336,7 +4364,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-result.jsx",
+        "symbol": "BrandResult"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "brand-up-copy-command",
@@ -4349,7 +4384,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-result.jsx",
+        "symbol": "BrandResult"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "brand-up-again",
@@ -4362,7 +4404,14 @@
     },
     "region": "onboarding",
     "consumers": [],
-    "v2": "stable"
+    "v2": "stable",
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/import/brand-result.jsx",
+        "symbol": "BrandResult"
+      }
+    ],
+    "notes": "S8.18: re-emitted by the v2 Import a brand sheet; BrandUploadPanel.jsx is a shim that mounts it."
   },
   {
     "hook": "figma-import-panel",
@@ -19734,6 +19783,272 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Import a brand sheet (drop a logo or type a website); `data-step` = input · reading · site-failed · result.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": ["apps/studio/test/brand-import-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-website",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: the Website (optional) field.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-import",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: Import (reads the logo and/or the website).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: Cancel.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-reading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: the Reading step (one row per source).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-read-logo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: the logo's Reading row; `data-state` = reading · read · failed.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "Row"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-read-site",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: the website's Reading row; `data-state` = reading · read · failed.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "Row"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-site-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Couldn't read <site>.\" callout; `data-reason` = refused · timeout · unreachable · http · type · size · redirect.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": ["apps/studio/test/brand-import-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-try-again",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: Try again (reads the website again) — the one action when the site failed.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": ["apps/studio/test/brand-import-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-continue-logo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: Continue with the logo (the site failed; the logo's colours are kept).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: the status line after \"Use as the project's style\" copied the command (no AI chat).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-use-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand: \"Use as the project's style\" — hands over to the DS review (S10 `ds.review-from-brand`, else the AI composer).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-sheet.jsx",
+      "symbol": "BrandSheet"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-src-logo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand result: the dropped logo under From.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "BrandResult"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-src-site",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand result: the website under From.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "BrandResult"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-colour-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Import a brand result: the n-th colour (0-based); `data-role` = accent · text · background · second · none.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "BrandResult"
+    },
+    "region": "onboarding",
+    "consumers": ["e2e:brand-import"],
+    "sourceConsumers": ["apps/studio/test/brand-import-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-colour-role-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Import a brand result: the n-th colour's role picker.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "RolePicker"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-lettering-shapes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand result: \"The logo's lettering is drawn as shapes, so its font can't be read.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "BrandResult"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/brand-import-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand result: the Advanced toggle (Copy command, Start over).",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "BrandResult"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "brand-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Import a brand result: the preview drawn in the brand's colours and fonts.",
+    "producer": {
+      "file": "apps/studio/client/v2/import/brand-result.jsx",
+      "symbol": "Preview"
+    },
+    "region": "onboarding",
+    "consumers": [],
+    "sourceConsumers": [],
     "v2": "new"
   }
 ]

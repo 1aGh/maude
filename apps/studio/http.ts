@@ -74,8 +74,8 @@ import { actionsManifestVersion } from './actions/manifest-version.ts';
 import { createLocalLeaseHome } from './ai/lease-home.ts';
 import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
+import { importBrandRequest } from './bin/_brand-site.mjs';
 import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
-import { ImportBrandError, importBrand } from './bin/_import-brand.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
 import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
@@ -5404,54 +5404,22 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      let body: { assetPath?: unknown };
+      // S8.18 — `{ assetPath }` (v1: a logo), `{ url }` (a website, read through the fetch-asset
+      // gate — typed values only), or both. The body rules live in bin/_brand-site.mjs.
+      let body: { assetPath?: unknown; url?: unknown };
       try {
-        body = (await req.json()) as { assetPath?: unknown };
+        body = (await req.json()) as { assetPath?: unknown; url?: unknown };
       } catch {
         return new Response('invalid JSON body', { status: 400 });
       }
-      const assetPath = body.assetPath;
-      if (typeof assetPath !== 'string' || !/^assets\/[a-z0-9]{8}\.svg$/.test(assetPath)) {
-        return Response.json(
-          { ok: false, error: 'assetPath must be a server-generated assets/<sha8>.svg path' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      const designAbs = resolve(ctx.paths.repoRoot, ctx.paths.designRel);
-      const resolvedAsset = resolve(designAbs, assetPath);
-      if (!resolvedAsset.startsWith(resolve(designAbs, 'assets') + sep)) {
-        return Response.json(
-          { ok: false, error: 'assetPath escapes the assets directory' },
-          { status: 400, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      try {
-        const result = await importBrand({
-          sanitizedSvgPath: resolvedAsset,
-          root: ctx.paths.repoRoot,
-          designRootRel: ctx.paths.designRel,
-        });
-        return Response.json(
-          { ok: true, ...result },
-          { status: 201, headers: { 'Cache-Control': 'no-store' } }
-        );
-      } catch (err) {
-        const status =
-          err instanceof ImportBrandError
-            ? err.code === 3
-              ? 400
-              : err.code === 4
-                ? 404
-                : err.code === 6
-                  ? 500
-                  : 400
-            : 500;
-        const message = err instanceof Error ? err.message : String(err);
-        return Response.json(
-          { ok: false, error: message },
-          { status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
+      const answer = await importBrandRequest(body, {
+        repoRoot: ctx.paths.repoRoot,
+        designRel: ctx.paths.designRel,
+      });
+      return Response.json(answer.body, {
+        status: answer.status,
+        headers: { 'Cache-Control': 'no-store' },
+      });
     },
 
     '/_api/export-history': async (req: Request) => {

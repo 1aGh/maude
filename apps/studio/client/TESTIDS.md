@@ -865,6 +865,25 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `brand-up-fonts` | testid | Brand upload: extracted fonts. | `client/panels/BrandUploadPanel.jsx` · `FontList` | — | stable — re-emit |
 | `brand-up-copy-command` | testid | Brand upload: copy the follow-up command. | `client/panels/BrandUploadPanel.jsx` · `BrandUploadPanel` | — | stable — re-emit |
 | `brand-up-again` | testid | Brand upload: start over. | `client/panels/BrandUploadPanel.jsx` · `BrandUploadPanel` | — | stable — re-emit |
+| `brand-sheet` | testid | The Import a brand sheet (drop a logo or type a website); `data-step` = input · reading · site-failed · result. | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-website` | testid | Import a brand: the Website (optional) field. | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-import` | testid | Import a brand: Import (reads the logo and/or the website). | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-cancel` | testid | Import a brand: Cancel. | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | — | new in v2 (S8.18) |
+| `brand-reading` | testid | Import a brand: the Reading step (one row per source). | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | — | new in v2 (S8.18) |
+| `brand-read-logo` | testid | Import a brand: the logo's Reading row; `data-state` = reading · read · failed. | `client/v2/import/brand-sheet.jsx` · `Row` | — | new in v2 (S8.18) |
+| `brand-read-site` | testid | Import a brand: the website's Reading row; `data-state` = reading · read · failed. | `client/v2/import/brand-sheet.jsx` · `Row` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-site-failed` | testid | "Couldn't read <site>." callout; `data-reason` = refused · timeout · unreachable · http · type · size · redirect. | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-try-again` | testid | Import a brand: Try again (reads the website again) — the one action when the site failed. | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-continue-logo` | testid | Import a brand: Continue with the logo (the site failed; the logo's colours are kept). | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-note` | testid | Import a brand: the status line after "Use as the project's style" copied the command (no AI chat). | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | — | new in v2 (S8.18) |
+| `brand-use-style` | testid | Import a brand: "Use as the project's style" — hands over to the DS review (S10 `ds.review-from-brand`, else the AI composer). | `client/v2/import/brand-sheet.jsx` · `BrandSheet` | — | new in v2 (S8.18) |
+| `brand-src-logo` | testid | Import a brand result: the dropped logo under From. | `client/v2/import/brand-result.jsx` · `BrandResult` | — | new in v2 (S8.18) |
+| `brand-src-site` | testid | Import a brand result: the website under From. | `client/v2/import/brand-result.jsx` · `BrandResult` | — | new in v2 (S8.18) |
+| `brand-colour-<n>` | testid (pattern) | Import a brand result: the n-th colour (0-based); `data-role` = accent · text · background · second · none. | `client/v2/import/brand-result.jsx` · `BrandResult` | e2e:brand-import | new in v2 (S8.18) |
+| `brand-colour-role-<n>` | testid (pattern) | Import a brand result: the n-th colour's role picker. | `client/v2/import/brand-result.jsx` · `RolePicker` | — | new in v2 (S8.18) |
+| `brand-lettering-shapes` | testid | Import a brand result: "The logo's lettering is drawn as shapes, so its font can't be read." | `client/v2/import/brand-result.jsx` · `BrandResult` | — | new in v2 (S8.18) |
+| `brand-advanced` | testid | Import a brand result: the Advanced toggle (Copy command, Start over). | `client/v2/import/brand-result.jsx` · `BrandResult` | — | new in v2 (S8.18) |
+| `brand-preview` | testid | Import a brand result: the preview drawn in the brand's colours and fonts. | `client/v2/import/brand-result.jsx` · `Preview` | — | new in v2 (S8.18) |
 | `figma-import-panel` | testid | Figma import dialog. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
 | `figma-not-connected` | testid | Notice: Figma is not connected. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
 | `figma-import-url` | testid | Figma file URL input. | `client/panels/FigmaImportPanel.jsx` · `FigmaImportPanel` | — | stable — re-emit |
