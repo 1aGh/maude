@@ -177,6 +177,10 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/ai/start': { safe: null, unsafe: 'edit' },
   '/_api/ai/end': { safe: null, unsafe: 'edit' },
   '/_api/ai/heartbeat': { safe: null, unsafe: 'edit' },
+  // S5.3 — the AI run registry is one Mac's (its `_state/runs/` + its own leases); a cell is
+  // multi-user and runs no Maude chat of its own. The `:id` verbs are default-closed.
+  '/_api/ai/runs': REFUSED,
+  '/_api/ai/runs/stop-all': REFUSED,
 
   // ---- git ---------------------------------------------------------------
   //

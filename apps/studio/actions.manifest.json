@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9ea92eb9a01f",
+  "manifestVersion": "8e6d5e8f37c2",
   "actions": [
     {
       "id": "search.open",
@@ -1413,6 +1413,56 @@
       "agent": {
         "path": "human",
         "because": "report-bug"
+      }
+    },
+    {
+      "id": "ai.runs.list",
+      "label": "AI runs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "S5.4 makes it `maude design runs list` (V2-1.15 §5.10)"
+      }
+    },
+    {
+      "id": "ai.stop",
+      "label": "Stop",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat",
+        "note": "S5.4 adds `maude design runs stop <run>` for an agent’s own runs"
+      }
+    },
+    {
+      "id": "ai.cancel-waiting",
+      "label": "Cancel the waiting prompt",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.keep-going",
+      "label": "Keep going",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     },
     {

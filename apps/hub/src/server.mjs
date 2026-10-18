@@ -180,6 +180,7 @@ import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-t
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
+import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
 import { seedRepo } from './seed-repo.mjs';
 import { DEFAULT_HUB_NAME, readSettings, writeSettings } from './settings.mjs';
@@ -1090,9 +1091,11 @@ export function createHub(config = {}) {
           // project format, fences writers by their declared format, keeps
           // extension fields through its validators, and serves
           // `POST /api/project-format`.
+          // `runs-v1` (V2-1.15 §5.3): AI runs + per-artboard leases at
+          // `/api/projects/:p/v1/runs*`, the proposal `fence`, `{t:'runs'}`.
           capabilities: journal
-            ? ['ledger', 'annotations-v2', 'format-v2']
-            : ['annotations-v2', 'format-v2'],
+            ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY]
+            : ['annotations-v2', 'format-v2', RUNS_CAPABILITY],
           // The project's file format — null while the store is unread.
           formatVersion: accepted?.isReady() ? accepted.projectFormat() : null,
           // T19/T29 — the project coordinator (accepted revisions) apart from
@@ -2026,8 +2029,11 @@ export function createHub(config = {}) {
      * what the re-encode downstream sees, so nothing is stored and nothing
      * fans out. Every other document keeps presence untouched.
      */
-    async beforeHandleAwareness({ document, states }) {
-      dropCtlAwareness({ document, states });
+    async beforeHandleAwareness({ document, states, context, connection }) {
+      if (dropCtlAwareness({ document, states })) return;
+      // V2-1.15 §5.3 (A10) — a person's `holding` is stamped with the bearer's
+      // identity, and dropped from a read-only connection.
+      sanitizeHoldingAwareness({ context, connection, states });
     },
 
     // A content change tells the cell's DO, so a parked desktop's

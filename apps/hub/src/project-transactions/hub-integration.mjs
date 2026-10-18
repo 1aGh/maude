@@ -8,8 +8,10 @@
 //     re-asserted per message (T7: a cached permission is not a boundary).
 //   • `handleRoutes` — `/api/projects/:project/v1/*`.
 
+import { canvasSlugFromRel } from '../../../studio/canvas-slug.ts';
+import { createRunsPoke, createRunsRoutes, RUNS_CAPABILITY, RUNS_ROUTE } from '../runs-routes.mjs';
 import { importBaseline } from './baseline.mjs';
-import { createKernel } from './kernel.mjs';
+import { createKernel, MAX_UNDO_TARGETS } from './kernel.mjs';
 import { applyLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
 import { asFormat, DEFAULT_FORMAT } from './store-core.mjs';
 
@@ -109,6 +111,8 @@ export function createAcceptedRevisions({
    * seed) — `(formatVersion, epoch)`. A cell hands it to its own studio child.
    */
   onFormat = () => {},
+  /** Tests: the `{t:'runs'}` poke emitter (default: on `server`'s control document). */
+  runsPoke = null,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0, formatVersion: DEFAULT_FORMAT };
   // T19/T29 — the coordinator's own readiness and counters, apart from the
@@ -204,6 +208,34 @@ export function createAcceptedRevisions({
     canvasGroups,
     designRel,
     log,
+  });
+
+  // V2-1.15 §5.3 — AI runs and leases. Any save mode: leases are about who
+  // may write an artboard, not how the write is stored.
+  const runs = createRunsRoutes({
+    store,
+    poke: runsPoke ?? (server ? createRunsPoke({ instance: server, log }) : null),
+    // The document name a canvas scope is written against. A lease key's
+    // canvas is the kernel's stable entry, or `path:<repoRel>` before the
+    // project is on the op log; an ElementRef's is the repo path. Unknown →
+    // null, which a scoped member's check refuses (fail closed).
+    docNameFor: async (canvas) => {
+      if (typeof canvas !== 'string' || !canvas) return null;
+      const rel = canvas.startsWith('path:') ? canvas.slice(5) : canvas;
+      if (canvas.startsWith('path:') || rel.includes('/')) {
+        // Manifest paths are design-root relative; a key may be repo relative.
+        const prefix = `${String(designRel ?? '.design').replace(/^\/+|\/+$/g, '')}/`;
+        const inRoot = rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+        const doc = await store.docByPath(inRoot).catch(() => null);
+        if (doc) return doc;
+        try {
+          return canvasSlugFromRel(rel, designRel ?? '.design') || null;
+        } catch {
+          return null;
+        }
+      }
+      return (await store.liveDocByEntry(canvas).catch(() => null)) ?? null;
+    },
   });
 
   /**
@@ -949,9 +981,11 @@ export function createAcceptedRevisions({
    * `auth(request)` → `{ actor, readOnly, scope, admin }` or null.
    */
   async function handleRoutes({ path, method, query, request, auth, respondJson }) {
-    const m = ROUTE.exec(path);
-    if (!m) return false;
-    const [, project, route, id] = m;
+    // `runs/:id/claim` is three segments deep — matched before the general shape.
+    const rm = RUNS_ROUTE.exec(path);
+    const m = rm ? null : ROUTE.exec(path);
+    if (!m && !rm) return false;
+    const [, project, route, id] = m ?? [null, rm[1], 'runs', rm[2]];
     const who = auth(request);
     if (!who) {
       respondJson(401, { error: 'sign in to this project first', code: 'unauthenticated' });
@@ -962,6 +996,18 @@ export function createAcceptedRevisions({
       return true;
     }
     try {
+      if (rm) {
+        return await runs.handle({
+          sub: rm[2],
+          verb: rm[3],
+          method,
+          query,
+          request,
+          who,
+          respondJson,
+          readBody,
+        });
+      }
       if (route === 'bootstrap' && method === 'GET') {
         const manifest = await kernel.bootstrap();
         respondJson(200, {
@@ -991,6 +1037,10 @@ export function createAcceptedRevisions({
               'history.redo',
               'history.restore',
             ],
+            // S5.1a — `history.undo { actionIds }` takes this many targets.
+            undoTargets: MAX_UNDO_TARGETS,
+            // V2-1.15 §5.3 — the runs routes, the `fence` envelope, `{t:'runs'}`.
+            runs: RUNS_CAPABILITY,
           },
           limits: { proposalBytes: MAX_BODY_BYTES - 1024 * 1024 },
           you: { actor: who.actor, readOnly: !!who.readOnly },
@@ -1072,6 +1122,11 @@ export function createAcceptedRevisions({
           before: Number.isFinite(before) ? before : null,
           limit: Number.isFinite(limit) ? limit : 50,
           entry: typeof query.entry === 'string' ? query.entry.slice(0, 128) : null,
+          // S5.1a — "this person's actions of chat X" (indexed columns).
+          chat: typeof query.chat === 'string' ? query.chat.slice(0, 64) : null,
+          run: typeof query.run === 'string' ? query.run.slice(0, 64) : null,
+          actor: typeof query.actor === 'string' ? query.actor.slice(0, 64) : null,
+          kind: typeof query.kind === 'string' ? query.kind.slice(0, 64) : null,
         });
         respondJson(200, { history });
         return true;
