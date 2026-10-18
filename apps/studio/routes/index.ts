@@ -18,9 +18,9 @@ import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
-import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
+import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
@@ -45,12 +45,12 @@ export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
+export { canvasPathsOfIndex } from './availability.ts';
 // S2.9b — the `annotations` rider of the legacy `/_api/canvas-meta` PATCH (one action, one ⌘Z)
 export { riderPatch } from './canvas-meta-rider.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
-// S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
-export { canvasPathsOfIndex } from './availability.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];

@@ -335,7 +335,9 @@
     padding: var(--space-5);
     border-radius: var(--radius-xl);
     background: var(--bg-2);
-    box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
   }
   .es-alltrashed .es-fine {
     color: var(--fg-1);

@@ -374,6 +374,8 @@
   .ed-insp-line-act:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  }
+
   /* S2.11b — the numbered slot a lifted card would land in (Layers draws what the canvas draws).
      Reduced motion collapses the fade to 1 ms: the place still shows, it just does not animate. */
   .st-layer-slot {

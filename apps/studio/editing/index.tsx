@@ -21,9 +21,9 @@ import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
-import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { CornerDots } from './corner-dots.tsx';
 import { DrawTools } from './draw-tools.tsx';
+import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
 import {

@@ -158,7 +158,15 @@ const send = (fetchImpl, req) => postJson(fetchImpl, req.route, req.body);
  * the one `maude design history restore --element` makes (history/surface-requests.ts).
  * @returns { ok, actionId?, reason? }
  */
-export async function restoreVersion({ path, row, artboard, toast, fetchImpl, onChanged, element }) {
+export async function restoreVersion({
+  path,
+  row,
+  artboard,
+  toast,
+  fetchImpl,
+  onChanged,
+  element,
+}) {
   const f = fetchImpl || ((...a) => fetch(...a));
   let r = null;
   let j = null;

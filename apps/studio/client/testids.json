@@ -79,9 +79,7 @@
       "symbol": "CloudBar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves",
     "notes": "The menubar chip (`Menubar`) was the second emitter; it is deleted."
   },
@@ -151,9 +149,7 @@
       "symbol": "ProjectPill"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the pill's mark (was the menubar wordmark)."
   },
@@ -167,10 +163,7 @@
       "symbol": "ProjectPill"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the pill (was the six-menu group of the menubar)."
   },
@@ -198,10 +191,7 @@
       "symbol": "ShareCluster"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js", "apps/studio/whats-new.json"],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the cluster root (was the menubar's right-hand cluster; despite its name it was never the status bar)."
   },
@@ -235,9 +225,7 @@
       "symbol": "ShareCluster"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "stable",
     "notes": "Re-emitted V2-4.8a on the Share cluster's Exports icon (`share-cluster-exports`), present once any export exists (the v1 badge was always there). Was the menubar badge (`ExportBadge`, deleted)."
   },
@@ -266,9 +254,7 @@
       "apps/desktop/e2e/scenarios/splash-recovers-after-return-to-entry.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
-    "sourceConsumers": [
-      "apps/studio/test/shell-accessibility.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
     "v2": "stable"
   },
   {
@@ -281,9 +267,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -340,9 +324,7 @@
       "symbol": "FileRow"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -671,9 +653,7 @@
       "symbol": "ExportDialog"
     },
     "region": "export dialog",
-    "consumers": [
-      "apps/studio/test/export-e2e-lanes.test.ts"
-    ],
+    "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
     "v2": "moves"
   },
   {
@@ -715,9 +695,7 @@
       "symbol": "ExportPanel"
     },
     "region": "export dialog",
-    "consumers": [
-      "apps/studio/test/export-center.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/export-center.test.tsx"],
     "v2": "moves"
   },
   {
@@ -731,9 +709,7 @@
     },
     "region": "export dialog",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/exporters/degraded-propagation.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/exporters/degraded-propagation.test.ts"],
     "v2": "moves"
   },
   {
@@ -746,9 +722,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
     "v2": "moves",
     "notes": "Passed as the `testId` prop from `renderPanelBody` in `App()`."
   },
@@ -776,9 +750,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -820,10 +792,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -836,9 +805,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -851,9 +818,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -866,9 +831,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -907,9 +870,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -922,9 +883,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -937,9 +896,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -952,9 +909,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -967,9 +922,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -982,9 +935,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -997,9 +948,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -1012,9 +961,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new",
     "alsoProducedBy": [
       {
@@ -1033,9 +980,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new",
     "alsoProducedBy": [
       {
@@ -1054,9 +999,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new",
     "alsoProducedBy": [
       {
@@ -1075,9 +1018,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new",
     "alsoProducedBy": [
       {
@@ -1096,9 +1037,7 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -1111,9 +1050,7 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -1126,9 +1063,7 @@
       "symbol": "CommentComposer"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -1141,9 +1076,7 @@
       "symbol": "CommentsOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/v2-comments-panel-render.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-comments-panel-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -1191,9 +1124,7 @@
       "symbol": "SetupAction"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1219,9 +1150,7 @@
       "symbol": "Row"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1266,9 +1195,7 @@
       "symbol": "SuggestOnlyBanner"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1326,9 +1253,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/helpers/assistant.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/helpers/assistant.ts"],
     "v2": "stable",
     "notes": "Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message)."
   },
@@ -1508,9 +1433,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1570,9 +1493,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1639,9 +1560,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1718,9 +1637,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1872,9 +1789,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1900,9 +1815,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1967,9 +1880,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1998,9 +1909,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2013,9 +1922,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2253,9 +2160,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2424,9 +2329,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2504,9 +2407,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2519,9 +2420,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2620,9 +2519,7 @@
       "symbol": "Banner"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2635,9 +2532,7 @@
       "symbol": "SaveDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2650,9 +2545,7 @@
       "symbol": "SaveDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2665,9 +2558,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2681,9 +2572,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/cloud-history-posture.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/cloud-history-posture.test.ts"],
     "v2": "stable"
   },
   {
@@ -2697,9 +2586,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/cloud-history-posture.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/cloud-history-posture.test.ts"],
     "v2": "stable"
   },
   {
@@ -2746,9 +2633,7 @@
       "symbol": "VersionItem"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2810,9 +2695,7 @@
       "symbol": "SaveDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js"],
     "v2": "stable"
   },
   {
@@ -2825,9 +2708,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js"],
     "v2": "stable"
   },
   {
@@ -2840,9 +2721,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js"],
     "v2": "stable"
   },
   {
@@ -2966,9 +2845,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2981,9 +2858,7 @@
       "symbol": "AddDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2996,9 +2871,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3011,9 +2884,7 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3026,9 +2897,7 @@
       "symbol": "BranchDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3041,9 +2910,7 @@
       "symbol": "BranchDialog"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3163,12 +3030,8 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3194,9 +3057,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3209,9 +3070,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3224,9 +3083,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3239,9 +3096,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3280,9 +3135,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"],
     "v2": "stable"
   },
   {
@@ -3309,9 +3162,7 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3325,9 +3176,7 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3392,9 +3241,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3447,9 +3294,7 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3462,9 +3307,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3610,9 +3453,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"],
     "v2": "stable"
   },
   {
@@ -3625,9 +3466,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3640,9 +3479,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3655,9 +3492,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3670,9 +3505,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3727,9 +3560,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3742,9 +3573,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3757,9 +3586,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3772,9 +3599,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3894,9 +3719,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3922,9 +3745,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3937,9 +3758,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3952,9 +3771,7 @@
       "symbol": "FileDeepLinkDialog"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3967,9 +3784,7 @@
       "symbol": "FileDeepLinkDialog"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4043,9 +3858,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4058,9 +3871,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4086,9 +3897,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4101,9 +3910,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/team-projects-empty.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/team-projects-empty.test.tsx"],
     "v2": "stable"
   },
   {
@@ -4217,9 +4024,7 @@
       "symbol": "TeamProjectsDialog"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4449,9 +4254,7 @@
       "symbol": "SetupChecklist"
     },
     "region": "onboarding",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -4672,9 +4475,7 @@
       "symbol": "STARTER_CANVAS_TSX"
     },
     "region": "onboarding",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/onboarding.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4687,9 +4488,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4702,9 +4501,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4717,9 +4514,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4745,9 +4540,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4760,9 +4553,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4775,9 +4566,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4842,9 +4631,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4909,9 +4696,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "stable"
   },
   {
@@ -4943,9 +4728,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "stable"
   },
   {
@@ -4958,9 +4741,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -4973,9 +4754,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -4988,9 +4767,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -5003,9 +4780,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -5018,9 +4793,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -5033,9 +4806,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -5048,9 +4819,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -5063,9 +4832,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "new"
   },
   {
@@ -5078,9 +4845,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5093,9 +4858,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5108,9 +4871,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5123,9 +4884,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5138,9 +4897,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5153,9 +4910,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5168,9 +4923,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-transport.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
     "v2": "new"
   },
   {
@@ -5183,9 +4936,7 @@
       "symbol": "PresentTransport"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-transport.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
     "v2": "new"
   },
   {
@@ -5198,9 +4949,7 @@
       "symbol": "PresentTransport"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-transport.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
     "v2": "new"
   },
   {
@@ -5213,9 +4962,7 @@
       "symbol": "PresentTransport"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-transport.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
     "v2": "new"
   },
   {
@@ -5228,9 +4975,7 @@
       "symbol": "PresentTransport"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-transport.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-transport.test.tsx"],
     "v2": "new"
   },
   {
@@ -5243,9 +4988,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -5258,9 +5001,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5273,9 +5014,7 @@
       "symbol": "CanvasPill"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/present-controls.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
     "v2": "new"
   },
   {
@@ -5288,9 +5027,7 @@
       "symbol": "createPointerDot"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/pointer-dot.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
     "v2": "new"
   },
   {
@@ -5303,9 +5040,7 @@
       "symbol": "createPointerDot"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/pointer-dot.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
     "v2": "new"
   },
   {
@@ -5318,9 +5053,7 @@
       "symbol": "createPointerDot"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/pointer-dot.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
     "v2": "new"
   },
   {
@@ -5359,9 +5092,7 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5374,9 +5105,7 @@
       "symbol": "LockBadge"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -5389,9 +5118,7 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -5404,9 +5131,7 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -5419,9 +5144,7 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5434,9 +5157,7 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6009,9 +5730,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6025,9 +5744,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6041,9 +5758,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6057,9 +5772,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6073,9 +5786,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6089,9 +5800,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6105,9 +5814,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6121,9 +5828,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6137,9 +5842,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6153,9 +5856,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6169,9 +5870,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6185,9 +5884,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6201,9 +5898,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6217,9 +5912,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6233,9 +5926,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6249,9 +5940,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6265,9 +5954,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6281,9 +5968,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-run-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -6530,9 +6215,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6545,9 +6228,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6756,9 +6437,7 @@
       }
     ],
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "retired",
     "notes": "Retired V2-4.8a (decision:maude/v2-4.8a-menubar-removed): the in-app menubar is deleted. The same rows are reached in the project pill's menu by role=menuitem and name: \"File\", \"Edit\", \"Advanced\", \"New artboard\" (submenus), \"Close canvas\", \"New artboard: Mobile\" (rows) — `surface.e2e.ts` `Surface.menu(text)`. Was: `surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
   },
@@ -6772,9 +6451,7 @@
       "symbol": "FileTree"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md"
-    ],
+    "consumers": [".claude/skills/desktop-e2e/SKILL.md"],
     "v2": "stable"
   },
   {
@@ -6787,9 +6464,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -6816,9 +6491,7 @@
       }
     ],
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/test/file-tree-navigation.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/file-tree-navigation.test.tsx"],
     "v2": "stable"
   },
   {
@@ -6854,9 +6527,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6954,9 +6625,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/client/app.jsx"
-    ],
+    "consumers": ["apps/studio/client/app.jsx"],
     "v2": "stable",
     "notes": "Internal cross-component consumer: `App()`."
   },
@@ -6970,9 +6639,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/client/app.jsx"
-    ],
+    "consumers": ["apps/studio/client/app.jsx"],
     "v2": "stable",
     "notes": "Internal cross-component consumer: `App()`."
   },
@@ -7009,9 +6676,7 @@
       "symbol": "Viewport"
     },
     "region": "viewport",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/sidecar-respawn-canvas-switch.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/sidecar-respawn-canvas-switch.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7032,9 +6697,7 @@
       "apps/desktop/e2e/scenarios/shell-parity.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
-    "sourceConsumers": [
-      "apps/studio/test/shell-accessibility.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
     "v2": "stable",
     "notes": "`test/shell-accessibility.test.ts` also asserts (source text) that this iframe's `title` is the template literal \"Canvas: \" + `t.path`."
   },
@@ -7048,9 +6711,7 @@
       "symbol": "CanvasLoading"
     },
     "region": "viewport",
-    "consumers": [
-      "apps/desktop/src-tauri/src/e2e-frame-probe.js"
-    ],
+    "consumers": ["apps/desktop/src-tauri/src/e2e-frame-probe.js"],
     "v2": "stable"
   },
   {
@@ -7063,9 +6724,7 @@
       "symbol": "CommandPalette"
     },
     "region": "⌘K palette",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7078,9 +6737,7 @@
       "symbol": "ExportDialog"
     },
     "region": "export dialog",
-    "consumers": [
-      "apps/studio/test/export-e2e-lanes.test.ts"
-    ],
+    "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
     "v2": "moves"
   },
   {
@@ -7099,9 +6756,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -7120,9 +6775,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -7145,9 +6798,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -7160,9 +6811,7 @@
       "symbol": "LayerRow"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -7175,9 +6824,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7196,9 +6843,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7211,9 +6856,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "moves"
   },
   {
@@ -7232,9 +6875,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "moves"
   },
   {
@@ -7263,9 +6904,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "moves"
   },
   {
@@ -7288,9 +6927,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7325,9 +6962,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7346,9 +6981,7 @@
       }
     ],
     "region": "banners",
-    "consumers": [
-      "apps/studio/test/notifications.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/notifications.test.tsx"],
     "v2": "stable"
   },
   {
@@ -7361,9 +6994,7 @@
       "symbol": "App"
     },
     "region": "banners",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves",
     "notes": "`surface.e2e.ts` clicks every visible match; there is no single producer."
   },
@@ -7411,9 +7042,7 @@
       "symbol": "Composer"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/helpers/assistant.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/helpers/assistant.ts"],
     "v2": "stable"
   },
   {
@@ -7432,9 +7061,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7453,9 +7080,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7500,9 +7125,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7515,9 +7138,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -7530,9 +7151,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "retired",
     "notes": "Retired S11.10: the Changes panel is the git body of Version history › Advanced. Its root is `git-panel`."
   },
@@ -7546,9 +7165,7 @@
       "symbol": "AcceptedRow"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "retired",
     "notes": "Retired S11.10: a version row is `.vh-git-ver` (or `project-history-row-<revision>`) in Version history › Advanced."
   },
@@ -7563,9 +7180,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/git-cloud-posture.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/git-cloud-posture.test.ts"],
     "v2": "retired",
     "notes": "Retired S11.10: there are no tabs; the mode is `gitSurface()` (git-model.js) and the note is `git-cloud-managed`. `test/git-cloud-posture.test.ts` pins the new source text."
   },
@@ -7579,9 +7194,7 @@
       "symbol": "CanvasView"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7594,9 +7207,7 @@
       "symbol": "ZoomBar"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "stable",
     "notes": "CSS consumer."
   },
@@ -7626,9 +7237,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7659,9 +7268,7 @@
       }
     ],
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable",
     "notes": "Keep the `-dialog` suffix on new dialog roots."
   },
@@ -7694,9 +7301,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
     "v2": "stable"
   },
   {
@@ -7709,9 +7314,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7724,9 +7327,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
     "v2": "stable"
   },
   {
@@ -7739,9 +7340,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7754,9 +7353,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7769,9 +7366,7 @@
       "symbol": "AssetPicker"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7784,9 +7379,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7805,9 +7398,7 @@
       }
     ],
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7820,9 +7411,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7835,9 +7424,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7850,9 +7437,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7865,9 +7450,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7880,9 +7463,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7895,9 +7476,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7910,9 +7489,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7925,9 +7502,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7940,9 +7515,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7955,9 +7528,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7970,9 +7541,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -7985,9 +7554,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/stickers-gallery.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/stickers-gallery.test.tsx"],
     "v2": "new"
   },
   {
@@ -8000,9 +7567,7 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/templates-panel.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -8015,9 +7580,7 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/templates-panel.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -8030,9 +7593,7 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/templates-panel.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -8045,9 +7606,7 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/templates-panel.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -8060,9 +7619,7 @@
       "symbol": "TemplatesPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/templates-panel.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -8099,10 +7656,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/_screenshot-playwright.mjs",
-      "apps/studio/bin/screenshot.sh"
-    ],
+    "consumers": ["apps/studio/bin/_screenshot-playwright.mjs", "apps/studio/bin/screenshot.sh"],
     "v2": "stable"
   },
   {
@@ -8115,9 +7669,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/tool-palette.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
     "v2": "new"
   },
   {
@@ -8130,9 +7682,7 @@
       "symbol": "StickersGallery"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/v2-tool-panels.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-tool-panels.test.tsx"],
     "v2": "new"
   },
   {
@@ -8145,9 +7695,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/tool-palette.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
     "v2": "new"
   },
   {
@@ -8160,9 +7708,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/tool-palette.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
     "v2": "new"
   },
   {
@@ -8175,9 +7721,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/tool-palette.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/tool-palette.test.tsx"],
     "v2": "new"
   },
   {
@@ -8191,9 +7735,7 @@
     },
     "region": "canvas iframe chrome",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/tool-palette.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/tool-palette.test.tsx"],
     "v2": "new"
   },
   {
@@ -8374,9 +7916,7 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"
-    ],
+    "consumers": [".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"],
     "v2": "stable"
   },
   {
@@ -8439,9 +7979,7 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/artboard-kinds/spec.md"
-    ],
+    "consumers": [".ai/scenarios/artboard-kinds/spec.md"],
     "v2": "stable"
   },
   {
@@ -8498,9 +8036,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/screenshot.sh"
-    ],
+    "consumers": ["apps/studio/bin/screenshot.sh"],
     "v2": "stable",
     "notes": "Read by `dom-selection.ts` (`cssPath`, `domPath`) and the Layers tree (`canvas-shell.tsx` `serializeArtboardTree`)."
   },
@@ -8531,9 +8067,7 @@
       "symbol": "PhotoBgRemoveHarness"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/photo-bg-remove.sh"
-    ],
+    "consumers": ["apps/studio/bin/photo-bg-remove.sh"],
     "v2": "stable"
   },
   {
@@ -8585,9 +8119,7 @@
       "symbol": "ArtboardGuidesOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/canvas-hide-chrome.test.ts"
-    ],
+    "consumers": ["apps/studio/test/canvas-hide-chrome.test.ts"],
     "v2": "stable"
   },
   {
@@ -8631,9 +8163,7 @@
       "symbol": "ensureAxisNodes"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "stable"
   },
   {
@@ -8671,9 +8201,7 @@
       "symbol": "SpacingHandlesOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "stable"
   },
   {
@@ -8751,9 +8279,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -8766,9 +8292,7 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-parity.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-parity.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -8781,9 +8305,7 @@
       "symbol": "CanvasRouter"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -8813,9 +8335,7 @@
       "symbol": "HmrHoldingToast"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/canvas-hmr-loaded.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/canvas-hmr-loaded.test.tsx"],
     "v2": "stable"
   },
   {
@@ -8959,9 +8479,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -9172,9 +8690,7 @@
     "meaning": "Artboard drag ghost; no component renders it.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"
-    ],
+    "consumers": [".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"],
     "v2": "historical",
     "dangling": true
   },
@@ -9185,9 +8701,7 @@
     "meaning": "Canvas render error overlay; no component renders this class, so the spec's \"absent\" check passes vacuously.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/web-artboards/spec.md"
-    ],
+    "consumers": [".ai/scenarios/web-artboards/spec.md"],
     "v2": "historical",
     "dangling": true
   },
@@ -9198,9 +8712,7 @@
     "meaning": "Tree row attribute; never emitted (rows use `data-testid=\"canvas-row-<slug>\"`).",
     "producer": null,
     "region": "sidebar/tree",
-    "consumers": [
-      ".ai/scenarios/canvas-format-tsx/tsx-canvas-render-and-edit/spec.md"
-    ],
+    "consumers": [".ai/scenarios/canvas-format-tsx/tsx-canvas-render-and-edit/spec.md"],
     "v2": "historical",
     "dangling": true
   },
@@ -9211,10 +8723,7 @@
     "meaning": "Legacy artboard-slot attribute; no current component emits it. Screenshot/smoke helpers still accept it as a fallback next to `[data-dc-screen]`.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/screenshot.sh",
-      "apps/studio/bin/smoke.sh"
-    ],
+    "consumers": ["apps/studio/bin/screenshot.sh", "apps/studio/bin/smoke.sh"],
     "v2": "historical",
     "dangling": true
   },
@@ -9225,9 +8734,7 @@
     "meaning": "A skeleton caption whose CSS rule is contrast-tested; no component renders the class (`CanvasLoading` renders `.st-skel-card/-thumb/-line`).",
     "producer": null,
     "region": "viewport",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "historical",
     "notes": "CSS consumer; the rule still exists in `styles/3-shell-maude.css`.",
     "dangling": true
@@ -9239,9 +8746,7 @@
     "meaning": "Intended: the File menu trigger, for the \"AI generation settings\" spotlight. No element carries this anchor; the File menu trigger is `data-testid=\"menu-file\"` with no `data-tour`.",
     "producer": null,
     "region": "menubar",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "historical",
     "dangling": true
   },
@@ -9385,9 +8890,7 @@
       "symbol": "RowLive"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9400,9 +8903,7 @@
       "symbol": "RowLive"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9414,9 +8915,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9428,9 +8927,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9442,9 +8939,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9456,9 +8951,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9522,9 +9015,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9536,9 +9027,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9550,9 +9039,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9564,9 +9051,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9578,9 +9063,7 @@
       "symbol": "HomeApp"
     },
     "region": "home",
-    "consumers": [
-      "test:home-page"
-    ],
+    "consumers": ["test:home-page"],
     "v2": "new"
   },
   {
@@ -9928,9 +9411,7 @@
       "symbol": "Level"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -9943,9 +9424,7 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -9958,9 +9437,7 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -9973,9 +9450,7 @@
       "symbol": "DiagnosticsSheet"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -9988,9 +9463,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10003,9 +9476,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10018,9 +9489,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10033,9 +9502,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10048,9 +9515,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10063,9 +9528,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10078,9 +9541,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10093,9 +9554,7 @@
       "symbol": "LogsView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10108,9 +9567,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10123,9 +9580,7 @@
       "symbol": "Row"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10138,9 +9593,7 @@
       "symbol": "CopyBtn"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10153,9 +9606,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10168,9 +9619,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10183,9 +9632,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10198,9 +9645,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10213,9 +9658,7 @@
       "symbol": "ServerView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10228,9 +9671,7 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10243,9 +9684,7 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10258,9 +9697,7 @@
       "symbol": "AiView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10390,9 +9827,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10405,9 +9840,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10420,9 +9853,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10435,9 +9866,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10450,9 +9879,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -10465,9 +9892,7 @@
       "symbol": "SyncView"
     },
     "region": "other",
-    "consumers": [
-      "test:v2-diagnostics-render"
-    ],
+    "consumers": ["test:v2-diagnostics-render"],
     "v2": "new"
   },
   {
@@ -11247,9 +10672,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11262,9 +10685,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11277,9 +10698,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11292,9 +10711,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11307,9 +10724,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11322,9 +10737,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11337,9 +10750,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11352,9 +10763,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11367,9 +10776,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11382,9 +10789,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11397,9 +10802,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11412,9 +10815,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11427,9 +10828,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11442,9 +10841,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11457,9 +10854,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11472,9 +10867,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11487,9 +10880,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11502,9 +10893,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11517,9 +10906,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11532,9 +10919,7 @@
       "symbol": "ShortcutsOverlay"
     },
     "region": "help/shortcuts",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -11548,9 +10933,7 @@
     },
     "region": "diagnostics",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-diagnostics-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-diagnostics-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -11564,9 +10947,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-settings.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-settings.test.tsx"],
     "v2": "new"
   },
   {
@@ -11580,9 +10961,7 @@
     },
     "region": "settings",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-settings.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-settings.test.tsx"],
     "v2": "new"
   },
   {
@@ -11848,9 +11227,7 @@
     },
     "region": "help/shortcuts",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-fold.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
     "v2": "new"
   },
   {
@@ -11864,9 +11241,7 @@
     },
     "region": "help/shortcuts",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-fold.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
     "v2": "new"
   },
   {
@@ -11880,9 +11255,7 @@
     },
     "region": "help/shortcuts",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-fold.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-fold.test.tsx"],
     "v2": "new"
   },
   {
@@ -11895,9 +11268,7 @@
       "symbol": "CalloutStack"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/v2-callouts.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
     "v2": "new"
   },
   {
@@ -11926,9 +11297,7 @@
       "symbol": "Callout"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/v2-callouts.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
     "v2": "new"
   },
   {
@@ -11941,9 +11310,7 @@
       "symbol": "Callout"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/v2-callouts.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
     "v2": "new"
   },
   {
@@ -11956,9 +11323,7 @@
       "symbol": "CanvasesAdvanced"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/v2-callouts.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
     "v2": "new"
   },
   {
@@ -11971,9 +11336,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/v2-callouts.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-callouts.test.tsx"],
     "v2": "new"
   },
   {
@@ -11986,9 +11349,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "new"
   },
   {
@@ -12001,9 +11362,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "new"
   },
   {
@@ -12536,9 +11895,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12551,9 +11908,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12566,9 +11921,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12581,9 +11934,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12596,9 +11947,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12611,9 +11960,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12626,9 +11973,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12641,9 +11986,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12656,9 +11999,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12671,9 +12012,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12686,9 +12025,7 @@
       "symbol": "OrderNotesSheet"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/order-notes-sheet.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {
@@ -12754,9 +12091,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -12770,9 +12105,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -12786,9 +12119,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -12819,9 +12150,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-op-crumbs.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-op-crumbs.test.tsx"],
     "v2": "new"
   },
   {
@@ -12835,9 +12164,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-op-crumbs.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-op-crumbs.test.tsx"],
     "v2": "new"
   },
   {
@@ -12879,9 +12206,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/link-chip-overlay.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/link-chip-overlay.test.tsx"],
     "v2": "new"
   },
   {
@@ -12895,9 +12220,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-object-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-object-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -13037,9 +12360,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13053,9 +12374,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13069,9 +12388,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13085,9 +12402,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13101,9 +12416,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13117,9 +12430,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13133,9 +12444,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13149,9 +12458,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13165,9 +12472,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13181,9 +12486,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13197,9 +12500,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13213,9 +12514,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13229,9 +12528,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13245,9 +12542,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13261,9 +12556,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13277,9 +12570,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-sections.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-sections.test.tsx"],
     "v2": "new"
   },
   {
@@ -13293,9 +12584,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13309,9 +12598,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13325,9 +12612,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13341,9 +12626,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13357,9 +12640,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13373,9 +12654,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -13388,9 +12667,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13403,9 +12680,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13418,9 +12693,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13433,9 +12706,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13448,9 +12719,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13464,9 +12733,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13479,9 +12746,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13495,9 +12760,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13511,9 +12774,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13527,9 +12788,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13543,9 +12802,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13558,9 +12815,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13574,9 +12829,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -13589,9 +12842,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13604,9 +12855,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13619,9 +12868,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13634,9 +12881,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13649,9 +12894,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13664,9 +12907,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13679,9 +12920,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13694,9 +12933,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13709,9 +12946,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13724,9 +12959,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13739,9 +12972,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13754,9 +12985,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13769,9 +12998,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-paint.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
     "v2": "new"
   },
   {
@@ -13784,9 +13011,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13799,9 +13024,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13814,9 +13037,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13829,9 +13050,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13844,9 +13063,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13859,9 +13076,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13874,9 +13089,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13889,9 +13102,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -13905,9 +13116,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -13921,9 +13130,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -13937,9 +13144,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -13953,9 +13158,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -13969,9 +13172,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -13985,9 +13186,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14001,9 +13200,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14017,9 +13214,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14033,9 +13228,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14049,9 +13242,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14065,9 +13256,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14081,9 +13270,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14097,9 +13284,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-chat-undo.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-chat-undo.test.tsx"],
     "v2": "new"
   },
   {
@@ -14113,9 +13298,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-chat-undo.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-chat-undo.test.tsx"],
     "v2": "new"
   },
   {
@@ -14129,9 +13312,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14145,9 +13326,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14161,9 +13340,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14177,9 +13354,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14193,9 +13368,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14209,9 +13382,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14225,9 +13396,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14241,9 +13410,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14257,9 +13424,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14273,9 +13438,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14289,9 +13452,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14305,9 +13466,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14321,9 +13480,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14337,9 +13494,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14353,9 +13508,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14369,9 +13522,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14385,9 +13536,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14401,9 +13550,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-object.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-object.test.tsx"],
     "v2": "new"
   },
   {
@@ -14417,9 +13564,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14433,9 +13578,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14449,9 +13592,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14465,9 +13606,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14481,9 +13620,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14497,9 +13634,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14513,9 +13648,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14529,9 +13662,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-history-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-history-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -14545,9 +13676,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14561,9 +13690,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14577,9 +13704,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14593,9 +13718,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14609,9 +13732,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14625,9 +13746,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14641,9 +13760,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14657,9 +13774,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14673,9 +13788,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14689,9 +13802,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14705,9 +13816,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14721,9 +13830,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14737,9 +13844,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14753,9 +13858,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14769,9 +13872,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14785,9 +13886,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14801,9 +13900,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14817,9 +13914,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14833,9 +13928,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14849,9 +13942,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14865,9 +13956,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14881,9 +13970,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-compare-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-compare-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -14896,12 +13983,8 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/helpers/chrome.ts"
-    ],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "consumers": ["apps/desktop/e2e/helpers/chrome.ts"],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -14915,9 +13998,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -14931,9 +14012,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -14947,9 +14026,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -14963,9 +14040,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -14978,12 +14053,8 @@
       "symbol": "GitBody"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -14997,9 +14068,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15013,9 +14082,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15029,9 +14096,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15045,9 +14110,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15061,9 +14124,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15077,9 +14138,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15093,9 +14152,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15109,9 +14166,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15125,9 +14180,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15141,9 +14194,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15156,12 +14207,8 @@
       "symbol": "VersionItem"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
-    "sourceConsumers": [
-      "apps/studio/test/v2-git-advanced.test.tsx"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
+    "sourceConsumers": ["apps/studio/test/v2-git-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -15174,9 +14221,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15189,9 +14234,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15204,9 +14247,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15219,9 +14260,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15234,9 +14273,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-offline.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-offline.test.tsx"],
     "v2": "new"
   },
   {
@@ -15249,9 +14286,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-offline.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-offline.test.tsx"],
     "v2": "new"
   },
   {
@@ -15264,9 +14299,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-offline.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-offline.test.tsx"],
     "v2": "new"
   },
   {
@@ -15279,9 +14312,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15294,9 +14325,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15309,9 +14338,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15324,9 +14351,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15339,9 +14364,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15354,9 +14377,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15369,9 +14390,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15384,9 +14403,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15399,9 +14416,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15414,9 +14429,7 @@
       "symbol": "OrderMap"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15429,9 +14442,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15444,9 +14455,7 @@
       "symbol": "OrderMap"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15459,9 +14468,7 @@
       "symbol": "OrderMap"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15474,9 +14481,7 @@
       "symbol": "PresenterViewButton"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15489,9 +14494,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15504,9 +14507,7 @@
       "symbol": "QuitDialog"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -15519,9 +14520,7 @@
       "symbol": "QuitDialog"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -15534,9 +14533,7 @@
       "symbol": "QuitDialog"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -15549,9 +14546,7 @@
       "symbol": "StoppedDivider"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -15564,9 +14559,7 @@
       "symbol": "StoppedDivider"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/ai-quit.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -15775,9 +14768,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15791,9 +14782,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15807,9 +14796,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15823,9 +14810,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15839,9 +14824,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15855,9 +14838,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15871,9 +14852,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15887,9 +14866,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15903,9 +14880,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15919,9 +14894,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15935,9 +14908,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-trash-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -15950,9 +14921,7 @@
       "symbol": "CommandPalette"
     },
     "region": "palette",
-    "consumers": [
-      "apps/studio/test/v2-search-ui.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -15966,9 +14935,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -15982,9 +14949,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -15998,9 +14963,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16014,9 +14977,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16030,9 +14991,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16046,9 +15005,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16062,9 +15019,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16078,9 +15033,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16094,9 +15047,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16110,9 +15061,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16126,9 +15075,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16142,9 +15089,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/annotation-list-render.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/annotation-list-render.test.tsx"],
     "v2": "new"
   },
   {
@@ -16236,9 +15181,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16252,9 +15195,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16268,9 +15209,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16284,9 +15223,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16300,9 +15237,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16316,9 +15251,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16332,9 +15265,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/external-link.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
     "v2": "new"
   },
   {
@@ -16348,9 +15279,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16364,9 +15293,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16380,9 +15307,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16396,9 +15321,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16412,9 +15335,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16428,9 +15349,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16444,9 +15363,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16460,9 +15377,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16476,9 +15391,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16492,9 +15405,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16508,9 +15419,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16524,9 +15433,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16540,9 +15447,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16556,9 +15461,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16572,9 +15475,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16588,9 +15489,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16604,9 +15503,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16620,9 +15517,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16636,9 +15531,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -16652,9 +15545,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16668,9 +15559,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16684,9 +15573,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16700,9 +15587,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16716,9 +15601,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16732,9 +15615,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16748,9 +15629,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16764,9 +15643,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-panel.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
     "v2": "new"
   },
   {
@@ -16780,9 +15657,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/inspect-overlay.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/inspect-overlay.test.tsx"],
     "v2": "new"
   },
   {
@@ -16795,9 +15670,7 @@
       "symbol": "UndoHistory"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16810,9 +15683,7 @@
       "symbol": "UndoHistory"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16825,9 +15696,7 @@
       "symbol": "UndoHistory"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16840,9 +15709,7 @@
       "symbol": "UndoHistory"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16855,9 +15722,7 @@
       "symbol": "UndoHistory"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16870,9 +15735,7 @@
       "symbol": "UndoPreview"
     },
     "region": "canvas",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16885,9 +15748,7 @@
       "symbol": "UndoPreview"
     },
     "region": "canvas",
-    "consumers": [
-      "apps/studio/test/undo-history.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   },
   {
@@ -16901,9 +15762,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -16917,9 +15776,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -16933,9 +15790,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -16949,9 +15804,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -16965,9 +15818,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -16981,9 +15832,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -16997,9 +15846,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17013,9 +15860,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17029,9 +15874,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17045,9 +15888,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17061,9 +15902,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17077,9 +15916,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17093,9 +15930,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17109,9 +15944,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17125,9 +15958,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17141,9 +15972,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-text.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
     "v2": "new"
   },
   {
@@ -17156,9 +15985,7 @@
       "symbol": "TextInPlace"
     },
     "region": "canvas",
-    "consumers": [
-      "apps/studio/test/edit-text-client.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/edit-text-client.test.tsx"],
     "sourceConsumers": [],
     "v2": "new"
   },
@@ -17383,9 +16210,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17399,9 +16224,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17415,9 +16238,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17431,9 +16252,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17447,9 +16266,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17463,9 +16280,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17479,9 +16294,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17495,9 +16308,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-canvas-ui.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
     "v2": "new"
   },
   {
@@ -17511,9 +16322,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-multi-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17527,9 +16336,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-multi-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17543,9 +16350,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-multi-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17559,9 +16364,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-multi-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17603,9 +16406,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-multi-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17647,9 +16448,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17663,9 +16462,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17679,9 +16476,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17695,9 +16490,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17711,9 +16504,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17727,9 +16518,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17743,9 +16532,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-shapes-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17759,9 +16546,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17775,9 +16560,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17791,9 +16574,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17807,9 +16588,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17823,9 +16602,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17839,9 +16616,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17855,9 +16630,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17871,9 +16644,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17887,9 +16658,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17903,9 +16672,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17919,9 +16686,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17935,9 +16700,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17951,9 +16714,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17967,9 +16728,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17983,9 +16742,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -17999,9 +16756,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/edit-layout-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18015,9 +16770,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-layout-frame.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
     "v2": "new"
   },
   {
@@ -18031,9 +16784,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-layout-frame.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
     "v2": "new"
   },
   {
@@ -18047,9 +16798,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-layout-frame.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
     "v2": "new"
   },
   {
@@ -18063,9 +16812,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-layout-frame.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
     "v2": "new"
   },
   {
@@ -18079,9 +16826,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-layout-frame.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
     "v2": "new"
   },
   {
@@ -18095,9 +16840,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18111,9 +16854,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18127,9 +16868,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18143,9 +16882,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-artboard-menu.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-artboard-menu.test.tsx"],
     "v2": "new"
   },
   {
@@ -18159,9 +16896,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-artboard-menu.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-artboard-menu.test.tsx"],
     "v2": "new"
   },
   {
@@ -18175,9 +16910,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18191,9 +16924,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18207,9 +16938,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18223,9 +16952,7 @@
     },
     "region": "canvas",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/artboard-arrange-client.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
   },
   {
@@ -18239,9 +16966,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-multi-artboard.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-multi-artboard.test.tsx"],
     "v2": "new"
   },
   {
@@ -18255,9 +16980,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18271,9 +16994,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18287,9 +17008,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18303,9 +17022,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18319,9 +17036,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18335,9 +17050,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18351,9 +17064,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18367,9 +17078,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18383,9 +17092,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18399,9 +17106,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18415,9 +17120,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18431,9 +17134,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18447,9 +17148,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18463,9 +17162,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18479,9 +17176,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-canvas-error-card.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-canvas-error-card.test.tsx"],
     "v2": "new"
   },
   {
@@ -18495,9 +17190,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18511,9 +17204,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18527,9 +17218,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18543,9 +17232,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18559,9 +17246,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18575,9 +17260,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18591,9 +17274,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18607,9 +17288,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18623,9 +17302,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18639,9 +17316,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18655,9 +17330,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18671,9 +17344,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18687,9 +17358,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18703,9 +17372,7 @@
     },
     "region": "viewport",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-code-view.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-code-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -18901,9 +17568,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -18917,9 +17582,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -18933,9 +17596,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -18949,9 +17610,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -18965,9 +17624,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -18981,9 +17638,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -18997,9 +17652,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19013,9 +17666,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19029,9 +17680,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19045,9 +17694,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19061,9 +17708,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19077,9 +17722,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19093,9 +17736,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19109,9 +17750,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19125,9 +17764,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19141,9 +17778,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19157,9 +17792,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19173,9 +17806,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19189,9 +17820,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19205,9 +17834,7 @@
     },
     "region": "other",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-ai-needs-you.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   },
   {
@@ -19221,9 +17848,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-kit.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   },
   {
@@ -19237,9 +17862,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-kit.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   },
   {
@@ -19253,9 +17876,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-kit.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   },
   {
@@ -19269,9 +17890,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-kit.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   },
   {
@@ -19285,9 +17904,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-kit.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   },
   {
@@ -19301,9 +17918,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-kit.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   },
   {
@@ -19317,9 +17932,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-arriving-rows.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-arriving-rows.test.tsx"],
     "v2": "new"
   },
   {
@@ -19333,9 +17946,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-arriving-rows.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-arriving-rows.test.tsx"],
     "v2": "new"
   },
   {
@@ -19349,9 +17960,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-arriving-rows.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-arriving-rows.test.tsx"],
     "v2": "new"
   },
   {
@@ -19365,9 +17974,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-arriving-rows.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-arriving-rows.test.tsx"],
     "v2": "new"
   },
   {
@@ -19381,9 +17988,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
@@ -19397,9 +18002,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
@@ -19413,9 +18016,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
@@ -19429,9 +18030,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-all-trashed.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
     "v2": "new"
   },
   {
@@ -19445,9 +18044,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19461,9 +18058,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19477,9 +18072,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19493,9 +18086,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19509,9 +18100,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19525,9 +18114,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19541,9 +18128,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19557,9 +18142,7 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19573,9 +18156,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19589,9 +18170,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19605,9 +18184,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19621,9 +18198,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19637,9 +18212,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19653,9 +18226,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19669,9 +18240,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19685,9 +18254,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   },
   {
@@ -19701,9 +18268,7 @@
     },
     "region": "sidebar/layers",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-left-advanced.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-left-advanced.test.tsx"],
     "v2": "new"
   }
 ]
