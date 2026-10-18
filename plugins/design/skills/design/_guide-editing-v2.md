@@ -35,3 +35,12 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
   `position: "relative"` on a static frame). Plain CSS, never a `data-cd-*` attribute. **Constraints** keep edges:
   `right` / `bottom` carry the distance to the frame's edge instead of `left` / `top`; both edges drop `width`.
   Datum with `right: 64px; top: 64px` stays 64 from the corner at every artboard size.
+
+## Text: styles and Czech (S2.12)
+
+- A **style** is a type role of the system: the class `t-<role>` from `components.json` `typeRoles`
+  (`className="t-heading"`). **Changing one thing** is an inline declaration over it (`style.fontSize`); **Reset**
+  deletes the inline `fontFamily` / `fontSize` / `fontWeight` / `lineHeight` / `letterSpacing` / `textTransform` /
+  `fontStyle`. **Detach** inlines the style's values and removes the `t-*` class.
+- **Case AA** is `textTransform: "uppercase"`. **Language** is `lang="cs"`; for Czech the copy gets a no-break space
+  (U+00A0) after every one-letter word (v k s z o u i a …) and „quotes“ — not inside a URL, an address or `code`.

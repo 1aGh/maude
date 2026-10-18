@@ -11585,7 +11585,7 @@
     "hook": "insp-row-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One labelled row inside a section body; `<name>` ∈ width, height, clip, xy, rotation, direction, gap, spacing, padding, pad-top/right/bottom/left, align. `data-dim=\"true\"` when the control is inert (an object inside auto layout has no X · Y of its own).",
+    "meaning": "One labelled row inside a section body; `<name>` ∈ width, height, clip, xy, rotation, direction, gap, spacing, padding, pad-top/right/bottom/left, align, and for a text style, resizing, case, language. `data-dim=\"true\"` when the control is inert (an object inside auto layout has no X · Y of its own).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/row.jsx",
       "symbol": "Row"
@@ -12804,6 +12804,244 @@
     },
     "region": "canvas",
     "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Style: \"Aa Heading ⌄\" — the type role the text wears, by the system's own name (\"Heading · changed\" when this text sets a value over it, \"No style\" when it wears none).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-menu-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Style: the menu of the system's type roles (components.json typeRoles), then Detach style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-<role>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Type › Style menu: one row per type role of the system (`<role>` is the typeRoles key: title, heading, body…); a click asks `text.use-style`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-detach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Style menu: Detach style (asks `text.detach-style`; the text keeps its look and stops following the style).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-differs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: the line under Style when the text sets values over its style — \"Size differs from Heading.\" — with Reset.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: Reset on the differs line (asks `text.reset-style`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: \"Update <Heading> for every canvas…\" — drawn only once S10 registers `ds.review-update` (S10-ds-review-entry.md).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: the line for a text with no style (\"This text follows no style.\", or \"Keeps its look; stops following Heading. Nothing else changes.\" right after Detach) with Use a style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: Use a style — opens the Style menu for a text with no style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-follows",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: \"Change Heading in the Design system and this follows.\" under a text that wears its style untouched.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-type-from",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: \"from Heading\" beside Size · weight while the text takes both from its style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/type.jsx",
+      "symbol": "TypeBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mod-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The dot beside a row's label (\"Changed here\") when the text sets that value over its style; `<name>` is the row: style, type-size.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/row.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-resizing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Resizing: Width · Height · Fixed (Width = the box follows the line; Height = width fixed, height follows the text; Fixed = both).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-case",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Case: As typed · AA (asks `text.set-case`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-language",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Language: the select (Čeština · English · Slovenčina · Deutsch · Polski; asks `text.set-language`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-language-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Language: the Čeština line — one-letter words stay with the next word, „quotes“ turn Czech.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-text.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tie-arc",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the small arc under a space that will become a no-break space, while a Czech text is being typed.",
+    "producer": {
+      "file": "apps/studio/editing/text-in-place.tsx",
+      "symbol": "TextInPlace"
+    },
+    "region": "canvas",
+    "consumers": ["apps/studio/test/edit-text-client.test.tsx"],
+    "sourceConsumers": [],
     "v2": "new"
   }
 ]

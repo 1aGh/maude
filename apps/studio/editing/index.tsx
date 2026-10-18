@@ -37,6 +37,14 @@ import { PinGuides } from './place-freely.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
+import {
+  isTextAction,
+  runTextAction,
+  TEXT_ACTIONS,
+  textOpDeps,
+  textParams,
+} from './text-actions.ts';
+import { TextInPlace } from './text-in-place.tsx';
 import { TokenRuler } from './token-ruler.tsx';
 import { UndoPreview } from './undo-preview.tsx';
 
@@ -52,6 +60,8 @@ export const EDITING_ACTIONS = [
   ...LAYOUT_ACTIONS,
   // S2.11b — the Position row's pins: one object.constrain with the measured box
   CONSTRAIN_ACTION,
+  // S2.12 — text: language, case, style (use / reset / detach); `text.set` is the caret's commit
+  ...TEXT_ACTIONS,
 ] as const;
 
 export function EditingLayer() {
@@ -70,6 +80,11 @@ export function EditingLayer() {
   undoRef.current = undo;
   useEffect(() => {
     layoutOpsDeps.current = {
+      toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
+      record: (rec) => undoRef.current?.record(rec),
+    };
+    // S2.12 — the text actions toast the same way and push the same undo record
+    textOpDeps.current = {
       toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
       record: (rec) => undoRef.current?.record(rec),
     };
@@ -92,6 +107,12 @@ export function EditingLayer() {
         if (!isReadOnlyCanvas()) {
           const { refs } = layerParams(m.params);
           void runLayoutAction(m.id, selRef.current, refs);
+        }
+      } else if (isTextAction(m.id)) {
+        // S2.12 — the Type section / ⌘K; a Layers-less ask names its target in `params.targets`
+        if (!isReadOnlyCanvas()) {
+          const { refs, params } = textParams(m.params);
+          void runTextAction(m.id, selRef.current, refs, params, textOpDeps.current);
         }
       } else if (isConstrainAction(m.id)) {
         if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
@@ -172,6 +193,8 @@ export function EditingLayer() {
       <TokenRuler />
       <ReorderSlot />
       <PinGuides readOnly={isReadOnlyCanvas()} />
+      {/* S2.12 — the edit-tone ring around the text being typed, the Czech ties under it */}
+      <TextInPlace readOnly={isReadOnlyCanvas()} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
     </>

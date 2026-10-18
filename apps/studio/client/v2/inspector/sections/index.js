@@ -4,6 +4,7 @@
 
 import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
 import { offMulti } from '../kinds/multi.jsx';
+import { offTextBody, offTextStyle } from '../kinds/text.jsx';
 import { offBorder } from './border.jsx';
 import { offCorners } from './corners.jsx';
 import { offEffects } from './effects.jsx';
@@ -26,6 +27,8 @@ export function unregisterSections() {
   offBorder();
   offEffects();
   offType();
+  offTextStyle();
+  offTextBody();
   offInteraction();
   offExportSlot();
   offPlaceFreely();

@@ -424,4 +424,98 @@
     line-height: 20px;
     color: var(--fg-1);
   }
+
+  /* ── S2.12: a text's style · the dot when this object sets over it · the lines under the row ── */
+  .insp-mod {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .insp-style {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+    padding: 0 var(--space-2) 0 var(--space-1);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    font: inherit;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .insp-style:focus-visible,
+  .insp-line-act:focus-visible,
+  .insp-quietlink:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-style:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .insp-style-ic {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+  }
+  .insp-style--none {
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-weight: var(--w-regular);
+  }
+  .insp-from {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .insp-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .insp-line-act {
+    appearance: none;
+    margin-left: auto;
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+  .insp-line-act:disabled {
+    cursor: default;
+    color: var(--fg-2);
+  }
+  .insp-quietlink {
+    appearance: none;
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs);
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }

@@ -23,6 +23,9 @@ import { reorderOps } from './reorder.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
 import { layoutSetGap } from './set-gap.ts';
+import { textSet, textSetLanguage } from './text-copy.ts';
+import { textDetachStyle } from './text-detach.ts';
+import { textResetStyle, textSetCase, textUseStyle } from './text-style-ops.ts';
 import {
   EDIT_OP_STATUS,
   type EditOp,
@@ -61,6 +64,13 @@ export const EDIT_OPS: readonly EditOp[] = [
   ...reorderOps,
   // S2.11c — ⌥ "every gap at once": one gap value over several auto layouts, one write
   layoutSetGap,
+  // S2.12 — text in place, styles and the Czech ties
+  textSet,
+  textSetLanguage,
+  textSetCase,
+  textUseStyle,
+  textResetStyle,
+  textDetachStyle,
 ];
 
 export interface AiHoldHit {

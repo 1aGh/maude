@@ -3483,6 +3483,7 @@
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-hint": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)",
+    "testid:studio/editing/text-in-place.tsx#canvas/edit-tie-arc": "v2 code (added after the freeze)",
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler": "v2 code (added after the freeze)",
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-free": "v2 code (added after the freeze)",
     "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-hint": "v2 code (added after the freeze)",
