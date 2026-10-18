@@ -382,6 +382,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'project',
     agent: cli('maude design exports again <id>'),
   },
+  // S8.4 — Retry <name>: only the items of one export that did not make it. The terminal path is the
+  // panel's own route, and a job that is not yours is a missing one (V2-1.16 U1).
+  'export.retry': {
+    effect: 'project',
+    minRole: 'comment',
+    server: { route: '/_api/export-jobs/retry', method: 'POST' },
+    agent: cli('maude design exports retry <id> [--item <id,…>]'),
+  },
   'share.open': { effect: 'shared', agent: human('links') },
   'share.copy-link': { effect: 'none', agent: human('links') },
   // ── app / help / ai ──

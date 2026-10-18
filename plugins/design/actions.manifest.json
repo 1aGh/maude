@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "83cc311d4639",
+  "manifestVersion": "855d0dd37b2d",
   "actions": [
     {
       "id": "search.open",
@@ -1695,6 +1695,22 @@
       "agent": {
         "path": "cli",
         "verb": "maude design exports again <id>"
+      }
+    },
+    {
+      "id": "export.retry",
+      "label": "Retry",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "comment",
+      "server": {
+        "route": "/_api/export-jobs/retry",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design exports retry <id> [--item <id,…>]"
       }
     },
     {

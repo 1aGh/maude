@@ -72,6 +72,8 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
   '/_api/export',
   '/_api/export-jobs',
   '/_api/export-jobs/download',
+  // S8.4 — Retry re-runs a finished export's failed items: the same class as exporting.
+  '/_api/export-jobs/retry',
   // DDR-231 T6 — recording that you exported is the same class as exporting.
   '/_api/export-history',
   // The deck's composition half: packs bytes the session already captured.

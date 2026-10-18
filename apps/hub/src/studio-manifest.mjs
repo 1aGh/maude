@@ -83,6 +83,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // S8.1 — the export sheet's estimate: a POST that writes nothing and evaluates nothing (it
   // reads the index); the export capability, like every export row.
   '/_api/export-estimate': { safe: null, unsafe: 'export' },
+  // S8.4 — Retry re-runs a finished export's failed items: the export capability, the owner's jobs
+  '/_api/export-jobs/retry': { safe: null, unsafe: 'export' },
   // DDR-231 T7 — warm-up ping: a proxied render-service /_health GET so the
   // container wakes while the member is still picking options. Read-class.
   '/_api/export-warmup': { safe: 'read', unsafe: null },

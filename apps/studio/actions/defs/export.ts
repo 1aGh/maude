@@ -30,15 +30,26 @@ export const EXPORT_ACTIONS: ActionDef[] = [
   },
   // "Export again" (D3, decision:maude/v2-2.8-shift-cmd-e-one-sheet). v1 bound ⇧⌘E to the iframe's
   // `rerunLast()`, which ran next to the forwarded `export.open` and silently re-submitted the
-  // last export (V2-1.3 defect 2). It now lives on every Recent row of the shell's Export sheet
-  // (client/dialogs/export-dialog.jsx, testid `export-recent-again-<i>`): no key, shell-side.
-  // Phase 5's S8 Exports panel restyles the row.
+  // last export (V2-1.3 defect 2). It lives on every row of the Exports panel (S8.4,
+  // client/v2/export/job-row.jsx, testid `export-job-again-<id>`) and on every Recent row of the
+  // Export sheet (`export-recent-again-<i>`): no key, shell-side.
   {
     id: 'export.rerun-last',
     label: 'Export again',
     kind: 'command',
     exec: 'shell',
     legacy: { sheet: 'Export again' },
+  },
+  // S8.4 — "Retry <name>" on a partly done export ("Exported 114 of 115"): runs only the items that
+  // did not make it, through POST /_api/export-jobs/retry (the export class, the owner's jobs only).
+  // A row action, so it is hidden from ⌘K: it needs the job it acts on.
+  {
+    id: 'export.retry',
+    label: 'Retry',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    search: { hidden: true },
   },
   // ── no key in v1 ──
   {

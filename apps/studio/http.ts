@@ -1657,6 +1657,8 @@ export function createHttp(
     access: (req) => accessOf(req),
     history: () => exportJobs.loadHistory(),
     renderLane: () => resolveRenderLane(),
+    // S8.4 — Retry: only the failed items of one of THIS session's group jobs
+    retry: (id, items, session) => exportJobs.retry(id, items, session),
   };
   const tableSpecs = allSpecs({
     outbox: { outbox },
