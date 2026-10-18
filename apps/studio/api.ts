@@ -502,6 +502,13 @@ export interface Api {
     file: string,
     patch: Record<string, unknown>
   ): Promise<Record<string, unknown> | null>;
+  /**
+   * S3.5 — the versioned `.meta.json` writer outside the layout lane (`PATCH /_api/present-meta`):
+   * writes `nextText` and fires the same `onMetaChanged` hook (→ meta `lane.replace`, `baseText` =
+   * the file text it replaced) and cell announce as a layout write. No `last_modified` stamp. False
+   * when the path is refused.
+   */
+  writeCanvasMetaText(file: string, nextText: string, baseText: string | null): Promise<boolean>;
   // Annotations board (DDR-242 — .design/<slug>.annotations.json)
   /** Canonical board text; a not-yet-migrated legacy SVG is read through the migration. */
   loadAnnotations(file: string): Promise<string | null>;
@@ -2273,6 +2280,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // Return the merged view (shared meta + camera) — identical to GET, so the
     // client gets a coherent object regardless of which lane(s) the patch hit.
     return await loadCanvasMeta(file);
+  }
+
+  async function writeCanvasMetaText(
+    file: string,
+    nextText: string,
+    baseText: string | null
+  ): Promise<boolean> {
+    const metaAbs = canvasMetaPath(file);
+    if (!metaAbs) return false;
+    await Bun.write(metaAbs, nextText);
+    hooks.onMetaChanged?.(file, nextText, baseText);
+    announceWritten(path.relative(paths.designRoot, metaAbs));
+    return true;
   }
 
   // ---------- Annotations sidecar (DDR-242 — annotations v2) ----------
@@ -7269,6 +7289,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     loadCanvasMeta,
     loadCanvasSource,
     patchCanvasMeta,
+    writeCanvasMetaText,
     loadAnnotations,
     readBoard,
     saveAnnotations,

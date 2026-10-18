@@ -11,7 +11,6 @@
 // refusal. Rule 7 also fails while the table has rows and no test file imports it, so a row is
 // never coverage on paper only. Add the row in the same change that adds the `server` field.
 //
-// Empty today: no action declares `server` yet.
 
 import type { ActionDefAI, Role } from '../actions/types.ts';
 
@@ -25,6 +24,9 @@ export interface RoleRefusal {
   refused: readonly Role[];
 }
 
-export const ROLE_REFUSALS: readonly RoleRefusal[] = [];
+export const ROLE_REFUSALS: readonly RoleRefusal[] = [
+  // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
+  { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

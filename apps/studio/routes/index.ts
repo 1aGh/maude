@@ -20,6 +20,7 @@ import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
+import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
@@ -39,6 +40,8 @@ export interface RouteDeps {
   ai: AiRouteDeps;
   /** S5.7 — the chat store: search, trash, the resume session id */
   chat: ChatRouteDeps;
+  /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
+  present: PresentRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -54,5 +57,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createPinsRoutes(deps.pins),
     ...createAiRoutes(deps.ai),
     ...createChatRoutes(deps.chat),
+    ...createPresentRoutes(deps.present),
   ];
 }

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1f9266606ac1",
+  "manifestVersion": "f2c77cb04e3e",
   "actions": [
     {
       "id": "search.open",
@@ -818,6 +818,25 @@
       "agent": {
         "path": "cli",
         "verb": "maude design open <canvas> --mode present"
+      }
+    },
+    {
+      "id": "present.order-notes",
+      "label": "Order and notes…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/present-meta",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:design",
+        "how": "present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json"
       }
     },
     {
