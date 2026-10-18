@@ -140,7 +140,7 @@ describe('the chat list renders', () => {
 });
 
 describe('the row ⋯ menu', () => {
-  test('Open · Rename… · Copy transcript · Archive · Move to trash, and esc returns focus to the dots', async () => {
+  test('Open · Rename… · Copy transcript · Undo this chat · Archive · Move to trash, and esc returns focus to the dots', async () => {
     const m = await mountList();
     const dots = qa('[aria-label="More options"]')[0];
     await m.act(async () => dots.click());
@@ -150,6 +150,7 @@ describe('the row ⋯ menu', () => {
       'Open',
       'Rename…',
       'Copy transcript',
+      'Undo this chat', // S5.15 (V2-1.5 §5.3): everything this chat's AI did, as one new version
       'Archive',
       'Move to trash',
     ]);
