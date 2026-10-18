@@ -33,6 +33,7 @@ const V_OPTS = [
 /** The four pins as a picture: which edges the object keeps (14 Editing, `Cons`). Click an edge to toggle it. */
 function Pins({ pins, onToggle, disabled }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: an inline picture of four edge toggles inside a row, not a form group
     <span className="insp-cons" data-testid="insp-cons" role="group" aria-label="Pinned edges">
       <i className="insp-cons-in" />
       {['top', 'right', 'bottom', 'left'].map((edge) => (
