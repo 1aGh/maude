@@ -13,15 +13,25 @@ import { isEditableTarget } from '../input-router.tsx';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
+import { AlignBar } from './align-bar.tsx';
+import { ARRANGE_ACTIONS } from './arrange.ts';
 import { LockBadge } from './lock-badge.tsx';
 import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
+import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stepOut } from './selection.tsx';
 
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
-export const EDITING_ACTIONS = ['object.enter', 'object.step-out', ...OBJECT_OP_ACTIONS] as const;
+export const EDITING_ACTIONS = [
+  'object.enter',
+  'object.step-out',
+  ...OBJECT_OP_ACTIONS,
+  // S2.7 — run by align-bar.tsx / rotate-handle.tsx (each listens for its own run-action ids)
+  ...ARRANGE_ACTIONS,
+  'object.rotate',
+] as const;
 
 export function EditingLayer() {
   const selSet = useSelectionSet();
@@ -85,6 +95,9 @@ export function EditingLayer() {
       {/* S2.6 — a locked object says so; the arrows say where they put things */}
       <LockBadge readOnly={isReadOnlyCanvas()} />
       <NudgeReadout readOnly={isReadOnlyCanvas()} />
+      {/* S2.7 — the align bar over a multi-selection, the rotate handle at its corner */}
+      <AlignBar readOnly={isReadOnlyCanvas()} />
+      <RotateHandle readOnly={isReadOnlyCanvas()} />
     </>
   );
 }

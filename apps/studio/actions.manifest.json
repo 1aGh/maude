@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "204fb6c9df58",
+  "manifestVersion": "605046285b08",
   "actions": [
     {
       "id": "search.open",
@@ -641,6 +641,123 @@
         "path": "human",
         "because": "view-pref",
         "note": "a selection in the person’s window; an agent greps the canvas for the same className and style"
+      }
+    },
+    {
+      "id": "align.left",
+      "label": "Align left",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.hcentre",
+      "label": "Align horizontal centres",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.right",
+      "label": "Align right",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.top",
+      "label": "Align top",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.vmiddle",
+      "label": "Align vertical middles",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "align.bottom",
+      "label": "Align bottom",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.h",
+      "label": "Distribute horizontally",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.v",
+      "label": "Distribute vertically",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "object.rotate",
+      "label": "Rotate 90°",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions"
       }
     },
     {

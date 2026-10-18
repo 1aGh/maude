@@ -8389,10 +8389,10 @@
     "hook": ".dc-elem-ctx-tb / [data-on]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Element contextual toolbar (\"Tidy up into a grid\", …) and its toggled-on state attribute.",
+    "meaning": "The align bar over two or more selected objects (\"3 objects\", align and distribute) and its toggled-on state attribute. The v1 ContextualToolbar rows (Copy CSS, Copy ID, Inspect, Comment) are in the object menu, Advanced ▸.",
     "producer": {
-      "file": "apps/studio/contextual-toolbar.tsx",
-      "symbol": "ContextualToolbar"
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
     },
     "region": "canvas iframe chrome",
     "consumers": [
@@ -8405,10 +8405,10 @@
     "hook": ".dc-multi-artboard-tb",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Multi-artboard toolbar (\"Align top\", \"Distribute horizontally\").",
+    "meaning": "The align bar over two or more selected artboards (\"4 artboards\", align and distribute).",
     "producer": {
-      "file": "apps/studio/canvas-shell.tsx",
-      "symbol": "MultiArtboardToolbar"
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
     },
     "region": "canvas iframe chrome",
     "consumers": [
@@ -13049,6 +13049,132 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the align bar over a multi-selection (`data-kind` is objects or artboards).",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the first word of the bar, \"3 objects\" / \"4 artboards\".",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-<edge>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one align button of the bar; `<edge>` is left, hcentre, right, top, vmiddle or bottom. The tooltip is `data-tip`.",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-distribute-<axis>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: a distribute button of the bar; `<axis>` is h or v. Off below three objects.",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-guide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the guide-colour line an align leaves for a moment on the edge the objects now share.",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the chip on that guide with its place in the artboard (\"X 64\", \"Y 230\").",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-rotate-handle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the rotate handle outside the bottom-right corner of the selection.",
+    "producer": {
+      "file": "apps/studio/editing/rotate-handle.tsx",
+      "symbol": "RotateHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-rotate-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the hint beside the rotate handle on hover, \"Rotate · ⇧ 15°\".",
+    "producer": {
+      "file": "apps/studio/editing/rotate-handle.tsx",
+      "symbol": "RotateHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-rotate-angle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the angle beside the rotate handle while it is dragged (whole degrees; ⇧ snaps to 15°).",
+    "producer": {
+      "file": "apps/studio/editing/rotate-handle.tsx",
+      "symbol": "RotateHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
     "v2": "new"
   },
   {

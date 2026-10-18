@@ -12,11 +12,14 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
+import { alignOps } from './align.ts';
+import { distributeOps } from './distribute.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
 import type { ReferenceLanes } from './references.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
+import { objectRotate } from './rotate.ts';
 import { elementSetId } from './set-id.ts';
 import {
   EDIT_OP_STATUS,
@@ -49,6 +52,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectHide,
   // S2.2b — the inspector's Element id field: renames the id and every durable reference to it
   elementSetId,
+  // S2.7 — the align bar and the rotate handle
+  ...alignOps,
+  ...distributeOps,
+  objectRotate,
 ];
 
 export interface AiHoldHit {

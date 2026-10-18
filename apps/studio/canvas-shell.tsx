@@ -70,7 +70,6 @@ import {
   type MenuItem,
   useContextMenu,
 } from './context-menu.tsx';
-import { ContextualToolbar } from './contextual-toolbar.tsx';
 import { CursorsOverlay } from './cursors-overlay.tsx';
 import {
   buildComposeSelection,
@@ -3537,13 +3536,7 @@ function CanvasRouter({
       <GroupBbox />
       {!readOnly && <EqualSpacingHandles />}
       <MeasureOverlay />
-      {!readOnly && <ContextualToolbar />}
-      {!readOnly && (
-        <MultiArtboardToolbar
-          distributeArtboards={distributeArtboards}
-          alignArtboards={alignArtboards}
-        />
-      )}
+      {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); MultiArtboardToolbar below is retired, S2.9 deletes it */}
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
       <UndoHud />

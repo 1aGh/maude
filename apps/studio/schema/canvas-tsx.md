@@ -48,3 +48,15 @@ an AI run holds; and, on a project in accepted-revisions mode, a rename that has
 
 An agent does not rename ids: `maude design check` reports the old id as `id-lost`, and agents never write the
 comments file. Ask the person to use Element id.
+## Align, distribute and rotate: the same result by hand (S2.7)
+
+The align bar (2+ objects or artboards), the rotate handle and the Rotation row run `edit-op`s
+(`apps/studio/edit-ops/{align,distribute,rotate}.ts`). An agent edits the file and gets the same bytes.
+
+| Bar / handle | What the file looks like afterwards |
+| --- | --- |
+| Align left · horizontal centres · right | Objects placed freely (`position: absolute` or `fixed`): `style.left` is set in px so every box shares the leftmost left edge / the middle of the selection's horizontal extent / the rightmost right edge (left = edge − width, or middle − width/2). `top` is not touched. Boxes are the visual boxes (a rotated object counts as its bounding box). An object that sits in a layout is not aligned: convert it first (Advanced ▸ Convert children to absolute position). |
+| Align top · vertical middles · bottom | The same on `style.top`. |
+| Distribute horizontally · vertically (3+) | The leftmost/topmost and the rightmost/bottommost stay; the ones between get `style.left` (or `style.top`) so the gaps between neighbours are equal. The other axis is not touched. |
+| Align / distribute artboards | `x` / `y` of the artboards in the canvas's `.meta.json` (`layout.artboards[]`), by the same arithmetic. Annotations that belong to a moved artboard move with it (their `x` / `y` in the board file). |
+| Rotate handle · Rotation row · Rotate 90° | `rotate(<n>deg)` inside the element's inline `style.transform` (any other transform functions stay), n in −180…180, two decimals. 0° removes the `rotate(…)`, and the `transform` itself when nothing else is left. Each object turns about its own centre. A `transform` the file computes is left alone. |
