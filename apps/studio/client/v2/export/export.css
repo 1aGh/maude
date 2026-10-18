@@ -1,0 +1,424 @@
+/* client/v2/export/export.css — S8.2: the Export sheet (09 Export `ex-*`, lifted).
+ *
+ * One dialog over a scrim, in the shell's own material (.island). Tokens only — no hex, no raw durations;
+ * the sheet's entrance runs on --dur-panel, which collapses to 1 ms under prefers-reduced-motion. The
+ * kit's `.seg` / `.k-seg-b` / `.k-dialog` are canvas-only, so their look is rebuilt here from the tokens. */
+
+@layer shell {
+  .ex-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4, 16px);
+    background: var(--scrim);
+  }
+  .ex-sheet.island {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+    width: min(100%, 680px);
+    max-height: calc(100% - var(--space-5, 24px));
+    overflow: auto;
+    padding: var(--space-4, 16px);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--bg-1);
+    box-shadow: var(--shadow-md);
+    animation: ex-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes ex-in {
+    from {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+
+  .ex-sheet-hd {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ex-title {
+    margin: 0;
+    font-size: var(--type-md, 15px);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .ex-sheet-sub {
+    margin: 0;
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-2);
+  }
+
+  /* Scope — always on top, every option with its artboard count. */
+  .ex-scope {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding-bottom: var(--space-3, 12px);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+  }
+  .ex-scope-k {
+    flex: none;
+    width: 84px;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .ex-scope-u {
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+
+  /* The segmented control (formats, sizes, scope). */
+  .ex-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+  }
+  .ex-seg-b {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1, 4px);
+    padding: var(--space-1, 4px) var(--space-3, 12px);
+    border: 0;
+    border-radius: calc(var(--radius-md, 10px) - 2px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    cursor: pointer;
+    transition: background var(--dur-fast, 120ms) var(--ease-out, ease);
+  }
+  .ex-seg-b:hover:not(:disabled) {
+    color: var(--fg-0);
+  }
+  .ex-seg-b[aria-checked='true'] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+    box-shadow: var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.08));
+  }
+  .ex-seg-b:disabled {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ex-seg-b:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .ex-seg-b small {
+    min-width: 1.5em;
+    text-align: right;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ex-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+  }
+  .ex-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    min-height: 34px;
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-row--note {
+    align-items: flex-start;
+  }
+  .ex-row-k {
+    flex: none;
+    width: 84px;
+    color: var(--fg-1);
+  }
+  .ex-row--note .ex-row-k {
+    line-height: 30px;
+  }
+  .ex-row-v {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 4px) var(--space-2, 8px);
+  }
+  .ex-row-n {
+    flex-basis: 100%;
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.36);
+    color: var(--fg-2);
+  }
+  .ex-val {
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-0);
+  }
+
+  .ex-check {
+    position: relative;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-0);
+    cursor: pointer;
+  }
+  .ex-check small {
+    display: block;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .ex-check--off {
+    color: var(--fg-2);
+    cursor: default;
+  }
+  .ex-check-in {
+    position: absolute;
+    opacity: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+  }
+  .ex-box {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    border-radius: var(--radius-xs, 4px);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    color: var(--accent-fg);
+  }
+  .ex-box[data-on] {
+    background: var(--accent);
+    box-shadow: none;
+  }
+  .ex-check-in:focus-visible + .ex-box {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+
+  /* Other… — every format, one list away. */
+  .ex-other {
+    position: relative;
+  }
+  .ex-other-menu.island {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + var(--space-1, 4px));
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    width: 340px;
+    max-height: 340px;
+    overflow: auto;
+    padding: var(--space-2, 8px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-1);
+    box-shadow: var(--shadow-md);
+  }
+  .ex-other-search {
+    width: 100%;
+    height: 28px;
+    padding: 0 var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-other-gh {
+    margin: var(--space-2, 8px) var(--space-2, 8px) 2px;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .ex-other-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 var(--space-2, 8px);
+    width: 100%;
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ex-other-row:hover,
+  .ex-other-row:focus-visible {
+    background: var(--bg-3);
+    outline: none;
+  }
+  .ex-other-row[aria-checked='true'] .ex-other-l::after {
+    content: ' ✓';
+    color: var(--accent-text);
+  }
+  .ex-other-row[aria-disabled] {
+    color: var(--fg-3);
+    cursor: default;
+  }
+  .ex-other-row[aria-disabled]:hover {
+    background: transparent;
+  }
+  .ex-other-n {
+    flex-basis: 100%;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .ex-other-row[aria-disabled] .ex-other-n {
+    color: var(--fg-3);
+  }
+  .ex-other-none {
+    margin: var(--space-2, 8px);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-2);
+  }
+  .ex-kbd {
+    margin-left: auto;
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+
+  /* A quiet line inside the sheet. */
+  .ex-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-3);
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-0);
+  }
+  .ex-hint-ic {
+    display: grid;
+    flex: none;
+    margin-top: 1px;
+    color: var(--fg-1);
+  }
+  .ex-hint-t {
+    flex: 1;
+    min-width: 0;
+  }
+  .ex-hint-a {
+    flex: none;
+    margin: -3px 0;
+    color: var(--accent-text);
+  }
+
+  .ex-code {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    margin-top: var(--space-2, 8px);
+    padding-top: var(--space-2, 8px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-1);
+  }
+  .ex-code-a {
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: var(--w-medium);
+    cursor: pointer;
+  }
+
+  .ex-lane,
+  .ex-hand {
+    margin: 0;
+    font-size: var(--type-sm, 13px);
+    line-height: var(--lh-sm, 1.4);
+    color: var(--fg-1);
+  }
+  .ex-status {
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-status--ok {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .ex-status--err {
+    background: color-mix(in oklab, var(--status-warn) 14%, var(--bg-2));
+    color: var(--fg-0);
+  }
+  .ex-sum {
+    margin: 0;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ex-recent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-1);
+  }
+  .ex-recent-h {
+    margin: 0;
+    color: var(--fg-2);
+  }
+  .ex-recent-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+  }
+  .ex-recent-f {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-2);
+  }
+
+  /* The foot: Cancel and the verb (↵). */
+  .ex-sheet-a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+    padding-top: var(--space-3, 12px);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .ex-btns {
+    display: flex;
+    flex: none;
+    gap: var(--space-2, 8px);
+  }
+  .btn.ex-go {
+    gap: var(--space-2, 8px);
+  }
+  .ex-ret {
+    font-size: var(--type-xs, 11px);
+    opacity: 0.72;
+    font-variant-numeric: tabular-nums;
+  }
+}
