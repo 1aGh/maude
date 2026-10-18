@@ -14,11 +14,16 @@
 // `origin: 'canvas'` is the only way onto the canvas origins; http.ts and
 // routes/canvas-origin.ts derive both allowlists from it.
 
+import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
+import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
+import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
@@ -27,10 +32,17 @@ import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
 import { createVideoRoutes } from './video.ts';
+import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 
+const trashAccessNone = resolveAccess(null);
+
+// S1.7 — the access a Trash request is judged with (interim until S9.9's currentAccess()).
+export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
+export { announceAction, runStageHooks } from './project-undo.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -49,6 +61,16 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
+  trash?: TrashRouteDeps;
+  /** S1.18 — `GET /_api/link/resolve` (stable canvas links: entry → path) */
+  links?: LinksRouteDeps;
+  /** S5.10 — attachments (→ Assets / this Mac's `_chat/attachments/`) + folder consent */
+  chatAttach?: ChatAttachDeps;
+  /** S9.7b — `POST /_api/comments/op`: one comment op (comments/ops.ts) as the session */
+  comments?: CommentRouteDeps;
+  /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
+  annotations?: AnnotationRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -56,6 +78,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
   // ONE run registry (S5.3, ai/runs.ts): the hook routes' view writes it, the shell status counts
   // it (V2-3.4), and `/_api/ai/runs*` reads it — never a second map.
   deps.agent.runs ??= createAgentRuns(deps.agent.bracket, undefined, deps.ai.registry);
+  const convert = deps.annotations ? createAnnotationRoutes(deps.annotations) : null;
+  const projectUndo = deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel };
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
@@ -66,8 +90,9 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createChatRoutes(deps.chat),
     // S2.1 — AI holds read THE run registry (V2-1.15 §4 #13)
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
+    ...(deps.chatAttach ? createChatAttachRoutes(deps.chatAttach) : []),
     ...createProjectUndoRoutes(
-      deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+      convert ? { ...projectUndo, guard: convert.undoGuard } : projectUndo
     ),
     ...createPresentRoutes(deps.present),
     // S7.4 — GET /_api/comp-media (routes/video.ts): the comp's words, speech and beats derived from
@@ -76,5 +101,28 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       designRoot: deps.present.designRoot,
       designRel: deps.ai.designRel,
     }),
+    ...createTrashRoutes(
+      deps.trash ?? {
+        control: () => null,
+        // no home wired: nobody may write, and there is nothing to list
+        access: () => trashAccessNone,
+        readSource: () => null,
+      }
+    ),
+    ...createLinksRoutes(deps.links ?? { control: () => null, designRel: deps.ai.designRel }),
+    ...createCommentRoutes(
+      deps.comments ?? {
+        designRel: deps.ai.designRel,
+        actor: async () => ({ name: '' }),
+        fileOf: async () => null,
+        apply: async () => ({
+          ok: false,
+          status: 404,
+          code: 'not-found',
+          error: 'No such comment.',
+        }),
+      }
+    ),
+    ...(convert?.specs ?? []),
   ];
 }

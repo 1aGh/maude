@@ -49,6 +49,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { contentAddressedAsset, isAssetCreate } from '../../studio/access/scope.ts';
 import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
@@ -423,6 +424,9 @@ export async function handleFileDoor(ctx) {
   // scoped to one canvas can WRITE the whole project's file plane while being
   // unable to read most of it back — and a leaked low-value token becomes a
   // project-wide write primitive (DDR-053 §3).
+  // Set when a canvas-only session creates a new asset: the bytes must hash to
+  // its name (checked again once they are hashed, below).
+  let mustContentAddress = false;
   if (access.claimDecides) {
     // The closure decides (V2-1.7 G2): create-only new assets, a photo sidecar
     // whose every referrer this session edits. Anything else — another
@@ -431,7 +435,15 @@ export async function handleFileDoor(ctx) {
     const exists =
       existsSync(target.abs) ||
       (ctx.journal ? currentHashFor(ctx.journal, landing) !== null : false);
-    if (method === 'DELETE' || !access.writes(landing, { exists })) {
+    // A new asset is named by its bytes (`assets/<sha8>.<ext>`, V2-1.16 L20):
+    // a chosen name would be refused when another canvas holds it and written
+    // when it is free — an existence oracle (V2-5 sweep-fix, lead decision).
+    mustContentAddress = isAssetCreate(landing, { exists });
+    if (
+      method === 'DELETE' ||
+      !access.writes(landing, { exists }) ||
+      (mustContentAddress && !contentAddressedAsset(landing, null))
+    ) {
       respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
       return true;
     }
@@ -542,6 +554,11 @@ export async function handleFileDoor(ctx) {
   if (declared && declared !== r.sha256) {
     rmSync(r.tmp, { force: true });
     respond(response, 400, 'content hash does not match the bytes sent');
+    return true;
+  }
+  if (mustContentAddress && !contentAddressedAsset(landing, r.sha256)) {
+    rmSync(r.tmp, { force: true });
+    respondJson(response, 403, { ...NOT_IN_SCOPE_REFUSAL });
     return true;
   }
 

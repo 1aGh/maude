@@ -146,6 +146,13 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('runs', 'shared', {
     note: 'a sub-verb not tiered above prompts until it gets its own entry',
   }),
+  // S9.7b — one `POST /_api/comments/op` each, as the session, marked AI-written (C3: no mentions).
+  d('comments reply', 'shared', { note: 'posts a reply where others see it' }),
+  d('comments resolve', 'shared', { note: 'resolves a thread for everyone' }),
+  d('comments reopen', 'shared', { note: 'reopens a thread for everyone' }),
+  d('comments add', 'shared', {
+    note: '--as-ai: an AI-written comment (or a critic round, --findings)',
+  }),
   d('comments', 'shared', {
     note: 'any sub-verb but `list` posts or resolves where others see it (S9: reply/resolve/add --as-ai)',
   }),

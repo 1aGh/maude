@@ -1,0 +1,26 @@
+Row: pn-switch-ai (11 · 20 · Switch tabs while AI works — and the keys) — switching, notification, close guard and the key list VERIFIED; the "?" sheet groups added by S1.21; two canvas keys and the canvas wording are GAPS
+Base: feat/maude-v2 58ac858d (branch s1-21) + the S1.21 commits. Canvas blob 721366f14aae.
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file.
+
+PICK: B (tabs are the strip's). decisions maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism; keys: V2-3.11 (kg: tab keys like every browser).
+
+"Leave mid-run; AI keeps going and tells you when it's done":
+  - leaving a tab does not stop its AI: a switch is show/hide of child webviews (tabs.rs:270 activate); the server of a tab that is busy is never rested (kg maude/v2-3.2b-rest-policy "busy or unknown never rests"; pin sidecar.rs:1825 rest_policy_never_rests_a_busy_instance).
+  - closing it asks first: "Stop AI in <name>?" windows.rs:1144 close_guard (dialog text windows.rs:1197), user close path tabs.rs:443 close_tab_by_user.
+  - it tells you when done / needs you: dot on the tab (tabs.rs:375 set_dot, notify.rs:320 dot_for; pins tabs.rs:711, :738; e2e project-tabs-identity.e2e.ts:129) AND a Mac notification (notify.rs:178 transition_kind, :274 poll_targets, :306 on_click focuses the tab; e2e project-tabs-identity.e2e.ts:157).
+Keys, against the artboard's "?" sheet (the sheet is now built from the registry's own help.group, S1.21: groups "Tabs and windows" and "Finding a canvas", apps/studio/actions/help.ts HELP_GROUPS; pin apps/studio/test/v2-help-groups.test.ts):
+  Next tab Ctrl+Tab                       tab.next   (registry label "Show next tab")       SHIPPED
+  Previous tab Ctrl+Shift+Tab             tab.prev   ("Show previous tab")                  SHIPPED
+  New tab - opens Home Cmd+T              home.open  ("Show Home")                           SHIPPED (word differs)
+  Close this project's tab Cmd+W          tab.close  ("Close tab")                           SHIPPED (word differs)
+  Show tab 1-9 Cmd+1..9                   tab.select (V2-3.11; the canvas still says "Cmd+0 and Cmd+1 stay zoom") SHIPPED, canvas outdated
+  Search every project Cmd+K              search.open ("Search")                             SHIPPED (word differs)
+  Open project... Cmd+O                   project.open                                       SHIPPED
+  Version history Alt+Cmd+H               history.open                                       SHIPPED
+  Next / previous tab, too Shift+Cmd+] [  not bound anywhere (grep -rn in actions/ and menu.rs: none)   GAP-SWITCH-AI-1
+  Show all tabs Shift+Cmd+\              not bound; B has no tab overview (AppKit's was native-tabs only)  GAP-SWITCH-AI-2
+  Words: the registry label is the one label on every surface (CONTRACT section 3), and CONTRACT outranks the canvas, so the sheet shows the registry words. The canvas rows "New tab - opens Home" and "Close this project's tab" say more; GAP-SWITCH-AI-3 is a lead call whether to reword the registry labels (shared file, would also change the menu).
+  The footer "Close canvas (Menu > File) has no key. A closed tab comes back from Home or Cmd+K - Shift+Cmd+T stays Timeline" is true of the app (Shift+Cmd+T = Timeline in the registry; there is no reopen-closed-tab action).
+  The old "?" put Show Home / Close tab under File and Search under Panels and AI; they now sit in the two new groups once each (test: "a row is on the sheet once").
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt tabs 1/1, tabs-identity 1/1 (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2); V2-3.11-tab-keys-2026-10-15.txt (sha256 7309b357187c0816d2f62f98b78f9095704328be66ca867a30f460f443deee9f): "Not covered by automation: the AppKit accelerator itself" - the keys are menu-accelerator tested through "the tab menu jumps to tab 1 and the last tab, and Next / Previous wrap through Home" (project-tabs.e2e.ts:328), not by pressing the chord.
+NAMED GAPS: GAP-SWITCH-AI-1, GAP-SWITCH-AI-2, GAP-SWITCH-AI-3 above; and the Mac-notification text on the artboard ("Open studio - AI needs you") is not pinned by any test (notify.rs transition_kind is tested, the OS banner is not).

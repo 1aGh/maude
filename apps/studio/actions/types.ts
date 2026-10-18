@@ -102,6 +102,8 @@ export type HelpGroup =
   | 'edit-tools'
   | 'preview-tools'
   | 'file'
+  | 'tabs-windows'
+  | 'finding'
   | 'canvas'
   | 'panels-ai'
   | 'objects'
