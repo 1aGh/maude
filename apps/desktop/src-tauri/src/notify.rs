@@ -9,10 +9,16 @@
 //      (app.jsx, Task 6) can post a real OS notification regardless of which
 //      project's page is loaded, or whether any page is loaded at all.
 //   2. The poller — a background task that walks the sidecar pool
-//      (`SidecarState.instances`), skips the CURRENTLY-DISPLAYED project (the
-//      client already owns that one instantly), probes every other instance's
-//      `/_api/acp/activity`, and fires on a STATE TRANSITION, never on a level
+//      (`SidecarState.instances`), probes every instance's `/_api/ai/runs`
+//      (S5.14; was `/_api/acp/activity`) for the Dock badge (Σ needsYou), and
+//      for every project NOT in front sets the tab's mark (spark / azure ?) and
+//      fires an OS notification on a STATE TRANSITION, never on a level
 //      (polling a level would re-notify every tick — Design Decisions table).
+//      The focused project is the client's own job.
+//
+// S5.14 / V2-1.15 Q3: "AI needs you on <canvas>" + "<project>" — the canvas
+// file stem joins the project name, and the question never leaves the app
+// (`RunsSnapshot` does not even deserialize it).
 //
 // Decision D (load-bearing, not a nicety): the notification body carries NO
 // project content — only the project's own directory name (from the path the
@@ -136,65 +142,154 @@ pub(crate) fn notification_fields(title: &str, body: &str) -> (String, String) {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ChatState {
-    Idle,
-    Running,
-    AwaitingInput,
-}
-
-impl ChatState {
-    fn parse(s: &str) -> Self {
-        match s {
-            "awaiting-input" => ChatState::AwaitingInput,
-            "running" => ChatState::Running,
-            _ => ChatState::Idle,
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Transition {
-    /// Something in this project now needs the user — a permission prompt or
-    /// an elicitation form. Racing `PERMISSION_TIMEOUT_MS` (120 s, bridge.ts).
+    /// A run now needs the person — a permission prompt or a question (S5.14:
+    /// the registry's `needs-you`; Needs you never times out, D7).
     AwaitingInput,
-    /// A turn that was running has settled with nothing left pending.
+    /// A run that was working has ended `done`.
     Finished,
 }
 
-/// Pure transition classifier — the unit-testable core of Task 5.
-///
-/// DEVIATION FROM THE PLAN'S LITERAL WORDING, recorded here rather than left
-/// silent: Task 5's "Do" bullet says "idle→awaiting-input or running→idle".
-/// But a chat's actual lifecycle for the case that matters most —a running
-/// turn that hits a permission prompt mid-flight — goes RUNNING→AWAITING,
-/// never through idle (idle only precedes a turn's first prompt, before
-/// `turnActive` is even true). Firing only on idle→awaiting-input would miss
-/// the acceptance criterion "a permission prompt … in a non-visible project
-/// produces a notification" for every mid-turn prompt, which is the common
-/// case. So this fires on ANY→awaiting-input (except already-awaiting, so a
-/// second concurrent request doesn't re-notify — DDR-179/180 already caps at
-/// 10+5 pending, and the client-side precedent for bursts is "one ping, not
-/// fifteen") and on running→idle for the finished case, exactly as written.
-pub fn transition_kind(prev: ChatState, curr: ChatState) -> Option<Transition> {
-    if curr == ChatState::AwaitingInput && prev != ChatState::AwaitingInput {
+/// The phase of one run as the shell sees it — the registry's `RunState` folded
+/// to what a transition needs (`starting` and `running` are both working).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RunPhase {
+    Waiting,
+    Working,
+    NeedsYou,
+    /// Ended `done`. Any other outcome (stopped, failed, cancelled …) is
+    /// `EndedOther`: the person did it or reads it in the chat — no ping.
+    Done,
+    EndedOther,
+}
+
+impl RunPhase {
+    pub fn of(state: &str, outcome: Option<&str>) -> Self {
+        match state {
+            "waiting" => RunPhase::Waiting,
+            "starting" | "running" => RunPhase::Working,
+            "needs-you" => RunPhase::NeedsYou,
+            _ if outcome == Some("done") => RunPhase::Done,
+            _ => RunPhase::EndedOther,
+        }
+    }
+
+    pub fn live(self) -> bool {
+        matches!(self, RunPhase::Waiting | RunPhase::Working | RunPhase::NeedsYou)
+    }
+}
+
+/// Pure transition classifier (S5.14: on the run registry — it was per-chat ACP
+/// activity). Fires on ANY → needs-you (not again on a tick that still waits —
+/// one ping, not fifteen) and on working/needs-you → done. A run first seen
+/// already ended never fires: that happened before this app session looked.
+pub fn run_transition(prev: Option<RunPhase>, curr: RunPhase) -> Option<Transition> {
+    if curr == RunPhase::NeedsYou && prev != Some(RunPhase::NeedsYou) {
         return Some(Transition::AwaitingInput);
     }
-    if prev == ChatState::Running && curr == ChatState::Idle {
+    if curr == RunPhase::Done && matches!(prev, Some(RunPhase::Working | RunPhase::NeedsYou)) {
         return Some(Transition::Finished);
     }
     None
 }
 
-#[derive(Deserialize)]
-struct ActivityChat {
-    #[serde(rename = "chatId")]
-    chat_id: String,
-    state: String,
+/// `GET /_api/ai/runs` (V2-1.15 §5.4) — ONLY the fields the shell reads. A
+/// run's `question`, `doing`, `label` and prompt are never deserialized (serde
+/// skips unknown fields), so no chat text can reach a notification, the strip
+/// or the Dock by construction (Q3, Decision D).
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+pub struct RunsSnapshot {
+    #[serde(default, rename = "needsYou")]
+    pub needs_you: u32,
+    #[serde(default)]
+    pub live: u32,
+    #[serde(default)]
+    pub mine: Vec<MineRun>,
 }
 
-#[derive(Deserialize)]
-struct ActivitySnapshot {
-    chats: Vec<ActivityChat>,
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct MineRun {
+    #[serde(rename = "runId")]
+    pub run_id: String,
+    #[serde(default, rename = "chatId")]
+    pub chat_id: Option<String>,
+    pub state: String,
+    #[serde(default)]
+    pub outcome: Option<String>,
+    #[serde(default)]
+    pub scope: Option<RunScopeRef>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct RunScopeRef {
+    #[serde(default)]
+    pub canvas: String,
+}
+
+impl MineRun {
+    pub fn phase(&self) -> RunPhase {
+        RunPhase::of(&self.state, self.outcome.as_deref())
+    }
+}
+
+impl RunsSnapshot {
+    /// The chats the quit dialog names (03 `ai-quit` "N chats"): distinct chats
+    /// over the live runs — a waiting ask behind its own chat's run is the same
+    /// chat (R10: 2 running + 1 waiting → "2 chats"); a run with no chat (a
+    /// terminal agent) counts once.
+    pub fn live_chats(&self) -> u32 {
+        let mut seen = std::collections::BTreeSet::new();
+        for r in self.mine.iter().filter(|r| r.phase().live()) {
+            seen.insert(r.chat_id.clone().unwrap_or_else(|| format!("run:{}", r.run_id)));
+        }
+        seen.len() as u32
+    }
+
+    /// Anything live — by the registry's own count or by the rows.
+    pub fn any_live(&self) -> bool {
+        self.live > 0 || self.mine.iter().any(|r| r.phase().live())
+    }
+
+    /// The tab mark this snapshot earns (03 `ai-needs-tab` / `ai-other-tab`):
+    /// needs you outranks working.
+    pub fn level(&self) -> Option<crate::tabs::Dot> {
+        if self.needs_count() > 0 {
+            Some(crate::tabs::Dot::NeedsYou)
+        } else if self.any_live() {
+            Some(crate::tabs::Dot::Working)
+        } else {
+            None
+        }
+    }
+
+    /// The registry's needs-you count (the Dock badge's addend), never below
+    /// what the rows show.
+    pub fn needs_count(&self) -> u32 {
+        let rows = self.mine.iter().filter(|r| r.phase() == RunPhase::NeedsYou).count() as u32;
+        self.needs_you.max(rows)
+    }
+}
+
+/// The largest `/_api/ai/runs` answer the shell reads (MAX_RECORDS 500 rows of
+/// about 1 kB). A bigger answer is not believed.
+const MAX_RUNS_BODY: usize = 2 * 1024 * 1024;
+/// The most rows one snapshot keeps (the registry's own MAX_RECORDS).
+const MAX_RUNS_ROWS: usize = 500;
+/// The Dock badge's ceiling per project: a responder claiming more is capped.
+const MAX_NEEDS_PER_PROJECT: u32 = 99;
+
+/// The canvas a notification names (Q3 "AI needs you on <canvas>"): the
+/// designRoot-relative canvas's file stem — `ui/Uniformy-2027.tsx` →
+/// `Uniformy-2027`. Sanitized again at the sink; empty → `None`.
+pub fn canvas_display(canvas: &str) -> Option<String> {
+    let c = canvas.strip_prefix("path:").unwrap_or(canvas);
+    let last = c.rsplit(['/', '\\']).next().unwrap_or(c);
+    let stem = last
+        .strip_suffix(".tsx")
+        .or_else(|| last.strip_suffix(".jsx"))
+        .unwrap_or(last);
+    let clean = sanitize_title(stem);
+    (!clean.is_empty()).then_some(clean)
 }
 
 /// Poller-owned state. Managed separately from `SidecarState` — this is
@@ -206,7 +301,8 @@ pub struct NotifyPollState {
     /// space is cleared by `clear_project` on eviction/shutdown/respawn-giveup
     /// (sidecar.rs) — otherwise a LATER instance spawned at the same root would
     /// inherit a stale transition and either miss or duplicate a real one.
-    last_seen: Mutex<HashMap<(String, String), ChatState>>,
+    /// S5.14: keyed (project_root, runId), the run's last phase.
+    last_seen: Mutex<HashMap<(String, String), RunPhase>>,
     /// project_root → last time a notification actually fired for it.
     last_notified: Mutex<HashMap<String, Instant>>,
     /// project_root → how many notifications have fired for it THIS app
@@ -230,40 +326,44 @@ pub struct NotifyPollState {
     /// cache, so `shell_state` never waits on a probe. Running instances only:
     /// a root that left the pool is pruned on the next tick.
     ai: Mutex<HashMap<String, crate::sidecar::AiCounts>>,
-    /// The Dock badge (V2-3.5): projects that need the person.
+    /// The Dock badge (S5.14): Σ needsYou over the running projects.
     badge: Mutex<Badge>,
 }
 
-/// The Dock badge's set (V2-3.5): projects that started waiting on the person
-/// while their window was not focused, and that the person has not looked at
-/// since. A project leaves it when its window gains focus or when its own
-/// server no longer reports anything awaiting. "Unseen mentions" would join
-/// this set — no mention source reaches the shell yet.
+/// The Dock badge (S5.14, V2-1.15 §5.8 "Needs you"): the sum of every running
+/// project's `needsYou` — the runs waiting on the person, wherever they are.
+/// It stays until each question is answered (03: "The count stays until you
+/// answer"), so focusing a window no longer clears it (was V2-3.5's
+/// "projects that started waiting while unfocused"). Each project's addend is
+/// what its OWN server answered on the authenticated probe, capped.
 #[derive(Debug, Default)]
 pub struct Badge {
-    pending: std::collections::BTreeSet<String>,
+    needs: std::collections::BTreeMap<String, u32>,
 }
 
 impl Badge {
-    /// A project now needs the person. True when the count changed.
-    pub fn mark(&mut self, root: &str) -> bool {
-        self.pending.insert(root.to_string())
-    }
-
-    /// Its window gained focus, or it stopped waiting. True when changed.
-    pub fn clear(&mut self, root: &str) -> bool {
-        self.pending.remove(root)
+    /// `root`'s server now reports `n` runs needing the person. True when the
+    /// sum changed.
+    pub fn set(&mut self, root: &str, n: u32) -> bool {
+        let before = self.count();
+        let n = n.min(MAX_NEEDS_PER_PROJECT);
+        if n == 0 {
+            self.needs.remove(root);
+        } else {
+            self.needs.insert(root.to_string(), n);
+        }
+        before != self.count()
     }
 
     /// Drop projects that are no longer running (closed, resting, crashed).
     pub fn retain_running(&mut self, running: &[String]) -> bool {
-        let before = self.pending.len();
-        self.pending.retain(|r| running.iter().any(|x| x == r));
-        before != self.pending.len()
+        let before = self.count();
+        self.needs.retain(|r, _| running.iter().any(|x| x == r));
+        before != self.count()
     }
 
     pub fn count(&self) -> usize {
-        self.pending.len()
+        self.needs.values().map(|n| *n as usize).sum()
     }
 }
 
@@ -327,13 +427,12 @@ pub fn dot_for(fired: &[Transition]) -> Option<crate::tabs::Dot> {
     }
 }
 
-/// Put the dot on `root`'s tab — a background tab only (`WindowBook::set_dot` refuses the
-/// active one; the poller polls only those, `poll_targets`). Activating the tab clears it
+/// Put the mark on `root`'s tab — a background tab only (`WindowBook::set_dot` refuses the
+/// active one; the poller polls only those, `poll_targets`). S5.14: the spark / azure ? are
+/// the runs' level this tick; done is the transition and stays until the tab is activated
 /// (`WindowBook::focus`).
-fn mark_tab(app: &AppHandle, root: &str, fired: &[Transition]) {
-    if let Some(dot) = dot_for(fired) {
-        crate::tabs::set_dot(app, root, Some(dot));
-    }
+fn mark_tab(app: &AppHandle, root: &str, snapshot: &RunsSnapshot, fired: &[Transition]) {
+    crate::tabs::set_mark(app, root, snapshot.level(), fired.contains(&Transition::Finished));
 }
 
 /// Debug-only e2e helper (V2-3.9 T7 `tabs-identity`): one poll tick that saw `root`'s AI
@@ -359,13 +458,29 @@ pub fn e2e_ai_transition(app: AppHandle, root: String, state: String) -> Result<
     }
 }
 
-/// A project's window gained focus: the person is looking at it, so it leaves
-/// the Dock badge (V2-3.5).
+/// A project's window gained focus. S5.14: the Dock badge is Σ needsYou and
+/// stays until each question is answered, so focus alone no longer clears it
+/// (decision `v2-S5.14-dock-badge-sums-needs-you`); kept as the hook
+/// `windows::on_focused` calls.
 pub fn project_focused(app: &AppHandle, root: &str) {
-    let Some(state) = app.try_state::<NotifyPollState>() else { return };
-    let changed = state.badge.lock().expect("notify mutex poisoned").clear(root);
-    if changed {
-        apply_badge(app);
+    let _ = (app, root);
+}
+
+/// Debug-only e2e helper (S5.14 `ai-needs-away`): the Dock badge's count as the poller last set
+/// it (the Dock is not DOM-reachable). Granted only by capabilities/debug/e2e-webdriver.json; a
+/// release build answers Err.
+#[tauri::command]
+pub fn e2e_dock_badge(app: AppHandle) -> Result<usize, String> {
+    #[cfg(debug_assertions)]
+    {
+        let state = app.try_state::<NotifyPollState>().ok_or("no poller")?;
+        let n = state.badge.lock().expect("notify mutex poisoned").count();
+        Ok(n)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = app;
+        Err("debug builds only".into())
     }
 }
 
@@ -589,70 +704,117 @@ fn project_display_name(project_root: &str) -> String {
         .unwrap_or_else(|| "your project".to_string())
 }
 
-/// The activity endpoint of the server whose app-owned info file is
-/// `info_file` (V2-1.1 decision 8, §5.8 item 6). The address comes ONLY from
-/// that file — loopback-validated, rebuilt from the origin so no path or flag
-/// survives — never from the in-project `_server.json`, which a prompt-injected
-/// agent or a planted file could point at a fake responder.
-pub(crate) fn activity_url(info_file: &std::path::Path) -> Option<String> {
-    crate::sidecar::read_shell_origin(info_file).map(|o| format!("{o}/_api/acp/activity"))
+/// The runs endpoint of the server whose app-owned info file is `info_file`
+/// (V2-1.1 decision 8, §5.8 item 6; S5.14 moved the poller here from
+/// `/_api/acp/activity`). The address comes ONLY from that file —
+/// loopback-validated, rebuilt from the origin so no path or flag survives —
+/// never from the in-project `_server.json` and never from a page, which a
+/// prompt-injected agent or a planted file could point at a fake responder.
+pub(crate) fn runs_url(info_file: &std::path::Path) -> Option<String> {
+    crate::sidecar::read_shell_origin(info_file).map(|o| format!("{o}/_api/ai/runs"))
 }
 
-/// `GET /_api/acp/activity` of the instance `probe` names (V2-3.10 W6, §5.8.6):
-/// the same `probe_client()` as `/_api/shell/status` — no proxy (system curl
-/// honoured `http_proxy` for 127.0.0.1 unless `NO_PROXY` was set), no
-/// redirects — with the per-spawn token in `X-Maude-Shell`. Any failure is
-/// `None`.
-async fn probe_activity(probe: &crate::sidecar::ShellProbe) -> Option<ActivitySnapshot> {
-    let url = activity_url(&probe.info_file)?;
+/// Read at most `cap` bytes of a response body; `None` past it.
+pub(crate) async fn read_capped(mut resp: reqwest::Response, cap: usize) -> Option<Vec<u8>> {
+    if resp.content_length().is_some_and(|n| n as usize > cap) {
+        return None;
+    }
+    let mut out = Vec::new();
+    while let Some(chunk) = resp.chunk().await.ok()? {
+        if out.len() + chunk.len() > cap {
+            return None;
+        }
+        out.extend_from_slice(&chunk);
+    }
+    Some(out)
+}
+
+/// Parse a `/_api/ai/runs` body: only the shell's fields, rows capped.
+pub fn parse_runs(body: &[u8]) -> Option<RunsSnapshot> {
+    let mut snap: RunsSnapshot = serde_json::from_slice(body).ok()?;
+    snap.mine.truncate(MAX_RUNS_ROWS);
+    Some(snap)
+}
+
+/// `GET /_api/ai/runs` of the instance `probe` names: the same `probe_client()`
+/// as `/_api/shell/status` — no proxy (system curl honoured `http_proxy` for
+/// 127.0.0.1 unless `NO_PROXY` was set), no redirects — with the per-spawn
+/// token in `X-Maude-Shell`, the body capped. Any failure is `None`.
+pub(crate) async fn probe_runs(
+    probe: &crate::sidecar::ShellProbe,
+    timeout: Duration,
+) -> Option<RunsSnapshot> {
+    let url = runs_url(&probe.info_file)?;
     let resp = crate::sidecar::probe_client()?
         .get(url)
         .header("X-Maude-Shell", &probe.token)
-        .timeout(Duration::from_millis(ACTIVITY_PROBE_TIMEOUT_MS))
+        .timeout(timeout)
         .send()
         .await
         .ok()?;
     if !resp.status().is_success() {
         return None;
     }
-    resp.json::<ActivitySnapshot>().await.ok()
+    parse_runs(&read_capped(resp, MAX_RUNS_BODY).await?)
 }
 
-/// Probe one non-current instance's activity endpoint and fire on transition.
-async fn poll_one(app: &AppHandle, project_root: &str) {
+/// One tick's transitions of `root`'s runs against `seen` (updated in place),
+/// with the canvas of the first run that now needs the person. Pure.
+pub fn fold_runs(
+    seen: &mut HashMap<(String, String), RunPhase>,
+    root: &str,
+    snapshot: &RunsSnapshot,
+) -> (Vec<Transition>, Option<String>) {
+    let mut fired = Vec::new();
+    let mut canvas = None;
+    for run in &snapshot.mine {
+        let key = (root.to_string(), run.run_id.clone());
+        let curr = run.phase();
+        if let Some(t) = run_transition(seen.get(&key).copied(), curr) {
+            if t == Transition::AwaitingInput && canvas.is_none() {
+                canvas = run.scope.as_ref().and_then(|s| canvas_display(&s.canvas));
+            }
+            fired.push(t);
+        }
+        seen.insert(key, curr);
+    }
+    (fired, canvas)
+}
+
+/// Probe one running instance's runs: the Dock badge's addend for every project, and — for a
+/// project that is not in front (`notify`) — the tab mark and an OS notification on a
+/// transition.
+async fn poll_one(app: &AppHandle, project_root: &str, notify: bool) {
     let Some(probe) = crate::sidecar::shell_probe_for(app, project_root) else {
         return;
     };
-    let Some(snapshot) = probe_activity(&probe).await else {
+    let Some(snapshot) = probe_runs(&probe, Duration::from_millis(ACTIVITY_PROBE_TIMEOUT_MS)).await
+    else {
         return;
     };
 
     let state = app.state::<NotifyPollState>();
-    let mut fired: Vec<Transition> = Vec::new();
-    {
-        let mut seen = state.last_seen.lock().expect("notify mutex poisoned");
-        for chat in &snapshot.chats {
-            let key = (project_root.to_string(), chat.chat_id.clone());
-            let curr = ChatState::parse(&chat.state);
-            let prev = seen.get(&key).copied().unwrap_or(ChatState::Idle);
-            if let Some(t) = transition_kind(prev, curr) {
-                fired.push(t);
-            }
-            seen.insert(key, curr);
-        }
-    }
-    if fired.is_empty() {
-        return;
-    }
-    // The strip's AI dot (V2-3.7 §6, V2-3.9 T6) — a bounded two-value flag, never an OS ping,
-    // so it goes before the cooldown/cap below.
-    mark_tab(app, project_root, &fired);
-    // The badge counts every project that started waiting while unfocused —
-    // before the cooldown/cap below, which only throttle the OS ping.
-    if fired.contains(&Transition::AwaitingInput)
-        && state.badge.lock().expect("notify mutex poisoned").mark(project_root)
+    // The Dock badge (S5.14): Σ needsYou over every running project, focused or not.
+    if state
+        .badge
+        .lock()
+        .expect("notify mutex poisoned")
+        .set(project_root, snapshot.needs_count())
     {
         apply_badge(app);
+    }
+    let (fired, canvas) = {
+        let mut seen = state.last_seen.lock().expect("notify mutex poisoned");
+        fold_runs(&mut seen, project_root, &snapshot)
+    };
+    if !notify {
+        return;
+    }
+    // The strip's mark (V2-3.7 §6, S5.14): a level every tick, a bounded enum decided here —
+    // never an OS ping, so it goes before the cooldown/cap below.
+    mark_tab(app, project_root, &snapshot, &fired);
+    if fired.is_empty() {
+        return;
     }
 
     // Cooldown per project (Design Decisions table). Awaiting-input is the
@@ -671,9 +833,9 @@ async fn poll_one(app: &AppHandle, project_root: &str) {
     // SECURITY (ethical-hacker finding, Task 8) — lifetime cap on top of the
     // cooldown. See MAX_NOTIFICATIONS_PER_PROJECT_SESSION's doc comment: the
     // cooldown alone bounds rate, not count, and a compromised project's fake
-    // activity endpoint can otherwise page the user forever. `last_seen` above
-    // is still updated (a real transition post-cap is still tracked, only the
-    // OS ping is withheld), so this never desyncs from reality — it only mutes.
+    // endpoint can otherwise page the user forever. `last_seen` above is still
+    // updated (a real transition post-cap is still tracked, only the OS ping is
+    // withheld), so this never desyncs from reality — it only mutes.
     {
         let mut counts = state.notified_count.lock().expect("notify mutex poisoned");
         let count = counts.entry(project_root.to_string()).or_insert(0);
@@ -691,18 +853,25 @@ async fn poll_one(app: &AppHandle, project_root: &str) {
     } else {
         Transition::Finished
     };
-    let (title, body) = notification_text(kind, &project_display_name(project_root));
+    let (title, body) =
+        notification_text(kind, &project_display_name(project_root), canvas.as_deref());
     send_for_project(app, &title, &body, project_root);
 }
 
-/// The notification's words (V2-3.5): the title names the project — its
-/// directory name, Decision D — and the body is a fixed string. Sanitized at
-/// the sink (`send` / `send_for_project`).
-pub fn notification_text(kind: Transition, name: &str) -> (String, String) {
+/// The notification's words. Needs you (V2-1.15 Q3, 03 `ai-needs-away`): title
+/// "AI needs you on <canvas>", body "<project>" — never the question, which can
+/// carry what the model read (Decision D); the in-app toast carries it. The
+/// project is its directory name; the canvas is a file stem from the project's
+/// own runs. Done keeps V2-3.5's words. Sanitized at the sink (`send` /
+/// `send_for_project`).
+pub fn notification_text(kind: Transition, name: &str, canvas: Option<&str>) -> (String, String) {
     match kind {
         Transition::AwaitingInput => (
-            format!("{name}: Needs you"),
-            "Claude is waiting on an approval or a question.".to_string(),
+            match canvas {
+                Some(c) => format!("AI needs you on {c}"),
+                None => "AI needs you".to_string(),
+            },
+            name.to_string(),
         ),
         Transition::Finished => (
             format!("{name}: AI is done"),
@@ -712,9 +881,9 @@ pub fn notification_text(kind: Transition, name: &str) -> (String, String) {
 }
 
 /// Spawn the background poller. Call once from `setup`, after `SidecarState`
-/// is managed. Skips the currently-displayed project every tick — that one is
-/// the client's job (Task 6) and is not this poller's concern at all, so
-/// there is exactly one notifier per project per moment, never two racing.
+/// is managed. Every running project is probed for the Dock badge; the
+/// focused one is skipped for marks and pings — that one is the client's job
+/// (Task 6), so there is exactly one notifier per project per moment.
 pub fn spawn_activity_poller(app: &AppHandle) {
     app.manage(NotifyPollState {
         last_seen: Mutex::new(HashMap::new()),
@@ -737,9 +906,8 @@ pub fn spawn_activity_poller(app: &AppHandle) {
                 pool.keys().cloned().collect()
             };
             // Targets = running instances whose window is NOT focused (V2-3.5,
-            // §5.2; was "≠ the displayed project"). The focused window's own
-            // client notifies for itself. A resting tab has no instance, so it
-            // is never polled; Home is not in the pool.
+            // §5.2). A resting tab has no instance, so it is never polled; Home
+            // is not in the pool.
             let targets = {
                 let book = sidecar_state.windows.lock().expect("windows mutex poisoned");
                 poll_targets(&book, &running)
@@ -748,16 +916,16 @@ pub fn spawn_activity_poller(app: &AppHandle) {
             // the probe is bounded but still slow enough that holding a lock
             // across it would stall an unrelated switch.
             refresh_ai(&app, &running).await;
-            for root in targets {
-                poll_one(&app, &root).await;
+            for root in &running {
+                poll_one(&app, root, targets.contains(root)).await;
             }
         }
     });
 }
 
 /// Refresh the `ai` cache from every running instance's authenticated status
-/// probe (Home shows it for each tab), drop roots that stopped running, and
-/// take a project out of the badge once nothing in it is awaiting.
+/// probe (Home shows it for each tab) and drop roots that stopped running —
+/// from the cache and from the Dock badge.
 async fn refresh_ai(app: &AppHandle, running: &[String]) {
     let mut fresh: Vec<(String, Option<crate::sidecar::AiCounts>)> = Vec::new();
     for root in running {
@@ -781,7 +949,7 @@ async fn refresh_ai(app: &AppHandle, running: &[String]) {
 
 /// Pure half of `refresh_ai`. A probe that did not answer keeps the last
 /// counts (a slow server must not flicker Home); a root no longer running is
-/// dropped. Returns `(ai cache changed, badge changed)`.
+/// dropped, from the badge too. Returns `(ai cache changed, badge changed)`.
 pub fn apply_ai_refresh(
     ai: &mut HashMap<String, crate::sidecar::AiCounts>,
     badge: &mut Badge,
@@ -790,12 +958,9 @@ pub fn apply_ai_refresh(
 ) -> (bool, bool) {
     let before = ai.clone();
     ai.retain(|root, _| running.iter().any(|r| r == root));
-    let mut badge_changed = badge.retain_running(running);
+    let badge_changed = badge.retain_running(running);
     for (root, counts) in fresh {
         if let Some(counts) = counts {
-            if counts.awaiting == 0 {
-                badge_changed |= badge.clear(&root);
-            }
             ai.insert(root, counts);
         }
     }
@@ -806,69 +971,110 @@ pub fn apply_ai_refresh(
 mod tests {
     use super::*;
 
+    use RunPhase::*;
+
     #[test]
-    fn a_turn_hitting_a_prompt_mid_flight_fires_awaiting_input() {
-        // The common real case: running (turnActive, nothing pending) → a
-        // permission request arrives → awaiting-input. NEVER passes through
-        // idle. This is exactly the case the plan's literal "idle→awaiting-
-        // input" wording would have missed.
+    fn a_run_hitting_a_prompt_mid_flight_fires_awaiting_input() {
+        // The common real case: working → a permission request → needs-you.
+        assert_eq!(run_transition(Some(Working), NeedsYou), Some(Transition::AwaitingInput));
+        // A run first seen already waiting on the person fires too.
+        assert_eq!(run_transition(None, NeedsYou), Some(Transition::AwaitingInput));
+        assert_eq!(run_transition(Some(Waiting), NeedsYou), Some(Transition::AwaitingInput));
+    }
+
+    #[test]
+    fn a_finished_run_fires_finished_and_only_from_working() {
+        assert_eq!(run_transition(Some(Working), Done), Some(Transition::Finished));
+        assert_eq!(run_transition(Some(NeedsYou), Done), Some(Transition::Finished));
+        // First seen already done (before this session), or done straight from waiting.
+        assert_eq!(run_transition(None, Done), None);
+        assert_eq!(run_transition(Some(Waiting), Done), None);
+        // Stopped / failed / cancelled: the person did it or reads it in the chat.
+        assert_eq!(run_transition(Some(Working), EndedOther), None);
+    }
+
+    #[test]
+    fn staying_in_the_same_phase_never_fires_a_second_time() {
+        // "fire on TRANSITION, not on state" — a level, polled repeatedly,
+        // must not re-notify every tick (and fifteen pending requests in one
+        // run are one ping, DDR-179/180).
+        for p in [Waiting, Working, NeedsYou, Done, EndedOther] {
+            assert_eq!(run_transition(Some(p), p), None, "{p:?}");
+        }
+        // Answered → back to working is progress, not news.
+        assert_eq!(run_transition(Some(NeedsYou), Working), None);
+    }
+
+    #[test]
+    fn run_phases_fold_the_registry_states() {
+        assert_eq!(RunPhase::of("starting", None), Working);
+        assert_eq!(RunPhase::of("running", None), Working);
+        assert_eq!(RunPhase::of("waiting", None), Waiting);
+        assert_eq!(RunPhase::of("needs-you", None), NeedsYou);
+        assert_eq!(RunPhase::of("ended", Some("done")), Done);
+        assert_eq!(RunPhase::of("ended", Some("stopped")), EndedOther);
+        assert_eq!(RunPhase::of("something-new", None), EndedOther);
+    }
+
+    // S5.14 — R10 "2 running + 1 waiting → 2 chats"; the runs body the shell reads.
+    const RUNS_BODY: &str = r#"{"seq":7,"needsYou":1,"live":3,"others":[{"runId":"r_other1","label":"Tereza's secret"}],
+      "mine":[
+        {"runId":"r_aaaaaa1","chatId":"c1","state":"running","scope":{"canvas":"ui/Combine.tsx","artboards":["post"]},"doing":"making it greener","label":"Make it greener"},
+        {"runId":"r_aaaaaa2","chatId":"c2","state":"needs-you","question":"Replace 4 team photos?","scope":{"canvas":"ui/Uniformy-2027.tsx","artboards":"*"}},
+        {"runId":"r_aaaaaa3","chatId":"c1","state":"waiting","behind":"r_aaaaaa1"},
+        {"runId":"r_aaaaaa4","chatId":"c3","state":"ended","outcome":"done"}
+      ],"diagnostics":{}}"#;
+
+    #[test]
+    fn the_runs_snapshot_counts_chats_and_never_reads_the_question() {
+        let snap = parse_runs(RUNS_BODY.as_bytes()).expect("parses");
+        assert_eq!(snap.live_chats(), 2, "a waiting ask behind its own chat is that chat");
+        assert_eq!(snap.needs_count(), 1);
+        assert_eq!(snap.level(), Some(crate::tabs::Dot::NeedsYou));
+        // Q3 by construction: nothing the shell keeps can hold the question or the doing.
+        let kept = format!("{snap:?}");
+        for secret in ["Replace 4 team photos", "making it greener", "Make it greener", "Tereza"] {
+            assert!(!kept.contains(secret), "{secret} reached the shell");
+        }
+        // No chat → one per run; nothing live → no chats.
+        let solo = parse_runs(br#"{"live":1,"mine":[{"runId":"r_terminal1","state":"running"}]}"#).unwrap();
+        assert_eq!(solo.live_chats(), 1);
+        assert_eq!(solo.level(), Some(crate::tabs::Dot::Working));
+        let idle = parse_runs(br#"{"live":0,"needsYou":0,"mine":[]}"#).unwrap();
+        assert_eq!((idle.live_chats(), idle.any_live(), idle.level()), (0, false, None));
+        assert!(parse_runs(b"not json").is_none());
+    }
+
+    #[test]
+    fn a_tick_folds_each_runs_transition_and_names_the_waiting_canvas() {
+        let mut seen = HashMap::new();
+        let first = parse_runs(
+            br#"{"mine":[{"runId":"r_aaaaaa1","state":"running","scope":{"canvas":"ui/A.tsx"}}]}"#,
+        )
+        .unwrap();
+        assert_eq!(fold_runs(&mut seen, "/p", &first), (vec![], None));
+        let second = parse_runs(
+            br#"{"mine":[{"runId":"r_aaaaaa1","state":"needs-you","scope":{"canvas":"path:.design/ui/Uniformy-2027.tsx"}}]}"#,
+        )
+        .unwrap();
         assert_eq!(
-            transition_kind(ChatState::Running, ChatState::AwaitingInput),
-            Some(Transition::AwaitingInput)
+            fold_runs(&mut seen, "/p", &second),
+            (vec![Transition::AwaitingInput], Some("Uniformy-2027".to_string()))
         );
+        assert_eq!(fold_runs(&mut seen, "/p", &second).0, vec![], "still waiting: silent");
+        let done = parse_runs(br#"{"mine":[{"runId":"r_aaaaaa1","state":"ended","outcome":"done"}]}"#).unwrap();
+        assert_eq!(fold_runs(&mut seen, "/p", &done).0, vec![Transition::Finished]);
+        // Another project's same run id is its own key.
+        assert_eq!(fold_runs(&mut seen, "/q", &second).0, vec![Transition::AwaitingInput]);
     }
 
     #[test]
-    fn a_fresh_chats_first_prompt_also_fires_awaiting_input() {
-        // idle→awaiting-input — a brand-new chat whose very first tool call
-        // needs approval, before `turnActive` would even read as running.
-        assert_eq!(
-            transition_kind(ChatState::Idle, ChatState::AwaitingInput),
-            Some(Transition::AwaitingInput)
-        );
-    }
-
-    #[test]
-    fn a_finished_turn_fires_finished() {
-        assert_eq!(
-            transition_kind(ChatState::Running, ChatState::Idle),
-            Some(Transition::Finished)
-        );
-    }
-
-    #[test]
-    fn staying_in_the_same_state_never_fires_a_second_time() {
-        // "fire on TRANSITION, not on state" (Design Decisions table) — a
-        // level, polled repeatedly, must not re-notify every tick.
-        assert_eq!(transition_kind(ChatState::AwaitingInput, ChatState::AwaitingInput), None);
-        assert_eq!(transition_kind(ChatState::Running, ChatState::Running), None);
-        assert_eq!(transition_kind(ChatState::Idle, ChatState::Idle), None);
-    }
-
-    #[test]
-    fn a_resolved_prompt_that_returns_to_running_is_silent() {
-        // Awaiting-input → running (the human answered) is progress, not
-        // something to notify about — only entering/leaving the pending state
-        // in the directions above are notify-worthy.
-        assert_eq!(transition_kind(ChatState::AwaitingInput, ChatState::Running), None);
-    }
-
-    #[test]
-    fn idle_never_fires_finished_a_turn_must_have_been_running_first() {
-        // A chat that was already idle staying idle, or an awaiting-input chat
-        // resolving straight to idle (no more work queued), must not read as
-        // "finished" unless it was actually mid-turn — `running→idle` only.
-        assert_eq!(transition_kind(ChatState::Idle, ChatState::Idle), None);
-        assert_eq!(transition_kind(ChatState::AwaitingInput, ChatState::Idle), None);
-    }
-
-    #[test]
-    fn a_second_concurrent_request_does_not_re_fire() {
-        // DDR-179/180: up to 15 distinct pending requests can legitimately
-        // queue in one turn. Staying in AwaitingInput (state doesn't change)
-        // must read as the SAME transition, not a fresh one — matches the
-        // client-side precedent of "one attention-getting ping, not fifteen".
-        assert_eq!(transition_kind(ChatState::AwaitingInput, ChatState::AwaitingInput), None);
+    fn canvas_display_is_the_file_stem_one_line() {
+        assert_eq!(canvas_display("ui/Uniformy-2027.tsx").as_deref(), Some("Uniformy-2027"));
+        assert_eq!(canvas_display("path:.design/x/Home.jsx").as_deref(), Some("Home"));
+        assert_eq!(canvas_display("Bare").as_deref(), Some("Bare"));
+        assert_eq!(canvas_display("a/evil\u{202E}\nname.tsx").as_deref(), Some("evil name"));
+        assert_eq!(canvas_display(""), None);
     }
 
     // SECURITY (ethical-hacker finding, Task 8) — sanitize_notify_field is the
@@ -997,8 +1203,8 @@ mod tests {
         assert!(status.busy());
         // The notify poller's target comes from the same file.
         assert_eq!(
-            activity_url(&info_file).as_deref(),
-            Some(format!("http://127.0.0.1:{real_port}/_api/acp/activity").as_str())
+            runs_url(&info_file).as_deref(),
+            Some(format!("http://127.0.0.1:{real_port}/_api/ai/runs").as_str())
         );
 
         // A wrong token is not an answer (401 → None), not "idle".
@@ -1014,12 +1220,12 @@ mod tests {
             token: token.clone(),
         };
         assert_eq!(probe_status(&gone).await, None);
-        assert_eq!(activity_url(&app_owned.join("missing.json")), None);
+        assert_eq!(runs_url(&app_owned.join("missing.json")), None);
 
         // An info file that names somewhere off the box is refused (DDR-109).
         let off_box = app_owned.join("off-box.json");
         std::fs::write(&off_box, r#"{"url":"http://evil.example:80"}"#).unwrap();
-        assert_eq!(activity_url(&off_box), None);
+        assert_eq!(runs_url(&off_box), None);
 
         assert_eq!(fake_hits.load(Ordering::SeqCst), 0, "the impostor was never asked");
         assert_eq!(real_hits.load(Ordering::SeqCst), 2, "token probe + wrong-token probe");
@@ -1027,13 +1233,17 @@ mod tests {
         let _ = std::fs::remove_dir_all(app_owned);
     }
 
-    // V2-3.10 W6 — the activity probe carries the per-spawn token, like the status probe.
+    // V2-3.10 W6 — the runs probe (S5.14; was the activity probe) carries the per-spawn
+    // token, like the status probe, and reads its address only from the app-owned info file.
     #[tokio::test]
-    async fn the_activity_probe_sends_the_per_spawn_token() {
+    async fn the_runs_probe_sends_the_per_spawn_token() {
         let token = "c".repeat(64);
         let want = token.clone();
         let (port, hits) = responder(move |got| match got {
-            Some(t) if t == want => (200, r#"{"chats":[{"chatId":"c1","state":"running"}]}"#),
+            Some(t) if t == want => (
+                200,
+                r#"{"live":1,"needsYou":0,"mine":[{"runId":"r_aaaaaa1","chatId":"c1","state":"running"}]}"#,
+            ),
             _ => (401, r#"{"error":"shell-token"}"#),
         });
         let dir = scratch("activity");
@@ -1047,13 +1257,14 @@ mod tests {
             info_file: info_file.clone(),
             token,
         };
-        let snap = probe_activity(&probe).await.expect("answers to the spawn's token");
-        assert_eq!(snap.chats.len(), 1);
+        let t = Duration::from_millis(ACTIVITY_PROBE_TIMEOUT_MS);
+        let snap = probe_runs(&probe, t).await.expect("answers to the spawn's token");
+        assert_eq!(snap.mine.len(), 1);
         let wrong = ShellProbe {
             info_file,
             token: "d".repeat(64),
         };
-        assert!(probe_activity(&wrong).await.is_none());
+        assert!(probe_runs(&wrong, t).await.is_none());
         assert_eq!(hits.load(Ordering::SeqCst), 2);
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -1112,35 +1323,53 @@ mod tests {
         assert_eq!(click_action(&book, "/c"), ClickAction::Open);
     }
 
+    // S5.14 — V2-1.15 Q3: "AI needs you on <canvas>", body "<project>", never the question.
     #[test]
-    fn notification_title_names_the_project() {
-        let (t, b) = notification_text(Transition::AwaitingInput, "alligators");
-        assert_eq!(t, "alligators: Needs you");
-        assert!(!b.contains("alligators"), "the body is a fixed string");
-        assert_eq!(notification_text(Transition::Finished, "x").0, "x: AI is done");
+    fn needs_you_names_the_canvas_and_the_project_never_the_question() {
+        let (t, b) = notification_text(Transition::AwaitingInput, "Alligators brand", Some("Uniformy-2027"));
+        assert_eq!(t, "AI needs you on Uniformy-2027");
+        assert_eq!(b, "Alligators brand");
+        assert_eq!(notification_text(Transition::AwaitingInput, "p", None).0, "AI needs you");
+        assert_eq!(notification_text(Transition::Finished, "x", None).0, "x: AI is done");
+        // End to end from a runs body that carries the question: nothing of it in the words.
+        let snap = parse_runs(RUNS_BODY.as_bytes()).unwrap();
+        let (fired, canvas) = fold_runs(&mut HashMap::new(), "/p", &snap);
+        assert!(fired.contains(&Transition::AwaitingInput));
+        let (t, b) = notification_text(Transition::AwaitingInput, "proj", canvas.as_deref());
+        let (t, b) = notification_fields(&t, &b);
+        assert_eq!(t, "AI needs you on Uniformy-2027");
+        assert!(!format!("{t}{b}").contains("Replace"), "the question stays in the app");
     }
 
+    // S5.14 — the Dock badge is Σ needsYou over the running projects (was: projects).
     #[test]
-    fn badge_counts_projects_that_need_you_and_clears_on_focus() {
+    fn badge_sums_needs_you_across_projects_and_keeps_it_until_answered() {
         let mut badge = Badge::default();
-        assert!(badge.mark("/a"));
-        assert!(!badge.mark("/a"), "one project counts once");
-        assert!(badge.mark("/b"));
-        assert_eq!(badge.count(), 2);
-        assert!(badge.clear("/a"), "its window gained focus");
+        assert!(badge.set("/a", 2));
+        assert!(!badge.set("/a", 2), "same count, no push");
+        assert!(badge.set("/b", 1));
+        assert_eq!(badge.count(), 3, "two questions in /a, one in /b");
+        assert!(badge.set("/a", 0), "/a's questions were answered");
         assert_eq!(badge.count(), 1);
         assert!(badge.retain_running(&roots(&["/a"])), "/b stopped running");
         assert_eq!(badge.count(), 0);
+        badge.set("/a", 10_000);
+        assert_eq!(badge.count(), MAX_NEEDS_PER_PROJECT as usize, "a responder cannot inflate it");
+        // Focus no longer clears it: the hook is a no-op on the badge.
+        let src = include_str!("notify.rs");
+        let body = &src[src.find("pub fn project_focused(").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        assert!(!body.contains("badge"), "focus must not clear the Dock badge");
     }
 
     #[test]
-    fn ai_cache_keeps_running_roots_and_a_settled_project_leaves_the_badge() {
+    fn ai_cache_keeps_running_roots_and_a_closed_project_leaves_the_badge() {
         let counts = |running, awaiting| AiCounts { running, awaiting };
         let mut ai = HashMap::new();
         ai.insert("/gone".to_string(), counts(1, 0));
         let mut badge = Badge::default();
-        badge.mark("/a");
-        badge.mark("/b");
+        badge.set("/b", 1);
+        badge.set("/gone", 1);
         let (ai_changed, badge_changed) = apply_ai_refresh(
             &mut ai,
             &mut badge,
@@ -1153,7 +1382,7 @@ mod tests {
         assert!(ai_changed && badge_changed);
         assert!(!ai.contains_key("/gone"));
         assert_eq!(ai["/b"], counts(1, 1));
-        assert_eq!(badge.count(), 1, "/a stopped awaiting, /b still waits");
+        assert_eq!(badge.count(), 1, "/gone stopped running, /b still waits");
         // A probe that did not answer keeps the last counts: no flicker.
         let (ai_changed, _) =
             apply_ai_refresh(&mut ai, &mut badge, &roots(&["/a", "/b"]), vec![("/b".into(), None)]);

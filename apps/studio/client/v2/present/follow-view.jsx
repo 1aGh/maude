@@ -7,8 +7,10 @@
 // Mac's second display, S3.6a) and a presentation-link viewer (the hub's `/present/<canvas>`, S3.7b).
 //
 // The canvas frame is read-only whatever the role: `canvasUrl(…, { follow: true })` → `ro=1&comments=0&
-// follow=1`, and the capability comes from the same read-only `/_config?embed=1` ask the embed makes, so
-// the canvas door refuses every write. The frame is seeded into Present · Artboards with NO caps (it never
+// follow=1`, and the capability comes from `/_config?follow=1&canvas=<rel>` (S3.7c): in a cell the hub
+// mints a receive-only FOLLOW capability for that one canvas — read-only like the embed's, so the canvas
+// door refuses every write, but it may join that canvas's collab room (sync dropped, awareness kept to
+// `watching`), which the embed's may not (DDR-247). The frame is seeded into Present · Artboards with NO caps (it never
 // publishes a position) and told which session to follow (`present-follow`). It follows the presenter's
 // collab awareness itself (present-stage.tsx `usePresentFollow`) and reports back `present-follow-state`;
 // this page draws the bar from that — names as TEXT only, re-clamped (follow-model.js).
@@ -24,9 +26,11 @@ import { setModeMessage } from '../shell/canvas-mode.js';
 import { readFollowParams } from './follow-location.js';
 import { followBarModel } from './follow-model.js';
 
-// The read-only canvas capability (DDR-247): the hub mints a viewer-floor, read-only token for a config
-// read that says `embed=1`. The follower asks the same way rather than growing a second capability kind.
-export const FOLLOW_CONFIG_URL = '/_config?embed=1';
+// S3.7c (lead decision `v2-lead-cloud-follow-capability`) — the follower asks for the FOLLOW capability
+// of the canvas it follows. A canvas the session may not read gets no capability, like a missing one.
+export function followConfigUrl(rel) {
+  return `/_config?follow=1&canvas=${encodeURIComponent(rel ?? '')}`;
+}
 const SEED_LADDER_MS = [0, 150, 500, 1200, 2500];
 const LOAD_TIMEOUT_MS = 20_000;
 const CANVAS_EXT_RE = /\.tsx$/i;
@@ -130,8 +134,9 @@ export default function FollowView() {
     };
     (async () => {
       let data;
+      const asked = paramsRef.current.open;
       try {
-        data = await readJson(FOLLOW_CONFIG_URL);
+        data = await readJson(followConfigUrl(asked));
       } catch (err) {
         if (cancelled) return;
         if (err?.status === 401) setView({ phase: 'signed-out' });
@@ -142,6 +147,17 @@ export default function FollowView() {
       const params = readFollowParams(location, designRel);
       paramsRef.current = params;
       if (!params.ok || !params.open) return miss();
+      // A design root other than the default names the canvas differently: ask again for THAT one.
+      if (params.open !== asked) {
+        try {
+          data = {
+            ...data,
+            canvasToken: (await readJson(followConfigUrl(params.open)))?.canvasToken,
+          };
+        } catch {
+          return miss();
+        }
+      }
       let index;
       try {
         index = await readJson('/_index-data');
@@ -266,7 +282,7 @@ export default function FollowView() {
     async function refresh() {
       let token = null;
       try {
-        token = (await readJson(FOLLOW_CONFIG_URL))?.canvasToken;
+        token = (await readJson(followConfigUrl(paramsRef.current.open)))?.canvasToken;
       } catch {
         /* retried below */
       }

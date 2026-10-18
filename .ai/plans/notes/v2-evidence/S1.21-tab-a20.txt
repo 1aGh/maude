@@ -1,0 +1,14 @@
+Row: pn-tab-a20 (11 · A · 20 tabs — titles shorten, » lists the rest) — variant A was NOT picked
+Base: feat/maude-v2 58ac858d (branch s1-21). Canvas blob 721366f14aae; contract V2-3.7-own-tab-bar.md blob 7443b61b81f6.
+Written from reading code and existing gate evidence. NO desktop e2e was run for this file.
+
+PICK: B. decisions maude/v2-3.7-own-tab-bar, maude/v2-3.7-own-tab-bar-mechanism. The A "»" list of AppKit tabs does not exist and is not wanted. What B does at 20 tabs: S1.21-tab-b20.txt.
+
+STATUS: superseded by the B decision. Two sentences of the artboard's note still hold in the shipped app and are pinned:
+  - "AI in a tab you left reaches you as a Mac notification":
+      apps/desktop/src-tauri/src/notify.rs:178 transition_kind (AwaitingInput / Finished), :274 poll_targets (tabs that are NOT in front only), :306 on_click -> tabs.rs:405 reveal (the tab comes forward).
+      e2e apps/desktop/e2e/scenarios/project-tabs-identity.e2e.ts:157 "a notification click focuses that project's tab".
+  - "Cmd+K lists every open tab": other open projects carry the aside "in another tab" and a resting one too (client/v2/search/search-projects.js:22-27 PLACE_ASIDE), and Enter switches to that tab, never a third:
+      e2e project-tabs.e2e.ts:293 "Cmd+K across projects: A finds B, and Enter on B's row switches to B's tab, never a third".
+Desktop e2e evidence (valid window probe): V2-3.7-3.10-rework-gate-2026-10-14.txt tabs 1/1 and tabs-identity 1/1 (sha256 ed33f6dad36ed9f7b66875873229284b05f27c56772f1d30c45675f0956d71a2).
+Suggested ledger state: verified, superseded (decision maude/v2-3.7-own-tab-bar). No app gap beyond the B20 ones.

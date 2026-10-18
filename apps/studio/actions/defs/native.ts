@@ -43,6 +43,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘O', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'finding', order: 20 },
     native: { menu: 'File', order: 3 },
   },
   {
@@ -53,6 +54,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘T', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 30 },
     native: { menu: 'File', order: 4 },
   },
   {
@@ -77,6 +79,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘W', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 40 },
     native: { menu: 'File', order: 5 },
   },
   {
@@ -86,6 +89,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌃tab', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 10 },
     native: { menu: 'Window', order: 1 },
   },
   {
@@ -94,6 +98,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 20 },
     native: { menu: 'Window', order: 2 },
   },
   // Jump to project tab 1…8, and to the LAST project tab (Home is Show Home). ⌘<n>, as in Safari /

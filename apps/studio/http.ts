@@ -15,20 +15,35 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { closureFor, createClosureCache, localDepsFromSource } from './access/closure.ts';
+import { type Closure, localDepsFromSource } from './access/closure.ts';
+import {
+  canvasOnlyLogPaths,
+  canvasOriginTarget,
+  diffRefusal,
+  exportTargetVerdict,
+  filterAcceptedHistory,
+  filterConfig,
+  filterGitDiff,
+  filterIndexSearch,
+  filterIndexSnapshot,
+  mergeCanvasOnlyLog,
+  projectVisibility,
+  type Seer,
+  seerOf,
+} from './access/filters.ts';
 import {
   accessForDesktop,
   accessFromProxy,
   COMMENT_WRITE_PATTERNS,
   COMMENT_WRITES,
   canvasScopeRefusal,
-  diskProjectReader,
   EXPORT_WRITES,
   type GateInput,
   localGate,
   notInScopeResponse,
   SESSION_WRITES,
   toDesignRel,
+  writeCapability,
 } from './access/request.ts';
 import type { Access } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
@@ -74,7 +89,7 @@ import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
-import type { ActiveJsonShape } from './exporters/scope.ts';
+import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
 import { isV2Body } from './exporters/spec-v2.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
@@ -158,10 +173,13 @@ import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
 import {
   allSpecs,
+  announceAction,
   type ExportRouteDeps,
   gateSpecV2,
   heldByAiRefusal,
   planExportV2,
+  runStageHooks,
+  trashAccess,
 } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
@@ -177,6 +195,7 @@ import {
   serveIndexHtml,
 } from './static-lane.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
+import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
@@ -1126,6 +1145,8 @@ export interface Http {
   tableCanvasPaths: readonly string[];
   /** S9.9 — THIS request's access (V2-1.7 §5.4); server.ts `withSession` puts it in ALS. */
   accessOf(req?: Request): Access;
+  /** S9.11 — the closure of a session's grants on this child's disk (null without grants). */
+  closureOf(access: Access): Closure | null;
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -1354,6 +1375,10 @@ export function createHttp(
   // untrusted canvas iframe origin can never read/write the director's analysis.
   const footageStore = createFootageStore(ctx);
   const gitApi = createGitEndpoints(ctx);
+  // S9.10 (V2-1.16 L6–L10) — what THIS request's session may see. A project role sees
+  // everything (every filter is the identity, U7); a canvas-only session its grants + closure.
+  const visibility = projectVisibility(ctx);
+  const visOf = (req: Request) => visibility.visibilityFor(accessOf(req));
   // Phase 28 (E3) — `/_api/github/*`. Same dual-allowlist rule: main-origin only,
   // and every route is token-bearing (server-held keychain token via the loopback
   // bridge), so all four also carry a loopback-Host check.
@@ -1573,6 +1598,12 @@ export function createHttp(
       home: createLocalLeaseHome({ actor: 'you' }),
       autoRenew: false,
       emit: (e, p) => ctx.bus.emit(e, p),
+      // S5.5b — THE end of every run's stage, by its run id: publish / partial / hold, and the
+      // published run is announced as `project:action` with the artboards it touched.
+      stage: runStageHooks({
+        control: () => ctx.syncControl?.current?.() ?? null,
+        emit: (e, p) => ctx.bus.emit(e, p),
+      }),
     });
   const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
   outboxSenders['ai.prompt'] = askQueue.sender;
@@ -1596,10 +1627,59 @@ export function createHttp(
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
+    // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
+    // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local
+    // project's owner, or the role the hub vouched at sign-in (the hub re-checks every op).
+    trash: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      access: (req) =>
+        trashAccess({
+          workspace: isWorkspaceMode(),
+          header: req.headers.get('x-maude-access'),
+          localRole: ctx.cfg.linkedHub
+            ? (getHubRecord(ctx.cfg.linkedHub.url)?.role ?? null)
+            : 'owner',
+        }),
+      readSource: (rel) => {
+        if (!rel || rel.startsWith('/') || rel.split('/').some((s) => s === '..' || s === ''))
+          return null;
+        try {
+          return readFileSync(join(ctx.paths.designRoot, ...rel.split('/')), 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     projectUndo: {
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,
       emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S1.18 — stable canvas links over the same home (entry → current path)
+    links: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      // S9.9 — the session's access, read per request: a canvas-only visitor resolves only the
+      // canvases it holds (history/links.ts answers `unknown` for the rest — no existence oracle).
+      scope: (req) => accessOf(req),
+    },
+    // S4.7 — sticky ↔ comment as one action; the converter is the session (a cell's vouched
+    // member, else this machine's git identity) — never the body (contract S4-S9 §3.1).
+    annotations: {
+      api,
+      control: () => ctx.syncControl?.current?.() ?? null,
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
+      // S9.9 — a canvas-only session converts only on a canvas it sees (`not-in-scope`, like missing).
+      scope: (req, file) => {
+        const see = seerFor(req);
+        if (!see) return null;
+        const rel = toDesignRel(file, ctx.paths.designRel);
+        return rel === null || !see(rel) ? notInScopeResponse() : null;
+      },
     },
     ai: {
       registry: runs,
@@ -1608,9 +1688,13 @@ export function createHttp(
       // the ACP chat's own banner entries (acp/index.ts → AiActivity) until S5.6 moves the
       // chat turn onto the registry
       legacyEntries: () => ai.list(),
+      // S9.11 (V2-1.16 L13) — a canvas-only session's runs and banner entries
+      seerFor: (req) => seerFor(req),
       // T16 — a v1 `/design:edit` is ONE project action
       beginAction: (key, name) => ctx.syncControl?.current?.()?.beginAiAction?.(key, name),
       endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
+      // S5.11b — Run on a copy: the accepted source + the waiting run's stage
+      control: () => ctx.syncControl?.current?.() ?? null,
     },
     agent: {
       repoRoot: ctx.paths.repoRoot,
@@ -1626,18 +1710,29 @@ export function createHttp(
       // acp/index.ts already — its T16 action + banner; the hook routes skip it, so it is never
       // bracketed twice. Every other run is a terminal Claude Code.
       bracket: {
+        // S5.5b — the stage is begun under the registry's run id; the REGISTRY ends it
+        // (`stage` above), so there is no `end` here: one turn is never two stages.
         begin: (r) => {
           if (r.actor === 'maude-chat') return;
-          ctx.syncControl?.current?.()?.beginAiAction?.(`agent:${r.session}`, 'Claude Code');
-        },
-        // S5.3 — no `touch`: the ai-activity banner of a hook run is DERIVED from the registry
-        // (ai/runs.ts `bannerEntries`), never a second entry in AiActivity.
-        end: (r, outcome) => {
-          if (r.actor === 'maude-chat') return;
-          void ctx.syncControl
+          ctx.syncControl
             ?.current?.()
-            ?.endAiAction?.(`agent:${r.session}`, outcome === 'failed' ? 'failed' : 'done')
-            .catch(() => null);
+            ?.beginAiAction?.(`agent:${r.session}`, r.label || 'Claude Code', { runId: r.run });
+        },
+        // S5.3 — the ai-activity banner of a hook run is DERIVED from the registry (ai/runs.ts
+        // `bannerEntries`), never a second entry in AiActivity. S5.5b — `touch` claims the
+        // write for the run by its content hash (V2-1.5 §5.5 "Write → run").
+        touch: (r, rel) => {
+          let hash: string | null = null;
+          if (/\.tsx$/i.test(rel)) {
+            try {
+              hash = hashBytes(readFileSync(join(ctx.paths.designRoot, rel), 'utf8'));
+            } catch {
+              hash = null;
+            }
+          }
+          ctx.syncControl
+            ?.current?.()
+            ?.claimAiWrite?.(r.run, `${ctx.paths.designRel}/${rel}`, hash);
         },
       },
     },
@@ -1653,6 +1748,18 @@ export function createHttp(
       onMigrated: () => {
         if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
       },
+    },
+    // S9.7b — POST /_api/comments/op (routes/comments.ts). The author is the session: a cell's
+    // vouched member, else this machine's git identity — never a name in the body.
+    comments: {
+      designRel: ctx.paths.designRel,
+      actor: async (req) => ({
+        name:
+          (isWorkspaceMode() ? req.headers.get('x-maude-user') : null)?.slice(0, 120) ||
+          (await api.gitCurrentUser()),
+      }),
+      fileOf: (id) => api.commentFileOf(id),
+      apply: (file, op, actor) => api.commentOp(file, op, actor),
     },
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
@@ -1710,6 +1817,12 @@ export function createHttp(
     },
     // S8.1 — ExportSpec v2: the estimate route, and the v2 half of /_api/export(-jobs) below
     export: exportV2Deps,
+    // S5.10 — attachments + folder consent (routes/chat-attach.ts). Main origin only.
+    chatAttach: {
+      designRoot: ctx.paths.designRoot,
+      projectRoot: ctx.paths.repoRoot,
+      saveAsset: (stream) => api.saveAssetFromStream(stream),
+    },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
@@ -1793,8 +1906,12 @@ export function createHttp(
   };
 
   // The client's config (see the '/_config' route below for the gate in front of it).
+  // S9.10 (V2-1.16 L8) — a canvas-only session gets no canvas groups, only the DS its
+  // canvases render with, no new-canvas dir and no hub link (`filterConfig`); U7 identity.
+  const configJson = (req: Request, body: Record<string, unknown>) =>
+    Response.json(filterConfig(body, visOf(req), ctx.cfg.designSystems ?? []));
   const configResponse = (req: Request) =>
-    Response.json({
+    configJson(req, {
       ...ctx.cfg,
       canvasOrigin: ctx.canvasOrigin,
       // V2-1.12 §5.6 — readOnly is the role OR the format gate
@@ -2234,7 +2351,9 @@ export function createHttp(
     // Phase 9 Task 8 — offline-mode banner poll fallback. The linked-mode sync
     // runtime writes `_sync.json`; browser tabs also get live pushes over the
     // WS ('sync:status'). Returns `{ linked: false }` in solo mode.
-    '/_sync-status': () => {
+    '/_sync-status': (req: Request) => {
+      // S9.11 (V2-1.16 L16) — `project` class: sync trouble names every canvas's slug.
+      if (accessOf(req).canvasOnly) return notInScopeResponse();
       const file = join(ctx.paths.designRoot, '_sync.json');
       if (!existsSync(file)) {
         return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
@@ -2321,11 +2440,14 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const url = new URL(req.url);
       const q = url.searchParams.get('q');
+      // S9.10 (V2-1.16 L8/L9) — a canvas-only session's index is its canvases only: counts,
+      // stamp and seq derived from them (U5). Identity for a project role (U7).
+      const vis = visOf(req);
       if (q !== null)
-        return Response.json(projectIndex.search(q, { limit: 200 }), {
+        return Response.json(filterIndexSearch(projectIndex.search(q, { limit: 200 }), vis), {
           headers: { 'Cache-Control': 'no-store' },
         });
-      const snap = projectIndex.snapshot();
+      const snap = filterIndexSnapshot(projectIndex.snapshot(), vis);
       const since = Number(url.searchParams.get('since'));
       if (Number.isFinite(since) && since > 0 && since === snap.writer.seq)
         return Response.json({ unchanged: true, seq: snap.writer.seq });
@@ -2786,20 +2908,37 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required', { status: 403 });
-      const body = await readJson<{ choice?: string }>(req);
+      const body = await readJson<{ choice?: string; runId?: unknown }>(req);
       const choice =
         body?.choice === 'discard' ? 'discard' : body?.choice === 'publish' ? 'publish' : null;
+      // S5.5b — the held card keeps or undoes ONE run; no id = every held run (v1).
+      const runId =
+        typeof body?.runId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.runId)
+          ? body.runId
+          : undefined;
+      if (body?.runId !== undefined && !runId)
+        return Response.json({ ok: false, error: 'runId is a run id' }, { status: 400 });
       if (!choice)
         return Response.json(
           { ok: false, error: 'choice must be publish or discard' },
           { status: 400 }
         );
-      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice);
+      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice, runId);
       if (!r)
         return Response.json(
           { ok: false, error: 'There is no unfinished AI edit.' },
           { status: 409 }
         );
+      if (r.status === 'accepted' && r.actionId) {
+        void announceAction(
+          {
+            control: () => ctx.syncControl?.current?.() ?? null,
+            emit: (e, p) => ctx.bus.emit(e, p),
+          },
+          r.actionId,
+          r.touched ?? {}
+        ).catch(() => {});
+      }
       return Response.json(
         { ok: r.status !== 'rejected', ...r },
         { headers: { 'Cache-Control': 'no-store' } }
@@ -3039,12 +3178,37 @@ export function createHttp(
       // ONLY (this route is absent from CANVAS_SAFE_API) — the path is
       // containment-validated in the endpoint before it reaches git.
       const u = new URL(req.url).searchParams;
-      return gitJson(await gitApi.log(u.get('limit'), u.get('path')));
+      // S9.10 (V2-1.16 L6, U4) — a canvas-only session's log runs over its own canvases'
+      // files only (`?path=` is already scope-checked); subjects are rewritten from them and
+      // the author's e-mail is dropped. A project role's log is unchanged (U7).
+      const logPaths = canvasOnlyLogPaths(visOf(req), u.get('path'), ctx.paths.designRel);
+      if (logPaths === null) return gitJson(await gitApi.log(u.get('limit'), u.get('path')));
+      const limit = Math.min(Math.max(Math.floor(Number(u.get('limit')) || 30), 1), 200);
+      const runs = await Promise.all(
+        logPaths.map(async ({ repoRel, canvas }) => {
+          const r = await gitApi.log(String(limit), repoRel);
+          const entries = (
+            r.json as { entries?: Parameters<typeof mergeCanvasOnlyLog>[0][0]['entries'] }
+          ).entries;
+          return { canvas, entries: r.status === 200 && Array.isArray(entries) ? entries : [] };
+        })
+      );
+      return gitJson({ status: 200, json: { entries: mergeCanvasOnlyLog(runs, limit) } });
     },
 
     '/_api/git/diff': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return gitJson(await gitApi.diff(new URL(req.url).searchParams.get('sha')));
+      // S9.10 (V2-1.16 L6) — a diff is raw source: the export class. A canvas-only list
+      // holds only the files its canvases own.
+      const vis = visOf(req);
+      if (diffRefusal(vis)) return readOnlyRefusalResponse();
+      const result = await gitApi.diff(new URL(req.url).searchParams.get('sha'));
+      if (vis.full || result.status !== 200) return gitJson(result);
+      const entries = (result.json as { entries?: Array<{ file: string }> }).entries ?? [];
+      return gitJson({
+        ...result,
+        json: { entries: filterGitDiff(entries, vis, ctx.paths.designRel) },
+      });
     },
 
     // ── Phase 29 (E4) — drafts (branches). MAIN-ORIGIN ONLY (absent from
@@ -3303,7 +3467,11 @@ export function createHttp(
         return gitJson({ status: 200, json: { ok: false, reason: 'unreachable' } });
       }
       if (rows === null) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({ status: 200, json: { ok: true, history: rows } });
+      // S9.10 (V2-1.16 L6, U4) — canvas-only: rows on visible canvases, labels rewritten.
+      return gitJson({
+        status: 200,
+        json: { ok: true, history: filterAcceptedHistory(rows, visOf(req), ctx.paths.designRel) },
+      });
     },
     '/_api/project/restore': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
@@ -6635,14 +6803,9 @@ export function createHttp(
   }
 
   // The closure of a session's grants is computed HERE, from this child's own disk
-  // (V2-1.7 G4), cached per (grants, generation); every file change bumps it.
+  // (V2-1.7 G4), cached per (grants, generation); every file change bumps it. S9.10 —
+  // one source per project (access/filters.ts), shared with api.ts's read filters.
   const designRel = relative(ctx.paths.repoRoot, ctx.paths.designRoot).split(sep).join('/');
-  let treeGeneration = 0;
-  ctx.bus.on('fs:any', () => {
-    treeGeneration++;
-  });
-  const closureCache = createClosureCache();
-  const projectReader = diskProjectReader(ctx.paths.designRoot, () => String(treeGeneration));
   const tableSession = {
     exact: new Set(laneRoutes.readOnlyAllowed.exact),
     patterns: laneRoutes.readOnlyAllowed.patterns,
@@ -6652,11 +6815,10 @@ export function createHttp(
       access,
       designRel,
       tableSession,
-      closure:
-        access.grants.length > 0
-          ? () => closureFor(access, projectReader, closureCache)
-          : undefined,
+      closure: access.grants.length > 0 ? () => visibility.closureOf(access) : undefined,
       exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
+      // S9.7b — a table route's own target (a reply by comment id: the thread's canvas)
+      targetFor: laneRoutes.targetFor,
     };
   }
 
@@ -6683,20 +6845,47 @@ export function createHttp(
   // A canvas-only session naming a target outside its grants + closure is refused
   // with `not-in-scope` on ANY method (`canvasScopeRefusal`), the same 403 a missing
   // file gets.
+  /** S9.11 — the session's seer (null = a project session, the identity). */
+  function seerFor(req?: Request): Seer | null {
+    const access = accessOf(req);
+    return seerOf(access, () => closureOf(access));
+  }
+
+  function closureOf(access: Access): Closure | null {
+    return access.grants.length > 0 ? visibility.closureOf(access) : null;
+  }
+
   async function readOnlyRefusal(req: Request): Promise<Response | null> {
     const access = accessOf(req);
     const g = gateInput(access);
+    // S9.11 (V2-1.16 L15) — a file of the design root (the static lane, its `/assets/`
+    // alias, `?sha=` builds) is judged on its PATH, before any query names a target: a
+    // `?file=` of a visible canvas must not lend its answer to the module being served.
+    if (access.canvasOnly) {
+      let pathname = '';
+      try {
+        pathname = new URL(req.url).pathname;
+      } catch {
+        /* unparseable — the gates below refuse it */
+      }
+      const file = canvasOriginTarget(pathname, designRel);
+      const see = seerOf(access, () => closureOf(access));
+      if (file !== undefined && (file === null || see?.(file) !== true))
+        return notInScopeResponse();
+    }
     const scope = await canvasScopeRefusal(req, g);
     if (scope) return scope;
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
     const gate = gateNow();
-    if (!gate && access.can('edit', null)) return null;
     let pathname: string;
     try {
       pathname = new URL(req.url).pathname;
     } catch {
       return readOnlyRefusalFor(req);
     }
+    // An editor passes every write it holds the capability for — not `delete` (S1.7b's Trash
+    // clear-out is the owner's, V2-1.7 §5.2): that one goes on to `localGate`, which refuses it.
+    if (!gate && access.can(writeCapability(pathname, g.tableSession), null)) return null;
     // The format gate: per-user runtime, export, reports and sign-in still
     // work; comments are look-only (V2-1.12 §9 Q3); "Update project" is the
     // one write that leads out.
@@ -6706,15 +6895,23 @@ export function createHttp(
     // generic target reader cannot see. For a session whose grants decide, the spec's own gate
     // answers (routes/export.ts `gateSpecV2`): Folder / Whole project and an ungranted canvas
     // are `not-in-scope` — the missing-file body — and every reached canvas must hold export.
-    if (access.grants.length > 0 && req.method === 'POST' && V2_EXPORT_DOORS.has(pathname)) {
-      const body = (await req
-        .clone()
-        .json()
-        .catch(() => null)) as { spec?: unknown } | null;
-      if (pathname === '/_api/export-estimate' || isV2Body(body)) {
-        const v2 = gateSpecV2(body?.spec, exportV2Deps, req);
-        return v2.ok ? null : v2.response;
+    // S9.10 (V2-1.16 L7 / L10) — two write lanes whose TARGET is not a request param, for a
+    // session whose grants (not its project role) decide: an export job's target is resolved
+    // the way the exporter resolves it; a reply's canvas is its comment's, looked up among the
+    // comments this session sees — so an invisible id is a missing one (U1).
+    if (access.grants.length > 0 && req.method === 'POST') {
+      if (V2_EXPORT_DOORS.has(pathname)) {
+        const body = (await req
+          .clone()
+          .json()
+          .catch(() => null)) as { spec?: unknown } | null;
+        if (pathname === '/_api/export-estimate' || isV2Body(body)) {
+          const v2 = gateSpecV2(body?.spec, exportV2Deps, req);
+          return v2.ok ? null : v2.response;
+        }
       }
+      const lane = await grantLaneRefusal(req, pathname, access);
+      if (lane !== undefined) return lane;
     }
     const verdict = await localGate(req, pathname, g);
     if (verdict.ok) return null;
@@ -6723,6 +6920,57 @@ export function createHttp(
 
   /** S8.1 — the routes that take an ExportSpec v2 body (the estimate takes nothing else). */
   const V2_EXPORT_DOORS = new Set(['/_api/export', '/_api/export-jobs', '/_api/export-estimate']);
+
+  const EXPORT_TARGET_ROUTES = new Set(['/_api/export', '/_api/export-jobs']);
+  const REPLY_RE = /^\/_api\/comments\/([A-Za-z0-9_]+)\/reply$/;
+
+  /** The refusal (or null = pass) for an export / reply by a grant session; undefined = not this lane. */
+  async function grantLaneRefusal(
+    req: Request,
+    pathname: string,
+    access: Access
+  ): Promise<Response | null | undefined> {
+    if (EXPORT_TARGET_ROUTES.has(pathname)) {
+      if (access.can('export', null)) return undefined;
+      const body = await req
+        .clone()
+        .json()
+        .catch(() => null);
+      const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+      if (!isScope(b.scope)) return undefined; // no target to judge: the role gate decides
+      const options = b.options && typeof b.options === 'object' ? b.options : {};
+      const targets =
+        b.scope === 'project-raw'
+          ? []
+          : await resolveScope({
+              scope: b.scope,
+              activeJson: inspect().state as unknown as ActiveJsonShape,
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              options: options as Record<string, unknown>,
+            });
+      const files = targets.flatMap((t) => (t.kind === 'element' ? [t.file] : []));
+      const verdict = exportTargetVerdict(
+        visibility.visibilityFor(access),
+        b.scope,
+        files,
+        ctx.paths.designRel
+      );
+      if (verdict === 'ok') return null;
+      return verdict === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
+    }
+    const reply = REPLY_RE.exec(pathname);
+    if (reply) {
+      if (access.can('comment', null)) return undefined;
+      // `loadAllComments` answers only the canvases this request's session sees.
+      const all = await api.loadAllComments();
+      const file = Object.entries(all).find(([, list]) => list.some((c) => c.id === reply[1]))?.[0];
+      if (!file) return new Response('Not found', { status: 404 });
+      const rel = toDesignRel(file, ctx.paths.designRel);
+      return rel !== null && access.can('comment', rel) ? null : readOnlyRefusalResponse();
+    }
+    return undefined;
+  }
 
   const guardedRoutes = Object.fromEntries(
     Object.entries(routes).map(([path, handler]) => [
@@ -6800,6 +7048,7 @@ export function createHttp(
     canvasRoutes,
     tableCanvasPaths: laneRoutes.canvasPaths,
     accessOf,
+    closureOf,
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,

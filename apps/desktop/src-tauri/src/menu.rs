@@ -286,7 +286,13 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
                             .version(Some(env!("CARGO_PKG_VERSION")))
                             .build(),
                     )),
-                    "quit" => b.quit(),
+                    // S5.14: AppKit's predefined Quit sends `terminate:`, which no Tauri event
+                    // can hold — so Quit is our own item and asks first while AI works (quit.rs).
+                    "quit" => b.item(
+                        &MenuItemBuilder::with_id(crate::quit::MENU_QUIT, "Quit Maude")
+                            .accelerator("CmdOrCtrl+Q")
+                            .build(app)?,
+                    ),
                     "undo" => b.undo(),
                     "redo" => b.redo(),
                     "cut" => b.cut(),
@@ -322,7 +328,7 @@ pub async fn e2e_menu_state(
     #[cfg(debug_assertions)]
     {
         if let Some(id) = click {
-            if route(&id).is_none() {
+            if route(&id).is_none() && id != crate::quit::MENU_QUIT {
                 return Err(format!("no menu item {id}"));
             }
             let a = app.clone();
