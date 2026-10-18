@@ -15,7 +15,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
-import { canStep, counterText, createReveal, FADE_AFTER_MS } from './present-controls-model.js';
+import {
+  canStep,
+  counterText,
+  createReveal,
+  FADE_AFTER_MS,
+  mediaTimeText,
+  mediaToggleOp,
+  soundOp,
+} from './present-controls-model.js';
 
 const defaultDeps = {
   setTimer: (fn, ms) => setTimeout(fn, ms),
@@ -165,5 +173,91 @@ export function PresentControls({
         </button>
       </div>
     </>
+  );
+}
+
+// ─── S3.3 · the transport: pause · 0:06 / 0:15 · sound (04 md-present-video) ─────────────────────────
+// The shell mirrors the clip the presented artboard plays (`present-media`) and drives it back with
+// `present-media-cmd`. 16-box glyphs in the controls' own stroke; the shell's icon set has no media ones.
+
+const GLYPHS = {
+  play: <path d="M5 3.2v9.6L12.6 8z" />,
+  pause: (
+    <>
+      <path d="M5.2 3.5v9" />
+      <path d="M10.8 3.5v9" />
+    </>
+  ),
+  sound: (
+    <>
+      <path d="M2.5 6.2h2.4L8 3.4v9.2L4.9 9.8H2.5z" />
+      <path d="M10.4 5.9a3 3 0 0 1 0 4.2" />
+      <path d="M12 4.2a5.4 5.4 0 0 1 0 7.6" />
+    </>
+  ),
+  'sound-off': (
+    <>
+      <path d="M2.5 6.2h2.4L8 3.4v9.2L4.9 9.8H2.5z" />
+      <path d="M10.6 6.2l3 3.6" />
+      <path d="M13.6 6.2l-3 3.6" />
+    </>
+  ),
+};
+
+function MediaGlyph({ name }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      {GLYPHS[name]}
+    </svg>
+  );
+}
+
+/**
+ * @param media `{ playing, t, duration, muted }` from `present-media`, or null (no clip: nothing renders)
+ * @param onCommand (op: 'play' | 'pause' | 'mute' | 'unmute') => void
+ */
+export function PresentTransport({ media, onCommand }) {
+  if (!media) return null;
+  const time = mediaTimeText(media);
+  return (
+    <span className="pr-transport" data-testid="present-transport">
+      <button
+        type="button"
+        className="st-iconbtn"
+        data-testid="present-media-toggle"
+        aria-label={media.playing ? 'Pause' : 'Play'}
+        title={media.playing ? 'Pause (click the video)' : 'Play (click the video)'}
+        onClick={() => onCommand(mediaToggleOp(media))}
+      >
+        <MediaGlyph name={media.playing ? 'pause' : 'play'} />
+      </button>
+      {time ? (
+        <span className="pr-time" data-testid="present-media-time">
+          {time}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        className="st-iconbtn"
+        data-testid="present-media-sound"
+        aria-label="Sound"
+        aria-pressed={!media.muted}
+        title={media.muted ? 'Turn the sound on' : 'Turn the sound off'}
+        onClick={() => onCommand(soundOp(media))}
+      >
+        <MediaGlyph name={media.muted ? 'sound-off' : 'sound'} />
+      </button>
+    </span>
   );
 }
