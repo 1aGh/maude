@@ -15,6 +15,27 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     legacy: { palette: 'Export…', menu: 'Export…', sheet: 'Export…' },
   },
   {
+    // S8.8 (09 Export › ex-inspector): the quickest export skips the sheet — what is selected, rendered as a PNG
+    // and put on the clipboard, to paste into a chat or a post. Shell-side (it needs the clipboard and a render),
+    // reachable from the canvas iframe (the chord is forwarded). Can view has no export at all (hidden, not greyed:
+    // there is no key to swallow with a denial line — the server refuses the render anyway).
+    id: 'export.copy-png',
+    label: 'Copy as PNG',
+    kind: 'command',
+    icon: 'image',
+    exec: 'shell',
+    fromCanvas: true,
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    keys: [
+      kb('⇧⌘C', 'selection', {
+        inText: false,
+        when: { selection: ['artboard', 'object', 'video-artboard', 'generated-image'] },
+      }),
+    ],
+    search: { keywords: ['clipboard', 'image', 'paste', 'png'] },
+  },
+  {
     id: 'handoff.open',
     label: 'Handoff to production',
     kind: 'command',

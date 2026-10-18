@@ -422,3 +422,59 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* S8.8 — the inspector's Export section (09 Export › ex-inspector): one row per size, the one-click button,
+ * and the two quiet lines under it. Tokens only; nothing here moves, so there is no motion to reduce. */
+@layer shell {
+  .insp-export-sizes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
+  .insp-export-size {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+  }
+  .insp-export-go.btn {
+    align-self: flex-start;
+    margin-top: var(--space-1, 4px);
+  }
+  .insp-export-line {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 8px);
+    width: 100%;
+    min-height: 24px;
+    padding: 0 var(--space-1, 4px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    text-align: left;
+    cursor: pointer;
+  }
+  .insp-export-line:hover:not(:disabled) {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .insp-export-line:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-export-line:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .insp-export-keys {
+    font: inherit;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+    letter-spacing: 0.04em;
+  }
+}

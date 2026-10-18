@@ -714,6 +714,21 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⇧⌘E', layer: 'global', inText: true }],
   },
   {
+    id: 'export.copy-png',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    fromCanvas: true,
+    keys: [
+      {
+        chord: '⇧⌘C',
+        layer: 'selection',
+        inText: false,
+        when: { selection: ['artboard', 'object', 'video-artboard', 'generated-image'] },
+      },
+    ],
+  },
+  {
     id: 'handoff.open',
     exec: 'shell',
     fromCanvas: true,

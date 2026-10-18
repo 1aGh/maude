@@ -3,6 +3,7 @@
 // frame is wired (client/inspector/inspector-panel.jsx).
 
 import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
+import { offInspectorExport } from '../../export/inspector-export.jsx';
 import { offMulti } from '../kinds/multi.jsx';
 import { offShape } from '../kinds/shape.jsx';
 import { offTextBody, offTextStyle } from '../kinds/text.jsx';
@@ -34,6 +35,7 @@ export function unregisterSections() {
   offTextStyle();
   offTextBody();
   offInteraction();
+  offInspectorExport();
   offExportSlot();
   offPlaceFreely();
   offConvert();

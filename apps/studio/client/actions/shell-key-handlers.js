@@ -21,6 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
+import { runCopyPng } from '../v2/export/copy-png.js';
 import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
@@ -161,6 +162,11 @@ export const SHELL_KEY_HANDLERS = {
   'export.open': (d, { event: e }) => {
     e.preventDefault();
     d.setExportDialog({ mode: 'export' });
+  },
+  // S8.8 — ⇧⌘C: the selection as a PNG on the clipboard (the shell binds what it has selected; no sheet)
+  'export.copy-png': (_d, { event: e }) => {
+    e.preventDefault();
+    runCopyPng().then((r) => shellToast(r.message, r.ok));
   },
   'handoff.open': (d, { event: e }) => {
     e.preventDefault();

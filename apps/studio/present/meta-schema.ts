@@ -21,7 +21,7 @@ export const PRESENT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const MAX_IDS = 2000;
 export const MAX_NOTE = 20000;
 /** The route body's whole vocabulary. */
-export const PATCH_KEYS: readonly string[] = ['file', 'present', 'notes', 'expected'];
+export const PATCH_KEYS: readonly string[] = ['file', 'present', 'notes', 'exports', 'expected'];
 const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
 
 export interface PresentState {
@@ -32,10 +32,25 @@ export interface PresentState {
   notes: Record<string, string>;
 }
 
+/** S8.8 — one export size of an artboard (`artboardMeta[id].exports`, decision
+ *  maude/v2-S8-artboard-export-presets-in-meta). Raster formats carry a scale; svg has none. */
+export interface ExportSize {
+  format: 'png' | 'jpg' | 'svg';
+  scale?: number;
+}
+export const EXPORT_FORMATS: readonly string[] = ['png', 'jpg', 'svg'];
+/** The same range `ExportSpecV2` takes for `options.size.scale` (exporters/spec-v2.ts). */
+export const EXPORT_SCALE_MIN = 0.25;
+export const EXPORT_SCALE_MAX = 4;
+export const MAX_EXPORT_SIZES = 8;
+const EXPORT_SIZE_KEYS: readonly string[] = ['format', 'scale'];
+
 export interface PresentPatch {
   file: string;
   present?: { order?: string[] | null; skip?: string[] | null } | null;
   notes?: Record<string, string | null>;
+  /** artboardId → its sizes; null (or an empty list) takes the artboard back to its kind's default. */
+  exports?: Record<string, ExportSize[] | null>;
   expected?: string;
 }
 
@@ -77,6 +92,38 @@ export function readPresentState(meta: unknown): PresentState {
       if (typeof n === 'string' && n !== '' && n.length <= MAX_NOTE) notes[id] = n;
     }
   return { order: order.length ? order : null, skip: idList(p.skip), notes };
+}
+
+/** One size of an unknown value, or null when it is not one (tolerant: a peer's malformed size is dropped). */
+function sizeOf(v: unknown): ExportSize | null {
+  if (!isObj(v) || typeof v.format !== 'string' || !EXPORT_FORMATS.includes(v.format)) return null;
+  const format = v.format as ExportSize['format'];
+  if (format === 'svg') return { format };
+  const sc = v.scale;
+  if (
+    typeof sc !== 'number' ||
+    !Number.isFinite(sc) ||
+    sc < EXPORT_SCALE_MIN ||
+    sc > EXPORT_SCALE_MAX
+  )
+    return null;
+  return { format, scale: sc };
+}
+
+/** What a `.meta.json` (any writer, any version) says about each artboard's export sizes. Never throws. */
+export function readExportPresets(meta: unknown): Record<string, ExportSize[]> {
+  const out: Record<string, ExportSize[]> = {};
+  const m = isObj(meta) ? meta : {};
+  if (!isObj(m.artboardMeta)) return out;
+  for (const [id, entry] of Object.entries(m.artboardMeta)) {
+    if (!isId(id) || !isObj(entry) || !Array.isArray(entry.exports)) continue;
+    const sizes = entry.exports
+      .slice(0, MAX_EXPORT_SIZES)
+      .map(sizeOf)
+      .filter((x): x is ExportSize => x !== null);
+    if (sizes.length) out[id] = sizes;
+  }
+  return out;
 }
 
 /** An id array as the route accepts it: every member an id, at most MAX_IDS. Duplicates are the
@@ -126,6 +173,46 @@ export function parsePresentPatch(body: unknown): ParseResult {
     }
     patch.notes = out;
   }
+  if (body.exports !== undefined) {
+    if (!isObj(body.exports) || Object.keys(body.exports).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'exports' };
+    const out: Record<string, ExportSize[] | null> = {};
+    for (const [id, v] of Object.entries(body.exports)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'exports' };
+      if (v === null) {
+        out[id] = null;
+        continue;
+      }
+      if (!Array.isArray(v) || v.length > MAX_EXPORT_SIZES)
+        return { ok: false, error: 'bad-field', field: `exports.${id}` };
+      const sizes: ExportSize[] = [];
+      for (let i = 0; i < v.length; i++) {
+        const at = `exports.${id}.${i}`;
+        const e = v[i];
+        if (!isObj(e)) return { ok: false, error: 'bad-field', field: at };
+        for (const k of Object.keys(e))
+          if (!EXPORT_SIZE_KEYS.includes(k))
+            return { ok: false, error: 'bad-field', field: `${at}.${k}` };
+        if (typeof e.format !== 'string' || !EXPORT_FORMATS.includes(e.format))
+          return { ok: false, error: 'bad-field', field: `${at}.format` };
+        if (e.format === 'svg') {
+          if (e.scale !== undefined) return { ok: false, error: 'bad-field', field: `${at}.scale` };
+          sizes.push({ format: 'svg' });
+          continue;
+        }
+        if (
+          typeof e.scale !== 'number' ||
+          !Number.isFinite(e.scale) ||
+          e.scale < EXPORT_SCALE_MIN ||
+          e.scale > EXPORT_SCALE_MAX
+        )
+          return { ok: false, error: 'bad-field', field: `${at}.scale` };
+        sizes.push({ format: e.format as 'png' | 'jpg', scale: e.scale });
+      }
+      out[id] = sizes;
+    }
+    patch.exports = out;
+  }
   return { ok: true, patch };
 }
 
@@ -172,6 +259,7 @@ export function applyPresentPatch(
     }
   if (dup.length) return { ok: false, error: 'duplicate', ids: [...new Set(dup)] };
   for (const [id, v] of Object.entries(patch.notes ?? {})) if (v) written.push(id);
+  for (const [id, v] of Object.entries(patch.exports ?? {})) if (v?.length) written.push(id);
   if (known) {
     const unknown = [...new Set(written.filter((id) => !known.has(id)))];
     if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
@@ -195,6 +283,18 @@ export function applyPresentPatch(
         ? (map[id] as Record<string, unknown>)
         : {};
       const e = withKey(entry, 'notes', v ? v : undefined);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  // S8.8 — the artboard's export sizes: the same entry, the same keep-everything-else rule.
+  if (patch.exports && Object.keys(patch.exports).length) {
+    let map: Record<string, unknown> = isObj(next.artboardMeta) ? next.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.exports)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'exports', v?.length ? v.map((x) => ({ ...x })) : undefined);
       map = withKey(map, id, Object.keys(e).length ? e : undefined);
     }
     next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
@@ -227,5 +327,12 @@ export function presentIdIssues(meta: unknown, known: ReadonlySet<string> | null
     for (const [id, entry] of Object.entries(m.artboardMeta))
       if (isObj(entry) && typeof entry.notes === 'string' && entry.notes && !known.has(id))
         out.unknown.push({ where: `artboardMeta.${id}.notes`, id });
+      else if (
+        isObj(entry) &&
+        Array.isArray(entry.exports) &&
+        entry.exports.length &&
+        !known.has(id)
+      )
+        out.unknown.push({ where: `artboardMeta.${id}.exports`, id });
   return out;
 }

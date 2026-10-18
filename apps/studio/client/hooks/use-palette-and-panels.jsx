@@ -6,6 +6,7 @@ import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
 import { normalizeOpenPath } from '../share-link.js';
 import { copyPresentationLink } from '../v2/present/copy-link.js';
+import { bindCopyPng, runCopyPng } from '../v2/export/copy-png.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -283,6 +284,15 @@ export function usePaletteAndPanels({
     return () => window.removeEventListener(CANVAS_OP_EVENT, on);
   }, []);
 
+  // S8.8 — ⇧⌘C, the menu row and ⌘K "Copy as PNG" are one function, run on what the shell has selected.
+  const copyPngRef = useRef(null);
+  copyPngRef.current = {
+    selected,
+    canvasFile: activePath && activePath !== SYSTEM_TAB ? activePath : null,
+    designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+  };
+  useEffect(() => bindCopyPng(() => copyPngRef.current), []);
+
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
@@ -291,6 +301,7 @@ export function usePaletteAndPanels({
       'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
       'canvas.new-video': () => createVideo(),
       'export.open': () => setExportDialog({ mode: 'export' }),
+      'export.copy-png': () => runCopyPng().then((r) => shellToast(r.message, r.ok)),
       'share.copy-link': () => {
         const links = shareLinksFor(sharePath);
         const link = links.web ?? links.app ?? links.local;

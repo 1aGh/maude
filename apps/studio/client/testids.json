@@ -13072,14 +13072,17 @@
   {
     "hook": "insp-export-presets",
     "kind": "testid",
-    "meaning": "Export › the row holding the default export presets for the selected kind (object PNG 2× + SVG; Fixed size / Web page PNG 1×; Print PDF; Video MP4; several objects: \"N files…\"). S8 fills the section later.",
+    "meaning": "Export › the row holding the chips for what has no size rows: an object (PNG 2× + SVG), a print artboard (Print PDF), a video artboard (MP4), several objects (\"N files…\"). A Fixed size / Web page artboard shows size rows instead (insp-export-size).",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/export-slot.jsx",
-      "symbol": "ExportSlotBody"
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-export.test.tsx",
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -13087,25 +13090,31 @@
     "kind": "testid",
     "meaning": "Export › one preset chip (repeats inside insp-export-presets).",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/export-slot.jsx",
-      "symbol": "ExportSlotBody"
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-export.test.tsx",
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
     "hook": "insp-export-more",
     "kind": "testid",
-    "meaning": "Export › \"Export… — every option ⇧⌘E\": the pointer at the export sheet.",
+    "meaning": "Export › \"Export… — every option ⇧⌘E\": opens the export sheet for the selection (print and video artboards with their own format).",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/sections/export-slot.jsx",
-      "symbol": "ExportSlotBody"
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-export.test.tsx",
+      "apps/studio/test/v2-inspector-interaction.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -19521,6 +19530,126 @@
     "region": "export sheet",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/exports-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-sizes",
+    "kind": "testid",
+    "meaning": "Export › the list of an artboard's size rows (Fixed size / Web page artboards, Can edit and up).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-size",
+    "kind": "testid",
+    "meaning": "Export › one size row: a scale select, a format select and a − (repeats inside insp-export-sizes).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "SizeRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-scale-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Export › the scale select of size row n (0.5× … 4×); \"—\" for SVG, which has no scale.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-format-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Export › the format select of size row n (PNG · JPG · SVG).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-remove-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Export › − removes size row n; disabled while it is the artboard's only size.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-go",
+    "kind": "testid",
+    "meaning": "Export › the one-click button (\"Export 2 files\"): queues one job per size, no sheet; the files land in Exports.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-copy-png",
+    "kind": "testid",
+    "meaning": "Export › \"Copy as PNG ⇧⌘C\": the selection rendered as a PNG on the clipboard (one artboard or one object).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-error",
+    "kind": "testid",
+    "meaning": "Export › the one line shown when the sizes could not be saved (the old sizes stay).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-need-id",
+    "kind": "testid",
+    "meaning": "Export › the line shown instead of the one-click button when the selected object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/inspector-export.jsx",
+      "symbol": "ExportSectionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-export.test.tsx"],
     "v2": "new"
   }
 ]
