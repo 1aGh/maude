@@ -140,16 +140,21 @@ test('BOTH session doors derive the capability from the matrix', () => {
   // and writes `role === 'viewer'` again, which is right until it is not.
   // `canvas/browser-auth.mjs` moved to `src/` when DDR-209 A'3 emptied the
   // canvas directory — the door itself is unchanged.
+  // S9.2/S9.6b: both doors (and the invite redeem) mint through `peerSessionFields`
+  // (cloud-identity.mjs), which is where the read-only bit derives from the matrix.
+  const fields = readFileSync(join(HERE, 'src/cloud-identity.mjs'), 'utf8');
+  assert.match(fields, /readOnly: isReadOnlyRole\(role\)/, 'peerSessionFields must ask the matrix');
   for (const file of ['src/auth-routes.mjs', 'src/browser-auth.mjs']) {
     const src = readFileSync(join(HERE, file), 'utf8');
     assert.ok(
-      src.includes('isReadOnlyRole('),
-      `${file} must derive read-only from the role matrix`
+      src.includes('...peerSessionFields(door,'),
+      `${file} must mint through peerSessionFields`
     );
     assert.ok(
       !/readOnly:\s*\w+\.role === 'viewer'/.test(src),
       `${file} must not re-derive the viewer rule locally`
     );
+    assert.ok(!/readOnly:\s*(true|false)\b/.test(src), `${file} must not assert read-only`);
   }
 });
 
@@ -234,10 +239,11 @@ test('the mint site translates rather than passing the account role through', ()
   // and its projection both come from `peerSessionFields(door)`.
   assert.match(src, /const door = peerTokenDoor\(claimOf\(result\)/);
   assert.match(src, /\.\.\.peerSessionFields\(door,/);
-  // The invite-redeem door still translates inline.
-  assert.match(src, /const projectRole = projectRoleForAccount\(result\.user\.role\)/);
-  assert.match(src, /role: projectRole/);
-  assert.match(src, /isReadOnlyRole\(projectRole\)/);
+  // S9.6b: the invite-redeem door mints through the same door — the account's `access` when it
+  // has one (a canvas invite), else the account role translated by `claimOf` — and both doors
+  // store the role and its projection from `peerSessionFields`.
+  assert.match(src, /const door = peerTokenDoor\(\s*claimOf\(\{\s*user: result\.user,/);
+  assert.equal(src.match(/\.\.\.peerSessionFields\(door,/g)?.length, 2);
   assert.ok(
     !/isReadOnlyRole\(user\.role\)/.test(src),
     'user.role is an account role and must not reach the project-role matrix raw'
