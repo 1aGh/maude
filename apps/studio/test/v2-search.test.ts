@@ -334,6 +334,11 @@ describe('"?" — the shortcuts sheet', () => {
     expect(rows.find((r) => r.id === 'object.remove')?.alt).toEqual([]);
     // A meaningful one-modifier variant stays: ⇧-arrows nudge further.
     expect(rows.find((r) => r.id === 'object.nudge')?.alt).toEqual(['⇧←', '⇧→', '⇧↑', '⇧↓']);
+    // ⌥⌘1 … ⌥⌘9 is one key to learn, shown as a range like "Show tab 1–9".
+    expect(rows.find((r) => r.id === 'view.jump-artboard')).toMatchObject({
+      keys: ['⌥⌘1–9'],
+      alt: [],
+    });
     const objects = sheet.groups.find((g) => g.id === 'objects')?.rows ?? [];
     expect(objects.filter((r) => r.label === 'Nudge')).toHaveLength(1);
     expect(objects.find((r) => r.label === 'Nudge')).toMatchObject({ also: ['annotation.nudge'] });

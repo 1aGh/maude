@@ -224,7 +224,7 @@ describe('the way back out exists only where there is somewhere to go', () => {
     // Conditional spread — the same shape `canvasToken` uses two fields down,
     // so an absent value is absent rather than a string nobody can act on.
     expect(HTTP).toContain(
-      '...(process.env.HUB_DASHBOARD_URL\n                  ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }\n                  : {}),'
+      '...(process.env.HUB_DASHBOARD_URL\n                ? { dashboardUrl: process.env.HUB_DASHBOARD_URL }\n                : {}),'
     );
     expect(HTTP).not.toContain("HUB_DASHBOARD_URL ?? 'https://cloud.maude.sh'");
   });

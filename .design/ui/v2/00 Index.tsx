@@ -188,7 +188,7 @@ const RULES: { title: string; icon: ReactNode; rules: Rule[] }[] = [
     title: "Modes", icon: <Icon name="view" size={15} />,
     rules: [
       { t: "The mode switch lives in the Share cluster", src: "§7", d: <>Edit · Preview · Present. Read-only people see <b>Viewing</b> there instead of Edit.</>, see: ["04 · md-model", "04 · md-comment-only"] },
-      { t: "AI holds still under your pointer", src: "Q", d: <>While you preview, AI's change to the artboard you're clicking through lands when you move off it.</>, see: ["04 · md-edge-ai"] },
+      { t: "AI under your pointer", src: "A8", d: <>While you preview, AI's changes show live, on the artboard you're clicking through too. In Present a change lands when you move on to the next artboard.</>, see: ["04 · md-edge-ai"] },
       { t: "Two toolbars, one per mode", src: "§2", d: <><b>Edit</b> makes things inside artboards — Select · Hand · Frame · Shape · Pen · Text · <b>Image</b> · <b>Component</b> · More. <b>Preview</b> only marks up, FigJam-style — Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section; the design stays live. N C M A E S in Edit switch to Preview with that tool; esc returns to Edit.</>, see: ["04 · md-annotate", "04 · md-edit-image", "04 · md-edit-component"] },
       { t: "Keys for the modes", src: "Q", d: <>⌥⌘P Preview · ⌥⌘↵ Present from the selection · ⇧⌥⌘↵ from the start · L for a ringed pointer while presenting.</>, see: ["04 · md-keys"] },
     ],
