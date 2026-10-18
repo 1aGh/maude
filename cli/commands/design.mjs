@@ -28,7 +28,7 @@ import {
   defaultV1Scope,
   estimateLines,
   filenameFromDisposition,
-  planExportRequest,
+  planExportArgv,
   refusalText,
   V1_FORMATS,
   V2_ONLY_FORMATS,
@@ -779,15 +779,12 @@ async function runExport({ args }) {
   // `--folder --canvas --artboard --element --region --unit --at --wait --name --estimate` sends
   // `{v:2, spec}`; the v1 scope spellings send the v1 body unchanged.
   const subArgs = args.slice(args.indexOf('export') + 1);
-  const { positional, flags } = parseArgs(subArgs, {
-    booleans: ['help', 'estimate'],
-  });
+  const { format, flags, optionItems, plan } = planExportArgv(subArgs);
   if (flags.help) {
     process.stdout.write(usage());
     return;
   }
 
-  const format = positional[0];
   // Includes the temporal formats (DDR-148): mp4/webm/gif render through the
   // capture spine, same POST /_api/export the UI export sheet uses. Video export
   // is always artboard-scoped (the comp's registered meta drives fps/duration).
@@ -799,13 +796,9 @@ async function runExport({ args }) {
     process.exit(2);
   }
 
-  // Collect repeatable flags: `--option key=value`, `--artboard <id>`, `--element <id>`.
-  const optionItems = collectRepeatedFlag(subArgs, '--option');
-  const plan = planExportRequest(format, flags, {
-    option: optionItems,
-    artboard: collectRepeatedFlag(subArgs, '--artboard'),
-    element: collectRepeatedFlag(subArgs, '--element'),
-  });
+  // The repeatable flags (`--option key=value`, `--artboard`, `--element`, `--kind`) are collected
+  // by planExportArgv (cli/lib/export-spec.mjs) — the same path the Export sheet's command lines are
+  // tested against.
   if (plan.error) {
     process.stderr.write(`maude design export: ${plan.error}\n`);
     process.exit(2);
@@ -966,19 +959,6 @@ export function parseExportOptions(items) {
   }
   if (Object.keys(pdfPrint).length > 0) options.pdfPrint = pdfPrint;
   return { options };
-}
-
-function collectRepeatedFlag(argv, name) {
-  const out = [];
-  for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === name && argv[i + 1] !== undefined) {
-      out.push(argv[i + 1]);
-      i += 1;
-    } else if (argv[i].startsWith(`${name}=`)) {
-      out.push(argv[i].slice(name.length + 1));
-    }
-  }
-  return out;
 }
 
 async function runInit({ args, pkgRoot }) {

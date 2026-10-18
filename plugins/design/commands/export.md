@@ -2,7 +2,7 @@
 name: export
 category: daily
 description: "Export a canvas to images, documents, slides, video or a handoff bundle."
-argument-hint: "<png|jpg|pdf|svg|html|pptx|mp4|gif|webm|canva|zip|audio> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--name <template>] [--estimate] [--out <path>] [--option key=value]"
+argument-hint: "<png|jpg|pdf|svg|html|pptx|mp4|gif|webm|canva|zip|audio> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--kind <kind>=<format>[:k=v,k=v]] [--name <template>] [--estimate] [--out <path>] [--option key=value]"
 ---
 
 # /design:export — export active canvas
@@ -20,6 +20,7 @@ Sends one export spec to the running dev-server (`POST /_api/export`), the same 
 | `<format>` (required) | `png` / `jpg` / `pdf` / `svg` / `html` / `pptx` / `mp4` / `gif` / `webm` / `canva` / `zip` / `audio` |
 | `--scope <s>` | `selection` / `canvas` / `folder` / `project`: Selection, This canvas, Folder, Whole project. `--canvas <rel>` names the canvas (default: the open one), `--folder <rel>` the folder, `--artboard <id>` / `--element <id>` (repeatable) the selection. |
 | `--region x,y,w,h` / `--unit each\|one` | A world rectangle of the canvas; `one` makes one file of everything in scope. |
+| `--kind <kind>=<format>[:k=v,k=v]` (repeatable) | Each artboard kind its own format: `--kind digital=png:scale=1 --kind print=pdf:bleed=true,marks=crop --kind video=mp4`. What the Export sheet's groups by kind send as `byKind`; the options after `:` are `--option` items for that kind alone. The positional format is the default for a kind not named. |
 | `--name '<template>'` | File names, with `{project} {folder} {canvas} {artboard} {kind} {size} {scale} {date}`. |
 | `--estimate` | Print the number of files, size and time for the spec, and export nothing. |
 | `--at <sha>` / `--wait ai` | A past version / wait for the AI. The server answers "not available yet" until they are built, and the CLI prints that sentence. |

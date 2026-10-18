@@ -404,6 +404,38 @@ test("--scope folder --folder … --name … → the sheet's spec, accepted by v
   });
 });
 
+test('--kind per kind → spec.byKind, accepted by validateSpecV2 (the sheet’s groups by kind)', async () => {
+  const spec = await v2Spec([
+    'png',
+    '--scope',
+    'folder',
+    '--folder',
+    'social',
+    '--kind',
+    'digital=png:scale=1',
+    '--kind',
+    'print=pdf:bleed=true,marks=crop',
+    '--kind',
+    'video=mp4',
+  ]);
+  assert.deepEqual(spec.byKind, {
+    digital: { format: 'png', options: { size: { scale: 1 } } },
+    print: { format: 'pdf', options: { print: { bleed: true, marks: 'crop' } } },
+    video: { format: 'mp4' },
+  });
+});
+
+test('--kind without a format exits 2 and sends nothing', async () => {
+  await withExport(
+    ['png', '--scope', 'project', '--kind', 'print'],
+    ({ code, stderr, requests }) => {
+      assert.equal(code, 2);
+      assert.match(stderr, /--kind/);
+      assert.equal(requests.length, 0);
+    }
+  );
+});
+
 test('--scope canvas with --canvas, --region, --unit one, jpg and size → one spec', async () => {
   const spec = await v2Spec([
     'jpg',

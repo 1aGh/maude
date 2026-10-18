@@ -12,6 +12,8 @@
 // the v1 body unchanged. `selection` is in both — alone it stays the v1 "live selection" body, and
 // the moment a v2-only flag names what to export (`--artboard`, `--region`, …) it is v2.
 
+import { parseArgs } from './argv.mjs';
+
 export const V1_SCOPES = [
   'selection',
   'artboard',
@@ -35,6 +37,7 @@ export const V1_FORMATS = [
 ];
 /** Formats only the v2 engine knows. */
 export const V2_ONLY_FORMATS = ['jpg', 'audio'];
+const ALL_FORMATS = new Set([...V1_FORMATS, ...V2_ONLY_FORMATS]);
 const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif']);
 
 /** Flags that only mean something in a v2 spec (the value-taking ones; `--estimate` is a boolean). */
@@ -93,6 +96,37 @@ export function parseSpecOptions(items) {
   return { options };
 }
 
+/**
+ * Repeated `--kind <kind>=<format>[:k=v,k=v]` → the spec's `byKind` (S8.3: "each kind keeps its own
+ * format"), or `{ error }`. The options after the colon are `--option` items for that kind alone, so
+ * `--kind print=pdf:bleed=true,marks=crop` is `byKind.print = { format: 'pdf', options: { print: … } }`.
+ */
+export function parseKindFormats(items) {
+  const byKind = {};
+  for (const item of items) {
+    const eq = item.indexOf('=');
+    const colon = item.indexOf(':');
+    const head = colon < 0 ? item : item.slice(0, colon);
+    const kind = head.slice(0, head.indexOf('='));
+    const format = eq < 1 ? '' : head.slice(eq + 1);
+    if (!kind || !ALL_FORMATS.has(format))
+      return { error: `invalid --kind "${item}" (expected kind=format, e.g. print=pdf)` };
+    const entry = { format };
+    if (colon >= 0) {
+      const parsed = parseSpecOptions(
+        item
+          .slice(colon + 1)
+          .split(',')
+          .filter(Boolean)
+      );
+      if (parsed.error) return { error: parsed.error };
+      if (Object.keys(parsed.options).length) entry.options = parsed.options;
+    }
+    byKind[kind] = entry;
+  }
+  return { byKind };
+}
+
 /** `x,y,w,h` → `{ x, y, w, h }` (world units, w and h > 0), or `{ error }`. */
 export function parseRegion(text) {
   const parts = String(text ?? '')
@@ -111,7 +145,7 @@ export function parseRegion(text) {
  *
  * @param {string} format
  * @param {Record<string, unknown>} flags     parsed `--flag value` pairs
- * @param {{ option?: string[], artboard?: string[], element?: string[] }} repeated  repeatable flags
+ * @param {{ option?: string[], artboard?: string[], element?: string[], kind?: string[] }} repeated  repeatable flags
  * @returns {{ mode: 'v1', body: object }
  *          | { mode: 'v2', spec: object }
  *          | { error: string }}
@@ -119,10 +153,12 @@ export function parseRegion(text) {
 export function planExportRequest(format, flags, repeated = {}) {
   const artboards = repeated.artboard ?? [];
   const elements = repeated.element ?? [];
+  const kinds = repeated.kind ?? [];
   const v2Flags = [
     ...V2_FLAGS.filter((k) => flags[k] !== undefined).map((k) => `--${k}`),
     ...(artboards.length ? ['--artboard'] : []),
     ...(elements.length ? ['--element'] : []),
+    ...(kinds.length ? ['--kind'] : []),
   ];
   const wantsV2 = v2Flags.length > 0 || flags.estimate === true || V2_ONLY_FORMATS.includes(format);
 
@@ -171,6 +207,11 @@ export function planExportRequest(format, flags, repeated = {}) {
     spec.unit = flags.unit;
   }
   spec.format = format;
+  if (kinds.length) {
+    const k = parseKindFormats(kinds);
+    if (k.error) return { error: k.error };
+    spec.byKind = k.byKind;
+  }
   const parsed = parseSpecOptions(optionItems);
   if (parsed.error) return { error: parsed.error };
   const options = parsed.options;
@@ -179,6 +220,38 @@ export function planExportRequest(format, flags, repeated = {}) {
   if (flags.at !== undefined) spec.at = { sha: String(flags.at) };
   if (flags.wait !== undefined) spec.wait = flags.wait;
   return { mode: 'v2', spec };
+}
+
+/** Every occurrence of a repeatable `--flag value` / `--flag=value` in an argv. */
+export function collectRepeatedFlag(argv, name) {
+  const out = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === name && argv[i + 1] !== undefined) {
+      out.push(argv[i + 1]);
+      i += 1;
+    } else if (argv[i].startsWith(`${name}=`)) {
+      out.push(argv[i].slice(name.length + 1));
+    }
+  }
+  return out;
+}
+
+/**
+ * The words after `maude design export` → the format and the request to send. The ONE path both the
+ * CLI and the Export sheet's command-line test take, so a printed command line cannot drift from the
+ * parser. @returns {{ format: string|undefined, flags: object, optionItems: string[], plan: object }}
+ */
+export function planExportArgv(subArgs) {
+  const { positional, flags } = parseArgs(subArgs, { booleans: ['help', 'estimate'] });
+  const format = positional[0];
+  const optionItems = collectRepeatedFlag(subArgs, '--option');
+  const plan = planExportRequest(format, flags, {
+    option: optionItems,
+    artboard: collectRepeatedFlag(subArgs, '--artboard'),
+    element: collectRepeatedFlag(subArgs, '--element'),
+    kind: collectRepeatedFlag(subArgs, '--kind'),
+  });
+  return { format, flags, optionItems, plan };
 }
 
 /** The v1 default scope per format (unchanged since V2-2.8). */
