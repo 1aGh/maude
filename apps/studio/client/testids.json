@@ -4743,9 +4743,7 @@
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4758,9 +4756,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4773,9 +4769,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4788,9 +4782,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4803,9 +4795,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4818,9 +4808,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4833,9 +4821,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4848,9 +4834,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4863,9 +4847,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4878,9 +4860,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4893,9 +4873,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4908,9 +4886,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4923,9 +4899,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4938,9 +4912,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4953,9 +4925,7 @@
       "symbol": "OrderMap"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4968,9 +4938,7 @@
       "symbol": "PresenterView"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4983,9 +4951,7 @@
       "symbol": "OrderMap"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -4998,9 +4964,7 @@
       "symbol": "OrderMap"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -5013,9 +4977,7 @@
       "symbol": "PresenterViewButton"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -5028,9 +4990,7 @@
       "symbol": "ModeSwitch"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/presenter-view.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/presenter-view.test.tsx"],
     "v2": "new"
   },
   {
@@ -13551,6 +13511,90 @@
     "region": "other",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-<copy-id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The root of an empty state read from the copy table; `<copy-id>` is the copy id (`es-panels-canvas.comments-none`), also on `data-copy`. Carries the situation, the next step, chips and at most one action.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/empty.jsx",
+      "symbol": "Empty"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-spot-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A spot (`canvas`, `ai`, `none`, `comment`, `image`, `done`, `offline`, `trash`); decorative, `aria-hidden`.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/spot.jsx",
+      "symbol": "Spot"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Ask AI\" button of an empty state (azure, spark glyph); a real button, takes the keys label (`⌘/`).",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/ask-button.jsx",
+      "symbol": "AskButton"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-confetti",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sticky-confetti tile behind Comments \"All done.\" — the one celebration; decorative.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/confetti.jsx",
+      "symbol": "Confetti"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "arriving-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/skeleton.jsx",
+      "symbol": "ArrivingRow"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "skeleton-artboard",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/skeleton.jsx",
+      "symbol": "SkeletonArtboard"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
   }
 ]
