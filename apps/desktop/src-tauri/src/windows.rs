@@ -1951,6 +1951,7 @@ pub fn drop_parked_for(label: &str) {
     crate::deep_link::LINK_OPENED.take(label);
     crate::deep_link::PENDING_LINKS.take(label);
     PICKED_FOLDER.take(label);
+    crate::lifecycle::drop_for(label);
 }
 
 /// `take_tabs_restored()` — the restore count parked for THIS window, once.

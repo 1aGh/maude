@@ -245,6 +245,8 @@ pub fn restart_to_update(app: AppHandle, webview: tauri::Webview) -> Result<(), 
     }
     eprintln!("[maude] restart_to_update — killing sidecar and relaunching into the update");
     crate::sidecar::kill_server(&app);
+    // S11.16: an update restart is a clean quit, not a crash.
+    crate::lifecycle::clean_exit(&app);
     app.restart();
 }
 

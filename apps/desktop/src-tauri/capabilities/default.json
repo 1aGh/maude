@@ -55,6 +55,10 @@
     "allow-managed-project-open",
     "allow-managed-projects-list",
     "allow-accounts-list",
-    "allow-pick-attach-folder"
+    "allow-pick-attach-folder",
+    "allow-project-reveal-path",
+    "allow-project-open-in-editor",
+    "allow-diagnostics-reveal-logs",
+    "allow-take-crash-notice"
   ]
 }

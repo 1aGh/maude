@@ -19,8 +19,10 @@ mod app_state;
 mod bus;
 mod crash_reporter;
 mod deep_link;
+mod doors;
 mod home;
 mod keychain;
+mod lifecycle;
 // issue #105 — WebKitGTK's GStreamer media path is the one part of the shell that
 // can kill the renderer before the user sees a single pixel of their canvas.
 #[cfg(target_os = "linux")]
@@ -120,6 +122,7 @@ fn install_signal_handler(handle: tauri::AppHandle) {
                     sidecar::log_shutdown("[maude] termination signal received — killing sidecar");
                     sidecar::kill_server(&handle);
                     home::kill(&handle);
+                    lifecycle::clean_exit(&handle);
                     std::process::exit(0);
                 }
                 Err(e) => {
@@ -745,6 +748,11 @@ pub fn run() {
             profiles::profiles_delete,
             profiles::accounts_list,
             pick_attach_folder,
+            // S11.16: the native doors + the crash notice.
+            doors::project_reveal_path,
+            doors::project_open_in_editor,
+            doors::diagnostics_reveal_logs,
+            lifecycle::take_crash_notice,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
@@ -857,6 +865,8 @@ pub fn run() {
             if let Err(e) = home::ensure_home_window(&handle, None) {
                 sidecar::log_line(&format!("[maude] FATAL: could not open the Home tab: {e}"));
             }
+            // S11.16: did the last run quit cleanly? Marks this one either way.
+            let crashed = lifecycle::start(&handle);
             match &plan {
                 BootPlan::Project(root) => {
                     windows::boot_windows(&handle, Some(&root.to_string_lossy()));
@@ -866,6 +876,7 @@ pub fn run() {
                     windows::boot_windows(&handle, reopen.as_deref());
                 }
             }
+            lifecycle::after_boot(&handle, crashed);
 
 
             // 3. SIGTERM/SIGINT → kill sidecar + exit.
@@ -976,6 +987,10 @@ pub fn run() {
             quit::last_chance(app_handle);
             sidecar::kill_server(app_handle);
             home::kill(app_handle);
+            // S11.16: only the final Exit is a clean quit (an ExitRequested can still be held).
+            if matches!(event, RunEvent::Exit) {
+                lifecycle::clean_exit(app_handle);
+            }
         }
         // Dock click with the shell hidden (its close button, V2-3.7): show it
         // again on the tab that was active.
