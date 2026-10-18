@@ -346,35 +346,14 @@ describe('s20-deployment (native-desktop)', () => {
     // Deleting the FILE is not deleting the canvas: the deployment holds the
     // document and puts the file back, which is what should happen when an
     // editor or a stray `rm` removes one. Removal is a deliberate action, so
-    // the designer takes it in the product — the row's own delete control.
-    // Its confirmation is a native `window.confirm`, outside the DOM and
-    // outside WebDriver's reach in this shell; answering it here is the only
-    // accommodation in this scenario.
-    await browser.execute(() => {
-      window.confirm = () => true;
-    });
+    // the designer takes it in the product — the row menu's "Move to trash" (S1.2: it asks nothing and
+    // offers Undo, so there is no native confirm to answer any more).
     const row = await $(`[data-testid^="canvas-row-"][data-testid$="s20-release-check"]`);
     await row.waitForDisplayed({ timeout: 60_000 });
     await row.moveTo();
-    // The row IS a <button>, so its delete control cannot be nested inside it —
-    // it is a sibling in the row wrapper. Pick it out of the tree's delete
-    // controls by the canvas it names.
-    let del: WebdriverIO.Element | null = null;
-    await eventually(
-      'the delete control for the throwaway canvas',
-      async () => {
-        for (const b of await $$('[aria-label^="Delete canvas"]')) {
-          const label = (await b.getAttribute('aria-label')) ?? '';
-          if (label.toLowerCase().includes('s20-release-check')) {
-            del = b as unknown as WebdriverIO.Element;
-            return true;
-          }
-        }
-        return false;
-      },
-      30_000
-    );
-    await (del as unknown as WebdriverIO.Element).click();
+    const trigger = await $(`[data-testid^="tree-row-menu-"][data-testid$="s20-release-check"]`);
+    await trigger.click();
+    await (await $(tid('canvas-menu-trash'))).click();
     await eventually('the throwaway canvas retired on the deployment', async () =>
       (await hubDocs(t.hub)).every((p) => p !== REL)
     );

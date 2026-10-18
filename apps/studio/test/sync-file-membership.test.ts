@@ -242,6 +242,9 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     '_runs/sess-1/snap/toolu_01',
     '_runs/shots.jsonl',
     '_state/runs/run_01.json',
+    // S5.3 — the run registry's record and its tmp-before-rename sibling (ai/runs.ts persist)
+    '_state/runs/x.json',
+    '_state/runs/r_0123456789ab.json.4242.tmp',
     '_state/outbox/intents/1760000000000-i_abcdefghij0123456789.json',
     'nested/_history/x.png',
     'nested/.kgai/y',

@@ -198,6 +198,17 @@ describe('POST /_api/pins (project server)', () => {
     expect(listed.pins).toHaveLength(1);
   });
 
+  // S1.1: the Canvases panel's "Recently opened" order needs when each canvas was last opened here.
+  test('GET also answers when each canvas was last opened on this Mac', async () => {
+    const a = makeProject('alpha', { 'ui/One.tsx': 'One', 'ui/Two.tsx': 'Two' });
+    stampRecent(a.designRoot, 'ui/Two.tsx', 1760001000000);
+    const listed = (await (
+      await route(a.designRoot, 'GET').handle(new Request('http://127.0.0.1/_api/pins'), {})
+    ).json()) as { pins: unknown[]; opened: Record<string, number> };
+    expect(listed.opened).toEqual({ 'ui/Two.tsx': 1760001000000 });
+    expect(listed.pins).toEqual([]);
+  });
+
   test('refuses a key outside the canvas vocabulary and a canvas that is not there', async () => {
     const a = makeProject('alpha', { 'ui/One.tsx': 'One' });
     const post = route(a.designRoot, 'POST');

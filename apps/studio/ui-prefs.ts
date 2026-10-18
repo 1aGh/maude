@@ -60,6 +60,11 @@ export interface UiPrefs {
   fold?: Record<string, boolean>;
   seen?: Record<string, true>;
   canvases?: { showHidden?: boolean };
+  /**
+   * S1.1: the Canvases panel's order, one entry per PROJECT id (never per port — the prefs-follow-port
+   * bug). Absent = Recently opened, folders on top.
+   */
+  canvasesSort?: Record<string, { by: 'recent' | 'name' | 'kind'; foldersOnTop: boolean }>;
   panelsHidden?: boolean;
   /** V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts. Absent = on. */
   singleKeyShortcuts?: boolean;
@@ -252,6 +257,25 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
       return fail('canvases.showHidden must be a boolean');
     patch.canvases = 'showHidden' in o ? { showHidden: o.showHidden as boolean } : {};
   }
+  if ('canvasesSort' in body) {
+    const cs = body.canvasesSort;
+    const msg = 'canvasesSort must map a project id to { by, foldersOnTop }';
+    if (!cs || typeof cs !== 'object' || Array.isArray(cs)) return fail(msg);
+    const keys = Object.keys(cs);
+    if (keys.length > MAP_MAX) return fail(`canvasesSort has more than ${MAP_MAX} entries`);
+    const out: NonNullable<UiPrefs['canvasesSort']> = {};
+    for (const k of keys) {
+      const v = (cs as Record<string, unknown>)[k];
+      if (UNSAFE_KEYS.has(k) || !MAP_KEY.test(k)) return fail('canvasesSort has an invalid id');
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return fail(msg);
+      const e = v as Record<string, unknown>;
+      if (Object.keys(e).some((x) => x !== 'by' && x !== 'foldersOnTop')) return fail(msg);
+      if (e.by !== 'recent' && e.by !== 'name' && e.by !== 'kind') return fail(msg);
+      if (typeof e.foldersOnTop !== 'boolean') return fail(msg);
+      out[k] = { by: e.by, foldersOnTop: e.foldersOnTop };
+    }
+    patch.canvasesSort = out;
+  }
   if ('pin' in body) {
     const pin = body.pin;
     if (!pin || typeof pin !== 'object' || Array.isArray(pin)) return fail('pin must be an object');
@@ -359,7 +383,7 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
   };
   // v2 homes are maps: a patch adds or changes keys, it never replaces the whole map (so a closed
   // fold or a second tour id cannot wipe its siblings). `version` only moves forward.
-  for (const k of ['fold', 'seen', 'canvases'] as const) {
+  for (const k of ['fold', 'seen', 'canvases', 'canvasesSort'] as const) {
     if (patch[k] !== undefined) merged[k] = { ...plain(cur[k]), ...plain(patch[k]) } as never;
   }
   if (patch.pin !== undefined) {

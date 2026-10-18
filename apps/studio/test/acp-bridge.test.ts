@@ -124,6 +124,43 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       await bridge.stop();
     }
   }, 15000);
+
+  test("V2-1.15 §5.4 — a chat's adapter carries its own MAUDE_CHAT_ID and nothing else's", async () => {
+    process.env.MAUDE_ACP_ADAPTER_ENTRY = FIXTURE;
+    process.env.MAUDE_ACP_RUNTIME = process.execPath;
+    process.env.MAUDE_CLAUDE_BIN = process.execPath;
+    // A binding in the studio's own env (another chat's, or a terminal's) must never leak in.
+    const prev = process.env.MAUDE_CHAT_ID;
+    process.env.MAUDE_CHAT_ID = 'someone-elses-chat';
+    const runOne = async (chatId?: string) => {
+      const updates: unknown[] = [];
+      const bridge = new AcpBridge({
+        repoRoot: process.cwd(),
+        onUpdate: (u) => updates.push(u),
+        ...(chatId ? { chatId } : {}),
+      });
+      try {
+        await bridge.prompt('hi', chatId || 'c0');
+        return JSON.stringify(updates);
+      } finally {
+        await bridge.stop();
+      }
+    };
+    try {
+      const a = await runOne('chat_A-1');
+      const b = await runOne('chat_B-2');
+      const none = await runOne();
+      expect(a).toContain('chatId=chat_A-1');
+      expect(b).toContain('chatId=chat_B-2');
+      expect(a).not.toContain('chat_B-2');
+      expect(b).not.toContain('chat_A-1');
+      expect(none).toContain('chatId=<unset>');
+      for (const s of [a, b, none]) expect(s).not.toContain('someone-elses-chat');
+    } finally {
+      if (prev === undefined) delete process.env.MAUDE_CHAT_ID;
+      else process.env.MAUDE_CHAT_ID = prev;
+    }
+  }, 20000);
 });
 
 describe('AcpBridge — cross-restart session resume (DDR-125 gap)', () => {

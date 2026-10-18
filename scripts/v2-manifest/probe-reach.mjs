@@ -340,6 +340,8 @@ async function bootServer() {
       ...process.env,
       HOME: home,
       XDG_CONFIG_HOME: join(home, '.config'),
+      // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
+      MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
       NO_OPEN: '1',
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',
@@ -544,7 +546,18 @@ async function runOpener(browser, srv, probe, opener) {
           .catch(() => false))
       )
         continue;
-      if (step.click) {
+      if (step.ensureOpen) {
+        // a fold toggle: click it only while it says aria-expanded="false" (absent or open: no-op), so a
+        // fold the Mac remembers open is not shut again (S2.2 — the Inspector's › Advanced fold)
+        const el = page.locator(step.ensureOpen).first();
+        if (!(await el.isVisible().catch(() => false))) continue;
+        if ((await el.getAttribute('aria-expanded').catch(() => null)) !== 'false') continue;
+        try {
+          await el.click({ timeout: 3000 });
+        } catch {
+          await el.evaluate((n) => n.click(), null, { timeout: 2000 });
+        }
+      } else if (step.click) {
         const el = page.locator(step.click).first();
         if (step.optional && !(await el.isVisible().catch(() => false))) continue;
         try {

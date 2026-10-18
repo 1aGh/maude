@@ -20,7 +20,7 @@ afterAll(async () => {
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
-import StickerPicker from '../client/panels/StickerPicker.jsx';
+import StickersGallery from '../client/v2/annotations/stickers-gallery.jsx';
 import { placePanel, toShellRect } from '../client/v2/shell/tool-panels.js';
 import { createToolPanelLane } from '../client/v2/shell/use-tool-panels.js';
 import { toolPanelOpenMessage } from '../toolbars/tool-panel.ts';
@@ -49,6 +49,7 @@ function makeLane(opts: { activePath?: string | null; canEdit?: boolean } = {}) 
   const opened: Array<{ canvas: string; anchor: unknown }> = [];
   let assets = 0;
   let denied = 0;
+  let clock = 0;
   const frames = new Map<string, ReturnType<typeof frameEl>>([
     ['a.tsx', frameEl(activeWin)],
     ['b.tsx', frameEl(backgroundWin)],
@@ -65,6 +66,13 @@ function makeLane(opts: { activePath?: string | null; canEdit?: boolean } = {}) 
     canEdit: () => opts.canEdit !== false,
     deny: () => {
       denied++;
+    },
+    // S4.3 (EH-P4-2): the lane asks whether the canvas has focus and rate-limits opens; these tests are
+    // about placement and roles, so the canvas is focused and each message lands a second apart.
+    hasFocus: () => true,
+    now: () => {
+      clock += 1000;
+      return clock;
     },
   });
   return { lane, opened, assets: () => assets, denied: () => denied };
@@ -124,8 +132,9 @@ describe('the lane: toolbar-rect + tool-panel-open', () => {
     // bar in shell px = (400, 770, 400, 44) → above; centred on the button (618 + 100 + 18)
     expect(opened[0].anchor).toMatchObject({
       placement: 'above',
+      width: 440,
       bottom: 900 - 770 + 10,
-      left: 100 + 600 + 18 - 320,
+      left: 100 + 600 + 18 - 220, // the Stickers island is 440 wide
     });
   });
 
@@ -206,13 +215,15 @@ describe('the bridge table', () => {
   });
 });
 
-describe('StickerPicker hosted as a shell panel', () => {
+describe('the Stickers gallery hosted as a shell panel', () => {
   async function mount(anchor: unknown) {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(<StickerPicker onPick={() => {}} onClose={() => {}} anchor={anchor as never} />);
+      root.render(
+        <StickersGallery onPick={() => {}} onClose={() => {}} anchor={anchor as never} />
+      );
     });
     return { host, root };
   }

@@ -61,7 +61,8 @@ acp
             `model=${process.env.ANTHROPIC_MODEL ?? '<unset>'} ` +
             `thinking=${process.env.MAX_THINKING_TOKENS ?? '<unset>'} ` +
             `claudeExe=${process.env.CLAUDE_CODE_EXECUTABLE ?? '<unset>'} ` +
-            `actor=${process.env.MAUDE_AGENT_ACTOR ?? '<unset>'}`,
+            `actor=${process.env.MAUDE_AGENT_ACTOR ?? '<unset>'} ` +
+            `chatId=${process.env.MAUDE_CHAT_ID ?? '<unset>'}`,
         },
       },
     });

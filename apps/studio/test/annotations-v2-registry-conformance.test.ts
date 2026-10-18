@@ -1,5 +1,5 @@
 // annotations-v2 (DDR-242, Task 25) — every registered element type honours
-// the same contract, and a NEW type is one definition: the `stamp` below is
+// the same contract, and a NEW type is one definition: the `badge` below is
 // declared in this file only, then drawn, hit, moved, synced and read/written
 // by the AI verbs through the code paths every built-in type uses.
 
@@ -7,7 +7,7 @@ import { describe, expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { projectBoard } from '../annotations/ai-read.ts';
-import { AiBatch } from '../annotations/ai-write.ts';
+import { AiBatch, PEOPLE_ONLY_TYPES } from '../annotations/ai-write.ts';
 import {
   BOX_FIELDS,
   boxOf,
@@ -36,8 +36,8 @@ import { resizeStroke } from '../use-annotation-resize.tsx';
 // ─────────────────────────────────────────────────────────────────────────────
 // The throwaway type — this block is ALL it takes to add one.
 
-const stamp: ElementDef = {
-  type: 'stamp',
+const badge: ElementDef = {
+  type: 'badge',
   fields: { ...BOX_FIELDS, glyph: str({ max: 8, plain: true }) },
   caps: {
     box: true,
@@ -53,13 +53,13 @@ const stamp: ElementDef = {
   resize: resizeBox,
   meaningful: (el) => boxOf(el).w >= 8 && boxOf(el).h >= 8,
 };
-registerElementType(stamp);
-registerElementView('stamp', ({ el }) => {
+registerElementType(badge);
+registerElementView('badge', ({ el }) => {
   const b = boxOf(el);
   return createElement(
     ElementBox,
     { el, x: b.x, y: b.y, w: b.w, h: b.h },
-    createElement('span', { className: 'stamp' }, String(el.glyph ?? ''))
+    createElement('span', { className: 'badge' }, String(el.glyph ?? ''))
   );
 });
 
@@ -76,7 +76,21 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
   link: { x: 10, y: 20, w: 260, h: 76, url: 'https://example.com', title: 'Example' },
   mediaref: { x: 10, y: 20, w: 280, h: 76, src: 'assets/0123abcd.mp4', title: 'clip' },
   section: { x: 10, y: 20, w: 480, h: 320, label: 'Area' },
-  stamp: { x: 10, y: 20, w: 40, h: 40, glyph: '★' },
+  badge: { x: 10, y: 20, w: 40, h: 40, glyph: '★' },
+  // Format 2 (S4.1).
+  stamp: { x: 10, y: 20, w: 32, h: 32, kind: 'heart', target: 'sticky1' },
+  vote: { targets: ['ab:dir-a', 'ab:dir-b'], title: 'Pick one' },
+  ballot: { vote: 'vote1', voter: 'u_ana', picks: { 'ab:dir-a': 1 } },
+};
+
+/** Types whose view lands in a later slice: they still draw as the placeholder
+ *  until then (S4.13 draws stamps). Remove a type here when its view lands. */
+const VIEW_PENDING = new Set(['stamp']);
+
+/** A field patch for metadata types (they have no geometry to translate). */
+const METADATA_PATCH: Record<string, Record<string, unknown>> = {
+  vote: { title: 'Pick two' },
+  ballot: { castAt: '2026-10-01T10:00:00.000Z' },
 };
 
 const CTX: GeomCtx = { origin: { x: 0, y: 0 }, resolve: () => null };
@@ -121,6 +135,13 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
 
   test('bounds / translate / resize agree', () => {
     const el = sample(type);
+    if (def.caps.metadata) {
+      // A metadata record (vote, ballot) has no geometry at all.
+      expect(def.bounds(el, CTX)).toBeNull();
+      expect(def.translate(el, 15, -7)).toEqual({});
+      expect(def.meaningful(el)).toBe(true);
+      return;
+    }
     const b = def.bounds(el, CTX);
     expect(b).not.toBeNull();
     const moved = { ...el, ...def.translate(el, 15, -7) } as AnnotationElement;
@@ -136,6 +157,10 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
 
   test('hit test: never far away; boxes are hit inside unless their interior is click-through', () => {
     const el = sample(type);
+    if (def.caps.metadata) {
+      expect(def.hitTest(el, 0, 0, 1e6, CTX)).toBe(false);
+      return;
+    }
     const b = def.bounds(el, CTX) as Box;
     expect(def.hitTest(el, b.x + b.w + 500, b.y + b.h + 500, 2, CTX)).toBe(false);
     const hollow = type === 'section' || (type === 'shape' && !el.fill);
@@ -149,7 +174,8 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
     const empty = new Map<string, AnnotationElement>();
     const put = applyOps(empty, parseOps([{ op: 'put', el }]).ops);
     expect(put.rejected).toEqual([]);
-    const moved = applyOps(put.state, [{ op: 'patch', id: el.id, set: def.translate(el, 3, 4) }]);
+    const set = def.caps.metadata ? METADATA_PATCH[type] : def.translate(el, 3, 4);
+    const moved = applyOps(put.state, [{ op: 'patch', id: el.id, set }]);
     expect(moved.rejected).toEqual([]);
     expect(applyOps(moved.state, moved.inverse).state.get(el.id)).toEqual(el);
     expect(applyOps(put.state, [{ op: 'delete', id: el.id }]).state.has(el.id)).toBe(false);
@@ -158,11 +184,17 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
   test('AI read shows it; AI write creates it through the registry', () => {
     const el = sample(type);
     const read = projectBoard([el]);
-    expect(read.elements.map((e) => e.id)).toEqual([el.id]);
-    expect(read.elements[0]?.type).toBe(type);
+    // A ballot is the voter's secret until the vote ends (Q5): the agent's read never prints one.
+    expect(read.elements.map((e) => e.id)).toEqual(type === 'ballot' ? [] : [el.id]);
+    if (type !== 'ballot') expect(read.elements[0]?.type).toBe(type);
     if (def.caps.box) {
       const batch = new AiBatch([]);
       const { id: _i, type: _t, index: _x, ...fields } = el;
+      // Votes, ballots and stamps are people's (S4.5): the agent reads them and may not write them.
+      if (PEOPLE_ONLY_TYPES.has(type)) {
+        expect(() => batch.create(type, fields)).toThrow(/people's own votes and reactions/);
+        return;
+      }
       const id = batch.create(type, fields);
       expect(batch.state.get(id)?.type).toBe(type);
       expect(batch.state.get(id)?.author).toEqual({ kind: 'ai' });
@@ -178,6 +210,10 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
 
   test('draws as its own node', () => {
     const items = renderItemsFromStrokes(elementsToStrokes([sample(type)]));
+    if (def.caps.metadata) {
+      expect(items.length).toBe(0); // never drawn — its surface reads the board
+      return;
+    }
     expect(items.length).toBe(1);
     const html = renderToStaticMarkup(
       createElement(ElementNode, {
@@ -189,13 +225,14 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
       })
     );
     expect(html).toContain(`data-id="${type}1"`);
-    expect(html).not.toContain('dc-annot-placeholder');
+    if (VIEW_PENDING.has(type)) expect(html).toContain('dc-annot-placeholder');
+    else expect(html).not.toContain('dc-annot-placeholder');
   });
 });
 
-describe('stamp — a type added in one file works end to end', () => {
+describe('badge — a type added in one file works end to end', () => {
   test('the editing tools select and move it through its definition', () => {
-    const el = sample('stamp');
+    const el = sample('badge');
     const [s] = elementsToStrokes([el]);
     if (!s) throw new Error('no stroke');
     expect(s.tool).toBe('element');
@@ -221,7 +258,7 @@ describe('stamp — a type added in one file works end to end', () => {
     });
     const st = validateElement({
       id: 'st',
-      type: 'stamp',
+      type: 'badge',
       index: 'a0',
       parent: 'sec',
       x: 20,
@@ -247,14 +284,14 @@ describe('stamp — a type added in one file works end to end', () => {
   });
 
   test('an arrow binds to it', () => {
-    const batch = new AiBatch([sample('stamp'), sample('sticky')]);
-    batch.connect({ from: 'stamp1', to: 'sticky1' });
+    const batch = new AiBatch([sample('badge'), sample('sticky')]);
+    batch.connect({ from: 'badge1', to: 'sticky1' });
     const arrow = [...batch.state.values()].find((e) => e.type === 'arrow');
-    expect(arrow?.start).toEqual({ el: 'stamp1' });
+    expect(arrow?.start).toEqual({ el: 'badge1' });
   });
 
   test('the resize handles and arrow binding treat it like any card', () => {
-    const [s] = elementsToStrokes([sample('stamp')]);
+    const [s] = elementsToStrokes([sample('badge')]);
     if (!s) throw new Error('no stroke');
     expect(isBindable(s)).toBe(true);
     const patch = resizeStroke(s, 'se', 110, 120);
@@ -262,7 +299,7 @@ describe('stamp — a type added in one file works end to end', () => {
   });
 
   test('a built-in type cannot be replaced', () => {
-    expect(() => registerElementType({ ...stamp, type: 'sticky' })).toThrow();
+    expect(() => registerElementType({ ...badge, type: 'sticky' })).toThrow();
   });
 });
 

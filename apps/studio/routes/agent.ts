@@ -12,6 +12,7 @@
 
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { parseSync } from 'oxc-parser';
 import { designWritesSince } from '../../../cli/lib/bash-guard.mjs';
 import { cleanText, fileText } from '../../../cli/lib/finding-text.mjs';
 import {
@@ -27,9 +28,21 @@ import {
   type RunOutcome,
   type RunScope,
 } from '../agent-runs.ts';
+import type { RunRecord } from '../ai/run-lifecycle.ts';
+import type { RunRegistry } from '../ai/runs.ts';
 import { checkFile } from '../check/index.ts';
-import { checkIds } from '../element-ids.ts';
+import { checkIds, walkIdElements } from '../element-ids.ts';
 import type { RouteSpec } from './table.ts';
+
+/** A person's hold on an element (A10: the awareness `holding` field, foreign and local). */
+export interface PersonHold {
+  /** designRoot-relative canvas */
+  canvas: string;
+  /** the held element's `data-cd-id` */
+  element: string;
+  /** the person's display name, as the awareness carries it (untrusted peer text) */
+  name: string;
+}
 
 export interface AgentRouteDeps {
   repoRoot: string;
@@ -45,6 +58,13 @@ export interface AgentRouteDeps {
   bracket?: RunBracket;
   /** the run registry; one is created per table when absent */
   runs?: AgentRuns;
+  /**
+   * V2-1.15 §4 #13 — the people holding an element right now (awareness `holding`, S2.18). An
+   * AI write on one is denied `soft-locked`. Absent = nobody holds anything.
+   */
+  personHolds?: () => PersonHold[];
+  /** A member's display name for a lease home `actor` (the project's members), else null. */
+  memberName?: (actor: string) => string | null;
 }
 
 const json = (status: number, body: unknown) =>
@@ -198,6 +218,9 @@ export function parseRunScope(raw: unknown): RunScope | null {
   return { canvas, artboards: [...new Set(r.artboards as string[])] };
 }
 const whoName = (a: RunActor) => (a === 'maude-chat' ? 'the Maude chat' : 'a Claude Code session');
+/** A person's name as a reason names it: plain when it is a plain name, else cleaned + quoted. */
+const PLAIN_NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M} .'-]{0,59}$/u;
+const nameText = (n: string) => (PLAIN_NAME_RE.test(n) ? n : fileText(n, 60));
 
 // Phase 2 gate F3: a deny reason reaches the model as a PreToolUse reason, with harness authority,
 // and a cloned / linked canvas plants the artboard ids and element labels it names. So a reason is
@@ -218,17 +241,176 @@ const validIds = (ids: string[]) => ids.filter((a) => AGENT_ID_RE.test(a));
 const REASON_MAX = 800;
 const reasonOf = (s: string) => cleanText(s, REASON_MAX);
 
-function busyReason(c: RunConflict, rel: string, wholeFile: boolean): string {
-  const ab = c.artboard === '*' ? 'every artboard' : idText(c.artboard);
+/**
+ * V2-1.15 §5.4 — who holds the artboard, as a deny reason names it. Never the holder's label,
+ * prompt or chat: only whose AI it is. A member is named by `memberName`, else "another person".
+ */
+function holderText(c: RunConflict, memberName?: (actor: string) => string | null): string {
+  if (c.mine)
+    return c.who === 'maude-chat' ? 'your AI in another chat' : 'your AI in another session';
+  const n = c.actor ? (memberName?.(c.actor) ?? null) : null;
+  return n ? `${nameText(n)}'s AI` : "another person's AI";
+}
+
+function busyReason(
+  c: RunConflict,
+  rel: string,
+  wholeFile: boolean,
+  o: { holder: string; inChat: boolean }
+): string {
+  const all = c.artboard === '*';
+  const ab = all ? 'every artboard' : idText(c.artboard);
+  const head = `artboard-busy: ${all ? `${relText(rel)} is` : `${ab} is`} busy — ${o.holder} is changing it${wholeFile ? ` (this change reaches every artboard of ${relText(rel)})` : ''}. `;
+  const back = o.inChat
+    ? `Work on the other artboards without touching code they share; ${all ? 'the canvas' : ab} comes back to this chat when it is free. `
+    : `Work on the other artboards without touching code they share; ${all ? 'the canvas' : ab} is free again when that run ends (\`maude design runs list\` shows the runs). `;
   return (
-    `artboard-busy: ${c.artboard === '*' ? `${relText(rel)} is` : `${ab} is`} busy — ${whoName(c.who)} is changing it` +
-    `${c.label ? ` (${fileText(c.label, 80)})` : ''}` +
-    `${wholeFile ? ` (this change reaches every artboard of ${relText(rel)})` : ''}. ` +
-    `Work on the other artboards without touching code they share; ${c.artboard === '*' ? 'the canvas' : ab} is free again when that run ends. ` +
-    (c.artboard === '*'
+    head +
+    back +
+    (all
       ? 'Or wait for that run to end.'
       : `Or duplicate the ${ab} DCArtboard beside it with a new id and edit the copy.`)
   );
+}
+
+function leaseLostReason(lost: RunRecord, rel: string, inChat: boolean): string {
+  const scoped = lost.scope && lost.scope.artboards !== '*' ? lost.scope.artboards : [];
+  const ids = validIds(scoped.length ? scoped : (lost.touched[rel] ?? []));
+  const what = ids.length ? idsText(ids) : relText(rel);
+  return inChat
+    ? `lease-lost: this chat lost its turn on ${what} while this Mac was asleep, and another AI changed it meanwhile. Stop editing; the person decides whether to keep going.`
+    : `lease-lost: this session lost its turn on ${what} while this Mac was asleep, and another AI changed it meanwhile. Stop editing for this prompt; \`maude design runs list\` shows who holds it now.`;
+}
+
+/** The import declarations of a module + the rest of it (whitespace between imports dropped). */
+function importsAndRest(src: string): { imps: string[]; rest: string } | null {
+  const parsed = parseSync('canvas.tsx', src, { sourceType: 'module', lang: 'tsx' });
+  if (parsed.errors.length) return null;
+  const imps: string[] = [];
+  const parts: string[] = [];
+  let pos = 0;
+  for (const n of parsed.program.body as Array<{ type: string; start: number; end: number }>) {
+    if (n.type !== 'ImportDeclaration') continue;
+    parts.push(src.slice(pos, n.start));
+    imps.push(src.slice(n.start, n.end).replace(/\s+/g, ' ').trim());
+    pos = n.end;
+  }
+  parts.push(src.slice(pos));
+  const kept = parts.map((x, i) => (i === parts.length - 1 ? x.trimStart() : x.trim()));
+  return { imps, rest: kept.filter((x, i) => x || i === kept.length - 1).join('\u0000') };
+}
+
+/**
+ * V2-1.15 §4 #9 — "an import-only addition needs no lease": `after` is `before` plus import
+ * declarations, nothing else changed. Pure.
+ */
+export function importOnlyAddition(before: string, after: string): boolean {
+  if (before === after) return false;
+  const a = importsAndRest(before);
+  const b = importsAndRest(after);
+  if (!a || !b || a.rest !== b.rest || b.imps.length <= a.imps.length) return false;
+  const left = [...b.imps];
+  for (const imp of a.imps) {
+    const at = left.indexOf(imp);
+    if (at < 0) return false;
+    left.splice(at, 1);
+  }
+  return true;
+}
+
+/** The [from, to) range of `before` that turning it into `after` rewrites. Pure. */
+function changedRange(before: string, after: string): { from: number; to: number } {
+  let p = 0;
+  const max = Math.min(before.length, after.length);
+  while (p < max && before.charCodeAt(p) === after.charCodeAt(p)) p++;
+  let s = 0;
+  while (
+    s < max - p &&
+    before.charCodeAt(before.length - 1 - s) === after.charCodeAt(after.length - 1 - s)
+  )
+    s++;
+  return { from: p, to: before.length - s };
+}
+
+/**
+ * The held elements an edit reaches: an element is reached when the rewritten range of `before`
+ * overlaps it (an insertion: falls strictly inside it). `after` null = can't tell → every hold.
+ */
+function heldReached(before: string, after: string | null, held: PersonHold[]): PersonHold[] {
+  if (!held.length) return [];
+  if (after === null) return held;
+  const walk = walkIdElements(before);
+  if (!walk.ok) return held;
+  const { from, to } = changedRange(before, after);
+  const out: PersonHold[] = [];
+  for (const h of held) {
+    const hit = walk.elements.some(
+      (e) =>
+        e.id === h.element &&
+        (from === to ? e.start < from && from < e.end : e.start < to && from < e.end)
+    );
+    if (hit) out.push(h);
+  }
+  return out;
+}
+
+// ── 409 held-by-ai — the data feed for S2's person-edit routes (V2-1.15 §4 #13) ────────────────
+
+export interface AiHold {
+  run: string;
+  /** a run of this Mac's person (Stop is in the AI chat) — else a member's */
+  mine: boolean;
+  artboard: string;
+  element: string;
+}
+
+/**
+ * The live AI run that holds `element` of `canvas` (designRoot-relative), or null. An AI hold
+ * is a running run's `objects` plus its scope elements; a waiting run holds nothing. A person's
+ * hold is never here: between people a hold is advisory (DDR-120).
+ */
+export function heldByAi(registry: RunRegistry, canvas: string, element: string): AiHold | null {
+  const key = registry.canvasKey(canvas);
+  const on = (c: string) => c === key || c === canvas;
+  for (const r of registry.live()) {
+    if (r.state === 'waiting') continue;
+    const refs = [...r.objects, ...(r.scope?.elements ?? [])];
+    const o = refs.find((x) => on(x.canvas) && x.element === element);
+    if (o) return { run: r.runId, mine: true, artboard: o.artboard, element };
+  }
+  for (const r of registry.view().others) {
+    if (r.state === 'waiting') continue;
+    const o = r.objects.find((x) => on(x.canvas) && x.element === element);
+    if (o) return { run: r.runId, mine: false, artboard: o.artboard, element };
+  }
+  return null;
+}
+
+/**
+ * The backstop S2.18 puts in front of a person's edit route (`/_api/edit-*`, `edit-op`): 409
+ * `held-by-ai` when a live AI run holds the element, else null. `canvas` is the route body's
+ * (`.design/…` or designRoot-relative), `element` its `id`. The message names only the element.
+ */
+export function heldByAiRefusal(
+  registry: RunRegistry,
+  designRel: string,
+  canvas: unknown,
+  element: unknown
+): Response | null {
+  if (typeof canvas !== 'string' || typeof element !== 'string' || !element) return null;
+  const prefix = `${designRel.replace(/\/+$/, '')}/`;
+  const rel = canvas.startsWith(prefix) ? canvas.slice(prefix.length) : canvas;
+  const hold = heldByAi(registry, rel, element);
+  if (!hold) return null;
+  const el = AGENT_ID_RE.test(element) ? element : 'This element';
+  const message = `${el} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`;
+  return json(409, {
+    ok: false,
+    code: 'held-by-ai',
+    message,
+    error: message,
+    artboard: hold.artboard,
+  });
 }
 
 /** The bytes of a designRoot file (realpath-contained), or null when absent / outside. */
@@ -265,6 +447,10 @@ async function hookBody(req: Request): Promise<Body | Response> {
 }
 const key = (b: Body, k: string) =>
   typeof b[k] === 'string' && HOOK_KEY_RE.test(b[k] as string) ? (b[k] as string) : null;
+/** `chat` (MAUDE_CHAT_ID, sent by `maude design hook`): absent → null, malformed → undefined. */
+const chatOf = (b: Body): string | null | undefined =>
+  b.chat === undefined ? null : (key(b, 'chat') ?? undefined);
+const BAD_CHAT = 'chat is a hook key ([A-Za-z0-9_-], ≤ 128)';
 
 function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
   const runs = deps.runs ?? createAgentRuns(deps.bracket);
@@ -363,7 +549,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
    * call's window (mtime ≥ `since`, which pre-bash recorded) to the session's run — else to the
    * single open AI run on the project, else to no run (the artboards are still reported).
    */
-  function bindBashWrites(session: string, toolUseId: string, since: unknown) {
+  function bindBashWrites(session: string, toolUseId: string, since: unknown, chat: string | null) {
     const out = { artboards: [] as string[], lostIds: [] as string[], trashed: [] as string[] };
     const now = Date.now();
     if (
@@ -373,7 +559,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       now - since > BASH_WINDOW_MS
     )
       return out;
-    const run = runs.get(session) ?? runs.soleOpen();
+    const run = runs.get(session, chat) ?? runs.soleOpen();
     const designRoot = path.join(deps.repoRoot, deps.designRel);
     const mark = readDesignFile(deps, `_runs/${session}/bash/${toolUseId}.json`);
     let snaps: Record<string, unknown> = {};
@@ -397,7 +583,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         out.trashed.push(...c.trashed);
       }
       for (const a of artboards) if (!out.artboards.includes(a)) out.artboards.push(a);
-      if (run) runs.touch(run.session, rel, artboards);
+      if (run) runs.touch(run.session || session, rel, artboards, chat);
     }
     return out;
   }
@@ -406,6 +592,8 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
     spec({ path: '/_api/agent/run/begin' }, (b) => {
       const session = key(b, 'session');
       if (!session) return bad('session is a hook key ([A-Za-z0-9_-], ≤ 128)');
+      const chat = chatOf(b);
+      if (chat === undefined) return bad(BAD_CHAT);
       if (b.promptId !== undefined && !key(b, 'promptId')) return bad('promptId is a hook key');
       if (!RUN_ACTORS.includes(b.actor as RunActor))
         return bad(`actor is ${RUN_ACTORS.join(' | ')}`);
@@ -420,6 +608,8 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         actor: b.actor as RunActor,
         label: b.label as string | undefined,
         ...(scope ? { scope } : {}),
+        // V2-1.15 §5.4 / H5: a Maude chat's hook binds to that chat's `starting` run
+        ...(chat ? { chat } : {}),
       });
       return json(200, { run: r.run, state: r.state });
     }),
@@ -428,6 +618,8 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const toolUseId = key(b, 'toolUseId');
       const rel = designPathRel(b.path);
       if (!session || !toolUseId) return bad('session and toolUseId are hook keys');
+      const chat = chatOf(b);
+      if (chat === undefined) return bad(BAD_CHAT);
       if (!EDIT_TOOLS.includes(b.tool as (typeof EDIT_TOOLS)[number]))
         return bad(`tool is ${EDIT_TOOLS.join(' | ')}`);
       if (!rel) return bad('path is a file inside the design root');
@@ -439,8 +631,22 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
             'read-only: this project is open view-only here, so nothing in it can be edited. Ask its owner for edit access, or describe the change instead.',
         });
       if (!CANVAS_RE.test(rel) || isRuntimeRel(rel)) return json(200, NONE);
+      // §5.9.4 / §5.6: this turn's run lost its leases — nothing more of the turn is written
+      const gone = runs.lost(session, chat);
+      if (gone)
+        return json(200, {
+          decision: 'deny',
+          code: 'lease-lost',
+          artboards: validIds(
+            gone.scope && gone.scope.artboards !== '*' ? gone.scope.artboards : []
+          ),
+          reason: reasonOf(leaseLostReason(gone, rel, !!chat || gone.origin === 'maude-chat')),
+        });
       const before = readDesignFile(deps, rel);
       const after = applyToolEdit(before, b.edit);
+      // V2-1.15 §4 #9: an import-only addition needs no lease (and is inside every scope)
+      if (before !== null && after !== null && importOnlyAddition(before, after))
+        return json(200, NONE);
       // an edit we can't replay (MultiEdit, old text not found) on an existing canvas reaches the file
       const reach =
         after !== null
@@ -454,8 +660,9 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         reach.scope === 'file' || validIds(reach.artboards).length < reach.artboards.length
           ? ('*' as const)
           : reach.artboards;
+      const self = runs.get(session, chat);
       // G-AI-6: a ⌘/ selection-scoped run changes only its selection
-      const sc = runs.get(session)?.scope;
+      const sc = self?.scope;
       if (sc) {
         const offCanvas = rel !== sc.canvas;
         const allowed = sc.artboards.length ? sc.artboards : null;
@@ -499,17 +706,45 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           });
         }
       }
+      // V2-1.15 §4 #13: an element a person is editing right now (awareness `holding`)
+      if (before !== null) {
+        let holds: PersonHold[] = [];
+        try {
+          holds = (deps.personHolds?.() ?? []).filter((h) => h?.canvas === rel);
+        } catch {
+          holds = [];
+        }
+        const hit = heldReached(before, after, holds)[0];
+        if (hit) {
+          const who = nameText(String(hit.name ?? ''));
+          return json(200, {
+            decision: 'deny',
+            code: 'soft-locked',
+            artboards: [],
+            reason: reasonOf(
+              `soft-locked: ${who} is editing ${idText(hit.element)}. Leave it until ${who} moves on — change the rest without touching it.`
+            ),
+          });
+        }
+      }
       if (target !== '*' && target.length === 0) return json(200, NONE);
-      const c = runs.conflict(session, rel, target);
-      if (c)
+      const c = runs.conflict(session, rel, target, chat);
+      if (c) {
+        runs.noteBusy(session, rel, c.artboard, chat);
         return json(200, {
           decision: 'deny',
           code: 'artboard-busy',
           who: whoName(c.who),
           artboards: validIds([c.artboard]),
-          reason: reasonOf(busyReason(c, rel, reach.scope === 'file' || target === '*')),
+          reason: reasonOf(
+            busyReason(c, rel, reach.scope === 'file' || target === '*', {
+              holder: holderText(c, deps.memberName),
+              inChat: !!sc && (!!chat || self?.actor === 'maude-chat'),
+            })
+          ),
         });
-      runs.claim(session, rel, target);
+      }
+      runs.claim(session, rel, target, chat);
       return json(200, NONE);
     }),
     spec({ path: '/_api/agent/check' }, (b) => {
@@ -535,24 +770,28 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const session = key(b, 'session');
       const toolUseId = key(b, 'toolUseId');
       if (!session || !toolUseId) return bad('session and toolUseId are hook keys');
+      const chat = chatOf(b);
+      if (chat === undefined) return bad(BAD_CHAT);
       if (b.via !== 'tool' && b.via !== 'bash') return bad('via is tool | bash');
       const empty = { artboards: [] as string[], lostIds: [] as string[], trashed: [] as string[] };
-      if (b.via === 'bash') return json(200, bindBashWrites(session, toolUseId, b.since));
+      if (b.via === 'bash') return json(200, bindBashWrites(session, toolUseId, b.since, chat));
       const rel = designPathRel(b.path);
       if (!rel) return bad('path is a file inside the design root');
       if (isRuntimeRel(rel)) return json(200, empty);
       const { artboards, lostIds, trashed } = CANVAS_RE.test(rel)
         ? canvasChange(rel, `_runs/${session}/snap/${toolUseId}`, session)
         : empty;
-      runs.touch(session, rel, artboards);
+      runs.touch(session, rel, artboards, chat);
       return json(200, { artboards, lostIds, trashed });
     }),
     spec({ path: '/_api/agent/run/end' }, (b) => {
       const session = key(b, 'session');
       if (!session) return bad('session is a hook key');
+      const chat = chatOf(b);
+      if (chat === undefined) return bad(BAD_CHAT);
       if (!RUN_OUTCOMES.includes(b.outcome as RunOutcome))
         return bad(`outcome is ${RUN_OUTCOMES.join(' | ')}`);
-      const r = runs.end(session, b.outcome as RunOutcome);
+      const r = runs.end(session, b.outcome as RunOutcome, chat);
       // undoStep / version (V2-1.5) land with the run model; an unknown session is a no-op
       return json(200, r ? { run: r.run, state: r.state } : {});
     }),

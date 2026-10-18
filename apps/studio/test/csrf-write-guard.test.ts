@@ -100,20 +100,27 @@ describe('CSRF read guard — sameOriginRead (Task 2.5 F1, Fetch-Metadata)', () 
 // loopback banner — it injects a fake "<x> is editing <slug>" presence to all
 // peers (the channel that drives the social save/publish decision). These three
 // routes MUST carry the same `sameOriginWrite` guard as the other write routes.
-// Source-level assertion (same "don't boot a server" rationale as above): pin
-// the guard into each route block so an accidental removal fails CI.
+// S5.3 — the three routes moved from http.ts's legacy literal to routes/ai.ts, on the run
+// registry. A table spec carries no guard of its own: `guardTableRoute` applies `sameOriginWrite`
+// to every POST spec (the V2-2.5 block below holds each spec to it). So this pins that they ARE
+// POST table specs — and gone from http.ts, where they would carry no table guard.
 describe('CSRF Origin guard — /_api/ai/* presence-bridge routes (phase-30)', () => {
-  const src = readFileSync(fileURLToPath(new URL('../http.ts', import.meta.url)), 'utf8');
+  const httpSrc = readFileSync(fileURLToPath(new URL('../http.ts', import.meta.url)), 'utf8');
+  const specs = allSpecs(stubDeps());
+  const SELF = 'http://localhost:4399';
 
   for (const route of ['/_api/ai/start', '/_api/ai/heartbeat', '/_api/ai/end']) {
-    test(`${route} is wired with the sameOriginWrite CSRF guard`, () => {
-      // Slice from this route's key to the next route key, then assert the guard
-      // appears inside that block.
-      const start = src.indexOf(`'${route}':`);
-      expect(start).toBeGreaterThan(-1);
-      const after = src.indexOf("'/_api/", start + 1);
-      const block = src.slice(start, after === -1 ? undefined : after);
-      expect(block).toContain('sameOriginWrite(req)');
+    test(`${route} is a POST table spec behind the sameOriginWrite CSRF guard`, async () => {
+      expect(httpSrc).not.toContain(`'${route}':`);
+      const spec = specs.find((s) => s.path === route);
+      expect(spec?.method).toBe('POST');
+      if (!spec) return;
+      const forged = new Request(`${SELF}${route}`, {
+        method: 'POST',
+        headers: { origin: 'http://evil.example', 'content-type': 'text/plain' },
+        body: JSON.stringify({ file: '.design/x.tsx' }),
+      });
+      expect((await guardTableRoute(spec).handle(forged, {})).status).toBe(403);
     });
   }
 });

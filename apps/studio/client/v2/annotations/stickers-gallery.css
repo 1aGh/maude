@@ -1,0 +1,214 @@
+/* client/v2/annotations/stickers-gallery.css — S4.3: the Stickers gallery island (canvas 15 `.an-gal*`).
+ *
+ * It rides on the `.st-scrim` / `.st-dialog.st-sticker-picker` shell the picker always had (an open modal
+ * dialog is what the mode lane's M4 check reads; tool-panels.css pins it to the toolbar), and only
+ * restyles what is inside: a 440 px island, a search field with an icon, the Stamps row, 6-up grids,
+ * "+N" cells, word chips, and the credits line. Tokens only; weights stop at 600. */
+
+@layer shell {
+  .st-sticker-picker.sg {
+    width: 440px;
+    max-width: calc(100vw - 2 * var(--space-2));
+    border-radius: var(--radius-xl);
+  }
+  .sg .st-dialog-hd {
+    gap: var(--space-2);
+  }
+  .sg .st-dialog-title {
+    margin-right: auto;
+  }
+  .sg-key {
+    flex: none;
+  }
+  .sg .st-dialog-bd {
+    gap: var(--space-3);
+  }
+
+  /* search */
+  .sg-q {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    border: 1px solid var(--border-default);
+    color: var(--fg-2);
+  }
+  .sg-q:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-tint);
+  }
+  .st-sticker-picker .sg-q-in.input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .st-sticker-picker .sg-q-in.input:focus {
+    box-shadow: none;
+  }
+  .sg-q-x {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    cursor: pointer;
+  }
+
+  /* body */
+  .sg-body {
+    gap: var(--space-3);
+  }
+  .sg-pk {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .sg-ph {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .sg-ph strong {
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .sg-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-auto-rows: 56px;
+    gap: var(--space-1);
+  }
+  .sg-grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: auto;
+    gap: var(--space-2);
+  }
+  .sg-cell {
+    justify-content: center;
+    padding: var(--space-1);
+    border-color: transparent;
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+  }
+  .sg-cell .st-sp-thumb {
+    max-height: 100%;
+  }
+  .sg-cell--kw {
+    gap: 2px;
+    padding: var(--space-2) var(--space-1) var(--space-1);
+  }
+  .sg-cell--kw .st-sp-thumb {
+    max-height: none;
+  }
+  .sg-cell--kw em {
+    font-style: normal;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .sg-more {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-1);
+  }
+  .sg-more:hover {
+    background: var(--bg-3);
+  }
+
+  /* stamps */
+  .sg-stamps {
+    display: flex;
+    gap: var(--space-1);
+  }
+  .sg-stamp {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    color: var(--object-ink);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 12%, transparent);
+  }
+  .sg-stamp:disabled {
+    cursor: default;
+  }
+  .sg-stamp--yellow {
+    background: var(--object-yellow);
+  }
+  .sg-stamp--coral {
+    background: var(--object-coral);
+  }
+  .sg-stamp--sky {
+    background: var(--object-sky);
+  }
+  .sg-stamp--green {
+    background: var(--object-green);
+  }
+
+  /* search extras */
+  .sg-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .sg-chip[aria-pressed="true"] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+  }
+  .sg-none {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .sg-nil {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .sg-nil strong {
+    flex-basis: 100%;
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+
+  /* credits */
+  .sg-credits {
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    gap: 0 var(--space-2);
+  }
+  .sg-credits a {
+    color: var(--accent-text);
+  }
+}

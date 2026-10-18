@@ -16,11 +16,17 @@
 
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
+import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
+
+// S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
+// write. Re-exported here because http.ts reaches routes/ only through index + table.
+export { heldByAiRefusal } from './agent.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -29,17 +35,24 @@ export interface RouteDeps {
   /** V2-3.4 — the desktop shell's probe; its run count reads the agent table's registry */
   shell: Omit<ShellRouteDeps, 'runs'>;
   pins: PinsRouteDeps;
+  /** S5.3 — `/_api/ai/runs*` + the v1 `/_api/ai` routes, on THE run registry */
+  ai: AiRouteDeps;
+  /** S5.7 — the chat store: search, trash, the resume session id */
+  chat: ChatRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
 export function allSpecs(deps: RouteDeps): RouteSpec[] {
-  // ONE run registry: the hook routes write it, the shell status counts it (V2-3.4).
-  deps.agent.runs ??= createAgentRuns(deps.agent.bracket);
+  // ONE run registry (S5.3, ai/runs.ts): the hook routes' view writes it, the shell status counts
+  // it (V2-3.4), and `/_api/ai/runs*` reads it — never a second map.
+  deps.agent.runs ??= createAgentRuns(deps.agent.bracket, undefined, deps.ai.registry);
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
     ...agentRouteSpecs(deps.agent),
     ...createShellRoutes({ ...deps.shell, runs: deps.agent.runs }),
     ...createPinsRoutes(deps.pins),
+    ...createAiRoutes(deps.ai),
+    ...createChatRoutes(deps.chat),
   ];
 }
