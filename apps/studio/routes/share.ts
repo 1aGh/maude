@@ -20,7 +20,8 @@
 // into the outbox (V2-1.14, kind `share.invite`) and `shareInviteSender` sends it once the hub
 // answers — "Invites send when this Mac is online."
 
-import { type Access, currentAccess } from '../access/request.ts';
+import { currentAccess } from '../access/request.ts';
+import type { Access } from '../access/scope.ts';
 import type { Sender } from '../outbox/drain.ts';
 import { maskEmail, type Outbox } from '../outbox/index.ts';
 import type { IntentPayload, Role as IntentRole, ShareScope } from '../outbox/types.ts';
