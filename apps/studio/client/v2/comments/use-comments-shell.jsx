@@ -16,7 +16,9 @@ import { basename, displayName } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { humanize } from '../ai/runs-model.js';
 import { commentMarks, onLabel } from './comments-model.js';
+import { invoke, isNativeApp } from '../../github.js';
 import { MentionCallouts, useMentionNotices } from './mention-callouts.jsx';
+import { useNativeMentionNotice } from './native-mention-notice.js';
 
 const PREFS = '/_api/ui-prefs';
 export const COMMENT_FILTERS = Object.freeze(['open', 'mine', 'resolved', 'all']);
@@ -139,17 +141,23 @@ export function mentionWhere(commentsByFile, u) {
   return onLabel({ ...c, file: u.file }, { artboardLabel: (_f, id) => humanize(id), canvasLabel });
 }
 
-/** The mention toast, beside <ShellCallouts/>. Reads the shell store's `comments` (useCommentsShell). */
-export function ShellMentionCallouts() {
+/**
+ * The mention toast, beside <ShellCallouts/>. Reads the shell store's `comments` (useCommentsShell).
+ * S9.17 — desktop only, the same notices also go to the Rust shell (`mention_notice`: the Dock badge and
+ * one OS notice for a fresh mention while this tab is behind); a browser tab has no `invoke`.
+ */
+export function ShellMentionCallouts({ native = isNativeApp(), invokeImpl = invoke } = {}) {
   const { comments, shellCore } = useShellStore();
-  if (!comments?.notices) return null;
   const byFile = shellCore?.commentsByFile;
+  const whereOf = useCallback((u) => mentionWhere(byFile, u), [byFile]);
+  useNativeMentionNotice(comments?.notices, { invoke: native ? invokeImpl : undefined, whereOf });
+  if (!comments?.notices) return null;
   return (
     <MentionCallouts
       notices={comments.notices}
       // MentionCallouts marks the thread read itself after onOpen
       onOpen={(file, id) => comments.openThread(file, id, { markRead: false })}
-      whereOf={(u) => mentionWhere(byFile, u)}
+      whereOf={whereOf}
     />
   );
 }

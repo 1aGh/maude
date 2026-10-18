@@ -104,6 +104,74 @@ describe('the comments.* runners (S9.22b binding)', () => {
   });
 });
 
+describe('S9.17 hunks — a mention notice click opens the thread; the shell hears the count', () => {
+  const PATHS = ['.design/ui/poster.tsx'];
+  const deps = (ran: unknown[][], opened: string[]) => ({
+    paths: PATHS,
+    designRel: '.design',
+    activePath: null,
+    openLinkedFile: (rel: string) => opened.push(rel),
+    openTab: () => {},
+    frameFor: () => null,
+    setPresent: () => {},
+    schedule: (fn: () => void) => fn(),
+    runAction: (id: string, params: unknown) => ran.push([id, params]),
+  });
+
+  test('shell://navigate {canvas, thread} opens the canvas, then runs comments.open-thread', async () => {
+    const { applyShellNavigate } = await import('../client/shell-events.js');
+    const ran: unknown[][] = [];
+    const opened: string[] = [];
+    const plan = applyShellNavigate({ canvas: 'ui/poster.tsx', thread: 'c_abc-1' }, deps(ran, opened));
+    expect(plan?.thread).toBe('c_abc-1');
+    expect(opened).toEqual(['ui/poster.tsx']);
+    expect(ran).toEqual([['comments.open-thread', { file: A, id: 'c_abc-1' }]]);
+  });
+
+  test('a junk thread id is dropped (the canvas still opens); a canvas not here runs nothing', async () => {
+    const { applyShellNavigate } = await import('../client/shell-events.js');
+    const ran: unknown[][] = [];
+    const opened: string[] = [];
+    for (const thread of ['a b', 'x'.repeat(65), '../x', 7])
+      expect(
+        applyShellNavigate({ canvas: 'ui/poster.tsx', thread }, deps(ran, opened))
+      ).not.toHaveProperty('thread');
+    applyShellNavigate({ canvas: 'ui/gone.tsx', thread: 'c1' }, deps(ran, opened));
+    expect(ran).toEqual([]);
+    expect(opened.length).toBe(5);
+  });
+
+  test('ShellMentionCallouts tells the desktop shell the unread count (mention_notice); a browser does not', async () => {
+    const { ShellMentionCallouts } = await import('../client/v2/comments/use-comments-shell.jsx');
+    const { ShellStoreContext } = await import('../client/stores/shell-store.jsx');
+    const notices = { unread: [], unreadCount: 2, toasts: [], dismiss() {}, read() {} };
+    const store = { comments: { notices, openThread() {} }, shellCore: { commentsByFile: {} } };
+    for (const native of [true, false]) {
+      const invoked: unknown[][] = [];
+      const host = document.createElement('div');
+      document.body.append(host);
+      const root = createRoot(host);
+      await act(async () => {
+        root.render(
+          <ShellStoreContext.Provider value={store as never}>
+            <ShellMentionCallouts
+              native={native}
+              invokeImpl={(cmd: string, args: unknown) => {
+                invoked.push([cmd, args]);
+                return Promise.resolve();
+              }}
+            />
+          </ShellStoreContext.Provider>
+        );
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(invoked).toEqual(native ? [['mention_notice', { count: 2, latest: null }]] : []);
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+});
+
 describe('useCommentsShell — unread mentions, read marks, open a thread', () => {
   async function harness(commentsByFile: Record<string, unknown[]>) {
     const { useCommentsShell } = await import('../client/v2/comments/use-comments-shell.jsx');

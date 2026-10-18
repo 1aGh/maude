@@ -4,7 +4,8 @@
 //   shell://navigate {canvas, artboard}  open that canvas and focus the artboard — through the SAME
 //                                         path `?open=` and `maude design open` use: the URL identity
 //                                         resolves like a link (use-tabs `openLinkedFile`), the
-//                                         artboard runs `view.zoom-to-artboard` (ui-open.js)
+//                                         artboard runs `view.zoom-to-artboard` (ui-open.js);
+//                                         S9.17: `thread` then runs `comments.open-thread`
 //   shell://opened-existing {name}       toast "<name> is open in this window."
 //   shell://tabs-restored {count}        toast "<count> tabs reopened. Each one starts when you open it."
 //   take_link_opened {name}              toast "Opened <name> from a link." (a link opened this NEW tab)
@@ -18,6 +19,12 @@
 import { CANVAS_EXT_RE as CANVAS_RE } from './shell/constants.js';
 import { normalizeOpenPath } from './share-link.js';
 import { applyUiOpen } from './ui-open.js';
+
+// The shell's one runner, loaded when a thread first needs it (it pulls the whole menu graph).
+const runShellAction = (id, params) =>
+  import('./v2/shell/menu-runner.js')
+    .then((m) => m.menuRunner.run(id, params))
+    .catch(() => false);
 
 // The artboard rule Rust's `validate_target` applies: 1–128 characters, no control characters.
 const okArtboard = (a) =>
@@ -51,8 +58,14 @@ export function navigatePlan(payload, { paths, designRel, activePath }) {
   const rel = normalizeOpenPath(payload.canvas, designRel);
   if (!rel) return null;
   const file = (paths ?? []).find((p) => normalizeOpenPath(p, designRel) === rel) ?? null;
-  return { rel, file, artboard };
+  // S9.17 — a mention notice's click names the comment thread too (Rust `valid_thread_id`, only
+  // together with its canvas); a junk id is dropped, the canvas still opens.
+  const thread = okThread(payload.thread) ? payload.thread : null;
+  return thread ? { rel, file, artboard, thread } : { rel, file, artboard };
 }
+
+// The thread rule Rust's `valid_thread_id` applies (contract S6-S9 §5.3).
+const okThread = (t) => typeof t === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(t);
 
 /**
  * Apply a `shell://navigate` payload. deps:
@@ -68,6 +81,13 @@ export function applyShellNavigate(payload, deps) {
   if (plan.artboard && plan.file && CANVAS_RE.test(plan.file))
     applyUiOpen({ file: plan.file, artboard: plan.artboard }, deps);
   else if (plan.rel) deps.openLinkedFile(plan.rel);
+  // S9.17 — then the thread: `comments.open-thread` (its tab, its pin, the Comments panel, read marks).
+  // Only for a canvas in this tree; after the open, so the tab it focuses exists.
+  if (plan.thread && plan.file) {
+    const schedule = deps.schedule ?? ((fn, ms) => setTimeout(fn, ms));
+    const run = deps.runAction ?? runShellAction;
+    schedule(() => run('comments.open-thread', { file: plan.file, id: plan.thread }), 0);
+  }
   return plan;
 }
 
