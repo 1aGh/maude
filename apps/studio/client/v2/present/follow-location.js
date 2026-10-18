@@ -21,6 +21,13 @@ export const FOLLOW_SID_RE = /^[a-z0-9]{8,32}$/;
 /** S3.6a — this build's follower root honours `audience=1` (locked: no bar, no keys, no pointer). */
 export const supportsAudienceLock = true;
 
+/**
+ * S3.6a — the lock value the presenter view passes to `present_audience_open` (Rust refuses any other):
+ * under `audience=1` this page renders no editor, takes no keys and shows no chrome. Bump it only with
+ * a matching Rust change, if the meaning of the lock ever changes.
+ */
+export const AUDIENCE_LOCK = 1;
+
 const OPEN_MAX = 1024;
 
 function paramsOf(location) {

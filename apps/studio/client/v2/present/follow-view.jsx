@@ -225,7 +225,8 @@ export default function FollowView() {
           /* the next load re-seeds */
         }
       }
-      postFollow(live);
+      // The audience window cannot look away (locked): it is always live.
+      postFollow(audience || live);
     };
     const giveUp = setTimeout(() => {
       if (!ready) setView({ phase: 'missing' });

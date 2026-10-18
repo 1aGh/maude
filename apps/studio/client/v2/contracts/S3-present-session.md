@@ -115,9 +115,14 @@ presenterViewOn)`. The relay strip (§2) is what enforces D11. The cap only keep
 - **`open` is decoded once** (URLSearchParams) and the decoded value is re-checked by `followOpenRel`: no empty,
   `.` or `..` segment, no segment starting `_` (runtime dirs), no `%`, `?`, `#`, `\`, `:` or control character,
   ≤ 1024 characters, ending `.tsx`. Anything else → "Nothing to follow".
-- **Capability marker.** `client/v2/present/follow-location.js` exports `supportsAudienceLock = true`. S3.6a's
-  audience-window seam (`client/v2/present/audience-window.js`) checks it before it opens a window; a build
-  without the marker has no follower root that honours the lock, so no audience window is opened.
+- **Capability marker and the lock.** `client/v2/present/follow-location.js` exports `supportsAudienceLock =
+  true` and **`AUDIENCE_LOCK = 1`**. The lock means: under `audience=1` this page renders no editor (an audience
+  URL never reaches `<App>`), takes no keys and shows no chrome (no bar, no pointer). Presenter view (S3.6b)
+  calls `openAudience({ displayId, canvas, sid, lock: AUDIENCE_LOCK })`, importing the constant from
+  `follow-location.js`; S3.6a's seam (`client/v2/present/audience-window.js`) passes it to Rust, which refuses
+  any other value (§6). A build without the marker opens no audience window.
+- **The frame's sandbox** is the embed's (`client/embed-view.jsx`): `allow-scripts allow-same-origin` when a
+  canvas origin exists, never `allow-top-navigation`; `allow="autoplay"` so the audience window plays sound.
 
 - **The canvas frame** is built with `canvasShellUrl` opts `{ ro: true, comments: false, follow: true }` →
   `ro=1&comments=0&follow=1`. It is seeded like the embed: `set-mode { mode: 'present', present: { kind:
@@ -161,9 +166,11 @@ presenterViewOn)`. The relay strip (§2) is what enforces D11. The cap only keep
 /// Open (or move) THIS project's audience window, full screen, on `display_id`. Rust builds the URL itself:
 /// <caller's recorded origin>/?open=<canvas>&present=follow&audience=1&sid=<sid>. `canvas` must pass the
 /// design-rel grammar (§5), `sid` /^[a-z0-9]{8,32}$/. The window opens unfocused, so the presenter keeps the keys.
-#[tauri::command] pub fn present_audience_open(webview: Webview, display_id: String, canvas: String, sid: String)
-  -> Result<(), String>;
-/// Close the caller's audience window. Idempotent.
+/// `lock` must equal AUDIENCE_LOCK (1, §4, declared by the follower root) — otherwise `not-ready…` is returned
+/// and no window opens. The presenter's own display is refused.
+#[tauri::command] pub fn present_audience_open(webview: Webview, display_id: String, canvas: String, sid: String,
+  lock: u32) -> Result<(), String>;
+/// Close the caller's audience window. Idempotent; it does not require the presenter's tab to be in front.
 #[tauri::command] pub fn present_audience_close(webview: Webview) -> Result<(), String>;
 ```
 
@@ -175,7 +182,8 @@ presenterViewOn)`. The relay strip (§2) is what enforces D11. The cap only keep
   window is not in the windows book as a project window, so `caller_project` refuses it, and the follower root
   calls no Tauri API.
 - **Navigation guard:** a new `NavRole::Audience`. The top frame is allowed only on the recorded project origin,
-  path `/`, query keys exactly `{open, present, sid, audience}`. Subframes are allowed on that project's canvas
+  and there only the exact follower root for the entry's `open` + `sid` (path `/`, query keys exactly `{open,
+  present, sid, audience}`, `present=follow`, `audience=1`). Subframes are allowed on that project's canvas
   origin, `about:blank` / `about:srcdoc`, and a `blob:` of either. Everything else is refused, including remote
   https and `data:`.
 - **Lifetime:** one window per project. It closes when its project tab closes, when the project's server origin

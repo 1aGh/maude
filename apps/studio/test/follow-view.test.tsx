@@ -30,6 +30,7 @@ import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import type { ArtboardRect } from '../canvas-lib.tsx';
 import { canvasUrl } from '../client/canvas-url.js';
 import {
+  AUDIENCE_LOCK,
   followOpenRel,
   isFollowLocation,
   readFollowParams,
@@ -37,6 +38,7 @@ import {
 } from '../client/v2/present/follow-location.js';
 import { cleanName, followBarModel } from '../client/v2/present/follow-model.js';
 import FollowView, { FollowBar } from '../client/v2/present/follow-view.jsx';
+import { PointerPeers } from '../present/pointer-dot.tsx';
 import { type Camera, usePresentStage } from '../present/present-stage.tsx';
 import { CollabProvider, useCollab } from '../use-collab.tsx';
 
@@ -49,6 +51,12 @@ function setUrl(rel: string) {
   else history.replaceState(null, '', href);
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
+/** An unloaded happy-dom iframe has no window: give the page one to post to (and to be the source). */
+function fakeFrameWindow(frame: HTMLIFrameElement): Window {
+  const win = { postMessage: (_m: unknown) => {} } as unknown as Window;
+  Object.defineProperty(frame, 'contentWindow', { configurable: true, get: () => win });
+  return win;
+}
 
 // ── the page ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -86,6 +94,7 @@ describe('the follower URL', () => {
     );
     expect(readFollowParams(loc('?open=ui/deck.tsx&present=follow&audience=1')).ok).toBe(true);
     expect(supportsAudienceLock).toBe(true);
+    expect(AUDIENCE_LOCK).toBe(1); // what present_audience_open requires (S3.6a)
   });
 
   // S3.6a security review (2): `open` decoded once, then the canvas design-rel grammar.
@@ -256,13 +265,15 @@ describe('the follower page', () => {
       '1',
     ]);
     expect(configReads.every((u) => u === '/_config?embed=1')).toBe(true);
+    // the embed's containment: scripts + same-origin, never top navigation
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
     // waiting until the canvas reports
     expect(el.querySelector('[data-testid="follow-bar"]')?.textContent).toContain(
       'Waiting for the presenter'
     );
 
     // the canvas says where it is → the bar; a message from anywhere else is ignored
-    const win = frame.contentWindow as Window;
+    const win = fakeFrameWindow(frame);
     const sent: unknown[] = [];
     (win as unknown as { postMessage: (m: unknown) => void }).postMessage = (m) => sent.push(m);
     const say = (data: unknown, source: unknown = win, origin = CANVAS_ORIGIN) =>
@@ -316,7 +327,7 @@ describe('the follower page', () => {
     expect(el.querySelector('[data-testid="follow-view"]')?.getAttribute('data-audience')).toBe(
       '1'
     );
-    const win = frame.contentWindow as Window;
+    const win = fakeFrameWindow(frame);
     const sent: Array<Record<string, unknown>> = [];
     (win as unknown as { postMessage: (m: Record<string, unknown>) => void }).postMessage = (m) =>
       sent.push(m);
@@ -396,6 +407,7 @@ describe('a follower canvas follows the presenter', () => {
   const realFetch = globalThis.fetch;
   let realParent: PropertyDescriptor | undefined;
   let root: Root | null = null;
+  let mountEl: HTMLElement;
   let host: HTMLElement;
   let collab: ReturnType<typeof useCollab> = null;
   const camera = { current: { x: 0, y: 0, zoom: 1 } as Camera };
@@ -456,9 +468,17 @@ describe('a follower canvas follows the presenter', () => {
     Object.defineProperty(host, 'clientHeight', { value: 900 });
     host.appendChild(document.createElement('div'));
     document.body.appendChild(host);
-    root = createRoot(document.createElement('div'));
+    mountEl = document.createElement('div');
+    root = createRoot(mountEl);
     await act(async () => {
-      root?.render(createElement(CollabProvider, { slug: 'ui-deck' }, createElement(Probe)));
+      root?.render(
+        createElement(
+          CollabProvider,
+          { slug: 'ui-deck' },
+          createElement(Probe),
+          createElement(PointerPeers, { viewport: { x: 0, y: 0, zoom: 1 } })
+        )
+      );
       await flush();
     });
     // the follower page's seed: Present · Artboards, no caps — even if a shell sent present: true
@@ -544,6 +564,43 @@ describe('a follower canvas follows the presenter', () => {
     expect(host.style.cursor).toBe('none');
     fromShell({ dgn: 'present-follow', sid: null, live: true, locked: false });
     expect(host.style.cursor).toBe('');
+  });
+
+  // S3.2b's Pointer rides the same awareness: a valid point is drawn for the follower, a malformed one
+  // is dropped at the chokepoint (sanitizeForeignState → sanitizePointer).
+  test("the presenter's Pointer: drawn when valid, dropped when malformed", () => {
+    const send = (pointer: unknown) =>
+      act(() => {
+        presenter.setLocalState({
+          name: 'Tereza',
+          present: {
+            v: 1,
+            sid: SID,
+            index: 0,
+            total: 3,
+            artboardId: 'post-1x1',
+            seq: 20,
+            media: null,
+          },
+          pointer,
+        });
+        if (collab)
+          applyAwarenessUpdate(
+            collab.awareness,
+            encodeAwarenessUpdate(presenter, [presenter.clientID]),
+            'relay'
+          );
+      });
+    const dots = () => mountEl.querySelectorAll('[data-testid="present-peer-pointer"]');
+    send({ x: 10, y: 20 });
+    expect(dots()).toHaveLength(1);
+    expect((dots()[0] as HTMLElement).style.transform).toBe('translate(10px, 20px)');
+    for (const bad of [{ x: 2e6, y: 0 }, { x: '10', y: 20 }, { x: 1 }, [1, 2], 'x']) {
+      send(bad);
+      expect([bad, dots().length]).toEqual([bad, 0]);
+    }
+    send(null);
+    expect(dots()).toHaveLength(0);
   });
 
   test('the presenter stops: ended, on the last artboard', () => {

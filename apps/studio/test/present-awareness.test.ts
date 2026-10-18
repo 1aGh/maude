@@ -89,6 +89,22 @@ describe('sanitizePresent — whole or nothing', () => {
     }
   });
 
+  test('S3.2b pointer: a finite world point or null, never a partial one', () => {
+    expect(sanitizeForeignState(4, { name: 'T', pointer: { x: 1, y: 2, z: 3 } })?.pointer).toEqual({
+      x: 1,
+      y: 2,
+    });
+    for (const bad of [
+      { x: 1 },
+      { x: '1', y: 2 },
+      { x: 1e7, y: 0 },
+      { x: Number.NaN, y: 0 },
+      [1, 2],
+      3,
+    ])
+      expect(sanitizeForeignState(4, { name: 'T', pointer: bad })?.pointer).toBeNull();
+  });
+
   test('sanitizeForeignState: a bad present drops the field, not the peer', () => {
     const peer = sanitizeForeignState(4, { name: 'Tereza', present: { ...OK, index: 99 } });
     expect(peer?.name).toBe('Tereza');

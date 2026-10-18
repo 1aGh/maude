@@ -35,6 +35,7 @@ import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
 import * as Y from 'yjs';
 
 import { isTrustedOrigin, touchesBodyLane } from './collab/origins.ts';
+import { sanitizePointer } from './present/pointer-point.ts';
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
@@ -133,6 +134,11 @@ export interface CollabAwarenessState {
   present?: PresentAwareness | null;
   /** S3.7a — the `sid` of the presentation this peer follows (null / absent = not following). */
   watching?: string | null;
+  /**
+   * S3.2b — the presenter's Pointer (L) in WORLD coords, as `cursor` is; null / absent = no dot.
+   * Untrusted on the way in: `sanitizePointer` (present/pointer-point.ts) keeps a finite point or null.
+   */
+  pointer?: { x: number; y: number } | null;
   /**
    * Server-side `disconnect` matches awareness states to outgoing peers by
    * this token (must equal the ws.data.id the server assigns at upgrade).
@@ -449,6 +455,7 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     editing: sanitizeEditingState(s.editing),
     present: sanitizePresent(s.present),
     watching: sanitizeWatching(s.watching),
+    pointer: sanitizePointer(s.pointer),
   };
 }
 
@@ -761,6 +768,7 @@ function createSession(slug: string): CollabSession {
       editing: cur.editing ?? null,
       present: cur.present ?? null,
       watching: cur.watching ?? null,
+      pointer: cur.pointer ?? null,
       __connId: connId,
     } satisfies CollabAwarenessState);
   };
@@ -1074,6 +1082,8 @@ export function CollabProvider({ slug, children }: CollabProviderProps): JSX.Ele
           // S3.7a — a cursor publish must not drop the presenter's position (or a follower's watch).
           present: current.present ?? null,
           watching: current.watching ?? null,
+          // S3.2b — nor the presenter's Pointer dot.
+          pointer: current.pointer ?? null,
           __connId: myConnId,
           ...next,
         } satisfies CollabAwarenessState);
