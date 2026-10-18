@@ -21,6 +21,7 @@ import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
+import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { CornerDots } from './corner-dots.tsx';
 import { DrawTools } from './draw-tools.tsx';
 import { GapBands } from './gap-bands.tsx';
@@ -234,6 +235,8 @@ export function EditingLayer() {
       {/* S2.10 — ⌘D, ⌥-drag copy, Duplicate at another width, Custom width…, Rename, Reset position */}
       <ArtboardCommands readOnly={isReadOnlyCanvas()} />
       {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
+      {/* S11.2 — tells the shell what is empty: the artboard count and the selected empty artboard */}
+      <EmptyArtboardReporter />
       <ArtboardHandles />
       {editChrome ? <StickyName /> : null}
       {editChrome ? <MinimapContext /> : null}

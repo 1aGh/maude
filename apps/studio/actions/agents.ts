@@ -600,6 +600,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── app / help / ai ──
   'settings.open': PREF('settings are the user’s'),
   'ai.chat': { effect: 'none', agent: human('summon') },
+  // S11.2: opens the chat with words in the field; the agent writes the artboard itself, no verb needed
+  'ai.ask-fill-artboard': { effect: 'none', agent: human('summon') },
   'help.shortcuts': HELP,
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },

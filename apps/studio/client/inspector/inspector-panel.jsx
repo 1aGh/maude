@@ -7,6 +7,8 @@ import { Kbd, StIcon } from '../shell/icons.jsx';
 import { PhotoKnobs } from '../photo-knobs.jsx';
 import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
+import { useEmptyArtboard } from '../v2/empty/empty-hint-store.js';
+import { LayersEmpty } from '../v2/empty/layers-empty.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
 import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
@@ -120,6 +122,8 @@ export function InspectorPanel({
   // 'layers' so a spotlight step lands on a real row) but falls back to local
   // state for normal use. A user click both updates local state and notifies the
   // parent, so the two stay in lockstep whichever owns it.
+  // S11.2 — the artboard the canvas says is empty (Layers says so in the kit's words)
+  const emptyBoard = useEmptyArtboard();
   const [tabState, setTabState] = useState('inspect');
   const tab = layersOnly ? 'layers' : (tabProp ?? tabState);
   const setTab = (t) => {
@@ -618,6 +622,11 @@ export function InspectorPanel({
               }
             />
           </div>
+        ) : effTab === 'layers' &&
+          emptyBoard &&
+          layersTree?.artboardId === emptyBoard.artboardId &&
+          !layersTree?.nodes?.length ? (
+          <LayersEmpty artboard={emptyBoard.label} />
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
           <div className="st-rp-empty">
             {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +

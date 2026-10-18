@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "61c2fbdaff74",
+  "manifestVersion": "4946c6c441e0",
   "actions": [
     {
       "id": "search.open",
@@ -2357,6 +2357,17 @@
       "agent": {
         "path": "human",
         "because": "onboarding"
+      }
+    },
+    {
+      "id": "ai.ask-fill-artboard",
+      "label": "Ask AI to fill this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon"
       }
     },
     {
