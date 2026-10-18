@@ -19,6 +19,7 @@ import * as encoding from 'lib0/encoding';
 import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
 import * as Y from 'yjs';
 
+import { type AccessClaim, accessWiderThan, resolveAccess } from '../access/scope.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { MESSAGE_SYNC } from '../collab/protocol.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
@@ -119,6 +120,28 @@ afterAll(async () => {
   if (proc) await killProc(proc);
 });
 
+describe('accessWiderThan — what closes a socket', () => {
+  const at = (c: Partial<AccessClaim>) => resolveAccess({ v: 1, role: null, ...c } as AccessClaim);
+  const A = { c: 'ui/a.tsx', r: 'member' as const };
+  const cases: Array<[string, Partial<AccessClaim>, Partial<AccessClaim>, boolean]> = [
+    ['member → viewer (a role drop)', { role: 'member' }, { role: 'viewer' }, true],
+    ['owner → member', { role: 'owner' }, { role: 'member' }, true],
+    [
+      'viewer → member (a raise; Ask to edit is no power)',
+      { role: 'viewer' },
+      { role: 'member' },
+      false,
+    ],
+    ['member → member (a re-sign-in)', { role: 'member' }, { role: 'member' }, false],
+    ['project viewer → A only (sight narrowed)', { role: 'viewer' }, { grants: [A] }, true],
+    ['A member → A viewer', { grants: [A] }, { grants: [{ ...A, r: 'viewer' }] }, true],
+    ['A + B → A', { grants: [A, { c: 'ui/b.tsx', r: 'viewer' }] }, { grants: [A] }, true],
+    ['A only → project member', { grants: [A] }, { role: 'member' }, false],
+  ];
+  for (const [name, was, now, wider] of cases)
+    test(name, () => expect(accessWiderThan(at(was), at(now))).toBe(wider));
+});
+
 describe('a hub-linked desktop viewer’s collab socket (same origin)', () => {
   test('a Y update to a non-comment lane is refused; the room is unchanged', async () => {
     const s = await open(`${main}/_ws/collab/${SLUG}`);
@@ -130,12 +153,14 @@ describe('a hub-linked desktop viewer’s collab socket (same origin)', () => {
       s.ws.send(frame((e) => writeUpdate(e, Y.encodeStateAsUpdate(peer, before))));
       await Bun.sleep(400);
       expect(s.closed()).toBe(false);
+      // Read the room while the writer is still in it (an empty room is dropped, and these
+      // lanes are not persisted — reading after it closed would pass against the bug).
+      const doc = await roomDoc();
+      expect(doc.getMap('annotations2').get('planted')).toBeUndefined();
+      expect(doc.getText('html').toString()).not.toContain('VIEWER-BODY');
     } finally {
       s.ws.close();
     }
-    const doc = await roomDoc();
-    expect(doc.getMap('annotations2').get('planted')).toBeUndefined();
-    expect(doc.getText('html').toString()).not.toContain('VIEWER-BODY');
   }, 20000);
 });
 
