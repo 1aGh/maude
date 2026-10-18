@@ -189,6 +189,7 @@ import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
+import { COMMENTS_PATH } from './routes-v2/comments.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
 import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
@@ -333,7 +334,7 @@ const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // (`/auth/logout` + `/auth/browser/signout` → session, `/api/export` → export),
 // and `access-gate.mjs` asks the one matrix (S9.3). The handler-less
 // `/api/studio/comments` string went with it; the comment door is
-// `POST /api/comments` (S9.7), whose row will say `comment`.
+// `POST /api/comments` (S9.7), whose row says `comment` (routes-v2/comments.mjs).
 
 /**
  * The HTTP write doors a writer of the wrong FILE FORMAT is refused at
@@ -346,7 +347,7 @@ const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  */
 export function formatGatedWritePath(path, prefixes) {
   if (path === prefixes.projectConfig) return true;
-  if (path === '/api/studio/comments') return true;
+  if (path === COMMENTS_PATH) return true;
   return (
     path.startsWith(prefixes.fileDoor) ||
     path.startsWith(prefixes.uploads) ||
@@ -868,6 +869,43 @@ export function createHub(config = {}) {
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
 
+  // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
+  const commentsDeps = {
+    designRel: process.env.MAUDE_DESIGN_REL || '.design',
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    personKey: secret || dataDir,
+    accepted: () => accepted,
+    matchesScope,
+    async docExists(name) {
+      if (accepted?.acceptedMode()) {
+        const { docs = [] } = (await accepted.kernel.bootstrap()) ?? {};
+        return docs.some((d) => d.doc === name && !d.retired);
+      }
+      return (
+        listCanvases(sqlitePath, peers).some((d) => d.name === name) && !isTombstoned(dataDir, name)
+      );
+    },
+    async withDoc(name, context, fn) {
+      const conn = await server.hocuspocus.openDirectConnection(name, context);
+      try {
+        await conn.transact(fn);
+      } finally {
+        await conn.disconnect();
+      }
+    },
+    async formatRefusal(request) {
+      if (!accepted) return null;
+      if (!accepted.isReady()) await accepted.refreshOnce().catch(() => {});
+      const fmt = accepted.projectFormat();
+      if (declaredFormatFromRequest(request) === fmt) return null;
+      return { error: FORMAT_REFUSAL, reason: 'format', formatVersion: fmt };
+    },
+    *connections() {
+      for (const document of server.hocuspocus?.documents?.values?.() ?? [])
+        yield* document.getConnections?.() ?? [];
+    },
+  };
+
   const server = new Server({
     port,
 
@@ -1192,6 +1230,7 @@ export function createHub(config = {}) {
           canvasHost: Boolean(studioProxy && isCanvasHost(request)),
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
+          deps: { comments: commentsDeps },
         })
       ) {
         bailFromOnRequest();

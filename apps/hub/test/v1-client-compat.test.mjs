@@ -359,3 +359,55 @@ describe('S9.4 — the canvas-scoped file plane: a 1.9.1 desktop sees the whole 
     });
   }
 });
+
+// ------------------------------------------------------------------- S9.7
+
+/**
+ * The 1.9.1 desktop's comment path, FROZEN: it pushes a comment straight into
+ * the canvas doc's Y `comments` array on its own connection and leaves. It
+ * never calls `POST /api/comments` (that door is v2's, additive).
+ */
+function v1YjsSession(port, peerToken, name, onSynced) {
+  return new Promise((resolve, reject) => {
+    const doc = new Y.Doc();
+    const timer = setTimeout(() => {
+      provider.destroy();
+      reject(new Error('no sync within 3s'));
+    }, 3000);
+    const provider = new HocuspocusProvider({
+      url: `ws://127.0.0.1:${port}`,
+      name,
+      token: peerToken,
+      document: doc,
+      onSynced: () => {
+        clearTimeout(timer);
+        const out = onSynced(doc);
+        setTimeout(() => {
+          provider.destroy();
+          resolve(out);
+        }, 300);
+      },
+    });
+  });
+}
+
+describe('S9.7 — the comment path: a 1.9.1 desktop sees today’s answers', () => {
+  test('owner / member comments land on the Y lane as today; a viewer’s is dropped as today', async () => {
+    const tokens = {};
+    for (const role of ['owner', 'member', 'viewer']) {
+      tokens[role] = (await (await v1Login(PORT, v1ProjectToken(role))).json()).token;
+    }
+    const name = 'ws/alligators/main/ui-home';
+    for (const role of ['owner', 'member', 'viewer']) {
+      await v1YjsSession(PORT, tokens[role], name, (doc) =>
+        doc
+          .getArray('comments')
+          .push([{ id: `c_v1${role}`, file: '.design/ui/home.tsx', text: role, status: 'open' }])
+      );
+    }
+    const list = await v1YjsSession(PORT, tokens.owner, name, (doc) =>
+      doc.getArray('comments').toArray()
+    );
+    assert.deepEqual(list.map((c) => c.id).sort(), ['c_v1member', 'c_v1owner']);
+  });
+});
