@@ -3,7 +3,7 @@
 // declared in this file only, then drawn, hit, moved, synced and read/written
 // by the AI verbs through the code paths every built-in type uses.
 
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { projectBoard } from '../annotations/ai-read.ts';
@@ -17,11 +17,21 @@ import {
 } from '../annotations/elements/_shared.ts';
 import { str } from '../annotations/fields.ts';
 import { applyOps, diffToOps, parseOps } from '../annotations/ops.ts';
-import { REGISTRY, registerElementType, validateElement } from '../annotations/registry.ts';
+import {
+  REGISTRY,
+  registerElementType,
+  unregisterElementType,
+  validateElement,
+} from '../annotations/registry.ts';
 import { Scene } from '../annotations/scene.ts';
 import { parseBoard, serializeBoard, validateElements } from '../annotations/schema.ts';
 import type { AnnotationElement, Box, ElementDef, GeomCtx } from '../annotations/types.ts';
-import { ElementBox, ElementNode, registerElementView } from '../annotations/ui/element-node.tsx';
+import {
+  ElementBox,
+  ElementNode,
+  registerElementView,
+  unregisterElementView,
+} from '../annotations/ui/element-node.tsx';
 import { renderItemsFromStrokes } from '../annotations/ui/render-model.ts';
 import { elementsToStrokes, strokesToElementMap } from '../annotations/v1-adapter.ts';
 import { isBindable } from '../annotations-bindings.ts';
@@ -54,6 +64,12 @@ const badge: ElementDef = {
   meaningful: (el) => boxOf(el).w >= 8 && boxOf(el).h >= 8,
 };
 registerElementType(badge);
+// The registry is process-wide: a `badge` left in it shows up in annotationsJsonSchema() for every
+// later file in the same bun run (schema-drift went red in the full suite, V2-5 suite-fix A3).
+afterAll(() => {
+  unregisterElementType('badge');
+  unregisterElementView('badge');
+});
 registerElementView('badge', ({ el }) => {
   const b = boxOf(el);
   return createElement(
@@ -300,6 +316,16 @@ describe('badge — a type added in one file works end to end', () => {
 
   test('a built-in type cannot be replaced', () => {
     expect(() => registerElementType({ ...badge, type: 'sticky' })).toThrow();
+  });
+
+  test('a built-in type cannot be removed; a runtime one leaves no trace', () => {
+    expect(() => unregisterElementType('sticky')).toThrow();
+    expect(() => unregisterElementView('sticky')).toThrow();
+    const probe: ElementDef = { ...badge, type: 'badge-probe' };
+    registerElementType(probe);
+    expect(REGISTRY.has('badge-probe')).toBe(true);
+    unregisterElementType('badge-probe');
+    expect(REGISTRY.has('badge-probe')).toBe(false);
   });
 });
 
