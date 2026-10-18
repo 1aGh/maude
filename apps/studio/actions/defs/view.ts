@@ -98,6 +98,20 @@ export const VIEW_ACTIONS: ActionDef[] = [
       sheet: 'Comments sidebar',
     },
   },
+  // S9.22 — the Comments panel's four filters (CONTRACT §6: Open · Mine · Resolved · All) and a thread
+  // deep link. Each opens the panel (as `view.comments` does) on that filter; ⌘K lists them by their
+  // words. No keys: ⇧⌘M stays the panel's one chord. `comments.open-thread` takes `{ id }` over the
+  // `run-action` lane (the mention toast's Open, a deep link, ⌘K on a result).
+  { id: 'comments.filter-open', label: 'Show open comments', kind: 'command', exec: 'shell' },
+  { id: 'comments.filter-mine', label: 'Show my comments', kind: 'command', exec: 'shell' },
+  {
+    id: 'comments.filter-resolved',
+    label: 'Show resolved comments',
+    kind: 'command',
+    exec: 'shell',
+  },
+  { id: 'comments.filter-all', label: 'Show all comments', kind: 'command', exec: 'shell' },
+  { id: 'comments.open-thread', label: 'Open comment thread', kind: 'command', exec: 'shell' },
   {
     id: 'view.exports',
     label: 'Exports',
