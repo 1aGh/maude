@@ -90,7 +90,14 @@ describe('the words', () => {
     expect(decisionMemoryLine({ active: true, decisions: 0, engine: 'kgai' })).toBe(
       '0 decisions · kgai'
     );
-    for (const s of [null, undefined, {}, { active: false, decisions: null }, { active: true }])
+    for (const s of [
+      null,
+      undefined,
+      {},
+      { active: false, decisions: null },
+      { active: false, decisions: 5 }, // a stale count behind an inactive graph is not shown
+      { active: true },
+    ])
       expect(decisionMemoryLine(s as never)).toBe('Not set up');
   });
 
