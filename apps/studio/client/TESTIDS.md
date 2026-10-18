@@ -1012,6 +1012,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
 | `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
 | `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+| `canvas-row-arriving-<slug>` | testid (pattern) | A canvas the hub lists that is still coming down to this Mac (05 · es-arriving): drawn at its path with the kit's ArrivingRow — named, dimmed, its thumb pulsing. Not a button; it becomes the normal row once the index lists it. | `client/v2/canvases/canvases-panel.jsx` · `PanelPendingRow` | test:v2-arriving-rows | new |
+| `canvas-row-not-local-<slug>` | testid (pattern) | Offline, and this canvas never came down (05 · es-offline-uncached): dimmed with a cloud. Hidden by "Show canvases on this Mac". | `client/v2/canvases/canvases-panel.jsx` · `PanelPendingRow` | test:v2-arriving-rows | new |
+| `canvas-not-local` | testid | The card a tab shows for a canvas that is not on this Mac while offline: "<canvas> isn't on this Mac yet." with the 05 words (copy id es-offline-uncached.not-local). No toolbar, no zoom. | `client/v2/empty/not-local.jsx` · `NotLocalCanvas` | test:v2-arriving-rows | new |
+| `canvas-not-local-show-local` | testid | The card's one action, "Show canvases on this Mac": narrows the Canvases panel to the canvases that are here. | `client/v2/empty/not-local.jsx` · `NotLocalCanvas` | test:v2-arriving-rows | new |
 
 ## What's New spotlights
 

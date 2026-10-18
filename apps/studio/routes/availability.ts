@@ -45,6 +45,18 @@ function relParam(raw: string, designRel: string): string | null {
   return s.startsWith(prefix) ? s.slice(prefix.length) : s;
 }
 
+/** The canvas paths of a `/_index-data` payload (its `kind: 'canvas'` groups) — what the panel draws. */
+export function canvasPathsOfIndex(data: unknown): string[] {
+  const groups = (data as { groups?: unknown } | null)?.groups;
+  if (!Array.isArray(groups)) return [];
+  const out: string[] = [];
+  for (const g of groups as Array<{ kind?: unknown; paths?: unknown }>) {
+    if (g?.kind !== 'canvas' || !Array.isArray(g.paths)) continue;
+    for (const p of g.paths) if (typeof p === 'string' && /\.(tsx|html)$/i.test(p)) out.push(p);
+  }
+  return out;
+}
+
 export function createAvailabilityRoutes(deps: AvailabilityRouteDeps): RouteSpec[] {
   return [
     {
