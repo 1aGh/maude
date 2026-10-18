@@ -319,6 +319,10 @@ describe('the hub canary sweep (A-only peer token)', () => {
   // target both canary-named, a member's ballot in it) and B's `/present/` path.
   test('votes + present rows (S9.13): a real B vote answers exactly as a missing one', async () => {
     const owner = http(hub.http, t.owner);
+    // A canvas holds one open vote: the table pass's B vote (S9.12b setup) ends first, so this
+    // one — titled, with a member's ballot — is the vote B carries now.
+    const ended = await owner.post(`${V1}/votes/${bTargets.vote}/end`, {});
+    assert.equal(ended.status, 200, JSON.stringify(ended.body));
     const started = await owner.post(`${V1}/votes`, {
       canvas: B,
       targets: ['ab:canary-b-board', 'ab:canary-b-alt'],

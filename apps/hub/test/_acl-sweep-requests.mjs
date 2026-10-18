@@ -142,6 +142,66 @@ export const SWEEP_REQUESTS = {
     ['GET', `/api/history/file?sha=${tg.sha}&path=${enc(tg.css)}`],
   ],
   '/api/export': (tg) => [['POST', '/api/export', json({ paths: [tg.path] })]],
+
+  // ---- the access API (S9.6, routes-v2/access.mjs) — me / people / requests are canvas doors
+  '/api/access/me': (tg) => [['GET', `/api/access/me${q(tg)}`]],
+  '/api/access/people': (tg) => [
+    ['GET', `/api/access/people${q(tg)}`],
+    ['GET', `/api/access/people?canvas=${enc(tg.path)}`],
+    ['POST', '/api/access/people', json({ canvas: tg.path })],
+  ],
+  '/api/access/people/*': (tg) => [
+    ['PATCH', `/api/access/people/${tg.slug}`, json({ canvas: tg.path, role: 'viewer' })],
+    ['DELETE', `/api/access/people/${tg.slug}`],
+  ],
+  '/api/access/invites': (tg) => [
+    ['GET', `/api/access/invites${q(tg)}`],
+    [
+      'POST',
+      '/api/access/invites',
+      json({ email: `${tg.slug}@example.invalid`, canvas: tg.path, role: 'viewer' }),
+    ],
+  ],
+  '/api/access/invites/*': (tg) => [
+    ['POST', `/api/access/invites/${tg.slug}/resend`, '{}'],
+    ['DELETE', `/api/access/invites/${tg.slug}`],
+  ],
+  '/api/access/links': (tg) => [
+    ['GET', `/api/access/links${q(tg)}`],
+    ['POST', '/api/access/links', json({ canvas: tg.path, role: 'viewer' })],
+  ],
+  '/api/access/links/*': (tg) => [
+    ['PATCH', `/api/access/links/${tg.slug}`, json({ canvas: tg.path })],
+    ['DELETE', `/api/access/links/${tg.slug}`],
+  ],
+  '/api/access/requests': (tg) => [
+    ['GET', `/api/access/requests${q(tg)}`],
+    ['POST', '/api/access/requests', json({ canvas: tg.path })],
+  ],
+  '/api/access/requests/*': (tg) => [
+    ['POST', `/api/access/requests/${tg.slug}/approve`, json({ canvas: tg.path })],
+    ['POST', `/api/access/requests/${tg.slug}/decline`, '{}'],
+  ],
+  // self-authenticating (the control plane's signed poke): a peer token is not its key
+  '/internal/access-changed': (tg) => getPost('/internal/access-changed', tg),
+
+  // ---- comments (S9.7, routes-v2/comments.mjs) — a canvas door judged by `doc`
+  '/api/comments': (tg) => [
+    ['POST', '/api/comments', json({ op: 'add', doc: tg.doc, text: 'sweep' })],
+    ['POST', '/api/comments', json({ op: 'resolve', doc: tg.doc, id: `c_${tg.slug}` })],
+  ],
+
+  // ---- the shared Trash (S1.7) — owner-only, project scope
+  '/api/trash/clear': (tg) => [
+    ['POST', '/api/trash/clear', json({ items: [`canvas:${tg.slug}`] })],
+    ['POST', '/api/trash/clear', '{}'],
+  ],
+
+  // ---- a presentation link (S3.7b / S9.13) — a canvas door on the canvas path
+  '/present/*': (tg) => [
+    ['GET', `/present/${tg.path}`],
+    ['POST', `/present/${tg.path}`, '{}'],
+  ],
 };
 
 /** The accepted-revisions + votes rows, keyed by the route name the pattern carries. */
@@ -221,6 +281,12 @@ const ACCEPTED = {
     ['POST', `${V1}/votes/${tg.vote}/ballot`, '{}'],
   ],
   'votes/:id/end': (tg) => [['POST', `${V1}/votes/${tg.vote}/end`, '{}']],
+  // S1.7 — the shared Trash's records (L18: cut to a canvas-only session's canvases)
+  trash: (tg) => [
+    ['GET', `${V1}/trash${q(tg)}`],
+    ['GET', `${V1}/trash/${tg.slug.replace(/[^A-Za-z0-9_-]/g, '')}${q(tg)}`],
+    ['POST', `${V1}/trash`, json({ doc: tg.doc, path: tg.path })],
+  ],
 };
 
 /** Name a pattern row by a probe path: the accepted route it matches. */
@@ -238,6 +304,7 @@ const PATTERN_PROBES = {
   'votes/:id': `${V1}/votes/x1`,
   'votes/:id/ballot': `${V1}/votes/x1/ballot`,
   'votes/:id/end': `${V1}/votes/x1/end`,
+  trash: `${V1}/trash`,
 };
 
 /** The builder for a row: exact/prefix by key, a pattern by the probe it matches. */
