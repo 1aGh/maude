@@ -30,6 +30,7 @@ import {
 import ElicitationPrompt from './ElicitationPrompt.jsx';
 import { ChatHeader } from './chat-header.jsx';
 import { AiChatIsland } from '../v2/ai/AiChatIsland.jsx';
+import { DropOverlay } from '../v2/ai/DropOverlay.jsx';
 import { Composer } from '../v2/ai/Composer.jsx';
 import {
   ActivityBar,
@@ -45,6 +46,7 @@ import { Check, Spark } from '../v2/ai/icons.jsx';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
 import { readSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
+import { useAttachments } from '../v2/ai/use-attachments.js';
 import PermissionPrompt from './PermissionPrompt.jsx';
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
@@ -314,6 +316,8 @@ function ChatThread({
   // adapter awaits `pending` then expands `map` before sending; the composer writes
   // both on paste.
   const attachmentsRef = useRef({ map: new Map(), pending: new Set() });
+  // S5.10 — drop · paste · paperclip chips and the folder consent; the adapter reads them off the ref.
+  const attach = useAttachments({ chatId, attachmentsRef });
   // Canvas/selection context attachment (feature-acp-context-hardening) + the scope chip (S5.8). One
   // buildChatContext result drives BOTH the composer chip and the frozen block the adapter prepends at
   // send (`contextRef` is what it reads — freeze = read-once). The chip follows the selection until the
@@ -427,6 +431,7 @@ function ChatThread({
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatMediaContext.Provider value={media}>
         <div className="chat-panel" style={hidden ? { display: 'none' } : undefined}>
+          <DropOverlay attach={attach} />
           <StatusRow
             tools={activeTools}
             transcriptView={transcriptView}
@@ -483,6 +488,7 @@ function ChatThread({
               conn={conn}
               chatId={chatId}
               attachmentsRef={attachmentsRef}
+              attach={attach}
               usage={usage}
               showRateLimitBanner={showRateLimitBanner}
               onDismissRateLimitBanner={dismissRateLimitBanner}

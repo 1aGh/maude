@@ -5,6 +5,8 @@
 // the panel costs nothing. A custom `ChatModelAdapter` translates the bridge's
 // JSON frames into the streamed assistant message parts assistant-ui renders.
 
+import { attachmentBlock } from '../v2/ai/attach.js';
+
 const WS_PATH = '/_ws/acp';
 
 /**
@@ -847,8 +849,13 @@ export function makeAcpAdapter(
       // image and hits Enter immediately).
       const att = getAttachments?.();
       if (att?.pending?.size) await Promise.allSettled([...att.pending]);
-      const typed = expandPasteChips(lastUserText(messages), att?.map);
-      if (!typed) return;
+      const words = expandPasteChips(lastUserText(messages), att?.map);
+      if (!words) return;
+      // S5.10 — the chips (photos, footage, PDFs, folders AI may read) ride after the words, by the
+      // paths the SERVER answered (client/v2/ai/attach.js). A folder still waiting on consent stays.
+      const attached = attachmentBlock(att?.chips?.current);
+      const typed = attached ? `${words}\n\n${attached}` : words;
+      att?.onSent?.();
       // Freeze the canvas/selection context AT SEND (feature-acp-context-
       // hardening): the turn keeps the context it had when the user hit Enter,
       // immune to the user switching canvases while it runs. The same object
