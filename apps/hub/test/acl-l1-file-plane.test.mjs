@@ -8,6 +8,7 @@
 // B changes (U5). Project sessions answer exactly as before (U7).
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 
 import { NOT_IN_SCOPE_REFUSAL } from '../src/access-gate.mjs';
@@ -22,6 +23,8 @@ after(async () => {
 });
 
 const paths = (rows) => rows.map((r) => r.path).sort();
+const sha256hex = (b) => createHash('sha256').update(b).digest('hex');
+const sha8 = (b) => sha256hex(b).slice(0, 8);
 const png = (n) => Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, n, n, n, n]);
 
 describe('project sessions keep today’s file plane (U7)', () => {
@@ -104,11 +107,59 @@ describe('a canvas-only token sees only its closure', () => {
     assert.deepEqual(r.body, NOT_IN_SCOPE_REFUSAL);
   });
 
-  test('a member grant may create a NEW asset (G2 create-only)', async () => {
-    const r = await call(hub, 'PUT', '/api/file/assets/new-from-a.png', hub.tokens.canvasA, {
-      body: png(5),
-    });
-    assert.ok(r.status === 200 || r.status === 201, JSON.stringify(r.body));
+  test('a member grant may create a NEW asset only content-addressed (G2, L20)', async () => {
+    const bytes = png(5);
+    const name = `assets/${sha8(bytes)}.png`;
+    const r = await call(hub, 'PUT', `/api/file/${name}`, hub.tokens.canvasA, { body: bytes });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.path, name);
+  });
+
+  // V2-5 sweep-fix (lead decision, option a): a free chosen name was written
+  // while a name B's closure holds was refused, so the answer told a canvas-only
+  // session which asset names exist. Now any name that is not `<sha8>.<ext>` of
+  // the bytes sent gets the one refusal, whether or not it exists.
+  test('a chosen or mismatched asset name: one refusal, existing or not', async () => {
+    const bytes = png(8);
+    const cases = [
+      ['PUT', '/api/file/assets/new-from-a.png'], // free, chosen name
+      ['PUT', '/api/file/assets/b-only.png'], // B's, chosen name
+      ['PUT', `/api/file/assets/${sha8(png(99))}.png`], // free, someone else's hash
+      ['PUT', '/assets/new-from-a-alias.png'], // the legacy alias
+      ['PUT', '/_asset-file/assets/new-from-a-alias2.png'],
+    ];
+    for (const [method, path] of cases) {
+      const r = await call(hub, method, path, hub.tokens.canvasA, { body: bytes });
+      assert.equal(r.status, 403, path);
+      assert.deepEqual(r.body, NOT_IN_SCOPE_REFUSAL, path);
+    }
+    const listed = await call(hub, 'GET', '/api/files', hub.tokens.owner);
+    for (const [, path] of cases) {
+      const rel = path.replace(/^\/(api\/file|_asset-file)\//, '').replace(/^\//, '');
+      if (rel !== 'assets/b-only.png') {
+        assert.ok(!paths(listed.body.files).includes(rel), `${rel} landed`);
+      }
+    }
+  });
+
+  test('upload sessions: the same content-addressed rule', async () => {
+    const up = (path, sha256) =>
+      call(hub, 'POST', '/api/file-uploads', hub.tokens.canvasA, {
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path, size: 12, sha256 }),
+      });
+    const sha = sha256hex(png(3));
+    for (const path of [
+      'assets/new-upload.png',
+      'assets/b-only.png',
+      `assets/${'0'.repeat(8)}.png`,
+    ]) {
+      const r = await up(path, sha);
+      assert.equal(r.status, 403, path);
+      assert.deepEqual(r.body, NOT_IN_SCOPE_REFUSAL, path);
+    }
+    const ok = await up(`assets/${sha.slice(0, 8)}.png`, sha);
+    assert.equal(ok.status, 201, JSON.stringify(ok.body));
   });
 
   test('a viewer grant writes nothing', async () => {

@@ -193,16 +193,14 @@ async function send(token, [method, path, body]) {
 
 const SESSION_ENDING = new Set(['/auth/logout', '/auth/browser/signout']);
 
-// OPEN, handed back to the lead (V2-5 sweep-fix Q1): a canvas-only editor may
-// CREATE a new `assets/<name>` (scope.ts `writes`, create-only), so a create
-// at a name B's closure already holds is refused (403 not-in-scope) where a
-// free name is written (200/201) — an existence oracle for GUESSED asset names.
-// V2-1.16 L20 covers only content-addressed `assets/<sha8>.<ext>` names (X3).
-// Pinned here so the sweep stays honest: the entry must still differ, and the
-// list empties when the question is decided. (Only the FIRST create probe
-// shows it: that request writes the twin's free name, so every later create
-// probe — `/api/file-uploads`, `PUT /assets/…` — meets two existing names.)
-const KNOWN_OPEN = new Set(['PUT /api/file/assets/canary-b-only.png [/api/file/*]']);
+// CLOSED (lead decision, V2-5 sweep-fix option a): a canvas-only editor's
+// create-only write under `assets/` once answered a name B's closure holds
+// with 403 and a free chosen name with 200 — an existence oracle for guessed
+// asset names. A canvas-only create now needs `assets/<sha8>.<ext>` of the
+// bytes sent (`contentAddressedAsset`, scope.ts), so both get the one refusal.
+// A finding the lead has to decide goes here, named, until it is decided; the
+// sweep fails when a listed entry stops differing.
+const KNOWN_OPEN = new Set();
 
 describe('the file-plane canary sweep (A-only canvas session over a checkout)', () => {
   test('the sweep table reaches every row', () => {
