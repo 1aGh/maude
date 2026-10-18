@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { SUBSCRIPTION_SCRUBBED_ENV_KEYS, scrubAgentEnv } from '../acp/env.ts';
+import { chatSpawnEnv, SUBSCRIPTION_SCRUBBED_ENV_KEYS, scrubAgentEnv } from '../acp/env.ts';
 
 describe('scrubAgentEnv — subscription guardrail', () => {
   test('strips the billing-switching keys, keeps everything else', () => {
@@ -156,5 +156,33 @@ describe('scrubAgentEnv — subscription guardrail', () => {
       expect([f, /scrubAgentEnv\(/.test(src(f))]).toEqual([f, true]);
       expect([f, /delete env\.MAUDE_/.test(src(f))]).toEqual([f, false]);
     }
+  });
+});
+
+// S5.4 (V2-1.15 §5.4) — MAUDE_CHAT_ID binds a chat's hooks to that chat's run. The bridge sets it
+// per chat; an inherited value would bind this studio's agents to a chat that is not theirs.
+describe('the run binding — MAUDE_CHAT_ID / MAUDE_AGENT_ACTOR', () => {
+  test('scrubAgentEnv drops an inherited binding (the probe and login-state never carry one)', () => {
+    const out = scrubAgentEnv({
+      PATH: '/usr/bin',
+      MAUDE_CHAT_ID: 'someone-elses-chat',
+      MAUDE_AGENT_ACTOR: 'maude-chat',
+      MAUDE_PROFILE_ID: 'work',
+    });
+    expect(out).toEqual({ PATH: '/usr/bin', MAUDE_PROFILE_ID: 'work' });
+  });
+
+  test('chatSpawnEnv sets the chat id when it is a plain chat id, else nothing', () => {
+    expect(chatSpawnEnv({ PATH: '/usr/bin' }, 'c_1-a')).toEqual({
+      PATH: '/usr/bin',
+      MAUDE_CHAT_ID: 'c_1-a',
+    });
+    for (const bad of ['', '../x', 'a b', 'x'.repeat(65), null, undefined])
+      expect(chatSpawnEnv({ PATH: '/usr/bin', MAUDE_CHAT_ID: 'stale' }, bad)).toEqual({
+        PATH: '/usr/bin',
+      });
+    const src = { PATH: '/usr/bin' };
+    chatSpawnEnv(src, 'c1');
+    expect(src).toEqual({ PATH: '/usr/bin' }); // pure
   });
 });

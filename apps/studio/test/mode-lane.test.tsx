@@ -406,6 +406,35 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
     expect(shellPosts.filter((m) => m.dgn === 'mode-request')).toEqual([]);
   });
 
+  test('S3.1 — Present · Artboards keeps its spec; the shell’s present-step reaches the stage, only while presenting', () => {
+    const store = canvasModeStore(window);
+    const base = store.get().modeSeq + 1;
+    const step = (to: unknown, source: unknown = fakeParent) =>
+      act(() => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            source: source as Window,
+            data: { dgn: 'present-step', to },
+          })
+        );
+      });
+    setMode(base, 'edit');
+    step('next'); // outside Present a step means nothing
+    expect(store.get().step).toBeNull();
+    setMode(base + 1, 'present', { present: { kind: 'artboards', from: 'post-1x1' } });
+    expect(store.get().present).toEqual({ kind: 'artboards', from: 'post-1x1' });
+    step('next');
+    step('next'); // the same `to` twice is two steps
+    expect(store.get().step).toMatchObject({ to: 'next' });
+    const n = store.get().step?.n ?? 0;
+    step(3);
+    expect(store.get().step).toEqual({ to: 3, n: n + 1 });
+    step('prev', window); // the canvas posting to itself is not the shell
+    expect(store.get().step).toEqual({ to: 3, n: n + 1 });
+    setMode(base + 2, 'edit');
+    expect(store.get().step).toBeNull();
+  });
+
   test('the governed provider mounting after the seeds adopts the mode (its own state, not prevMode)', () => {
     const base = canvasModeStore(window).get().modeSeq + 1;
     setMode(base, 'preview');

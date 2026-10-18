@@ -20,7 +20,7 @@ test('real persisted document and authorized delete/revive invalidate scoped dis
   timeout: 25000,
 }, async () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'maude-doc-events-'));
-  const token = addToken(dataDir, { label: 'designer', scope: '*', role: 'designer' }).value;
+  const token = addToken(dataDir, { label: 'designer', scope: '*', role: 'member' }).value;
   const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
   const providers = [];
   const documents = [];

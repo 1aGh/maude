@@ -1,5 +1,9 @@
 // annotation-ops-command (DDR-242 AD4) — one gesture = one op batch; undo is its inverse.
 import { describe, expect, test } from 'bun:test';
+import { AiBatch } from '../annotations/ai-write.ts';
+import { applyOps, type Op } from '../annotations/ops.ts';
+import { canonical } from '../annotations/schema.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
 import {
   type AnnotationOpsFn,
   buildAnnotationOpsRecord,
@@ -30,6 +34,38 @@ describe('annotation-ops command', () => {
       [ops, '.design/ui/A.tsx'],
       [inverse, '.design/ui/A.tsx'],
     ]);
+  });
+
+  // S4.5 — "Undo this chat" (S4.15) reverts the AI's resolves with the design change: the agent's
+  // resolve batch is an ordinary op record whose inverse reopens exactly what it resolved.
+  test('an AI resolve batch is one undoable record: do resolves, undo reopens', async () => {
+    const sticky = canonical({
+      id: 's1',
+      type: 'sticky',
+      index: 'a0',
+      x: 0,
+      y: 0,
+      w: 200,
+      h: 200,
+      text: 'warmer sun?',
+    } as never) as unknown as AnnotationElement;
+    const batch = new AiBatch([sticky]);
+    batch.resolveStickies({ ids: ['s1'] });
+    const base = new Map([[sticky.id, sticky]]);
+    const { inverse } = applyOps(base, batch.ops);
+    let state = base;
+    const fn: AnnotationOpsFn = (o) => {
+      state = applyOps(state, o as Op[]).state;
+    };
+    const cmd = createAnnotationOpsCommand(
+      buildAnnotationOpsRecord({ ops: batch.ops, inverse, label: 'resolve' }),
+      fn
+    );
+    await cmd.do();
+    expect(state.get('s1')?.resolved).toMatchObject({ by: 'AI' });
+    await cmd.undo();
+    expect(state.get('s1')?.resolved).toBeUndefined();
+    expect(state.get('s1')?.text).toBe('warmer sun?');
   });
 
   test('the record is a deep copy (the caller may reuse its arrays)', () => {

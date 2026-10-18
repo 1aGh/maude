@@ -58,6 +58,28 @@
   .st-pal-item.is-dim .st-pal-ltxt {
     color: var(--fg-3);
   }
+  /* S1.4 · 11 pn-k-close: a near miss among rows that have a word right — quieter, never dimmed out */
+  .st-pal-item.is-quiet .st-pal-ltxt {
+    color: var(--fg-1);
+  }
+  /* S1.4 · 05 es-search-more: Recent on a Mac where nothing was opened yet */
+  .st-pal-recent-none {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 0 var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+  }
+  .st-pal-recent-none .st-pal-sit {
+    font-size: var(--type-base);
+    line-height: var(--lh-base);
+  }
+  .st-pal-recent-none .st-pal-next {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
   .st-pal-mark {
     background: var(--accent-tint);
     color: inherit;

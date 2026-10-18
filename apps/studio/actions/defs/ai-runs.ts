@@ -37,6 +37,15 @@ export const AI_RUN_ACTIONS: ActionDef[] = [
     search: ROW,
   },
   {
+    // the waiting card's "Run on a copy" (V2-1.15 §5.7); the route lands with the canvas duplicate
+    id: 'ai.run-on-copy',
+    label: 'Run on a copy',
+    kind: 'command',
+    exec: 'shell',
+    visible: DESKTOP_EDIT,
+    search: ROW,
+  },
+  {
     id: 'ai.keep-going',
     label: 'Keep going',
     kind: 'command',
