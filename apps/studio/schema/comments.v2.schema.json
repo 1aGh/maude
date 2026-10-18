@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maude.sh/schema/comments/v2",
+  "title": "Maude comment threads (<designRoot>/_comments/<slug>.json, the canvas doc's comments lane), v2",
+  "description": "Hand-written source; the runtime owners are apps/studio/comments/ops.ts (writes) and comments/anchors.ts (the tolerant read). The file carries NO version field (V2-1.12 §5.1): it grows by top-level keys, which every reader since Phase 6 keeps verbatim, so `additionalProperties` stays open — a Maude 1 peer carries a Maude 2 key through a rewrite, and the S4 sticky ↔ comment `from` is carried uninterpreted. Anchors that fail their shape are dropped by the reader (the thread renders detached, never deleted). `author` is the session's name, stamped by the door — never a body field; `authorId` is the hub's opaque id; `authorKind: \"ai\"` marks `maude design comments add --as-ai`, and AI text never mentions anyone (C3). Comment text is untrusted (DDR-054). Agents never write this file: they use `maude design comments …`. Skill: design:design _guide-05.",
+  "type": "array",
+  "items": { "$ref": "#/$defs/comment" },
+  "$defs": {
+    "authorKind": { "enum": ["ai"] },
+    "opaqueId": { "type": "string", "pattern": "^[A-Za-z0-9_:-]{1,80}$" },
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    },
+    "reply": {
+      "type": "object",
+      "required": ["id", "author", "body", "created"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9_]{1,64}$" },
+        "author": { "type": "string", "maxLength": 120 },
+        "authorId": { "$ref": "#/$defs/opaqueId" },
+        "authorKind": { "$ref": "#/$defs/authorKind" },
+        "body": { "type": "string", "maxLength": 4000 },
+        "created": { "type": "string", "maxLength": 40 }
+      }
+    },
+    "comment": {
+      "type": "object",
+      "required": ["id", "file", "text", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9_]{1,64}$" },
+        "file": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "selector": { "type": "string", "maxLength": 2000 },
+        "index": { "type": "integer", "minimum": 0 },
+        "dom_path": { "type": "array", "maxItems": 16, "items": { "type": "string" } },
+        "tag": { "type": "string", "maxLength": 64 },
+        "classes": { "type": "string", "maxLength": 2000 },
+        "bounds": {
+          "type": ["object", "null"],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "w": { "type": "number" },
+            "h": { "type": "number" }
+          }
+        },
+        "html_excerpt": { "type": "string", "maxLength": 2000 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "status": { "enum": ["open", "resolved"] },
+        "created": { "type": "string", "maxLength": 40 },
+        "resolved_at": { "type": ["string", "null"], "maxLength": 40 },
+        "author": { "type": "string", "maxLength": 120 },
+        "authorId": { "$ref": "#/$defs/opaqueId" },
+        "authorKind": { "$ref": "#/$defs/authorKind" },
+        "thread": { "type": "array", "items": { "$ref": "#/$defs/reply" } },
+        "mentions": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^@[A-Za-z0-9_][A-Za-z0-9_.-]*$" }
+        },
+        "timeline": {
+          "description": "A video comp's timeline: the clip (survives reorder) or the frame.",
+          "type": "object",
+          "properties": {
+            "clipStableId": { "type": "string", "maxLength": 200 },
+            "frameOffset": { "type": "integer", "minimum": 0 },
+            "frame": { "type": "integer", "minimum": 0 },
+            "lane": { "type": "string", "maxLength": 40 }
+          }
+        },
+        "annotationId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+        "world": { "$ref": "#/$defs/point" },
+        "artboard": {
+          "description": "Maude 2: the DCArtboard id (V2-1.4) the thread is on.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$"
+        },
+        "t": {
+          "description": "Maude 2: seconds into the artboard's video (co-comment-video). Needs `artboard`.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 86400
+        },
+        "mm": {
+          "description": "Maude 2: millimetres from the print artboard's trim corner, top-left (co-comment-print). Needs `artboard`.",
+          "type": "object",
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "number", "minimum": -10000, "maximum": 10000 },
+            "y": { "type": "number", "minimum": -10000, "maximum": 10000 }
+          }
+        },
+        "from": {
+          "description": "Reserved for the S4 sticky ↔ comment conversion (contract S4-S9-votes-comments.md). Carried, never interpreted here."
+        }
+      }
+    }
+  }
+}
