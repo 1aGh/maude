@@ -531,3 +531,55 @@ describe('PROTECTED_IN_PROJECT — case folding (ethical-hacker A6)', () => {
     }
   });
 });
+
+// S5.10 — a folder the person allowed AI to READ never becomes a write path, inside the project or
+// out, by its own path, a `..` route, or a symlink that leads into it.
+describe('writeTargetsInsideProject — read-only grants (S5.10)', () => {
+  const scope = () => pinScopeRoot(root);
+  const granted = () => [join(root, 'brief')];
+  beforeAll(() => {
+    mkdirSync(join(root, 'brief', 'shots'), { recursive: true });
+    writeFileSync(join(root, 'brief', 'notes.md'), 'x\n');
+    symlinkSync(join(root, 'brief'), join(root, '.design', 'ui', 'brief-link'), 'dir');
+  });
+
+  test('an in-project write OUTSIDE the granted folder still auto-approves', () => {
+    const v = writeTargetsInsideProject(
+      writeCall(join(root, '.design', 'ui', 'home.tsx')),
+      scope(),
+      'Write',
+      granted()
+    );
+    expect(v).toMatchObject({ inside: true, reason: 'inside' });
+  });
+
+  test('a write INTO a granted folder inside the project prompts', () => {
+    for (const p of [
+      join(root, 'brief', 'notes.md'),
+      join(root, 'brief', 'shots', 'new.jpg'),
+      'brief/notes.md',
+      join(root, '.design', 'ui', '..', '..', 'brief', 'x.md'),
+    ]) {
+      const v = writeTargetsInsideProject(writeCall(p), scope(), 'Edit', granted());
+      expect(v).toMatchObject({ inside: false, reason: 'read-only-grant' });
+    }
+  });
+
+  test('a write through a symlink that leads into the granted folder prompts', () => {
+    const v = writeTargetsInsideProject(
+      writeCall(join(root, '.design', 'ui', 'brief-link', 'notes.md')),
+      scope(),
+      'Write',
+      granted()
+    );
+    expect(v).toMatchObject({ inside: false, reason: 'read-only-grant' });
+    expect(v.resolved).toEqual([join(root, 'brief', 'notes.md')]);
+  });
+
+  test('a granted folder OUTSIDE the project is named as the reason (it prompted already)', () => {
+    const v = writeTargetsInsideProject(writeCall(join(outside, 'secret.conf')), scope(), 'Write', [
+      outside,
+    ]);
+    expect(v).toMatchObject({ inside: false, reason: 'read-only-grant' });
+  });
+});

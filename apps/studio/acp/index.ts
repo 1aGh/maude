@@ -5,15 +5,14 @@
 // must not reach the agent bridge.
 
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-
 import type {
   AvailableCommand,
   CreateElicitationRequest,
   SessionUpdate,
 } from '@agentclientprotocol/sdk';
 import type { ServerWebSocket } from 'bun';
-
 import { isCanvasFile } from '../activity.ts';
+import { readOnlyRootsFor } from '../ai/attach-grants.ts';
 import { ASK_ID_RE, isLive, type RunRecord, type RunScope } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
 import type { AiActivity } from '../collab/ai-activity.ts';
@@ -109,6 +108,11 @@ export interface AcpOptions {
   queue?: () => AskQueue | null;
   /** tests only — the bridges' permission deadline */
   permissionTimeoutMs?: number;
+  /**
+   * S5.10 — the folders granted read-only (`ai/attach-grants.ts`), read per write request by every
+   * bridge's write gate. Default: this project's `_state/ai-grants.json`.
+   */
+  readOnlyRoots?: () => readonly string[];
 }
 
 /** The refusal a read-only session's state-changing frame gets (CONTRACT §4 voice). */
@@ -460,6 +464,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity, options: AcpOpt
     entry.bridge = new AcpBridge({
       // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
       chatId,
+      // S5.10 — a folder AI may read is never a write path (acp/write-scope `read-only-grant`).
+      readOnlyRoots: options.readOnlyRoots ?? (() => readOnlyRootsFor(ctx.paths.designRoot)),
       repoRoot: ctx.paths.repoRoot,
       // Static, config-derived environment brief for every new session
       // (feature-acp-context-hardening; see bootstrap-brief.ts guardrails).
