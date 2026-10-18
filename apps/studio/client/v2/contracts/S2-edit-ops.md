@@ -53,13 +53,13 @@ Additions over `S2-slices.md` §3a (additive, optional for a reader):
 - `ResolvedEditOp` = the request with `targets` replaced by the stamped `refs` and `file` by the
   designRoot-relative path; an op never sees a computed id.
 
-HTTP status per result: `ok` 200; `invalid` 400; `forbidden` 403; `held-by-ai`, `locked`, `stale` 409. A
+HTTP status per result: `ok` 200; `invalid` 400 (an op this build has no writer for: 404, "This edit is not available in this version." — a client probing a newer op can tell); `forbidden` 403; `held-by-ai`, `locked`, `stale` 409. A
 viewer never reaches the handler (the read-only gate answers 403 `read-only` first); the client maps both
 403 shapes to "forbidden".
 
 ## 3. Refusal order (the dispatcher, one request)
 
-1. body shape → `invalid` (unknown key ignored; `op` not in the op table → `invalid` "Unknown edit"; a target
+1. body shape → `invalid` (unknown key ignored; a malformed `op` → "Unknown edit."; an `op` not in the op table → 404 (above); a target
    outside the ElementRef shape, > 200 targets → `invalid`).
 2. `file` → resolves inside the design root to an existing `.tsx` (realpath-contained) else `invalid`.
 3. `expectRev` given and ≠ `revOf(current)` → `stale`.

@@ -85,7 +85,6 @@ describe('edit-op dispatch: what it refuses', () => {
   test('an unknown op, a junk body, a junk ref and a foreign file are invalid (400), with no write', async () => {
     const h = harness();
     for (const body of [
-      { file: FILE, op: 'object.nope', targets: [] },
       null,
       { file: FILE, op: 'test.paint', targets: 'all' },
       { file: FILE, op: 'test.paint', targets: [{ artboard: 'desktop', element: '../x' }] },
@@ -99,6 +98,12 @@ describe('edit-op dispatch: what it refuses', () => {
       expect(statusOf(r)).toBe(400);
     }
     expect(h.writes).toEqual([]);
+  });
+
+  test('an op this build has no writer for is 404 "not in this version" (S2.2 probes element.set-id)', async () => {
+    const r = await harness().run({ file: FILE, op: 'element.set-id', targets: [ref('footer')] });
+    expect(!r.ok && r.message).toBe('This edit is not available in this version.');
+    expect(statusOf(r)).toBe(404);
   });
 
   test('expectRev: the revision the caller saw, else stale (409)', async () => {

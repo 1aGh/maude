@@ -60,8 +60,13 @@ const said = (id: string) =>
 export const STALE_MESSAGE = 'The canvas changed underneath; try again.';
 export const REVERT_STALE_MESSAGE = 'Someone changed this since — undo skipped.';
 
+/** An op this build has no writer for. 404 (not 400): a client probing a newer op hears "not in this
+ *  version" — S2.2's id field says exactly that until `element.set-id` lands. */
+export const UNKNOWN_OP_MESSAGE = 'This edit is not available in this version.';
+
 export function statusOf(r: EditOpResult): number {
-  return r.ok ? 200 : EDIT_OP_STATUS[r.code];
+  if (r.ok) return 200;
+  return r.code === 'invalid' && r.message === UNKNOWN_OP_MESSAGE ? 404 : EDIT_OP_STATUS[r.code];
 }
 
 export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<EditOpResult> {
@@ -70,7 +75,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
   const req = parsed.req;
   const isRevert = req.op === REVERT_OP;
   const op = isRevert ? null : (deps.ops ?? EDIT_OPS).find((o) => o.id === req.op);
-  if (!isRevert && !op) return refuse('invalid', 'Unknown edit.');
+  if (!isRevert && !op) return refuse('invalid', UNKNOWN_OP_MESSAGE);
 
   const rel = deps.resolve(req.file);
   if (!rel) return refuse('invalid', 'That canvas is not in this project.');
