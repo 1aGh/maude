@@ -20,6 +20,7 @@ import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
+import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
@@ -47,6 +48,8 @@ export { heldByAiRefusal } from './agent.ts';
 export { riderPatch } from './canvas-meta-rider.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
+// S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
+export { canvasPathsOfIndex } from './availability.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -81,6 +84,8 @@ export interface RouteDeps {
   comments?: CommentRouteDeps;
   /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
   annotations?: AnnotationRouteDeps;
+  /** S11.4 — `GET /_api/sync/availability`: listed ∖ on disk, a read over the runtime's state */
+  availability?: AvailabilityRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -131,5 +136,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ),
     ...(convert?.specs ?? []),
     ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
+    ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
   ];
 }

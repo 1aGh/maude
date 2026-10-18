@@ -18474,6 +18474,70 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-row-arriving-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A canvas the hub lists that is still coming down to this Mac (05 · es-arriving): drawn at its path with the kit's ArrivingRow — named, dimmed, its thumb pulsing. Not a button; it becomes the normal row once the index lists it.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelPendingRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-arriving-rows.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-not-local-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Offline, and this canvas never came down (05 · es-offline-uncached): dimmed with a cloud. Hidden by \"Show canvases on this Mac\".",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelPendingRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-arriving-rows.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-not-local",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card a tab shows for a canvas that is not on this Mac while offline: \"<canvas> isn't on this Mac yet.\" with the 05 words (copy id es-offline-uncached.not-local). No toolbar, no zoom.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/not-local.jsx",
+      "symbol": "NotLocalCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-arriving-rows.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-not-local-show-local",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's one action, \"Show canvases on this Mac\": narrows the Canvases panel to the canvases that are here.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/not-local.jsx",
+      "symbol": "NotLocalCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-arriving-rows.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "all-trashed",
     "kind": "testid",
     "pattern": false,

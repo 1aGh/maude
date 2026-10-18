@@ -380,6 +380,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
   '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
+  '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
   // S3.5 — routes/present.ts: Present order / skip / notes in the versioned .meta.json
   '/_api/present-meta': {
     class: 'lane',

@@ -1348,6 +1348,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `all-trashed-restore` | testid | Restore N artboards: puts every artboard of this canvas back where it was, one undo step. Absent for Can view; the server refuses a restore from them anyway. | `client/v2/empty/all-trashed.jsx` · `AllTrashedCard` | test:v2-all-trashed | new |
 | `artboard-ghosts` | testid | Inside the canvas iframe: the layer of dashed outlines an all-trashed canvas keeps. Decorative, no hit area. (Canvas origin: reachable by coordinates, not by DOM.) | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
 | `artboard-ghost-<artboard-id>` | testid (pattern) | Inside the canvas iframe: the outline where one trashed artboard stood, with its name above; `<artboard-id>` is the artboard's id. | `artboard-ghosts-overlay.tsx` · `ArtboardGhostsLayer` | test:v2-all-trashed | new |
+| `canvas-row-arriving-<slug>` | testid (pattern) | A canvas the hub lists that is still coming down to this Mac (05 · es-arriving): drawn at its path with the kit's ArrivingRow — named, dimmed, its thumb pulsing. Not a button; it becomes the normal row once the index lists it. | `client/v2/canvases/canvases-panel.jsx` · `PanelPendingRow` | test:v2-arriving-rows | new |
+| `canvas-row-not-local-<slug>` | testid (pattern) | Offline, and this canvas never came down (05 · es-offline-uncached): dimmed with a cloud. Hidden by "Show canvases on this Mac". | `client/v2/canvases/canvases-panel.jsx` · `PanelPendingRow` | test:v2-arriving-rows | new |
+| `canvas-not-local` | testid | The card a tab shows for a canvas that is not on this Mac while offline: "<canvas> isn't on this Mac yet." with the 05 words (copy id es-offline-uncached.not-local). No toolbar, no zoom. | `client/v2/empty/not-local.jsx` · `NotLocalCanvas` | test:v2-arriving-rows | new |
+| `canvas-not-local-show-local` | testid | The card's one action, "Show canvases on this Mac": narrows the Canvases panel to the canvases that are here. | `client/v2/empty/not-local.jsx` · `NotLocalCanvas` | test:v2-arriving-rows | new |
 
 ## What's New spotlights
 

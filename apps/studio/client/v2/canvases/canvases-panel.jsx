@@ -14,6 +14,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { pathTestIdSlug } from '../../shell/util.js';
+import { useArrivingRows } from '../empty/arriving.jsx';
+import { copy } from '../empty/empty-copy.js';
+import { ArrivingRow } from '../empty/skeleton.jsx';
 import {
   CANVASES_OP_EVENT,
   dispatchArtboardJump,
@@ -102,6 +105,8 @@ export function CanvasesPanel({
   const meta = useMemo(() => indexMeta(snapshot, designRel), [snapshot, designRel]);
   // T-S1a — the words other slices publish (row-slots.js): meta / sub / dim per canvas, the foot, ghost rows
   const slots = useRowSlots();
+  // S11.4 — canvases the hub lists that are not on this Mac yet: ghost rows + the "Getting …" foot
+  useArrivingRows({ groups, designRel, fetchImpl });
   const tree = useMemo(
     () => buildTree({ groups, meta, designRel, opened: pins.opened, ghosts: slots.ghosts }),
     [groups, meta, designRel, pins.opened, slots.ghosts]
@@ -754,6 +759,8 @@ function SlotSub({ sub, source, id }) {
 function PanelGhostRow({ row, index, style, tabStop }) {
   const slug = pathTestIdSlug(row.path);
   const slot = row.slot || {};
+  if (slot.arriving || slot.notLocal)
+    return <PanelPendingRow row={row} index={index} style={style} tabStop={tabStop} slug={slug} />;
   return (
     <div
       className="cv-item"
@@ -804,6 +811,59 @@ function PanelGhostRow({ row, index, style, tabStop }) {
             </span>
           ) : null}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * S11.4 — a canvas the hub lists that is not on this Mac (05 · es-arriving / es-offline-uncached). Arriving:
+ * the kit's ArrivingRow (name always shown, the thumb pulsing). Offline and never downloaded: dim, with a
+ * cloud. Not a button — there is nothing to open yet.
+ */
+function PanelPendingRow({ row, index, style, tabStop, slug }) {
+  const away = !!row.slot?.notLocal;
+  return (
+    <div
+      className="cv-item"
+      role="treeitem"
+      aria-level={row.level}
+      aria-posinset={row.posinset}
+      aria-setsize={row.setsize}
+      aria-label={
+        away ? copy('es-offline-uncached.not-local', { canvas: row.name }).title : row.name
+      }
+      aria-disabled="true"
+      data-index={index}
+      tabIndex={tabStop ? 0 : -1}
+      style={style}
+    >
+      <div className="cv-row cv-row--canvas cv-row--ghost is-dim">
+        {away ? (
+          <span
+            className="cv-main"
+            data-tree-primary=""
+            data-testid={`canvas-row-not-local-${slug}`}
+            style={canvasPad(row.depth)}
+            title={row.path}
+          >
+            <span className="cv-thumb" aria-hidden="true" />
+            <span className="cv-name">{row.name}</span>
+            <span className="cv-meta" data-tone="quiet" aria-hidden="true">
+              <StIcon name="cloud" size={12} />
+            </span>
+          </span>
+        ) : (
+          <span
+            className="cv-main"
+            data-tree-primary=""
+            data-testid={`canvas-row-arriving-${slug}`}
+            style={canvasPad(row.depth)}
+            title={row.path}
+          >
+            <ArrivingRow name={row.name} />
+          </span>
+        )}
       </div>
     </div>
   );

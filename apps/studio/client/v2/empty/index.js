@@ -23,7 +23,15 @@
 //
 // Styles: ./empty.css (imported once from client/styles/_index.css). Classes are `es-*`, the canvas's own.
 
+// S11.4 — the arriving / not-on-this-Mac provider (Canvases panel ghost rows + foot) and the card.
+export {
+  arrivingSlots,
+  setShowLocalOnly,
+  showLocalOnly,
+  useArrivingRows,
+} from './arriving.jsx';
 export { AskButton } from './ask-button.jsx';
+export { NotLocalCanvas, useCanvasAvailability } from './not-local.jsx';
 export { Confetti } from './confetti.jsx';
 export { COPY, copy, copyIds, NO_DOOR } from './empty-copy.js';
 export { Empty, Glyph, rich } from './empty.jsx';
