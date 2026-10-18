@@ -72,6 +72,16 @@ export function helpGroupOf(def) {
   return 'canvas';
 }
 
+/** ⌥⌘1 with ⌥⌘2 … ⌥⌘9 as aliases is one key to learn: "⌥⌘1–9" (like "Show tab 1–9"). */
+function digitRun(keys, alt) {
+  const m = keys.length === 1 ? /^(.*)1$/.exec(keys[0]) : null;
+  if (!m) return { keys, alt };
+  const run = ['2', '3', '4', '5', '6', '7', '8', '9'].map((d) => m[1] + d);
+  return alt.length === run.length && run.every((k) => alt.includes(k))
+    ? { keys: [`${m[1]}1–9`], alt: [] }
+    : { keys, alt };
+}
+
 const uniq = (xs) => [...new Set(xs)];
 const MODS = /^[⌃⌥⇧⌘]+/;
 const baseOf = (chord) => chord.replace(MODS, '');
@@ -129,8 +139,11 @@ export function buildHelpSheet(ctx, { actions = ACTIONS, byId = ACTIONS_BY_ID, m
     const menu = paths.get(def.id) ?? [];
     const inAdvanced = menu.some((p) => p.advanced || /^Menu › Diagnostics/.test(p.path));
     const path = (menu.find((p) => p.advanced) ?? menu[0])?.path;
-    const keys = main.map((c) => formatChord(c));
-    const row = { id: def.id, label: def.label, keys, alt: alt.map((c) => formatChord(c)) };
+    const { keys, alt: altKeys } = digitRun(
+      main.map((c) => formatChord(c)),
+      alt.map((c) => formatChord(c))
+    );
+    const row = { id: def.id, label: def.label, keys, alt: altKeys };
     if (inAdvanced) {
       advanced.push({ ...row, path: path ?? '' });
       continue;
