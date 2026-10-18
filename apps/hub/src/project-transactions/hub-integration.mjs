@@ -8,6 +8,13 @@
 //     re-asserted per message (T7: a cached permission is not a boundary).
 //   • `handleRoutes` — `/api/projects/:project/v1/*`.
 
+import {
+  NOT_IN_SCOPE_REFUSAL,
+  proposalScope,
+  scopeActions,
+  scopeBootstrap,
+  seesDocRow,
+} from '../access-docs.mjs';
 import { importBaseline } from './baseline.mjs';
 import { createKernel } from './kernel.mjs';
 import { applyLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
@@ -944,6 +951,65 @@ export function createAcceptedRevisions({
     return Buffer.concat(chunks).toString('utf8');
   }
 
+  /** doc → its manifest row (current path), for the canvas-only filters. */
+  async function rowsOf() {
+    const manifest = await kernel.bootstrap();
+    const byDoc = new Map(manifest.docs.map((r) => [r.doc, r]));
+    return (doc) => byDoc.get(doc) ?? null;
+  }
+
+  /** The design-system names the given docs' meta lanes declare. */
+  async function designSystemsOf(rows) {
+    const names = new Set();
+    for (const row of rows) {
+      const hash = row.lanes?.meta?.hash;
+      if (!hash) continue;
+      try {
+        const meta = JSON.parse((await kernel.blob(hash)) ?? 'null');
+        if (typeof meta?.designSystem === 'string') names.add(meta.designSystem);
+      } catch {
+        /* an unparseable meta names no design system */
+      }
+    }
+    return names;
+  }
+
+  /**
+   * Every lane hash a visible doc ever held (heads + every effect's before /
+   * after), cached per (revision, grants). L4 blobs: a hash no visible doc ever
+   * held is not this session's to fetch.
+   */
+  const hashCache = new Map();
+  async function visibleHashes(access) {
+    const s = await kernel.state();
+    const key = `${s.epoch}:${s.revision}:${JSON.stringify(access.grants)}`;
+    const hit = hashCache.get(key);
+    if (hit) return hit;
+    const rowOf = await rowsOf();
+    const out = new Set();
+    for (const row of (await kernel.bootstrap()).docs) {
+      if (!seesDocRow(access, row)) continue;
+      for (const l of Object.values(row.lanes ?? {})) if (l?.hash) out.add(l.hash);
+    }
+    let after = 0;
+    for (;;) {
+      const page = await kernel.revisions({ after, limit: 1000 });
+      if (page.length === 0) break;
+      for (const a of page) {
+        for (const e of a.effects ?? []) {
+          if (!seesDocRow(access, rowOf(e.doc))) continue;
+          if (e.beforeHash) out.add(e.beforeHash);
+          if (e.afterHash) out.add(e.afterHash);
+        }
+      }
+      after = page[page.length - 1].revision;
+      if (page.length < 1000) break;
+    }
+    if (hashCache.size > 16) hashCache.clear();
+    hashCache.set(key, out);
+    return out;
+  }
+
   /**
    * `/api/projects/:project/v1/<route>[/<id>]`. Returns true when handled.
    * `auth(request)` → `{ actor, readOnly, scope, admin }` or null.
@@ -961,17 +1027,37 @@ export function createAcceptedRevisions({
       respondJson(404, { error: 'no such project', code: 'unknown-project' });
       return true;
     }
+    // V2-1.16 L4 (S9.5): a canvas-only session sees only its granted canvases'
+    // documents here. `who.access` is absent for every non-peer credential
+    // (operator, cell secret, cloud owner, dev) — those are project-level.
+    const canvasOnly = who.access?.canvasOnly === true ? who.access : null;
+    // The claim decides for a canvas-only session (the stored read_only bit
+    // is the fail-closed projection for doors that do not read it).
+    const readOnly = canvasOnly
+      ? !canvasOnly.grants.some((g) => canvasOnly.can('edit', g.c))
+      : who.readOnly;
+    const admin = who.admin && !canvasOnly;
+    const notInScope = () => respondJson(403, { ...NOT_IN_SCOPE_REFUSAL });
     try {
       if (route === 'bootstrap' && method === 'GET') {
         const manifest = await kernel.bootstrap();
+        const scoped = canvasOnly
+          ? await scopeBootstrap(canvasOnly, manifest, {
+              projectConfig: projectConfig() ?? null,
+              designSystemsOf: (rows) => designSystemsOf(rows),
+            })
+          : null;
         respondJson(200, {
           protocol: 1,
           projectId,
           // The project's declared canvas groups (workspace checkouts), so a
           // brand-new managed copy can be declared before its first pull.
-          canvasGroups: (typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null,
-          projectConfig: projectConfig() ?? null,
+          canvasGroups: scoped
+            ? scoped.canvasGroups
+            : ((typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null),
+          projectConfig: scoped ? scoped.projectConfig : (projectConfig() ?? null),
           ...manifest,
+          ...(scoped ? { docs: scoped.docs, dirs: scoped.dirs } : {}),
           // V2-1.12 §5.5 — the project's file format (the manifest's state
           // carries it too; named so a client need not know that).
           formatVersion: asFormat(manifest.formatVersion ?? projectFormat()),
@@ -993,7 +1079,7 @@ export function createAcceptedRevisions({
             ],
           },
           limits: { proposalBytes: MAX_BODY_BYTES - 1024 * 1024 },
-          you: { actor: who.actor, readOnly: !!who.readOnly },
+          you: { actor: who.actor, readOnly: !!readOnly },
         });
         return true;
       }
@@ -1002,7 +1088,7 @@ export function createAcceptedRevisions({
         // 2): a switch or a resume holds proposals, and each waiting request
         // would otherwise pin a body of up to 17 MB in memory — a viewer could
         // run the hub out of memory while it waited.
-        if (who.readOnly) {
+        if (readOnly) {
           respondJson(403, {
             protocol: 1,
             status: 'rejected',
@@ -1043,7 +1129,8 @@ export function createAcceptedRevisions({
         const t0 = performance.now();
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
-          readOnly: who.readOnly,
+          readOnly,
+          ...(canvasOnly ? { inScope: proposalScope(canvasOnly) } : {}),
         });
         metrics.record(body, performance.now() - t0);
         respondJson(status, body);
@@ -1062,7 +1149,12 @@ export function createAcceptedRevisions({
           limit: Number.isFinite(limit) ? limit : 200,
         });
         const s = await kernel.state();
-        respondJson(200, { revision: s.revision, epoch: s.epoch, mode: s.mode, revisions });
+        respondJson(200, {
+          revision: s.revision,
+          epoch: s.epoch,
+          mode: s.mode,
+          revisions: canvasOnly ? scopeActions(canvasOnly, revisions, await rowsOf()) : revisions,
+        });
         return true;
       }
       if (route === 'history' && method === 'GET') {
@@ -1073,7 +1165,9 @@ export function createAcceptedRevisions({
           limit: Number.isFinite(limit) ? limit : 50,
           entry: typeof query.entry === 'string' ? query.entry.slice(0, 128) : null,
         });
-        respondJson(200, { history });
+        respondJson(200, {
+          history: canvasOnly ? scopeActions(canvasOnly, history, await rowsOf()) : history,
+        });
         return true;
       }
       if (route === 'lane' && method === 'GET') {
@@ -1085,12 +1179,23 @@ export function createAcceptedRevisions({
           respondJson(400, { code: 'invalid' });
           return true;
         }
+        // An invisible doc answers exactly as an unknown one (U1).
+        if (canvasOnly && !seesDocRow(canvasOnly, (await rowsOf())(doc))) {
+          notInScope();
+          return true;
+        }
         const hash = await kernel.laneAt(doc, lane, rev);
         const body = hash ? await kernel.blob(hash) : '';
         respondJson(200, { doc, lane, revision: rev, hash, body: body ?? '' });
         return true;
       }
       if (route === 'blobs' && method === 'GET' && id) {
+        // Served to a canvas-only session only when a visible doc's lane ever
+        // held it; anything else — B's hash, a random one — is one answer (U1).
+        if (canvasOnly && !(await visibleHashes(canvasOnly)).has(id)) {
+          notInScope();
+          return true;
+        }
         const body = /^[0-9a-f]{64}$/.test(id) ? await kernel.blob(id) : null;
         respondJson(
           body === null ? 404 : 200,
@@ -1103,7 +1208,7 @@ export function createAcceptedRevisions({
         return true;
       }
       if (route === 'parity' && method === 'GET') {
-        if (!who.admin) {
+        if (!admin) {
           respondJson(403, {
             error: 'only the project owner can run a parity check',
             code: 'forbidden',
@@ -1114,7 +1219,7 @@ export function createAcceptedRevisions({
         return true;
       }
       if (route === 'mode' && method === 'POST') {
-        if (!who.admin) {
+        if (!admin) {
           respondJson(403, {
             error: 'only the project owner can switch the save mode',
             code: 'forbidden',

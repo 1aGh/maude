@@ -255,3 +255,34 @@ describe('S9.3 — the capability gate: a 1.9.1 desktop sees today’s answers',
     });
   }
 });
+
+// ------------------------------------------------------------------- S9.5
+
+/** The 1.9.1 desktop's document listing and history reads. */
+const v1Get = (port, peerToken, path) =>
+  fetch(`http://127.0.0.1:${port}${path}`, { headers: { authorization: `Bearer ${peerToken}` } });
+
+describe('S9.5 — the document doors: a 1.9.1 desktop sees today’s answers', () => {
+  for (const role of ['owner', 'member', 'viewer']) {
+    test(`${role}: every namespaced document opens; listing, history and bootstrap answer`, async () => {
+      const { token } = await (await v1Login(PORT, v1ProjectToken(role))).json();
+      for (const name of [
+        'ws/alligators/main/ui-home',
+        'ws/alligators/main/ui-other',
+        'flat-doc',
+      ]) {
+        assert.equal(await v1YjsAuth(PORT, token, name), 'synced', `${role} ${name}`);
+      }
+      const docs = await v1Get(PORT, token, '/api/documents');
+      assert.equal(docs.status, 200);
+      assert.deepEqual(Object.keys(await docs.json()).sort(), ['count', 'documents', 'tombstones']);
+      const history = await v1Get(PORT, token, '/api/history');
+      assert.equal(history.status, 200, `${role} reads the project-wide log`);
+      const boot = await v1Get(PORT, token, '/api/projects/current/v1/bootstrap');
+      assert.equal(boot.status, 200, `${role} bootstrap`);
+      const body = await boot.json();
+      assert.equal(Array.isArray(body.docs), true);
+      assert.equal(body.you.readOnly, role === 'viewer');
+    });
+  }
+});
