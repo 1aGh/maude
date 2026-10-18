@@ -59,6 +59,10 @@ export interface RunConflict {
   run: string;
   who: RunActor;
   label: string | null;
+  /** the holder is a run of this Mac's person (`mine`) — else a member's, by its home `actor` */
+  mine: boolean;
+  /** a member's run: the home's actor identity (never shown raw — routes/agent.ts names it) */
+  actor?: string;
 }
 
 export type AgentRuns = ReturnType<typeof createAgentRuns>;
@@ -136,10 +140,46 @@ export function createAgentRuns(
     };
   }
 
-  const open = (session: string) => {
-    const r = reg.resolve({ session });
+  /**
+   * V2-1.15 §5.4 "Binding the hook run key": every hook call resolves `(chat ?? session)` to a
+   * run. The run each key resolved to last is remembered, so a run that ENDED under the key
+   * (`lease-lost`) can still be named by the next hook call of the same turn.
+   */
+  const last = new Map<string, string>();
+  const keysOf = (session: string, chat?: string | null) =>
+    chat ? [`c:${chat}`, `s:${session}`] : [`s:${session}`];
+  function resolve(session: string, chat?: string | null): RunRecord | null {
+    const r = reg.resolve({ chat: chat ?? null, session });
+    if (r) remember(session, chat, r.runId);
+    return r;
+  }
+  function remember(session: string, chat: string | null | undefined, runId: string) {
+    for (const k of keysOf(session, chat)) {
+      last.delete(k);
+      last.set(k, runId);
+    }
+    // insertion order = recency: keep the newest keys (one per session / chat in practice)
+    while (last.size > 1000) last.delete(last.keys().next().value as string);
+  }
+
+  const open = (session: string, chat?: string | null) => {
+    const r = resolve(session, chat);
     return r ? asAgentRun(r) : null;
   };
+
+  /**
+   * The run this hook key lost its turn on (§5.9.4 / §5.6: outcome `lease-lost`), while no live
+   * run answers the key. The next prompt opens a new run, which clears it.
+   */
+  function lost(session: string, chat?: string | null): RunRecord | null {
+    if (resolve(session, chat)) return null;
+    for (const k of keysOf(session, chat)) {
+      const id = last.get(k);
+      const r = id ? reg.get(id) : null;
+      if (r) return r.outcome === 'lease-lost' ? r : null;
+    }
+    return null;
+  }
 
   function begin(b: {
     session: string;
@@ -150,7 +190,7 @@ export function createAgentRuns(
     /** MAUDE_CHAT_ID — binds to that chat's live run instead of opening a second one (H5) */
     chat?: string;
   }): AgentRun {
-    const cur = reg.resolve({ chat: b.chat ?? null, session: b.session });
+    const cur = resolve(b.session, b.chat);
     if (cur) {
       if (b.promptId) {
         const ids = promptIds.get(cur.runId) ?? [];
@@ -172,6 +212,7 @@ export function createAgentRuns(
       agent: 'Claude Code',
     });
     if (b.promptId) promptIds.set(rec.runId, [b.promptId]);
+    remember(b.session, b.chat, rec.runId);
     // a hook run is lazy: it leases what each edit reaches, at that edit's claim
     void reg.admit(rec, { lazy: true }).catch(() => null);
     const run = asAgentRun(reg.get(rec.runId) ?? rec);
@@ -179,38 +220,55 @@ export function createAgentRuns(
     return run;
   }
 
-  /** The open run of `session`, opening one (actor claude-code) when the prompt hook never ran. */
-  function ensure(session: string): AgentRun {
-    return open(session) ?? begin({ session, actor: 'claude-code' });
+  /** The open run of `session` / `chat`, opening one when the prompt hook never ran. */
+  function ensure(session: string, chat?: string | null): AgentRun {
+    return (
+      open(session, chat) ??
+      begin({ session, actor: chat ? 'maude-chat' : 'claude-code', ...(chat ? { chat } : {}) })
+    );
   }
 
   /** Another live run's lease that `artboards` (or `'*'` = the whole canvas) would cross. */
   function conflict(
     session: string,
     canvas: string,
-    artboards: string[] | '*'
+    artboards: string[] | '*',
+    chat?: string | null
   ): RunConflict | null {
-    const self = reg.resolve({ session });
+    const self = resolve(session, chat);
     const key = reg.canvasKey(canvas);
     for (const r of reg.live()) {
       if (r.runId === self?.runId) continue;
       for (const l of r.leases) {
         const hit = l.canvas === key ? hitOf(l.artboard, artboards) : null;
         if (hit)
-          return { artboard: hit, run: r.runId, who: actorOf(r.origin), label: r.label || null };
+          return {
+            artboard: hit,
+            run: r.runId,
+            who: actorOf(r.origin),
+            label: r.label || null,
+            mine: true,
+          };
       }
     }
     for (const o of reg.view().others)
       for (const a of o.artboards) {
         const hit = a.canvas === key ? hitOf(a.artboard, artboards) : null;
         if (hit)
-          return { artboard: hit, run: o.runId, who: actorOf(o.origin), label: o.label || null };
+          return {
+            artboard: hit,
+            run: o.runId,
+            who: actorOf(o.origin),
+            label: o.label || null,
+            mine: false,
+            actor: o.actor,
+          };
       }
     return null;
   }
 
-  function claim(session: string, canvas: string, artboards: string[] | '*') {
-    const r = ensure(session);
+  function claim(session: string, canvas: string, artboards: string[] | '*', chat?: string | null) {
+    const r = ensure(session, chat);
     const key = reg.canvasKey(canvas);
     const keys = (artboards === WHOLE ? [WHOLE] : artboards).map((a) => ({
       canvas: key,
@@ -220,14 +278,20 @@ export function createAgentRuns(
     void reg.settle(r.run, need).catch(() => null);
   }
 
-  function touch(session: string, path: string, artboards: string[]) {
-    const r = ensure(session);
+  /** An edit was denied `artboard-busy`: the end of the turn continues that artboard (§5.5). */
+  function noteBusy(session: string, canvas: string, artboard: string, chat?: string | null) {
+    const r = resolve(session, chat);
+    if (r && artboard !== WHOLE) reg.noteBusy(r.runId, { canvas: reg.canvasKey(canvas), artboard });
+  }
+
+  function touch(session: string, path: string, artboards: string[], chat?: string | null) {
+    const r = ensure(session, chat);
     const rec = reg.hookEvent(r.run, { touched: [path, artboards] });
     if (rec) safe(() => bracket.touch?.(asAgentRun(rec), path));
   }
 
-  function end(session: string, outcome: RunOutcome): AgentRun | null {
-    const r = reg.resolve({ session });
+  function end(session: string, outcome: RunOutcome, chat?: string | null): AgentRun | null {
+    const r = resolve(session, chat);
     if (!r) return null;
     // the hook's end closes the run now; its leases go back to the home after
     const closed = reg.endNow(
@@ -259,6 +323,8 @@ export function createAgentRuns(
     touch,
     end,
     get: open,
+    lost,
+    noteBusy,
     soleOpen,
     openRuns,
     registry: reg,

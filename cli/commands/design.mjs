@@ -170,6 +170,9 @@ const BIN_VERBS = new Set([
   // V2-2.4b (§5.3, S8). `exports list` / `exports again <id>` — the Exports panel; `again` goes
   // through the same jobs path as the sheet's "Export again" row (exporters/replay.ts).
   'exports',
+  // S5.4 (V2-1.15 §5.10). `runs list` — the AI runs on this project and the artboards each holds,
+  // so a terminal Claude plans around busy ones; `runs stop <run>` stops one of YOUR runs.
+  'runs',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
@@ -408,6 +411,8 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         This project's comment threads. Read-only.
   exports list · exports again <id|index> [--out <file|folder/>] [--no-wait]
         Recent exports; export one again as the Export sheet does (file lands in the project).
+  runs list [--canvas <canvas>] [--json] · runs stop <run>
+        The AI runs on this project and the artboards each is changing; stop one of yours.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 

@@ -42,6 +42,11 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
+import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
+import { applyOps } from '../annotations/ops.ts';
+import '../annotations/ops-merge.ts';
+import { Scene } from '../annotations/scene.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 
 /**
@@ -69,10 +74,11 @@ import {
   fetchStyles,
 } from '../figma/client.ts';
 import { CodegenError, CodegenSession } from '../figma/codegen-client.ts';
-import { commentsToStrokes, indexNodes } from '../figma/comments-to-strokes.ts';
+import { commentStrokeId, commentsToStrokes, indexNodes } from '../figma/comments-to-strokes.ts';
 import { decodeFigArchive, FigDecodeError } from '../figma/fig-decode.ts';
 import { artToSvg } from '../figma/fig-vector.ts';
 import { readFigZip } from '../figma/fig-zip.ts';
+import { strokesIntoOps } from '../figma/into-board.ts';
 import { attrValue, ImportReport } from '../figma/sanitize.ts';
 import { JsxTooLargeError, toArtboard, toCanvas } from '../figma/to-artboard.ts';
 import { toRenderCanvas } from '../figma/to-render.ts';
@@ -80,6 +86,7 @@ import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-stro
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
 import { FigmaCapError, normalizeDocument, walkNodes } from '../figma/types.ts';
 import { FigmaUrlError, parseFigmaTarget } from '../figma/url.ts';
+import { PostOpsError, postOps } from './_annotate-post.mjs';
 import { fetchAsset } from './_fetch-asset.mjs';
 import {
   importSvg,
@@ -87,6 +94,7 @@ import {
   sniffRasterKind,
   writeContainedAsset,
 } from './_import-asset.mjs';
+import { canvasRelFromArg, fileSlug } from './read-annotations.mjs';
 
 export class ImportFigmaError extends Error {
   constructor(code, message) {
@@ -619,6 +627,191 @@ export async function importBoard({
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
+}
+
+/**
+ * Phase 2 (S4.5, C23) — import a FigJam board INTO an existing canvas.
+ *
+ * Where `importBoard` makes a new host canvas, this lands the board in the canvas you name as ONE
+ * section ("From FigJam") on its annotation layer: stickies, shapes, connectors and text arrive
+ * editable, comment threads arrive as stickies (open on yellow paper, resolved on grey) carrying
+ * their author in `source`, and widgets arrive as pictures of themselves. It EMITS OPS — the same
+ * `put` batch the studio's op route takes — so the import is one merge, one broadcast, one undo:
+ * through a live dev-server when one is up, else a direct canonical board write.
+ *
+ * Nothing upstream is echoed back: the result carries counts and the section id, and the ops stay
+ * in memory (D10 — this verb's stdout is model input).
+ */
+export async function importBoardInto({
+  url,
+  root,
+  designRootRel = '.design',
+  into,
+  at = null,
+  dryRun = false,
+  confirmLarge = false,
+  local = null,
+}) {
+  const designRoot = resolve(root, designRootRel);
+  const canvasRel = canvasRelFromArg(into, root, designRootRel);
+  if (!canvasRel) throw new ImportFigmaError(2, '--into must name a canvas inside the design root');
+  if (!/\.tsx$/.test(canvasRel)) throw new ImportFigmaError(2, '--into wants a canvas (.tsx)');
+  const canvasAbs = assertContained(root, designRootRel, join(designRoot, canvasRel));
+  if (!existsSync(canvasAbs)) throw new ImportFigmaError(2, `no such canvas: ${canvasRel}`);
+  const slug = fileSlug(canvasRel, designRootRel);
+
+  const target = local ? { fileKey: local.fileKey, nodeId: null } : parseFigmaTarget(url, 'board');
+  const doc =
+    local?.document ??
+    (await fetchDocument({
+      fileKey: target.fileKey,
+      surface: 'board',
+      ...(target.nodeId ? { nodeId: target.nodeId } : {}),
+    }));
+  const { strokes, report, pendingImages, origin } = toStrokes(doc, {
+    confirmLarge,
+    widgetsAsPictures: true,
+  });
+
+  // C23 — FigJam comments become stickies. A comment fetch that fails never costs the board.
+  let comments = [];
+  if (!local) {
+    try {
+      comments = await fetchComments(target.fileKey);
+    } catch {
+      comments = [];
+    }
+  }
+  const { strokes: pins } = commentsToStrokes(comments, indexNodes(doc.root), origin, report);
+  const authors = new Map();
+  for (const c of comments) {
+    if (!c.parentId && c.author) authors.set(commentStrokeId(c.id), c.author);
+  }
+  const widgets = report.entries.filter((e) => e.detail === 'widget as a picture').length;
+
+  if (dryRun) {
+    return {
+      canvas: canvasRel,
+      items: strokes.length + pins.length,
+      comments: pins.length,
+      widgets,
+      report,
+      pendingImages,
+      origin,
+      via: null,
+    };
+  }
+
+  const staging = makeStagingDir();
+  try {
+    const assets = await resolveAssets(
+      target.fileKey,
+      pendingImages.map((p) => ({ nodeId: p.nodeId, format: 'png', placeholder: p.strokeId })),
+      makeAssetDeps({ root, designRootRel, stagingDir: staging }),
+      report
+    );
+    for (const stroke of strokes) {
+      const ref = assets.rewrites.get(stroke.id);
+      if (ref) stroke.href = ref.replace(/^\//, '');
+    }
+    // A picture that never resolved would persist an empty frame — drop it, it is reported.
+    const usable = strokes.filter((s) => s.tool !== 'image' || Boolean(s.href));
+
+    const boardFile = readBoardFile(designRoot, slug);
+    if (boardFile.tooLarge || boardFile.unreadable) {
+      throw new ImportFigmaError(6, `${slug}.annotations.json is not a board we can write to`);
+    }
+    const existing = boardFile.elements;
+    const { ops, section, count, dropped } = strokesIntoOps([...usable, ...pins], {
+      existing,
+      at: at ?? defaultOrigin(designRoot, canvasRel, existing),
+      tag: Math.random().toString(36).slice(2, 7).padEnd(5, '0'),
+      authors,
+    });
+    for (const d of dropped)
+      report.add(d.id ?? '0:0', 'BOARD', 'asset-skipped', 'registry refused');
+
+    // Direct-write fallback: apply the same ops to the board and keep it canonical.
+    const next = applyOps(new Map(existing.map((e) => [e.id, e])), ops);
+    if (next.rejected.length) {
+      throw new ImportFigmaError(3, `the board refused ${next.rejected.length} imported item(s)`);
+    }
+    const text = serializeBoard([...next.state.values()]);
+    if (text.length > MAX_BOARD_BYTES) {
+      throw new ImportFigmaError(
+        3,
+        `the board would exceed ${MAX_BOARD_BYTES} bytes — nothing written`
+      );
+    }
+
+    let via = 'file';
+    let res = null;
+    try {
+      res = await postOps(
+        designRoot,
+        `${designRootRel}/${canvasRel}`,
+        ops,
+        `figjam-import-${section}`
+      );
+    } catch (err) {
+      if (err instanceof PostOpsError) throw new ImportFigmaError(6, err.message);
+      throw err;
+    }
+    if (res) {
+      via = 'server';
+      const rejected = Array.isArray(res.rejected) ? res.rejected : [];
+      if (rejected.length) {
+        throw new ImportFigmaError(6, `the server refused ${rejected.length} imported item(s)`);
+      }
+    } else {
+      writeBoardFileAtomic(designRoot, slug, text);
+    }
+    return {
+      canvas: canvasRel,
+      section,
+      items: count,
+      comments: pins.length,
+      widgets,
+      report,
+      pendingImages,
+      origin,
+      via,
+    };
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Where a FigJam section lands when `--at` is not given: right of everything the canvas already has
+ * (its artboards from `<canvas>.meta.json`, and the annotations already drawn), at the top.
+ */
+function defaultOrigin(designRoot, canvasRel, existing) {
+  let right = Number.NEGATIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  try {
+    const meta = JSON.parse(
+      readFileSync(join(designRoot, canvasRel.replace(/\.tsx$/, '.meta.json')), 'utf8')
+    );
+    for (const a of meta?.layout?.artboards ?? []) {
+      if (!Number.isFinite(a?.x) || !Number.isFinite(a?.y)) continue;
+      const w = Number.isFinite(a.w) ? a.w : Number.isFinite(a.width) ? a.width : 1440;
+      right = Math.max(right, a.x + w);
+      top = Math.min(top, a.y);
+    }
+  } catch {
+    /* no meta — fall through to the annotations */
+  }
+  const scene = new Scene(existing);
+  for (const el of scene.childrenOf(null)) {
+    const b = scene.worldBox(el.id);
+    if (!b) continue;
+    right = Math.max(right, b.x + b.w);
+    top = Math.min(top, b.y);
+  }
+  return Number.isFinite(right)
+    ? { x: Math.round(right + 120), y: Math.round(top) }
+    : { x: 0, y: 0 };
 }
 
 /**
@@ -1707,6 +1900,8 @@ function parseArgv(argv) {
     confirmDocument: false,
     figPath: null,
     fileKey: null,
+    into: null,
+    at: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -1749,6 +1944,16 @@ function parseArgv(argv) {
       case '--canvas':
         out.canvas = argv[++i];
         break;
+      // `--into` lands a FigJam board in an EXISTING canvas as one section; `--at x,y` places it.
+      case '--into':
+        out.into = argv[++i];
+        break;
+      case '--at': {
+        const m = /^(-?\d{1,7}(?:\.\d+)?),(-?\d{1,7}(?:\.\d+)?)$/.exec(String(argv[++i] ?? ''));
+        if (!m) throw new ImportFigmaError(2, '--at wants "x,y" in world units (e.g. 1600,0)');
+        out.at = { x: Number(m[1]), y: Number(m[2]) };
+        break;
+      }
       case '--confirm-document':
         out.confirmDocument = true;
         break;
@@ -1793,6 +1998,8 @@ const HELP = `import-figma — Figma / FigJam import (reached via \`maude design
 Usage:
   maude design import-figma --board  <figjam-url> --root <repo> [--design-root .design]
                             [--slug <name>] [--dry-run] [--confirm-large] [--json]
+  maude design import-figma --board  <figjam-url> --into <canvas.tsx> --root <repo>
+                            [--at x,y] [--dry-run] [--confirm-large] [--json]
   maude design import-figma --pages  <figma-url>  --root <repo> [--folder <name>] [--editable]
   maude design import-figma --frames <figma-url>  --root <repo> [--slug <name>]
   maude design import-figma --tokens <figma-url>  --root <repo>
@@ -1814,6 +2021,15 @@ has to reimplement auto-layout, constraints and clipping. Text stays real text
 inside the SVG. The trade is that a rendered artboard is not directly editable;
 \`--editable\` opts back into the JSX translation when an editable artboard
 matters more than an accurate one.
+
+\`--board … --into <canvas>\` lands the board in a canvas you already have, as ONE section
+("From FigJam") on its annotation layer, right of what is there (or at \`--at\`). Stickies,
+shapes, connectors and text arrive editable; the file's comment threads arrive as stickies
+(open on yellow paper, resolved on grey) carrying their author in \`source\`; widgets, stamps,
+tables, code blocks and embeds arrive as pictures of themselves. It emits ONE batch of
+annotation ops — through the running studio when there is one (one undo, every open canvas
+updates), else straight into the board file. Importing the same board twice adds a second
+section; nothing already on the canvas is replaced. The summary lists counts, never text.
 
 \`--explode\` makes ONE already-imported artboard editable, by asking Figma's own
 Dev Mode code generator for that frame's resolved DOM and converting it locally.
@@ -1868,6 +2084,49 @@ async function main() {
   }
 
   try {
+    if (opts.into) {
+      if (opts.mode !== 'board' && opts.mode !== 'fig') {
+        throw new ImportFigmaError(
+          2,
+          '--into goes with --board <figjam-url> (or --fig <board.jam>)'
+        );
+      }
+      const local = opts.mode === 'fig' ? decodeLocalFig(opts.figPath, opts.fileKey) : null;
+      if (local && local.surface !== 'board') {
+        throw new ImportFigmaError(2, '--into takes a FigJam board — this .fig is a design file');
+      }
+      const r = await importBoardInto({
+        url: opts.url,
+        root,
+        designRootRel: opts.designRoot,
+        into: opts.into,
+        at: opts.at,
+        dryRun: opts.dryRun,
+        confirmLarge: opts.confirmLarge,
+        local,
+      });
+      if (opts.json) {
+        process.stdout.write(
+          `${JSON.stringify({
+            canvas: r.canvas,
+            section: r.section ?? null,
+            items: r.items,
+            comments: r.comments,
+            widgets: r.widgets,
+            via: r.via,
+            pendingImages: r.pendingImages.length,
+            dispositions: r.report.entries,
+          })}\n`
+        );
+      } else {
+        process.stdout.write(
+          `import-figma: ${r.items} item(s) -> ${r.canvas}${r.via ? ` (section ${r.section}, via ${r.via})` : ' (dry run)'}\n` +
+            `  comments: ${r.comments} · widgets as pictures: ${r.widgets}\n` +
+            `${formatSummary(r.report, { pendingImages: r.pendingImages.length })}\n`
+        );
+      }
+      return;
+    }
     if (opts.mode === 'explode') {
       const r = await explodeArtboard({
         root,

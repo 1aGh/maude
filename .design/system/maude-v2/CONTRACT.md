@@ -28,7 +28,8 @@ Menu
 ├─ Edit ›        Undo ⌘Z · Redo ⇧⌘Z · Undo history… · Cut ⌘X · Copy ⌘C · Paste ⌘V · Copy / Paste properties ⌥⌘C / ⌥⌘V
 │                Select all ⌘A · Deselect all esc · Select all annotations ⇧⌘A
 │                Advanced ▸ New artboard (Desktop · Laptop · Tablet · Mobile · A4 · Letter)
-├─ View ›        Hide panels / Show panels ⌘\ · Comments ⇧⌘M · Assets · Exports · Annotations ⇧P · Present the canvas
+├─ View ›        Hide panels / Show panels ⌘\ · Comments ⇧⌘M · Assets · Exports · Annotations ⇧P
+│                Present ⌥⌘↵ · Present from the start ⇧⌥⌘↵ · Present the canvas   [A7, S3.1 — canvas 04 "Menu › View, amended"]
 │                Zoom in ⌘+ · Zoom out ⌘− · Zoom to fit ⌘0 · Actual size ⇧0
 │                Advanced ▸ Layers as a panel · Inspector ⇧⌘I · Open inspector on select ·
 │                           Keep timeline open ⇧⌘T · Minimap · Zoom controls · Print guides · Hidden files ·

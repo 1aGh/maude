@@ -92,6 +92,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   // row does and writes the file inside the project (--out confined); other sub-verbs prompt.
   d('exports list', 'none'),
   d('exports again', 'project', { note: 'writes the export inside the project (--out confined)' }),
+  // S5.4 (V2-1.15 §5.10). `runs list` shows which artboards AI is changing, so a terminal Claude
+  // plans around them; `runs stop` stops one of YOUR live runs on this Mac (a member's is refused).
+  d('runs list', 'none'),
+  d('runs stop', 'project', { note: 'stops one of your own live runs on this Mac' }),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
@@ -132,6 +136,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
   d('exports', 'external', {
     note: 'a sub-verb not tiered above (a cloud render lane, a retry) prompts until it gets its own entry',
+  }),
+  d('runs', 'shared', {
+    note: 'a sub-verb not tiered above prompts until it gets its own entry',
   }),
   d('comments', 'shared', {
     note: 'any sub-verb but `list` posts or resolves where others see it (S9: reply/resolve/add --as-ai)',

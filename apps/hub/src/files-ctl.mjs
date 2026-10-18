@@ -28,6 +28,8 @@
 // authenticated routes it already validates. A lost poke costs latency and
 // never correctness — the reconciler poll is still there underneath.
 
+import { connectionClaimDecides } from './access-files.mjs';
+
 /** The reserved control document. Dotted so no slug can ever equal it. */
 export const FILES_CTL_DOC = 'maude.files';
 
@@ -122,17 +124,66 @@ export function createFilesPoke({
   log = console,
   setTimeoutImpl = setTimeout,
   clearTimeoutImpl = clearTimeout,
+  // V2-1.16 L3 — what a canvas-only connection may be told (`access-files.mjs`
+  // `createPokeVisibility`). Absent: such a connection hears nothing.
+  visibility = null,
 }) {
   let timer = null;
   let pendingHead = 0;
   let sent = 0;
   let stopped = false;
   let warnedNoMap = false;
+  // The journal head the previous frame covered: a frame announces the rows in
+  // (lastHead, head]. `schedule` runs on every append, so the first one is head-1.
+  let lastHead = null;
+  // documentsOnly: the document events folded into the next frame (null = an
+  // event that named nothing, which no canvas-only connection is told about).
+  let pendingEvents = [];
+  const MAX_PENDING_EVENTS = 256;
+
+  /** L3 — per-connection delivery for the connections a claim judges. */
+  const deliverScoped = (doc, frame, from, head, events) => {
+    let connections = [];
+    try {
+      connections = doc.getConnections?.() ?? [];
+    } catch {
+      connections = [];
+    }
+    const scoped = connections.filter(connectionClaimDecides);
+    if (scoped.length === 0) {
+      doc.broadcastStateless(frame);
+      return;
+    }
+    // Project sessions keep the broadcast; a canvas-only one hears only what
+    // it can see, with its own visible head (the payload stays one integer).
+    doc.broadcastStateless(frame, (c) => !connectionClaimDecides(c));
+    if (!visibility) return;
+    for (const connection of scoped) {
+      try {
+        if (documentsOnly) {
+          if (visibility.documentsVisible(connection, events.filter(Boolean))) {
+            connection.sendStateless(JSON.stringify({ t: 'files', head: 0, documents: true }));
+          }
+        } else {
+          const visibleHead = visibility.filesHeadFor(connection, from, head);
+          if (visibleHead !== null) {
+            connection.sendStateless(JSON.stringify({ t: 'files', head: visibleHead }));
+          }
+        }
+      } catch (err) {
+        log.error?.(`[files-ctl] scoped poke failed: ${err.message}`);
+      }
+    }
+  };
 
   const emit = () => {
     timer = null;
     const head = pendingHead;
     pendingHead = 0;
+    const from = lastHead ?? Math.max(0, head - 1);
+    if (!documentsOnly && head > 0) lastHead = head;
+    const events = pendingEvents;
+    pendingEvents = [];
     const documents = documentMap(instance);
     if (!documents) {
       // NOT the same thing as "nobody is listening", and it must never be
@@ -156,8 +207,12 @@ export function createFilesPoke({
     // anyway, so nothing is missed.
     if (!doc) return;
     try {
-      doc.broadcastStateless(
-        JSON.stringify({ t: 'files', head, ...(documentsOnly ? { documents: true } : {}) })
+      deliverScoped(
+        doc,
+        JSON.stringify({ t: 'files', head, ...(documentsOnly ? { documents: true } : {}) }),
+        from,
+        head,
+        events
       );
       sent += 1;
     } catch (err) {
@@ -166,10 +221,14 @@ export function createFilesPoke({
   };
 
   return {
-    /** The journal moved to `head`. Schedule (or fold into) the next frame. */
-    schedule(head) {
+    /**
+     * The journal moved to `head` (or, documentsOnly, `event` happened —
+     * `{ documentName }` / `{ path }`). Schedule (or fold into) the next frame.
+     */
+    schedule(head, event = null) {
       if (stopped) return;
       if (Number.isFinite(head) && head > pendingHead) pendingHead = head;
+      if (documentsOnly && pendingEvents.length < MAX_PENDING_EVENTS) pendingEvents.push(event);
       if (timer !== null) return;
       timer = setTimeoutImpl(emit, coalesceMs);
       timer.unref?.();
