@@ -91,7 +91,7 @@ export function indexMeta(snapshot, designRel) {
  * group (the usual case) is `single`: its folders sit straight under the project row. With several, each
  * group is a root folder named after it.
  */
-export function buildTree({ groups, meta = new Map(), designRel = '', opened = {} }) {
+export function buildTree({ groups, meta = new Map(), designRel = '', opened = {}, ghosts = [] }) {
   const roots = [];
   const byPath = new Map();
   let total = 0;
@@ -137,8 +137,37 @@ export function buildTree({ groups, meta = new Map(), designRel = '', opened = {
       total++;
     }
   }
+  placeGhosts(roots, byPath, ghosts, designRel);
   for (const r of roots) tally(r);
   return { roots, single: roots.length === 1, total, byPath };
+}
+
+/**
+ * T-S1a — ghost rows: a canvas that is open in a tab but gone from the index (trashed while open). Each one
+ * is kept on its folder's `ghosts` list — never on `canvases`, so it is not counted, not searchable, not
+ * pinnable and not a move target. `ghost.path` is the repo path or the designRoot-relative one; a folder that
+ * no longer exists falls back to its nearest surviving ancestor, then to the first group's root.
+ */
+function placeGhosts(roots, byPath, ghosts, designRel) {
+  if (!ghosts?.length || !roots.length) return;
+  for (const g of ghosts) {
+    if (!g || typeof g.path !== 'string' || !g.path) continue;
+    const path =
+      designRel && !g.path.startsWith(`${designRel}/`) ? `${designRel}/${g.path}` : g.path;
+    let dir = dirname(path);
+    while (dir && !byPath.has(dir) && dir !== dirname(dir)) dir = dirname(dir);
+    const folder = byPath.get(dir) ?? roots.find((r) => path.startsWith(`${r.path}/`)) ?? roots[0];
+    folder.ghosts.push({
+      type: 'ghost',
+      path,
+      rel: relOf(path, designRel),
+      name: g.name || stripExt(basename(path)),
+      cover: g.cover || null,
+      slot: g.slot || null,
+      onOpen: typeof g.onOpen === 'function' ? g.onOpen : null,
+      dir: folder.path,
+    });
+  }
 }
 
 function makeFolder(path, name) {
@@ -148,6 +177,7 @@ function makeFolder(path, name) {
     name,
     folders: [],
     canvases: [],
+    ghosts: [],
     count: 0,
     openedAt: null,
     mtimeMs: 0,
@@ -350,6 +380,16 @@ export function visibleRows(
           kinds: n.sortKinds,
           node: n,
         })),
+        // T-S1a — ghosts sort with the canvases around them (as canvases: only a folder sorts first). It is
+        // open in a tab, so under "Recently opened" it leads its folder.
+        ...f.ghosts.map((n) => ({
+          type: 'canvas',
+          name: n.name,
+          openedAt: Number.MAX_SAFE_INTEGER,
+          mtimeMs: 0,
+          kinds: [],
+          node: n,
+        })),
       ],
       s
     ).map((k) => k.node);
@@ -364,11 +404,11 @@ export function visibleRows(
           name: n.name,
           count: n.count,
           open,
-          hasChildren: n.folders.length + n.canvases.length > 0,
+          hasChildren: n.folders.length + n.canvases.length + n.ghosts.length > 0,
           ...place,
         });
         if (open) {
-          if (n.folders.length + n.canvases.length === 0) {
+          if (n.folders.length + n.canvases.length + n.ghosts.length === 0) {
             rows.push({
               key: `empty:${n.path}`,
               type: 'empty',
@@ -381,6 +421,19 @@ export function visibleRows(
             });
           } else walk(n, depth + 1);
         }
+      } else if (n.type === 'ghost') {
+        rows.push({
+          key: `ghost:${n.path}`,
+          type: 'ghost',
+          path: n.path,
+          rel: n.rel,
+          name: n.name,
+          cover: n.cover,
+          slot: n.slot,
+          onOpen: n.onOpen,
+          dir: n.dir,
+          ...place,
+        });
       } else {
         const jumpable = hasJumpList(n);
         const open = jumpable && jumpIsOpen(jumpOpen, n);
@@ -416,7 +469,7 @@ export function visibleRows(
         name: r.name,
         count: r.count,
         open,
-        hasChildren: r.folders.length + r.canvases.length > 0,
+        hasChildren: r.folders.length + r.canvases.length + r.ghosts.length > 0,
         depth: 0,
         level: 1,
         posinset: i + 1,
@@ -428,12 +481,24 @@ export function visibleRows(
   return rows;
 }
 
-/** The words under the list: "93 canvases · ⌘K searches every project" / "3 results · …". */
-export function panelFoot({ total, shown, searching, jump = null }) {
+/**
+ * The line under the list and which fact it is: `{ text, tone?, source }`, `source` one of
+ * 'sync' | 'jump' | 'access' | 'default' (T-S1a — the contract's one-line precedence: the offline foot is the
+ * most urgent, then the artboard count while a canvas's artboards are listed, then the canvas-only foot,
+ * then "93 canvases · ⌘K searches every project"). `foots` is `{ sync?, access? }` from the row-slots store.
+ */
+export function panelFootLine({ total, shown, searching, jump = null, foots = null }) {
+  if (foots?.sync) return { ...foots.sync, source: 'sync' };
   // S1.3 — while a canvas's artboards are listed, the foot counts them (11 · pn-jump)
-  if (jump) return jumpFoot(jump.boards, { dynamic: jump.dynamic });
+  if (jump) return { text: jumpFoot(jump.boards, { dynamic: jump.dynamic }), source: 'jump' };
+  if (foots?.access) return { ...foots.access, source: 'access' };
   const n = searching ? plural(shown, 'result', 'results') : plural(total, 'canvas', 'canvases');
-  return `${n} · ⌘K searches every project`;
+  return { text: `${n} · ⌘K searches every project`, source: 'default' };
+}
+
+/** The words under the list: "93 canvases · ⌘K searches every project" / "3 results · …". */
+export function panelFoot(args) {
+  return panelFootLine(args).text;
 }
 
 /** What a search that found nothing says (CONTRACT §4). */
@@ -503,7 +568,8 @@ export function scrollToReveal(rows, layout, index, scrollTop, viewport) {
 
 // ── keyboard ────────────────────────────────────────────────────────────────────────────────────────
 
-const isItem = (r) => r && (r.type === 'folder' || r.type === 'canvas' || r.type === 'board');
+const isItem = (r) =>
+  r && (r.type === 'folder' || r.type === 'canvas' || r.type === 'board' || r.type === 'ghost');
 
 /**
  * The tree keys the old FileTree answered, on the flat list. Returns what to do:

@@ -107,6 +107,38 @@
     font-size: var(--type-xs);
     color: var(--fg-2);
   }
+  /* T-S1a — words other slices publish for a row (row-slots.js): a sub after the name, a meta at the right,
+   * a faded row. Tokens only; the tones are the status colours, "quiet" is plain secondary text. */
+  .cv-sub--slot {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .cv-sub--slot .cv-sub-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cv-meta {
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .cv-meta[data-tone='warn'] {
+    color: var(--status-warn-text);
+  }
+  .cv-meta[data-tone='azure'] {
+    color: var(--accent);
+  }
+  .cv-row.is-dim .cv-name,
+  .cv-row.is-dim .cv-thumb,
+  .cv-row.is-dim .cv-badges {
+    opacity: 0.55;
+  }
+  .cv-foot[data-tone='warn'] {
+    color: var(--status-warn-text);
+  }
   .cv-twisty {
     display: grid;
     place-items: center;
