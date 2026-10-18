@@ -1417,6 +1417,8 @@ export function Sidebar({
             onOpenTrash={() => setTrashOpen(true)}
             activePath={activePath === SYSTEM_TAB ? null : activePath}
             isSystem={activePath === SYSTEM_TAB}
+            dsName={activeDsName ?? pinnedDs[0]?.dsName ?? null}
+            onOpenDs={onOpenSystem}
           >
             {dsGroup && !search ? (
               <FileTree aria-label="Design system files" data-testid="canvases-ds-files">

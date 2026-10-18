@@ -675,6 +675,9 @@ export function usePaletteAndPanels({
           testId={id === 'layers' ? 'layers-panel' : 'inspector-panel'}
           layersOnly={id === 'layers'}
           artboardCount={id === 'layers' ? activeArtboards : undefined}
+          onSelectBySelector={(selector) =>
+            postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })
+          }
           hideLayersTab={layersMode === 'separate'}
           selected={selected}
           cfg={cfg}

@@ -20,8 +20,16 @@ import { requestViewCode, runErrorOp } from '../code/code-bus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
-import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
+import { copyText } from '../left-panel/canvas-file-menu.js';
+import {
+  dispatchCanvasOp,
+  requestCanvasesOp,
+  requestFocusSelector,
+  requestTrash,
+} from '../left-panel/left-panel-bus.js';
+import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
+import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -48,6 +56,18 @@ export const NATIVE_COMMANDS = {
 export const MENU_ACTION_EVENT = 'maude:menu-action';
 
 const noop = () => {};
+
+/** S11.9 — run a native path door on the open canvas; its refusal (Rust's words, or "browser") becomes a toast. */
+async function runDoor(d, id) {
+  if (!d.activePath) return;
+  const res = await nativeDoors().run(id, d.activePath);
+  if (res?.ok) return;
+  d.toast(
+    res?.reason === 'browser'
+      ? 'Open this project in the Mac app to work with its files.'
+      : res?.error || 'Couldn’t do that.'
+  );
+}
 
 /**
  * @param d the shell's closures (see ShellProjectPill in app.jsx):
@@ -127,6 +147,36 @@ export function createMenuHandlers(d) {
     },
     'canvas.move': () => {
       if (d.activePath) d.onPickMoveDestination();
+    },
+    // S11.9 — the row menu's Advanced group on the OPEN canvas. The two native doors take the project-relative
+    // path of the open canvas (the tab's path; Rust refuses anything else); a browser tab has no door and says so.
+    'canvas.reveal-in-finder': () => runDoor(d, 'canvas.reveal-in-finder'),
+    'canvas.open-in-editor': () => runDoor(d, 'canvas.open-in-editor'),
+    'canvas.copy-file-path': async () => {
+      if (!d.activePath) return;
+      d.toast(
+        (await copyText(d.activePath)) ? 'File path copied.' : 'Couldn’t copy the file path.'
+      );
+    },
+    // the same in-place rename as Rename: the canvas's name IS its file name
+    'canvas.rename-file': () => {
+      if (!d.activePath) return;
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'rename', path: d.activePath });
+    },
+    // S11.9 — the two switches of the left panel's Advanced folds (this person's own view)
+    'canvases.show-file-names': () => {
+      toggleViewPref(VIEW_PREF_KEYS.fileNames);
+    },
+    'layers.show-tags': () => {
+      toggleViewPref(VIEW_PREF_KEYS.tags);
+    },
+    'layers.select-by-selector': () => {
+      panelLayout.show();
+      d.openPanelExclusive('layers');
+      foldStore.set('left.layers', true);
+      requestFocusSelector();
     },
     // S11.7 — the code view opens in the Viewport (read-only; the server refuses Can view the source).
     // The three card actions act on the broken-canvas card that is showing, and on nothing otherwise.

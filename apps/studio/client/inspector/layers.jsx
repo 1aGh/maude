@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { StIcon } from '../shell/icons.jsx';
 import { LayerRowTools } from '../v2/inspector/layers-row-tools.jsx';
+import { tagLabel } from '../v2/left-panel/advanced-model.js';
+import { useViewPref, VIEW_PREF_KEYS } from '../v2/left-panel/view-prefs.js';
 
 // ---------- Inspector panel (display-only) ----------
 //
@@ -113,6 +115,8 @@ export function LayerRow({
   onRename,
 }) {
   const key = `${node.id}:${node.index}`;
+  // S11.9 — Layers › Advanced › Show tags and ids: the tag and id after the name (the person's own view)
+  const [showTags] = useViewPref(VIEW_PREF_KEYS.tags);
   const hasKids = node.children && node.children.length > 0;
   const isCollapsed = collapsed.has(key);
   // feature-4 T7 — a synthetic group row (unstamped wrapper) is a pure
@@ -276,6 +280,11 @@ export function LayerRow({
             {node.label}
           </span>
         )}
+        {showTags && tagLabel(node) ? (
+          <span className="st-layer-tag" data-testid="layer-tag">
+            {tagLabel(node)}
+          </span>
+        ) : null}
         <span className="st-layer-type">{inst ? inst.component : node.type}</span>
         {!isSynthetic ? (
           <LayerRowTools

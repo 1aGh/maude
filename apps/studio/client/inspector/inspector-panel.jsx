@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { trackRecordableWrite } from './css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
 import { Kbd, StIcon } from '../shell/icons.jsx';
+import { shellToast } from '../shell/util.js';
 import { PhotoKnobs } from '../photo-knobs.jsx';
 import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
@@ -110,6 +112,8 @@ export function InspectorPanel({
   // V2-4.8b — the open canvas's artboard count (was the status bar's "N artboards"), shown in the
   // standalone Layers panel's header; undefined elsewhere.
   artboardCount,
+  // S11.9 — Layers › Advanced › Select by selector: posts `select-by-selector {selector}` to the open canvas.
+  onSelectBySelector,
   // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
   onRenameElementId = renameElementId,
 }) {
@@ -730,6 +734,16 @@ export function InspectorPanel({
           />
         )}
       </div>
+      {/* S11.9 — the standalone Layers panel's Advanced: tags and ids, counts, select by selector, element id */}
+      {layersOnly ? (
+        <LayersAdvanced
+          tree={layersTree}
+          artboardCount={artboardCount}
+          elementId={el?.id ?? null}
+          onSelectBySelector={onSelectBySelector}
+          toast={shellToast}
+        />
+      ) : null}
     </aside>
   );
 }

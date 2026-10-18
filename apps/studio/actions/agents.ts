@@ -121,6 +121,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // S1.2 — the row menu's other rows. The link is the canvas's address (`maude design open <canvas>` moves
   // the person's view to it). Trash: until S1.17's `maude design trash`, an agent parks the files the way
   // `DELETE /_api/canvas` does, and the Trash lists them from the manifest.
+  // S11.9 — the row menu's Advanced group. The two native doors open Finder / the editor on the PERSON's Mac:
+  // an agent already holds the file (the project path is in `maude design index`), so they are the person's.
+  'canvas.reveal-in-finder': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens Finder on the person’s Mac; an agent already holds the file'
+    ),
+  },
+  'canvas.open-in-editor': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens the person’s editor on the file; an agent edits the .tsx itself'
+    ),
+  },
+  'canvas.copy-file-path': { effect: 'none', agent: cli('maude design index') },
+  'canvas.rename-file': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.copy-link': {
     effect: 'none',
     agent: human('view-pref', 'copies to the clipboard; an agent shares the canvas path instead'),
@@ -220,6 +238,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
   'view.hidden-files': PREF(),
+  // S11.9 — the left panel's Advanced switches: what this person SEES (kept on this Mac), and a selection
+  // in their window. An agent addresses elements by id in the .tsx (`maude design canvas-rects`).
+  'canvases.show-file-names': PREF('a second line under each canvas, in the person’s own view'),
+  'layers.show-tags': PREF('tag and id after each layer’s name, in the person’s own view'),
+  'layers.select-by-selector': PREF(
+    'a selection in the person’s window; an agent finds elements with `maude design canvas-rects`'
+  ),
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
   'history.open': { effect: 'none', agent: cli('maude design history list') },

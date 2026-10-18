@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ba98ccec1618",
+  "manifestVersion": "282d59e8b6b0",
   "actions": [
     {
       "id": "search.open",
@@ -211,6 +211,54 @@
       "agent": {
         "path": "cli",
         "verb": "maude design canvas-source"
+      }
+    },
+    {
+      "id": "canvas.reveal-in-finder",
+      "label": "Reveal in Finder",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens Finder on the person’s Mac; an agent already holds the file"
+      }
+    },
+    {
+      "id": "canvas.open-in-editor",
+      "label": "Open in editor",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens the person’s editor on the file; an agent edits the .tsx itself"
+      }
+    },
+    {
+      "id": "canvas.copy-file-path",
+      "label": "Copy file path",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvas.rename-file",
+      "label": "Rename file…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rename the .tsx and its .meta.json together"
       }
     },
     {
@@ -775,6 +823,42 @@
       "agent": {
         "path": "human",
         "because": "view-pref"
+      }
+    },
+    {
+      "id": "canvases.show-file-names",
+      "label": "Show file names",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a second line under each canvas, in the person’s own view"
+      }
+    },
+    {
+      "id": "layers.show-tags",
+      "label": "Show tags and ids",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "tag and id after each layer’s name, in the person’s own view"
+      }
+    },
+    {
+      "id": "layers.select-by-selector",
+      "label": "Select by selector",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a selection in the person’s window; an agent finds elements with `maude design canvas-rects`"
       }
     },
     {
