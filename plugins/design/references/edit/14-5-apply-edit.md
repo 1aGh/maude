@@ -1,11 +1,13 @@
 ### 5. Apply edit
 
-Read the canvas file. **If selection is valid**, build a scoped prompt (selector + dom_path + outerHTML + bounds + feedback) — the orchestrator knows the pattern from `design/SKILL.md` "Scoped edit prompt". Edit using the `Edit` tool with `old_string` matched to a unique substring of the selected element (if outerHTML appears multiple times, use the dom-path context to disambiguate).
+Read the canvas file. **If the selection is valid**, build a scoped prompt (the object's `data-cd-id`, selector, path, markup, bounds and the feedback); the pattern is in `design/SKILL.md` "Scoped edit prompt". Edit with the `Edit` tool, with `old_string` matched to a unique substring of the selected element (if its markup appears several times, use the path context to disambiguate).
 
-**If there's no selection**, the edit is canvas-wide. Use Edit for a minimal diff (preferred). Write only when the change is a substantial rewrite, but preserve:
-- `<link rel="stylesheet" href=".../<TOKENS_REL>">`
-- `<body class="<ROOT_CLASS>" data-theme="…">`
-- The Babel/UMD React mount pattern (if present)
-- All existing tokens (`var(--*)` references)
+**If there is no selection**, the edit is canvas-wide. Use Edit for a minimal diff (preferred). Write only on a new file: over an existing canvas longer than 40 lines the hook refuses it (`whole-file-rewrite`), because Edit is what keeps element ids. Whatever you change, preserve:
+- every `data-cd-id`, each on the element that had it. A new element gets a new readable id; never reuse or renumber one ([Editing in Maude v2](../../skills/design/_guide-editing-v2.md));
+- `data-cd-locked` and `data-cd-hidden` attributes, and the elements they sit on. A locked element is the person's: do not change it or anything inside it;
+- the canvas wrapper (`DesignCanvas` / `DCSection` / `DCArtboard` from `@maude/canvas-lib`), the root class, the tokens import and the `data-theme` handling;
+- all existing tokens (`var(--*)` references). New values use tokens, not hex colors or raw font families.
 
-**Touch the paired `.tsx` after editing a sibling `.css` (D-2 — highest-ROI fix).** For `css_mode` canvases that carry a sibling `<slug>.css` (NOT Tailwind / inline modes), the dev-server's canvas-build **inlines the CSS at module init and the bundle cache keys on the `.tsx` mtime** — so a CSS-only edit is invisible until something bumps the `.tsx` mtime (or a server restart). After editing any `<slug>.css`, `touch <slug>.tsx` so the canvas-build re-inlines the CSS. Without this, the confirmation screenshot in step 7 reflects the *pre-edit* CSS — studyfi burned 5 identical "nothing changed" screenshots on exactly this. (Tailwind/inline-mode canvases have no sibling `.css`, so this does not apply to them.)
+Each Edit is checked by the hooks as it lands: a write that breaks the canvas is put back, and a write the artboard's current holder refuses comes back with a named reason (step 4.5). Fix the cause; do not retry the same edit.
+
+**Touch the paired `.tsx` after editing a sibling `.css` (D-2).** For `css_mode` canvases that carry a sibling `<slug>.css` (not Tailwind or inline modes), the canvas build inlines the CSS at module init and its cache keys on the `.tsx` mtime. A CSS-only edit stays invisible until something bumps the `.tsx` mtime. After editing any `<slug>.css`, `touch <slug>.tsx`, otherwise the confirmation screenshot in step 7 shows the pre-edit CSS (studyfi burned 5 identical "nothing changed" screenshots on this). Tailwind and inline-mode canvases have no sibling `.css`, so it does not apply to them.
