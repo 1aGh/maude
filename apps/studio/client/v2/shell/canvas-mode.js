@@ -59,6 +59,7 @@ export function createShellMode(caps = ALL_CAPS) {
     present: null,
     returnTo: null,
     position: null,
+    viewing: null,
   });
   const subs = new Set();
   const emit = (next) => {
@@ -75,12 +76,40 @@ export function createShellMode(caps = ALL_CAPS) {
     /** A person chose `mode` (the switch, a menu, a granted `mode-request`). Choosing a mode while
      *  presenting leaves Present for it. Present itself goes through `present(spec)`. */
     select(mode, { tool = null } = {}) {
-      if (mode === 'present') return;
+      if (mode === 'present' || snap.viewing) return; // S1.14: a past version holds the mode
       emit({ mode, tool, nonce: snap.nonce + 1, ...notPresenting });
+    },
+    /**
+     * S1.14 (V2-1.9 §5.6, S1-slices note 6 / Q10) — Version history's Viewing: the shell looks at a past
+     * version of `path` (`at` = `r<n>` or `git:<sha>`), read-only. The hold is a field, not a mode: the mode
+     * the person was in stays underneath (`heldMode` is what the canvases are told), so esc returns to
+     * exactly where they were. A canvas `mode-request` is refused meanwhile (`decideModeRequest`), and so
+     * are the switch and Present. Viewing another version replaces the first; a ref that is not a
+     * version is ignored. Presenting: esc leaves Present first (no hold over a presentation).
+     * @param v { path, at, title, when, who }
+     */
+    view(v) {
+      if (!v || !VERSION_REF.test(String(v.at ?? '')) || snap.mode === 'present') return false;
+      emit({
+        viewing: Object.freeze({
+          path: String(v.path ?? ''),
+          at: String(v.at),
+          title: String(v.title ?? ''),
+          when: String(v.when ?? ''),
+          who: String(v.who ?? ''),
+        }),
+      });
+      return true;
+    },
+    /** esc / "back to now" / a restore: leave the hold. */
+    leaveViewing() {
+      if (!snap.viewing) return false;
+      emit({ viewing: null, nonce: snap.nonce + 1 });
+      return true;
     },
     /** Enter Present (Artboards or the Canvas). Already presenting: nothing (esc leaves first). */
     present(spec) {
-      if (snap.mode === 'present') return false;
+      if (snap.mode === 'present' || snap.viewing) return false;
       emit({
         mode: 'present',
         tool: null,
@@ -145,6 +174,18 @@ export function presentSpecFor(kind, { selectedArtboard = null, inViewArtboard =
 /** The mode the canvases are in, clamped by the role (Present passes through). */
 export const effectiveMode = (mode, caps) => clampMode(mode, caps);
 
+/** A version a viewing hold may name: a kernel revision or a git commit (§5.1 `VersionRef`). */
+const VERSION_REF = /^(r\d+|git:[0-9a-f]{4,64})$/;
+
+/**
+ * S1.14 — what the canvases are TOLD: while Viewing a past version every frame gets Viewing with no
+ * capabilities (no tools, no annotate, no comment — Can view's posture, whatever the role), else the
+ * mode and caps as they are. The store's own `mode` is untouched, so leaving the hold needs no restore.
+ */
+export function heldMode(snap, mode, caps) {
+  return snap?.viewing ? { mode: 'viewing', caps: NO_CAPS } : { mode, caps };
+}
+
 /** The `set-mode` payload for one frame (§5.2: ≤ 300 bytes, M5). `tool` only for the active frame.
  *  S3.7a — `caps.present` (the canvas may publish its Present · Artboards position on awareness): Present
  *  · Artboards and `edit`, or presenter view on (S3.6b passes `presenterView`; S3-present-session §3). */
@@ -173,9 +214,11 @@ export function setModeMessage({ seq, mode, caps, tool, present = null, presente
  * @returns {{ kind: 'set', mode, tool? } | { kind: 'present', present } | { kind: 'exit-present', next? }
  *           | { kind: 'deny', reason: 'modal' | 'role' } | null}   null = nothing to do
  */
-export function decideModeRequest(req, { caps, presenting, mode, modalOpen }) {
+export function decideModeRequest(req, { caps, presenting, mode, modalOpen, viewing = null }) {
   if (!req) return null;
   if (modalOpen) return { kind: 'deny', reason: 'modal' };
+  // S1.14 — a past version holds the mode: esc / `back` returns to now, nothing else moves it.
+  if (viewing) return req.mode === 'back' ? { kind: 'exit-viewing' } : { kind: 'deny', reason: 'viewing' };
   if (req.mode === 'back') {
     if (presenting) return { kind: 'exit-present' };
     if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
