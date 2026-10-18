@@ -11,11 +11,16 @@
 //   hasSelection     is something selected on the active canvas? (nothing → This canvas)
 //   selectedArtboards / selectedElements   DCArtboard ids · V2-1.4 element ids of that selection
 //   selectionLabel   the one selected thing's name, for the title
+//   access           S8.9 — the shell's `{ canEdit, role }` (access-line.jsx): Can comment gets one line on top and
+//                    "Needs Can edit" on Handoff; Can view gets no sheet at all (the server refuses too)
+//   lastFinishedAt   S8.9 — ms timestamp of the last finished version, for "From 14:05" while AI is working
+//   aiRuns           S8.9 — a `GET /_api/ai/runs` view (tests); default = the shell's runs store
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultScopeForFormat, isScopeValidForFormat } from '../../../exporters/format-scopes.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { StIcon } from '../../shell/icons.jsx';
+import { useAiRuns } from '../ai/runs-store.js';
 import { basename, displayName } from '../../shell/util.js';
 import { menuRunner } from '../shell/menu-runner.js';
 import { useModalFocus } from '../shell/modal-focus.js';
@@ -33,10 +38,12 @@ import {
   sheetTitle,
   summaryWords,
 } from './export-copy.js';
+import { AccessLine, exportAccess } from './access-line.jsx';
 import { OtherFormats } from './other-formats.jsx';
 import { laneBlocked, replayBody, runExport } from './run-export.js';
 import { ScopeBar } from './scope-bar.jsx';
 import { ImageSection } from './sections/image.jsx';
+import { AiHint, aiOnTarget, HANDOFF_NEEDS_EDIT, VersionRow } from './sections/version.jsx';
 import { WebSection } from './sections/web.jsx';
 import { ShareHint } from './share-hint.jsx';
 import {
@@ -72,9 +79,15 @@ export function ExportSheet({
   selectionLabel = null,
   exportLane = 'local',
   onBrowserCapture = null,
+  access = null,
+  lastFinishedAt = null,
+  aiRuns = null,
   onClose,
 }) {
-  const [mode, setMode] = useState(modeProp);
+  // Handoff writes code into the project: a Can comment opener lands on Export, never on Handoff (S8.9)
+  const [mode, setMode] = useState(() =>
+    modeProp === 'handoff' && !exportAccess(access).canHandoff ? 'export' : modeProp
+  );
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const selected = hasSelection ?? (selection != null || (selectedArtboards?.length ?? 0) > 0);
   const ctx = useMemo(
@@ -111,6 +124,16 @@ export function ExportSheet({
     hasSelection: selected,
   });
   const people = useExportPeople();
+  // S8.9 — who may export, and whether AI is changing what this export reaches
+  const acc = useMemo(() => exportAccess(access), [access]);
+  const liveRuns = useAiRuns();
+  const aiInfo = aiOnTarget(aiRuns ?? liveRuns.view, {
+    activeCanvas: canvasOpen ? activePath : null,
+    scope: state.scope,
+    artboards: selectedArtboards,
+    activeArtboardId,
+  });
+  const waitForAi = aiInfo.working && aiInfo.mine && state.wait === 'ai';
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, msg }
@@ -147,8 +170,13 @@ export function ExportSheet({
     return k;
   }, [est, hasComps]);
   const groups = useMemo(
-    () => otherFormats({ kinds, laneBlocked: (f) => laneBlocked(f, exportLane) }),
-    [kinds, exportLane]
+    () =>
+      otherFormats({
+        kinds,
+        laneBlocked: (f) => laneBlocked(f, exportLane),
+        canHandoff: acc.canHandoff,
+      }),
+    [kinds, exportLane, acc.canHandoff]
   );
 
   const count = counts?.[state.scope] ?? null;
@@ -186,9 +214,10 @@ export function ExportSheet({
       return;
     }
     runExport({
-      body: { v: 2, spec },
+      body: { v: 2, spec: waitForAi ? { ...spec, wait: 'ai' } : spec },
       format: state.format,
-      legacy: browserLaneRequest(state, { ...ctx, kind }),
+      // a held export is a server job; the browser lane captures NOW, which is the other choice
+      legacy: waitForAi ? null : browserLaneRequest(state, { ...ctx, kind }),
       exportLane,
       onBrowserCapture,
       activePath,
@@ -242,6 +271,10 @@ export function ExportSheet({
     menuRunner.run('share.copy-link');
   };
   const handoff = () => {
+    if (!acc.canHandoff) {
+      setStatus({ ok: false, msg: HANDOFF_NEEDS_EDIT });
+      return;
+    }
     setMode('handoff');
     setStatus(null);
   };
@@ -257,6 +290,10 @@ export function ExportSheet({
   );
   const annotationsOff = false;
   const Section = section === 'web' ? WebSection : ImageSection;
+
+  // Can view has no Export (A19): the entry points are absent and the server answers 403; if a stale
+  // opener still gets here, there is nothing to draw.
+  if (!acc.canExport) return null;
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it
@@ -296,6 +333,8 @@ export function ExportSheet({
           </p>
         ) : (
           <>
+            <AccessLine line={acc.line} />
+            <AiHint info={aiInfo} />
             <ScopeBar
               scope={state.scope}
               counts={counts}
@@ -311,6 +350,12 @@ export function ExportSheet({
               </p>
             ) : null}
             <div className="ex-rows" data-testid="export-rows" data-section={section}>
+              <VersionRow
+                info={aiInfo}
+                value={waitForAi ? 'ai' : 'now'}
+                lastFinishedAt={lastFinishedAt}
+                onPick={(v) => set({ wait: v === 'ai' ? 'ai' : null })}
+              />
               <Section
                 state={state}
                 set={set}

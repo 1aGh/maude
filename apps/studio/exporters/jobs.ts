@@ -53,6 +53,7 @@ import { type ResolveScopeArgs, resolveScope, type Target } from './scope.ts';
 import { type ExportJobItem, type GroupPlan, itemsFor, runGroup } from './spec-run.ts';
 import type { ExportSpecV2 } from './spec-v2.ts';
 import { scanUnsupportedMedia } from './unsupported-media.ts';
+import { type AiRunReader, holdJobForAi } from './wait-ai.ts';
 
 /** Extended shape of the old Phase 6.5 T10 history entry — additive fields only. */
 export interface ExportHistoryEntry {
@@ -334,7 +335,12 @@ function readPrintPropsFor(
   return out;
 }
 
-export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQueue {
+export function createExportJobQueue(
+  bus: Bus,
+  designRoot: string,
+  /** S8.9 — the run registry a `wait:'ai'` job holds on (server.ts passes `() => runRegistry`) */
+  aiWait: { runs?: () => AiRunReader | null } = {}
+): ExportJobQueue {
   const jobsDir = path.join(designRoot, '_export-jobs');
   const historyPath = path.join(designRoot, '_export-history.json');
   const maxConcurrent = Math.max(1, Number(process.env.MAUDE_EXPORT_MAX_CONCURRENT) || 2);
@@ -531,6 +537,22 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         emit(job);
         await persistAndEvict();
         throw new Error(laneRefusal);
+      }
+      // S8.9 — `wait:'ai'`: held here (queued, items `waiting`), BEFORE a render slot, until the
+      // AI run on the target ends; dies with the run. See exporters/wait-ai.ts.
+      const diedWith = await holdJobForAi(job, args.group, {
+        bus,
+        reader: aiWait.runs?.() ?? null,
+        emit: () => emit(job),
+        signal: controller.signal,
+      });
+      if (diedWith) {
+        job.status = 'failed';
+        job.finishedAt = new Date().toISOString();
+        job.error = diedWith;
+        emit(job);
+        await persistAndEvict();
+        throw new Error(diedWith);
       }
       const release = await semaphore.acquire();
       // Started here, not at enqueue — the timeout bounds RENDER time (the

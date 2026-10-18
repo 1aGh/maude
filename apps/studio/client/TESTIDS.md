@@ -226,6 +226,12 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-cancel` | testid | Cancel in the Export sheet. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
 | `export-submit-label` | testid | The words inside the verb button, without the ↵ hint. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
 | `export-handoff-body` | testid | The handoff view’s text (Code… under Other…); S8.10 replaces it. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-access-line` | testid | The one line on top of the sheet for a Can comment person (“You can comment on this project…”). Absent for editors; Can view has no sheet. | `client/v2/export/access-line.jsx` · `AccessLine` | test:v2-export-edges | new in v2 (S8.9) |
+| `export-ai-hint` | testid | The line shown while AI is changing the artboard the export reaches (“AI is changing this artboard right now — “…””). | `client/v2/export/sections/version.jsx` · `AiHint` | test:v2-export-edges | new in v2 (S8.9) |
+| `export-row-version` | testid | The Version row: only while a run of yours holds the target artboard. | `client/v2/export/sections/version.jsx` · `VersionRow` | test:v2-export-edges | new in v2 (S8.9) |
+| `export-version` | testid | The Version radio group; `data-value` is `now` (default) or `ai`. | `client/v2/export/sections/version.jsx` · `VersionRow` | test:v2-export-edges | new in v2 (S8.9) |
+| `export-version-now` | testid | Version option “From 14:05” — the last finished version, exported now (the spec carries no `wait`). | `client/v2/export/sections/version.jsx` · `VersionRow` | test:v2-export-edges | new in v2 (S8.9) |
+| `export-version-wait` | testid | Version option “Wait for AI” — the spec carries `wait:'ai'`; the job holds until the run ends and dies with a run that did not finish. | `client/v2/export/sections/version.jsx` · `VersionRow` | test:v2-export-edges | new in v2 (S8.9) |
 | `export-scope-<id>` | testid (pattern) | One scope segment; `<id>` ∈ selection, canvas, folder, project. Carries `data-count`; “—” and disabled when empty. | `client/v2/export/scope-bar.jsx` · `ScopeBar` | test:v2-export-sheet | new |
 | `export-other` | testid | The Other… button. | `client/v2/export/other-formats.jsx` · `OtherFormats` | test:v2-export-sheet | new |
 | `export-other-menu` | testid | The Other… list. | `client/v2/export/other-formats.jsx` · `OtherFormats` | test:v2-export-sheet | new |
