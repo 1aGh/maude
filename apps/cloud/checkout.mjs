@@ -108,11 +108,45 @@ export function validateNewProject({ name, plan, interval, pricing }) {
 }
 
 /**
+ * Validate the name a trial project is created with (A3, `POST /api/projects`).
+ * The same address rules as the wizard; no plan, because there is none yet.
+ */
+export function validateTrialProject({ name }) {
+  const trimmed = String(name ?? '').trim();
+  if (trimmed.length < 3 || trimmed.length > 120) {
+    return { ok: false, error: 'Give the project a name — at least 3 characters.' };
+  }
+  const id = deriveProjectId(trimmed);
+  if (!validProjectId(id)) {
+    return {
+      ok: false,
+      error: 'That name cannot become a web address here. Try one with a few more letters.',
+    };
+  }
+  return { ok: true, id, name: trimmed };
+}
+
+/**
+ * Choose a plan (A3): the plan picked for an EXISTING trial project. The
+ * wizard's validation without the name — the project already has one.
+ */
+export function validatePlanChoice({ plan, interval, pricing }) {
+  const verdict = validateNewProject({ name: 'placeholder', plan, interval, pricing });
+  return verdict.ok ? { ok: true, plan, interval } : verdict;
+}
+
+/**
  * The Checkout Session, as the flat form params Stripe's API takes.
  *
  * `subscription_data[trial_period_days]` is the advertised trial from
  * pricing.json — nothing is charged at checkout, which is what makes the
  * provision-first ordering possible in subscription mode at all.
+ *
+ * `convert` (A3, Maude v2 S9.15) is Choose a plan: the SAME Checkout for a
+ * trial project that already exists. It carries no second trial
+ * (`trialDays: null` omits the key — the account's trial was the trial),
+ * `metadata[convert]` tells the return to attach the subscription to that row
+ * instead of writing a new one, and cancelling goes back to its billing page.
  */
 export function checkoutSessionParams({
   projectId,
@@ -122,13 +156,16 @@ export function checkoutSessionParams({
   trialDays,
   customerId,
   origin,
+  convert = false,
 }) {
   return {
     mode: 'subscription',
     customer: customerId,
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
-    'subscription_data[trial_period_days]': String(trialDays),
+    ...(trialDays === null || trialDays === undefined
+      ? {}
+      : { 'subscription_data[trial_period_days]': String(trialDays) }),
     'subscription_data[metadata][project_id]': projectId,
     'metadata[project_id]': projectId,
     // The project row is written on RETURN, not before checkout — an
@@ -136,6 +173,7 @@ export function checkoutSessionParams({
     // carries everything the return needs to write it.
     'metadata[project_name]': projectName,
     'metadata[plan]': plan,
+    ...(convert ? { 'metadata[convert]': '1' } : {}),
     // The card is collected and validated even though the trial is free —
     // that validation IS the authorization the ordering relies on.
     payment_method_collection: 'always',
@@ -170,7 +208,7 @@ export function checkoutSessionParams({
     // invoice has been issued with the wrong tax on it.
     'tax_id_collection[enabled]': 'true',
     success_url: `${origin}/checkout/return?project=${projectId}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/projects/new`,
+    cancel_url: convert ? `${origin}/projects/${projectId}/billing` : `${origin}/projects/new`,
   };
 }
 

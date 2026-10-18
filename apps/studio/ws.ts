@@ -45,6 +45,9 @@ export type WsData =
       /** S9.11 (V2-1.16 L12) — WHAT this socket may hear: the upgrade request's access,
        *  stamped by server.ts. Absent = the identity (a hand-built test socket). */
       access?: Access;
+      /** S9.15c — no comment write either (a paused project): `comments-add` is refused
+       *  with the patch/delete pair. Stamped by server.ts from the proxy's projection. */
+      lanesClosed?: boolean;
     }
   | {
       id: string;
@@ -67,6 +70,8 @@ export type WsData =
       access?: Access;
       /** S3.7c — a presentation follower's socket: receive-only in the room (collab/room.ts). */
       follow?: boolean;
+      /** S9.15c — read-only with no writable lane, comments included (collab/room.ts). */
+      lanesClosed?: boolean;
     }
   | {
       // T2 (9.1-A) — HMR-only socket for the segregated canvas origin. Receives
@@ -420,11 +425,14 @@ export function createWs(
   ): RoomConn {
     const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
     const follow = ws.data.kind === 'collab' && ws.data.follow === true;
+    const lanesClosed = ws.data.kind === 'collab' && ws.data.lanesClosed === true;
     const conn: RoomConn = {
       id: ws.data.id,
       realm,
-      readOnly,
+      // S9.15c — a lanes-closed conn is read-only too (presence strip, gated path).
+      readOnly: readOnly || lanesClosed,
       ...(follow ? { follow: true } : {}),
+      ...(lanesClosed ? { lanesClosed: true } : {}),
       // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
@@ -545,6 +553,19 @@ export function createWs(
         // `comments-add` is deliberately NOT here: comment is the one write a
         // viewer holds (role matrix, `viewer.comment === true`). Patch and
         // delete are not — they change or remove somebody else's note.
+        //
+        // S9.15c — a paused project (`lanesClosed`) holds no comment write at all,
+        // `comments-add` included (its HTTP comment writes answer 402 plan at the proxy).
+        const COMMENT_FRAMES = new Set(['comments-add', 'comments-patch', 'comments-delete']);
+        const lanesClosedSocket = ws.data.kind === 'inspector' && ws.data.lanesClosed === true;
+        if (lanesClosedSocket && COMMENT_FRAMES.has(msg.type)) {
+          send(ws, {
+            type: 'refused',
+            reason: 'plan',
+            message: 'Editing is paused for this project — that change was not applied.',
+          });
+          return;
+        }
         const readOnlySocket = ws.data.kind === 'inspector' && ws.data.readOnly === true;
         const MUTATES_OTHERS = new Set(['comments-patch', 'comments-delete']);
         if (readOnlySocket && MUTATES_OTHERS.has(msg.type)) {

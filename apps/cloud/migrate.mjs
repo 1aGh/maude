@@ -427,6 +427,31 @@ export const MIGRATIONS = [
       'ALTER TABLE project_invites ADD COLUMN thread TEXT;',
     ],
   },
+  {
+    version: 19, // Maude v2 S9.15 (Gate 0 A3) — the trial belongs to the account
+    statements: [
+      // Stamped once, at the first sign-in (`startTrial`, COALESCE). NULL = an
+      // account that has not signed in since v19 — its trial has not started.
+      'ALTER TABLE accounts ADD COLUMN trial_started_at INTEGER;',
+      // NULL = not a trial project (checkout-born, hand-provisioned, legacy):
+      // only a row with this set and no subscription can ever pause.
+      'ALTER TABLE projects ADD COLUMN trial_ends_at INTEGER;',
+      // One row per trial workspace, keyed by the ADDRESS's hash rather than
+      // the account, so deleting an account and signing up again on the same
+      // address does not mint a second trial — and no plain address is kept.
+      // `request_id` makes provisioning idempotent: a retried request finds
+      // its own row and answers the same project.
+      `CREATE TABLE IF NOT EXISTS trial_claims (
+        email_hash TEXT NOT NULL,
+        request_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        claimed_at INTEGER NOT NULL,
+        PRIMARY KEY (email_hash, request_id)
+      );`,
+      'CREATE INDEX IF NOT EXISTS trial_claims_account ON trial_claims (account_id, request_id);',
+    ],
+  },
 ];
 
 /** Run one migration's statements plus its schema_migrations row. */

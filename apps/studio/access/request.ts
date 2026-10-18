@@ -177,6 +177,19 @@ export function accessFromProxy(headers: Headers): Access {
   return resolveAccess(readOnly ? { ...legacy, role: capAtViewer(legacy.role) } : legacy);
 }
 
+/**
+ * S9.15c — does the proxy's readonly projection close EVERY lane of this session's
+ * sockets? `0` (may edit) and `1` (read-only by role: the comment lane stays open,
+ * Can comment) do not. `plan` (the project is paused — the proxy's socket lanes,
+ * lead decision `v2-lead-paused-comments-refused`) does, and so does any value this
+ * studio does not know, or none: the stricter reading. Socket lanes only — the HTTP
+ * writes of a paused project never reach the studio (the proxy answers 402 plan).
+ */
+export function lanesClosedFromProxy(headers: Headers): boolean {
+  const projection = headers.get('x-maude-readonly');
+  return projection !== '0' && projection !== '1';
+}
+
 /** A local, unlinked project: the person at this Mac owns it (§5.4). */
 export const LOCAL_OWNER: Access = resolveAccess({ v: 1, role: 'owner' });
 
