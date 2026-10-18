@@ -22,6 +22,7 @@ import { ShellPresentChrome } from '../client/v2/present/present-chrome-host.jsx
 import { PresenterViewHost } from '../client/v2/present/presenter-host.jsx';
 import { presenterStore, presentRunStore } from '../client/v2/present/presenter-store.js';
 import { PresenterView } from '../client/v2/present/presenter-view.jsx';
+import { createModeLane } from '../client/v2/shell/canvas-mode.js';
 import { ModeSwitch } from '../client/v2/shell/mode-switch.jsx';
 import { shellMode } from '../client/v2/shell/use-canvas-mode-lane.js';
 
@@ -358,6 +359,31 @@ describe('<PresenterViewHost>', () => {
     await flush();
     expect(q('presenter-view')).toBeNull();
     expect(opened()).toEqual([]);
+  });
+});
+
+describe('what the shell tells the canvas', () => {
+  test('presenter view on lets a viewer’s canvas publish its Present position (caps.present); off it does not', () => {
+    const posted: Record<string, unknown>[] = [];
+    const win = {
+      postMessage: (m: Record<string, unknown>) => posted.push(m),
+    } as unknown as Window;
+    const lane = createModeLane({ frames: () => [win], active: () => win });
+    const viewer = { edit: false, annotate: false, comment: false };
+    const present = { kind: 'artboards', from: 'start' };
+    lane.broadcast({ mode: 'present', caps: viewer, present });
+    lane.broadcast({ mode: 'present', caps: viewer, present, presenterView: true });
+    const present_ = posted.map((m) => (m.caps as { present: boolean }).present);
+    expect(present_).toEqual([false, true]);
+  });
+
+  test('the position keeps the session id the canvas reported, and a new one is a change', () => {
+    shellMode.present({ kind: 'artboards', from: 'start' });
+    shellMode.position({ index: 0, total: 2, artboardId: 'c' });
+    expect(shellMode.get().position).toEqual({ index: 0, total: 2, artboardId: 'c' });
+    shellMode.position({ index: 0, total: 2, artboardId: 'c', sid: 'abcd1234' });
+    expect(shellMode.get().position?.sid).toBe('abcd1234');
+    shellMode.back();
   });
 });
 
