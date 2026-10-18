@@ -1002,6 +1002,17 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `present-peer-pointer` | testid | One peer's Pointer dot. | `present/pointer-dot.tsx` · `PointerPeers` | — | new in v2 (S3.2b) |
 | `.maude[data-theme]` | selector | The shell root `div.maude` and its `data-theme="light\|dark"` (mirrored on `<html data-theme>`). The token blocks in `styles/1-tokens-maude.css` are scoped to `.maude[data-theme=…]`. *`team-project` reads `<html data-theme>`; `shell-text-contrast` reads the CSS token blocks.* | `client/app.jsx` · `App` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e:team-project, test:shell-text-contrast | stable — re-emit |
 
+### empty states
+
+| Hook | Kind | Meaning | Producer | Consumers | v2 |
+| --- | --- | --- | --- | --- | --- |
+| `empty-<copy-id>` | testid (pattern) | The root of an empty state read from the copy table; `<copy-id>` is the copy id (`es-panels-canvas.comments-none`), also on `data-copy`. Carries the situation, the next step, chips and at most one action. | `client/v2/empty/empty.jsx` · `Empty` | test:v2-empty-kit | new |
+| `empty-spot-<name>` | testid (pattern) | A spot (`canvas`, `ai`, `none`, `comment`, `image`, `done`, `offline`, `trash`); decorative, `aria-hidden`. | `client/v2/empty/spot.jsx` · `Spot` | test:v2-empty-kit | new |
+| `empty-ask` | testid | The "Ask AI" button of an empty state (azure, spark glyph); a real button, takes the keys label (`⌘/`). | `client/v2/empty/ask-button.jsx` · `AskButton` | test:v2-empty-kit | new |
+| `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
+| `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
+| `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+
 ## What's New spotlights
 
 Every `tour[].target` in `apps/studio/whats-new.json`. The tour overlay (`client/tour/overlay.jsx`) resolves a target with `document.querySelector` on the shell document and shows the step centred, without a spotlight, when nothing matches, so a broken target fails silently. No test checks these targets today. "Needs state" means the element exists only in some shell state; the setup directives (`canvas`, `inspector`, `tab`, `requireSelection`) are noted where the step has them.
