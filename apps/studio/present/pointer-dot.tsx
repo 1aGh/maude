@@ -252,7 +252,7 @@ export function createPointerDot(deps: PointerDeps): PointerDot {
   const onMessage = (e: MessageEvent) => {
     if (!presenting || e.source !== win.parent) return;
     const d = e.data as { dgn?: unknown; id?: unknown; params?: { key?: unknown } } | null;
-    if (!d || d.dgn !== 'run-action' || d.id !== 'tool.key') return;
+    if (d?.dgn !== 'run-action' || d.id !== 'tool.key') return;
     if (d.params?.key === 'L') toggle();
   };
 

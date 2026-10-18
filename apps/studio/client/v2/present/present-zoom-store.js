@@ -25,5 +25,9 @@ export const presentZoomStore = {
 };
 
 export function usePresentZoomValue() {
-  return useSyncExternalStore(presentZoomStore.subscribe, presentZoomStore.get, presentZoomStore.get);
+  return useSyncExternalStore(
+    presentZoomStore.subscribe,
+    presentZoomStore.get,
+    presentZoomStore.get
+  );
 }

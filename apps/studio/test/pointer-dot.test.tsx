@@ -23,8 +23,8 @@ import { resolveChord } from '../actions/resolve.ts';
 import { modeKeys, pendingSlots } from '../bridge/canvas-modes.ts';
 import {
   createPointerDot,
-  PUBLISH_MS,
   type PointerDeps,
+  PUBLISH_MS,
   sanitizePointer,
   TRAIL_MS,
   trailPoints,
@@ -79,7 +79,12 @@ function rig(): Rig {
       );
     },
     key(key, init = {}, target = document.body) {
-      const e = new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+      const e = new window.KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
       target.dispatchEvent(e);
       return e;
     },

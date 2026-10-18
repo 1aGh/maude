@@ -15,12 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
-import {
-  canStep,
-  counterText,
-  createReveal,
-  FADE_AFTER_MS,
-} from './present-controls-model.js';
+import { canStep, counterText, createReveal, FADE_AFTER_MS } from './present-controls-model.js';
 
 const defaultDeps = {
   setTimer: (fn, ms) => setTimeout(fn, ms),

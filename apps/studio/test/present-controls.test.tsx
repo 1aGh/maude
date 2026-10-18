@@ -20,6 +20,7 @@ afterAll(async () => {
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { CanvasPill } from '../client/v2/present/canvas-pill.jsx';
+import { PresentControls } from '../client/v2/present/present-controls.jsx';
 import {
   canStep,
   counterText,
@@ -28,7 +29,6 @@ import {
   labelOf,
   zoomText,
 } from '../client/v2/present/present-controls-model.js';
-import { PresentControls } from '../client/v2/present/present-controls.jsx';
 import { presentRun } from '../present/order.ts';
 
 // ── the model ────────────────────────────────────────────────────────────────────────────────────
@@ -72,7 +72,9 @@ describe('labelOf / zoomText', () => {
     { id: 'q', label: '   ' },
   ];
   test('the label is the presented artboard’s, from the canvas index', () => {
-    expect(labelOf({ index: 0, total: 2, artboardId: 'p' }, boards)).toBe('Post 1:1 · Combine 2026');
+    expect(labelOf({ index: 0, total: 2, artboardId: 'p' }, boards)).toBe(
+      'Post 1:1 · Combine 2026'
+    );
     expect(labelOf({ index: 1, total: 2, artboardId: 'q' }, boards)).toBeNull();
     expect(labelOf({ index: 1, total: 2, artboardId: 'zz' }, boards)).toBeNull();
     expect(labelOf(null, boards)).toBeNull();
@@ -187,8 +189,12 @@ describe('<PresentControls>', () => {
     expect(q('present-label')?.textContent).toBe('Post 1:1 · Combine 2026');
     expect(q('present-leave')?.textContent).toContain('esc');
     expect(q('present-leave')?.textContent).toContain('to leave');
-    expect(q('present-slot-transport')?.querySelector('[data-testid="present-slot-probe-transport"]')).toBeTruthy();
-    expect(q('present-slot-presenter')?.querySelector('[data-testid="present-slot-probe-presenter"]')).toBeTruthy();
+    expect(
+      q('present-slot-transport')?.querySelector('[data-testid="present-slot-probe-transport"]')
+    ).toBeTruthy();
+    expect(
+      q('present-slot-presenter')?.querySelector('[data-testid="present-slot-probe-presenter"]')
+    ).toBeTruthy();
     expect(q('present-prev')?.getAttribute('aria-label')).toBe('Previous artboard');
     expect(q('present-next')?.getAttribute('aria-label')).toBe('Next artboard');
   });

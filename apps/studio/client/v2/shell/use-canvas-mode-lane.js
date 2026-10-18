@@ -121,12 +121,12 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     });
   const lane = laneRef.current;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeWin reads live refs
   useEffect(() => {
     presentStepper = (to) => lane.step(activeWin(), to);
     return () => {
       presentStepper = null;
     };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: activeWin reads live refs
   }, [lane]);
 
   // The pill's zoom belongs to one Present: leaving it clears the number.
