@@ -66,6 +66,14 @@ export interface ResolvedEditOp {
   params: Record<string, unknown>;
   /** Is there a regular file at this designRoot-relative path? Only ops that name a file (S8.19c `asset.relink`) ask. */
   exists?: (rel: string) => boolean;
+  /** What the SERVER knows about this canvas (never the request): its meta's `dsRev` (S2.16). */
+  ctx?: EditCtx;
+}
+
+/** Server-side facts an op may read; the client cannot set them. */
+export interface EditCtx {
+  /** `meta.dsRev` — set on a canvas left out of the design system's current revision */
+  dsRev: string | null;
 }
 
 /** One writer. Pure: bytes in, bytes out; throw `CanvasEditError` to refuse with `invalid`. */

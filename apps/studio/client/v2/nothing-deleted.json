@@ -3530,6 +3530,8 @@
     "testid:studio/editing/place-freely.tsx#canvas/edit-pin-chip-edge": "v2 code (added after the freeze)",
     "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guide-edge": "v2 code (added after the freeze)",
     "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guides": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-ghost.tsx#canvas/edit-place-ghost": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-ghost.tsx#canvas/edit-place-guide": "v2 code (added after the freeze)",
     "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-bubble": "v2 code (added after the freeze)",
     "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-ghost": "v2 code (added after the freeze)",
     "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-guide": "v2 code (added after the freeze)",

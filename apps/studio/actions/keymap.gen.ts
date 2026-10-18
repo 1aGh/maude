@@ -529,6 +529,17 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'tool.components',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: '⇧I',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
     id: 'tool.browse',
     exec: 'canvas',
     keys: [

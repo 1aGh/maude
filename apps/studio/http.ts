@@ -2048,6 +2048,8 @@ export function createHttp(
         read: (file) => api.readBoard(file),
         apply: (file, ops, o) => api.applyAnnotationOps(file, ops, undefined, o),
       },
+      // S2.16 — GET /_api/ds/components is minRole edit: the route asks the session's access
+      access: (req) => accessOf(req),
     },
     // S8.19 — GET /_api/asset-state (routes/asset-state.ts): built once, over the live runtime.
     assetState: assetStateDepsFor({

@@ -25,6 +25,7 @@ import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { hasLayoutChange } from './layout-patch.ts';
+import { componentInsert } from './insert-component.ts';
 import { objectLock } from './lock.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
@@ -40,6 +41,7 @@ import { textDetachStyle } from './text-detach.ts';
 import { textResetStyle, textSetCase, textUseStyle } from './text-style-ops.ts';
 import {
   EDIT_OP_STATUS,
+  type EditCtx,
   type EditOp,
   type EditOpCode,
   type EditOpOutput,
@@ -105,6 +107,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   assetRelink,
   // S7.6 — every clip verb (clip-ops.ts appliers) + the video ops, artboard-scoped
   ...CLIP_OPS,
+  // S2.16 — ⇧I: a linked instance from the design system
+  componentInsert,
 ];
 
 export interface AiHoldHit {
@@ -140,6 +144,8 @@ export interface DispatchDeps {
   references?: ReferenceLanes;
   /** the op table (tests pass their own); default `EDIT_OPS` */
   ops?: readonly EditOp[];
+  /** what the server knows about a canvas beyond its bytes (its meta); ops read it as `req.ctx` */
+  ctx?(rel: string): EditCtx;
 }
 
 /** What `land` is asked to make one action of. */
@@ -304,6 +310,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       targets: refs,
       params: req.params ?? {},
       ...(deps.exists ? { exists: deps.exists } : {}),
+      ...(deps.ctx ? { ctx: deps.ctx(rel) } : {}),
     });
   } catch (e) {
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);

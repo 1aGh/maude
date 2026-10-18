@@ -145,7 +145,7 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
 });
 
 describe('visibleSlots / role, pending and read-only', () => {
-  test('an editor sees the Edit slots that exist today; Pen and Component (their slices) stay hidden', () => {
+  test('an editor sees the Edit slots that exist today; Pen (its slice) stays hidden', () => {
     expect(ids(visibleSlots('edit', 'edit', armableDefault))).toEqual([
       'move',
       'hand',
@@ -153,6 +153,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'el-shape', // S2.13
       'el-text', // S2.12b: click to type
       'image', // today's insert Image
+      'components', // S2.16: the shell's Component picker (a panel-only slot)
       'more', // S2.13: Line · Ellipse · Polygon · Export area (Crop is still pending)
     ]);
   });
@@ -166,6 +167,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'el-shape',
       'el-text',
       'image',
+      'components',
       'more',
     ]);
   });
@@ -220,8 +222,8 @@ describe('pending slots / no dead buttons', () => {
   // package list only shrinks when that package lands (the lead edits this list in the same commit).
   test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
     const pend = pendingSlots();
-    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area; Pen, Component and Crop remain
-    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['component', 'crop', 'el-pen'].sort());
+    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area, S2.16 the Component slot; Pen and Crop remain
+    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['crop', 'el-pen'].sort());
     for (const p of pend) {
       expect(p.slot.pending).toBe('S2');
       expect(p.mode).toBe('edit');
@@ -445,8 +447,17 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     mountBar();
     expect(q('toolbar-edit')?.getAttribute('role')).toBe('toolbar');
     expect(q('toolbar-edit')?.classList.contains('dc-tool-palette')).toBe(true); // chrome selectors keep matching
-    expect(slotIds()).toEqual(['move', 'hand', 'frame', 'el-shape', 'el-text', 'image', 'more']);
-    // Pen and Component wait for their slices; Line · Ellipse · Polygon · Export area are behind More only (D2)
+    expect(slotIds()).toEqual([
+      'move',
+      'hand',
+      'frame',
+      'el-shape',
+      'el-text',
+      'image',
+      'components',
+      'more',
+    ]);
+    // Pen waits for its slice; Line · Ellipse · Polygon · Export area are behind More only (D2)
     for (const dead of ['el-pen', 'component', 'line', 'ellipse', 'polygon', 'slice'])
       expect(q(`toolbar-slot-${dead}`)).toBeNull();
     expect(document.querySelector('[aria-label^="Export"]')).toBeNull();

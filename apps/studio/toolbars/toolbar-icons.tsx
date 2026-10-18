@@ -1,5 +1,5 @@
 // apps/studio/toolbars/toolbar-icons.tsx — the glyphs the two toolbars need that the v1 tool set
-// (canvas-icons.tsx) never had: Frame, Image, Stickers, More, and (S2.13) Line, Polygon, Export area. Same house style (24 grid, currentColor).
+// (canvas-icons.tsx) never had: Frame, Image, Stickers, Component, More, and (S2.13) Line, Polygon, Export area. Same house style (24 grid, currentColor).
 
 import type { JSX, SVGProps } from 'react';
 
@@ -54,6 +54,15 @@ export function IconStickers(props: IconProps) {
   );
 }
 
+/** Component — four diamonds, the shape every design tool gives "an instance of something" (⇧I). */
+export function IconComponent(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5l3.2 3.2L12 9.9 8.8 6.7zM6.7 8.8l3.2 3.2-3.2 3.2L3.5 12zM17.3 8.8l3.2 3.2-3.2 3.2-3.2-3.2zM12 14.1l3.2 3.2L12 20.5l-3.2-3.2z" />
+    </Svg>
+  );
+}
+
 export function IconMore(props: IconProps) {
   return (
     <Svg {...props}>
@@ -95,6 +104,7 @@ export const SLOT_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   frame: IconFrame,
   image: IconImage,
   stickers: IconStickers,
+  components: IconComponent,
   more: IconMore,
   line: IconLineTool,
   polygon: IconPolygon,

@@ -439,6 +439,16 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['object'] },
     search: { keywords: ['reset', 'override', 'style', 'type', 'font', 'size'] },
   },
+  // S2.16 — ⇧I: an instance of a design-system component, placed linked (`@maude/ds`). The Component
+  // picker (shell) chooses what; ⌘K carries no choice, so the row is hidden — a command with params.
+  {
+    id: 'component.insert',
+    label: 'Place a component',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS },
+    search: { hidden: true },
+  },
   {
     id: 'text.detach-style',
     label: 'Detach text style',

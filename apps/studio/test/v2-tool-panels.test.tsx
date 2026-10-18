@@ -48,6 +48,7 @@ const BUTTON = { x: 600, y: 724, w: 36, h: 36 };
 
 function makeLane(opts: { activePath?: string | null; canEdit?: boolean } = {}) {
   const opened: Array<{ canvas: string; anchor: unknown }> = [];
+  const components: Array<{ canvas: string; anchor: unknown }> = [];
   let assets = 0;
   let denied = 0;
   let clock = 0;
@@ -61,6 +62,7 @@ function makeLane(opts: { activePath?: string | null; canEdit?: boolean } = {}) 
     frameOf: (p: string) => frames.get(p),
     viewport: () => ({ w: 1280, h: 900 }),
     openStickers: (r: { canvas: string; anchor: unknown }) => opened.push(r),
+    openComponents: (r: { canvas: string; anchor: unknown }) => components.push(r),
     openAssets: () => {
       assets++;
     },
@@ -76,7 +78,7 @@ function makeLane(opts: { activePath?: string | null; canEdit?: boolean } = {}) 
       return clock;
     },
   });
-  return { lane, opened, assets: () => assets, denied: () => denied };
+  return { lane, opened, components, assets: () => assets, denied: () => denied };
 }
 
 describe('toShellRect / placePanel (pure)', () => {
@@ -184,14 +186,30 @@ describe('the lane: toolbar-rect + tool-panel-open', () => {
     expect(opened).toEqual([]);
   });
 
-  test('assets opens the left panel; templates and components have no surface yet', () => {
+  test('assets opens the left panel; templates has no opener wired here', () => {
     const { lane, opened, assets } = makeLane();
     lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'assets', anchor: null }, activeWin));
     expect(assets()).toBe(1);
     lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'templates', anchor: null }, activeWin));
-    lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'components', anchor: null }, activeWin));
     expect(assets()).toBe(1);
     expect(opened).toEqual([]);
+  });
+
+  test('components opens the Component picker (S2.16), anchored above the reported toolbar, never the Stickers', () => {
+    const { lane, opened, components } = makeLane();
+    lane.onMessage(ev({ dgn: 'toolbar-rect', mode: 'edit', rect: BAR }, activeWin));
+    lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'components', anchor: BUTTON }, activeWin));
+    expect(opened).toEqual([]);
+    expect(components.length).toBe(1);
+    expect(components[0]?.canvas).toBe('a.tsx');
+    expect(components[0]?.anchor).toMatchObject({ placement: 'above', width: 300 });
+  });
+
+  test('a viewing role asking for the picker gets the denial line, not a panel', () => {
+    const { lane, components, denied } = makeLane({ canEdit: false });
+    lane.onMessage(ev({ dgn: 'tool-panel-open', panel: 'components', anchor: null }, activeWin));
+    expect(components).toEqual([]);
+    expect(denied()).toBe(1);
   });
 });
 

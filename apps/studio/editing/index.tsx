@@ -42,6 +42,7 @@ import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
 import { PinGuides } from './place-freely.tsx';
+import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
@@ -227,6 +228,8 @@ export function EditingLayer() {
       {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
       <DrawTools readOnly={isReadOnlyCanvas()} />
       <CornerDots readOnly={isReadOnlyCanvas()} />
+      {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
+      <PlaceGhost readOnly={isReadOnlyCanvas()} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
       {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}

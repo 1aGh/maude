@@ -35,14 +35,15 @@ describe('toolKeyAction (T8)', () => {
   const act = (mode: CanvasModeV2, key: string, caps: ModeCaps = EDITOR, tip?: 'highlighter') =>
     toolKeyAction(mode, k(key), caps, tip);
 
-  test("Edit's own keys: V H arm, F R arm their drag tools (S2.13), I adds one, T arms click-to-type (S2.12), P ⇧I wait for S2", () => {
+  test("Edit's own keys: V H arm, F R arm their drag tools (S2.13), I adds one, T arms click-to-type (S2.12), ⇧I opens the Component picker (S2.16), P waits for S2", () => {
     expect(act('edit', 'V')).toEqual({ kind: 'arm', tool: 'move' });
     expect(act('edit', 'H')).toEqual({ kind: 'arm', tool: 'hand' });
     expect(act('edit', 'F')).toEqual({ kind: 'arm', tool: 'frame' });
     expect(act('edit', 'R')).toEqual({ kind: 'arm', tool: 'el-shape' });
     expect(act('edit', 'T')).toEqual({ kind: 'arm', tool: 'el-text' });
     expect(act('edit', 'I')).toEqual({ kind: 'insert', insert: 'image' });
-    for (const key of ['P', '⇧I', 'O']) expect(act('edit', key)).toBeNull();
+    expect(act('edit', '⇧I')).toEqual({ kind: 'panel', panel: 'components' });
+    for (const key of ['P', 'O']) expect(act('edit', key)).toBeNull();
   });
 
   test('Edit: N C M A E S switch to Preview with that tool (E opens Stickers; M its last tip, Q4)', () => {
@@ -71,12 +72,13 @@ describe('toolKeyAction (T8)', () => {
     expect(act('preview', 'E')).toEqual({ kind: 'panel', panel: 'stickers' });
   });
 
-  test('Q2 — Preview: V F I switch to Edit (P ⇧I wait for S2); a momentary slot arms nothing', () => {
+  test('Q2 — Preview: V F I ⇧I switch to Edit (P waits for S2); a momentary slot arms nothing', () => {
     expect(act('preview', 'V')).toEqual({ kind: 'request', mode: 'edit', tool: 'move' });
     expect(act('preview', 'F')).toEqual({ kind: 'request', mode: 'edit', tool: 'frame' });
     expect(act('preview', 'I')).toEqual({ kind: 'request', mode: 'edit' });
     expect(act('preview', 'P')).toBeNull();
-    expect(act('preview', '⇧I')).toBeNull();
+    // ⇧I crosses to Edit and carries the picker with it (S2.16), like E and S carry theirs
+    expect(act('preview', '⇧I')).toEqual({ kind: 'request', mode: 'edit', panel: 'components' });
   });
 
   test('Viewing: H inspects, C comments; every editing key reaches the denial line', () => {
@@ -114,7 +116,21 @@ describe('toolKeyAction (T8)', () => {
   });
 
   test('modeKeys lists exactly what each mode answers', () => {
-    expect(modeKeys('edit')).toEqual(['V', 'H', 'F', 'R', 'T', 'I', 'N', 'C', 'M', 'A', 'E', 'S']);
+    expect(modeKeys('edit')).toEqual([
+      'V',
+      'H',
+      'F',
+      'R',
+      'T',
+      'I',
+      '⇧I',
+      'N',
+      'C',
+      'M',
+      'A',
+      'E',
+      'S',
+    ]);
     expect(modeKeys('preview')).toEqual([
       'H',
       'N',
@@ -128,6 +144,7 @@ describe('toolKeyAction (T8)', () => {
       'V',
       'F',
       'I',
+      '⇧I',
     ]);
     expect(modeKeys('viewing')).toEqual([
       'H',
@@ -142,6 +159,7 @@ describe('toolKeyAction (T8)', () => {
       'V',
       'F',
       'I',
+      '⇧I',
     ]);
     expect(modeKeys('present')).toEqual(['L']); // S3.2b: the presenter's Pointer, nothing else
   });

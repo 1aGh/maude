@@ -85,6 +85,7 @@ import GenerateDialog from './generate-dialog.jsx';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';
+import ComponentPicker from './v2/inspector/component-picker.jsx';
 import { getPaletteEnv } from './v2/search/search-env.js';
 import {
   AlignPad,
@@ -2850,7 +2851,7 @@ function ShellTree() {
       loadDiffLog,
       restoreProjectVersion,
     },
-    tabs: { shareLinksFor, shareShell },
+    tabs: { openSystem, shareLinksFor, shareShell },
     canvasBridge: {
       assetPickerReq,
       insertGeneratedImage,
@@ -2912,6 +2913,8 @@ function ShellTree() {
   // `tool-panel-open`, active canvas only.
   // S4.4 — the Templates panel the Section tool's "Templates" slot opens (same gate as Stickers).
   const [templatesReq, setTemplatesReq] = useState(null);
+  // S2.16 — the Component picker (⇧I): same gate, same anchoring as Stickers.
+  const [componentsReq, setComponentsReq] = useState(null);
   useToolPanels({
     activePath,
     iframesRef,
@@ -2919,6 +2922,7 @@ function ShellTree() {
     canEdit: !viewerMode,
     openStickers: setStickerPickerReq,
     openTemplates: setTemplatesReq,
+    openComponents: setComponentsReq,
     openAssets: () => {
       panelLayout.show();
       openPanelExclusive('assets');
@@ -3229,6 +3233,16 @@ function ShellTree() {
           canAsk={getPaletteEnv().canAskAI()}
           onClose={() => setTemplatesReq(null)}
           anchor={templatesReq.anchor ?? null}
+        />
+      )}
+      {componentsReq && (
+        <ComponentPicker
+          canvas={componentsReq.canvas}
+          canEdit={!viewerMode}
+          anchor={componentsReq.anchor ?? null}
+          onPlace={(msg) => postToActiveCanvas(msg)}
+          onOpenDesignSystem={openSystem}
+          onClose={() => setComponentsReq(null)}
         />
       )}
       {diffTarget && (

@@ -202,14 +202,8 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
         insert: 'image',
         panel: 'assets',
       }),
-      slot({
-        key: '⇧I',
-        label: 'Component',
-        tool: 'component',
-        minRole: 'edit',
-        panel: 'components',
-        pending: 'S2',
-      }),
+      // Component arms no tool: the shell's picker (⇧I, S2.16) hands a pick back as `place-component`
+      slot({ key: '⇧I', label: 'Component', tool: null, minRole: 'edit', panel: 'components' }),
       slot({
         key: '',
         label: 'More',
