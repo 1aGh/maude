@@ -7943,6 +7943,12 @@
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+        "symbol": "KeptOnThisMac"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
@@ -7956,6 +7962,12 @@
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+        "symbol": "KeptOnThisMac"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
@@ -7969,6 +7981,12 @@
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+        "symbol": "KeptOnThisMac"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
@@ -7982,6 +8000,12 @@
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+        "symbol": "KeptOnThisMac"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
@@ -7995,6 +8019,12 @@
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+        "symbol": "KeptOnThisMac"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
@@ -8008,9 +8038,169 @@
       "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
       "symbol": "TrashView"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+        "symbol": "KeptOnThisMac"
+      }
+    ],
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "canvases-trash-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view header: what is in the shared Trash, \"3 canvases · 1 artboard\" (only the parts there are).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-group-today",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view: the Today group (heading + its rows). Absent while nothing was trashed today.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-group-earlier",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view: the Earlier group (heading + its rows). Absent while nothing is older.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A Trash row's second line: \"root · You, just now\" / \"artboard of Combine-kampan · Jonas, 14:05\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one status line under the Trash list after Restore / Clear out (`data-outcome` ok | not-yet | refused). An artboard's Restore shows the not-yet line here, quietly.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-unreachable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Trash view: \"The team server did not answer\" — the list shown is from a moment ago.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Trash view's foot: \"Kept until you clear it out.\" plus Clear out… for an owner.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-ask-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The clear-out confirmation's body: what goes for good, and for whom.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-trash-clear-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel on the clear-out confirmation.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/trash-view.jsx",
+      "symbol": "TrashView"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-kept",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > \"Kept on this Mac\": the per-Mac list (conflict losers, sync quarantine, migration copies) moved out of the shared Trash. Absent when nothing is parked or for a viewer.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+      "symbol": "KeptRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-kept-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Open / Hide on the \"Kept on this Mac\" row (`aria-expanded`); its list uses the canvases-trash-item / -restore / -clear / -ask ids.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/kept-on-this-mac.jsx",
+      "symbol": "KeptRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-trash-view.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "canvases-advanced",
