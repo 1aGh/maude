@@ -5060,7 +5060,7 @@
     "hook": "ai-waiting-copy",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The waiting card's \"Run on a copy\". Not drawn until the copy route exists (`RUN_ON_COPY_LIVE`).",
+    "meaning": "The waiting card's \"Run on a copy\" (POST /_api/ai/runs/:id/copy, S5.11b).",
     "producer": {
       "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
       "symbol": "WaitingCard"

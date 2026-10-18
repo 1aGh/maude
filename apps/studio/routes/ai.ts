@@ -5,19 +5,22 @@
 //   POST /_api/ai/runs/:id/stop          Stop (V2-1.5 `stopped`)
 //   POST /_api/ai/runs/:id/cancel        remove a waiting ask (no turn ran)
 //   POST /_api/ai/runs/:id/keep-going    a new ask `resumeOf` (it waits if the artboard is busy)
+//   POST /_api/ai/runs/:id/copy          Run on a copy (§5.7): duplicate the ACCEPTED artboard
+//                                        beside it, re-scope the waiting ask to it, start it
 //   POST /_api/ai/runs/stop-all          {reason: quit | close-tab} → {stopped, published} ≤ 5 s
 //   GET  /_api/ai                        v1 banner entries, DERIVED from the registry (canvas-safe)
 //   POST /_api/ai/start|heartbeat|end    v1 `/design:edit`: begin (origin design-edit) / renew / end
 //
 // `mine` is YOUR runs on this Mac (RunView: never the queued prompt); `others` is RunPublic, which
-// never carries prompt, question or doing. Run on a copy (`/copy`, §5.7) lands with the canvas
-// duplicate it needs — see the S5.3 hand-back.
+// never carries prompt, question or doing.
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { isLive, type RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { CanvasEditError, copyArtboard } from '../canvas-edit.ts';
+import { hashBytes } from '../sync/echo-guard.ts';
 import type { RouteSpec } from './table.ts';
 
 export interface AiRouteDeps {
@@ -37,6 +40,18 @@ export interface AiRouteDeps {
   endAction?: (key: string, outcome: 'done' | 'failed') => Promise<unknown> | undefined;
   /** `_active.json`'s selected artboard of a canvas, else null (lazy) — injectable for tests */
   selectedArtboard?: (canvasRel: string) => string | null;
+  /**
+   * S5.11b — the sync runtime, for Run on a copy: the canvas's ACCEPTED source (a staged run's
+   * base; null = the disk is accepted) and the waiting run's stage, so the copy is that run's
+   * action (one run, one action — Undo of the run removes the copy) and never the busy run's.
+   */
+  control?: () => {
+    acceptedCanvas?(repoRel: string): string | null;
+    beginAiAction?(key: string, label: string, meta?: { chatId?: string }): void;
+    claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  } | null;
+  /** the canvas write behind Run on a copy — injectable for the race tests */
+  copyOnDisk?: typeof copyArtboard;
 }
 
 const json = (status: number, body: unknown) =>
@@ -116,6 +131,92 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
     },
   });
 
+  // ── S5.11b — Run on a copy (V2-1.15 §5.7) ─────────────────────────────────────────────────
+  // One copy per ask: the copy id is derived from the ask, a retry of a copied ask answers the
+  // same copy, and two concurrent calls share one attempt. The race with the holder finishing
+  // first is decided by `copyReserve` (synchronous): before it, a grant wins (409, no copy is
+  // written); after it, the copy wins and the old ticket leaves the line.
+  type Answer = { status: number; body: Record<string, unknown> };
+  const copying = new Map<string, Promise<Answer>>();
+
+  /** The stage key the waiting run's own turn writes under (acp/index.ts; the v1 start below). */
+  const stageKey = (r: RunRecord): string | null =>
+    r.origin === 'maude-chat' && r.chatId
+      ? `acp:${r.chatId}`
+      : r.origin === 'design-edit' && r.scope
+        ? `edit:${path.posix.join(deps.designRel, r.scope.canvas)}`
+        : null;
+
+  const copyIdFor = (r: RunRecord, artboard: string) =>
+    `${artboard.slice(0, 48)}-copy-${r.askId
+      .replace(/[^A-Za-z0-9]/g, '')
+      .slice(-6)
+      .toLowerCase()}`;
+
+  const copied = (r: RunRecord): Answer => ({
+    status: 200,
+    body: {
+      run: reg.view().mine.find((m) => m.runId === r.runId) ?? null,
+      copy: {
+        canvas: r.scope?.canvas ?? null,
+        artboard: r.scope && r.scope.artboards !== '*' ? (r.scope.artboards[0] ?? null) : null,
+        of: r.copyOf?.artboard ?? null,
+      },
+    },
+  });
+  const refuse = (status: number, code: string, error: string): Answer => ({
+    status,
+    body: { error, code },
+  });
+
+  async function runOnCopy(id: string): Promise<Answer> {
+    const rec = reg.get(id);
+    if (!rec) return refuse(404, 'not-found', 'no such run');
+    if (rec.copyOf) return copied(rec);
+    if (!isLive(rec) || rec.state !== 'waiting' || rec.behind)
+      return refuse(409, 'state', 'this ask is not waiting for an artboard');
+    const canvas = rec.scope?.canvas ?? '';
+    const at = rec.waiting.length === 1 ? rec.waiting[0] : undefined;
+    if (!at || !CANVAS_RE.test(canvas) || canvasOf(canvas) !== canvas)
+      return refuse(409, 'one-artboard', 'a copy is made of the one artboard this ask waits for');
+    const copyId = copyIdFor(rec, at.artboard);
+    const was = rec;
+    if (!reg.copyReserve(id, copyId))
+      return refuse(409, 'state', 'this ask is not waiting for an artboard');
+    const repoRel = path.posix.join(deps.designRel, canvas);
+    const control = deps.control?.() ?? null;
+    const key = stageKey(was);
+    try {
+      await (deps.copyOnDisk ?? copyArtboard)(
+        path.join(designRoot(), canvas),
+        at.artboard,
+        { id: copyId },
+        {
+          accepted: control?.acceptedCanvas?.(repoRel) ?? null,
+          // the copy is the WAITING run's write: claimed for its stage before it lands
+          beforeWrite: (next) => {
+            if (!key || !control) return;
+            control.beginAiAction?.(
+              key,
+              `Claude: ${was.label}`,
+              was.chatId ? { chatId: was.chatId } : {}
+            );
+            control.claimAiWrite?.(key, repoRel, hashBytes(next));
+          },
+        }
+      );
+    } catch (err) {
+      await reg.copyAbort(id, was);
+      return refuse(
+        err instanceof CanvasEditError ? 409 : 500,
+        'copy-failed',
+        err instanceof Error ? err.message : 'could not make the copy'
+      );
+    }
+    const out = (await reg.copyStart(id, was)) ?? reg.get(id);
+    return out ? copied(out) : refuse(404, 'not-found', 'no such run');
+  }
+
   return [
     {
       method: 'GET',
@@ -141,6 +242,23 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
     runAction('stop', { path: '/_api/ai/runs/:id/stop' }, (id) => reg.stop(id, 'you')),
     runAction('cancel', { path: '/_api/ai/runs/:id/cancel' }, (id) => reg.cancel(id)),
     runAction('keep-going', { path: '/_api/ai/runs/:id/keep-going' }, (id) => reg.keepGoing(id)),
+    {
+      method: 'POST',
+      path: '/_api/ai/runs/:id/copy',
+      origin: 'main',
+      readOnly: 'refused',
+      async handle(_req, params) {
+        const id = params.id ?? '';
+        if (!reg.isRunId(id)) return json(400, { error: 'id is a run id', code: 'invalid' });
+        let p = copying.get(id);
+        if (!p) {
+          p = runOnCopy(id).finally(() => copying.delete(id));
+          copying.set(id, p);
+        }
+        const a = await p;
+        return json(a.status, a.body);
+      },
+    },
 
     // ── v1 (Phase 8 Task 4): `/design:edit` curls these; the banner is derived ──────────────
     {

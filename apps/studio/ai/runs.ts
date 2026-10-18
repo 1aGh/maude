@@ -577,7 +577,7 @@ export function createRunRegistry(opts: RegistryOptions) {
     }
     const multi = wants.length > 1;
     const ans = await home.begin({
-      runId: rec0.runId,
+      runId: hid(rec0), // S5.11b: a copy run begins under its fresh home id
       askId: rec0.askId,
       chatId: rec0.chatId,
       origin: rec0.origin,
@@ -839,6 +839,65 @@ export function createRunRegistry(opts: RegistryOptions) {
     });
   }
 
+  // ── S5.11b — Run on a copy (§5.7) ─────────────────────────────────────────────────────────
+  //
+  // Three steps around the canvas write (routes/ai.ts): `copyReserve` DECIDES, synchronously, so
+  // a grant and a copy can never both win — the ask is still waiting on exactly one artboard and
+  // is re-scoped to the copy now, or nothing changes and the caller answers 409. Its home run is
+  // swapped for a fresh id at once, so a grant that lands on the old ticket mid-write is ignored
+  // by `applyGrants` (it looks runs up by `hid`). `copyStart` ends the old home run — its ticket
+  // leaves the busy line, which moves up — and admits the copy (free by definition). `copyAbort`
+  // puts the ask back in its place when the write failed.
+
+  const SCOPE_LINE = /\[maude-scope [^\]\n]*\]/;
+  function copyPrompt(prompt: string | undefined, copy: string): string | undefined {
+    if (prompt === undefined) return undefined;
+    const line = `[maude-scope artboards="${copy}"]`;
+    return SCOPE_LINE.test(prompt) ? prompt.replace(SCOPE_LINE, line) : `${prompt}\n${line}`;
+  }
+
+  function copyReserve(runId: string, copyArtboard: string): RunRecord | null {
+    const rec = mineLive(runId);
+    if (!rec || rec.state !== 'waiting' || rec.behind || rec.copyOf || !rec.scope) return null;
+    if (rec.waiting.length !== 1 || rec.leases.length) return null;
+    const at = rec.waiting[0] as RunRecord['waiting'][number];
+    const { deferred: _d, ...base } = rec;
+    const next: RunRecord = {
+      ...base,
+      scope: { canvas: rec.scope.canvas, artboards: [copyArtboard] },
+      copyOf: { canvas: at.canvas, artboard: at.artboard },
+      waiting: [],
+      homeRunId: newId('r'),
+      ...(rec.prompt !== undefined ? { prompt: copyPrompt(rec.prompt, copyArtboard) } : {}),
+    };
+    persist(next);
+    changed();
+    return next;
+  }
+
+  async function copyStart(runId: string, was: RunRecord): Promise<RunRecord | null> {
+    const ans = await withTimeout(home.end(hid(was), 'cancelled'), END_BUDGET_MS, {
+      refused: 'unreachable' as const,
+    });
+    if (!ans.refused) await applyGrants(ans.granted ?? []);
+    const rec = mineLive(runId);
+    if (!rec || rec.state !== 'waiting') return rec;
+    return admit(rec);
+  }
+
+  async function copyAbort(runId: string, was: RunRecord): Promise<RunRecord | null> {
+    const rec = mineLive(runId);
+    if (!rec || rec.state !== 'waiting') return rec;
+    persist(was);
+    changed();
+    // a grant that landed on the old ticket while the write ran was ignored: ask the home again
+    const keys = was.waiting.map(({ canvas, artboard }) => ({ canvas, artboard }));
+    const c = await home.claim(hid(was), { keys });
+    if (!c.refused && c.granted.length)
+      await applyGrants(c.granted.map((g) => ({ ...g, runId: hid(was) })));
+    return records.get(runId) ?? null;
+  }
+
   /** Quit / close tab (§5.9.2): every live run stops in parallel; 5 s in all. */
   async function stopAll(reason: 'quit' | 'close-tab') {
     const live = [...records.values()].filter(isLive);
@@ -903,6 +962,9 @@ export function createRunRegistry(opts: RegistryOptions) {
     stop,
     cancel,
     keepGoing,
+    copyReserve,
+    copyStart,
+    copyAbort,
     stopAll,
     // records
     get: (runId: string) => records.get(runId) ?? null,

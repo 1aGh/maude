@@ -1630,6 +1630,8 @@ export function createHttp(
       // T16 — a v1 `/design:edit` is ONE project action
       beginAction: (key, name) => ctx.syncControl?.current?.()?.beginAiAction?.(key, name),
       endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
+      // S5.11b — Run on a copy: the accepted source + the waiting run's stage
+      control: () => ctx.syncControl?.current?.() ?? null,
     },
     agent: {
       repoRoot: ctx.paths.repoRoot,

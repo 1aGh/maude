@@ -795,7 +795,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-waiting-stack` | testid | The waiting cards of the open chat (absent when nothing waits). | `client/v2/ai/WaitingCard.jsx` · `WaitingCards` | — | stable |
 | `ai-waiting-card` | testid | The card for a second ask on a busy artboard: "Waiting for “<run>” to finish on <artboard>." `data-run` = the waiting run id. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-waiting-cancel` | testid | The × on the waiting card: cancels the ask (no turn ran). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
-| `ai-waiting-copy` | testid | The waiting card's "Run on a copy". Not drawn until the copy route exists (`RUN_ON_COPY_LIVE`). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
+| `ai-waiting-copy` | testid | The waiting card's "Run on a copy" (POST /_api/ai/runs/:id/copy, S5.11b). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-waiting-note` | testid | The one line under the waiting card when × or Run on a copy was refused. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-rings` | testid | Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-ring-<artboardId>` | testid | Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |

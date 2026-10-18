@@ -272,6 +272,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ai/runs/:id/stop': { class: 'local' },
   '/_api/ai/runs/:id/cancel': { class: 'local' },
   '/_api/ai/runs/:id/keep-going': { class: 'local' },
+  // S5.11b — Run on a copy writes the canvas source as the WAITING run's tool write: claimed for
+  // that run's stage before it lands, so it is published with the run's own action (one version).
+  '/_api/ai/runs/:id/copy': {
+    class: 'lane',
+    via: "copy write claimed for the waiting run's stage (claimAiWrite) → watcher import → staged into that run's action",
+    test: 'test/ai-run-copy.test.ts',
+  },
   '/_api/claude/install': { class: 'local' },
   '/_api/claude/install-status': { class: 'local' },
   '/_api/claude/signin': { class: 'local' },
