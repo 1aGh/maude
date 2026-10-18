@@ -101,9 +101,20 @@ export function createShellMode(caps = ALL_CAPS) {
     position(pos) {
       if (snap.mode !== 'present' || snap.present?.kind !== 'artboards') return;
       const p = snap.position;
-      if (p && p.index === pos.index && p.total === pos.total && p.artboardId === pos.artboardId)
+      // S3.6b — the presentation session id rides along (`sid`, absent until the canvas may publish): presenter
+      // view hands it to the audience window. A new step of the same place changes nothing.
+      const sid = typeof pos.sid === 'string' ? pos.sid : undefined;
+      if (
+        p &&
+        p.index === pos.index &&
+        p.total === pos.total &&
+        p.artboardId === pos.artboardId &&
+        p.sid === sid
+      )
         return;
-      emit({ position: { index: pos.index, total: pos.total, artboardId: pos.artboardId } });
+      emit({
+        position: { index: pos.index, total: pos.total, artboardId: pos.artboardId, ...(sid ? { sid } : {}) },
+      });
     },
     /** The canvas clamped us (a `mode-changed` with cause `clamp`): adopt it without re-sending. */
     adopt(mode) {

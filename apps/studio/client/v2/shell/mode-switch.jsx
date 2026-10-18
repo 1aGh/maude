@@ -17,6 +17,7 @@
 // reads `palette-mode-edit`), plus `palette-mode-viewing`.
 
 import { useEffect, useRef, useState } from 'react';
+import { StIcon } from '../../shell/icons.jsx';
 import { MODE_WORD, modeSegments } from './canvas-mode.js';
 
 const GLYPH = {
@@ -106,6 +107,13 @@ const PRESENT_ROWS = [
   },
 ];
 
+/** S3.6b — below the canvas rows, only where another display exists (04 md-present-menu). */
+const PRESENTER_ROW = {
+  kind: 'presenter',
+  testid: 'mode-present-presenter-view',
+  label: 'Presenter view on another display',
+};
+
 /**
  * @param mode the mode the canvas is in: edit | viewing | preview | present
  * @param caps ModeCaps — `caps.edit` decides Edit vs Viewing
@@ -114,6 +122,9 @@ const PRESENT_ROWS = [
  * @param onPresentCanvas () => void — the older single-row prop, used when `onPresent` is absent
  * @param presentFromLabel the selected artboard's label: the first row reads Present from “…”
  * @param canPresent false with no canvas open (Present has nothing to show)
+ * @param presenterView S3.6b — `{ name, on }` when the desktop app has another display (the row is a check
+ *        with that display's name); null = no row at all (hidden, never greyed)
+ * @param onPresenterView () => void — the row toggles presenter view
  */
 export function ModeSwitch({
   mode,
@@ -123,6 +134,8 @@ export function ModeSwitch({
   onPresentCanvas,
   presentFromLabel = null,
   canPresent = true,
+  presenterView = null,
+  onPresenterView,
 }) {
   const run = (kind) => {
     if (onPresent) onPresent(kind);
@@ -219,8 +232,30 @@ export function ModeSwitch({
           aria-label="Present"
           data-testid="mode-present-list"
         >
-          {PRESENT_ROWS.map((row, i) =>
-            row.group ? (
+          {(presenterView ? [...PRESENT_ROWS, { sep: true }, PRESENTER_ROW] : PRESENT_ROWS).map((row, i) =>
+            row.sep ? (
+              <hr key="sep" className="st-pm-sep" />
+            ) : row.kind === 'presenter' ? (
+              <div key={row.kind} role="none" className="st-pm-li">
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={!!presenterView?.on}
+                  className="st-pm-row"
+                  data-testid={row.testid}
+                  onClick={() => {
+                    setMenu(false);
+                    onPresenterView?.();
+                  }}
+                >
+                  <span className="st-pm-ic" aria-hidden="true">
+                    {presenterView?.on ? <StIcon name="check" size={13} /> : null}
+                  </span>
+                  <span className="st-pm-lab">{row.label}</span>
+                  <span className="st-mode-menu-note">{presenterView?.name ?? ''}</span>
+                </button>
+              </div>
+            ) : row.group ? (
               <div key={row.group} className="st-mode-menu-hd" role="presentation">
                 {row.group}
               </div>
