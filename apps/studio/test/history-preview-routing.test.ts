@@ -42,7 +42,7 @@ test('accepted preview history and restore use project actions, not Git discard'
     )
   ).toBe(true);
   expect(app).toMatch(
-    /onRestoreVersion=\{\(revision\) =>\s*restoreProjectVersion\(activePath, revision\)/
+    /onRestoreVersion[=:]\s*\{?\(revision\) =>\s*restoreProjectVersion\(activePath, revision\)/
   );
   expect(app).toMatch(/if \(!acceptedDiff\) return gitLoadLog\(path\);/);
   expect(app).toMatch(
