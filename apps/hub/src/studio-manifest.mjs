@@ -246,6 +246,15 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/undo': REFUSED,
   // S5.5 — "your ⌘Z stack" is the same per-person question as undo itself.
   '/_api/project/undo-stack': REFUSED,
+  // S1.12b — Version history. Rows and words are reading the project (Can view
+  // included); raw source at a version is a download (`export`, like
+  // `/_api/canvas-source`); naming and keeping a version aside are edits. The
+  // studio judges each session's vouched claim itself (canvas-only scope, U1).
+  '/_api/project/versions': { safe: 'read', unsafe: null },
+  '/_api/project/changes': { safe: 'read', unsafe: null },
+  '/_api/project/source': { safe: 'export', unsafe: null },
+  '/_api/project/name': { safe: null, unsafe: 'edit' },
+  '/_api/project/aside': { safe: null, unsafe: 'edit' },
   // S1.7 — the shared Trash. The studio judges each session's vouched claim
   // itself (L18: a canvas-only session lists only its canvases, restore needs
   // `trash` on the canvas, clear-out the project owner's `delete`), because its

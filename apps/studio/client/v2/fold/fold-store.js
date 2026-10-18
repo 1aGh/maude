@@ -18,6 +18,7 @@ export const FOLD_PANELS = Object.freeze([
   'help',
   'inspector',
   'ai.chat',
+  'history', // S1.14 — Version history › Advanced (the git body)
 ]);
 
 /**

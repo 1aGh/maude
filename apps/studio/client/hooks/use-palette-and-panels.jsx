@@ -32,6 +32,7 @@ import {
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
+import { VersionHistoryHost } from '../v2/history/history-host.jsx';
 import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
@@ -572,7 +573,21 @@ export function usePaletteAndPanels({
           readOnly={viewerMode}
         />
       );
+    // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`),
+    // its body is the new panel; today's git body lives on in its Advanced fold until S1.15 / S11 re-home it.
     if (id === 'changes')
+      return (
+        <VersionHistoryHost
+          path={activeCanvasFile}
+          canvasLabel={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          canEdit={!viewerMode}
+          refreshKey={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
+          resizing={resizingFor('changes')}
+          onClose={() => setChangesOpen(false)}
+          advanced={renderPanelBody('changes-git')}
+        />
+      );
+    if (id === 'changes-git')
       return (
         <GitPanel
           status={gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus}

@@ -186,6 +186,8 @@ export interface RowSpec {
   label?: string;
   /** `aside`: "You" or the person's first name. */
   actor?: string;
+  /** `restore`: the action's own label, when `restored` carries nothing (S1.14). */
+  actionLabel?: string;
 }
 
 export interface RowTitle {
@@ -226,6 +228,10 @@ export function rowTitle(row: RowSpec, opts: TitleOptions = {}): RowTitle {
     }
     case 'restore': {
       const r = row.restored ?? {};
+      // The kernel keeps only the action's label ("Restored “<name>”", "Restored <label> to 5 Oct, 18:40",
+      // "Went back to 14:05"); with nothing structured to say it better, the row says that (S1.14).
+      if (!r.name && r.at === undefined && !r.onlyArtboard && row.actionLabel?.trim())
+        return { title: shorten(row.actionLabel, 80) };
       const what = r.name ? quote(r.name, 40) : r.at !== undefined ? fmt(r.at) : 'a version';
       return { title: `Restored ${what}${r.onlyArtboard ? ` — only ${r.onlyArtboard}` : ''}` };
     }

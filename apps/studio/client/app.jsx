@@ -228,6 +228,7 @@ import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
+import { ViewBarHost } from './v2/history/history-host.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
@@ -814,6 +815,9 @@ function ShellState({ children }) {
             // surface the native ACP chat sidepanel. Native-only (the panel
             // doesn't exist on the web surface).
             if (isNativeApp()) openRightPanel('assistant');
+          } else if (m.type === 'thumb-ready' && typeof m.key === 'string') {
+            // S1.14 — a picture landed: Version history looks again for the rows still drawing theirs.
+            window.dispatchEvent(new CustomEvent('maude:thumb-ready', { detail: { key: m.key } }));
           } else if (m.type === 'ai:runs') {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
             // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.
@@ -2923,6 +2927,8 @@ function ShellTree() {
           <DiagnosticsHost toast={shellToast} />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
+          {/* S1.14 — "Viewing “…” · 5 Oct, 18:40 · Jonas · esc back to now" while the mode store holds a past version. */}
+          <ViewBarHost activePath={activePath} />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
               tab strip in the panel's OWN header; the AI chat, when docked here, is a separate island under it
               (always mounted, so its stream survives — DDR-123). Folded, the corner icon below is the way back. */}

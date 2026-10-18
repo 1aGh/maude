@@ -48,7 +48,7 @@ import {
   toolKeyAction,
   V1_TOOL_IDS,
 } from './bridge/canvas-modes.ts';
-import { isEmbedCanvas } from './read-only-mode.ts';
+import { isEmbedCanvas, isHistoricalCanvas } from './read-only-mode.ts';
 import { lastMarkerTip } from './toolbars/marker-tip.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -297,6 +297,8 @@ function classifyKey(input: ClassifyInput): RouterAction {
   // DDR-247 — an embed's esc belongs to its relay; it never asks the embed's shell for a mode.
   if (fixed.kind === 'escape' && governed && !isEmbedCanvas()) {
     if (escStep(governed, input.activeTool) === 'back') return { kind: 'escape', back: true };
+    // S1.14 — a past version (Viewing, `?sha=`): esc is "back to now"; the shell steps out of the hold.
+    if (isHistoricalCanvas()) return { kind: 'escape', back: true };
   }
   return { ...fixed };
 }
