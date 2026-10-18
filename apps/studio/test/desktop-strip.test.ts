@@ -225,3 +225,73 @@ describe('the tab strip page (S1.22b)', () => {
     expect(first.classList.contains('dragging')).toBe(false);
   });
 });
+
+// S1.22c (lead decision maude/v2-lead-home-tab-first; CONTRACT §1 / §6, amended 2026-10-14):
+// Home is the pinned, icon-only FIRST tab — the left-most slot after the traffic lights.
+describe('Home is the pinned first tab (S1.22c)', () => {
+  const before = (a: Element, b: Element) =>
+    !!(a.compareDocumentPosition(b) & window.Node.DOCUMENT_POSITION_FOLLOWING);
+  /** Lay the strip out like WebKit would: lights 0–78, Home 78–116, tab i at 120 + 130·i. */
+  function layOut() {
+    const rect = (left: number, width: number) =>
+      ({
+        left,
+        right: left + width,
+        width,
+        top: 0,
+        bottom: 33,
+        height: 33,
+        x: left,
+        y: 0,
+      }) as DOMRect;
+    $('tab-home')!.getBoundingClientRect = () => rect(78, 38);
+    $$('.tab').forEach((el, i) => {
+      el.getBoundingClientRect = () => rect(120 + 130 * i, 120);
+    });
+  }
+
+  test('Home is the left-most slot: before every tab and before "N more"', async () => {
+    const tabs = Array.from({ length: 20 }, (_, i) => tab(i));
+    mount(state(tabs, { active: tabs[19].label }));
+    await tick();
+    const home = $('tab-home')!;
+    const strip = $('tab-strip')!;
+    // The first slot after the traffic lights.
+    const slots = Array.from(strip.children).filter((e) => !e.classList.contains('lights'));
+    expect(slots[0]).toBe(home);
+    for (const t of $$('.tab')) expect(before(home, t)).toBe(true);
+    expect(before(home, $('tab-more')!)).toBe(true);
+    // Home never folds into "N more"; the active tab still shows in the row.
+    expect(home.hidden).toBe(false);
+    expect($('tab-more')!.hidden).toBe(false);
+    expect($$('.tab').map((e) => e.getAttribute('data-label'))).toContain(tabs[19].label);
+    expect(home.getAttribute('aria-label')).toBe('Home');
+    expect((home.textContent || '').trim()).toBe('');
+  });
+
+  test('a tab dragged past Home lands first after it, never before (and never slides over it)', async () => {
+    const tabs = [tab(1), tab(2), tab(3)];
+    mount(state(tabs));
+    await tick();
+    layOut();
+    const third = $(`tab-${tabs[2].label}`)!;
+    const P = window.PointerEvent ?? window.MouseEvent;
+    third.dispatchEvent(
+      new P('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: 400,
+        pointerId: 9,
+      } as PointerEventInit)
+    );
+    window.dispatchEvent(
+      new P('pointermove', { bubbles: true, clientX: 10, pointerId: 9 } as PointerEventInit)
+    );
+    // Clamped at Home's right edge (116): the tab starts at 380, so at most 264 px left.
+    expect(third.style.transform).toBe('translateX(-264px)');
+    window.dispatchEvent(
+      new P('pointerup', { bubbles: true, clientX: 10, pointerId: 9 } as PointerEventInit)
+    );
+    expect(invoked('tab_reorder')).toEqual([{ label: tabs[2].label, to: 0 }]);
+  });
+});

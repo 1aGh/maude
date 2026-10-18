@@ -138,7 +138,8 @@ pub struct StripHome {
 }
 
 /// What the strip draws (`tabs://state`): the project/cell tabs in strip
-/// order, Home pinned (never in `tabs`), and the active label (`home` too).
+/// order, Home pinned as the first slot (never in `tabs`, S1.22c — `strip_order`),
+/// and the active label (`home` too).
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct TabStripState {
     pub tabs: Vec<StripTab>,
@@ -504,10 +505,19 @@ pub fn menu_role(book: &WindowBook) -> crate::menu::MenuRole {
     }
 }
 
+/// Pure: the strip's slots left to right — Home, the pinned FIRST tab (S1.22c, decision
+/// `maude/v2-lead-home-tab-first`; CONTRACT §1/§6 amended 2026-10-14), then the project/cell tabs
+/// in strip order. Home is never in `tab_labels`, so nothing (drag, a new tab) lands before it.
+pub fn strip_order(book: &WindowBook) -> Vec<String> {
+    std::iter::once(HOME_LABEL.to_string())
+        .chain(book.tab_labels().iter().cloned())
+        .collect()
+}
+
 /// Pure: the tab a tab-bar menu command goes to (contract V2-3.7 §5). Next / Previous walk the
-/// project tabs in strip order and then Home, wrapping; Tab `n` is project tab `n`; Last is the
-/// last project tab; Show Home is Home. `None`: nothing to do (no such tab, or Close — which
-/// `run_tab_command` handles itself).
+/// strip left to right — Home first, then the project tabs — wrapping; Tab `n` is PROJECT tab
+/// `n` (Home has ⌘T, S1.22c); Last is the last project tab; Show Home is Home. `None`: nothing to
+/// do (no such tab, or Close — which `run_tab_command` handles itself).
 pub fn tab_command_target(book: &WindowBook, cmd: crate::menu::TabCommand) -> Option<String> {
     use crate::menu::TabCommand;
     let tabs = book.tab_labels();
@@ -520,14 +530,12 @@ pub fn tab_command_target(book: &WindowBook, cmd: crate::menu::TabCommand) -> Op
             if tabs.is_empty() {
                 return None;
             }
-            let ring: Vec<&str> = tabs.iter().map(String::as_str).chain([HOME_LABEL]).collect();
-            let at = book
-                .focused()
-                .and_then(|f| ring.iter().position(|l| *l == f))
-                .unwrap_or(ring.len() - 1);
+            let ring = strip_order(book);
+            // Nothing focused yet (boot) is Home, the first slot.
+            let at = book.focused().and_then(|f| ring.iter().position(|l| l == f)).unwrap_or(0);
             let n = ring.len();
             let to = if cmd == TabCommand::Next { (at + 1) % n } else { (at + n - 1) % n };
-            Some(ring[to].to_string())
+            Some(ring[to].clone())
         }
     }
 }
@@ -862,7 +870,7 @@ pub fn tab_close(app: AppHandle, webview: tauri::Webview, label: String) -> Resu
 }
 
 /// `tab_reorder({label, to})` — move a project tab within the strip. Home
-/// never moves (it is not in the tab list).
+/// never moves (it is not in the tab list): `to: 0` is the first slot AFTER Home.
 #[tauri::command]
 pub fn tab_reorder(
     app: AppHandle,
@@ -1336,7 +1344,7 @@ mod tests {
     }
 
     #[test]
-    fn the_strip_state_pins_home_last_and_never_in_tabs_and_sanitizes_names() {
+    fn the_strip_state_pins_home_first_and_never_in_tabs_and_sanitizes_names() {
         let mut b = book_abc();
         b.focus("p-b", 5);
         let s = strip_state(&b, |root| {
@@ -1350,6 +1358,8 @@ mod tests {
         assert_eq!(labels, ["p-a", "p-b", "p-c"], "Home is never a tab");
         assert_eq!(b.tab_labels(), ["p-a", "p-b", "p-c"], "nor in the book's tab list");
         assert_eq!(s.home, StripHome { label: "home" });
+        // S1.22c (decision maude/v2-lead-home-tab-first): Home is the strip's FIRST slot.
+        assert_eq!(strip_order(&b), ["home", "p-a", "p-b", "p-c"], "Home first, then the tabs");
         assert_eq!(s.active, "p-b");
         assert_eq!(s.tabs[0].name, "Alpha lab", "bidi + newline sanitized");
         assert!(s.tabs.iter().all(|t| t.kind == "project" && t.dot.is_none()));
@@ -1398,16 +1408,20 @@ mod tests {
     }
 
     #[test]
-    fn tab_menu_commands_walk_the_strip_then_home() {
+    fn tab_menu_commands_walk_the_strip_from_home() {
         use crate::menu::TabCommand::*;
+        let to = |b: &WindowBook, c| tab_command_target(b, c);
+        // Nothing focused yet (boot) is Home, the first slot: Next is project tab 1.
+        assert_eq!(to(&book_abc(), Next).as_deref(), Some("p-a"));
+        assert_eq!(to(&book_abc(), Prev).as_deref(), Some("p-c"));
         let mut b = book_abc();
         b.focus("p-c", 5);
-        let to = |b: &WindowBook, c| tab_command_target(b, c);
-        assert_eq!(to(&b, Next).as_deref(), Some("home"), "after the last tab: Home");
+        assert_eq!(to(&b, Next).as_deref(), Some("home"), "after the last tab: wrap to Home");
         assert_eq!(to(&b, Prev).as_deref(), Some("p-b"));
         b.focus(HOME_LABEL, 6);
         assert_eq!(to(&b, Next).as_deref(), Some("p-a"), "Home wraps to the first tab");
         assert_eq!(to(&b, Prev).as_deref(), Some("p-c"));
+        // ⌘1–⌘8 number the PROJECT tabs; Home (slot 0) has ⌘T (S1.22c).
         assert_eq!(to(&b, Select(1)).as_deref(), Some("p-a"));
         assert_eq!(to(&b, Select(3)).as_deref(), Some("p-c"));
         assert_eq!(to(&b, Select(4)), None, "no tab 4");
@@ -1508,6 +1522,9 @@ mod tests {
         assert!(b.move_tab("p-c", 99), "past the end clamps");
         assert_eq!(b.tab_labels(), ["p-a", "p-b", "p-c"]);
         assert!(!b.move_tab(HOME_LABEL, 0), "Home is not in the tab list");
+        // S1.22c: a tab moved to slot 0 is the first tab AFTER Home — never before it.
+        assert!(b.move_tab("p-b", 0));
+        assert_eq!(strip_order(&b), ["home", "p-b", "p-a", "p-c"]);
         assert!(!b.move_tab("p-zz", 0));
     }
 

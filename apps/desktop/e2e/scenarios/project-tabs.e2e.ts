@@ -185,12 +185,14 @@ describe('project-tabs (native-desktop)', () => {
     await capture('1-two-tabs-two-servers');
   });
 
-  // V2-3.7 T3: the strip is Maude's own tab bar — Rust's tab list, Home pinned last.
+  // V2-3.7 T3: the strip is Maude's own tab bar — Rust's tab list. S1.22c (decision
+  // maude/v2-lead-home-tab-first, CONTRACT §1/§6 amended 2026-10-14): Home is pinned FIRST.
   it('the strip lists the tabs in open order, Home pinned icon-only, and switches on a click', async () => {
     expect(await handles()).toEqual([tabA, tabB, 'home', STRIP].sort());
     await browser.waitUntil(async () => (await strip()).tabs.length === 2, { timeout: 10_000 });
     const s = await strip();
     expect(s.tabs).toEqual([tabA, tabB]);
+    expect(s.order).toEqual(['home', tabA, tabB]);
     expect(s.home).toEqual({ label: 'Home', text: '' });
     expect(s.active).toBe(tabA);
     // A click on B's tab in the strip makes B the shown tab, and only B.
@@ -323,8 +325,8 @@ describe('project-tabs (native-desktop)', () => {
     expect(await activeTab()).toBe(tabA);
   });
 
-  // V2-3.9 T5: the Window menu's tab items (⌘1…⌘8 / ⌘9 since V2-3.11, ⌃Tab / ⌃⇧Tab) walk the strip,
-  // then Home, wrapping.
+  // V2-3.9 T5: the Window menu's tab items (⌘1…⌘8 / ⌘9 since V2-3.11, ⌃Tab / ⌃⇧Tab) walk the strip
+  // from Home (the first slot, S1.22c) through the tabs, wrapping; ⌘1 is the first PROJECT tab.
   it('the tab menu jumps to tab 1 and the last tab, and Next / Previous wrap through Home', async () => {
     await focusTab(tabB);
     expect((await menuState('select_tab_1')).active).toBe(tabA);

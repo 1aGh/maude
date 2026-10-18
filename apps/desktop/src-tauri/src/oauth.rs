@@ -430,7 +430,7 @@ pub(crate) fn has_unsafe_bytes(url: &str) -> bool {
 /// would leave Rust locked to a different origin than the one the sidecar is
 /// actually talking to — the opener would then refuse the very URL the dialog is
 /// showing. Falls back to the default on anything unparseable.
-fn cloud_base() -> reqwest::Url {
+pub(crate) fn cloud_base() -> reqwest::Url {
     if let Ok(raw) = std::env::var("MAUDE_CLOUD_URL") {
         if let Ok(u) = reqwest::Url::parse(raw.trim()) {
             // A bare single-label host (`https://sh`, `https://com`) is a typo, not

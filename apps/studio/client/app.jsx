@@ -140,6 +140,7 @@ import {
   cloudSignInPrepare,
   invoke,
   isNativeApp,
+  onMenuAction,
   onUpdateReady,
   pickedMediaSource,
   pickMediaFile,
@@ -1733,6 +1734,18 @@ function ShellProjectPill() {
       window.removeEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
     };
   }, [openRightPanel]);
+  // S1.22c: the native tab menu's "Sign in as another account…" arrives as `menu://action
+  // {id:'account.switch'}` (tabs.rs TabMenuItem::SwitchAccount); it is not a palette row, so the
+  // palette's menu://action listener never runs it — the menu handler does.
+  useEffect(() => {
+    if (!native) return undefined;
+    const p = onMenuAction((id) => {
+      if (id === 'account.switch') handlers['account.switch']?.();
+    });
+    return () => {
+      p?.then?.((fn) => fn?.());
+    };
+  }, [handlers, native]);
 
   const isCloudTab = !!cfg?.cloud;
   const ctx = useMemo(

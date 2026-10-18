@@ -12,6 +12,7 @@
       knows no project beyond a sanitized name, its square, its account badge and one
       state mark. S1.22b: canvas 11 pn-tab-b (square + name, account badge, state mark),
       pn-tab-b20 ("N more", the resting ring) and the tab list (Show All Tabs ⇧⌘\).
+      S1.22c: Home is the pinned, icon-only first slot (CONTRACT §1/§6, amended 2026-10-14).
     -->
     <style>
       :root {
@@ -206,9 +207,10 @@
       .close:hover {
         background: var(--close-hover);
       }
+      /* S1.22c: the first slot, right after the traffic lights. */
       .home {
         flex: 0 0 38px;
-        margin: 5px 6px 0 2px;
+        margin: 5px 0 0 2px;
         border-radius: 7px 7px 0 0;
       }
       .home:hover {
@@ -295,7 +297,7 @@
       }
       .more {
         flex: 0 0 auto;
-        margin: 5px 2px 0;
+        margin: 5px 6px 0 2px;
         padding: 0 10px;
         border: 0;
         border-radius: 7px 7px 0 0;
@@ -453,17 +455,7 @@
   <body>
     <nav class="strip" data-tauri-drag-region data-testid="tab-strip" aria-label="Tabs">
       <div class="lights" data-tauri-drag-region></div>
-      <div class="tabs" id="tabs" role="tablist" aria-label="Open projects" data-tauri-drag-region></div>
-      <button
-        type="button"
-        class="more"
-        id="more"
-        data-testid="tab-more"
-        aria-haspopup="listbox"
-        aria-expanded="false"
-        title="The other open tabs"
-        hidden
-      ></button>
+      <!-- S1.22c (CONTRACT §1/§6, amended 2026-10-14): Home is the pinned, icon-only FIRST tab. -->
       <button
         type="button"
         class="home"
@@ -484,6 +476,17 @@
           />
         </svg>
       </button>
+      <div class="tabs" id="tabs" role="tablist" aria-label="Open projects" data-tauri-drag-region></div>
+      <button
+        type="button"
+        class="more"
+        id="more"
+        data-testid="tab-more"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        title="The other open tabs"
+        hidden
+      ></button>
     </nav>
     <div class="overview" id="overview" data-testid="tab-overview" hidden>
       <div class="panel" role="dialog" aria-labelledby="overview-title">

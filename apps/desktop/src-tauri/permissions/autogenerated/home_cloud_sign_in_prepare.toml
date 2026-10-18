@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-home-cloud-sign-in-prepare"
+description = "Enables the home_cloud_sign_in_prepare command without any pre-configured scope."
+commands.allow = ["home_cloud_sign_in_prepare"]
+
+[[permission]]
+identifier = "deny-home-cloud-sign-in-prepare"
+description = "Denies the home_cloud_sign_in_prepare command without any pre-configured scope."
+commands.deny = ["home_cloud_sign_in_prepare"]

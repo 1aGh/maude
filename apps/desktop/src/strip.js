@@ -1,5 +1,6 @@
 // The tab strip's script (V2-3.7, contract V2-3.7-own-tab-bar.md §3.2; S1.22b: canvas 11
-// pn-tab-b / pn-tab-b20 / pn-tab-menu).
+// pn-tab-b / pn-tab-b20 / pn-tab-menu). S1.22c: Home is the pinned, icon-only FIRST slot (CONTRACT
+// §1/§6, amended 2026-10-14) — never in Rust's tab list, never in "N more", never dragged past.
 //
 // Rust owns the tab list (windows.rs WindowBook); this page only draws the
 // TabStripState it is sent and asks Rust to act:
@@ -249,7 +250,10 @@
 
   function startDrag(ev, label, el) {
     if (ev.button !== 0 || editing) return;
-    drag = { label: label, el: el, x0: ev.clientX, moving: false, id: ev.pointerId };
+    // S1.22c: Home is the pinned first slot — a dragged tab stops at its right edge (minDx) and
+    // drops as the first tab after it (`to: 0`); Rust's tab list never holds Home.
+    const minDx = homeEl.getBoundingClientRect().right - el.getBoundingClientRect().left;
+    drag = { label: label, el: el, x0: ev.clientX, minDx: minDx, moving: false, id: ev.pointerId };
   }
 
   function dropIndex(d, x) {
@@ -265,8 +269,8 @@
 
   window.addEventListener('pointermove', (ev) => {
     if (!drag || ev.pointerId !== drag.id) return;
-    const dx = ev.clientX - drag.x0;
-    if (!drag.moving && Math.abs(dx) < 5) return;
+    const dx = Math.max(ev.clientX - drag.x0, Math.min(0, drag.minDx));
+    if (!drag.moving && Math.abs(ev.clientX - drag.x0) < 5) return;
     if (!drag.moving) {
       drag.moving = true;
       drag.el.classList.add('dragging');

@@ -661,6 +661,15 @@ pub fn settle_sign_in_app(
     })
 }
 
+/// S6.7: a Home sign-in (no calling project) records `lastSignInProfile` only —
+/// a never-bound project adopts it on its first open; nothing is bound here.
+pub fn set_last_sign_in_profile(app: &tauri::AppHandle, id: &str) {
+    if profiles::validate_id(id).is_err() {
+        return;
+    }
+    update(app, |st, _| st.last_sign_in_profile = Some(id.to_string()));
+}
+
 /// Remember the port the Home server bound (contract §5.5 `homePort`), so the
 /// next launch asks for the same origin first.
 pub fn set_home_port(app: &tauri::AppHandle, port: u16) {
