@@ -65,6 +65,28 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     skill: 'design:footage-director',
   },
   {
+    format: 'transcript',
+    files: '<designRoot>/assets/<sha8>.transcript.json',
+    schema: 'schema/transcript.v1.schema.json',
+    id: 'https://maude.sh/schema/transcript/v1',
+    source: 'generated',
+    generator: 'video/format-ids.ts#transcriptJsonSchema',
+    check:
+      'validateTranscript(doc, {strict:true, rel}) (video/schema.ts) — preserving: unknown keys are kept',
+    skill: 'design:video-comp',
+  },
+  {
+    format: 'beats',
+    files: '<designRoot>/assets/<sha8>.beats.json',
+    schema: 'schema/beats.v1.schema.json',
+    id: 'https://maude.sh/schema/beats/v1',
+    source: 'generated',
+    generator: 'video/format-ids.ts#beatsJsonSchema',
+    check:
+      'validateBeats(doc, {strict:true, rel}) (video/schema.ts) — preserving: unknown keys are kept',
+    skill: 'design:video-comp',
+  },
+  {
     format: 'tokens',
     files: '<designRoot>/system/<ds>/tokens.json',
     schema: 'schema/ds-tokens-v1.schema.json',

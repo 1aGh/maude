@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "b670b315dd4a",
   "actions": [
     {
       "id": "search.open",
@@ -3149,6 +3149,20 @@
       "id": "https://maude.sh/schema/edl/v1",
       "source": "hand",
       "skill": "design:footage-director"
+    },
+    {
+      "format": "transcript",
+      "schema": "apps/studio/schema/transcript.v1.schema.json",
+      "id": "https://maude.sh/schema/transcript/v1",
+      "source": "generated",
+      "skill": "design:video-comp"
+    },
+    {
+      "format": "beats",
+      "schema": "apps/studio/schema/beats.v1.schema.json",
+      "id": "https://maude.sh/schema/beats/v1",
+      "source": "generated",
+      "skill": "design:video-comp"
     },
     {
       "format": "tokens",
