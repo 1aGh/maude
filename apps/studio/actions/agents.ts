@@ -378,7 +378,6 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ),
   },
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
-  'export.canvas-dialog': { effect: 'none', agent: cli('maude design export') },
   'export.rerun-last': {
     effect: 'project',
     agent: cli('maude design exports again <id>'),

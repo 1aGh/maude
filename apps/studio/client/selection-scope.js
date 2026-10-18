@@ -38,3 +38,26 @@ export function exportSelectionFor(selected, activePath, canvasActiveArtboard) {
     selection: onActive && sel.selector ? { selector: sel.selector, file: sel.file } : null,
   };
 }
+
+/**
+ * S8.2 — what the Export sheet needs to know about the selection, scoped to the active canvas:
+ * `hasSelection` (nothing selected → ⇧⌘E exports This canvas), the selected DCArtboard ids, and the V2-1.4
+ * element ids (a selected element carries `id`; a bare artboard selection has `artboardId` and no `id`).
+ */
+export function exportSelectionV2(selected, activePath) {
+  const list = (Array.isArray(selected) ? selected : [selected]).filter(
+    (s) => s && s.file === activePath
+  );
+  const artboards = [];
+  const elements = [];
+  for (const s of list) {
+    if (s.id) elements.push(String(s.id));
+    else if (s.artboardId && !artboards.includes(s.artboardId))
+      artboards.push(String(s.artboardId));
+  }
+  return {
+    hasSelection: list.length > 0,
+    selectedArtboards: artboards,
+    selectedElements: elements,
+  };
+}

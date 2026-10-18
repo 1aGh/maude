@@ -114,7 +114,8 @@ function defaultExportItem(label: string, scopeHint: string): MenuItem {
     onSelect: () => {
       const detail = { scope: scopeHint };
       try {
-        window.dispatchEvent(new CustomEvent('maude:open-export', { detail }));
+        // S8.2 — the shell's one Export sheet (the iframe's own dialog is retired)
+        window.parent.postMessage({ dgn: 'open-export', detail }, '*');
       } catch {
         /* SSR / non-window environments */
       }

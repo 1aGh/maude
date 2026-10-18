@@ -87,7 +87,6 @@ import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
-import { ExportDialogProvider } from './export-dialog.tsx';
 import {
   crossedDragThreshold,
   type HoverTarget,
@@ -1071,17 +1070,15 @@ function CanvasCore({
   // user feedback (post-Wave-2) preferred the toolbar over global hotkeys.
 
   return (
-    <ExportDialogProvider>
-      <ContextMenuProvider registry={registry}>
-        <CanvasRouter
-          hostRef={hostRef}
-          distributeArtboards={distributeArtboards}
-          alignArtboards={alignArtboards}
-        >
-          {children}
-        </CanvasRouter>
-      </ContextMenuProvider>
-    </ExportDialogProvider>
+    <ContextMenuProvider registry={registry}>
+      <CanvasRouter
+        hostRef={hostRef}
+        distributeArtboards={distributeArtboards}
+        alignArtboards={alignArtboards}
+      >
+        {children}
+      </CanvasRouter>
+    </ContextMenuProvider>
   );
 }
 
@@ -1458,7 +1455,9 @@ function buildRegistry(deps: {
     shortcut,
     onSelect: () => {
       try {
-        window.dispatchEvent(new CustomEvent('maude:open-export', { detail: { scope } }));
+        // S8.2 — the iframe's own export dialog is gone: the entry names a scope and the shell's one
+        // Export sheet opens (the shell re-checks the frame before it acts, use-canvas-bridge).
+        window.parent.postMessage({ dgn: 'open-export', detail: { scope } }, '*');
       } catch {
         /* non-window environments */
       }

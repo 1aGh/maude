@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8f353f82d2eb",
+  "manifestVersion": "6cdef0eb444c",
   "actions": [
     {
       "id": "search.open",
@@ -1684,17 +1684,6 @@
       "agent": {
         "path": "cli",
         "verb": "maude design handoff"
-      }
-    },
-    {
-      "id": "export.canvas-dialog",
-      "label": "Export from the canvas",
-      "kind": "command",
-      "exec": "canvas",
-      "effect": "none",
-      "agent": {
-        "path": "cli",
-        "verb": "maude design export"
       }
     },
     {

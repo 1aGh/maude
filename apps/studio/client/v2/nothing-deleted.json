@@ -2001,8 +2001,6 @@
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/cancel": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/close": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-format-c-id": "action:export.open",
-    "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-pdf-marks": "A-crop-and-registration-marks",
-    "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-recent-again-i": "action:export.rerun-last",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/export-submit": "action:export.open",
     "button:studio/client/dialogs/export-dialog.jsx#ExportDialog/marks": "A-crop-and-registration-marks",
     "button:studio/client/dialogs/help-modal.jsx#HelpModal/close-esc": "action:help.guides",
