@@ -167,3 +167,76 @@ test('a critic verdict → HandoffOut.findings[] round-trips (S12 critics adopt 
   assert.equal(out.agent, 'design:design-critic');
   assert.deepEqual(handoffToCriticVerdict(out), verdict);
 });
+
+// ── S12.5: the critic protocol as the plugin documents it ─────────────────────────────────────
+// The samples are read out of the plugin markdown, so a doc that drifts from the schema is red.
+
+const PLUGIN = fileURLToPath(new URL('../../plugins/design/', import.meta.url));
+/** The first ```json fence after the heading that matches `heading`, parsed. */
+function sampleAfter(rel, heading) {
+  const text = readFileSync(join(PLUGIN, rel), 'utf8');
+  const at = text.search(heading);
+  assert.ok(at >= 0, `${rel}: no heading matching ${heading}`);
+  const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(at));
+  assert.ok(m, `${rel}: no json fence after ${heading}`);
+  return JSON.parse(m[1]);
+}
+
+// The fields the auto-fix loop's stop rules read (_guide-11 / _guide-13).
+const LOOP_FIELDS = ['blockers', 'warnings', 'passed', 'top_blockers'];
+
+test('S12.5: design-critic’s documented result is a valid HandoffOut the loop can read', () => {
+  const out = sampleAfter('agents/design-critic.md', /^#+ Sample result/m);
+  assert.deepEqual(validateHandoff(out, { role: 'out' }).errors, []);
+  assert.equal(out.agent, 'design:design-critic');
+  assert.ok(out.findings.length > 0, 'the sample shows findings');
+  const v = handoffToCriticVerdict(out);
+  for (const k of LOOP_FIELDS) assert.ok(k in v, `verdict.${k}`);
+  assert.equal(v.agent, 'design-critic');
+  assert.equal(v.blockers, out.findings.filter((f) => f.severity === 'blocker').length);
+  assert.equal(v.passed, v.blockers === 0);
+  assert.ok(v.top_blockers.every((b) => b.category && b.summary));
+  // the scope audit the loop shows (opt-out) survives the adapter
+  assert.equal(v.opt_out_applied, out.result.verdict.opt_out_applied);
+  assert.equal(v.ds_blockers_downgraded, out.result.verdict.ds_blockers_downgraded);
+});
+
+test('S12.5: signature-moment-critic’s aspiration rides `result` and reaches the stop rules', () => {
+  const out = sampleAfter('agents/signature-moment-critic.md', /^#+ Sample result/m);
+  assert.deepEqual(validateHandoff(out, { role: 'out' }).errors, []);
+  const v = handoffToCriticVerdict(out);
+  assert.equal(v.agent, 'signature-moment-critic');
+  assert.equal(typeof v.aspiration_score, 'number');
+  assert.ok(v.aspiration_score >= 0 && v.aspiration_score <= 5);
+  assert.ok(['pass', 'fail'].includes(v.specificity));
+  assert.ok(out.result.aspiration?.axes, 'the per-axis scores stay in result.aspiration');
+  // the round trip holds for an aspiration verdict too
+  const verdict = {
+    agent: 'signature-moment-critic',
+    iter: 1,
+    blockers: 1,
+    warnings: 2,
+    top_blockers: [
+      { category: 'aspiration-restraint', summary: 'restraint 2/5', fix: 'One accent.' },
+    ],
+    aspiration_score: 3.4,
+    specificity: 'pass',
+    opt_out_applied: 'palette',
+    passed: false,
+  };
+  const back = handoffToCriticVerdict(criticVerdictToHandoff(verdict));
+  assert.deepEqual(back, verdict);
+});
+
+test('S12.5: /design:critic’s documented hand-off is a valid "in" fenced to its run folder', () => {
+  const RUN_DIR = '.design/_runs/<session>/';
+  const doc = sampleAfter('commands/critic.md', /^#+ .*Sample hand-off/m);
+  assert.deepEqual(validateHandoff(doc, { role: 'in', runDir: RUN_DIR }).errors, []);
+  assert.equal(doc.agent, 'design:design-critic');
+  assert.ok(ownsPath(doc, doc.output), 'the critic owns its own result');
+  assert.equal(ownsPath(doc, doc.scope.canvas), false, 'a critic never owns the canvas');
+  assert.ok(
+    doc.checks.includes(`maude design check ${doc.output}`),
+    'the hand-off names the check the critic runs on its result'
+  );
+});

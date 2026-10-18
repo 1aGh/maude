@@ -859,6 +859,79 @@ describe('sub-agents — SubagentStart / pre-edit `owns` / SubagentStop (V2-1.18
   });
 });
 
+// S12.5 — the critic protocol: the hand-off /design:critic documents, used as written. A critic
+// keeps `Write` (S12-slices D2) and the hook fences it to what the hand-off owns.
+describe('S12.5 — a critic spawned with the documented hand-off', () => {
+  let project;
+  const S = 's125';
+  const run = () => join(project, '.design', '_runs', S);
+  const PLUGIN = join(ROOT, 'plugins', 'design');
+  /** The first ```json fence after `heading` in a plugin file, with `<session>` filled in. */
+  const sample = (rel, heading) => {
+    const text = readFileSync(join(PLUGIN, rel), 'utf8');
+    const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(heading)));
+    return JSON.parse(m[1].replaceAll('<session>', S));
+  };
+  const IN = () => sample('commands/critic.md', /^#+ .*Sample hand-off/m);
+  const OUT = () => sample('agents/design-critic.md', /^#+ Sample result/m);
+  const critic = { session_id: S, agent_id: 'c1', agent_type: 'design:design-critic' };
+  const write = (id, rel, content = 'x') => ({
+    ...critic,
+    tool_use_id: id,
+    cwd: project,
+    tool_name: 'Write',
+    tool_input: { file_path: join(project, rel), content },
+  });
+  beforeAll(async () => {
+    project = makeProject('maude-hook-critic-');
+    writeFileSync(join(project, '.design', 'ui', 'C.meta.json'), '{}');
+    mkdirSync(join(run(), 'handoff'), { recursive: true });
+    const doc = IN();
+    writeFileSync(
+      join(project, doc.output.replace(/\.out\.json$/, '.in.json')),
+      JSON.stringify(doc)
+    );
+    await hook('subagent-start', { ...critic, cwd: project, hook_event_name: 'SubagentStart' });
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('editing the canvas or its sidecar → out-of-scope; its report and result are free', async () => {
+    const onCanvas = await hook('pre-edit', { ...edit(project, S, 'k1', 'Hi', 'Yo'), ...critic });
+    expect(isDeny(onCanvas, 'out-of-scope')).toBe(true);
+    expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
+    expect(
+      isDeny(
+        await hook('pre-edit', write('k2', '.design/ui/C.meta.json', '{"a":1}')),
+        'out-of-scope'
+      )
+    ).toBe(true);
+    const report = `.design/_runs/${S}/critique/design-critic-0.md`;
+    expect(await hook('pre-edit', write('k3', report, '# design-critic'))).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+    expect(await hook('pre-edit', write('k4', IN().output, '{}'))).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+  });
+
+  test('SubagentStop holds it to its result; the documented sample result lets it end', async () => {
+    const stop = () =>
+      hook('stop', {
+        ...critic,
+        cwd: project,
+        hook_event_name: 'SubagentStop',
+        stop_hook_active: false,
+      });
+    const r = await stop();
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('design-critic-0.out.json');
+    writeFileSync(join(project, IN().output), JSON.stringify(OUT()));
+    expect(await stop()).toMatchObject({ status: 0, stdout: '' });
+  });
+});
+
 describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => {
   let project;
   beforeAll(() => {

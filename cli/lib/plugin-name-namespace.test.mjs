@@ -168,8 +168,6 @@ test('critics with Write name the hand-off protocol and `maude design check`', (
     'Critics with Write that do not name the hand-off protocol + `maude design check <output>`',
     offenders,
     {
-      'design-critic': 'S12.5',
-      'signature-moment-critic': 'S12.5',
       'a11y-critic': 'S12.6',
       'brand-critic': 'S12.6',
       'copy-critic': 'S12.6',
@@ -180,6 +178,26 @@ test('critics with Write name the hand-off protocol and `maude design check`', (
       'typography-critic': 'S12.6',
     }
   );
+});
+
+// S12.5 / S12.6: the "Hand-off" section is ONE text. design-critic carries the master copy
+// between the critic-handoff markers; every critic that carries the block carries it byte-for-byte
+// (S12.6 adds the other critics; it then asserts all of them carry it).
+const HANDOFF_BLOCK = /<!-- critic-handoff:begin[^>]*-->[\s\S]*?<!-- critic-handoff:end -->/;
+
+test('the critic hand-off section is one shared text (design-critic holds the master)', () => {
+  const master = agents.find((a) => a.name === 'design-critic')?.body.match(HANDOFF_BLOCK)?.[0];
+  assert.ok(master, 'design-critic carries the <!-- critic-handoff:begin --> … end block');
+  assert.match(master, /maude\.agent-handoff\/1/);
+  assert.match(master, /maude design check <output>/);
+  for (const name of ['design-critic', 'signature-moment-critic']) {
+    const body = agents.find((a) => a.name === name)?.body ?? '';
+    assert.equal(body.match(HANDOFF_BLOCK)?.[0], master, `${name}: hand-off block differs`);
+  }
+  const drifted = agents
+    .filter((a) => HANDOFF_BLOCK.test(a.body) && a.body.match(HANDOFF_BLOCK)[0] !== master)
+    .map((a) => a.name);
+  assert.deepEqual(drifted, [], `hand-off block differs from design-critic's in: ${drifted}`);
 });
 
 // Readers of untrusted content (a video, an image, an asset) must have no egress: no
