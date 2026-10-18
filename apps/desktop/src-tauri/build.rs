@@ -102,6 +102,8 @@ fn main() {
                 // Finding 1d (bus.rs): every shell → page message goes through
                 // the Channel a page hands this — never an event.
                 "shell_subscribe",
+                // S5.14 (quit.rs): the asked project tab's answer to the quit dialog.
+                "quit_answer",
             ]),
         ),
     )

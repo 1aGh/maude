@@ -1190,14 +1190,15 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
         let name = project_display_name(&root);
         let app2 = app.clone();
         let label2 = label.clone();
+        // S5.14 (V2-1.15 §5.8, 03 `ai-quit` "Closing a project tab asks the same").
         app.dialog()
-            .message(format!(
-                "AI is still working in {name}. Closing the tab stops it."
-            ))
-            .title(format!("Stop AI in {name}?"))
+            .message(
+                "AI stops where it is. Everything AI finished so far is kept as a version, and each chat can carry on next time.",
+            )
+            .title(format!("Close {name} while AI is working?"))
             .parent(&window)
             .buttons(MessageDialogButtons::OkCancelCustom(
-                "Stop and close".to_string(),
+                "Close tab".to_string(),
                 "Cancel".to_string(),
             ))
             .show(move |stop| {
@@ -1215,7 +1216,11 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
                 crate::sidecar::log_line(&format!(
                     "[maude] {label2} closed with AI running — stopping {root} now"
                 ));
-                crate::sidecar::shutdown_instance(&app2, &root);
+                // S5.14: stop the runs (partial versions, leases, "Stopped" divider) first.
+                tauri::async_runtime::spawn(async move {
+                    crate::quit::stop_project(&app2, &root, "close-tab").await;
+                    crate::sidecar::shutdown_instance(&app2, &root);
+                });
             });
     });
     CloseGuard::Hold
