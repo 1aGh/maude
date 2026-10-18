@@ -61,45 +61,98 @@ function page(title, body, { account, project, isOwner, lede = null } = {}) {
 /** Roles a person can be given here. `owner` is a transfer, not a role change. */
 const ASSIGNABLE = ROLES.filter((r) => r !== 'owner');
 
-const ROLE_MEANING = {
-  viewer: 'Can look and comment. Cannot change anything.',
-  member: 'Can design, edit and comment.',
+/**
+ * The four v2 role words (V2-1.7 §5.1, CONTRACT §6). Wire ids never reach the
+ * page: `member` reads Can edit, `viewer` Can comment, `observer` Can view.
+ */
+export const ROLE_WORD = Object.freeze({
+  owner: 'Owner',
+  member: 'Can edit',
+  viewer: 'Can comment',
+  observer: 'Can view',
+});
+
+/** What each role can actually do, in one line. */
+export const ROLE_MEANING = Object.freeze({
   owner: 'Everything, plus billing, people and deleting the project.',
-};
+  member: 'Change the designs, comment and download.',
+  viewer: 'Look, comment and download.',
+  observer: 'Look only.',
+});
+
+/** A role id → its word, never the id itself. */
+export const roleWord = (role) => ROLE_WORD[role] ?? 'Can view';
 
 /**
  * What each option says WHILE it is being chosen (Cloud Phase 24 A12a, canvas
- * board D1).
+ * board D1). With no script on this page, the option text is the only place
+ * the meaning can appear at the moment of the decision.
  *
- * The select used to render bare single words — "member", "viewer" — which
- * asks the inviter to already know a vocabulary we invented. The meaning has
- * to be inside the option, because with no script on this page there is
- * nowhere else it can appear at the moment of the decision.
- *
- * `owner` is deliberately absent: it is a transfer, not a role change, and the
- * owner's own row states what the role means.
+ * `owner` is deliberately absent: it is a transfer, not a role change, and
+ * handing a project over is its own deliberate step that this page does not
+ * offer (lead decision v2-lead-make-owner-hidden).
  */
-const ROLE_OPTION = {
-  member: 'Member — can change the designs',
-  viewer: 'Viewer — can look and download, not change',
-};
+const ROLE_OPTION = Object.freeze({
+  member: 'Can edit — change the designs',
+  viewer: 'Can comment — look, comment and download',
+  observer: 'Can view — look only',
+});
 
 function roleSelect(name, current, { label = 'What they can do' } = {}) {
   return `<select name="${name}" aria-label="${esc(label)}">${ASSIGNABLE.map(
     (r) =>
-      `<option value="${r}"${r === current ? ' selected' : ''}>${esc(ROLE_OPTION[r] ?? r)}</option>`
+      `<option value="${r}"${r === current ? ' selected' : ''}>${esc(ROLE_OPTION[r] ?? roleWord(r))}</option>`
   ).join('')}</select>`;
 }
 
-function personRow(person, { projectId, isOwner }) {
-  const label = `${esc(person.email)}${person.role === 'owner' ? ' <span class="quiet">(owner)</span>' : ''}`;
+/** `ui/Poster.tsx` → `Poster` — the name a person sees for a canvas. */
+export function canvasName(path) {
+  const base =
+    String(path ?? '')
+      .split('/')
+      .pop() ?? '';
+  return base.replace(/\.[^.]+$/, '') || base;
+}
+
+/** `20 Oct` — the day an invitation stops working. */
+function day(ms) {
+  return new Date(Number(ms)).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+}
+
+/**
+ * Who a row is, for THIS viewer.
+ *
+ * E-mail addresses go to the owner only — the one who invites (V2-1.7 §5.6:
+ * `email`, invited and requested rows go only to `invite` holders). Everyone
+ * else sees a name and the role word; a person with no name yet reads "No name
+ * yet", never a piece of their address. The signed-in person is "You".
+ */
+export function personLabel(person, { isOwner, selfId = null }) {
+  if (selfId && person.account_id === selfId) return 'You';
+  const name = String(person.name ?? '').trim();
+  if (isOwner) {
+    return name
+      ? `${esc(name)} <span class="quiet">${esc(person.email ?? '')}</span>`
+      : esc(person.email ?? '');
+  }
+  return name ? esc(name) : '<span class="quiet">No name yet</span>';
+}
+
+function personRow(person, { projectId, isOwner, selfId, withControls = true }) {
+  const label = personLabel(person, { isOwner, selfId });
+  const word = `<strong>${esc(roleWord(person.role))}</strong>`;
   if (person.role === 'owner') {
     // No controls at all, rather than disabled ones. A disabled button invites
-    // somebody to hunt for the way to enable it.
-    return `<tr><td>${label}</td><td class="quiet">${esc(ROLE_MEANING.owner)}</td><td></td></tr>`;
+    // somebody to hunt for the way to enable it. Make owner stays hidden.
+    return `<tr><td>${label}</td><td>${word} <span class="quiet">${esc(ROLE_MEANING.owner)}</span></td><td></td></tr>`;
   }
-  const controls = isOwner
-    ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
+  const controls =
+    isOwner && withControls
+      ? `<form class="inline" method="post" action="/projects/${esc(projectId)}/people">
          <input type="hidden" name="account" value="${esc(person.account_id)}">
          ${roleSelect('role', person.role)}
          <button type="submit" name="do" value="role">Save</button>
@@ -108,8 +161,52 @@ function personRow(person, { projectId, isOwner }) {
          <input type="hidden" name="account" value="${esc(person.account_id)}">
          <button type="submit">Remove…</button>
        </form>`
-    : '';
-  return `<tr><td>${label}</td><td class="quiet">${esc(ROLE_MEANING[person.role] ?? person.role)}</td><td class="right">${controls}</td></tr>`;
+      : '';
+  return `<tr><td>${label}</td><td>${word} <span class="quiet">${esc(ROLE_MEANING[person.role] ?? '')}</span></td><td class="right">${controls}</td></tr>`;
+}
+
+/** A canvas grant: somebody with access to ONE canvas, not the project. */
+function grantRow(grant, { isOwner, selfId }) {
+  return `<tr><td>${personLabel(grant, { isOwner, selfId })}</td><td><strong>${esc(roleWord(grant.role))}</strong> <span class="quiet">on ${esc(canvasName(grant.canvas_path))} only</span></td><td></td></tr>`;
+}
+
+/** An invitation nobody has followed yet. Owner-only: it carries an address. */
+function inviteRow(invite) {
+  const where = invite.canvas_path ? ` on ${esc(canvasName(invite.canvas_path))}` : '';
+  return `<tr><td>${esc(invite.email)}</td><td><strong>${esc(roleWord(invite.role))}</strong>${where} <span class="quiet">· not joined yet · the link works until ${esc(day(invite.expires_at))}</span></td><td></td></tr>`;
+}
+
+/**
+ * The table of who is on a project, plus (owner only) who was invited — the
+ * one renderer the project's People page and the account's People and
+ * invites page share, so the two can never disagree about who sees an address.
+ */
+export function peopleRowsTable({
+  people = [],
+  grants = [],
+  invites = [],
+  isOwner,
+  selfId = null,
+  projectId = null,
+  withControls = false,
+}) {
+  const rows = [
+    ...people.map((p) => personRow(p, { projectId, isOwner, selfId, withControls })),
+    ...grants.map((g) => grantRow(g, { isOwner, selfId })),
+  ];
+  const pending =
+    isOwner && invites.length
+      ? `<h3>Invited</h3>
+         <table>
+           <thead><tr><th>Address</th><th>What they can do</th><th></th></tr></thead>
+           <tbody>${invites.map(inviteRow).join('\n')}</tbody>
+         </table>`
+      : '';
+  return `<table>
+       <thead><tr><th>Person</th><th>What they can do</th><th></th></tr></thead>
+       <tbody>${rows.join('\n')}</tbody>
+     </table>
+     ${pending}`;
 }
 
 /**
@@ -117,17 +214,24 @@ function personRow(person, { projectId, isOwner }) {
  *
  * @param {object} args
  * @param {{id: string, name: string}} args.project
- * @param {{account_id: string, email: string, role: string}[]} args.people
+ * @param {{account_id: string, email: string, name?: string|null, role: string}[]} args.people
+ * @param {{account_id: string, email: string, name?: string|null, role: string, canvas_path: string}[]} [args.grants]
+ *   people with access to one canvas (V2-1.7 canvas grants)
+ * @param {{email: string, role: string, canvas_path?: string|null, expires_at: number}[]} [args.invites]
+ *   pending invitations — rendered for the owner only
  * @param {boolean} args.isOwner
  */
 export function peoplePage({
   account,
   project,
   people = [],
+  grants = [],
+  invites = [],
   isOwner,
   error = null,
   notice = null,
 }) {
+  const selfId = account?.id ?? null;
   const invite = isOwner
     ? `<div class="card">
          <h2>Add someone</h2>
@@ -143,16 +247,12 @@ export function peoplePage({
          </p>
        </div>`
     : '';
-
   return page(
     'People',
     `${error ? `<p class="error">${esc(error)}</p>` : ''}
      ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
      ${invite}
-     <table>
-       <thead><tr><th>Person</th><th>What they can do</th><th></th></tr></thead>
-       <tbody>${people.map((p) => personRow(p, { projectId: project.id, isOwner })).join('\n')}</tbody>
-     </table>
+     ${peopleRowsTable({ people, grants, invites, isOwner, selfId, projectId: project.id, withControls: true })}
      ${isOwner ? '' : '<p class="quiet">Only the project’s owner can add or remove people.</p>'}`,
     {
       account,
@@ -204,10 +304,22 @@ export function allPeopleHtml() {
     { account_id: 'a2', email: 'member@example.com', role: 'member' },
     { account_id: 'a3', email: 'viewer@example.com', role: 'viewer' },
   ];
-  const account = { email: 'owner@example.com' };
+  const account = { id: 'a1', email: 'owner@example.com' };
+  const grants = [
+    {
+      account_id: 'a4',
+      email: 'grant@example.com',
+      name: 'Jonas',
+      role: 'viewer',
+      canvas_path: 'ui/Homepage.tsx',
+    },
+  ];
+  const invites = [
+    { email: 'new@example.com', role: 'observer', canvas_path: null, expires_at: 1760000000000 },
+  ];
   return [
-    peoplePage({ account, project, people, isOwner: true }),
-    peoplePage({ account, project, people, isOwner: false }),
+    peoplePage({ account, project, people, grants, invites, isOwner: true }),
+    peoplePage({ account: { id: 'a3' }, project, people, grants, invites, isOwner: false }),
     peoplePage({ account, project, people, isOwner: true, error: 'That is not an email address.' }),
     peoplePage({ account, project, people, isOwner: true, notice: 'Invitation sent.' }),
     removeConfirmPage({ account, project, person: people[1], tokenTtlMs: 12 * 3_600_000 }),

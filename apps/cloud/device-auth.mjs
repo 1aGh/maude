@@ -10,11 +10,12 @@
 //   app polls            →  POST /auth/device/token  → a personal token
 //
 // The personal token is the DEVICE's credential: stored hashed here, held in
-// the OS keychain there, revocable from /account — which is the visible
+// the OS keychain there, revocable from /account/macs (Your Macs) — which is the visible
 // revocation surface the offline project-token story has needed all along.
 // With it, a client calls GET /api/projects and POST /projects/open; the
 // project token it receives is then exchanged at the cell over a POST body.
 
+import { handleAccountPages } from './account-pages.mjs';
 import { appShell, backToAppLink, isAppState, publicPage, publicResponse } from './brand.mjs';
 import { STATE_COPY } from './dashboard.mjs';
 import { audit } from './db.mjs';
@@ -166,36 +167,6 @@ export function activatePage({
     extraCss: ACTIVATE_CSS,
     lede: 'A Maude app on one of your devices is asking to use your account.',
     body,
-  });
-}
-
-export function accountPage({ account, tokens = [], notice = null }) {
-  const rows = tokens
-    .map(
-      (t) => `<tr>
-        <td>${esc(t.label || 'A Maude app')}</td>
-        <td class="quiet">added ${new Date(Number(t.created_at)).toISOString().slice(0, 10)}
-            ${t.last_used_at ? `· last used ${new Date(Number(t.last_used_at)).toISOString().slice(0, 10)}` : '· never used'}</td>
-        <td class="right"><form method="post" action="/account">
-          <input type="hidden" name="revoke" value="${esc(t.id)}">
-          <button type="submit" class="ghost">Disconnect</button>
-        </form></td>
-      </tr>`
-    )
-    .join('\n');
-  return appShell({
-    account,
-    title: 'Account',
-    active: 'account',
-    extraCss: `
-      table { width: 100%; border-collapse: collapse; background: var(--bg-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: var(--space-6); }
-      td { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border-subtle); font-size: var(--type-base); vertical-align: baseline; }
-      tr:first-child td { border-top: 0; }
-      td.right { text-align: right; white-space: nowrap; }
-    `,
-    lede: `Signed in as ${account.email}. Apps and devices connected to your account are listed here — disconnecting one signs it out the next time it checks in.`,
-    body: `${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
-      ${tokens.length ? `<table><tbody>${rows}</tbody></table>` : '<p class="quiet">No apps are connected yet. The Maude desktop app connects itself when you sign in there.</p>'}`,
   });
 }
 
@@ -373,31 +344,12 @@ export async function handleDeviceAuth(request, env, { account, ctx = null }) {
     );
   }
 
-  // ---- account + connected devices
-  if (pathname === '/account') {
-    if (!account) return redirect('/login?next=%2Faccount');
-    let notice = null;
-    if (request.method === 'POST') {
-      const form = await request.formData();
-      const id = String(form.get('revoke') ?? '');
-      await env.DB.prepare(
-        'UPDATE personal_tokens SET revoked_at = ? WHERE id = ? AND account_id = ? AND revoked_at IS NULL'
-      )
-        .bind(now, id, account.id)
-        .run();
-      await audit(env.DB, {
-        accountId: account.id,
-        actor: `customer:${account.email}`,
-        action: 'device.disconnected',
-      });
-      notice = 'Disconnected. The app signs out the next time it checks in.';
-    }
-    const rows = await env.DB.prepare(
-      'SELECT id, label, created_at, last_used_at FROM personal_tokens WHERE account_id = ? AND revoked_at IS NULL ORDER BY created_at DESC'
-    )
-      .bind(account.id)
-      .all();
-    return html(accountPage({ account, tokens: rows?.results ?? [], notice }));
+  // ---- the account pages (Maude v2 S9.16): overview, people, billing, Macs,
+  // download everything, delete. The COOKIE session only — a device token
+  // never opens them (`account` here is the cookie's).
+  if (pathname === '/account' || pathname.startsWith('/account/')) {
+    const surface = await handleAccountPages(request, env, { account, ctx });
+    if (surface) return surface;
   }
 
   // ---- the client API (Bearer personal token)
@@ -444,18 +396,5 @@ export function allDeviceHtml() {
     activatePage({ account, done: true }),
     activatePage({ account, code: 'ABCD-EFGH', state: 'a'.repeat(32) }),
     activatePage({ account, done: true, state: 'a'.repeat(32) }),
-    accountPage({ account, tokens: [] }),
-    accountPage({
-      account,
-      tokens: [
-        {
-          id: 'x',
-          label: 'Maude Desktop on MacBook',
-          created_at: 1753872000000,
-          last_used_at: 1753872000000,
-        },
-      ],
-      notice: 'Disconnected. The app signs out the next time it checks in.',
-    }),
   ].join('\n');
 }

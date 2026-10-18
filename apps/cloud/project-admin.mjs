@@ -501,7 +501,8 @@ export function exportGenerations(keys, projectId) {
   return [...byStamp.values()].sort((a, b) => b.stamp.localeCompare(a.stamp));
 }
 
-async function listExports(env, projectId) {
+/** Every export generation of one project, newest first (also the account download page's). */
+export async function listExports(env, projectId) {
   if (!env.EXPORTS) return [];
   const listed = await env.EXPORTS.list({ prefix: `tenants/${projectId}/exports/`, limit: 500 });
   return exportGenerations(
