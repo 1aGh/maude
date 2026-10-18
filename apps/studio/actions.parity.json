@@ -1,11 +1,12 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 98,
+  "humanMax": 99,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
     "accounts": "decision:maude/v2-4-gate-github-doors",
     "ai-chat": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
+    "clear-trash": "decision:maude/v2-lead-trash-clear-human-only",
     "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
     "keys": "decision:maude/v2-2.4b-undo-keys-human",
     "links": "decision:maude/v2-V2-1.11-ai-operability",
@@ -33,6 +34,12 @@
       "from": 96,
       "by": "decision:maude/v2-S1.2-human-view-prefs",
       "why": "S1.2: Pin canvas, Unpin canvas, Sort canvases and Copy canvas link are per-person view state (pins are the person's, the sort order is a per-project view preference, the link goes to the clipboard) — human (view-pref) by design, the same reason as view.pin-panels and edit.copy-properties. Four human rows."
+    },
+    {
+      "to": 99,
+      "from": 98,
+      "by": "decision:maude/v2-lead-trash-clear-human-only",
+      "why": "S1.7b registers trash.clear (the Trash's Clear out…): deleting for good what the team could still restore is the project owner's own confirmation, never an agent's — human 'clear-trash'. One human row. trash.restore gets its agent path with S1.17's `maude design trash restore` and is not registered yet."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row."

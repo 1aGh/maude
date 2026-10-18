@@ -11,7 +11,7 @@
 // refusal. Rule 7 also fails while the table has rows and no test file imports it, so a row is
 // never coverage on paper only. Add the row in the same change that adds the `server` field.
 //
-// Empty today: no action declares `server` yet.
+// S1.7b: `trash.clear` (owner) is the first row; test/acl-l18-trash.test.ts consumes the table.
 
 import type { ActionDefAI, Role } from '../actions/types.ts';
 
@@ -25,6 +25,9 @@ export interface RoleRefusal {
   refused: readonly Role[];
 }
 
-export const ROLE_REFUSALS: readonly RoleRefusal[] = [];
+export const ROLE_REFUSALS: readonly RoleRefusal[] = [
+  // Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only).
+  { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
+];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;
