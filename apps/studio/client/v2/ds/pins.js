@@ -16,6 +16,17 @@ export function isPinValue(v) {
 }
 
 /**
+ * The quiet line for a canvas whose revision has not reached this Mac (CONTRACT §3: a file that exists on
+ * someone's device but hasn't synced is "Waiting for Jonas's Mac", never an error). `peer` comes from
+ * `canvasDsRender(...).waiting.peer`; until a device is named it is "another device".
+ */
+export function dsWaitingText(peer) {
+  return typeof peer === 'string' && peer.trim()
+    ? `Waiting for ${peer.trim()}'s Mac`
+    : 'Waiting for another device';
+}
+
+/**
  * The `data-ds-rev` a NEW instance placed on this canvas arrives with (10 `ds-edit-instance`: "a new one
  * placed with Component (⇧I) arrives current"). A canvas left on a revision (it has a `dsRev`) would render
  * the new instance with that old look, so the instance carries `head`; a canvas that follows head needs

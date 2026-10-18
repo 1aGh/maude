@@ -7,7 +7,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 
 import { createFollowerSwap } from '../client/v2/ds/follower-swap.js';
-import { createPinsHost, dsRevForPlacement, pinsReply } from '../client/v2/ds/pins.js';
+import {
+  createPinsHost,
+  dsRevForPlacement,
+  dsWaitingText,
+  pinsReply,
+} from '../client/v2/ds/pins.js';
 import { type Frame, openShellFrame } from './ds-shell-harness.ts';
 
 const R1 = 'a'.repeat(64);
@@ -115,6 +120,12 @@ describe('pins — the studio side', () => {
     expect(dsRevForPlacement({ converted: true, canvasDsRev: R1 })).toBe('head');
     expect(dsRevForPlacement({ converted: true, canvasDsRev: null })).toBeNull();
     expect(dsRevForPlacement({ converted: false, canvasDsRev: R1 })).toBeNull();
+  });
+
+  test('the quiet waiting line names the Mac, or the device when nobody is named', () => {
+    expect(dsWaitingText('Jonas')).toBe("Waiting for Jonas's Mac");
+    expect(dsWaitingText(null)).toBe('Waiting for another device');
+    expect(dsWaitingText('  ')).toBe('Waiting for another device');
   });
 
   test('the reply lists siblings for what is held, never a path the canvas named', () => {
