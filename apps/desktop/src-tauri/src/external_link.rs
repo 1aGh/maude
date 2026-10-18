@@ -328,6 +328,42 @@ mod tests {
         ));
     }
 
+    /// What `open::that` runs, per platform. The `&` / `%` refusal above exists
+    /// because two of the three shipped launchers are shells: Windows runs
+    /// `cmd /c start "" "<url>"` (`%VAR%` expands inside the quotes) and Linux
+    /// runs `xdg-open`, a POSIX shell script. Only macOS execs one binary with the
+    /// URL as one argv element. Relaxing the refusal set needs this pin to change
+    /// first, for every platform the desktop app ships on.
+    #[test]
+    fn the_launcher_shape_is_pinned() {
+        let url = "https://example.com/?a=1&b=%41";
+        let cmds = open::commands(url);
+        assert!(!cmds.is_empty());
+        #[cfg(target_os = "macos")]
+        {
+            assert_eq!(cmds.len(), 1);
+            let c = &cmds[0];
+            assert_eq!(c.get_program(), "/usr/bin/open", "no shell on macOS");
+            let args: Vec<_> = c.get_args().collect();
+            assert_eq!(
+                args,
+                [std::ffi::OsStr::new(url)],
+                "the URL is one argv element"
+            );
+        }
+        #[cfg(windows)]
+        assert!(
+            cmds.iter().any(|c| c.get_program() == "cmd"),
+            "Windows launches through cmd.exe: & and % stay refused"
+        );
+        // The source launches through `open::that`, which runs exactly these.
+        let src = include_str!("external_link.rs");
+        let body = &src[src.find("pub async fn open_link_external(").unwrap()..];
+        let body = &body[..body.find("#[cfg(test)]").unwrap()];
+        assert!(body.contains("open::that(validated.as_str())"));
+        assert!(!body.contains("Command::new"), "no hand-rolled launcher");
+    }
+
     #[test]
     fn the_command_checks_its_caller_before_it_reads_the_url() {
         // A source pin next to the windows.rs ratchet: the caller checks come
@@ -338,8 +374,9 @@ mod tests {
             body.find(needle)
                 .unwrap_or_else(|| panic!("missing {needle}"))
         };
-        // Split literals: windows.rs `every_granted_command_checks_its_caller` reads this
-        // file to its end, so a whole needle here would satisfy it for a command without one.
+        // Split literals: windows.rs `every_granted_command_checks_its_caller` must find
+        // the check in the command's own body, never in this test (S3.10c bounded its
+        // scan to the command; the split keeps this pin from ever vouching anyway).
         let project = at(concat!("caller_", "project(&webview, false)?"));
         let front = at(concat!("caller_", "in_front(&webview)?"));
         let policy = at("external_url_allowed(&url)");
