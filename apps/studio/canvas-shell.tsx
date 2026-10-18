@@ -47,6 +47,7 @@ import { type Insets, revealViewBox } from './bridge/occlusion.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
   type ArtboardRect,
+  fitRectIntoHost,
   PhotoPreviewBridge,
   SnapGuideOverlay,
   useArtboardsContext,
@@ -3045,6 +3046,30 @@ function CanvasRouter({
               } as HoverTarget)
             )
           );
+        }
+        return;
+      }
+      // S1.3 L1 (A6c) — the jump list's / Compare's camera move: glide (or cut, under reduced motion or
+      // `glide: false`) to one artboard and flash it. Parent-only like select-by-id: a sibling canvas
+      // frame must not move this camera. An unknown id moves nothing.
+      if (m.dgn === 'reveal-artboard') {
+        if (e.source !== window.parent) return;
+        const mm = m as { artboardId?: unknown; glide?: unknown; flash?: unknown };
+        if (typeof mm.artboardId !== 'string' || !mm.artboardId) return;
+        const aid = mm.artboardId;
+        const board = document.querySelector<HTMLElement>(`[data-dc-screen="${CSS.escape(aid)}"]`);
+        if (!board) return;
+        const rect = window.__maudeCanvasRects?.().artboards.find((a) => a.id === aid);
+        const host = hostRef.current;
+        if (rect && zoomController) {
+          if (mm.glide === true || !host) zoomController.jumpTo(rect);
+          else zoomController.animateTo(fitRectIntoHost(rect, host), 0);
+        }
+        if (mm.flash === true) {
+          board.classList.remove('dc-reveal-flash');
+          void board.offsetWidth; // restart the ring when the same board is revealed twice
+          board.classList.add('dc-reveal-flash');
+          window.setTimeout(() => board.classList.remove('dc-reveal-flash'), 900);
         }
         return;
       }

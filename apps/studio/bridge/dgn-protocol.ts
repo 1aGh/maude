@@ -1499,8 +1499,7 @@ const s2c: S2C = {
   'reveal-artboard': {
     gate: 'parent',
     status: 'live',
-    // S1.3 sends it from the jump list once REVEAL_ARTBOARD_LIVE flips; canvas-lib's handler (L1) is pending
-    orphan: 'no-handler',
+    // S1.3 sends it from the jump list once REVEAL_ARTBOARD_LIVE flips; the handler is canvas-shell's (A6c)
     owner: 'canvas-lib',
     parse: p({ artboardId: str, glide: bool, flash: bool }),
   },

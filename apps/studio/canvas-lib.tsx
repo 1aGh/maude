@@ -396,9 +396,19 @@ const ENGINE_CSS = `
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.88); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
+/* A6c — reveal-artboard's flash (S1.3 jump list, S1.15 Compare): one ring, then gone. */
+.dc-reveal-flash {
+  animation: dc-reveal-flash 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes dc-reveal-flash {
+  0%   { box-shadow: 0 0 0 0 transparent; }
+  25%  { box-shadow: 0 0 0 4px var(--guide, oklch(0.55 0.20 328)); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 @media (prefers-reduced-motion: reduce) {
   .dc-snap-guide,
-  .dc-snap-pill {
+  .dc-snap-pill,
+  .dc-reveal-flash {
     animation: none !important;
   }
 }
@@ -1050,7 +1060,7 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
+export function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
   return computeFit([rect], hostEl, pad, canvasInsets());
 }
 
