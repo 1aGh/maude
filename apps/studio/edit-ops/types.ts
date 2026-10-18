@@ -51,6 +51,14 @@ export interface ResolvedEditOp {
   op: EditOpId;
   targets: ElementRef[];
   params: Record<string, unknown>;
+  /** What the SERVER knows about this canvas (never the request): its meta's `dsRev` (S2.16). */
+  ctx?: EditCtx;
+}
+
+/** Server-side facts an op may read; the client cannot set them. */
+export interface EditCtx {
+  /** `meta.dsRev` — set on a canvas left out of the design system's current revision */
+  dsRev: string | null;
 }
 
 /** One writer. Pure: bytes in, bytes out; throw `CanvasEditError` to refuse with `invalid`. */

@@ -12,7 +12,9 @@
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import type { Access } from '../access/scope.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { listPickerComponents, systemForPicker } from '../ds/component-list.ts';
 import { dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, MAX_BODY } from '../edit-ops/types.ts';
@@ -35,6 +37,11 @@ export interface EditRouteDeps {
   runs?: RunRegistry;
   /** accepted-revisions mode: the action a write became, by repo-relative path + bytes */
   actionFor?(repoRel: string, after: string): string | null;
+  /**
+   * The session's access (http.ts `accessOf`). `GET /_api/ds/components` is minRole edit: without it
+   * the route refuses everyone (fail closed — a hidden row is never the only gate).
+   */
+  access?: (req: Request) => Access;
   /** tests only: an op table instead of `EDIT_OPS` */
   ops?: readonly EditOp[];
   log?: WriteLog;
@@ -75,6 +82,16 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       if (chains.get(key) === next) chains.delete(key);
     });
     return next;
+  };
+
+  /** `meta.dsRev` of a canvas (V2-1.6): the server's word on "left out", never the request's */
+  const dsRevOf = (rel: string): string | null => {
+    try {
+      const m = JSON.parse(readFileSync(abs(rel.replace(/\.tsx$/i, '.meta.json')), 'utf8'));
+      return typeof m?.dsRev === 'string' && m.dsRev ? m.dsRev : null;
+    } catch {
+      return null;
+    }
   };
 
   return [
@@ -131,10 +148,38 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
                 after
               ) ?? null,
             log,
+            ctx: (rel) => ({ dsRev: dsRevOf(rel) }),
             ...(deps.ops ? { ops: deps.ops } : {}),
           })
         );
         return json(statusOf(result), result);
+      },
+    },
+    {
+      // ⇧I — what the Component picker lists (S2.16; Q14: S2 keeps this route in this file). A read of
+      // the design system, but it exists to ADD to a canvas, so it is minRole edit: a viewer and a
+      // Can comment session are refused here, not merely shown no panel.
+      method: 'GET',
+      path: '/_api/ds/components',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: (req) => {
+        const file = new URL(req.url).searchParams.get('file');
+        const rel = file ? resolveCanvasRel(deps.designRoot, deps.designRel, file) : null;
+        const access = deps.access?.(req);
+        if (!access?.can('edit', rel))
+          return json(403, {
+            ok: false,
+            code: 'forbidden',
+            message: 'Only people who can edit can place components.',
+          });
+        return json(
+          200,
+          listPickerComponents(
+            deps.designRoot,
+            systemForPicker(deps.designRoot, rel ? abs(rel) : null)
+          )
+        );
       },
     },
   ];
