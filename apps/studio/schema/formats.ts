@@ -65,6 +65,16 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     skill: 'design:footage-director',
   },
   {
+    // S8 asset sidecars §5.2 / §5.5: one provenance file per AI take; lenient (keeps unknown keys).
+    format: 'gen',
+    files: '<designRoot>/assets/<sha8>.gen.json',
+    schema: 'schema/gen.v1.schema.json',
+    id: 'https://maude.sh/schema/gen/v1',
+    source: 'hand',
+    check: 'validateGen (generation/gen-sidecar.ts); the schema mirrors it',
+    skill: 'design:ai-generation',
+  },
+  {
     format: 'tokens',
     files: '<designRoot>/system/<ds>/tokens.json',
     schema: 'schema/ds-tokens-v1.schema.json',
