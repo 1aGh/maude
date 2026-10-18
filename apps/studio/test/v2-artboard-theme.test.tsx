@@ -13,6 +13,16 @@ beforeAll(() => {
 afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
+// canvas-shell registers its `maude:set-artboard-theme` listener on the window that exists when the module is
+// FIRST evaluated. Another test file in the same `bun test` process may already have evaluated it under its own
+// (since unregistered) happy-dom window — so this file takes its own instance, bound to this file's window.
+type CanvasShellModule = { __resetDsThemeProbeForTests: () => void };
+let shellModule: Promise<CanvasShellModule> | null = null;
+const canvasShell = (): Promise<CanvasShellModule> => {
+  const spec = '../canvas-shell.tsx?v2-artboard-theme';
+  shellModule ??= import(spec) as Promise<CanvasShellModule>;
+  return shellModule;
+};
 const roots: Root[] = [];
 afterEach(async () => {
   for (const r of roots.splice(0)) await act(async () => r.unmount());
@@ -30,7 +40,7 @@ const ask = (artboard: string, mode: string) =>
   window.dispatchEvent(new CustomEvent('maude:set-artboard-theme', { detail: { artboard, mode } }));
 /** a DS that defines both themes (the probe finds them), as detectDsThemeSupport reads it */
 const twoThemes = async () => {
-  const { __resetDsThemeProbeForTests } = await import('../canvas-shell.tsx');
+  const { __resetDsThemeProbeForTests } = await canvasShell();
   const style = document.createElement('style');
   style.textContent =
     '[data-theme="light"]{--bg-0:#fff;--fg-0:#111}[data-theme="dark"]{--bg-0:#000;--fg-0:#eee}';
@@ -40,7 +50,7 @@ const twoThemes = async () => {
 
 describe("the canvas pins an artboard's theme when asked", () => {
   test('DS default pins; the pin reads back on the frame; Follow chrome frees it', async () => {
-    await import('../canvas-shell.tsx');
+    await canvasShell();
     const a = board();
     ask('desktop', 'ds');
     expect(a.getAttribute('data-dc-theme-pin')).toBe('ds');
@@ -49,7 +59,7 @@ describe("the canvas pins an artboard's theme when asked", () => {
   });
 
   test('on a one-theme DS Light and Dark are the same no-ops the menu greys out; freeing a pin still works', async () => {
-    const { __resetDsThemeProbeForTests } = await import('../canvas-shell.tsx');
+    const { __resetDsThemeProbeForTests } = await canvasShell();
     __resetDsThemeProbeForTests();
     const a = board();
     ask('desktop', 'dark');
@@ -74,7 +84,7 @@ describe("the canvas pins an artboard's theme when asked", () => {
   });
 
   test('junk is refused: an unknown mode and a non-string artboard change nothing', async () => {
-    await import('../canvas-shell.tsx');
+    await canvasShell();
     const a = board();
     ask('desktop', 'sepia');
     window.dispatchEvent(
@@ -87,7 +97,7 @@ describe("the canvas pins an artboard's theme when asked", () => {
 
 describe("the shell's run-action reaches it", () => {
   test('artboard.set-theme from the shell turns into the pin; from anyone else it does nothing', async () => {
-    await import('../canvas-shell.tsx');
+    await canvasShell();
     const { EditingLayer } = await import('../editing/index.tsx');
     const { ToolProvider } = await import('../use-tool-mode.tsx');
     const { SelectionSetProvider } = await import('../use-selection-set.tsx');
