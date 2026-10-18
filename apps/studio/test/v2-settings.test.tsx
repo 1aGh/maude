@@ -363,7 +363,7 @@ describe('the desktop sheet renders every Settings row', () => {
       expect(q(id), id).toBeTruthy();
   });
 
-  test('V2-4.10: Reset Advanced sections folds every remembered fold again', async () => {
+  test('V2-4.10 / S11.13: Close all Advanced sections folds every remembered fold again', async () => {
     installTauri();
     const { foldStore } = await import('../client/v2/fold/use-fold.js');
     await mount();
@@ -371,8 +371,8 @@ describe('the desktop sheet renders every Settings row', () => {
     foldStore.openAll();
     expect(foldStore.openIds().length).toBeGreaterThan(1);
     await click(q('settings-reset-folds-btn'));
-    // a fresh Mac: only the "?" sheet's fold is open (it lists the keys that moved)
-    expect(foldStore.openIds()).toEqual(['help']);
+    // "Close all" is ⌘K's twin: every fold, the "?" sheet's too. (A fresh Mac's state is Reset all settings.)
+    expect(foldStore.openIds()).toEqual([]);
   });
 
   test('V2-4.7c: Check for updates runs the native updater check — no arguments, nothing else', async () => {
