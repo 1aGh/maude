@@ -122,6 +122,12 @@ describe('a page view names a route TEMPLATE, never a URL', () => {
     assert.equal(normalizeRoute('/operator/projects/alligators'), '/operator');
   });
 
+  it('names the five account pages (S9.16), not "other"', () => {
+    for (const leaf of ['people', 'billing', 'macs', 'download', 'delete'])
+      assert.equal(normalizeRoute(`/account/${leaf}`), `/account/${leaf}`);
+    assert.equal(normalizeRoute('/account/people/extra'), 'other');
+  });
+
   it('drops the query string, which is where a search term would live', () => {
     assert.equal(normalizeRoute('/login?next=/projects/secret-thing'), '/login');
   });
