@@ -4011,52 +4011,7 @@ export function createHttp(
       );
     },
 
-    '/_api/clip-edit': async (req: Request) => {
-      // feature-enhanced-video-editing (Phase 2) — parametric clip verbs, one
-      // dispatch route: POST { canvas, artboardId?, stableId, contentHash?,
-      // verb: speed|trim-in|audio|detach-audio|framing|grade|transition, …verb
-      // params }. Same MAIN-ORIGIN-ONLY trust boundary as the other source
-      // writes (absent from CANVAS_SAFE_API + startCanvasServer routes,
-      // DDR-054) — this is also the agent door for /design:edit's timeline
-      // vocabulary.
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{
-        canvas?: unknown;
-        artboardId?: unknown;
-        stableId?: unknown;
-        contentHash?: unknown;
-        verb?: unknown;
-        rate?: unknown;
-        deltaFrames?: unknown;
-        muted?: unknown;
-        volume?: unknown;
-        framing?: unknown;
-        grade?: unknown;
-        presentation?: unknown;
-        durationInFrames?: unknown;
-        atFrame?: unknown;
-        src?: unknown;
-        mediaKind?: unknown;
-        text?: unknown;
-        toIndex?: unknown;
-      }>(req, 16 * 1024);
-      if (!body) return new Response('body required', { status: 400 });
-      const result = await api.clipEditOp(body);
-      if (!result.ok) {
-        return Response.json(
-          { ok: false, error: result.error },
-          { status: result.status, headers: { 'Cache-Control': 'no-store' } }
-        );
-      }
-      return Response.json(
-        { ok: true, seq: result.seq, ...result.extra },
-        { status: 200, headers: { 'Cache-Control': 'no-store' } }
-      );
-    },
+    // '/_api/clip-edit' moved to routes/edit.ts (S7.6): an alias of the edit-op dispatcher.
 
     '/_api/remove-sequence': async (req: Request) => {
       // DDR-150 P3 — remove a clip. POST { canvas, stableId, artboardId?,
