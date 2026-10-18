@@ -92,7 +92,9 @@ async function startStandIn(): Promise<{ url: string; close: () => void }> {
     const headers = {
       ...forwarded,
       'x-maude-role': role,
-      ...(role === 'viewer' ? { 'x-maude-readonly': '1' } : {}),
+      // The real proxy injects the capability both ways (studio-proxy upstreamHeaders); a cell reads
+      // a missing header as read-only (defaults closed), so an owner/member must get '0'.
+      'x-maude-readonly': role === 'viewer' ? '1' : '0',
       'x-maude-session': `parity${role}0001`,
       'x-maude-user': `${role}@example.com`,
     };
