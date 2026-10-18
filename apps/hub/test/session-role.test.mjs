@@ -115,9 +115,26 @@ describe('a session with no role is refused, not guessed at', () => {
     );
     assert.ok(fn.length > 0, 'browserSession not found — this gate would pass vacuously');
     assert.match(fn, /ROLES\.includes\(match\.role\)/);
-    assert.match(fn, /if \(!role\) return null;/);
+    // S3.7b (decision maude/v2-S3.7b-canvas-only-browser-session): a role-null
+    // cookie is handed to the canvas-only reader, which is null unless the
+    // cookie carries a stored canvas-only claim. Still no role is invented.
+    assert.match(fn, /if \(!role\) return canvasOnlyBrowserSession\(match\);/);
     // The old fallback, in either direction, must be gone.
     assert.doesNotMatch(fn, /match\.readOnly \? 'viewer' : 'member'/);
+
+    const start = SERVER_SRC.indexOf('function canvasOnlyBrowserSession(');
+    const canvasOnly = SERVER_SRC.slice(start, SERVER_SRC.indexOf('\nfunction ', start + 10));
+    assert.ok(start > 0, 'canvasOnlyBrowserSession not found — this gate would pass vacuously');
+    // No claim, a claim that names a project role, or no canvas grants: no session.
+    assert.match(
+      canvasOnly,
+      /if \(!claim \|\| claim\.role !== null \|\| !Array\.isArray\(claim\.grants\) \|\| claim\.grants\.length === 0\) \{\s*return null;/
+    );
+    assert.match(canvasOnly, /if \(!resolveAccess\(claim\)\.canvasOnly\) return null;/);
+    // What it does return holds no project role and is fail-closed read-only.
+    assert.match(canvasOnly, /role: null,/);
+    assert.match(canvasOnly, /readOnly: true,/);
+    assert.doesNotMatch(canvasOnly, /match\.readOnly|'member'|'viewer'|'owner'/);
   });
 
   it('the refusal lands on the sign-in door, not on a dead end', () => {
@@ -149,11 +166,26 @@ describe('the door stores what it vouched for', () => {
       assert.match(mint, /role: projectRole,/);
       assert.match(mint, /readOnly: isReadOnlyRole\(projectRole\),/);
     }
+    // S9.6b (decision maude/v2-S9.6b-browser-doors-use-peerTokenDoor): the
+    // password and OIDC doors decide through `browserLaneDoor(user)`, which is
+    // `peerTokenDoor(claimOf(…))` on the browser lane; the platform door calls
+    // it directly. Either way, one decision per door-backed mint.
+    const laneDoor = BROWSER_AUTH_SRC.slice(
+      BROWSER_AUTH_SRC.indexOf('function browserLaneDoor('),
+      BROWSER_AUTH_SRC.indexOf('\n}\n', BROWSER_AUTH_SRC.indexOf('function browserLaneDoor('))
+    );
+    assert.match(
+      laneDoor,
+      /^function browserLaneDoor\(user\) \{\s*return peerTokenDoor\(claimOf\(/
+    );
     assert.equal(
-      [...BROWSER_AUTH_SRC.matchAll(/const door = peerTokenDoor\(claimOf\(/g)].length,
+      [...BROWSER_AUTH_SRC.matchAll(/const door = (peerTokenDoor\(claimOf\(|browserLaneDoor\()/g)]
+        .length,
       viaDoor.length,
       'every door-backed mint must decide through peerTokenDoor(claimOf(…))'
     );
+    // …and the account role never reaches a mint around the door.
+    for (const mint of viaDoor) assert.doesNotMatch(mint, /role: (user|outcome\.user)\.role/);
     // Each other mint is preceded by a translation — `projectRoleForAccount(...)`,
     // never a raw account role passed through. One translation per door.
     assert.equal(
