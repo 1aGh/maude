@@ -191,13 +191,61 @@ describe('maude design history restore / undo (prompt tier)', () => {
     ]);
   });
 
-  test('restore takes the operands in either order; no --artboard (one-artboard restore is S1)', async () => {
+  test('restore takes the operands in either order', async () => {
     studio = fakeStudio(writer({ ok: true, status: 'accepted' }));
     expect((await studio.run('history', ['restore', '11', 'ui/home.tsx'])).code).toBe(0);
     expect(writes(studio.seen)[0]?.body).toEqual({ path: '.design/ui/home.tsx', revision: 11 });
-    const r = await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--artboard', 'a1']);
-    expect(r.code).toBe(2);
-    expect(writes(studio.seen)).toHaveLength(1);
+  });
+
+  // S1.13 — the agent paths of history.restore-artboard / restore-object / go-back.
+  test('--artboard, --element and @last-good post the scoped restore; a refusal prints its line', async () => {
+    studio = fakeStudio(
+      writer({ ok: true, actionId: 'a_9', line: 'Restored Hero to 5 Oct, 18:40' })
+    );
+    const a = await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--artboard', 'hero']);
+    expect(a.code).toBe(0);
+    expect(a.stdout).toContain('Restored Hero to 5 Oct, 18:40');
+    expect(
+      (await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--element', 'hero/title']))
+        .code
+    ).toBe(0);
+    expect((await studio.run('history', ['restore', 'ui/home.tsx', '@last-good'])).code).toBe(0);
+    expect(writes(studio.seen).map((w) => w.body)).toEqual([
+      { path: '.design/ui/home.tsx', at: 'r11', artboard: 'hero' },
+      { path: '.design/ui/home.tsx', at: 'r11', element: 'hero/title' },
+      { path: '.design/ui/home.tsx', at: '@last-good' },
+    ]);
+    const both = await studio.run('history', [
+      'restore',
+      'ui/home.tsx',
+      'r11',
+      '--artboard',
+      'hero',
+      '--element',
+      'hero/title',
+    ]);
+    expect(both.code).toBe(2);
+    studio = fakeStudio(
+      writer(
+        {
+          ok: false,
+          reason: 'family',
+          line: "Can't restore only Disc — restore the whole canvas instead.",
+        },
+        409
+      )
+    );
+    const r = await studio.run('history', [
+      'restore',
+      'ui/home.tsx',
+      'r11',
+      '--artboard',
+      'disc-a',
+    ]);
+    expect(r.code).toBe(1);
+    expect(r.stderr.trim()).toBe(
+      "maude design history: Can't restore only Disc — restore the whole canvas instead."
+    );
   });
 
   test('a local project has no restore: one clear line, exit 1, no git fallback', async () => {

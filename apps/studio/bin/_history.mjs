@@ -26,7 +26,7 @@ import {
 export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [--json] [--root <project>]
        maude design history show <ref> [<canvas>] [--json] [--root <project>]
        maude design history diff [<canvas>] [--from <ref>] [--json] [--root <project>]
-       maude design history restore <canvas> <ref> [--json] [--root <project>]
+       maude design history restore <canvas> <ref> [--artboard <id> | --element <artboard>/<id>] [--json] [--root <project>]
        maude design history undo --action <id> [--redo] [--json] [--root <project>]
        maude design history name <canvas> <ref> "<name>" | --clear [--json] [--root <project>]
   <canvas>  design-root-relative (ui/home.tsx), .design/…, or absolute
@@ -34,7 +34,9 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
   list      the versions, newest first
   show      one version: who, when, what it was, the canvases it touched
   diff      what changed since <ref> (default: the last commit) — local projects
-  restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced
+  restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced;
+            --artboard <id> only that artboard, --element <artboard>/<id> only that element,
+            <ref> @last-good = the newest version this Mac drew without an error
   undo      undo (or --redo) one action, as a new version — synced
   name      name a version of the canvas (<ref> may be now); --clear removes its name — synced
 list / show / diff read only; restore / undo / name change the project and ask first.
@@ -193,26 +195,55 @@ async function diff(words) {
 // ── writes (prompt tier: `history` is destructive in verbs.ts) ──────────────────────────────
 
 /** `restore <canvas> <ref>` — the WHOLE canvas back to a version, landed as a NEW version (C5):
- *  Now stays in the history. One-artboard / one-element restore is S1's, so no flag for it. */
+ *  Now stays in the history. S1.13: `--artboard <id>` (only that artboard), `--element
+ *  <artboard>/<id>` (only that element) and `@last-good` (Go back, V2-1.9 §5.8). */
 async function restore(words) {
-  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  const { flags, pos } = parseWords(words, {
+    bool: ['--json'],
+    value: ['--root', '--artboard', '--element'],
+  });
   if (pos.length !== 2) throw new UsageError('restore takes <canvas> <ref>');
   const [canvas, ref] = /\.(tsx|html)$/i.test(pos[0]) ? pos : [pos[1], pos[0]];
-  const m = REV.exec(ref);
-  if (!m) throw new UsageError(`${ref} is not a version (r<n>)`);
+  const artboard = flags['--artboard'];
+  const element = flags['--element'];
+  if (artboard !== undefined && element !== undefined)
+    throw new UsageError('restore takes --artboard or --element, not both');
+  const lastGood = ref === '@last-good';
+  if (lastGood && (artboard !== undefined || element !== undefined))
+    throw new UsageError('@last-good restores the whole canvas');
+  const m = lastGood ? null : REV.exec(ref);
+  if (!lastGood && !m) throw new UsageError(`${ref} is not a version (r<n> or @last-good)`);
   const c = await connect('history', flags['--root']);
   if (c.exit) return c.exit;
   const repoRel = canvasArg(c.root, canvas);
-  const revision = Number(m[1]);
-  const r = await call(c.studio, '/_api/project/restore', {
-    method: 'POST',
-    json: { path: repoRel, revision },
-  });
+  const scoped = lastGood || artboard !== undefined || element !== undefined;
+  // The whole canvas keeps the v1 body; S1.13's scoped restores name the version as `at`.
+  const json = scoped
+    ? {
+        path: repoRel,
+        at: lastGood ? '@last-good' : `r${m[1]}`,
+        ...(artboard !== undefined ? { artboard } : {}),
+        ...(element !== undefined ? { element } : {}),
+      }
+    : { path: repoRel, revision: Number(m[1]) };
+  const r = await call(c.studio, '/_api/project/restore', { method: 'POST', json });
+  if (r?.status === 409 && r.body?.line) {
+    // "Can't restore only Hero — restore the whole canvas instead." / "Restore the artboard instead."
+    process.stderr.write(`maude design history: ${clean(r.body.line)}\n`);
+    return 1;
+  }
+  if (r?.status === 409 && r.body?.reason === 'legacy') r.status = 200;
+  const only =
+    artboard !== undefined
+      ? ` (only ${clean(artboard)})`
+      : element !== undefined
+        ? ` (only ${clean(element)})`
+        : '';
   return landed(r, flags['--json'], {
     legacy:
       'restoring a version needs a synced project — this one keeps its history in git, and Maude does not rewrite it',
-    ok: () =>
-      `→ restored ${repoRel.replace(/^\.design\//, '')} to r${revision} as a new version (the version before it stays in the history)`,
+    ok: (b) =>
+      `→ ${scoped && b.line ? clean(b.line) : `restored ${repoRel.replace(/^\.design\//, '')} to ${lastGood ? 'its last good version' : `r${m[1]}`}`}${only} as a new version (the version before it stays in the history)`,
   });
 }
 

@@ -2,6 +2,8 @@
 //
 //   GET  /_api/project/history   ?path&limit&before        → { ok, history } · { ok:false, reason: legacy|unreachable }
 //   POST /_api/project/restore   { path, at | revision }   → { ok, status, actionId? } · 409 (moved from http.ts)
+//                                { path, at, artboard? | element? } · { path, at: '@last-good' }
+//                                → { ok, actionId, line, sharedKept?, why? } · 409 { reason, line? } (S1.13)
 //   GET  /_api/project/versions  ?path&before&limit&filter → { ok, now, rows, next?, source, offline? }
 //   GET  /_api/project/changes   ?path&from&to             → { ok, changes, detail, blame }
 //   GET  /_api/project/source    ?path&at&lane             → { ok, source }   (raw source: `export`)
@@ -24,6 +26,10 @@ import { currentAccess, notInScopeResponse, toDesignRel } from '../access/reques
 import type { Access } from '../access/scope.ts';
 import { offlineLine, parseFilter, type SaveWord } from '../client/v2/history/rows.ts';
 import { describeBetween, parseRef } from '../history/changes.ts';
+import { lastGood as findLastGood } from '../history/last-good.ts';
+import { restoreArtboard, type SpliceLane, type SpliceSide } from '../history/restore-artboard.ts';
+import { type ObjectKey, parseObjectKey, restoreObject } from '../history/restore-object.ts';
+import { formatTime } from '../history/titles.ts';
 import {
   type GitEntry,
   type HistoryRowLike,
@@ -34,6 +40,7 @@ import {
   type VersionsRuntime,
 } from '../history/versions.ts';
 import type { AttributionCache } from '../index/extractors/attribution-cache.ts';
+import type { RestoreOptions } from '../sync/local-kernel.ts';
 import { announceAction } from './project-undo.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -49,6 +56,14 @@ const hasControl = (s: string): boolean =>
   });
 const ASIDE_LANES = new Set(['html', 'css', 'meta', 'annotations']);
 const SOURCE_LANES = new Set<VersionLane>(['html', 'css', 'meta']);
+/** `at: '@last-good'` — Go back (C5): the newest version this Mac drew without an error. */
+export const LAST_GOOD = '@last-good';
+/** Where a kept-aside body is looked for (the local store has no CSS lane). */
+const ASIDE_ORDER: SpliceLane[] = ['html', 'meta', 'annotations', 'css'];
+const hhmm = (ms: number) => {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 export const NAME_NEEDS_HUB_UPDATE = 'Naming versions needs the team server to be updated';
 
 const json = (status: number, body: unknown) =>
@@ -63,7 +78,15 @@ type Outcome = {
 
 /** The runtime methods these routes read — all optional (an older home has none). */
 export interface HistoryRuntime extends VersionsRuntime {
-  acceptedRestore?(repoRel: string, revision: number): Promise<Outcome | null>;
+  /** S1.13 — `o.lanes`: one artboard / object / kept-aside body as ONE `restore` action. */
+  acceptedRestore?(repoRel: string, revision: number, o?: RestoreOptions): Promise<Outcome | null>;
+  /** S1.13 — the annotations lane, and `{ aside: true }` (a kept-aside body at exactly `revision`). */
+  acceptedVersion?(
+    repoRel: string,
+    revision: number,
+    lane?: SpliceLane,
+    o?: { aside?: boolean }
+  ): Promise<string | null>;
   acceptedName?(repoRel: string, revision: number, name: string | null): Promise<Outcome | null>;
   acceptedAside?(
     repoRel: string,
@@ -90,6 +113,10 @@ export interface HistoryRouteDeps {
   gitLane?: (repoRel: string, sha: string, lane: VersionLane) => Promise<string | null>;
   /** The Now row's save word for a canvas (CONTRACT §6); absent → null. */
   saveWord?: (repoRel: string) => SaveWord | null;
+  /** Absolute design root — `_state/render-ok.json` for Go back (S1.13). Absent: no record. */
+  designRoot?: string;
+  /** "5 Oct, 18:40" (restore labels). */
+  formatTime?: (ms: number) => string;
   /** ctx.bus.emit — `project:action` after an accepted name / aside / restore. */
   emit?: (event: string, payload: unknown) => void;
   now?: () => number;
@@ -188,6 +215,150 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     return answer.ok && answer.source === 'accepted' ? answer.newest : null;
   }
 
+  // ── S1.13 restores (V2-1.9 §5.8) ──
+
+  type Target = { canvas: string; repoRel: string };
+  const fmt = deps.formatTime ?? formatTime;
+
+  /** The history row of exactly `rev` on this canvas, or null. */
+  async function rowAt(rt: HistoryRuntime, repoRel: string, rev: number) {
+    const rows = await rt.acceptedHistory?.({ path: repoRel, before: rev + 1, limit: 1 });
+    const r = (rows as HistoryRowLike[] | null | undefined)?.[0];
+    return r && r.revision === rev ? r : null;
+  }
+
+  async function readSide(
+    rt: HistoryRuntime,
+    repoRel: string,
+    rev: number
+  ): Promise<SpliceSide | null> {
+    const read = (lane: SpliceLane) =>
+      rt.acceptedVersion ? rt.acceptedVersion(repoRel, rev, lane).catch(() => null) : null;
+    const [html, css, meta, annotations] = await Promise.all(
+      (['html', 'css', 'meta', 'annotations'] as const).map(read)
+    );
+    return html ? { html, css, meta, annotations } : null;
+  }
+
+  /** One `restore` action from the studio's lanes, each based on the head it read. */
+  async function proposeLanes(
+    rt: HistoryRuntime,
+    t: Target,
+    rev: number,
+    head: SpliceSide,
+    lanes: Partial<Record<SpliceLane, string>>,
+    label: string,
+    extra: Record<string, unknown>
+  ): Promise<Response> {
+    const list = (Object.entries(lanes) as [SpliceLane, string][]).map(([lane, content]) => ({
+      lane,
+      content,
+      baseContent: head[lane] ?? '',
+    }));
+    if (!list.length) return json(200, { ok: true, unchanged: true, line: label, ...extra });
+    const r = await rt
+      .acceptedRestore?.(t.repoRel, rev, { lanes: list, label })
+      .catch(() => undefined);
+    if (r === undefined) return json(503, { ok: false, reason: 'unreachable' });
+    if (r === null) return json(409, { ok: false, reason: 'legacy' });
+    if (r.status !== 'accepted') {
+      // A head that moved under the splice and does not merge: read again, then decide.
+      if (r.code === 'base-conflict') return json(409, { ok: false, reason: 'stale' });
+      return json(refusalStatus(r.code), { ok: false, reason: r.code ?? 'rejected' });
+    }
+    if (r.queued) return json(202, { ok: true, queued: true, line: label, ...extra });
+    if (r.actionId) void announceAction({ control: runtime, emit: deps.emit }, r.actionId);
+    return json(200, { ok: true, actionId: r.actionId ?? null, line: label, ...extra });
+  }
+
+  /** `at` names a version nobody kept → that body back over Now (§5.8 last row), else null. */
+  async function restoreAside(at: unknown, t: Target): Promise<Response | null> {
+    const ref = parseRef(at);
+    if (ref?.kind !== 'rev') return null;
+    const rt = runtime();
+    if (!rt?.acceptedHistory || !rt.acceptedVersion) return null;
+    const row = await rowAt(rt, t.repoRel, ref.rev).catch(() => null);
+    if (row?.kind !== 'aside') return null;
+    const newest = await revisionOf(rt, 'now', t).catch(() => null);
+    for (const lane of ASIDE_ORDER) {
+      const body = await rt
+        .acceptedVersion(t.repoRel, ref.rev, lane, { aside: true })
+        .catch(() => null);
+      if (body === null) continue;
+      const head =
+        newest === null ? '' : ((await rt.acceptedVersion(t.repoRel, newest, lane)) ?? '');
+      return proposeLanes(
+        rt,
+        t,
+        ref.rev,
+        { html: lane === 'html' ? head : '', [lane]: head },
+        { [lane]: body },
+        `Restored your version from ${fmt(row.committedAt)}`,
+        {}
+      );
+    }
+    return json(409, { ok: false, reason: 'not-in-version' });
+  }
+
+  /** "Restore only <artboard>", one object, Go back (`at: '@last-good'`). */
+  async function restoreScoped(b: Record<string, unknown>, t: Target): Promise<Response> {
+    const rt = runtime();
+    if (!rt?.acceptedRestore || !rt.acceptedVersion || !rt.acceptedHistory)
+      return json(409, { ok: false, reason: 'legacy' });
+    if (b.at === LAST_GOOD) {
+      if (b.artboard !== undefined || b.element !== undefined)
+        return json(400, { ok: false, reason: '@last-good restores the whole canvas' });
+      const lg = await findLastGood({
+        runtime: rt,
+        designRoot: deps.designRoot ?? null,
+        repoRel: t.repoRel,
+        canvas: t.canvas,
+      }).catch(() => undefined);
+      if (lg === undefined) return json(503, { ok: false, reason: 'unreachable' });
+      if (!lg) return json(409, { ok: false, reason: 'no-last-good' });
+      const line = `Went back to ${hhmm(lg.committedAt)}`;
+      const r = await rt
+        .acceptedRestore(t.repoRel, lg.revision, { label: line })
+        .catch(() => undefined);
+      return outcomeResponse(r, { line, at: `r${lg.revision}` });
+    }
+    const ref = parseRef(b.at ?? (b.revision !== undefined ? `r${b.revision}` : undefined));
+    if (ref?.kind !== 'rev')
+      return json(400, { ok: false, reason: 'at must be a version (r<n>) or @last-good' });
+    const isArtboard = b.artboard !== undefined;
+    if (isArtboard && b.element !== undefined)
+      return json(400, { ok: false, reason: 'artboard or element, not both' });
+    if (isArtboard && (typeof b.artboard !== 'string' || !b.artboard || b.artboard.length > 128))
+      return json(400, { ok: false, reason: 'artboard must be an artboard id' });
+    const key = isArtboard ? null : parseObjectKey(b.element);
+    if (!isArtboard && !key)
+      return json(400, {
+        ok: false,
+        reason: 'element must be <artboard>/<id> or an annotation id',
+      });
+    const newest = await revisionOf(rt, 'now', t).catch(() => undefined);
+    if (newest === undefined) return json(503, { ok: false, reason: 'unreachable' });
+    const [row, old, head] = await Promise.all([
+      rowAt(rt, t.repoRel, ref.rev).catch(() => null),
+      readSide(rt, t.repoRel, ref.rev),
+      newest === null ? null : readSide(rt, t.repoRel, newest),
+    ]);
+    if (!old || !head || !row || row.kind === 'aside')
+      return json(409, { ok: false, reason: 'not-in-version' });
+    const when = fmt(row.committedAt);
+    if (isArtboard) {
+      const s = restoreArtboard(t.canvas, head, old, b.artboard as string);
+      if (!s.ok) return json(409, { ok: false, reason: s.reason, line: s.line });
+      return proposeLanes(rt, t, ref.rev, head, s.lanes, `Restored ${s.label} to ${when}`, {
+        sharedKept: s.sharedKept,
+        ...(s.why ? { why: s.why } : {}),
+      });
+    }
+    const o = restoreObject(head, old, key as ObjectKey);
+    if (!o.ok) return json(409, { ok: false, reason: o.reason, line: o.line });
+    return proposeLanes(rt, t, ref.rev, head, o.lanes, `Restored ${o.label} to ${when}`, {});
+  }
+
   return [
     // ── moved from http.ts's legacy literal (T27/T28), now judged per session ──
     {
@@ -244,12 +415,18 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
         const parsed = await readBody(req, MAX_BODY);
         if (!parsed.ok) return parsed.res;
         const b = parsed.body;
-        if (b.artboard !== undefined || b.element !== undefined)
-          // S1.13 — "Restore only <artboard>" / one object.
-          return json(501, { ok: false, reason: 'not-yet' });
         const access = accessOf(req);
+        // Judged first: a canvas-only session naming a canvas it was not granted gets the
+        // answer a missing canvas gets, whatever else the body says (U1).
         const t = judge(access, b.path, 'edit');
         if (!t.ok) return t.res;
+        // S1.13 — one artboard, one object, Go back, a version nobody kept (§5.8).
+        if (b.artboard !== undefined || b.element !== undefined || b.at === LAST_GOOD)
+          return restoreScoped(b, t);
+        if (b.at !== undefined) {
+          const aside = await restoreAside(b.at, t);
+          if (aside) return aside;
+        }
         let revision: number;
         if (b.at !== undefined) {
           const ref = parseRef(b.at);

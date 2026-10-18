@@ -86,6 +86,7 @@ import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
+import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
@@ -621,7 +622,9 @@ export interface SyncRuntime {
   acceptedVersion?(
     repoRel: string,
     revision: number,
-    lane?: 'html' | 'css' | 'meta'
+    lane?: 'html' | 'css' | 'meta' | 'annotations',
+    /** S1.13 — the body a `history.aside` at exactly `revision` kept for that lane. */
+    o?: { aside?: boolean }
   ): Promise<string | null>;
   /**
    * S1.12b — name a version of a canvas (`history.name`, V2-1.9 §5.4): the kernel snaps
@@ -649,11 +652,20 @@ export interface SyncRuntime {
     queued?: boolean;
     actionId?: string;
   } | null>;
-  /** Restore a canvas to a revision as a NEW action. */
+  /**
+   * Restore a canvas to a revision as a NEW action. S1.13: `o.lanes` — one artboard / object /
+   * kept-aside version, the studio's lanes as ONE `restore` action (local-kernel.ts RestoreOptions).
+   */
   acceptedRestore?(
     repoRel: string,
-    revision: number
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+    revision: number,
+    o?: RestoreOptions
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
   /**
    * Personal undo/redo of this actor's accepted actions (T28). S5.5: one id,
    * several (`actionIds` — "as if they never happened", ONE action), or a
@@ -5625,19 +5637,28 @@ export function createSyncRuntime(
       if (!hubOffers('history.aside')) return { status: 'rejected', code: 'hub-too-old' };
       return acceptedLink.aside(slug, lane, content, label);
     },
-    acceptedVersion: async (repoRel, revision, lane = 'html') => {
+    acceptedVersion: async (repoRel, revision, lane = 'html', o) => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
       if (!slug) return null;
+      if (o?.aside) return acceptedLink.asideAt(slug, lane, revision);
       const r = await acceptedLink.laneAt(slug, lane, revision);
       return r.body || null;
     },
-    acceptedRestore: async (repoRel, revision) => {
+    acceptedRestore: async (repoRel, revision, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
       if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
       const name = path.basename(repoRel).replace(/\.(tsx|html)$/i, '');
-      return acceptedLink.restore([slug], revision, `Restore ${name} to version ${revision}`);
+      if (o?.lanes) {
+        if (!o.lanes.length) return { status: 'rejected', code: 'invalid' };
+        return acceptedLink.restoreLanes(slug, o.lanes, o.label ?? `Restore ${name}`);
+      }
+      return acceptedLink.restore(
+        [slug],
+        revision,
+        o?.label ?? `Restore ${name} to version ${revision}`
+      );
     },
     acceptedUndo: async (raw, redo = false, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
