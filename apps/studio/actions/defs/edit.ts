@@ -161,7 +161,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Go inside',
     kind: 'command',
     exec: 'canvas',
-    keys: [kb('↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
+    // S3.11: Edit's only — in Preview and Viewing ↵ is `inspect.edit` (one binding per chord and context).
+    keys: [kb('↵', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
   },
   {
     // S2.1 — one level out: the parent is selected; at the top the selection is dropped. Its key is
@@ -277,5 +278,74 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
+  },
+  // S3.10a — where a click goes: `data-cd-link` on the element (S3-links-format). Both are `edit-op`s
+  // (`edit-ops/{set,clear}-link.ts`) on POST /_api/edit-op. Clear link runs from ⌘K through the inspector's
+  // frame; Set link has no human picker yet (the On click row only clears), so it has no runner — the AI path
+  // and the route are complete.
+  {
+    id: 'element.set-link',
+    label: 'Set link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  {
+    id: 'element.clear-link',
+    label: 'Clear link',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  // S11.8 — Inspector › Advanced, the code half. Copy code reads the canvas source (`/_api/canvas-source`,
+  // which needs `export`: Can comment and up, never Can view); the other two write the element's JSX.
+  {
+    id: 'inspector.copy-code',
+    label: 'Copy code',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'comment' as const, selection: ['object'] },
+  },
+  {
+    id: 'inspector.edit-css-as-text',
+    label: 'Edit CSS as text…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  {
+    id: 'element.detach',
+    label: 'Detach from shared component',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  // S3.11 — the Inspect panel (Preview ⌘-click, Viewing click; 04 md-inspect). Copy code is the same download
+  // as `inspector.copy-code` (Can comment and up — the server refuses source to Can view), run from the panel
+  // that is open in these modes; Edit ↵ asks the shell for Edit with the same element selected, so it is the
+  // canvas's key (the canvas holds the selection) and the panel's Edit button replays it.
+  {
+    id: 'inspect.copy-code',
+    label: 'Copy code',
+    kind: 'command',
+    exec: 'shell',
+    enabled: {
+      minRole: 'comment' as const,
+      mode: ['preview' as const, 'viewing' as const],
+      selection: ['object'],
+    },
+  },
+  {
+    id: 'inspect.edit',
+    label: 'Edit',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, mode: ['preview' as const, 'viewing' as const], selection: ['object'] },
+    keys: [
+      kb('↵', 'selection', {
+        when: { ...OBJ, mode: ['preview', 'viewing'], selection: ['object'] },
+      }),
+    ],
+    search: { keywords: ['inspect', 'switch', 'edit mode'] },
   },
 ];

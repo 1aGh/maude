@@ -76,7 +76,7 @@ export const isToolId = (v: unknown): v is ToolId => typeof v === 'string' && TO
 // v1 bridge: until the two v2 toolbars land (V2-4.5) the canvas still runs DDR-223's binary
 // `preview | edit` posture over the v1 tools. A governed mode maps onto it:
 //   edit    → edit / `move`
-//   viewing → edit / `move`      a read-only `move` IS v1's "select & inspect" (`inspect` is S3's)
+//   viewing → edit / `inspect`   S3.11: `inspect` is a tool of its own (outline + size tag, no handles)
 //   preview → preview / `browse`
 //   present → preview / `browse`  Present · Canvas: clicks pan (Present · Artboards is S3's)
 
@@ -114,7 +114,7 @@ export const V1_POSTURE: Readonly<Record<CanvasModeV2, 'preview' | 'edit'>> = Ob
 /** The resting tool each governed mode arms (v1 ids until V2-4.5). */
 export const REST_TOOL: Readonly<Record<CanvasModeV2, ToolId>> = Object.freeze({
   edit: 'move',
-  viewing: 'move',
+  viewing: 'inspect',
   preview: 'browse',
   present: 'browse',
 });
@@ -256,7 +256,7 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
   viewing: Object.freeze({
     rest: 'inspect' as const,
     slots: Object.freeze([
-      // A click shows specs, a drag pans. `inspect` is S3's; until then the slot rides `move`.
+      // A click shows specs, a drag pans (S3.11: the `inspect` tool).
       slot({ key: 'H', label: 'Hand', tool: 'inspect', minRole: 'view' }),
       slot({ key: 'C', label: 'Comment', tool: 'comment', minRole: 'comment' }),
     ]),
@@ -271,10 +271,9 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
   }),
 });
 
-/** Until a v2 tool has a descriptor, its slot arms this v1 tool instead (S3 retires the entry). */
-export const V1_TOOL_BRIDGE: Readonly<Partial<Record<ToolId, ToolId>>> = Object.freeze({
-  inspect: 'move',
-});
+/** Until a v2 tool has a descriptor, its slot arms this v1 tool instead. S3.11 retired `inspect → move`
+ *  (it is a tool of its own now); the map stays for the next v2 slot that needs a bridge (none today). */
+export const V1_TOOL_BRIDGE: Readonly<Partial<Record<ToolId, ToolId>>> = Object.freeze({});
 
 /** The tools a double-click locks on (sticky lock, T19). Q7: a mode change clears the lock. */
 export const STICKY_LOCKABLE: ReadonlySet<ToolId> = new Set<ToolId>([

@@ -38,6 +38,7 @@ test('the replayed chords are exactly the canvas actions with only a key handler
   expect(Object.keys(REPLAY_KEYS).sort()).toEqual([
     'edit.copy-properties',
     'edit.paste-properties',
+    'inspect.edit', // S3.11 — the Inspect panel's Edit button replays ↵
     'mode.preview',
     'select.all',
   ]);

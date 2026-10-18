@@ -40,7 +40,7 @@ import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
-import { canvasInsets } from './bridge/canvas-mode-store.ts';
+import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
 import { type Insets, revealViewBox } from './bridge/occlusion.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
@@ -94,6 +94,9 @@ import {
   resolveHoverTarget,
   useInputRouter,
 } from './input-router.tsx';
+import { inspectsSelection, shouldFlipToMove } from './inspect-canvas.ts';
+import { InspectOverlay, measureNeighbour } from './inspect-overlay.tsx';
+import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
@@ -3277,7 +3280,7 @@ function CanvasRouter({
       if (editing) return;
       // feature-4 — browse is a pure pass-through: no drill-select, no inline
       // text-edit. The mock owns its own double-clicks. Press V to edit.
-      if (dblToolRef.current === 'browse') return;
+      if (dblToolRef.current === 'browse' || dblToolRef.current === 'inspect') return;
       const t = e.target as HTMLElement | null;
       const stamped = (t?.closest?.('[data-cd-id]') as HTMLElement | null) ?? null;
       if (!stamped) return;
@@ -3421,7 +3424,8 @@ function CanvasRouter({
         // from BROWSE means "I want to edit now": flip to the Move (select)
         // tool so the follow-up gestures (drag, dblclick drill, keyboard)
         // work without a separate V press.
-        if (tool === 'browse') setTool('move');
+        // S3.11 — only on a canvas no shell governs: in a governed Preview ⌘-click INSPECTS (↵ asks for Edit).
+        if (shouldFlipToMove(tool, canvasModeStore(window).get().mode)) setTool('move');
         // feature-4 dogfood fix (2026-07-19) — Figma's "entered group" context:
         // a bare (top-mode) click INSIDE the currently selected element keeps
         // that selection instead of resetting to the top-level ancestor.
@@ -3447,7 +3451,12 @@ function CanvasRouter({
             }
           }
         }
-        const sel = hoverTargetToSelection(target);
+        let sel = hoverTargetToSelection(target);
+        // S3.11 — an inspection carries the gap to its nearest sibling for the Inspect panel's rows
+        if (inspectsSelection(canvasModeStore(window).get().mode, tool)) {
+          const neighbour = measureNeighbour(target.el);
+          if (neighbour) sel = { ...sel, neighbour } as typeof sel;
+        }
         if (mode === 'replace') selSet.replace(sel);
         else selSet.add(sel);
         // Phase 12 Task 4 — refresh the Layers tree for the selected artboard.
@@ -3517,6 +3526,8 @@ function CanvasRouter({
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />
+      {/* S3.10a — the link chip: Edit only, read-only (the component gates its own mode) */}
+      <LinkChipOverlay />
       <EditingLayer />
       {!readOnly && <ElementResizeOverlay />}
       {!readOnly && <SpacingHandlesOverlay />}
@@ -3526,6 +3537,7 @@ function CanvasRouter({
       <GroupBbox />
       {!readOnly && <EqualSpacingHandles />}
       <MeasureOverlay />
+      <InspectOverlay />
       {!readOnly && <ContextualToolbar />}
       {!readOnly && (
         <MultiArtboardToolbar

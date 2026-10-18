@@ -52,6 +52,7 @@ import {
   attrLabel,
   colourWord,
   firstWords,
+  linkChangeWords,
   nameInWords,
   plural,
   propLabel,
@@ -725,6 +726,9 @@ function diffPair(env: Env, a: El, b: El, abKey: string, out: Change[]): void {
       }
     }
   }
+  // S3.10a — the element's On click (`data-cd-link`): the one data-cd-* a person sees changing
+  if (a.link !== b.link)
+    push('attr', 'W1', linkChangeWords(a.link, b.link, nameFor(null)), 'data-cd-link');
   if (isAb && sizeA) {
     const dim = (e: El, k: string): Val | undefined => e.attrs.get(k);
     const lits = [dim(a, 'width'), dim(a, 'height'), dim(b, 'width'), dim(b, 'height')];

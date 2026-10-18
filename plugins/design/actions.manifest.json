@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "204fb6c9df58",
+  "manifestVersion": "8f353f82d2eb",
   "actions": [
     {
       "id": "search.open",
@@ -683,10 +683,122 @@
       }
     },
     {
+      "id": "element.set-link",
+      "label": "Set link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add data-cd-link=\"#<artboard>\" | \"<canvas>.tsx#<artboard>\" | \"https://…\" to the element, next to its data-cd-id (add an id if it has none)"
+      }
+    },
+    {
+      "id": "element.clear-link",
+      "label": "Clear link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the element’s data-cd-link attribute"
+      }
+    },
+    {
+      "id": "inspector.copy-code",
+      "label": "Copy code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the .tsx (find its data-cd-id)"
+      }
+    },
+    {
+      "id": "inspector.edit-css-as-text",
+      "label": "Edit CSS as text…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Edit the element’s style={{…}} props in the .tsx, one declaration per property"
+      }
+    },
+    {
+      "id": "element.detach",
+      "label": "Detach from shared component",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the component definition under a new name and point this one instance at the copy; the other places keep the original"
+      }
+    },
+    {
+      "id": "inspect.copy-code",
+      "label": "Copy code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the .tsx (find its data-cd-id)"
+      }
+    },
+    {
+      "id": "inspect.edit",
+      "label": "Edit",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element> --mode edit"
+      }
+    },
+    {
       "id": "mode.preview",
       "label": "Preview",
       "kind": "toggle",
       "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode preview"
+      }
+    },
+    {
+      "id": "preview.back",
+      "label": "Back",
+      "kind": "command",
+      "exec": "shell",
       "effect": "none",
       "agent": {
         "path": "cli",

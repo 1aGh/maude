@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { artboardIdsOfSource, checkFile, formatFindings } from '../check/index.ts';
+import { diskCanvasArtboardIds } from '../check/link-resolver.ts';
 
 const argv = process.argv.slice(2);
 const files = [];
@@ -71,6 +72,9 @@ if (against !== undefined) {
   }
 }
 
+// S3.10a link-dangling: another canvas's artboards, read from this design root
+const linkProject = designRoot ? diskCanvasArtboardIds(designRoot) : undefined;
+
 const results = [];
 for (const f of files) {
   const r = relOf(f);
@@ -90,7 +94,15 @@ for (const f of files) {
     const src = r.abs.replace(/\.meta\.json$/, '.tsx');
     if (existsSync(src)) artboards = artboardIdsOfSource(src, readFileSync(src, 'utf8'));
   }
-  results.push(checkFile(r.rel, text, { against: againstText, tier, strict, artboards }));
+  results.push(
+    checkFile(r.rel, text, {
+      against: againstText,
+      tier,
+      strict,
+      artboards,
+      canvasArtboards: linkProject,
+    })
+  );
 }
 
 const bad = results.some((r) => !r.ok);

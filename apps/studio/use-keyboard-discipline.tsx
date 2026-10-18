@@ -93,7 +93,8 @@ export function useKeyboardDiscipline(): void {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       // feature-4 — browse is a pure pass-through; the mock owns the keyboard.
-      if (toolRef.current === 'browse') return;
+      // S3.11 — Inspect reads: the same keyboard editing ops are off there too.
+      if (toolRef.current === 'browse' || toolRef.current === 'inspect') return;
 
       // Cmd+A → select all stamped elements in the active artboard.
       const isMeta = e.metaKey || e.ctrlKey;

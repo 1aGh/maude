@@ -170,6 +170,53 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'element.set-id': TSX(
     'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
   ),
+  // S3.10a — `data-cd-link` is the one data-cd-* an agent may write (S3-links-format §8; checked by link-format ·
+  // link-no-id · link-dangling). The studio writes it through POST /_api/edit-op (edit-ops/{set,clear}-link.ts).
+  'element.set-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Add data-cd-link="#<artboard>" | "<canvas>.tsx#<artboard>" | "https://…" to the element, next to its data-cd-id (add an id if it has none)'
+    ),
+  },
+  'element.clear-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file('canvas-tsx', 'design:design', 'Remove the element’s data-cd-link attribute'),
+  },
+  'preview.back': NAV('<canvas> --mode preview'), // an agent opens the canvas it wants
+  // S11.8 — Inspector › Advanced, the code half. Copy code is the element's JSX read from the .tsx; Edit CSS as
+  // text is the style props; Detach is `/_api/detach-component` (clone the definition, repoint ONE usage).
+  'inspector.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspector.edit-css-as-text': TSX(
+    'Edit the element’s style={{…}} props in the .tsx, one declaration per property'
+  ),
+  'element.detach': TSX(
+    'Copy the component definition under a new name and point this one instance at the copy; the other places keep the original'
+  ),
+  // S3.11 — the Inspect panel: Copy code is the clipboard (read the JSX from the .tsx instead); Edit ↵ is a view change.
+  'inspect.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspect.edit': NAV('<canvas>@<element> --mode edit'),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),

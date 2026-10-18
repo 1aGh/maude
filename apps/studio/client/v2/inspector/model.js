@@ -59,7 +59,7 @@ export function takenIds(layersTree, ownId) {
   return out;
 }
 
-const humanToken = (name) => {
+export const humanToken = (name) => {
   const words = name.replace(/^--/, '').replace(/-/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 };

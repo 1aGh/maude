@@ -35,11 +35,13 @@ import path from 'node:path';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 import { fileText } from '../../cli/lib/finding-text.mjs';
+import { formatLinkTarget, type LinkTarget, parseLinkTarget } from './bridge/link-target.ts';
 import {
   attrRemovalSpan,
   copyWithoutIds,
   type ElementId,
   generateElementId,
+  type IdElement,
   insertIds,
   isValidElementId,
   seedOf,
@@ -6220,6 +6222,30 @@ export function ensureStamped(
   occurrence?: number,
   reserved?: Iterable<string>
 ): { source: string; id: ElementId } {
+  const { el, walk, targetId } = locateWalked(canvasAbsPath, source, id, occurrence);
+  if (el.idKind === 'expression') {
+    throw new CanvasEditError(
+      `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
+      { canvas: canvasAbsPath, id: targetId }
+    );
+  }
+  if (el.id !== null) {
+    if (!isValidElementId(el.id)) {
+      throw new CanvasEditError(
+        `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
+        { canvas: canvasAbsPath, id: targetId }
+      );
+    }
+    return { source, id: el.id };
+  }
+  const used = usedIds(walk);
+  for (const r of reserved ?? []) used.add(r);
+  const sid = generateElementId(seedOf(el), used);
+  return { source: insertIds(source, [{ nameEnd: el.nameEnd, id: sid }]), id: sid };
+}
+
+/** The walked element `id` (+ `occurrence`) addresses — never stamps. Throws when it is not there. */
+function locateWalked(canvasAbsPath: string, source: string, id: string, occurrence?: number) {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     throw new CanvasEditError(
@@ -6238,25 +6264,7 @@ export function ensureStamped(
       id: targetId,
     });
   }
-  if (el.idKind === 'expression') {
-    throw new CanvasEditError(
-      `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
-      { canvas: canvasAbsPath, id: targetId }
-    );
-  }
-  if (el.id !== null) {
-    if (!isValidElementId(el.id)) {
-      throw new CanvasEditError(
-        `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
-        { canvas: canvasAbsPath, id: targetId }
-      );
-    }
-    return { source, id: el.id };
-  }
-  const used = usedIds((walk as { elements: Parameters<typeof usedIds>[0] }).elements);
-  for (const r of reserved ?? []) used.add(r);
-  const sid = generateElementId(seedOf(el), used);
-  return { source: insertIds(source, [{ nameEnd: el.nameEnd, id: sid }]), id: sid };
+  return { el, walk: (walk as { elements: IdElement[] }).elements, targetId };
 }
 
 /** The walked element carrying the authored id `id` (it exists — callers stamp first). */
@@ -6355,4 +6363,102 @@ export function applySetHidden(
     source: marker ? removeSpan(restored, attrRemovalSpan(restored, marker)) : restored,
     id: st.id,
   };
+}
+
+// ---------------------------------------------------------------------------
+// S3.10a — on-click links (contract client/v2/contracts/S3-links-format.md §3). A link is ONE
+// attribute, `data-cd-link="<target>"`, next to the element's `data-cd-id`: writing it stamps the id
+// (when missing) and sets the link in the same returned source — one write, one undo step. It is
+// canvas-only metadata (stripped by every exporter) but, unlike `data-cd-locked`, a copy keeps it.
+
+/** A `data-cd-link` value outside the grammar (bridge/link-target.ts). The dispatcher answers `invalid`. */
+export class LinkTargetError extends CanvasEditError {
+  readonly code = 'link-format' as const;
+  constructor(canvas: string, id: string) {
+    super('A link goes to "#<artboard>", "<canvas>.tsx#<artboard>" or an "https://" address.', {
+      canvas,
+      id,
+    });
+    this.name = 'LinkTargetError';
+  }
+}
+
+/**
+ * Stamp `id` if needed + set `data-cd-link` in ONE returned source. Idempotent; replaces an existing
+ * value in place. External values are written in `href` form. Throws LinkTargetError on an invalid target.
+ */
+export function applySetLink(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  target: string,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const parsed = parseLinkTarget(target);
+  if (!parsed) throw new LinkTargetError(canvasAbsPath, id);
+  const value = formatLinkTarget(parsed);
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  if (el.linkKind === 'literal' && el.link === value) return st;
+  const attr = `data-cd-link="${value}"`;
+  if (el.linkAttr) {
+    const s = new MagicString(st.source);
+    s.overwrite(el.linkAttr.start, el.linkAttr.end, attr);
+    return { source: s.toString(), id: st.id };
+  }
+  return { source: addCdAttr(st.source, el, attr), id: st.id };
+}
+
+/** Remove `data-cd-link`. The id stays (ids are never removed). No-op (no stamp either) when absent. */
+export function applyClearLink(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  opts: { occurrence?: number } = {}
+): { source: string; id: ElementId } {
+  const { el } = locateWalked(canvasAbsPath, source, id, opts.occurrence);
+  if (!el.linkAttr) return { source, id: el.id && isValidElementId(el.id) ? el.id : id };
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence);
+  const after = stampedElement(canvasAbsPath, st.source, st.id);
+  if (!after.linkAttr) return st;
+  return { source: removeSpan(st.source, attrRemovalSpan(st.source, after.linkAttr)), id: st.id };
+}
+
+export interface LinkRow {
+  /** the element's authored id; null when it has none (check: `link-no-id`) */
+  id: ElementId | null;
+  /** the DCArtboard the element sits in */
+  artboardId: string | null;
+  line: number;
+  /** the cooked value, or the expression's source text */
+  raw: string;
+  /** null = invalid (reported, never followed) */
+  target: LinkTarget | null;
+}
+
+/** Every link in a file, in source order. Throws CanvasEditError when the file does not parse. */
+export function readLinks(source: string, path: string): LinkRow[] {
+  const walk = walkIdElements(source, path);
+  if (!walk.ok) {
+    throw new CanvasEditError(`oxc-parser failed on ${path}: ${walk.error}`, {
+      canvas: path,
+      id: '',
+    });
+  }
+  const out: LinkRow[] = [];
+  for (const e of walk.elements) {
+    if (!e.linkAttr) continue;
+    const literal = e.linkKind === 'literal';
+    const raw = literal
+      ? (e.link as string)
+      : source.slice(source.indexOf('=', e.linkAttr.start) + 1, e.linkAttr.end).trim();
+    out.push({
+      id: e.idKind === 'literal' && e.id && isValidElementId(e.id) ? e.id : null,
+      artboardId: e.artboard,
+      line: e.line,
+      raw,
+      target: literal ? parseLinkTarget(e.link) : null,
+    });
+  }
+  return out;
 }

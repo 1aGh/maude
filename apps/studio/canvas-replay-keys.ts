@@ -13,6 +13,9 @@ export const REPLAY_KEYS: Readonly<Record<string, KeyboardEventInit>> = Object.f
   'edit.paste-properties': { key: 'v', metaKey: true, altKey: true },
   // V2-4.5b — ⌥⌘P pressed with the shell focused: the canvas router asks for Preview / back (Q1).
   'mode.preview': { key: 'p', code: 'KeyP', metaKey: true, altKey: true },
+  // S3.11 — the Inspect panel's Edit button (shell): the canvas replays ↵ so inspect-overlay's key handler is
+  // the one implementation (it checks the mode, the role and that something is inspected).
+  'inspect.edit': { key: 'Enter', code: 'Enter' },
 });
 
 /** A toolbar key (V2-4.5b, `tool.<id>` from MODE_TOOLS): one letter, optionally ⇧. */

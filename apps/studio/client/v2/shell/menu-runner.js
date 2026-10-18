@@ -21,6 +21,7 @@ import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
+import { runPreviewBack } from '../preview/preview-back.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -184,6 +185,8 @@ export function createMenuHandlers(d) {
     'present.from-selection': () => presentFrom('selection'),
     'present.from-start': () => presentFrom('start'),
     'present.canvas': () => togglePresentCanvas(),
+    // S3.10a — back out of a followed link: the PreviewBar's "‹ Homepage" and ⌘K run the same function.
+    'preview.back': () => runPreviewBack(),
     // S3.5 — the Order and notes… sheet on the active canvas (the shell mounts it; the server refuses
     // every role below edit on PATCH /_api/present-meta).
     'present.order-notes': () => d.setOrderNotesOpen(true),

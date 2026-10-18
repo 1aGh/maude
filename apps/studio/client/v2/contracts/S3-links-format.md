@@ -84,8 +84,13 @@ export function readLinks(source: string, path: string): Array<{
 - **Duplicate, paste and insert keep `data-cd-link` on the copy.** A copied button still goes to Pricing. This
   differs from `data-cd-locked`, which a copy drops (V2-1.4 §5.5).
 - Edit-op wiring (S2's dispatch): `edit-ops/set-link.ts` and `edit-ops/clear-link.ts` wrap the two writers.
-  Body `{ op, canvas, id, occurrence?, target?, expected? }`. One accepted write = one V2-1.5 action
-  (`undo: 'step'`). An AI hold → `409 held-by-ai`, as for every edit op.
+  Body is S2.1's shape (`edit-ops/types.ts` `EditOpRequest`; decision `v2-lead-link-writes-use-edit-op-shape`):
+  `{ file, op, targets: [{ artboard, element, occurrence? }], params: { target }, expectRev? }`. `params.target` is
+  the `data-cd-link` value (`element.set-link` only; `element.clear-link` takes no params). Exactly one target.
+  The dispatcher stamps `element` first, so the writer always sees an authored id. One accepted write = one V2-1.5
+  action (`undo: 'step'`; the legacy undo is `revert {writeId}`). An AI hold → `409 held-by-ai`, a locked target →
+  `409 locked`, an invalid target → `400 invalid`, as for every edit op. (An earlier draft of this section named a
+  flat `{ op, canvas, id, … }` body; no code ever used it.)
 
 ## 4 · The read route (`routes/links.ts`, S3.10a)
 

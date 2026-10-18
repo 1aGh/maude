@@ -248,8 +248,9 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
       (i) => (i as HTMLInputElement).value
     );
     expect(values).toEqual(['1220', '22', '148', '44']);
-    expect(facts?.textContent).toContain('button');
-    expect(facts?.textContent).toContain('cta primary');
+    // S11.8: the tag and the classes are rows of their own (Element › Tag · Classes), not part of the facts
+    expect(q(host, 'adv-tag')?.textContent).toBe('Tagbutton');
+    expect(q(host, 'adv-classes')?.textContent).toBe('Classescta primary');
   });
 
   test('an artboard keeps its own editor (size, kind, body layout) inside Advanced', async () => {
@@ -270,11 +271,11 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     expect(body?.querySelector('[data-tour="css-panel"]')).toBeNull();
   });
 
-  test('tokens it uses are listed once each, with their variable as the hover', async () => {
+  test('tokens bound: the property in plain words, the variable beside it and as the hover (S11.8)', async () => {
     const host = await frame();
     const list = q(host, 'inspector-tokens-used');
     const labels = [...(list?.querySelectorAll('li') ?? [])].map((li) => li.textContent);
-    expect(labels).toEqual(['Space 8', 'Ink', 'Radius round']);
+    expect(labels).toEqual(['Gap--space-8', 'Fill--ink', 'Corners--radius-round']);
     expect(list?.querySelector('li')?.getAttribute('title')).toBe('--space-8');
   });
 });
@@ -356,7 +357,7 @@ describe('copy', () => {
   });
 });
 
-describe('the three registry actions (⌘K) run on the element the frame shows', () => {
+describe('the registry actions (⌘K) run on the element the frame shows', () => {
   const written: string[] = [];
   beforeEach(() => {
     written.length = 0;
@@ -387,6 +388,29 @@ describe('the three registry actions (⌘K) run on the element the frame shows',
     await act(async () => new Promise((r) => setTimeout(r, 30)));
     expect(q(host, 'fold-inspector-body')).not.toBeNull();
     expect(document.activeElement).toBe(q(host, 'inspector-element-id'));
+  });
+
+  test('Clear link (S3.10a) drops the link through /_api/edit-op and says so; no link says so too', async () => {
+    const { runInspectorAction } = await import('../client/v2/inspector/inspector-actions.js');
+    await frame({ selected: BUTTON });
+    calls.length = 0;
+    expect(await runInspectorAction('element.clear-link')).toBe('This object has no link.');
+    expect(calls).toEqual([]);
+    for (const r of roots.splice(0)) await act(async () => r.unmount());
+    await frame({
+      selected: { ...BUTTON, attrs: { 'data-cd-link': '#pricing' } },
+    });
+    expect(await runInspectorAction('element.clear-link')).toBe('Cleared the link.');
+    expect(calls.map((c) => [c.url, JSON.parse(c.body ?? '{}')])).toEqual([
+      [
+        '/_api/edit-op',
+        {
+          file: '.design/ui/Homepage.tsx',
+          op: 'element.clear-link',
+          targets: [{ artboard: 'desktop', element: 'book-call' }],
+        },
+      ],
+    ]);
   });
 
   test('a computed id has nothing to copy yet, and says how to get one', async () => {

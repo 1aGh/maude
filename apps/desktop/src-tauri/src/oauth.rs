@@ -414,7 +414,7 @@ const DEFAULT_CLOUD_HOST: &str = "cloud.maude.sh";
 /// shells out to `xdg-open`, a POSIX shell script whose `$BROWSER`-with-`%s` path
 /// word-splits and glob-expands the URL. The whitespace rule is the only thing
 /// standing between that and argv injection.
-fn has_unsafe_bytes(url: &str) -> bool {
+pub(crate) fn has_unsafe_bytes(url: &str) -> bool {
     url.contains(|c: char| {
         c.is_whitespace()
             || c.is_control()

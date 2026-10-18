@@ -474,7 +474,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
       const base = canvasModeStore(window).get().modeSeq + 1;
       setMode(base, 'edit');
       expect(echoes().at(-1)).toMatchObject({ seq: base, mode: 'viewing', cause: 'clamp' });
-      expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']); // v1's read-only select & inspect
+      expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'inspect']); // S3.11: Viewing rests on its own tool
     } finally {
       (window as unknown as { happyDOM?: { setURL?: (u: string) => void } }).happyDOM?.setURL?.(
         'http://localhost/'

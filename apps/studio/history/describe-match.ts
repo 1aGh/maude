@@ -134,6 +134,8 @@ export interface El {
   /** Authored `data-cd-id`, or `ab:<id>` / `sec:<id>` for the canvas frame's artboards and sections. */
   matchKey: string | null;
   cdId: string | null;
+  /** S3.10a — the `data-cd-link` value (a formula reads `{expr}`), or null: the one `data-cd-*` the lane words. */
+  link: string | null;
   parent: El | null;
   kids: El[];
   idx: number;
@@ -293,6 +295,7 @@ function mkEl(node: AnyNode, ctx: Ctx, slot: string | null): El {
     slot,
     matchKey: null,
     cdId: null,
+    link: null,
     parent: null,
     kids: [],
     idx: 0,
@@ -330,6 +333,11 @@ function mkEl(node: AnyNode, ctx: Ctx, slot: string | null): El {
           ? litOf(value.type === 'JSXExpressionContainer' ? value.expression : value)
           : null;
         if (l) el.cdId = l;
+      } else if (name === 'data-cd-link') {
+        const l = value
+          ? litOf(value.type === 'JSXExpressionContainer' ? value.expression : value)
+          : null;
+        el.link = l ?? '{expr}';
       }
       continue;
     }
@@ -431,6 +439,8 @@ function finish(root: El): void {
         e.text,
         e.exprs.join('\u0003'),
         e.kids.map((k) => k.hash).join('\u0004'),
+        // S3.10a — a changed link is a changed element (absent link: the pre-S3.10a hash, unchanged)
+        ...(e.link === null ? [] : [`link=${e.link}`]),
       ].join('\u0001')
     );
   };
@@ -462,6 +472,7 @@ function mkVirtual(ctx: Ctx): El {
     slot: null,
     matchKey: null,
     cdId: null,
+    link: null,
     parent: null,
     kids: [],
     idx: 0,
