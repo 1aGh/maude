@@ -105,10 +105,14 @@ export function presentedBearer(request) {
  * absent or wrong token falls through to its handler, which answers its own 401
  * exactly as today.
  *
- * @param {{ request: object, capability: string | null, scope: string, verify: (token: string) => object | null }} ctx
+ * `canvasDoor` (S9.4/S9.5): the row's handler answers a canvas-only session
+ * itself — it filters or refuses per target (V2-1.16 L1–L6), so the gate only
+ * asks whether ANY granted canvas holds the capability.
+ *
+ * @param {{ request: object, capability: string | null, scope: string, canvasDoor?: boolean, verify: (token: string) => object | null }} ctx
  * @returns {{ status: number, body: object } | null} a refusal, or null to go on
  */
-export function hubAccessRefusal({ request, capability, scope, verify }) {
+export function hubAccessRefusal({ request, capability, scope, canvasDoor = false, verify }) {
   if (!capability) return null;
   const token = presentedBearer(request);
   if (!token) return null;
@@ -121,10 +125,10 @@ export function hubAccessRefusal({ request, capability, scope, verify }) {
   const peer = peerAccess(match);
   if (!peer) return null;
   const { access } = peer;
-  // INTERIM, FAIL CLOSED (S9.3 → S9.4/S9.5): a canvas-only session reaches no
-  // project route until the doors that compute its closure answer for it. It
-  // gets the U1 answer, the same one a missing path will give it.
-  if (access.canvasOnly && scope !== 'none') {
+  // FAIL CLOSED (S9.3): a canvas-only session reaches no project route whose
+  // door does not answer for it (`canvasDoor`, S9.4/S9.5). It gets the U1
+  // answer, the same one a missing path gives it.
+  if (access.canvasOnly && scope !== 'none' && !canvasDoor) {
     return { status: 403, body: { ...NOT_IN_SCOPE_REFUSAL } };
   }
   // A canvas-only session holds nothing at canvas `null` (lead decision: even
@@ -133,7 +137,12 @@ export function hubAccessRefusal({ request, capability, scope, verify }) {
   const held = access.canvasOnly
     ? access.grants.some((g) => access.can(capability, g.c))
     : access.can(capability, null);
-  const allowed = held && !(peer.readOnly && WRITE_CAPABILITIES.has(capability));
+  // The stored `read_only` bit is the fail-closed projection every door that
+  // does not read the claim relies on (`peerSessionFields`: a canvas-only
+  // session is stored read-only). A canvasDoor handler DOES read the claim and
+  // judges each target itself, so there the claim is authoritative.
+  const claimDecides = access.canvasOnly && canvasDoor;
+  const allowed = held && (claimDecides || !(peer.readOnly && WRITE_CAPABILITIES.has(capability)));
   if (allowed) return null;
   if (access.role === 'observer') return { status: 403, body: { ...OBSERVER_REFUSAL } };
   return { status: 403, body: { ...READ_ONLY_REFUSAL } };

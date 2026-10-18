@@ -72,6 +72,16 @@ COPY apps/studio/canvas-slug.ts /build/apps/studio/canvas-slug.ts
 # scope.ts (its closure.ts import is type-only, erased by the bundler).
 COPY apps/studio/access/roles.ts /build/apps/studio/access/roles.ts
 COPY apps/studio/access/scope.ts /build/apps/studio/access/scope.ts
+# The canvas closure (V2-1.7 G2–G4, S9.4): access-files.mjs computes what a
+# canvas-only session may read with the studio's OWN scanner, so the build and
+# the ACL agree on what a canvas imports. Its import graph: the artifact
+# inventory, the DS resolver (+ system / css-scan) and paths.ts.
+COPY apps/studio/access/closure.ts /build/apps/studio/access/closure.ts
+COPY apps/studio/canvas-artifacts.ts /build/apps/studio/canvas-artifacts.ts
+COPY apps/studio/ds/ds-resolver.ts /build/apps/studio/ds/ds-resolver.ts
+COPY apps/studio/ds/system.ts /build/apps/studio/ds/system.ts
+COPY apps/studio/ds/css-scan.ts /build/apps/studio/ds/css-scan.ts
+COPY apps/studio/paths.ts /build/apps/studio/paths.ts
 # The source validator the studio projector gates disk writes with, and the
 # byte ceilings it reads. The workspace agent refuses to write or commit a body
 # it rejects (audit 2026-09-13 P0 #2) — with the SAME parser, not a hub-side

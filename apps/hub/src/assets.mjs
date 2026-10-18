@@ -24,7 +24,7 @@
 
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
-
+import { fileAccessFor } from './access-files.mjs';
 import { assetObjectKey, assetPrefixFromEnv } from './asset-key.mjs';
 import { resolveCheckoutFileWrite } from './file-manifest.mjs';
 import { isProjectFileShape } from './file-membership.mjs';
@@ -160,6 +160,17 @@ export async function handleAssetRoute(ctx) {
     }
     respond(response, 401, 'unauthorized');
     return true;
+  }
+  // V2-1.16 L5 — everyone: the scope check every other plane-B route has; a
+  // canvas-only session: its closure (and `export` on it, A19). Outside it,
+  // the answer is the 404 a missing asset gets (U1).
+  {
+    const access = fileAccessFor(match, { designRoot: ctx.designRoot, dataDir });
+    const rel = `assets/${key}`;
+    if (!access.sees(rel) || !access.exports(rel)) {
+      respond(response, 404, 'not found');
+      return true;
+    }
   }
 
   // ---- CHECKOUT FIRST, bucket second (the 2026-08-15 annotations-assets RCA).
@@ -498,8 +509,12 @@ export async function handleCheckoutAssetRoute(ctx) {
   // is judged on the REAL landing path (symlink-resolved), and containment
   // rides in the same call — see `resolveCheckoutFileWrite`.
   const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
+  const access = fileAccessFor(match, { designRoot: ctx.designRoot, dataDir });
   if (!target.ok) {
-    respond(response, 400, 'invalid path');
+    // U1 for a canvas-only session: the class half reads the checkout (a
+    // `.css` beside a canvas is canvas-owned), so a 400 would say the canvas exists.
+    if (access.claimDecides) respond(response, 404, 'not found');
+    else respond(response, 400, 'invalid path');
     return true;
   }
   const writeAbs = target.abs;
@@ -517,7 +532,9 @@ export async function handleCheckoutAssetRoute(ctx) {
   // large photo every boot). GET answers identically and with an empty body:
   // see the method gate above for why GET has to be one of these.
   if (method === 'HEAD' || method === 'GET') {
-    if (existsSync(writeAbs)) {
+    // V2-1.16 L5 — presence only of what this session sees (everyone: its
+    // scope; canvas-only: its closure). Anything else is "absent" (U1).
+    if (access.sees(target.realRel) && existsSync(writeAbs)) {
       response
         .writeHead(200, {
           'Cache-Control': 'no-store',
@@ -664,7 +681,20 @@ export async function handleAssetProbeRoute(ctx) {
     const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
     return target.ok && existsSync(target.abs);
   };
-  for (const rel of paths) if (holds(rel)) present.push(rel);
+  // V2-1.16 L5 — a path this session does not see is reported absent (U1),
+  // judged on the real landing path like the writers judge it.
+  const access = fileAccessFor(match, {
+    designRoot: ctx.designRoot,
+    journal: ctx.journal,
+    dataDir,
+  });
+  const visible = (rel) => {
+    if (typeof rel !== 'string' || !ctx.designRoot || !access.sees(rel)) return false;
+    if (rel.startsWith('assets/')) return true;
+    const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
+    return target.ok && access.sees(target.realRel);
+  };
+  for (const rel of paths) if (visible(rel) && holds(rel)) present.push(rel);
 
   const payload = JSON.stringify({ present });
   response
