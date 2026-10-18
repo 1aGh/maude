@@ -434,7 +434,7 @@ describe('S9.15b: studio sockets open read-only while paused', () => {
 
   test('the shell socket (inspector + main-realm collab) is forwarded read-only', () => {
     for (const [env, expected] of [
-      [PAUSED_ENV, '1'],
+      [PAUSED_ENV, 'plan'],
       [{}, '0'],
     ]) {
       const { proxy, forwarded } = makeProxy(env);
@@ -453,7 +453,7 @@ describe('S9.15b: studio sockets open read-only while paused', () => {
   test('the canvas collab socket is forwarded read-only', () => {
     const verifyToken = () => ({ ok: true, role: 'owner', subject: 'o@x.test' });
     for (const [env, expected] of [
-      [PAUSED_ENV, '1'],
+      [PAUSED_ENV, 'plan'],
       [{}, '0'],
     ]) {
       const { proxy, forwarded } = makeProxy(env);
@@ -466,6 +466,39 @@ describe('S9.15b: studio sockets open read-only while paused', () => {
       assert.equal(forwarded.length, 1);
       assert.equal(forwarded[0].headers[READONLY], expected);
     }
+  });
+});
+
+describe('S9.15c: a paused socket closes the comment lane too', () => {
+  const socket = () => ({ write() {}, destroy() {}, on() {} });
+  const READONLY = `${INJECTED_HEADER_PREFIX}readonly`;
+  const upgrade = (env, role) => {
+    const { proxy, forwarded } = makeProxy(env);
+    proxy.handleUpgrade({
+      request: { headers: { upgrade: 'websocket', origin: SHELL }, url: '/_ws/collab/ui-home' },
+      socket: socket(),
+      head: null,
+      session: { email: `${role}@x.test`, role, sessionKey: 'k' },
+    });
+    return forwarded[0]?.headers?.[READONLY];
+  };
+
+  test('paused: every role’s socket says `plan` (no writable lane), never `1`', () => {
+    for (const role of ['owner', 'member', 'viewer', 'observer']) {
+      assert.equal(upgrade(PAUSED_ENV, role), 'plan', role);
+    }
+  });
+
+  test('not paused: a Can comment viewer keeps `1` (its comment lane stays open)', () => {
+    assert.equal(upgrade({}, 'viewer'), '1');
+    assert.equal(upgrade({}, 'member'), '0');
+  });
+
+  test('paused: an HTTP comment write still answers 402 plan and is not forwarded', async () => {
+    const got = await shellDoor(PAUSED_ENV, { method: 'POST', path: '/_comments', role: 'member' });
+    assert.equal(got.status, 402);
+    assert.deepEqual(got.body, PLAN_PAUSED_REFUSAL);
+    assert.equal(got.forwarded, 0);
   });
 });
 

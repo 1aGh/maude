@@ -57,6 +57,15 @@ export interface RoomConn extends CollabConn {
    */
   readOnly?: boolean;
   /**
+   * S9.15c — read-only with NO writable lane: the comment lane closes too. Set
+   * when the proxy's readonly projection is anything but `0`/`1` — `plan` (the
+   * project is paused, lead decision `v2-lead-paused-comments-refused`) or a
+   * value this studio does not know (the stricter reading). Every sync write
+   * from the conn is refused; its sync step 1 is answered and its awareness
+   * (presence) still applies. Absent = the `readOnly` rule above alone.
+   */
+  lanesClosed?: boolean;
+  /**
    * S9.11 (V2-1.7 §5.5) — may this conn publish `summon` (Bring everyone here)? Absent =
    * yes, for the same reason `readOnly` defaults to writable; ws.ts sets it from the
    * socket's access (`summon`: owner + member).
@@ -243,11 +252,13 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
    *     untrusted canvas origin, whoever is connected.
    *   - readOnly (cloud collab lane): only the comment lane is writable — the
    *     WS mirror of the role matrix's viewer capability.
+   *   - lanesClosed (S9.15c, a paused project): no lane is writable.
    */
   function refusedLanes(conn: RoomConn, roots: ReadonlySet<string>): string[] {
     const refused: string[] = [];
     // Accepted revisions: every persistent lane is the hub's to change.
     if (callbacks.acceptedMode?.()) return [...roots];
+    if (conn.lanesClosed === true) return [...roots];
     for (const r of roots) {
       if (conn.realm === 'canvas' && (isBodyLane(r) || r === '<unresolved>')) {
         refused.push(r);
@@ -267,7 +278,10 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
     if (readMessageType(payload) !== MESSAGE_SYNC) {
       // S3.7b (D11) — a read-only conn may watch, never broadcast a
       // presentation: `present` + `pointer` are stripped before the apply.
-      const frame = conn.readOnly === true ? stripPresenterAwareness(payload) : payload;
+      const frame =
+        conn.readOnly === true || conn.lanesClosed === true
+          ? stripPresenterAwareness(payload)
+          : payload;
       if (!frame) return;
       const reply = handleMessage(frame, doc, awareness, conn);
       if (reply) conn.send(reply);
@@ -291,11 +305,13 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       gateRefusalCount += 1;
       discardMirror();
       console.warn(
-        `[collab/${slug}] origin gate REFUSED a ${callbacks.acceptedMode?.() ? 'accepted-replica' : conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
+        `[collab/${slug}] origin gate REFUSED a ${callbacks.acceptedMode?.() ? 'accepted-replica' : conn.lanesClosed ? 'lanes-closed' : conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
           `sync frame (lanes: ${refused.join(', ') || 'unclassifiable'}). ` +
-          (conn.readOnly
-            ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
-            : 'Untrusted canvas script may not write canvas source — see DDR-122 follow-up / collab/origins.ts.')
+          (conn.lanesClosed
+            ? 'Editing is paused for this project — no lane is writable (S9.15c).'
+            : conn.readOnly
+              ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
+              : 'Untrusted canvas script may not write canvas source — see DDR-122 follow-up / collab/origins.ts.')
       );
       // Re-assert server truth to that peer so it converges on the authoritative
       // state instead of silently diverging. Their locally-authored body items
@@ -421,7 +437,12 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       receiveFollow(conn, payload);
       return;
     }
-    if (conn.realm === 'canvas' || conn.readOnly === true || callbacks.acceptedMode?.()) {
+    if (
+      conn.realm === 'canvas' ||
+      conn.readOnly === true ||
+      conn.lanesClosed === true ||
+      callbacks.acceptedMode?.()
+    ) {
       receiveGated(conn, payload);
       return;
     }

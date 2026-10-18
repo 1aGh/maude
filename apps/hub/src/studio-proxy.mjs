@@ -296,10 +296,20 @@ export function upstreamHeaders(
   // receiving everything. Only the socket lanes pass it; an HTTP write on a
   // paused project never gets this far (402 plan above).
   //
+  // S9.15c — and with NO writable lane: `plan`, not `1`. `1` is read-only BY
+  // ROLE, where the comment lane stays open (Can comment); `plan` closes it too,
+  // so a paused project's comments cannot sync over a socket either (lead
+  // decision `v2-lead-paused-comments-refused`). A studio reads anything but
+  // `0`/`1` as that stricter mode; an older one reads it as "not `0`" =
+  // read-only by role, which is what S9.15b already sent.
+  //
   // S3.7c — a canvas-only session has NO project role: the projection says
   // read-only whatever its grants hold (the claim below carries the grants).
-  out[`${INJECTED_HEADER_PREFIX}readonly`] =
-    paused || canvasOnly || isReadOnlyRole(role) ? '1' : '0';
+  out[`${INJECTED_HEADER_PREFIX}readonly`] = paused
+    ? 'plan'
+    : canvasOnly || isReadOnlyRole(role)
+      ? '1'
+      : '0';
   // V2-1.7 §5.4 — the whole ACCESS CLAIM (project role + canvas grants), which
   // the studio's `withSession` reads into `currentAccess()` (S9.9). The role and
   // readonly headers above stay what they were — the PROJECT role and its
