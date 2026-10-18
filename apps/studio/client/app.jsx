@@ -240,7 +240,8 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
-import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
+import { noteMadeByAi } from './v2/ai/made-by-ai.js';
+import { noteAiRuns } from './v2/ai/runs-store.js';
 import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
 import { OPEN_ASSETS_EVENT } from './v2/ai/AttachMenu.jsx';
 import { TRASH_CHANGED_EVENT } from './v2/left-panel/use-trash.js';
@@ -824,10 +825,12 @@ function ShellState({ children }) {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
             // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.
             noteAiRuns(m.seq);
-          } else if (m.type === 'project:action') {
-            // S5.11 (V2-1.15 §5.8) — a settled "Done" ring on every artboard the action touched
-            // (S5.5b payload `artboards: Record<canvas, string[]>`).
-            getRunsStore().markDone(Object.values(m.action?.artboards ?? {}).flat());
+          } else if (m.type === 'project:action' && m.action) {
+            // S2.20 — an accepted action: the ⌘Z projection of every open canvas it touched.
+            // S5.15 — "Made by AI" (derived: an ai action marks its artboards, the next person's
+            // change clears them); it replaces S5.11's 6 s Done ring, which lit every action's.
+            undoProjection.onAction(m.action);
+            noteMadeByAi(m.action);
           } else if (m.type === 'trash:changed') {
             // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
             window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
@@ -845,9 +848,6 @@ function ShellState({ children }) {
             // is installed once, by an effect that must not re-subscribe the
             // socket every time the posture flips.
             if (!savingIsManagedRef.current) setGitStatus(m.payload);
-          } else if (m.type === 'project:action' && m.action) {
-            // S2.20 — an accepted action: the ⌘Z projection of every open canvas it touched.
-            undoProjection.onAction(m.action);
           } else if (m.type === 'git-lifecycle' && m.payload) {
             // Phase 8 Task 7 — branch switch / pull mid-session. Server has
             // already flushed every dirty Y.Doc to JSON; just prompt the user.
