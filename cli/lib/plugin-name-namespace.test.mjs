@@ -141,10 +141,16 @@ const agents = loadAgents();
 
 test('agents/ holds no _*.md (rule files are not agents)', () => {
   const offenders = readdirSync(AGENTS_DIR).filter((f) => f.startsWith('_') && f.endsWith('.md'));
-  assertWithKnown('Underscore rule files registered as agents', offenders, {
-    '_draw-design-rules.md': 'S12.7 moves it to references/draw/design-rules.md (D3)',
-    '_draw-motion-rules.md': 'S12.7 moves it to references/draw/motion-rules.md (D3)',
-  });
+  // S12.7 moved the draw rubrics to references/draw/ (D3): the list is empty and stays empty.
+  assertWithKnown('Underscore rule files registered as agents', offenders, {});
+  // …and the rubrics the draw agents read are where their pointers say.
+  for (const f of ['design-rules.md', 'motion-rules.md'])
+    assert.ok(
+      readdirSync(join(ROOT, 'plugins', 'design', 'references', 'draw')).includes(f),
+      `references/draw/${f} exists`
+    );
+  const stale = grep('_draw-\\(design\\|motion\\)-rules');
+  assert.deepEqual(stale, [], `pointers to the old agents/_draw-*-rules.md:\n  ${stale.join('\n  ')}`);
 });
 
 // The reshaped critics (V2-1.18 §5.5): Write stays in frontmatter (D2), so the BODY must

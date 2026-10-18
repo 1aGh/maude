@@ -31,9 +31,9 @@ If you catch yourself typing `d="M12 4 C..."` with numbers you reasoned out,
 
 ## Read the rubric first
 
-Before anything, read **`plugins/design/agents/_draw-design-rules.md`** (resolve
-via `$CLAUDE_PLUGIN_ROOT/agents/_draw-design-rules.md`, falling back to a Glob
-for `**/agents/_draw-design-rules.md`). It is the single source for the 30-check
+Before anything, read **`plugins/design/references/draw/design-rules.md`** (resolve
+via `$CLAUDE_PLUGIN_ROOT/references/draw/design-rules.md`, falling back to a Glob
+for `**/references/draw/design-rules.md`). It is the single source for the 30-check
 rubric, the HARD floor (WCAG · 4/8pt grid · 16px legibility · single-color
 flatten), and the source-level verification rules. `draw-critic` scores against
 the same doc.
@@ -41,7 +41,7 @@ the same doc.
 ## Motion brief? Read the motion rules too
 
 If the brief asks for **animation** (move / morph / pulse / blink / "animated …"),
-ALSO read **`plugins/design/agents/_draw-motion-rules.md`** (same resolve path).
+ALSO read **`plugins/design/references/draw/motion-rules.md`** (same resolve path).
 It owns the mechanism ladder, the live-verify rule, the reduced-motion gate, and
 the `motion` verdict block. The static rubric still applies to every frame; the
 motion rules add the time dimension. Then:
@@ -51,7 +51,7 @@ motion rules add the time dimension. Then:
    `sequence` / `parallel` / `stagger`. A **shape morph** comes ONLY from
    `morphVariants(basePath, { n, jitter, seed })` (fixed vertex count — the
    cross-renderer constraint), NEVER a hand-typed `values=` or CSS `d:path()`.
-2. **Pick the lowest mechanism rung** (the ladder in `_draw-motion-rules.md`):
+2. **Pick the lowest mechanism rung** (the ladder in `references/draw/motion-rules.md`):
    move/scale/rotate/fade → `<animateTransform>`/transform; outline change →
    `d`-morph. Each animation keeps its OWN easing token (preserve overshoot).
 3. **Emit via the engine**, in your build script: give animated nodes an `id`,
@@ -182,7 +182,7 @@ Do NOT draw before the plan exists. (SVGThinker: planning primitives-first is th
 For any illustration / diagram / spot / background (anything with >1 placed
 element), you **MUST** compose on a constructed armature, not random-scatter.
 Random placement is the documented cause of "blob soup" — apply the
-`_draw-design-rules.md` **Generation discipline G1–G6**:
+`references/draw/design-rules.md` **Generation discipline G1–G6**:
 
 ```ts
 const arm = E.armature(box, 'dynamic-symmetry'); // or 'thirds' / 'rabatment'
@@ -226,7 +226,7 @@ over-complicate* — the keep-best gate is what stops that.
 
 ### 5. Rubric critique of the kept-best
 
-Apply the 30 checks from `_draw-design-rules.md`. Verify the **HARD floor** and
+Apply the 30 checks from `references/draw/design-rules.md`. Verify the **HARD floor** and
 all objective checks from **source** (read the SVG, count primitives, compute
 `contrastRatio`), NOT from the vision model. Record per-check pass/fail.
 
@@ -310,7 +310,7 @@ full SVG.
 | `svg-optimize` rejects the SVG (validity gate) | The engine output is malformed → bug in your build script; fix it, don't ship raw. |
 | Brief is ambiguous about type | Default by cues (single glyph → icon; brand name → logo; scene → illustration; nodes+arrows → diagram); note the assumption. |
 | Can't converge in `max_rounds` | Ship the kept-best; in the verdict set `passed:false` with `strong_failed`/HARD gaps listed so the orchestrator can decide. Never loop past 4 rounds. |
-| `draw-proof --motion` exits 4 (motion HARD FAIL) | The mark renders but does NOT animate over time — a dead mechanism (CSS `d:path()`, a non-animating property, or a static-transform clobber). Fix the mechanism per `_draw-motion-rules.md` (move the morph to `<animate attributeName="d">`, split position vs animation), regenerate, re-prove. Never ship `passed:true` on a frozen animation. |
+| `draw-proof --motion` exits 4 (motion HARD FAIL) | The mark renders but does NOT animate over time — a dead mechanism (CSS `d:path()`, a non-animating property, or a static-transform clobber). Fix the mechanism per `references/draw/motion-rules.md` (move the morph to `<animate attributeName="d">`, split position vs animation), regenerate, re-prove. Never ship `passed:true` on a frozen animation. |
 | `into_canvas` insertion point unclear (inline) | Ask via the orchestrator's question protocol, or default to the `selected` element / a clearly-commented slot; never guess-scatter SVG. |
 
 ## What you don't do

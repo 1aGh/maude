@@ -37,7 +37,7 @@ HAS_USER_STRINGS=$(grep -cE ">[A-Z][a-zA-Z ]{3,}<|placeholder=|aria-label=|title
 | `frontend-critic` |   | `HAS_HEAVY_JSX > 10` OR feedback mentions `code|jsx|component|hook|prop|key warning|render` |
 | `info-architecture-critic` |   | `HAS_NAV > 0` OR feedback mentions `nav|navigation|hierarchy|menu|breadcrumb|search|filter|sitemap` |
 | `graphic-design-critic` |   | feedback mentions `composition|layout|visual|hierarchy|balance|density|rhythm|alignment|spacing` |
-| `draw-critic` |   | `HAS_CUSTOM_SVG > 0` OR feedback mentions `logo\|icon\|illustration\|diagram\|svg\|vector\|mark\|draw` — judges **standalone vector art** on the favicon / single-color-flatten / keyline-grid / WCAG axes the other critics don't (see `agents/_draw-design-rules.md`). |
+| `draw-critic` |   | `HAS_CUSTOM_SVG > 0` OR feedback mentions `logo\|icon\|illustration\|diagram\|svg\|vector\|mark\|draw` — judges **standalone vector art** on the favicon / single-color-flatten / keyline-grid / WCAG axes the other critics don't (see `references/draw/design-rules.md`). |
 
 If the routing produces just `design-critic + a11y-critic` (minimum panel), that's fine — those two cover most baseline-quality cases. The conditional ones fire when the canvas / feedback genuinely calls for them.
 

@@ -29,7 +29,7 @@ Project-specific values (designRoot, rootClass, tokens, accent, colorSpace) come
 
 **Default output mode:** `--asset` (standalone file). Choose `--inline` when the mark belongs directly in the open canvas (a logo in the header, an icon in a button).
 
-**Animation:** when the brief asks for motion (morph / pulse / blink / "animated…"), draw-agent also reads `_draw-motion-rules.md`, plans a keyframe `Timeline` via IR (`morphVariants` / `timeline` / `sequence`+`parallel`+`stagger`), emits via `toAnimatedSvg`/`toAnimatedJsx`, and **must verify it live** via `draw-proof --motion` (a freeze-frame can't capture motion — DDR-094). Production delivery for web+mobile is Lottie via `/design:to-lottie`.
+**Animation:** when the brief asks for motion (morph / pulse / blink / "animated…"), draw-agent also reads `references/draw/motion-rules.md`, plans a keyframe `Timeline` via IR (`morphVariants` / `timeline` / `sequence`+`parallel`+`stagger`), emits via `toAnimatedSvg`/`toAnimatedJsx`, and **must verify it live** via `draw-proof --motion` (a freeze-frame can't capture motion — DDR-094). Production delivery for web+mobile is Lottie via `/design:to-lottie`.
 
 ## Flow
 
@@ -120,7 +120,7 @@ EOF
 )
 ```
 
-`draw-critic` is an **independent judge** (reads the same `_draw-design-rules.md`, but hasn't seen draw-agent's self-assessment). When its verdict disagrees (finds a HARD fail the agent declared a pass) → surface it and propose one corrective round via `draw-agent`.
+`draw-critic` is an **independent judge** (reads the same `references/draw/design-rules.md`, but hasn't seen draw-agent's self-assessment). When its verdict disagrees (finds a HARD fail the agent declared a pass) → surface it and propose one corrective round via `draw-agent`.
 
 ### 4.5 Record the mark (kgai — when active)
 
