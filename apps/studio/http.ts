@@ -2032,6 +2032,11 @@ export function createHttp(
       formatVersion: projectFormat(ctx).value,
       formatGate: gateNow(),
       readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
+      // S9.22b — may this session comment (reply, resolve) on the project? The SERVER's answer from
+      // the session's access, never the client's: Can comment and up. A canvas-only session answers
+      // like a missing one (project-level `comment` needs a project role); the op door still judges
+      // every op on its own canvas (hidden ≠ refused). The client turns it into the canvas URL's `cm=1`.
+      canComment: accessOf(req).can('comment', null),
       // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
       // embed view posts its status ONLY to a parent on this list, never to
       // '*'. Public already: the same origins ride in the page's CSP header.
