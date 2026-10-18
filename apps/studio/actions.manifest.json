@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "e79cb392650a",
   "actions": [
     {
       "id": "search.open",
@@ -96,6 +96,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Write a new .tsx under the design root with a DCArtboard per screen"
+      }
+    },
+    {
+      "id": "canvas.new-brief",
+      "label": "New brief board",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
       }
     },
     {

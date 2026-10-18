@@ -93,6 +93,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.refresh': { effect: 'none', agent: cli('maude design index') },
   // ── canvas ──
   'canvas.new': TSX('Write a new .tsx under the design root with a DCArtboard per screen'),
+  'canvas.new-brief': TSX(
+    'Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
+  ),
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
