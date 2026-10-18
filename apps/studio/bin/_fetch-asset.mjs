@@ -900,9 +900,15 @@ async function main() {
   }
 }
 
-// Run only when invoked directly (not when imported by the test). This shim runs
-// under real `node` on a real on-disk path (never embedded in bun --compile), so
-// the classic argv[1] guard is correct here — see the v0.38.0 self-heal memory.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Run only when invoked directly (not when imported by the test or by the server). Since the brand
+// import (S8.18) http.ts reaches this module through `_brand-site.mjs`, so it IS embedded in the
+// `bun --compile` binary — where every bundled module's import.meta.url collapses to the binary's own
+// path and the classic argv[1] compare is TRUE, hijacking the process before Bun.serve runs (the
+// v0.38.0 "Starting…" hang class; the binary printed this verb's usage). `import.meta.main` is the
+// reliable entry-module flag under bun; the compare stays only for plain `node` (Node <24 leaves it
+// undefined).
+const runDirectly =
+  import.meta.main ?? (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+if (runDirectly) {
   main();
 }
