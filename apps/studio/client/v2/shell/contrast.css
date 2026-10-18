@@ -14,6 +14,10 @@
   .dg-tab[aria-selected="true"] .dg-word {
     color: inherit;
   }
+  /* the "› Advanced" row is itself --fg-1, so its highlighted label takes --fg-0 (dark was 3.74:1) */
+  .st-pm-row--adv:is(:hover, :focus-visible, [aria-expanded="true"]) {
+    color: var(--fg-0);
+  }
 
   /* R2 */
   .st-step.is-done .st-step-title,
