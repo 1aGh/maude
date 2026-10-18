@@ -27,6 +27,7 @@ import { ShellCallouts } from '../client/v2/shell/callouts-host.jsx';
 import {
   calloutStack,
   ROLE_LINE,
+  renamedCallout,
   repoCallout,
   roleCallout,
   syncCallout,
@@ -118,6 +119,29 @@ describe('the model: every banner message has an item', () => {
     expect(roleCallout({ role: 'viewer' }, () => true)).toBeNull();
     expect(roleCallout({ role: 'stranger' })).toBeNull();
     expect(roleCallout(undefined)).toBeNull();
+  });
+
+  test('S6.13b: canvas-renamed-* notices are ONE info callout; a new rename is a new key', () => {
+    const n = (slug: string, text: string) => ({
+      id: `canvas-renamed-${slug}`,
+      severity: 'info',
+      text,
+      at: 1,
+    });
+    expect(renamedCallout(linked())).toBeNull();
+    expect(
+      renamedCallout(
+        linked({ notices: [{ id: 'shared-doc', text: 'x', severity: 'info', at: 1 }] })
+      )
+    ).toBeNull();
+    const one = renamedCallout(linked({ notices: [n('a-2', 'A was also made.')] }));
+    expect(one?.tone).toBe('info');
+    expect(one?.title).toBe('A was also made.');
+    const two = renamedCallout(linked({ notices: [n('a-2', 'x'), n('b-2', 'y')] }));
+    expect(two?.title).toContain('2 canvases were');
+    expect(two?.key).not.toBe(one?.key);
+    const stack = calloutStack({ syncStatus: linked({ notices: [n('a-2', 'x'), n('b-2', 'y')] }) });
+    expect(stack.filter((c: { kind?: string }) => c.kind === 'canvas-renamed')).toHaveLength(1);
   });
 
   test('order: errors, warnings, then news; a dismissal hides only that event', () => {
