@@ -97,3 +97,5 @@
 @import url("./5-utilities.css");
 /* S3.7a — the Present follower page (follow bar, Live, watching; the audience window has no chrome). */
 @import url("../v2/present/follow.css");
+/* S9.22 — the Comments panel (filters, canvas groups, rows; client/v2/comments/). */
+@import url("../v2/comments/comments.css");

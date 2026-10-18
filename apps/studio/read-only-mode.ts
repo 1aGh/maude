@@ -30,6 +30,26 @@ export function isReadOnlyCanvas(): boolean {
   return cached;
 }
 
+let commentCached: boolean | null = null;
+
+/**
+ * S9.22 — may this read-only canvas still take COMMENTS? A Can comment session boots `ro=1` (it
+ * cannot edit) but may reply, resolve and reopen; a Can view session may not. The shell says so
+ * with `cm=1` (client/canvas-url.js, from `/_config.canComment`). Like `ro`, boot-static: it decides
+ * what the thread OFFERS; the comment door (`POST /_api/comments/op`) holds the line either way.
+ */
+export function canCommentCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (commentCached === null) {
+    try {
+      commentCached = new URLSearchParams(window.location.search).get('cm') === '1';
+    } catch {
+      commentCached = false;
+    }
+  }
+  return commentCached;
+}
+
 let embedCached: boolean | null = null;
 
 /**

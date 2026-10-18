@@ -1283,7 +1283,6 @@ export function createHub(config = {}) {
             accepted: () => accepted,
             auth: acceptedAuth,
             comments: commentsDeps,
-            votes: votesRoutes,
             browserSession: (req) => browserSession(dataDir, secret, req),
             designRoot: () => (studioProxy ? designRootFor() : null),
             signInUrl: (req) => signInUrl({ request: req }),

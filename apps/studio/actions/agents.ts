@@ -323,6 +323,15 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.hidden-files': PREF(),
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
+  // S9.22 — the panel's filters are the verb's flags; an agent reads the same list the person sees.
+  'comments.filter-open': { effect: 'none', agent: cli('maude design comments list --open') },
+  'comments.filter-mine': { effect: 'none', agent: cli('maude design comments list --mine') },
+  'comments.filter-resolved': {
+    effect: 'none',
+    agent: cli('maude design comments list --resolved'),
+  },
+  'comments.filter-all': { effect: 'none', agent: cli('maude design comments list --all') },
+  'comments.open-thread': { effect: 'none', agent: cli('maude design comments list') },
   'history.open': { effect: 'none', agent: cli('maude design history list') },
   // S1.12b (V2-1.9 §5.11). Filtering is the person's own panel (human view-pref, as the contract
   // has it); an agent reads one version with `history show` (§5.11's `open --at` is not built),
