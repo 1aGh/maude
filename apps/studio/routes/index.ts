@@ -19,18 +19,18 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
+import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
 import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
-import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
-import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
+import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
-import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createExportRoutes, type ExportRouteDeps } from './export.ts';
+import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -43,8 +43,8 @@ import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
 import { createSyncConflictRoutes, type SyncConflictRouteDeps } from './sync-conflicts.ts';
 import type { RouteSpec } from './table.ts';
-import { createVideoRoutes } from './video.ts';
 import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
+import { createVideoRoutes } from './video.ts';
 
 const trashAccessNone = resolveAccess(null);
 
@@ -53,12 +53,12 @@ export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S8.19 — the asset-state service, built once by http.ts over the live sync runtime.
+export { assetStateDepsFor } from './asset-state.ts';
 // S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
 export { canvasPathsOfIndex } from './availability.ts';
 // S2.9b — the `annotations` rider of the legacy `/_api/canvas-meta` PATCH (one action, one ⌘Z)
 export { riderPatch } from './canvas-meta-rider.ts';
-// S8.19 — the asset-state service, built once by http.ts over the live sync runtime.
-export { assetStateDepsFor } from './asset-state.ts';
 // S8.1 — the v2 half of http.ts's legacy `/_api/export(-jobs)` routes shares the estimate's gate.
 export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)

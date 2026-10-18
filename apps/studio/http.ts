@@ -89,11 +89,11 @@ import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
-import { injectFallbacks } from './ds/shell-fallbacks.ts';
-import { createReferenceLanes } from './edit-ops/references.ts';
 import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
 import { createDsOutsideWatcher } from './ds/outside.ts';
+import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { registerDsUndoHook } from './ds/undo-hook.ts';
+import { createReferenceLanes } from './edit-ops/references.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
@@ -199,17 +199,17 @@ import { probeReadiness } from './readiness.ts';
 import {
   allSpecs,
   announceAction,
-  canvasPathsOfIndex,
   assetStateDepsFor,
+  canvasPathsOfIndex,
   type ExportRouteDeps,
   gateSpecV2,
   heldByAiRefusal,
   planExportV2,
   riderPatch,
   runStageHooks,
-  trashAccess,
   type ShareRouteDeps,
   shareInviteSender,
+  trashAccess,
 } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';

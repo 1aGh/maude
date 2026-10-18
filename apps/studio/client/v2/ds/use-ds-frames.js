@@ -30,6 +30,21 @@ export function dsFrameState(key, cfg) {
   };
 }
 
+/**
+ * `ds.set-theme-preview` (S10.6): the Design system canvas previews its Light or its Dark. A preview only —
+ * the canvas keeps it in memory and writes nothing; it answers only its parent (the shell that framed it),
+ * and the message goes to the canvas origin, never `*`.
+ */
+export function postDsThemePreview(frame, mode, origin) {
+  if (mode !== 'light' && mode !== 'dark') return false;
+  try {
+    frame?.contentWindow?.postMessage({ type: 'maude:ds-theme-preview', mode }, origin);
+    return !!frame?.contentWindow;
+  } catch {
+    return false; // detached
+  }
+}
+
 /** The two files a frame was built showing (`tokens=` / `components=` of its URL), or nulls. */
 export function framePair(frame) {
   try {
@@ -130,21 +145,13 @@ export function useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasAc
     wasPresenting.current = presentMode === true;
   }, [presentMode, swap]);
 
-  /** `ds.set-theme-preview` (S10.6): the Design system canvas previews its Light or its Dark. A preview only —
-   *  the canvas keeps it in memory, nothing is written; only the shell that framed it may ask. */
   const postThemePreview = useCallback(
-    (mode) => {
-      if (mode !== 'light' && mode !== 'dark') return;
-      const frame = activePath ? iframesRef.current.get(activePath) : null;
-      try {
-        frame?.contentWindow?.postMessage(
-          { type: 'maude:ds-theme-preview', mode },
-          cfg?.canvasOrigin || window.location.origin
-        );
-      } catch {
-        /* detached */
-      }
-    },
+    (mode) =>
+      postDsThemePreview(
+        activePath ? iframesRef.current.get(activePath) : null,
+        mode,
+        cfg?.canvasOrigin || window.location.origin
+      ),
     [activePath, cfg?.canvasOrigin, iframesRef]
   );
 

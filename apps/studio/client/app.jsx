@@ -300,7 +300,7 @@ import { InspectorPanel, PHOTO_ASSET_RE } from './inspector/inspector-panel.jsx'
 import { usePaletteAndPanels } from './hooks/use-palette-and-panels.jsx';
 import { useActionKeys } from './hooks/use-action-keys.jsx';
 import { useCanvasBridge } from './hooks/use-canvas-bridge.jsx';
-import { useDsFrames } from './v2/ds/use-ds-frames.js';
+import { postDsThemePreview, useDsFrames } from './v2/ds/use-ds-frames.js';
 import { useTabs } from './hooks/use-tabs.jsx';
 import { useGitActions } from './hooks/use-git-actions.jsx';
 import { useWebSocket } from './hooks/use-web-socket.jsx';
@@ -1126,7 +1126,7 @@ function ShellState({ children }) {
   });
   // S10.4 — a design system's revision per canvas frame: element pins answered into the frame that asked,
   // and the follower swap (a head that moved is applied at the NEXT LOOK; Present holds it).
-  const dsFrames = useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasActiveArtboard });
+  useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasActiveArtboard });
 
   // Jump from right-sidebar list to a comment: open file tab if needed, focus pin.
   // The iframe may be freshly mounted; the loaded handler also re-sends focus if focusedCommentId matches.
@@ -1590,6 +1590,7 @@ function ShellProjectPill() {
       exportCenter,
       groups,
       inspectorOpen,
+      iframesRef,
       minimapVisible,
       openPanelExclusive,
       openRightPanel,
@@ -1736,7 +1737,12 @@ function ShellProjectPill() {
     },
     onCutPaste: (kind) => cutCopyPaste(kind, openerRef.current, { postToActiveCanvas }),
     // S10.6 — `ds.set-theme-preview`: the Design system canvas shows its Light or its Dark (preview only).
-    onDsThemePreview: dsFrames.postThemePreview,
+    onDsThemePreview: (mode) =>
+      postDsThemePreview(
+        activePath ? iframesRef.current.get(activePath) : null,
+        mode,
+        cfg?.canvasOrigin || window.location.origin
+      ),
     // V2-4.8a: a cloud tab's "Back to Home" — the v1 menubar's "← Dashboard" link, same tab.
     onOpenDashboard: () => {
       const url = cfg?.cloud?.dashboardUrl;

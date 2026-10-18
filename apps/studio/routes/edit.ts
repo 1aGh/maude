@@ -35,6 +35,8 @@ import { type Op as AnnotationOp, applyOps } from '../annotations/ops.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { LaneChange, LanesOutcome } from '../api.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { listPickerComponents, systemForPicker } from '../ds/component-list.ts';
+import { CLIP_EDIT_VERBS } from '../edit-ops/clip/index.ts';
 import {
   dispatchEditOp,
   type LandOutcome,
@@ -50,8 +52,6 @@ import {
   nextMetaText,
 } from '../edit-ops/layout-patch.ts';
 import type { ReferenceLanes } from '../edit-ops/references.ts';
-import { CLIP_EDIT_VERBS } from '../edit-ops/clip/index.ts';
-import { listPickerComponents, systemForPicker } from '../ds/component-list.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
 import { heldByAi } from './agent.ts';

@@ -95,7 +95,9 @@ async function peopleList(env, project, members) {
     .bind(project.account_id)
     .first();
   return [
-    ...(owner ? [{ account_id: owner.id, email: owner.email, name: owner.name, role: 'owner' }] : []),
+    ...(owner
+      ? [{ account_id: owner.id, email: owner.email, name: owner.name, role: 'owner' }]
+      : []),
     ...members.filter((m) => m.account_id !== project.account_id),
   ];
 }
@@ -144,7 +146,15 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
   if (action === 'invite') {
     if (!isOwner)
       return html(
-        peoplePage({ account, project, people, grants, invites, isOwner, error: ACCESS_MESSAGES['no-access'] }),
+        peoplePage({
+          account,
+          project,
+          people,
+          grants,
+          invites,
+          isOwner,
+          error: ACCESS_MESSAGES['no-access'],
+        }),
         403
       );
     const email = String(form.get('email') ?? '')
@@ -177,7 +187,10 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
       ownerId: project.account_id,
     });
     if (!decision.ok)
-      return html(peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }), 400);
+      return html(
+        peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }),
+        400
+      );
 
     const existing = await env.DB.prepare('SELECT id FROM accounts WHERE email = ?')
       .bind(email)
@@ -255,7 +268,10 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     ownerId: project.account_id,
   });
   if (!decision.ok) {
-    return html(peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }), 400);
+    return html(
+      peoplePage({ account, project, people, grants, invites, isOwner, error: decision.message }),
+      400
+    );
   }
 
   if (decision.action === 'remove') {
