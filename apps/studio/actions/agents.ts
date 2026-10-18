@@ -163,6 +163,27 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'element.set-id': TSX(
     'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
   ),
+  // S3.10a — `data-cd-link` is the one data-cd-* an agent may write (S3-links-format §8; checked by link-format ·
+  // link-no-id · link-dangling). The studio writes it through POST /_api/edit-op (edit-ops/{set,clear}-link.ts).
+  'element.set-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Add data-cd-link="#<artboard>" | "<canvas>.tsx#<artboard>" | "https://…" to the element, next to its data-cd-id (add an id if it has none)'
+    ),
+  },
+  'element.clear-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file('canvas-tsx', 'design:design', 'Remove the element’s data-cd-link attribute'),
+  },
+  'preview.back': NAV('<canvas> --mode preview'), // an agent opens the canvas it wants
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),
