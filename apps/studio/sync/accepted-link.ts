@@ -34,6 +34,7 @@ import {
   type ProposalResult,
   type Reservation,
   type TransactionClient,
+  type TransactionClientOptions,
   TransactionError,
   type TransactionStats,
 } from './transaction-client.ts';
@@ -63,6 +64,10 @@ export interface AcceptedLinkOptions {
   attribute?: ActionStageOptions['attribute'];
   /** Every bootstrap the project answered (its manifest and its own config). */
   onBootstrap?: (b: Bootstrap) => void;
+  /** S6.13b — a refused create whose name a peer took (see the transaction client). */
+  onCreateConflict?: TransactionClientOptions['onCreateConflict'];
+  /** S6.13b — test seam, passed to the transaction client. */
+  fault?: (point: string) => void;
 }
 
 export type StructuralOutcome = ProposalOutcome & { queued?: boolean };
@@ -102,6 +107,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       onStats: opts.onStats,
       onResult: opts.onResult,
       retryMs: opts.retryMs,
+      ...(opts.onCreateConflict ? { onCreateConflict: opts.onCreateConflict } : {}),
+      ...(opts.fault ? { fault: opts.fault } : {}),
     });
 
   const outboxDir = path.join(opts.designRoot, '_state', 'outbox');

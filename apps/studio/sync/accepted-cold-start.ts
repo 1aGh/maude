@@ -213,7 +213,13 @@ export async function acceptedColdStart(
     if (r.status === 'accepted') {
       // What the project now holds IS the local file: the next save is based
       // on it, even if it lands before the publication reaches this replica.
-      i.projection.adoptBase(r.html ?? localHtml);
+      const base = r.html ?? localHtml;
+      i.projection.adoptBase(base);
+      // S6.13b — saved again on top of that create while it waited (offline,
+      // or a previous run): the disk is an edit of it, proposed as one.
+      if (base !== localHtml && !sourceError(i.paths.html, localHtml)) {
+        void i.projection.proposeLane('html', localHtml, { baseContent: base, stageable: true });
+      }
       log.log(`[sync/${i.slug}] added to the project (accepted).`);
       return { kind: 'created' };
     }

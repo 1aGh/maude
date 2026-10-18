@@ -6,7 +6,7 @@
 //     back online → the cloud peer gets it, and the project created it ONCE;
 //   • the cloud makes a canvas while the desktop is away → the desktop gets it;
 //   • both made the same name while apart → the project keeps the cloud's,
-//     and the desktop's is kept on this Mac (never written over, never lost).
+//     and the desktop's joins as "<name> 2" (S6.13b; never written over, never lost).
 //
 // The oracle is always the other peer's disk or the hub's own log.
 
@@ -326,13 +326,17 @@ describe.skipIf(!HUB_READY)('offline create — desktop ⇄ cloud on a real hub'
     await new Promise((r) => setTimeout(r, 1000));
     expect(cloud.read('ui/notes.tsx')).toBe(src('Notes from the cloud'));
     expect(await createsOf('ui/notes.tsx')).toBe(1);
-    // Never lost: the desktop's version is still on this Mac, as "mine".
-    const v = await waitFor(
-      () => desktop.runtime.conflictVersions?.('design/ui/notes.tsx'),
-      'the desktop to hold its own version'
+    // Never lost: the desktop's canvas joined under the next free name (S6.13b —
+    // renamed, not held as a conflict).
+    await waitFor(
+      async () => {
+        await cloud.runtime.pullRemoteNow();
+        return cloud.read('ui/notes 2.tsx') === src('Notes from the desktop');
+      },
+      "the desktop's canvas, renamed, on the cloud peer",
+      60_000
     );
-    expect(v.mine).toBe(src('Notes from the desktop'));
-    expect(v.theirs).toBe(src('Notes from the cloud'));
+    expect(desktop.runtime.conflictVersions?.('design/ui/notes.tsx') ?? null).toBeNull();
   }, 150_000);
 });
 
