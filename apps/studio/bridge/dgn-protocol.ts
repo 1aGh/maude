@@ -90,6 +90,9 @@ export interface CanvasToShell {
   'canvas-rendered': { file: string };
   'canvas-failed': { file: string };
   'canvas-mounted': { file: string; children: number };
+  // S10.4 (V2-1.6 §5.8) — the `data-ds-rev` values (`head` | a revision id) the canvas document carries;
+  // the studio answers with `ds-pins`. A value is a name, never a path.
+  'ds-pins-want': { revs: string[] };
   'canvas-expired': Empty;
   'canvas-notice': {
     message: string;
@@ -248,6 +251,15 @@ export interface ShellToCanvas {
   }>;
   'view-annotations': { visible: boolean };
   'canvas-cap': { t: string };
+  // S10.4 — the follower swap: the two designRoot-relative `.css` files the canvas follows now
+  // (client/v2/ds/follower-swap.js decides WHEN; the shell swaps `#canvas-tokens` / `#canvas-components`).
+  'ds-css': { tokens?: string | null; components?: string | null };
+  // S10.4 — element pins: per `data-ds-rev` value, the sibling files of the revision it names (loaded by
+  // the shell document and scoped with ds/pin-scope.ts); a value not listed keeps the canvas's own look.
+  'ds-pins': {
+    revs: Record<string, { tokens: string; components: string | null }>;
+    rootClass: string | null;
+  };
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
   'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
@@ -509,6 +521,31 @@ const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
 const presenterName: V = (v) => (typeof v === 'string' && v.length <= PRESENT_NAME_MAX ? v : BAD);
 const insets: V = (v) => clampInsets(v) ?? BAD;
+/** S10.4 — a designRoot-relative `.css` path; the same rule as the shell's `DS_CSS_REL` (no URL, no `..`). */
+const DS_CSS_REL = /^(?!\/)(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9 ._/-]{0,255}\.css$/;
+const dsCssPath: V = (v) => (typeof v === 'string' && DS_CSS_REL.test(v) ? v : BAD);
+/** S10.4 — a `data-ds-rev` value: `head` or a revision id. */
+const PIN_VALUE = /^(?:head|[0-9a-f]{64})$/;
+export const DS_PINS_MAX = 16;
+const pinValue: V = (v) => (typeof v === 'string' && PIN_VALUE.test(v) ? v : BAD);
+const pinValues: V = (v) =>
+  Array.isArray(v) && v.length <= DS_PINS_MAX ? arrOf(pinValue)(v) : BAD;
+const dsPinEntry = shape({ tokens: dsCssPath, components: nul(dsCssPath) });
+const dsPinRevs: V = (v) => {
+  if (!isPlain(v)) return BAD;
+  const keys = Object.keys(v);
+  if (keys.length > DS_PINS_MAX) return BAD;
+  const out: Record<string, unknown> = Object.create(null);
+  for (const k of keys) {
+    if (pinValue(k) === BAD) return BAD;
+    const r = dsPinEntry(v[k]);
+    if (r === BAD) return BAD;
+    out[k] = r;
+  }
+  return out;
+};
+const rootClassName: V = (v) =>
+  typeof v === 'string' && /^[A-Za-z_][\w-]{0,63}$/.test(v) ? v : BAD;
 /** S3.6b — `present-run`: at most this many artboards (the follow fields' 0..2000 index range). */
 export const PRESENT_RUN_MAX = 2000;
 const presentRunCell = shape({
@@ -586,6 +623,13 @@ const c2s: C2S = {
     owner: 'tpl/_shell.html (probe)',
     orphan: 'no-handler',
     parse: p({ file: str, children: num }),
+  },
+  // S10.4 — handled by client/v2/ds/pins.js (createPinsHost.onMessage)
+  'ds-pins-want': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/ds/pins',
+    parse: p({ revs: pinValues }),
   },
   'canvas-expired': { gate: 'frame', status: 'live', owner: 'h/use-shell-core', parse: none },
   'canvas-notice': {
@@ -991,6 +1035,20 @@ const s2c: S2C = {
     parse: p({ visible: bool }),
   },
   'canvas-cap': { gate: 'parent', status: 'live', owner: 'tpl/_shell.html', parse: p({ t: str }) },
+  // S10.4 — sent by client/v2/ds/follower-swap.js, honoured by the shell template's `ds-css` region
+  'ds-css': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ tokens: opt(nul(dsCssPath)), components: opt(nul(dsCssPath)) }),
+  },
+  // S10.4 — sent by client/v2/ds/pins.js, loaded + scoped by the shell template's `ds-pins` region
+  'ds-pins': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ revs: dsPinRevs, rootClass: nul(rootClassName) }),
+  },
   'ai-activity': {
     gate: 'parent',
     status: 'live',
