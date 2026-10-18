@@ -26,6 +26,7 @@ export const SUB_VERBS = {
     list: NATIVE,
     show: NATIVE,
     diff: NATIVE,
+    object: NATIVE, // S1.16
     restore: NATIVE,
     undo: NATIVE,
     name: NATIVE,

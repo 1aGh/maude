@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1ade062db596",
+  "manifestVersion": "60f7b4b07ad7",
   "actions": [
     {
       "id": "search.open",
@@ -2679,6 +2679,17 @@
       }
     },
     {
+      "id": "history.object",
+      "label": "Version history of this object",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history object <canvas> <artboard>/<id>"
+      }
+    },
+    {
       "id": "history.compare",
       "label": "Compare",
       "kind": "command",
@@ -2949,6 +2960,12 @@
     {
       "scope": "design",
       "verb": "design history diff",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design history object",
       "effect": "none",
       "tier": "auto"
     },

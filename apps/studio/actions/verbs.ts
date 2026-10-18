@@ -85,6 +85,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history list', 'none'),
   d('history show', 'none'),
   d('history diff', 'none'),
+  d('history object', 'none'), // S1.16: one object's versions — a read
   // S1.17 (S1-trash.md). `trash list` reads; `trash restore` brings one item back (V2-1.11 §5.3: project
   // → auto); `trash clear` deletes for good and is the OWNER's, at a terminal — human tier, never the AI
   // chat (decision:maude/v2-lead-trash-clear-human-only); the studio refuses non-owners whatever is sent.

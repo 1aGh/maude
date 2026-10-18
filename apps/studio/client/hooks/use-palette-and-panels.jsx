@@ -33,6 +33,7 @@ import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
 import { VersionHistoryHost } from '../v2/history/history-host.jsx';
+import { setHistoryOpener } from '../v2/history/object-filter.js';
 import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
@@ -429,6 +430,8 @@ export function usePaletteAndPanels({
   // id. `project.new` is IdentityBar's (its dialog state lives there).
   const paletteRef = useRef(paletteActions);
   paletteRef.current = paletteActions;
+  // S1.16 - openHistory({ element }) (S2's object menu, S4's sticky menu) shows the Version history panel.
+  useEffect(() => setHistoryOpener(() => setChangesOpen(true)), [setChangesOpen]);
   const viewerRef = useRef(viewerMode);
   viewerRef.current = viewerMode;
   useEffect(() => {

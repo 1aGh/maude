@@ -27,6 +27,7 @@ import type { Access } from '../access/scope.ts';
 import { offlineLine, parseFilter, type SaveWord } from '../client/v2/history/rows.ts';
 import { describeBetween, parseRef } from '../history/changes.ts';
 import { lastGood as findLastGood } from '../history/last-good.ts';
+import { objectHistory } from '../history/object-history.ts';
 import type { SpliceLane, SpliceSide } from '../history/restore-artboard.ts';
 import {
   type LanesOutcome,
@@ -577,6 +578,36 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
                   (deps.gitLane as NonNullable<typeof deps.gitLane>)(t.repoRel, sha, lane),
               }
             : {}),
+        });
+        if (!r.ok) return json(r.reason === 'not-found' ? 404 : 200, r);
+        return json(200, r);
+      },
+    },
+    // S1.16 — "Version history · this object" (V2-1.9 §5.9): reads only, so every role that can read
+    // the canvas gets the same rows; the Restore on a row is judged again by POST /restore.
+    {
+      method: 'GET',
+      path: '/_api/project/object-history',
+      origin: 'main',
+      readOnly: 'allowed',
+      handle: async (req) => {
+        const url = new URL(req.url);
+        const access = accessOf(req);
+        const t = judge(access, url.searchParams.get('path'), 'read');
+        if (!t.ok) return t.res;
+        const key = parseObjectKey(url.searchParams.get('object'));
+        if (!key)
+          return json(400, {
+            ok: false,
+            reason: 'object must be <artboard>/<id> or an annotation id',
+          });
+        const r = await objectHistory({
+          runtime: runtime(),
+          repoRel: t.repoRel,
+          canvas: t.canvas,
+          key,
+          cache: deps.cache?.() ?? null,
+          actorName: deps.actorName,
         });
         if (!r.ok) return json(r.reason === 'not-found' ? 404 : 200, r);
         return json(200, r);

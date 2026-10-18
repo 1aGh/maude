@@ -223,6 +223,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'history.view-version': { effect: 'none', agent: cli('maude design history show') },
   'history.compare': { effect: 'none', agent: cli('maude design history diff') },
+  // S1.16 (V2-1.9 §5.9): one object's versions — the sticky / object menu's "Version history".
+  'history.object': {
+    effect: 'none',
+    agent: cli('maude design history object <canvas> <artboard>/<id>'),
+  },
   'history.name': {
     effect: 'shared',
     minRole: 'edit',

@@ -252,6 +252,7 @@ export const STUDIO_ROUTES = Object.freeze({
   // studio judges each session's vouched claim itself (canvas-only scope, U1).
   '/_api/project/versions': { safe: 'read', unsafe: null },
   '/_api/project/changes': { safe: 'read', unsafe: null },
+  '/_api/project/object-history': { safe: 'read', unsafe: null },
   '/_api/project/source': { safe: 'export', unsafe: null },
   '/_api/project/name': { safe: null, unsafe: 'edit' },
   '/_api/project/aside': { safe: null, unsafe: 'edit' },
