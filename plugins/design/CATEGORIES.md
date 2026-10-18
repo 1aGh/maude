@@ -26,7 +26,12 @@ Default verbs. No prefix. Members:
 | `/design:photo` | Edit a photo in the active canvas headlessly — adjustments / duotone / grain / pattern / mask (parametric, no browser) + magic background removal (client-side ML) via the non-destructive PhotoEdit sidecar |
 | `/design:critic` | Spawn the critic panel (or single agent / all critics) |
 | `/design:browse` | Boot the local dev server |
-| `/design:rollback` | Undo the last edit (snapshot-based) |
+| `/design:rollback` | Go back to an earlier version of the canvas (built on Version history; no flag undoes the last change) |
+| `/design:history` | Version history from the terminal: list, show, diff, restore (whole canvas, one artboard or one object), name a version |
+| `/design:trash` | See the Trash and restore a canvas or artboard (clearing it out is the owner's, at a terminal) |
+| `/design:comments` | Make the changes the open comments ask for, then reply and resolve each thread |
+| `/design:present` | Set Present order, skipped artboards and speaker notes; open the canvas in Present |
+| `/design:open` | Show a canvas, artboard, element or panel in the Maude window |
 | `/design:screenshot` | Capture a screenshot of the active canvas (`--full`/`--screen <id>`/`--element <id>`/`--all-screens`/`--selector <css>`) |
 | `/design:handoff` | Migrate the active canvas to a production target |
 | `/design:to-lottie` | Productionize a maude animation → ONE `.lottie` from code (web + mobile, 1:1; emitter, not converter) |

@@ -7,7 +7,7 @@ description: "Design or edit Maude canvases using the project design system, sna
 
 Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
-Use the target project's `.design/config.json` and active canvas state. Preserve the design-system envelope and accessibility at every opt-out scope. Snapshot before mutation, edit in place, verify the rendered result, and retain the configured critic loop, stop conditions, metadata, transcript and documentation updates. Match the user's language. Do not load generation, whiteboard or critic recipes for a task that does not use them.
+Use the target project's `.design/config.json` and active canvas state. Preserve the design-system envelope and accessibility at every opt-out scope. Edit in place (the hooks keep the earlier bytes and Version history keeps every change), verify the rendered result, and retain the configured critic loop, stop conditions, metadata, transcript and documentation updates. Match the user's language. Do not load generation, whiteboard or critic recipes for a task that does not use them.
 
 ## Read only the relevant procedure
 
@@ -26,8 +26,8 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When resolving the active canvas or selection | [Active state schema](./_guide-04-active-state-schema.md) |
 | When reading or resolving pinned comments | [Comments — element-pinned annotations](./_guide-05-comments-element-pinned-annotations.md) |
 | When reading or writing board annotations | [Whiteboard annotation layer — AI read/write surface](./_guide-06-strokes-annotation-layer-ai-read-write-surface-figjam-v.md) |
-| Before edits or rollback | [Snapshot protocol](./_guide-07-snapshot-protocol.md) |
-| When selecting a canvas operation | [Command routing](./_guide-08-command-routing.md) |
+| Before edits, or to undo one | [Snapshot protocol](./_guide-07-snapshot-protocol.md) |
+| When selecting a canvas operation, or deciding whether a sub-agent is warranted | [Command routing](./_guide-08-command-routing.md) |
 | Before selecting or running critics | [Critic panel routing — orchestrator decides](./_guide-09-critic-panel-routing-orchestrator-decides.md) |
 | When entering the configured automatic review loop | [Auto-critic loop — default behavior of /design:edit and /design:new](./_guide-10-auto-critic-loop-default-behavior-of-design-edit-and-de.md) |
 | When choosing the corresponding schema or element types | [Stop-condition vocabulary](./_guide-11-stop-condition-vocabulary.md) |
@@ -48,3 +48,5 @@ here, not permission to skip that requirement. Do not read all references at onc
 | Before choosing an implementation approach | [What NOT to do](./_guide-26-what-not-to-do.md) |
 | Before planning edits on a canvas AI may be changing, or when an edit is denied | [AI runs and busy artboards](./_guide-27-ai-runs-and-busy-artboards.md) |
 | When looking at an earlier version of a canvas, going back to it, naming a version, or working with the Trash | [Versions and the Trash](./_guide-versions-and-trash.md) |
+| When changing objects the way the person does (frames, order, lock, hide) | [Editing in Maude v2](./_guide-editing-v2.md) |
+| For `/design:present`: order, skipped artboards, speaker notes | [Per-canvas metadata sidecar](./_guide-17-per-canvas-metadata-sidecar.md) |
