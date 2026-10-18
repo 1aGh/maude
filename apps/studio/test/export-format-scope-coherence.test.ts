@@ -75,10 +75,11 @@ describe('format × scope coherence', () => {
  * `export-dialog.tsx`'s copy was missing mp4/webm/gif entirely.
  */
 describe('region scopes (issue #125)', () => {
-  test('canvas-whole + selection-bounds are png/pdf only', () => {
+  // S8.1 — jpg captures exactly what png does (contract S8-export-spec §5.2)
+  test('canvas-whole + selection-bounds are png/jpg/pdf only', () => {
     for (const scope of ['canvas-whole', 'selection-bounds']) {
       for (const format of FORMATS) {
-        expect(isScopeValidForFormat(format, scope)).toBe(format === 'png' || format === 'pdf');
+        expect(isScopeValidForFormat(format, scope)).toBe(['png', 'jpg', 'pdf'].includes(format));
       }
     }
   });

@@ -28,6 +28,9 @@ import type { Target } from './scope.ts';
 const PNG_PLAYWRIGHT = exportShimPath('_png-playwright.mjs');
 
 interface CaptureOptions {
+  /** S8.1 — `jpeg` for the JPG adapter (same shim, same capture) */
+  type?: RasterType;
+  quality?: number;
   /** Fully-resolved Playwright deviceScaleFactor — see resolveDeviceScale. */
   scale?: number;
   timeoutSec?: number;
@@ -79,8 +82,17 @@ export function clampDpi(raw: unknown): DpiPreset | undefined {
 export function resolveDeviceScale(options: ExportOptions): number {
   const dpi = clampDpi(options.dpi);
   if (dpi !== undefined) return dpi / CSS_DPI;
+  // S8.1 — an ExportSpec v2 size is exact (0.25–4, validated by spec-v2.ts); the v1 1/2/3
+  // preset below stays for every v1 body.
+  const exact = Number(options.scaleExact);
+  if (Number.isFinite(exact) && exact > 0) return Math.min(4, Math.max(0.25, exact));
   return clampScale(options.scale);
 }
+
+/** S8.1 — the raster encodings this capture path writes. */
+export type RasterType = 'png' | 'jpeg';
+const EXT: Record<RasterType, string> = { png: 'png', jpeg: 'jpg' };
+const MIME: Record<RasterType, string> = { png: 'image/png', jpeg: 'image/jpeg' };
 
 async function captureElement(
   target: Extract<Target, { kind: 'element' }>,
@@ -106,7 +118,7 @@ async function captureElement(
       '--region',
       target.region === 'canvas' ? 'canvas' : JSON.stringify(target.region),
       '--out',
-      path.join(outDir, `${target.canvasSlug}.png`)
+      path.join(outDir, `${target.canvasSlug}.${EXT[options.type ?? 'png']}`)
     );
   } else if (target.multi) {
     args.push('--multi', '1', '--out-dir', outDir);
@@ -116,7 +128,10 @@ async function captureElement(
     // the capture is the element exactly; artboard-by-id targets the screen
     // element directly and needs no widening.
     if (target.widen) args.push('--widen-to-artboard', '1');
-    args.push('--out', path.join(outDir, `${target.canvasSlug}.png`));
+    args.push('--out', path.join(outDir, `${target.canvasSlug}.${EXT[options.type ?? 'png']}`));
+  }
+  if (options.type === 'jpeg') {
+    args.push('--type', 'jpeg', '--quality', String(options.quality ?? 85));
   }
   return runShim(args, {
     cwd: path.dirname(PNG_PLAYWRIGHT),
@@ -140,20 +155,33 @@ async function bundleZip(entries: Array<{ name: string; bytes: Uint8Array }>): P
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 }
 
-export async function run(
+export function run(
   targets: Target[],
   options: ExportOptions,
   ctx: ExportContext,
   hooks?: ExportHooks
 ): Promise<ExportResult> {
+  return runRaster('png', targets, options, ctx, hooks);
+}
+
+/** The PNG / JPG capture (S8.1: `jpg.ts` is this with `jpeg`). */
+export async function runRaster(
+  type: RasterType,
+  targets: Target[],
+  options: ExportOptions,
+  ctx: ExportContext,
+  hooks?: ExportHooks
+): Promise<ExportResult> {
+  const ext = EXT[type];
+  const mime = MIME[type];
   if (!targets.length) {
-    return { filename: 'export.png', contentType: 'image/png', body: new Uint8Array(0) };
+    return { filename: `export.${ext}`, contentType: mime, body: new Uint8Array(0) };
   }
   const elementTargets = targets.filter(
     (t): t is Extract<Target, { kind: 'element' }> => t.kind === 'element'
   );
   if (!elementTargets.length) {
-    throw new Error('png adapter requires element targets (got file-tree)');
+    throw new Error(`${ext} adapter requires element targets (got file-tree)`);
   }
 
   const tmp = mkdtempSync(path.join(tmpdir(), 'maude-png-'));
@@ -165,6 +193,8 @@ export async function run(
     // ≤ 8 and guards oversized output (see _png-playwright.mjs).
     scale: resolveDeviceScale(options),
     timeoutSec: (options.timeoutSec as number | undefined) ?? 8,
+    type,
+    quality: Math.min(100, Math.max(1, Math.round(Number(options.quality) || 85))),
   };
 
   try {
@@ -177,12 +207,12 @@ export async function run(
     const entries = readBytes(written);
 
     if (entries.length === 0) {
-      return { filename: 'export.png', contentType: 'image/png', body: new Uint8Array(0) };
+      return { filename: `export.${ext}`, contentType: mime, body: new Uint8Array(0) };
     }
     if (entries.length === 1) {
       return {
         filename: entries[0].name,
-        contentType: 'image/png',
+        contentType: mime,
         body: entries[0].bytes,
       };
     }

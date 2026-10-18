@@ -50,6 +50,8 @@ import {
   resolveRenderService,
 } from './remote.ts';
 import { type ResolveScopeArgs, resolveScope, type Target } from './scope.ts';
+import { type ExportJobItem, type GroupPlan, itemsFor, runGroup } from './spec-run.ts';
+import type { ExportSpecV2 } from './spec-v2.ts';
 import { scanUnsupportedMedia } from './unsupported-media.ts';
 
 /** Extended shape of the old Phase 6.5 T10 history entry — additive fields only. */
@@ -73,6 +75,10 @@ export interface ExportHistoryEntry {
    * download that would 404.
    */
   deliveredInBrowser?: boolean;
+  /** S8.1 — the ExportSpec v2 this row ran, so Export again replays it exactly (§5.6). */
+  spec?: ExportSpecV2;
+  /** S8.1 — a group job's per-item results. */
+  items?: ExportJobItem[];
 }
 
 export type ExportJobStatus = 'queued' | 'running' | 'done' | 'failed';
@@ -100,6 +106,9 @@ export interface ExportJob {
   /** DDR-231 browser lane — produced and saved in the member's own browser;
    * this process stores no bytes for it. See {@link ExportHistoryEntry}. */
   deliveredInBrowser?: boolean;
+  /** S8.1 — a v2 body: the spec, and one item per engine unit (contract §5.6 group job). */
+  spec?: ExportSpecV2;
+  items?: ExportJobItem[];
 }
 
 export interface EnqueueArgs {
@@ -122,6 +131,12 @@ export interface EnqueueArgs {
    * `''` (desktop, CLI, tests) is the one shared owner a desktop always had.
    */
   session?: string;
+  /**
+   * S8.1 — an ExportSpec v2 as ONE group job: `resolveSpecV2`'s units run one after the
+   * other through this job's own lane (spec-run.ts). `format`/`scope` then name the first
+   * unit (the lane and the timeout read them).
+   */
+  group?: GroupPlan;
 }
 
 export type DownloadResult =
@@ -411,6 +426,7 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         // history entry is what a later session (or an agent) reads back.
         degraded: j.degraded,
         deliveredInBrowser: j.deliveredInBrowser,
+        ...(j.spec ? { spec: j.spec, items: j.items } : {}),
       }));
   }
 
@@ -476,6 +492,7 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
       options: args.options,
       status: 'queued',
       createdAt: new Date().toISOString(),
+      ...(args.group ? { spec: args.group.spec, items: itemsFor(args.group) } : {}),
     };
     const owner = normalizeSessionKey(args.session ?? currentSession());
     if (owner) owners.set(id, owner);
@@ -496,6 +513,7 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
       `[jobs] ${args.format}: lane=${lane} dispatchRemote=${dispatchRemote} (renderUrl=${process.env.MAUDE_RENDER_URL ? 'set' : 'unset'})`
     );
 
+    const outer = args;
     const result = (async (): Promise<ExportResult> => {
       // Fail BEFORE taking a render slot: a job that can never render must not
       // queue behind ones that can, and the refusal message is the remedy the
@@ -526,72 +544,91 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         job.startedAt = new Date().toISOString();
         emit(job);
 
-        // Scope resolves HERE, against the cell's own checkout — Target is
-        // pure data, and the render service holds no tenant store to resolve
-        // against (DDR-230 §1).
-        const remoteTargets = dispatchRemote
-          ? await resolveScope({ scope: args.scope, ...args.resolve, options: args.options })
-          : [];
-        const res = dispatchRemote
-          ? await renderRemotely({
-              format: args.format,
-              targets: remoteTargets,
-              // Same rule for anything ELSE the adapter would read off disk: a
-              // print artboard's `print` prop (bleed, paper) lives in the canvas
-              // source, which only this process has. Resolve it here and ship
-              // it as data, or the worker's PDF silently loses its boxes/marks.
-              options:
-                args.format === 'pdf'
-                  ? {
-                      ...args.options,
-                      printProps: readPrintPropsFor(
-                        remoteTargets,
-                        args.resolve.repoRoot,
-                        args.resolve.designRoot
-                      ),
-                    }
-                  : VIDEO_FORMATS.has(args.format)
+        // S8.1 — one render: the v1 body's, or one unit of a v2 group (same spine).
+        const renderOne = async (u: {
+          format: Format;
+          scope: Scope;
+          options: ExportOptions;
+        }): Promise<ExportResult> => {
+          const dispatchRemote = lane !== 'local' && formatNeedsBrowser(u.format);
+          const args = { ...outer, format: u.format, scope: u.scope, options: u.options };
+          // Scope resolves HERE, against the cell's own checkout — Target is
+          // pure data, and the render service holds no tenant store to resolve
+          // against (DDR-230 §1).
+          const remoteTargets = dispatchRemote
+            ? await resolveScope({ scope: args.scope, ...args.resolve, options: args.options })
+            : [];
+          const res = dispatchRemote
+            ? await renderRemotely({
+                format: args.format,
+                targets: remoteTargets,
+                // Same rule for anything ELSE the adapter would read off disk: a
+                // print artboard's `print` prop (bleed, paper) lives in the canvas
+                // source, which only this process has. Resolve it here and ship
+                // it as data, or the worker's PDF silently loses its boxes/marks.
+                options:
+                  args.format === 'pdf'
                     ? {
                         ...args.options,
-                        // The <Audio>/<OffthreadVideo> pre-flight reads the canvas
-                        // source — same "only the cell has the checkout" rule.
-                        unsupportedMedia: readUnsupportedMediaFor(
+                        printProps: readPrintPropsFor(
                           remoteTargets,
                           args.resolve.repoRoot,
                           args.resolve.designRoot
                         ),
-                        // Ship the FULL frame-scaled render budget to the worker.
-                        // The cell sizes jobTimeoutMs to the frame count (a 704-
-                        // frame comp gets ~30 min), but the worker's shim caps
-                        // renderMediaOnWeb + its hard-kill on `options.timeoutSec`,
-                        // which defaulted to 60 s — so every real video fell back
-                        // to frame-step after 60 s and then hard-killed at 150 s,
-                        // long before a legitimate render could finish. Without
-                        // this the worker never knows the job it was handed is
-                        // allowed minutes, not seconds.
-                        timeoutSec: Math.ceil(jobTimeoutMs(args) / 1000),
                       }
-                    : args.options,
-              canvas: args.remoteCanvas ?? { origin: '' },
-              // resolveRenderService() is non-null on the `remote` lane by
-              // construction (the lane IS the presence of MAUDE_RENDER_URL).
-              service: resolveRenderService()!,
-              signal: controller.signal,
-            })
-          : await runExport({
-              format: args.format,
-              scope: args.scope,
-              options: args.options,
-              resolve: args.resolve,
-              ctx: args.ctx,
-              hooks: {
+                    : VIDEO_FORMATS.has(args.format)
+                      ? {
+                          ...args.options,
+                          // The <Audio>/<OffthreadVideo> pre-flight reads the canvas
+                          // source — same "only the cell has the checkout" rule.
+                          unsupportedMedia: readUnsupportedMediaFor(
+                            remoteTargets,
+                            args.resolve.repoRoot,
+                            args.resolve.designRoot
+                          ),
+                          // Ship the FULL frame-scaled render budget to the worker.
+                          // The cell sizes jobTimeoutMs to the frame count (a 704-
+                          // frame comp gets ~30 min), but the worker's shim caps
+                          // renderMediaOnWeb + its hard-kill on `options.timeoutSec`,
+                          // which defaulted to 60 s — so every real video fell back
+                          // to frame-step after 60 s and then hard-killed at 150 s,
+                          // long before a legitimate render could finish. Without
+                          // this the worker never knows the job it was handed is
+                          // allowed minutes, not seconds.
+                          timeoutSec: Math.ceil(jobTimeoutMs(args) / 1000),
+                        }
+                      : args.options,
+                canvas: args.remoteCanvas ?? { origin: '' },
+                // resolveRenderService() is non-null on the `remote` lane by
+                // construction (the lane IS the presence of MAUDE_RENDER_URL).
+                service: resolveRenderService()!,
                 signal: controller.signal,
-                onProgress: (update) => {
-                  job.progress = update;
-                  emit(job);
+              })
+            : await runExport({
+                format: args.format,
+                scope: args.scope,
+                options: args.options,
+                resolve: args.resolve,
+                ctx: args.ctx,
+                hooks: {
+                  signal: controller.signal,
+                  onProgress: (update) => {
+                    job.progress = update;
+                    emit(job);
+                  },
                 },
-              },
-            });
+              });
+          return res;
+        };
+        const res = args.group
+          ? await runGroup(
+              args.group,
+              job.items ?? [],
+              (u) => renderOne(u as { format: Format; scope: Scope; options: ExportOptions }),
+              () => emit(job),
+              controller.signal
+            )
+          : await renderOne(args);
 
         // Bytes land on disk BEFORE the job reads `done`. The other way round,
         // a poller saw `done` while the write was still in flight and its
