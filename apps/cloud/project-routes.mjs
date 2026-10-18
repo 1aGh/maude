@@ -167,12 +167,30 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
     // No account yet. The invite is the account: they follow one link and land
     // in the project, rather than signing up and then having to find it.
     const inviteId = crypto.randomUUID();
-    await env.DB.prepare(
-      `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-      .bind(inviteId, projectId, email, role, Date.now(), Date.now() + 14 * 86_400_000)
-      .run();
+    try {
+      // v18 (S9.14a): the invite page names who invited you.
+      await env.DB.prepare(
+        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at, invited_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(
+          inviteId,
+          projectId,
+          email,
+          role,
+          Date.now(),
+          Date.now() + 14 * 86_400_000,
+          account.id
+        )
+        .run();
+    } catch {
+      await env.DB.prepare(
+        `INSERT INTO project_invites (id, project_id, email, role, created_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+        .bind(inviteId, projectId, email, role, Date.now(), Date.now() + 14 * 86_400_000)
+        .run();
+    }
 
     const inviteUrl = `${url.origin}/invite/${inviteId}`;
     // The counterpart to `invite_redeemed`: how many invitations go out
