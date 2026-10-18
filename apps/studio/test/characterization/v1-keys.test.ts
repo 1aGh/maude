@@ -83,6 +83,21 @@
 // by its label, not `aria-pressed`; Settings › General gains the Keyboard group; the "?" sheet then (f1607c3e)
 // shows ⌥⌘1–9 as one range and wraps each "or" with its key. No write changed.
 //
+// Lead refresh (V2-5 wave A gate; golden regenerated twice, 238 of 240 cases byte-identical between the two runs —
+// `browser/in-canvas/canvas Meta+z` and `Meta+g` are one-off timing variants, an extra `undo-key` / notice line):
+// wave A made the keys the contract promised do their work. (1) T arms the Text tool (decision
+// v2-S2.12b Edit T arms el-text): `t` cases send `tool-cursor tool=el-text` and no longer insert text on the
+// spot, so no `insert-element` / reload, and the cases that follow it in a lane start from a canvas that was
+// not rewritten. (2) R arms Shape (V2-4.5b tool keys, S2 shapes): `browser/in-canvas/canvas r` is PREVENTED with
+// `tool-cursor tool=el-shape`. (3) ⌘G and ] run the object ops (S2.6): `edit-op op=object.frame` /
+// `object.bring-forward`, one `POST /_api/edit-op`. (4) ⇧⌘E opens the S8.2 sheet, which asks
+// `POST /_api/export-estimate` (S8.1/S8.2). (5) ⇧⌘M runs `presence.context`. (6) timeline ⌘Z / ⇧⌘Z are
+// `edit.undo` / `edit.redo` with an `undo-barrier` (the retired `timeline.undo`). (7) Esc in the canvas no longer
+// sends `force-clear` / `tool-cursor tool=move` (not traced to a recorded decision).
+// Not attributed one by one: the cases that only gained a `viewport-zoom` / `PATCH canvas-meta` (s n c a e, ⌘0 …,
+// the presenting Esc cases, tauri ⌘N's composer) and the 42 whose only change is the shell/canvas DOM hash (the
+// floating panels' content moved). They are stable across the two regenerations, so they are the measured wave A
+// behaviour; a case-by-case read of them is open (the lead's call).
 // Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
 // fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
 // happened yet (Settings' scout card, the inspector's edit-scope row), and under load it answers
