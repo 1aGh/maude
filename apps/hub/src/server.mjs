@@ -58,7 +58,7 @@ import { join, resolve } from 'node:path';
 
 import { SQLite } from '@hocuspocus/extension-sqlite';
 import { Server } from '@hocuspocus/server';
-import { legacyClaim } from '../../studio/access/scope.ts';
+import { legacyClaim, resolveAccess } from '../../studio/access/scope.ts';
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import {
   DOC_REFUSAL_REASON,
@@ -175,6 +175,7 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { stripPresent } from './present-strip.mjs';
 import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
 import {
   createAcceptedRevisions,
@@ -190,6 +191,7 @@ import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-t
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { createAccessService, withRolesV2 } from './routes-v2/access.mjs';
+import { COMMENTS_PATH } from './routes-v2/comments.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
 import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
@@ -202,6 +204,7 @@ import {
   isHubOwned,
   PAUSED_MESSAGE,
   servicePage,
+  signInUrl,
 } from './studio-door.mjs';
 import { createStudioProxy, sessionKeyFor } from './studio-proxy.mjs';
 import { tenantStats } from './tenant-stats.mjs';
@@ -334,7 +337,7 @@ const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // (`/auth/logout` + `/auth/browser/signout` → session, `/api/export` → export),
 // and `access-gate.mjs` asks the one matrix (S9.3). The handler-less
 // `/api/studio/comments` string went with it; the comment door is
-// `POST /api/comments` (S9.7), whose row will say `comment`.
+// `POST /api/comments` (S9.7), whose row says `comment` (routes-v2/comments.mjs).
 
 /**
  * The HTTP write doors a writer of the wrong FILE FORMAT is refused at
@@ -347,7 +350,7 @@ const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  */
 export function formatGatedWritePath(path, prefixes) {
   if (path === prefixes.projectConfig) return true;
-  if (path === '/api/studio/comments') return true;
+  if (path === COMMENTS_PATH) return true;
   return (
     path.startsWith(prefixes.fileDoor) ||
     path.startsWith(prefixes.uploads) ||
@@ -762,7 +765,7 @@ export function createHub(config = {}) {
         // The canvas token is OPTIONAL by construction — `?? null` at the call
         // site, and the canvas origin simply stays unauthenticated without it.
         // So a mint that cannot happen degrades to "no token", loudly, once.
-        mintCanvasToken: (session, { readOnly = false } = {}) => {
+        mintCanvasToken: (session, { readOnly = false, follow = null } = {}) => {
           try {
             return mintRenderToken({
               secret,
@@ -776,6 +779,9 @@ export function createHub(config = {}) {
               // the viewer floor instead, enforced by the canvas door.
               role: readOnly ? 'viewer' : session.role,
               readOnly,
+              // S3.7c — a presentation follower's capability: ONE canvas,
+              // receive-only, no project role (render-token.mjs drops `r`).
+              follow,
               ttlMs: canvasTokenTtlMs(),
             });
           } catch (err) {
@@ -810,6 +816,10 @@ export function createHub(config = {}) {
         },
       })
     : null;
+  // S9.12b (V2-1.16 U6) — a token's kick also closes the studio sockets its session opened
+  // through the proxy (raw splices the Hocuspocus kick never reaches).
+  const kickLabel = (label) =>
+    kickSessionsForLabel(peers, label) + (studioProxy?.closeUpgrades({ label }) ?? 0);
   /** @type {ReturnType<typeof scheduleMirror>|null} */
   let mirror = null;
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
@@ -825,7 +835,8 @@ export function createHub(config = {}) {
     ...(config.rolesV2 !== undefined ? { rolesV2: config.rolesV2 } : {}),
     graceMs: config.switchGraceMs ?? 1500,
     connections: () => [...peers.values()].map((p) => p.connection).filter(Boolean),
-    kickLabel: (label) => kickSessionsForLabel(peers, label),
+    kickLabel,
+    kickEmail: (email) => studioProxy?.closeUpgrades({ email }) ?? 0,
     sweepNow: () => (revocationSweep?.enabled ? revocationSweep.tick() : null),
   });
 
@@ -882,6 +893,43 @@ export function createHub(config = {}) {
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
+
+  // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
+  const commentsDeps = {
+    designRel: process.env.MAUDE_DESIGN_REL || '.design',
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    personKey: secret || dataDir,
+    accepted: () => accepted,
+    matchesScope,
+    async docExists(name) {
+      if (accepted?.acceptedMode()) {
+        const { docs = [] } = (await accepted.kernel.bootstrap()) ?? {};
+        return docs.some((d) => d.doc === name && !d.retired);
+      }
+      return (
+        listCanvases(sqlitePath, peers).some((d) => d.name === name) && !isTombstoned(dataDir, name)
+      );
+    },
+    async withDoc(name, context, fn) {
+      const conn = await server.hocuspocus.openDirectConnection(name, context);
+      try {
+        await conn.transact(fn);
+      } finally {
+        await conn.disconnect();
+      }
+    },
+    async formatRefusal(request) {
+      if (!accepted) return null;
+      if (!accepted.isReady()) await accepted.refreshOnce().catch(() => {});
+      const fmt = accepted.projectFormat();
+      if (declaredFormatFromRequest(request) === fmt) return null;
+      return { error: FORMAT_REFUSAL, reason: 'format', formatVersion: fmt };
+    },
+    *connections() {
+      for (const document of server.hocuspocus?.documents?.values?.() ?? [])
+        yield* document.getConnections?.() ?? [];
+    },
+  };
 
   const server = new Server({
     port,
@@ -1217,7 +1265,14 @@ export function createHub(config = {}) {
           canvasHost: Boolean(studioProxy && isCanvasHost(request)),
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
-          deps: { access: accessService },
+          deps: {
+            access: accessService,
+            comments: commentsDeps,
+            // v2 handlers' collaborators (S3.7b `/present/<canvas>`).
+            browserSession: (req) => browserSession(dataDir, secret, req),
+            designRoot: () => (studioProxy ? designRootFor() : null),
+            signInUrl: (req) => signInUrl({ request: req }),
+          },
         })
       ) {
         bailFromOnRequest();
@@ -1891,7 +1946,7 @@ export function createHub(config = {}) {
             respondRateLimited: () => respondRateLimited(response),
             respondJson: (status, payload) => respondAdminJson(response, status, payload),
             readJsonBody,
-            kickLabel: (label) => kickSessionsForLabel(peers, label),
+            kickLabel,
             pushActivity: (evt) => pushActivity(activity, evt),
           });
         } catch (err) {
@@ -1935,6 +1990,7 @@ export function createHub(config = {}) {
           port,
           startedAt,
           peers,
+          kickLabel,
           publicUrl,
           rateBuckets,
           rateStore,
@@ -2090,6 +2146,9 @@ export function createHub(config = {}) {
       // V2-1.7 §5.5 / L11 (S9.5): Bring everyone here needs `summon` on this
       // document — the field is stripped from any connection lacking it.
       stripSummon({ states, context });
+      // S3.7b (S3-present-session §2, D11): `present` + the presenter's `pointer`
+      // need `edit` on this document; `watching` is never stripped.
+      stripPresent({ states, context });
     },
 
     // A content change tells the cell's DO, so a parked desktop's
@@ -2530,7 +2589,7 @@ export function createHub(config = {}) {
         revocationSweep = scheduleRevocationSweep({
           dataDir,
           revokeForOwner: revokeTokensForOwner,
-          kickLabel: (label) => kickSessionsForLabel(peers, label),
+          kickLabel,
         });
         if (revocationSweep.enabled) console.log('[revocation] sweep armed');
       }
@@ -2694,6 +2753,7 @@ export function createHub(config = {}) {
 
 async function handleAdminApi(ctx) {
   const { request, response, dataDir, secret, peers, publicUrl, rateBuckets, rateLimit } = ctx;
+  const kickLabel = ctx.kickLabel ?? ((label) => kickSessionsForLabel(peers, label));
   const { rateStore, clientIp } = ctx;
   const rateOpts = { store: rateStore, ip: clientIp?.(request) };
   const { activity, sqlitePath } = ctx;
@@ -2760,7 +2820,7 @@ async function handleAdminApi(ctx) {
       publicUrl,
       respondJson: (status, payload) => respondAdminJson(response, status, payload),
       readJsonBody,
-      kickLabel: (label) => kickSessionsForLabel(peers, label),
+      kickLabel,
       pushActivity: (evt) => pushActivity(activity, evt),
     });
     if (handled) return;
@@ -2926,7 +2986,7 @@ async function handleAdminApi(ctx) {
       // DDR-053 §4: kick existing WS sessions for the rotated label so dwell
       // time on a compromised token is bounded by rotate latency, not by the
       // attacker's choice to never disconnect.
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -2946,7 +3006,7 @@ async function handleAdminApi(ctx) {
       assertValidLabel(label);
       removeToken(dataDir, label);
       // Kick live sessions that authenticated with the deleted token (DDR-053 §4).
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -3438,14 +3498,43 @@ export function browserSession(dataDir, secret, request) {
   // correctly-minted one. Refusing costs a sign-in; guessing costs either the
   // owner's own project or somebody else's write access.
   const role = ROLES.includes(match.role) ? match.role : null;
-  if (!role) return null;
+  // S3.7b — a CANVAS-ONLY cookie (no project role, a stored claim with canvas
+  // grants: V2-1.7 §5.3, minted by the S9.2 door) is a canvas-scoped session,
+  // not a stale one. It carries its claim and the fail-closed read-only
+  // projection; every project-scope door still refuses it (the S9.3 gate and
+  // the `canvasDoor` rows decide; the studio proxy forwards it with its claim
+  // and the studio's per-request reader decides — S3.7c). A role-null cookie
+  // WITHOUT such a claim is still no session at all.
+  if (!role) return canvasOnlyBrowserSession(match);
   return {
     email: match.owner,
     role,
+    // S9.12b (U6) — the token this cookie is, so its kick closes the sockets it opened.
+    label: match.label ?? null,
     // S9.3 — the stored access claim travels with the session (the proxy's `x-maude-access`),
     // so Can view reaches the studio as Can view; a v1 session gets its role's legacy claim.
     access: match.access ?? legacyClaim(role),
     readOnly: isReadOnlyRole(role),
+    sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
+      createHash('sha256').update(input).digest('hex')
+    ),
+  };
+}
+
+/** S3.7b — a role-null cookie as a canvas-scoped session, or null (see `browserSession`). */
+function canvasOnlyBrowserSession(match) {
+  const claim = match.access;
+  if (!claim || claim.role !== null || !Array.isArray(claim.grants) || claim.grants.length === 0) {
+    return null;
+  }
+  if (!resolveAccess(claim).canvasOnly) return null;
+  return {
+    email: match.owner,
+    role: null,
+    label: match.label ?? null,
+    access: claim,
+    readOnly: true,
+    canvasOnly: true,
     sessionKey: sessionKeyFor(process.env.MAUDE_TENANT_ID ?? 'local', match.owner, (input) =>
       createHash('sha256').update(input).digest('hex')
     ),

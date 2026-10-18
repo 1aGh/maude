@@ -222,6 +222,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // the Pointer is a mouse gesture, human below.
   'present.next': NAV('<canvas>#<artboard> --mode present'),
   'present.prev': NAV('<canvas>#<artboard> --mode present'),
+  // S3.7b — in a cloud-linked project `maude design open <canvas> --mode present` also prints the link.
+  'present.copy-link': { ...NAV('<canvas> --mode present'), minRole: 'edit' },
   // S3.5 — the agent writes the same keys the sheet does, in the canvas's .meta.json (V2-1.12 R6);
   // the studio's own writes go through PATCH /_api/present-meta, which refuses every role below edit.
   'present.order-notes': {

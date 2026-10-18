@@ -1863,6 +1863,62 @@ async function diffSystem(dir: string, sha: string, prefix: string): Promise<Git
     .map((file) => ({ file, before: sha, after: 'workdir' as const }));
 }
 
+/** A full object id (sha-1 or sha-256) — never a ref name, an abbreviation or a rev expression. */
+export const isFullCommitId = (sha: unknown): sha is string =>
+  typeof sha === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(sha);
+
+/**
+ * The repo-relative files commit `sha` changed against each of its parents (every file of a
+ * root commit) — `git diff-tree --name-only -r -m --root`. Null when `sha` is not a full
+ * object id naming a commit here. S9.12b: a canvas-only diff asks this before it answers.
+ */
+export async function gitCommitFiles(dir: string, sha: string): Promise<string[] | null> {
+  if (!isRepo(dir) || !isFullCommitId(sha)) return null;
+  if (await systemGitAvailable()) {
+    const t = await runGit(dir, ['cat-file', '-t', sha]);
+    if (t.code !== 0 || t.stdout.trim() !== 'commit') return null;
+    const r = await runGit(dir, [
+      'diff-tree',
+      '--no-commit-id',
+      '--name-only',
+      '-r',
+      '-m',
+      '--root',
+      '-z',
+      sha,
+    ]);
+    if (r.code !== 0) return null;
+    return [...new Set(r.stdout.split('\0').map((f) => f.replace(/\\/g, '/')))].filter(Boolean);
+  }
+  try {
+    const { commit } = await git.readCommit({ fs, dir, oid: sha });
+    const files = new Set<string>();
+    for (const parent of commit.parent.length ? commit.parent : [null]) {
+      const trees = parent
+        ? [git.TREE({ ref: sha }), git.TREE({ ref: parent })]
+        : [git.TREE({ ref: sha })];
+      await git.walk({
+        fs,
+        dir,
+        trees,
+        map: async (filepath, entries) => {
+          if (filepath === '.') return true;
+          const [a, b] = entries;
+          const type = a ? await a.type() : b ? await b.type() : 'blob';
+          if (type === 'tree') return true;
+          const oa = a ? await a.oid() : undefined;
+          const ob = parent ? (b ? await b.oid() : undefined) : null;
+          if (oa !== ob) files.add(filepath);
+          return true;
+        },
+      });
+    }
+    return [...files];
+  } catch {
+    return null;
+  }
+}
+
 // ── show a file at a past version (DiffView "before" render) ────────────────
 
 /** The text content of `repoRelPath` as it was at commit/ref `sha`, or null if

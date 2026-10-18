@@ -5,7 +5,7 @@
 // reader instead of importing from cli/lib so the Bun-side ts compile chain
 // doesn't pull in the .mjs CLI surface.
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, type Stats, statSync, unwatchFile, watchFile } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
@@ -207,4 +207,27 @@ export function getHubRecord(url: string, path?: string): HubRecord | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * S9.12b (V2-1.16 U6, desktop) — call `onChange` whenever hubs.json is written, replaced,
+ * created or removed (a re-sign-in, a role drop, a link or unlink — from this process, the
+ * CLI or the desktop shell). A stat poll, not `fs.watch`: the writers replace the file by
+ * rename, and the file may not exist yet. Unref'd; returns the stop function.
+ */
+export function watchHubsConfig(
+  onChange: () => void,
+  opts: { path?: string; intervalMs?: number } = {}
+): () => void {
+  const path = opts.path ?? hubsConfigPath();
+  const listener = (cur: Stats, prev: Stats) => {
+    if (cur.mtimeMs === prev.mtimeMs && cur.ino === prev.ino && cur.size === prev.size) return;
+    try {
+      onChange();
+    } catch (err) {
+      console.error('[sync] hubs.json change handler failed:', err);
+    }
+  };
+  watchFile(path, { interval: opts.intervalMs ?? 500, persistent: false }, listener);
+  return () => unwatchFile(path, listener);
 }

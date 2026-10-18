@@ -25,6 +25,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Closure, ProjectReader } from './closure.ts';
+// S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
+import { aclCheckOn } from './filters.ts';
 import type { Capability, ProjectRole } from './roles.ts';
 import { FLOOR_ROLE, can as roleCan } from './roles.ts';
 import { type Access, type AccessClaim, legacyClaim, resolveAccess, writes } from './scope.ts';
@@ -282,7 +284,7 @@ function seesTarget(g: GateInput, rel: string): boolean {
  * and their closure. Any method: reading B is refused exactly like writing it.
  */
 export async function canvasScopeRefusal(req: Request, g: GateInput): Promise<Response | null> {
-  if (!g.access.canvasOnly) return null;
+  if (!g.access.canvasOnly || !aclCheckOn('canvasScopeRefusal')) return null;
   const target = await targetOf(req, g.designRel);
   if (target === undefined) return null;
   if (target === null || !seesTarget(g, target)) return notInScopeResponse();
