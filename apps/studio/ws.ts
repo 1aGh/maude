@@ -65,6 +65,8 @@ export type WsData =
       readOnly?: boolean;
       /** S9.11 (L11) — the upgrade request's access (`summon` is stripped without it). */
       access?: Access;
+      /** S3.7c — a presentation follower's socket: receive-only in the room (collab/room.ts). */
+      follow?: boolean;
     }
   | {
       // T2 (9.1-A) — HMR-only socket for the segregated canvas origin. Receives
@@ -401,10 +403,12 @@ export function createWs(
     readOnly: boolean
   ): RoomConn {
     const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
+    const follow = ws.data.kind === 'collab' && ws.data.follow === true;
     const conn: RoomConn = {
       id: ws.data.id,
       realm,
       readOnly,
+      ...(follow ? { follow: true } : {}),
       // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }

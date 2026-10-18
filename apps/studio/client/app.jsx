@@ -236,6 +236,7 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
+import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
 import {
   CSS_ALIGN_SELF,
   CSS_ASPECT_RATIO,
@@ -2743,7 +2744,7 @@ function ShellTree() {
       whatsNew,
     },
     local: { querySelectionFromCanvas },
-    photoAndTimeline: { exitPresent, settleShellPrompt, shellPromptState },
+    photoAndTimeline: { settleShellPrompt, shellPromptState },
     projectData: { loadTree },
     gitActions: {
       acceptedDiff,
@@ -2973,26 +2974,9 @@ function ShellTree() {
             above the status bar) — video timelines are horizontal. */}
         {timelineOpen && <ShellTimelinePanel />}
       </div>
-      {presentMode && (
-        <button
-          type="button"
-          className="st-present-exit"
-          onClick={exitPresent}
-          aria-label="Exit presentation mode"
-          title="Exit presentation mode (Esc)"
-        >
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true">
-            <path
-              d="M4 4l8 8M12 4l-8 8"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Exit presentation</span>
-          <kbd className="st-present-exit-kbd">Esc</kbd>
-        </button>
-      )}
+      {/* S3.2b — the only chrome Present shows: the controls (Artboards) or the pill (the canvas). It replaces
+          the v1 `st-present-exit` button; the pill keeps that class. */}
+      {presentMode && <ShellPresentChrome />}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
