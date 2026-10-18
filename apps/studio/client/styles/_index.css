@@ -37,6 +37,7 @@
 @import url("./6-acp-chat.css");
 /* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
 @import url("../v2/ai/ai.css");
+@import url("../v2/ai/ai-list-advanced.css");
 /* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
 @import url("../v2/shell/floating-panels.css");
 @import url("../v2/shell/project-pill.css");

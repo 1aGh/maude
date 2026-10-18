@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "404238e54001",
+  "manifestVersion": "9e43e801c98e",
   "actions": [
     {
       "id": "search.open",
@@ -2267,6 +2267,83 @@
         "path": "human",
         "because": "native-window",
         "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
+      }
+    },
+    {
+      "id": "chat.advanced.ask-before",
+      "label": "Ask before",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.model",
+      "label": "Model",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.effort",
+      "label": "Effort",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.fast-mode",
+      "label": "Fast mode",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.show-in-chat",
+      "label": "Show in chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.suggestions",
+      "label": "Suggestions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.raw-log",
+      "label": "Raw log",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     }
   ],
