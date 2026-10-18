@@ -1,10 +1,11 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 86,
+  "humanMax": 100,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
     "accounts": "decision:maude/v2-4-gate-github-doors",
+    "ai-chat": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
     "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
     "keys": "decision:maude/v2-2.4b-undo-keys-human",
     "links": "decision:maude/v2-V2-1.11-ai-operability",
@@ -14,10 +15,25 @@
     "summon": "decision:maude/v2-V2-1.11-ai-operability",
     "view-pref": "decision:maude/v2-V2-1.11-ai-operability"
   },
-  "humanMaxRaised": {
-    "to": 86,
-    "from": 84,
-    "by": "decision:maude/v2-4-gate-github-doors",
-    "why": "File › Pull a local copy… and Share on GitHub… (the removed sidebar avatar menu's doors) act under the person's GitHub account — human (accounts) by design."
-  }
+  "humanMaxRaised": [
+    {
+      "to": 90,
+      "from": 86,
+      "by": "decision:maude/v2-S5.3-run-actions-human-until-s5.4",
+      "why": "S5.3 registers the AI run registry's row actions (V2-1.15 §5.10): Keep going and Cancel the waiting prompt are human 'ai-chat' by Q5 (the same reason S5.7 adds); AI runs and Stop are human until S5.4 builds `maude design runs list|stop`, which turns them cli and lowers this by 2. Four human rows."
+    },
+    {
+      "to": 96,
+      "from": 90,
+      "by": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
+      "why": "S5.7 registers the AI chat list's row commands (New chat, Rename…, Archive, Move to trash, Copy transcript: human 'ai-chat', the conversation is the person's to drive) and Open in terminal (human 'native-window', a Tauri command that spawns Terminal). Six human rows."
+    },
+    {
+      "to": 100,
+      "from": 96,
+      "by": "decision:maude/v2-S1.2-human-view-prefs",
+      "why": "S1.2: Pin canvas, Unpin canvas, Sort canvases and Copy canvas link are per-person view state (pins are the person's, the sort order is a per-project view preference, the link goes to the clipboard) — human (view-pref) by design, the same reason as view.pin-panels and edit.copy-properties. Four human rows."
+    }
+  ],
+  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry."
 }

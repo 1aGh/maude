@@ -138,6 +138,16 @@ export function resetE2eAppState(): void {
   }
 }
 if (!process.env.WDIO_WORKER_ID && !process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
+// S5.1b — every studio the app (or a lane conf) boots on an unlinked project stamps a machine id.
+// Keep it in the e2e bundle's own dir, never the person's ~/.config/maude/machine.json; the app's
+// sidecar and every lane's own `spawn('bun', [server.ts …])` inherit this env.
+process.env.MAUDE_MACHINE_FILE ??= join(
+  homedir(),
+  'Library',
+  'Application Support',
+  E2E_BUNDLE_ID,
+  'machine.json'
+);
 
 // Per-run evidence root (consumed by helpers/evidence.ts) — SAME place as
 // `/flow:scenario`: .ai/device/scenario-runs/<scenario>/<YYYY-MM-DD-HHMM>/

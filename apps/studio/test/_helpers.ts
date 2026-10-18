@@ -59,7 +59,16 @@ export async function bootServer(
   const proc = spawn({
     cmd: ['bun', 'run', serverPath, '--port', String(port), '--root', root],
     cwd: join(import.meta.dir, '..'),
-    env: { ...process.env, NO_OPEN: '1', NODE_ENV: 'test', ...extraEnv },
+    env: {
+      ...process.env,
+      NO_OPEN: '1',
+      NODE_ENV: 'test',
+      // S5.1b — an unlinked project's boot stamps this install's machine id; a test boot keeps it
+      // inside the sandbox (never ~/.config/maude/machine.json). One file per root, so a re-boot of
+      // the same project is the same machine and its store is not moved aside (C1).
+      MAUDE_MACHINE_FILE: join(root, '.design', '_state', 'machine.json'),
+      ...extraEnv,
+    },
     stdout: 'pipe',
     stderr: 'pipe',
   });

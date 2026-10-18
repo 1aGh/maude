@@ -13,6 +13,7 @@ import {
   boxOf,
   ROT_FIELD,
   resizeBox,
+  resolvedField,
   solidBoxHit,
   textStyleFields,
   translateBox,
@@ -29,6 +30,8 @@ export const sticky: ElementDef = {
     radius: num({ min: 0, max: 200, dp: 1, def: STICKY_RADIUS }),
     ...textStyleFields('left'),
   },
+  // Format 2 (R5): who resolved it, and when — absent = open.
+  ext: { resolved: resolvedField() },
   caps: {
     box: true,
     rotatable: true,

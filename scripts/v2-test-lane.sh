@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Maude v2 single test lane (plan "Single test lane").
 #
-#   scripts/v2-test-lane.sh [--keep-dist] [--wait <seconds>] -- <command…>
+#   scripts/v2-test-lane.sh [--keep-dist] [--wait <seconds>] [--max <seconds>] -- <command…>
 #
 # One machine, one suite at a time: parallel runs fabricate failures, and `bun test` has
 # clobbered apps/studio/dist/ before. This wrapper
@@ -11,7 +11,9 @@
 #      `<git common dir>/v2-test.queue.<host>/` (`<epoch>.<pid>`; a dead pid's ticket is dropped), so a
 #      caller that re-runs in a tight loop cannot starve everyone else,
 #   2. records `git status apps/studio/dist/` before the run,
-#   3. runs the command,
+#   3. runs the command — at most --max seconds (default 2700): a run past that is stopped with its
+#      whole process tree (a test that leaves a server handle open once held the lane 20 min with ten
+#      runs queued, 2026-10-18) and the wrapper exits 124,
 #   4. compares dist/ after the run and reverts tracked files the run changed (unless --keep-dist),
 #      reporting any new untracked files instead of deleting them,
 #   5. releases the lock and exits with the command's exit code.
@@ -23,17 +25,19 @@ COMMON="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/de
 LOCK="$COMMON/v2-test.lock"
 KEEP_DIST=0
 WAIT=900
+MAX=2700
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --keep-dist) KEEP_DIST=1; shift ;;
     --wait) WAIT="$2"; shift 2 ;;
+    --max) MAX="$2"; shift 2 ;;
     --) shift; break ;;
     *) break ;;
   esac
 done
 if [[ $# -eq 0 ]]; then
-  echo "usage: scripts/v2-test-lane.sh [--keep-dist] [--wait <s>] -- <command…>" >&2
+  echo "usage: scripts/v2-test-lane.sh [--keep-dist] [--wait <s>] [--max <s>] -- <command…>" >&2
   exit 2
 fi
 
@@ -100,8 +104,26 @@ if [[ -z "${V2_LANE_REAL_CONFIG:-}" ]]; then
   export MAUDE_CLOUD_CONFIG="${MAUDE_CLOUD_CONFIG:-$XDG_CONFIG_HOME/maude/cloud.json}"
 fi
 
-"$@"
+kill_tree() {
+  local c
+  for c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$c"; done
+  kill -TERM "$1" 2>/dev/null
+}
+"$@" &
+cmd_pid=$!
+(
+  sleep "$MAX"
+  if kill -0 "$cmd_pid" 2>/dev/null; then
+    echo "v2-test-lane: the run passed --max ${MAX}s — stopping it and everything it started" >&2
+    : >"$LOCK.timedout"
+    kill_tree "$cmd_pid"
+  fi
+) &
+dog_pid=$!
+wait "$cmd_pid"
 code=$?
+kill_tree "$dog_pid"
+if [[ -e "$LOCK.timedout" ]]; then rm -f "$LOCK.timedout"; code=124; fi
 [[ -n "$lane_cfg" ]] && rm -rf "$lane_cfg"
 
 if [[ "$(dist_print)" != "$before_print" ]]; then

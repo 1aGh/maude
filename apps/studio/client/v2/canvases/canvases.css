@@ -1,0 +1,552 @@
+/* client/v2/canvases/canvases.css — S1.1: the Canvases tab's list at scale (11 · pn-organise, 01 · cf-big-tree).
+ * Classes are `cv-*` (V2-4.3 hit a v1 class collision, so nothing here reuses a bare v1 name); values are the
+ * shell's tokens. The list is windowed: `.cv-spacer` holds the full height, `.cv-item` is absolutely placed. */
+
+@layer shell {
+  .cv-panel {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .cv-tree.st-tree {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-1) var(--space-2) var(--space-2);
+  }
+  .cv-tree:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cv-spacer {
+    position: relative;
+    width: 100%;
+  }
+
+  /* ── an item (one treeitem) is placed by the window; its row fills it ── */
+  .cv-item,
+  .cv-head,
+  .cv-empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+  }
+  .cv-item {
+    outline: none;
+  }
+  .cv-item:focus-visible > .cv-row {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cv-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    border-radius: var(--radius-xs);
+    color: var(--fg-1);
+  }
+  .cv-row:hover,
+  .cv-row:focus-within {
+    background: var(--bg-2);
+  }
+  .cv-row.is-sel {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+  }
+  .cv-row.is-dragging {
+    opacity: 0.35;
+    outline: 1px dashed var(--border-strong);
+    outline-offset: -1px;
+  }
+  .cv-row.is-busy {
+    opacity: 0.6;
+  }
+  .cv-row.is-drop-target {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
+  .cv-main {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: inherit;
+    text-align: left;
+    cursor: default;
+  }
+  .cv-main:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cv-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cv-sub {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cv-twisty {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .cv-fic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    color: var(--fg-2);
+  }
+  .cv-count {
+    margin-left: auto;
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .cv-thumb {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-3);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+  }
+  .cv-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* ── badges ride at the right edge, under the hover actions ── */
+  .cv-badges {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex: none;
+  }
+  .cv-badge {
+    display: inline-grid;
+    place-items: center;
+    color: var(--fg-2);
+  }
+  .cv-badge--ai {
+    color: var(--accent);
+  }
+  .cv-badge--pin {
+    color: var(--fg-2);
+  }
+  .cv-row:hover .cv-badge--pin,
+  .cv-row:focus-within .cv-badge--pin {
+    display: none;
+  }
+
+  /* ── hover actions: pin, ⋯, delete. In the a11y tree always; visible on hover or keyboard focus. ── */
+  .cv-actions {
+    position: absolute;
+    right: var(--space-1);
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding-left: var(--space-2);
+    background: inherit;
+    border-radius: var(--radius-xs);
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .cv-row:hover > .cv-actions,
+  .cv-row:focus-within > .cv-actions,
+  .cv-act--pin[aria-pressed="true"] {
+    opacity: 1;
+  }
+  .cv-row:hover > .cv-actions,
+  .cv-row:focus-within > .cv-actions {
+    background: var(--bg-2);
+  }
+  .cv-row.is-sel:hover > .cv-actions,
+  .cv-row.is-sel:focus-within > .cv-actions {
+    background: var(--accent-tint);
+  }
+  .cv-act {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: var(--radius-xs);
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .cv-act:hover {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .cv-act:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cv-act[aria-pressed="true"] {
+    color: var(--accent);
+  }
+
+  /* ── the Pinned / project heads ── */
+  .cv-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-medium, 500);
+    border-radius: var(--radius-xs);
+  }
+  .cv-head.is-drop-target {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cv-head-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cv-head-aside {
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-3);
+  }
+  .cv-sort {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 var(--space-1);
+    height: 20px;
+    border-radius: var(--radius-xs);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .cv-sort:hover,
+  .cv-sort.is-open {
+    background: var(--bg-4);
+    color: var(--fg-0);
+  }
+  .cv-sort:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* ── the Sort menu (a panel-level popover, so the list's scroll never clips it) ── */
+  .cv-menu {
+    position: absolute;
+    z-index: 5;
+    width: 240px;
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md, 0 6px 24px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--border-default);
+    font-size: var(--type-sm);
+  }
+  .cv-menu-group {
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cv-menu-item {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .cv-menu-item:hover,
+  .cv-menu-item:focus-visible {
+    background: var(--bg-4);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .cv-menu-check {
+    display: grid;
+    place-items: center;
+    width: 14px;
+    flex: none;
+    color: var(--accent);
+  }
+  .cv-menu-label {
+    flex: none;
+  }
+  .cv-menu-note {
+    margin-left: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-3);
+    white-space: nowrap;
+  }
+  .cv-menu-sep {
+    border: 0;
+    height: 1px;
+    margin: var(--space-1) 0;
+    background: var(--border-default);
+  }
+
+  /* ── the empty folder (05 · es-panels-canvas) ── */
+  .cv-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+    padding-right: var(--space-2);
+  }
+  .cv-empty-title {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .cv-empty-body {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cv-empty-action {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    padding: var(--space-1) var(--space-2) var(--space-1) 0;
+    border-radius: var(--radius-xs);
+    color: var(--accent);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .cv-empty-action:hover {
+    color: var(--fg-0);
+  }
+  .cv-empty-action:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* ── S1.2 · drag target, rename in place, the row menu and the folder list (11 · pn-move) ── */
+  .cv-drop-tag {
+    flex: none;
+    margin-left: auto;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg, var(--fg-0));
+    font-size: var(--type-xs);
+    line-height: 18px;
+    white-space: nowrap;
+  }
+  .cv-drop-tag + .cv-count {
+    margin-left: var(--space-2);
+  }
+  .cv-main--edit {
+    cursor: text;
+  }
+  .cv-rename {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 22px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+  .cv-rename:focus-visible {
+    outline: none;
+  }
+  .cv-rename.is-invalid {
+    box-shadow: inset 0 0 0 1px var(--status-error);
+  }
+  .cv-rename-err {
+    position: absolute;
+    left: var(--space-2);
+    right: var(--space-2);
+    top: calc(100% - 2px);
+    z-index: 3;
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-md, 0 6px 24px oklch(0 0 0 / 0.28)),
+      inset 0 0 0 0.5px var(--status-error);
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+  .cv-rowmenu .cv-menu-sep {
+    margin: var(--space-1) 0;
+  }
+  .cv-move {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: 260px;
+  }
+  .cv-move-filter {
+    margin: 0 var(--space-1);
+    height: 26px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+  .cv-move-filter:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cv-move-list {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .cv-move-item {
+    cursor: pointer;
+  }
+  .cv-move-none {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+
+  .cv-none {
+    margin: var(--space-3) var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .cv-foot {
+    flex: none;
+    margin: 0;
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-3);
+  }
+
+  /* ── S1.3 · the jump list (11 · pn-jump) and the marks of a search (01 · cf-panel-search) ── */
+  .cv-jt {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+    width: 14px;
+    height: 20px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    color: var(--fg-2);
+    border-radius: var(--radius-xs);
+    cursor: default;
+    z-index: 1;
+  }
+  .cv-jt:hover,
+  .cv-jt:focus-visible {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+  .cv-jt:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cv-bk {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    color: var(--fg-2);
+  }
+  .cv-row--board .cv-name {
+    font-size: var(--type-sm);
+  }
+  .cv-row--board.is-sel .cv-bk {
+    color: var(--accent);
+  }
+  .cv-row--board.is-sel .cv-name {
+    font-weight: 500;
+  }
+  .cv-note {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 30px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding-right: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cv-mark {
+    background: var(--accent-muted);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cv-actions {
+      transition: none;
+    }
+  }
+}

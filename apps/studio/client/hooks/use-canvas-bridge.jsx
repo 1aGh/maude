@@ -2145,7 +2145,14 @@ export function useCanvasBridge({
           console.warn('[sticker-picker]', j.error || `upload failed (HTTP ${res.status})`);
           return;
         }
-        postToActiveCanvas({ dgn: 'insert-sticker', path: j.path });
+        // S4.3: name the bundled sticker the bytes came from (the gallery's pack slug + file)
+        postToActiveCanvas({
+          dgn: 'insert-sticker',
+          path: j.path,
+          ...(sticker.pack && sticker.id
+            ? { sticker: { pack: sticker.pack, id: sticker.id } }
+            : {}),
+        });
       } catch {
         console.warn('[sticker-picker] could not load or upload that sticker');
       }

@@ -44,6 +44,73 @@ test('dry run --json → exit 0 and the report; nothing written', { skip: !hasBu
   }
 });
 
+test('--reverse --strip dry run reports every format-2 board field and type as lost (S4.1)', {
+  skip: !hasBun,
+}, () => {
+  const repo = project();
+  try {
+    writeFileSync(
+      join(repo, '.design', 'config.json'),
+      '{\n  "formatVersion": 2,\n  "name": "cli-test"\n}\n'
+    );
+    const board = [
+      {
+        id: 's1',
+        type: 'sticky',
+        index: 'a0',
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 120,
+        text: 'hi',
+        parentArtboard: 'hero',
+        resolved: { by: 'Jonas', at: '2026-10-01T10:00:00Z' },
+      },
+      {
+        id: 'ar',
+        type: 'arrow',
+        index: 'a1',
+        start: { x: 0, y: 0 },
+        end: { x: 9, y: 9 },
+        endHost: { ref: 'ab:hero', label: 'Hero' },
+      },
+      { id: 'vote1', type: 'vote', index: 'a2', targets: ['ab:hero'] },
+      { id: 'ballot-vote1-u_ana', type: 'ballot', index: 'a3', vote: 'vote1', voter: 'u_ana' },
+      {
+        id: 'stamp-s1-u_ana-heart',
+        type: 'stamp',
+        index: 'a4',
+        x: 0,
+        y: 0,
+        w: 32,
+        h: 32,
+        kind: 'heart',
+      },
+    ];
+    const text = JSON.stringify({ format: 'maude.annotations', v: 2, elements: board });
+    writeFileSync(join(repo, '.design', 'home.annotations.json'), `${text}\n`);
+    const r = maude('migrate', 'v2', '--reverse', '--strip', '--json', '--root', repo);
+    assert.equal(r.status, 0, r.stderr);
+    const report = JSON.parse(r.stdout);
+    const lost = report.steps
+      .flatMap((s) => s.lost)
+      .map((l) => `${l.field}:${l.count}`)
+      .sort();
+    assert.deepEqual(lost, [
+      'endHost:1',
+      'parentArtboard:1',
+      'resolved:1',
+      'type:ballot:1',
+      'type:stamp:1',
+      'type:vote:1',
+    ]);
+    // a dry run: the board is untouched
+    assert.equal(readFileSync(join(repo, '.design', 'home.annotations.json'), 'utf8'), `${text}\n`);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('--apply writes the marker; a second run exits 10; --strip without --reverse is usage', {
   skip: !hasBun,
 }, () => {

@@ -15,6 +15,7 @@ import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
 import { localDepsFromSource } from './access/closure.ts';
+import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
 import {
   cancelSignin,
   getClaudeAuthStatus,
@@ -23,17 +24,19 @@ import {
   startInstall,
   startSignin,
 } from './acp/login-state.ts';
-import { probeAcpAvailabilityAuthed } from './acp/probe.ts';
+import { probeAcpAvailability, probeAcpAvailabilityAuthed } from './acp/probe.ts';
 import { activitySnapshot, runningChats } from './acp/running.ts';
 import {
   chatTranscriptSeq,
   deleteChat,
+  groupChatsByCanvas,
   listChats,
   readChatMessages,
   writeChatMeta,
 } from './acp/transcript.ts';
 import { actionsManifestVersion } from './actions/manifest-version.ts';
-import { isCanvasFile } from './activity.ts';
+import { createLocalLeaseHome } from './ai/lease-home.ts';
+import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
 import { ImportBrandError, importBrand } from './bin/_import-brand.mjs';
@@ -129,7 +132,7 @@ import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
-import { createOutbox } from './outbox/index.ts';
+import { createOutbox, type GateFacts } from './outbox/index.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
@@ -1153,6 +1156,8 @@ export interface Http {
    * the app shell, or arbitrary repo files. WS upgrades are gated in server.ts.
    */
   isCanvasSafeRoute(pathname: string): boolean;
+  /** S5.6 — the chat's outbox door (acp/ask-queue.ts): server.ts hands it to `createAcp`. */
+  askQueue: AskQueue;
 }
 
 export function createHttp(
@@ -1166,7 +1171,11 @@ export function createHttp(
   generateJobs: GenerationJobQueue,
   /** V2-2.4b — the attached shell count for `maude design open` (ws.ts owns the sockets; ws is
    *  created first in server.ts). Lazy: read per request, never while building the table. */
-  opts: { shellCount?: () => number } = {}
+  opts: {
+    shellCount?: () => number;
+    /** S5.3 — THE run registry (server.ts builds it on the lease home); absent = in-memory */
+    runs?: RunRegistry;
+  } = {}
 ): Http {
   /** The current request's inspector state (Cloud Phase 27 D3). Resolved per
    *  call rather than captured, because "whose" changes per request and a
@@ -1189,7 +1198,11 @@ export function createHttp(
     rssBytes: process.memoryUsage().rss,
   }));
   registerStatus('ai', () => ({
-    activeCanvases: ai.list().length,
+    // the ACP chat's AiActivity entries + the banner the run registry derives (S5.3)
+    activeCanvases: ai.list().length + runs.bannerEntries().length,
+    runs: runs.view().live,
+    // Q2 — a linked hub without runs-v1 keeps per-Mac leases, and Diagnostics says so
+    leaseHome: runs.diagnostics(),
     generation: countBy(generateJobs.list()),
   }));
   registerStatus('export', () => ({ jobs: countBy(exportJobs.list()) }));
@@ -1526,17 +1539,23 @@ export function createHttp(
   // server's routes map. The outbox has no senders yet — S5 / S8 / S9 register
   // their doors and enqueue in-process; until then it serves the content-lane
   // view and the (empty) intent list, and nothing is sent.
+  // S5.6 — the first sender: `ai.prompt` → the run registry (acp/ask-queue.ts). The drain reads
+  // `senders[kind]` per pass, so the door is filled in once the registry exists (below).
+  const outboxSenders: Parameters<typeof createOutbox>[0]['senders'] = {};
+  // ONE source of gate facts for the chat (queue or send now) and the drain (release).
+  // `online` has no server-side source yet (the shell's reachability) — it stays open, as before.
+  const outboxGates = (): GateFacts => ({
+    online: true,
+    hubReachable: true,
+    signedIn: true,
+    aiConnected: probeAcpAvailability().available,
+    aiReady: true,
+    allowanceResetsAt: currentAllowanceResetsAt(),
+  });
   const outbox = createOutbox({
     designRoot: ctx.paths.designRoot,
-    senders: {},
-    gates: () => ({
-      online: true,
-      hubReachable: true,
-      signedIn: true,
-      aiConnected: true,
-      aiReady: true,
-      allowanceResetsAt: null,
-    }),
+    senders: outboxSenders,
+    gates: outboxGates,
     target: () => ({ projectId: null, projectName: ctx.projectLabel, role: 'owner' }),
     onChange: (seq) => ctx.bus.emit('outbox:changed', { seq }),
   });
@@ -1552,8 +1571,33 @@ export function createHttp(
   // V2-2.5 — THE route table (routes/index.ts), every spec behind `guardTableRoute`. Its exact
   // paths merge into `routes` below, so `readOnlyRefusal` wraps them like every legacy key; its
   // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
+  // S5.3 — one run registry for the hook routes, `/_api/ai/runs*` and the v1 banner routes.
+  const runs =
+    opts.runs ??
+    createRunRegistry({
+      designRoot: null,
+      designRel: ctx.paths.designRel,
+      home: createLocalLeaseHome({ actor: 'you' }),
+      autoRenew: false,
+      emit: (e, p) => ctx.bus.emit(e, p),
+    });
+  const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
+  outboxSenders['ai.prompt'] = askQueue.sender;
+  // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
+  void outbox.drain.wake().catch(() => null);
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    ai: {
+      registry: runs,
+      repoRoot: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      // the ACP chat's own banner entries (acp/index.ts → AiActivity) until S5.6 moves the
+      // chat turn onto the registry
+      legacyEntries: () => ai.list(),
+      // T16 — a v1 `/design:edit` is ONE project action
+      beginAction: (key, name) => ctx.syncControl?.current?.()?.beginAiAction?.(key, name),
+      endAction: (key, outcome) => ctx.syncControl?.current?.()?.endAiAction?.(key, outcome),
+    },
     agent: {
       repoRoot: ctx.paths.repoRoot,
       designRel: ctx.paths.designRel,
@@ -1572,14 +1616,10 @@ export function createHttp(
           if (r.actor === 'maude-chat') return;
           ctx.syncControl?.current?.()?.beginAiAction?.(`agent:${r.session}`, 'Claude Code');
         },
-        touch: (r, rel) => {
-          if (r.actor === 'maude-chat') return;
-          if (isCanvasFile(rel)) ai.start(posix.join(ctx.paths.designRel, rel), 'Claude Code');
-        },
+        // S5.3 — no `touch`: the ai-activity banner of a hook run is DERIVED from the registry
+        // (ai/runs.ts `bannerEntries`), never a second entry in AiActivity.
         end: (r, outcome) => {
           if (r.actor === 'maude-chat') return;
-          for (const rel of Object.keys(r.touched))
-            if (isCanvasFile(rel)) ai.end(posix.join(ctx.paths.designRel, rel));
           void ctx.syncControl
             ?.current?.()
             ?.endAiAction?.(`agent:${r.session}`, outcome === 'failed' ? 'failed' : 'done')
@@ -1603,6 +1643,12 @@ export function createHttp(
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
     pins: { designRoot: ctx.paths.designRoot },
+    // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
+    chat: {
+      designRoot: ctx.paths.designRoot,
+      outbox: outbox.store,
+      isRunning: (id) => runningChats().includes(id),
+    },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
@@ -1991,10 +2037,19 @@ export function createHttp(
 
     // Phase 31 — repo-level chat list + history (for the chat switcher +
     // hydration). MAIN-ORIGIN ONLY. Read-only; ids are sanitized before disk.
-    '/_api/acp/chats': () =>
-      Response.json(listChats(ctx.paths.designRoot), {
-        headers: { 'Cache-Control': 'no-store' },
-      }),
+    // S5.7: `?trashed=1` is the trash's own list (S1's Trash panel provider); `?group=canvas`
+    // answers `{ groups: [{ canvas, chats }] }` instead of the flat array. No query = the
+    // flat, newest-first array every existing consumer reads.
+    '/_api/acp/chats': (req: Request) => {
+      const q = new URL(req.url).searchParams;
+      const chats = listChats(ctx.paths.designRoot, { trashed: q.get('trashed') === '1' });
+      return Response.json(
+        q.get('group') === 'canvas' ? { groups: groupChatsByCanvas(chats) } : chats,
+        {
+          headers: { 'Cache-Control': 'no-store' },
+        }
+      );
+    },
     '/_api/acp/chat': async (req: Request) => {
       const id = (new URL(req.url).searchParams.get('id') ?? '')
         .replace(/[^a-z0-9_-]/gi, '')
@@ -2600,92 +2655,8 @@ export function createHttp(
       return Response.json({ name }, { headers: { 'Cache-Control': 'no-store' } });
     },
 
-    '/_api/ai': async (req: Request) => {
-      // Phase 8 Task 4 — read-only snapshot of the current AI activity map.
-      // GET → { entries: [{ file, author, startedAt, lastHeartbeat }, …] }
-      // Clients use this on mount to backfill the banner state without
-      // waiting for the next bus event.
-      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return Response.json({ entries: ai.list() }, { headers: { 'Cache-Control': 'no-store' } });
-    },
-
-    '/_api/ai/start': async (req: Request) => {
-      // Phase 8 Task 4 — `/design:edit` (or any external slash command driving
-      // Claude work) POSTs here when work begins. body = { file, author }.
-      // Replaces any prior entry for the file.
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      // CSRF guard: phase-30 bridges ai-activity onto room awareness, which
-      // crosses the hub — a forged cross-origin POST would inject a fake
-      // "<x> is editing <file>" presence to every connected peer. The loopback
-      // slash-command driver omits Origin (→ allowed); a browser drive-by can't.
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string; author?: string }>(req);
-      if (!body || typeof body.file !== 'string' || !body.file.trim()) {
-        return new Response('body.file required', { status: 400 });
-      }
-      const author =
-        typeof body.author === 'string' && body.author.trim()
-          ? body.author.trim().slice(0, 120)
-          : 'Claude';
-      const entry = ai.start(body.file.trim(), author);
-      // T16 — the edit is ONE project action: what the agent writes until
-      // /end is published together (or held, if it fails).
-      const name =
-        body.file
-          .trim()
-          .split('/')
-          .pop()
-          ?.replace(/\.(tsx|html)$/i, '') ?? 'canvas';
-      ctx.syncControl
-        ?.current?.()
-        ?.beginAiAction?.(`edit:${body.file.trim()}`, `${author} edited ${name}`);
-      return Response.json(entry, { headers: { 'Cache-Control': 'no-store' } });
-    },
-
-    '/_api/ai/heartbeat': async (req: Request) => {
-      // Refresh the lastHeartbeat. Returns 404 if no entry — slash command
-      // can treat that as "the server bounced; re-issue /start".
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string }>(req);
-      if (!body || typeof body.file !== 'string' || !body.file.trim()) {
-        return new Response('body.file required', { status: 400 });
-      }
-      const entry = ai.heartbeat(body.file.trim());
-      if (!entry) return new Response('no active entry', { status: 404 });
-      return Response.json(entry, { headers: { 'Cache-Control': 'no-store' } });
-    },
-
-    '/_api/ai/end': async (req: Request) => {
-      // Explicit completion (normal or error). Banner clears immediately.
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req))
-        return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string; outcome?: string }>(req);
-      if (!body || typeof body.file !== 'string' || !body.file.trim()) {
-        return new Response('body.file required', { status: 400 });
-      }
-      // T16 — close the action BEFORE the banner clears: `done` publishes
-      // what the agent wrote as one action, `failed` keeps it unpublished for
-      // the person's decision. (No outcome = done, the pre-T16 contract.)
-      const action = await ctx.syncControl
-        ?.current?.()
-        ?.endAiAction?.(`edit:${body.file.trim()}`, body.outcome === 'failed' ? 'failed' : 'done')
-        .catch(() => null);
-      const cleared = ai.end(body.file.trim());
-      return Response.json(
-        { cleared, ...(action ? { action } : {}) },
-        { status: cleared ? 200 : 404, headers: { 'Cache-Control': 'no-store' } }
-      );
-    },
+    // S5.3 — `/_api/ai` (GET, canvas-safe) and `/_api/ai/start|heartbeat|end` moved to
+    // routes/ai.ts, on the run registry (the banner is derived from it).
 
     '/_api/sync/offline': async (req: Request) => {
       // T19 — "Download everything for offline": every file of the project
@@ -6659,6 +6630,7 @@ export function createHttp(
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,
+    askQueue,
   };
 }
 
@@ -6681,7 +6653,6 @@ export const CANVAS_SAFE_API: ReadonlySet<string> = new Set([
   '/_api/asset/chunk-finish',
   '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in routes/canvas-origin.ts.
   '/_api/git-committers', // @mention autocomplete — a no-e-mail projection here (V2-2.8 S6)
-  '/_api/ai', // AI-activity banner
   '/_comments', // per-file comment list (renders pins)
 ]);
 

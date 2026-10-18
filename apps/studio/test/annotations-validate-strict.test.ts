@@ -109,16 +109,23 @@ describe('validateBoard — strict (AI writes)', () => {
   });
 
   test('peer compat: a newer peer’s extension field the AI left alone passes (V2-1.12 R5)', () => {
-    const peer = sticky('s1', { parentArtboard: 'hero' });
+    // `laneHint` stands for a field from a format NEWER than this build.
+    const peer = sticky('s1', { laneHint: 'hero' });
     const before = doc([peer, sticky('s2')]);
     const after = doc([{ ...peer, text: 'moved on' }, sticky('s2')]);
     expect(validateBoard(after, { strict: true, against: before }).errors).toEqual([]);
-    const changed = doc([{ ...peer, parentArtboard: 'other' }, sticky('s2')]);
+    const changed = doc([{ ...peer, laneHint: 'other' }, sticky('s2')]);
     expect(codes(validateBoard(changed, { strict: true, against: before }))).toEqual([
       'unknown-field',
     ]);
     // …and the lenient reader still keeps the field (it never drops it)
-    expect(parseBoard(after).elements[0]?.parentArtboard).toBe('hero');
+    expect(parseBoard(after).elements[0]?.laneHint).toBe('hero');
+    // A format-2 field this build knows (S4.1) is a schema'd field, not an unknown one.
+    const member = sticky('s1', { parentArtboard: 'hero' });
+    const moved = doc([{ ...member, parentArtboard: 'other' }, sticky('s2')]);
+    expect(
+      validateBoard(moved, { strict: true, against: doc([member, sticky('s2')]) }).errors
+    ).toEqual([]);
   });
 
   test('author is immutable; a new element is authored by AI', () => {

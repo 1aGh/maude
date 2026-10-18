@@ -14,10 +14,16 @@
 // else binds to a port. The orchestrator (slash commands) reads _server.json
 // to detect a live instance and avoid duplicate boots.
 
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createAcp } from './acp/index.ts';
+import type { AskQueue } from './acp/ask-queue.ts';
+import { type Acp, createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
+import { registerLiveRuns } from './acp/running.ts';
 import { createActivity } from './activity.ts';
+import { artboardSpans } from './agent-runs.ts';
+import { createLocalLeaseHome, selectLeaseHome } from './ai/lease-home.ts';
+import { createRunRegistry } from './ai/runs.ts';
 import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
 import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
@@ -32,6 +38,7 @@ import { installLogRing } from './debug-bundle.ts';
 import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
+import { formatGate, STAGED_FORMAT_GATE_OPTS } from './format.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';
@@ -44,6 +51,9 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
+import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
+import { hubHealth } from './sync/journal-client.ts';
+import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
 import { stopAllThumbs } from './thumbs/service.ts';
 import {
@@ -220,6 +230,40 @@ if (process.env.MAUDE_WORKSPACE_MODE !== '1') {
 collab = createCollab(ctx, api);
 const aiActivity = createAiActivity(ctx);
 
+// S5.3 — THE AI run registry (ai/runs.ts, V2-1.15): every AI run on this Mac — a Maude chat, a
+// terminal Claude Code, a v1 `/design:edit` — with its per-artboard leases. Records live in
+// `_state/runs/` (runtime state); boot() ends what a crash left live as `interrupted`. The lease
+// home starts per-Mac and moves to the linked hub once its `/health` says `runs-v1` (below).
+// S5.6 — the registry sends a chat run's turn through the ACP manager (built below, after the
+// registry boots: boot only ends crashed runs, it never sends a turn).
+let acpTurns: Pick<Acp, 'sendTurn' | 'cancelTurn'> | null = null;
+const runRegistry = createRunRegistry({
+  turns: {
+    send: (rec, text) => acpTurns?.sendTurn(rec, text),
+    cancel: (rec) => acpTurns?.cancelTurn(rec),
+  },
+  designRoot: ctx.paths.designRoot,
+  designRel: ctx.paths.designRel,
+  home: createLocalLeaseHome({ actor: 'you' }),
+  // a whole-canvas ask leases each artboard of the canvas
+  artboardsOf: (rel) => {
+    try {
+      const src = readFileSync(path.join(ctx.paths.designRoot, rel), 'utf8');
+      return (artboardSpans(src) ?? []).map((s) => s.id);
+    } catch {
+      return [];
+    }
+  },
+  emit: (e, p) => ctx.bus.emit(e, p),
+});
+await runRegistry.boot();
+// runningChats() / activitySnapshot() read the registry (unioned with the bridge until S5.6)
+registerLiveRuns(() => runRegistry.live());
+// the hub's `{t:'runs', seq}` on the control channel (sync/ctl-provider.ts → bus)
+ctx.bus.on('hub:runs', (p: { seq?: unknown }) => {
+  if (typeof p?.seq === 'number') runRegistry.poke(p.seq);
+});
+
 // Phase 30 — bridge agent `ai-activity` onto the per-canvas room awareness so a
 // remote peer sees "X is editing" cross-machine. The `ai-activity` bus event is
 // loopback-only (inspector WS); awareness is the one channel that crosses the
@@ -252,14 +296,29 @@ const activity = createActivity(ctx);
 // Gets the ai-activity registry so agent edits raise the same "Claude is
 // editing" banner + presence as /design:edit (RC5,
 // rca/issue-canvas-hmr-optimistic-update-consistency).
-const acp = createAcp(ctx, aiActivity);
+// S5.6 — chat turns run on the run registry (V2-1.15 §5.4), and every state-changing frame is
+// gated PER FRAME on the live read-only predicate: the role (hubs.json, re-read each call — a
+// workspace sign-in or an A6 removal lands on the next frame) + the format gate, the same pair
+// http.ts's `projectReadOnly` reads. `/_ws/acp` never runs in a cell, so no per-request role.
+const acp = createAcp(ctx, aiActivity, {
+  runs: runRegistry,
+  queue: () => askQueue,
+  readOnly: () =>
+    (ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false) ||
+    formatGate(ctx, STAGED_FORMAT_GATE_OPTS) !== null,
+});
+acpTurns = acp;
+// V2-1.14 — the outbox lives in createHttp (below); the chat reaches its door lazily.
+let askQueue: AskQueue | null = null;
 const ws = createWs(ctx, api, inspects, collab, activity, acp);
 const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
 const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {
   shellCount: () => ws.shellCount(),
+  runs: runRegistry,
 });
+askQueue = http.askQueue;
 const fsWatch = createFsWatch(ctx);
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.
@@ -923,7 +982,31 @@ ctx.bus.on('fs:json', (rel: string) => {
 // cloud panel cycles the runtime in place (ctx.syncControl), so pressing
 // Connect starts syncing instead of printing "restart the studio server".
 const syncRuntime = createSyncSupervisor(ctx, collab ? { registry: collab.registry } : {});
-ctx.syncControl = syncRuntime;
+// S5.1b — a project with no hub answers history / undo / restore from its own
+// store (`_state/project-store.sqlite`, the in-process kernel); a linked one is
+// unchanged. The watcher feeds it through the bus.
+const localHome = attachLocalHome(ctx, syncRuntime);
+ctx.syncControl = localHome.control;
+// S5.3 — the run registry's lease home (Q2): the linked hub when its `/health` advertises
+// `runs-v1`, else per-Mac leases plus the Diagnostics line. An unreachable hub (capabilities
+// null) keeps the per-Mac home without the line — it is offline, not old. A cell keeps its own.
+{
+  const hubUrl = ctx.cfg.linkedHub?.url;
+  if (hubUrl && !isWorkspaceMode()) {
+    void hubHealth({ hubUrl })
+      .then(({ capabilities }) => {
+        if (capabilities === null) return;
+        const sel = selectLeaseHome({
+          actor: 'you',
+          linked: { hubUrl, token: () => getHubRecord(hubUrl)?.token ?? null },
+          capabilities,
+        });
+        runRegistry.setHome(sel.home, sel.diagnostics);
+        if (sel.home.kind === 'hub') void runRegistry.pull();
+      })
+      .catch(() => {});
+  }
+}
 registerStatus('sync', () => ({
   linked: Boolean(ctx.cfg.linkedHub),
   hub: ctx.cfg.linkedHub?.url ?? null,
@@ -995,6 +1078,8 @@ async function shutdown() {
   // Test seam (V2-2.8 B4 regression test only): simulate a teardown that never settles.
   if (process.env.MAUDE_TEST_HANG_SHUTDOWN === '1') await new Promise(() => {});
   void stopDiagnostics();
+  // live run records stay on disk: the next boot ends them `interrupted` (R11)
+  runRegistry.close();
   flushAllIndexes();
   stopAllThumbs();
   // DDR-166 — reap in-flight claude-provisioning grandchildren before this
@@ -1036,6 +1121,11 @@ async function shutdown() {
     await syncRuntime.stop();
   } catch {
     /* best-effort — provider sockets will be closed by process exit anyway */
+  }
+  try {
+    localHome.close(); // releases `_state/project-store.lock`
+  } catch {
+    /* a dead pid's lock is taken over at the next boot anyway */
   }
   try {
     if (collab) {
