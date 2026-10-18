@@ -59,8 +59,38 @@ describe('Home route guards (§5.8 item 1)', () => {
       '/_home/invite/peek',
       '/_home/invite/accept',
       '/_home/internal/signin/profile',
+      // S6.6 — hub, AI, CLI, What's New
+      '/_home/hub/test',
+      '/_home/hub/prepare',
+      '/_home/ai/status',
+      '/_home/ai/connect',
+      '/_home/cli/status',
+      '/_home/cli/install',
+      '/_home/whats-new',
     ])
       expect([p, paths.has(p)]).toEqual([p, true]);
+  });
+
+  test("S6.6: the hub / AI / CLI / What's New rows are page routes (page secret)", () => {
+    const kinds = new Map(homeRouteTable(homeDeps()).map((r) => [`${r.method} ${r.path}`, r.kind]));
+    for (const row of [
+      'POST /_home/hub/test',
+      'POST /_home/hub/prepare',
+      'GET /_home/ai/status',
+      'POST /_home/ai/connect',
+      'GET /_home/cli/status',
+      'POST /_home/cli/install',
+      'GET /_home/whats-new',
+      'POST /_home/whats-new',
+    ])
+      expect([row, kinds.get(row)]).toEqual([row, 'home']);
+  });
+
+  test('every page row is reached only through the page secret — none is internal or open', () => {
+    // a new row lands in SAMPLES automatically; this pins that it is one of the two guarded kinds
+    for (const r of homeRouteTable(homeDeps()))
+      expect([r.path, r.kind === 'home' || r.kind === 'internal']).toEqual([r.path, true]);
+    expect(PAGE.length + INTERNAL.length).toBe(SAMPLES.length);
   });
 
   test('S6.5: the sign-in and invite rows are page routes, the profile row is internal', () => {

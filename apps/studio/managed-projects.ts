@@ -16,6 +16,7 @@
 
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { Context } from './context.ts';
+import { saveHubCredential } from './sync/hub-link.ts';
 import { getHubRecord, normalizeUrl } from './sync/hubs-config.ts';
 import { signInToWorkspace } from './sync/workspace-signin.ts';
 
@@ -78,9 +79,13 @@ function sameServer(a: string | undefined, b: string): boolean {
   }
 }
 
-async function bootstrapOf(url: string, token: string): Promise<Record<string, unknown> | null> {
+async function bootstrapOf(
+  url: string,
+  token: string,
+  doFetch: typeof fetch = fetch
+): Promise<Record<string, unknown> | null> {
   try {
-    const res = await fetch(`${url}/api/projects/current/v1/bootstrap`, {
+    const res = await doFetch(`${url}/api/projects/current/v1/bootstrap`, {
       headers: { authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(10_000),
     });
@@ -102,8 +107,10 @@ export async function prepareManagedProject(
   ctx: PrepareCtx,
   input: PrepareInput,
   /** `hubsConfigPath`: where the hub credential is stored and read back (N-H1 — Home prepares
-   *  for one profile at a time, so never the process-global file for another profile). */
-  opts: { cloudConfigPath?: string; hubsConfigPath?: string } = {}
+   *  for one profile at a time, so never the process-global file for another profile).
+   *  `fetchImpl` (S6.6): every request to a team server goes through it — Home passes one that
+   *  refuses redirects, so a 307 can never carry the password or the token to another host. */
+  opts: { cloudConfigPath?: string; hubsConfigPath?: string; fetchImpl?: typeof fetch } = {}
 ): Promise<PrepareResult> {
   let serverUrl: string;
   let projectId: string | null = null;
@@ -135,11 +142,18 @@ export async function prepareManagedProject(
     role = j.role ?? null;
     name = projectId;
   } else if (input.kind === 'hub') {
-    const r = await signInToWorkspace({
-      url: input.url,
-      email: input.email,
-      password: input.password,
-    });
+    const hubsPath = opts.hubsConfigPath;
+    const r = await signInToWorkspace(
+      { url: input.url, email: input.email, password: input.password },
+      {
+        fetchImpl: opts.fetchImpl,
+        // S6.6: the credential goes to the SAME hubs.json it is read back from below — before,
+        // a non-default profile stored it in the process-global file and then could not find it
+        save: hubsPath
+          ? (u, t, role, exp) => saveHubCredential(u, t, role, exp, hubsPath)
+          : undefined,
+      }
+    );
     if (!r.json.ok) return { ok: false, error: r.json.error, status: r.status };
     serverUrl = r.json.url;
     role = r.json.user.role;
@@ -157,7 +171,7 @@ export async function prepareManagedProject(
   const token = getHubRecord(serverUrl, opts.hubsConfigPath)?.token;
   if (!token)
     return { ok: false, error: 'The sign-in could not be saved on this computer.', status: 500 };
-  const boot = await bootstrapOf(serverUrl, token);
+  const boot = await bootstrapOf(serverUrl, token, opts.fetchImpl);
   if (boot && typeof boot.projectId === 'string') projectId ??= boot.projectId;
   // SIGN IN AGAIN (T20): a new credential for the server this studio is
   // already syncing with. Reopening the same project attaches to this very

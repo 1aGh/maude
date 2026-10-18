@@ -38,13 +38,17 @@ import { serveClientAsset, serveFile, serveIndexHtml } from '../static-lane.ts';
 import { thumbNotFound, thumbResponse } from '../thumbs/routes.ts';
 import { checkJpeg } from '../thumbs/validate.ts';
 import { isLoopbackHost } from '../ws.ts';
+import { createHomeAi, type HomeAi } from './ai.ts';
+import { createHomeCli, type HomeCli } from './cli.ts';
 import type { HomeCloud } from './cloud.ts';
 import { createLocalProject } from './create-local.ts';
+import { createHomeHub, type HomeHub } from './hub.ts';
 import { readHomeIndex, resolveProject, searchHome, thumbSource } from './index-reader.ts';
 import { createHomeInvite, type HomeInvite } from './invite.ts';
 import { isPid } from './pid.ts';
 import { createHomeSignIn, type HomeAnswer, type HomeSignIn } from './signin.ts';
 import { isCanvasKey, setPin } from './user-state.ts';
+import { createHomeWhatsNew, type HomeWhatsNew } from './whats-new.ts';
 
 export const HOME_HEADER = 'x-maude-home';
 export const MAX_BODY_BYTES = 64 * 1024;
@@ -70,6 +74,14 @@ export interface HomeDeps {
   signin?: HomeSignIn;
   /** S6.5 — the invite peek/accept proxy */
   invite?: HomeInvite;
+  /** S6.6 — "Connect to your own hub": Test connection + prepare */
+  hub?: HomeHub;
+  /** S6.6 — Claude readiness + the existing install / sign-in module */
+  ai?: HomeAi;
+  /** S6.6 / Q13 — Install the maude command (default: ~/.local/bin + the bundled maude) */
+  cli?: HomeCli;
+  /** S6.6 / Q11 — the feed + the one seen mark per Mac (ui-prefs) */
+  whatsNew?: HomeWhatsNew;
 }
 
 const NO_STORE = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
@@ -219,10 +231,27 @@ function post(
   };
 }
 
+/** A GET row whose handler answers `{status, body}` (S6.6). */
+function get(path: string, run: () => HomeAnswer | Promise<HomeAnswer>): HomeRoute {
+  return {
+    method: 'GET',
+    path,
+    kind: 'home',
+    handle: async () => {
+      const r = await run();
+      return json(r.status, r.body);
+    },
+  };
+}
+
 /** Exported for the route-guard test: every row of V2-1.1 §5.3 but the static lane. */
 export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
   const signin = deps.signin ?? createHomeSignIn();
   const invite = deps.invite ?? createHomeInvite();
+  const hub = deps.hub ?? createHomeHub();
+  const ai = deps.ai ?? createHomeAi();
+  const cli = deps.cli ?? createHomeCli();
+  const whatsNew = deps.whatsNew ?? createHomeWhatsNew();
   return [
     {
       method: 'GET',
@@ -376,6 +405,16 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
     post('/_home/invite/peek', 'home', (b) => invite.peek(b)),
     post('/_home/invite/accept', 'home', (b) => invite.accept(b)),
     post('/_home/internal/signin/profile', 'internal', (b) => signin.register(b)),
+    // S6.6 — page routes behind the page secret. The hub password rides one POST body to
+    // `prepare` and is handed straight to the hub (home/hub.ts); nothing here stores or logs it.
+    post('/_home/hub/test', 'home', (b) => hub.test(b)),
+    post('/_home/hub/prepare', 'home', (b) => hub.prepare(b)),
+    get('/_home/ai/status', () => ai.status()),
+    post('/_home/ai/connect', 'home', (b) => ai.connect(b)),
+    get('/_home/cli/status', () => cli.status()),
+    post('/_home/cli/install', 'home', (b) => cli.install(b)),
+    get('/_home/whats-new', () => whatsNew.get()),
+    post('/_home/whats-new', 'home', (b) => whatsNew.post(b)),
     {
       method: 'GET',
       path: '/_home/internal/search',
