@@ -7,18 +7,22 @@
 // like the same request for a missing canvas (U1).
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { writeFileSync } from 'node:fs';
+import { readdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { listen, until } from './_acl-cell.ts';
 import {
   A_ONLY,
+  A_ONLY_CLAIM,
   B_REL,
   badProbeUrls,
   bootGateCell,
   buildProbes,
+  captureProbes,
   D,
   type GateCell,
   markers,
   OWNER,
+  OWNER_SESSION,
   sweep,
 } from './_acl-gate.ts';
 import { ROUTE_CLASSES } from './_acl-route-classes.ts';
@@ -27,12 +31,7 @@ import { ROUTE_CLASSES } from './_acl-route-classes.ts';
  * Rows the sweep finds and S9.12 did NOT close, by name — the gate is not ready for the
  * `roles-v2` flip (Q13) until this is empty. A new finding is never added here silently.
  */
-const KNOWN_OPEN: Record<string, string> = {
-  'main /_api/git/diff GET sha':
-    'existence oracle: `?sha=` of a commit that touched only invisible canvases answers ' +
-    'the visible files’ diff; a missing sha answers `{entries:[]}` (U1). Needs the sha to ' +
-    'be one of the session’s visible log commits (http.ts diff handler).',
-};
+const KNOWN_OPEN: Record<string, string> = {};
 
 let cell: GateCell;
 beforeAll(async () => {
@@ -43,6 +42,13 @@ afterAll(async () => {
 });
 
 describe('the studio canary sweep — an A-only session', () => {
+  test('the S9.12b plants exist: a trashed copy of B, another member’s export job of B', () => {
+    expect(readdirSync(join(cell.designRoot, '_trash')).some((d) => /canary-b-copy/.test(d))).toBe(
+      true
+    );
+    expect(cell.bJobId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   test('every probe is built from real params (no /undefined, no :param)', () => {
     const probes = buildProbes(cell);
     expect(probes.length).toBeGreaterThan(1000);
@@ -80,8 +86,15 @@ describe('the studio canary sweep — an A-only session', () => {
       '/_api/git/branches',
       '/_api/git/log',
       '/_api/ai/runs',
+      '/_api/sync/trash',
     ])
       expect({ route, owner: routes.has(route) }).toEqual({ route, owner: true });
+    // The export job is listed to the session that started it (the A-only sweep has another).
+    const jobs = buildProbes(cell).filter(
+      (p) => p.method === 'GET' && p.route === 'main /_api/export-jobs' && !p.pair
+    );
+    const mine = await sweep(cell, OWNER_SESSION, jobs);
+    expect(Object.keys(mine.leaks).length).toBeGreaterThan(0);
   }, 600000);
 
   test('the sockets carry nothing of B while the owner works on it', async () => {
@@ -122,4 +135,30 @@ describe('the studio canary sweep — an A-only session', () => {
       owner.close();
     }
   }, 30000);
+});
+
+// S9.12b — the capture origin exists only on a desktop (a cell has no capture listener), so it
+// gets its own fixture: a hub-linked desktop whose stored claim (hubs.json, re-read per
+// request) is the owner's while the not-vacuous pass runs, then A-only for the sweep.
+describe('the capture origin (desktop fixture)', () => {
+  let desk: GateCell;
+  beforeAll(async () => {
+    desk = await bootGateCell({ desktop: true });
+  }, 60000);
+  afterAll(async () => {
+    await desk?.stop();
+  });
+
+  test('not vacuous: the owner’s capture origin serves B', async () => {
+    expect(desk.captureBase).toMatch(/^http:\/\/localhost:\d+$/);
+    desk.setDesktopClaim?.({ v: 1, role: 'owner' });
+    const r = await sweep(desk, {}, captureProbes(desk));
+    expect(Object.keys(r.leaks).length).toBeGreaterThan(0);
+  }, 600000);
+
+  test('as A-only, no capture-origin route answers B, and B answers like a missing canvas', async () => {
+    desk.setDesktopClaim?.(A_ONLY_CLAIM);
+    const r = await sweep(desk, {}, captureProbes(desk));
+    expect({ leaks: r.leaks, oracles: Object.keys(r.oracles) }).toEqual({ leaks: {}, oracles: [] });
+  }, 600000);
 });

@@ -13,6 +13,8 @@
 //                                      commit naming it
 //   C  ui/canary-c.tsx                 on DS `canary-ds`, its own commit
 //   +  an empty folder ui/canary-empty/
+//   +  S9.12b: a trashed copy of B (`_trash/…canary-b-copy`, deleted by the owner) and an
+//      export job of B started by ANOTHER member's session (`x-maude-session: owner-sess`)
 // Nothing of A carries the word `canary`, so any `canary` (case-folded) an A-only session
 // receives — or the sha256 of B's file, or the C-only commit — is a leak.
 //
@@ -75,6 +77,12 @@ export const legacySession = (role: 'owner' | 'member' | 'viewer'): Headers_ => 
   'x-maude-readonly': role === 'viewer' ? '1' : '0',
 });
 export const OWNER = roleSession('owner');
+/** S9.12b — the owner as a session of its own (export jobs are listed per session). */
+export const OWNER_SESSION: Headers_ = { ...OWNER, 'x-maude-session': 'owner-sess' };
+/** The B copy the owner trashes at boot. */
+export const B_COPY_REL = 'ui/canary-folder/canary-b-copy.tsx';
+/** An export-job id no job has (the missing side of the job-id pair). */
+export const M_JOB = '00000000-0000-4000-8000-00000000dead';
 /** A canvas-only member of A — the session every sweep runs as. */
 export const A_ONLY: Headers_ = {
   'x-maude-access': claim({ v: 1, role: null, grants: [{ c: A_REL, r: 'member' }] }),
@@ -130,11 +138,23 @@ export interface GateCell {
   cSha: string;
   /** The B AI run's id (owner-started), or null if the run could not be planted. */
   bRunId: string | null;
+  /** S9.12b — the owner session's export job of B, or null if it could not be planted. */
+  bJobId: string | null;
+  /** S9.12b — the desktop fixture's capture origin (no capture listener in a cell). */
+  captureBase?: string;
+  /** S9.12b — the desktop fixture: rewrite hubs.json's stored claim (re-read per request). */
+  setDesktopClaim?: (c: AccessClaim) => void;
   stop(): Promise<void>;
 }
 
+/** The stored claim a desktop fixture holds while the sweep runs as A-only. */
+export const A_ONLY_CLAIM: AccessClaim = { v: 1, role: null, grants: [{ c: A_REL, r: 'member' }] };
+const DESKTOP_HUB = 'http://hub.invalid:9';
+
 /** Boot the gate cell; `revert` names ACL checks the server runs without (the revert guard). */
-export async function bootGateCell(opts: { revert?: readonly AclCheck[] } = {}): Promise<GateCell> {
+export async function bootGateCell(
+  opts: { revert?: readonly AclCheck[]; desktop?: boolean } = {}
+): Promise<GateCell> {
   const { root, designRoot } = makeSandbox();
   const home = join(root, 'home');
   mkdirSync(join(home, '.config'), { recursive: true });
@@ -153,11 +173,21 @@ export async function bootGateCell(opts: { revert?: readonly AclCheck[] } = {}):
           { name: 'canary-ds', path: 'system/canary-ds' },
         ],
         defaultDesignSystem: 'shared',
+        // S9.12b — the desktop fixture is a hub-linked desktop: its access is hubs.json's claim.
+        ...(opts.desktop ? { linkedHub: { url: DESKTOP_HUB, linkedAt: 1 } } : {}),
       },
       null,
       2
     )
   );
+  const hubsPath = join(home, 'hubs.json');
+  const setDesktopClaim = (c: AccessClaim) =>
+    writeFileSync(
+      hubsPath,
+      JSON.stringify({ hubs: { [DESKTOP_HUB]: { token: 't', linkedAt: 1, access: c } } }),
+      { mode: 0o600 }
+    );
+  if (opts.desktop) setDesktopClaim({ v: 1, role: 'owner' });
   for (const ds of ['shared', 'canary-ds']) {
     mkdirSync(join(designRoot, 'system', ds, 'preview'), { recursive: true });
     writeFileSync(join(designRoot, 'system', ds, 'colors_and_type.css'), ':root{--bg-0:#000}\n');
@@ -197,18 +227,23 @@ export async function bootGateCell(opts: { revert?: readonly AclCheck[] } = {}):
   git(root, 'branch', 'canary-draft'); // a draft named after B (free text, U4)
   put(B_REL, `${B_SRC}// canary edit\n`); // the working tree moves on: the diff lists B
   put(A_REL, `${A_SRC}// edit\n`);
+  put(B_COPY_REL, B_SRC); // trashed by the owner below
 
   const port = nextPort();
   const proc = await spawnStudio(root, port, {
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
-    HUBS_CONFIG_PATH: join(home, 'hubs.json'),
+    HUBS_CONFIG_PATH: hubsPath,
     MAUDE_CLOUD_CONFIG: join(home, 'cloud.json'),
     MAUDE_GEN_KEYS_PATH: join(home, 'gen-keys.json'),
-    MAUDE_WORKSPACE_MODE: '1',
-    MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
-    HUB_DASHBOARD_URL: 'http://127.0.0.1:9',
-    MAUDE_PROJECT_NAME: 'Alligators',
+    ...(opts.desktop
+      ? {}
+      : {
+          MAUDE_WORKSPACE_MODE: '1',
+          MAUDE_WORKSPACE_ALLOW_DEV_MODULES: '1',
+          HUB_DASHBOARD_URL: 'http://127.0.0.1:9',
+          MAUDE_PROJECT_NAME: 'Alligators',
+        }),
     MAUDE_TEST_ACL_REVERT: (opts.revert ?? []).join(','),
   });
   const base = `http://localhost:${port}`;
@@ -231,6 +266,34 @@ export async function bootGateCell(opts: { revert?: readonly AclCheck[] } = {}):
   } catch {
     bRunId = null;
   }
+  // S9.12b — the owner trashes a copy of B (`_trash/<stamp>__<slug>/`).
+  await fetch(`${base}/_api/canvas?file=${encodeURIComponent(`${D}/${B_COPY_REL}`)}`, {
+    method: 'DELETE',
+    headers: { origin: base, ...OWNER },
+  }).catch(() => null);
+  // S9.12b — another member's session exports B (a job record naming B, listed per session).
+  let bJobId: string | null = null;
+  try {
+    const r = await fetch(`${base}/_api/export-jobs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base, ...OWNER_SESSION },
+      body: JSON.stringify({
+        format: 'html',
+        scope: 'canvas-whole',
+        options: { canvasFile: `${D}/${B_REL}` },
+      }),
+    });
+    bJobId = ((await r.json()) as { jobId?: string }).jobId ?? null;
+  } catch {
+    bJobId = null;
+  }
+  // The capture origin (desktop only): the main origin 307s every canvas shell to it.
+  let captureBase: string | undefined;
+  if (opts.desktop) {
+    const r = await fetch(`${base}/_canvas-shell?file=x`, { redirect: 'manual' });
+    const loc = r.headers.get('location');
+    captureBase = loc ? new URL(loc).origin : undefined;
+  }
   return {
     base,
     canvasBase: `http://localhost:${info.canvasPort}`,
@@ -238,6 +301,9 @@ export async function bootGateCell(opts: { revert?: readonly AclCheck[] } = {}):
     designRoot,
     cSha,
     bRunId,
+    bJobId,
+    ...(captureBase ? { captureBase } : {}),
+    ...(opts.desktop ? { setDesktopClaim } : {}),
     stop: () => killProc(proc),
   };
 }
@@ -346,7 +412,7 @@ export interface RouteRow {
   origin: 'main' | 'canvas';
   path: string;
   /** null = the handler decides by `req.method` (legacy + fall-through) */
-  method: 'GET' | 'POST' | null;
+  method: 'GET' | 'POST' | 'PATCH' | null;
   source: 'legacy' | 'table' | 'fallthrough' | 'canvas';
 }
 
@@ -379,6 +445,8 @@ interface Pair {
 /** The `:param` of a pattern row, as B and as missing. Unknown → throws (self-check). */
 function paramPair(path: string, name: string, cell: GateCell): Pair {
   if (name === 'id' && path.startsWith('/_api/comments/')) return { b: B_COMMENT, m: M_COMMENT };
+  if (name === 'id' && path.startsWith('/_api/export-jobs/'))
+    return { b: cell.bJobId ?? 'job-unplanted', m: M_JOB };
   if (name === 'id' && path.startsWith('/_api/ai/runs/'))
     return { b: cell.bRunId ?? 'run-unplanted', m: 'run-missing0' };
   // No outbox entry exists in a fresh cell; both sides name an absent id.
@@ -394,8 +462,11 @@ function paramPair(path: string, name: string, cell: GateCell): Pair {
   throw new Error(`no real value for :${name} in ${path}`);
 }
 
-/** Every query spelling a handler reads a target from, as B and as missing. */
-export function queryPairs(cell: GateCell): Record<string, Pair> {
+/**
+ * Every query spelling a handler reads a target from, as B and as missing. `route` (the row's
+ * path) narrows `id` where it names something other than a comment (an export job of B).
+ */
+export function queryPairs(cell: GateCell, route = ''): Record<string, Pair> {
   const file = { b: `${D}/${B_REL}`, m: `${D}/${M_REL}` };
   return {
     file,
@@ -403,7 +474,9 @@ export function queryPairs(cell: GateCell): Record<string, Pair> {
     path: file,
     rel: { b: B_REL, m: M_REL },
     slug: { b: B_SLUG, m: M_SLUG },
-    id: { b: B_COMMENT, m: M_COMMENT },
+    id: route.startsWith('/_api/export-jobs')
+      ? { b: cell.bJobId ?? 'job-unplanted', m: M_JOB }
+      : { b: B_COMMENT, m: M_COMMENT },
     sha: { b: cell.cSha, m: 'deadbeef'.repeat(5) },
     key: { b: B_SLUG, m: M_SLUG },
     asset: { b: B_ASSET, m: M_ASSET },
@@ -413,8 +486,9 @@ export function queryPairs(cell: GateCell): Record<string, Pair> {
 }
 
 export interface Probe {
-  origin: 'main' | 'canvas';
-  method: 'GET' | 'POST';
+  /** `capture` — the desktop fixture's capture origin (S9.12b), probed with the canvas rows */
+  origin: 'main' | 'canvas' | 'capture';
+  method: 'GET' | 'POST' | 'PATCH';
   /** path + query, built from real params */
   url: string;
   body?: Record<string, string>;
@@ -441,8 +515,8 @@ export const UNSENT_WRITES: ReadonlySet<string> = new Set([
 
 export function buildProbes(cell: GateCell, rows = routeInventory()): Probe[] {
   const probes: Probe[] = [];
-  const qp = queryPairs(cell);
   for (const row of rows) {
+    const qp = queryPairs(cell, row.path);
     const names = [...row.path.matchAll(/:([A-Za-z_]+)/g)].map((m) => m[1] as string);
     const fill = (side: 'b' | 'm') =>
       row.path.replace(/:([A-Za-z_]+)/g, (_, n: string) => {
@@ -451,14 +525,14 @@ export function buildProbes(cell: GateCell, rows = routeInventory()): Probe[] {
       });
     const pathB = fill('b');
     const pathM = fill('m');
-    const methods: Array<'GET' | 'POST'> = row.method
+    const methods: Array<'GET' | 'POST' | 'PATCH'> = row.method
       ? [row.method]
       : row.origin === 'canvas' || row.source === 'fallthrough'
         ? ['GET']
         : ['GET', 'POST'];
     const id = `${row.origin} ${row.path}`;
     for (const method of methods) {
-      if (method === 'POST' && UNSENT_WRITES.has(row.path)) continue;
+      if (method !== 'GET' && UNSENT_WRITES.has(row.path)) continue;
       if (pathB !== pathM) {
         const sent = paramPair(row.path, names[0] as string, cell).b;
         probes.push({
@@ -484,7 +558,7 @@ export function buildProbes(cell: GateCell, rows = routeInventory()): Probe[] {
           method,
           url: pathB,
           route: id,
-          ...(method === 'POST' ? { body: {} } : {}),
+          ...(method !== 'GET' ? { body: {} } : {}),
         });
       }
       for (const [k, v] of Object.entries(qp)) {
@@ -578,17 +652,22 @@ async function readCapped(r: Response, maxBytes = 512 * 1024, ms = 4000): Promis
 }
 
 export async function ask(cell: GateCell, p: Probe, headers: Headers_): Promise<Answer> {
-  const base = p.origin === 'main' ? cell.base : cell.canvasBase;
+  const base =
+    p.origin === 'main'
+      ? cell.base
+      : p.origin === 'capture'
+        ? (cell.captureBase ?? 'http://127.0.0.1:9')
+        : cell.canvasBase;
   try {
     const r = await fetch(base + p.url, {
       method: p.method,
       redirect: 'manual',
       headers: {
         origin: base,
-        ...(p.method === 'POST' ? { 'content-type': 'application/json' } : {}),
+        ...(p.method !== 'GET' ? { 'content-type': 'application/json' } : {}),
         ...headers,
       },
-      body: p.method === 'POST' ? JSON.stringify(p.body ?? {}) : undefined,
+      body: p.method !== 'GET' ? JSON.stringify(p.body ?? {}) : undefined,
       signal: AbortSignal.timeout(20000),
     });
     const heads = ['location', 'content-disposition', 'x-maude-canvas', 'etag', 'link']
@@ -640,6 +719,9 @@ export const normalize = (t: string, cell: GateCell, across = false) => {
     .join(':<port>')
     .split(`:${cell.canvasBase.split(':').pop()}`)
     .join(':<cport>')
+    .split(cell.captureBase ? `:${cell.captureBase.split(':').pop()}` : '\u0000')
+    .join(':<xport>')
+    .replace(/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z/g, '<t>') // a `_trash/<stamp>__…` dir
     .replace(/\d{4}-\d\d-\d\dT[\d:.]+Z?/g, '<t>')
     .replace(/\b\d{9,}(\.\d+)?\b/g, '<n>')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
@@ -666,7 +748,7 @@ export interface SweepResult {
 }
 
 const label = (p: Probe) =>
-  `${p.method} ${p.origin === 'canvas' ? '[canvas] ' : ''}${p.url}${p.body ? ` ${JSON.stringify(p.body)}` : ''}`;
+  `${p.method} ${p.origin === 'main' ? '' : `[${p.origin}] `}${p.url}${p.body ? ` ${JSON.stringify(p.body)}` : ''}`;
 
 export async function sweep(
   cell: GateCell,
@@ -720,11 +802,26 @@ export async function sweep(
 /** The missing-side value of the pair a B probe belongs to. */
 function queryPairOf(p: Probe, cell: GateCell): string | undefined {
   if (!p.sent) return undefined;
-  for (const v of Object.values(queryPairs(cell))) if (v.b === p.sent) return v.m;
+  for (const v of Object.values(queryPairs(cell, p.route.split(' ')[1])))
+    if (v.b === p.sent) return v.m;
   const row = p.route.split(' ')[1] as string;
   for (const n of [...row.matchAll(/:([A-Za-z_]+)/g)].map((m) => m[1] as string)) {
     const pp = paramPair(row, n, cell);
     if (pp.b === p.sent) return pp.m;
   }
   return undefined;
+}
+
+/**
+ * S9.12b — the capture origin's probes (desktop fixture): every canvas-origin row, sent to the
+ * capture listener instead (it serves the same `routes` map, GET/HEAD only).
+ */
+export function captureProbes(cell: GateCell): Probe[] {
+  const rows = routeInventory().filter((r) => r.origin === 'canvas');
+  return buildProbes(cell, rows).map((p) => ({
+    ...p,
+    origin: 'capture' as const,
+    route: p.route.replace(/^canvas /, 'capture '),
+    ...(p.pair ? { pair: p.pair.replace(/^canvas /, 'capture ') } : {}),
+  }));
 }
