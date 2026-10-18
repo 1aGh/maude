@@ -125,10 +125,10 @@
     color: var(--fg-2);
     white-space: nowrap;
   }
-  .cv-meta[data-tone='warn'] {
+  .cv-meta[data-tone="warn"] {
     color: var(--status-warn-text);
   }
-  .cv-meta[data-tone='azure'] {
+  .cv-meta[data-tone="azure"] {
     color: var(--accent);
   }
   .cv-row.is-dim .cv-name,
@@ -136,7 +136,7 @@
   .cv-row.is-dim .cv-badges {
     opacity: 0.55;
   }
-  .cv-foot[data-tone='warn'] {
+  .cv-foot[data-tone="warn"] {
     color: var(--status-warn-text);
   }
   .cv-twisty {

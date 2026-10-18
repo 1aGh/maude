@@ -25,7 +25,9 @@
     padding: var(--space-1);
     border-radius: var(--radius-md);
     background: var(--bg-2);
-    box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--border-default);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 1px var(--border-default);
     color: var(--fg-0);
   }
   .ai-runs-group {

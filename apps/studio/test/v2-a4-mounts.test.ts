@@ -10,7 +10,7 @@ describe('A4 host mounts', () => {
   test('S5.11 — the inspector socket’s ai:runs reaches the run store; the canvas draws the rings', async () => {
     const app = await read('client/app.jsx');
     expect(app).toContain("import { noteAiRuns } from './v2/ai/runs-store.js';");
-    expect(app).toMatch(/m\.type === 'ai:runs'\) \{\s*noteAiRuns\(m\.seq\);/);
+    expect(app).toMatch(/m\.type === 'ai:runs'\) \{(\s*\/\/[^\n]*)*\s*noteAiRuns\(m\.seq\);/);
     const shell = await read('canvas-shell.tsx');
     expect(shell).toContain(
       "import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';"
