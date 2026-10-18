@@ -145,15 +145,23 @@ export function presentSpecFor(kind, { selectedArtboard = null, inViewArtboard =
 /** The mode the canvases are in, clamped by the role (Present passes through). */
 export const effectiveMode = (mode, caps) => clampMode(mode, caps);
 
-/** The `set-mode` payload for one frame (§5.2: ≤ 300 bytes, M5). `tool` only for the active frame. */
-export function setModeMessage({ seq, mode, caps, tool, present = null }) {
+/** The `set-mode` payload for one frame (§5.2: ≤ 300 bytes, M5). `tool` only for the active frame.
+ *  S3.7a — `caps.present` (the canvas may publish its Present · Artboards position on awareness): Present
+ *  · Artboards and `edit`, or presenter view on (S3.6b passes `presenterView`; S3-present-session §3). */
+export function setModeMessage({ seq, mode, caps, tool, present = null, presenterView = false }) {
+  const spec = mode === 'present' ? presentSpec(present) : null;
   const msg = {
     dgn: 'set-mode',
     v: 2,
     seq,
     mode,
-    present: mode === 'present' ? presentSpec(present) : null,
-    caps: { edit: !!caps.edit, annotate: !!caps.annotate, comment: !!caps.comment },
+    present: spec,
+    caps: {
+      edit: !!caps.edit,
+      annotate: !!caps.annotate,
+      comment: !!caps.comment,
+      present: spec?.kind === 'artboards' && (!!caps.edit || !!presenterView),
+    },
   };
   if (tool) msg.tool = tool;
   return msg;

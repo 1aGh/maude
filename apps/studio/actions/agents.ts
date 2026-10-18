@@ -218,6 +218,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'present.canvas': NAV('<canvas> --mode present'),
   'present.from-selection': NAV('<canvas> --mode present'),
   'present.from-start': NAV('<canvas> --mode present'),
+  // S3.2b — an agent steps by opening the canvas in Present at the artboard it wants (`#<artboard>`);
+  // the Pointer is a mouse gesture, human below.
+  'present.next': NAV('<canvas>#<artboard> --mode present'),
+  'present.prev': NAV('<canvas>#<artboard> --mode present'),
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
@@ -246,6 +250,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),
+  'tool.pointer': {
+    effect: 'none',
+    agent: human('keys', 'the presenter’s own pointer; an agent has no mouse to show'),
+  },
   'tool.stickers': BOARD('Add a sticker element to the canvas’s .annotations.json'),
   // S4.4: a template is a --board spec; the verb is the agent's door to the same expansion
   ...Object.fromEntries(
