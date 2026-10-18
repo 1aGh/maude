@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "a17321ce77fe",
   "actions": [
     {
       "id": "search.open",
@@ -1586,6 +1586,54 @@
         "path": "human",
         "because": "view-pref",
         "note": "settings are the user’s"
+      }
+    },
+    {
+      "id": "settings.reset-panel-layout",
+      "label": "Reset panel layout",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "puts the panels back where they started; a UI preference"
+      }
+    },
+    {
+      "id": "settings.reset-all",
+      "label": "Reset all settings…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "puts this Mac’s Maude preferences back to a fresh Mac’s; keys and sign-ins stay"
+      }
+    },
+    {
+      "id": "settings.use-own-plugin-copy",
+      "label": "Use my own plugin copy",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "prefs.json ownPluginCopy: the AI chat loads your own plugin copy"
+      }
+    },
+    {
+      "id": "settings.experimental-teams",
+      "label": "AI reviews argue it out (teams)",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "prefs.json experimentalTeams: agent teams at the next AI session"
       }
     },
     {

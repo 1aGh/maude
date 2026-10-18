@@ -19,6 +19,7 @@ import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
+import { createSettingsHandlers } from '../settings/settings-handlers.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
@@ -218,6 +219,7 @@ export function createMenuHandlers(d) {
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──
     ...createDiagnosticsHandlers(d),
+    ...createSettingsHandlers(d), // S11.13 — Settings › Advanced: the four settings.* ids
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);

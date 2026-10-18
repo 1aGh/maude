@@ -15,6 +15,44 @@ export const APP_ACTIONS: ActionDef[] = [
     keys: [kb('⌘,', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
     legacy: { palette: 'Settings…', menu: 'Settings…' },
   },
+  // S11.13 — Settings › Advanced (06 ad-settings). The sections are the desktop server's (a cloud tab
+  // and a read-only link have none), so these four are too: absent there, not greyed.
+  {
+    // Opens Settings › Advanced, where the layout is reset — the row says what it does before it does.
+    id: 'settings.reset-panel-layout',
+    label: 'Reset panel layout',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: { keywords: ['panels', 'sides', 'dock', 'layout', 'left', 'right'] },
+  },
+  {
+    // A confirm dialog titled with its verb; keys and sign-ins are not touched.
+    id: 'settings.reset-all',
+    label: 'Reset all settings…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: { keywords: ['defaults', 'preferences', 'fresh'] },
+  },
+  {
+    // prefs.json `ownPluginCopy` — `MAUDE_NO_PLUGIN_BOOTSTRAP`, read when the AI chat next starts.
+    id: 'settings.use-own-plugin-copy',
+    label: 'Use my own plugin copy',
+    kind: 'toggle',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: { keywords: ['plugins', 'claude code', 'bundled', 'marketplace'] },
+  },
+  {
+    // prefs.json `experimentalTeams` — agent teams on at the next AI session (debate relay tier).
+    id: 'settings.experimental-teams',
+    label: 'AI reviews argue it out (teams)',
+    kind: 'toggle',
+    exec: 'shell',
+    visible: { shell: ['desktop', 'browser'], minRole: 'edit' },
+    search: { keywords: ['teams', 'debate', 'review', 'experimental'] },
+  },
   {
     // V2-4.2 / V2-3.8: this project signs in as someone else. The shell moves the project onto a
     // profile of its own (`cloud_sign_in_prepare`) and reloads signed out; the person then signs in

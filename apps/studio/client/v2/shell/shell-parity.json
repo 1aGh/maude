@@ -501,6 +501,46 @@
               "section": "advanced"
             },
             {
+              "testid": "settings-runtime",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-server-port",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-plugins",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-own-plugin-copy",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-decision-memory",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-report-logs",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-experimental-teams",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-panel-layout",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-all",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-fold-<id>",
+              "section": "advanced"
+            },
+            {
               "testid": "settings-reset-folds",
               "section": "advanced"
             }
@@ -832,6 +872,46 @@
             },
             {
               "testid": "sync-ownership-adopt",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-runtime",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-server-port",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-plugins",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-own-plugin-copy",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-decision-memory",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-report-logs",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-experimental-teams",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-panel-layout",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-all",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-fold-<id>",
               "section": "advanced"
             },
             {
