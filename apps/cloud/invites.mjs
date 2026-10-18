@@ -11,11 +11,26 @@
 // "this invite was revoked" tells a fired contractor exactly what happened and
 // a guessed UUID must learn nothing at all.
 
+import { writeGrant } from './access-forward.mjs';
 import { createAccount, createSession, getAccountByEmail } from './accounts.mjs';
 import { track } from './analytics.mjs';
 import { GOOGLE_BUTTON_CSS, googleButton, lockup, PAGE_CSS } from './brand.mjs';
 import { audit } from './db.mjs';
 import { googleConfigured } from './oauth-google.mjs';
+
+/**
+ * The deferred deep link (S9 Q6, decision v2-S9-deferred-deep-link-server-side).
+ * Opening an invitation sets this cookie for half an hour, so a person who
+ * leaves to install the app and then signs in from it still lands in the
+ * project: sign-in redeems it into the account (`redeemPendingInvite`), and
+ * the next handoff exchange carries `landing` (`landingForInvite`). No
+ * fingerprinting, no clipboard — it survives a fresh install because it lives
+ * on cloud.maude.sh, where the sign-in happens.
+ */
+export const PENDING_INVITE_COOKIE = 'maude_pending_invite';
+const PENDING_INVITE_MS = 30 * 60 * 1000;
+const pendingCookie = (id, maxAge) =>
+  `${PENDING_INVITE_COOKIE}=${id}; Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure; HttpOnly`;
 
 const DEAD_LINK =
   'This invitation link is not valid. Ask the person who invited you for a new one.';
@@ -47,6 +62,7 @@ function html(body, status = 200, extraHeaders = {}) {
 }
 
 const ROLE_MEANING = {
+  observer: 'You’ll be able to look at the work.',
   viewer: 'You’ll be able to look at the work and leave comments.',
   member: 'You’ll be able to design and edit alongside the team.',
 };
@@ -164,14 +180,29 @@ export async function inviteHintFor(env, next) {
   }
 }
 
-/** Add the membership, mark the invite spent, and write the audit line. */
+/**
+ * Add the membership (or, for an invitation to one canvas, the grant), mark
+ * the invite spent, and write the audit line.
+ */
 async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } = {}) {
-  await env.DB.prepare(
-    `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT (project_id, account_id) DO UPDATE SET role = excluded.role`
-  )
-    .bind(invite.project_id, accountId, invite.role, now)
-    .run();
+  if (invite.canvas_path) {
+    // A canvas invitation ADDS that canvas and never lowers (V2-1.7 G1).
+    await writeGrant(env.DB, {
+      projectId: invite.project_id,
+      accountId,
+      canvas: invite.canvas_path,
+      role: invite.role,
+      source: 'invite',
+      now,
+    });
+  } else {
+    await env.DB.prepare(
+      `INSERT INTO project_members (project_id, account_id, role, added_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (project_id, account_id) DO UPDATE SET role = excluded.role`
+    )
+      .bind(invite.project_id, accountId, invite.role, now)
+      .run();
+  }
   await env.DB.prepare('UPDATE project_invites SET redeemed_at = ? WHERE id = ?')
     .bind(now, invite.id)
     .run();
@@ -180,7 +211,11 @@ async function redeem(env, invite, accountId, { now = Date.now(), ctx = null } =
     projectId: invite.project_id,
     actor: `customer:${invite.email}`,
     action: 'invite.redeem',
-    detail: JSON.stringify({ invite: invite.id, role: invite.role }),
+    detail: JSON.stringify({
+      invite: invite.id,
+      role: invite.role,
+      ...(invite.canvas_path ? { canvas: invite.canvas_path } : {}),
+    }),
   });
   // The invite is the product's core action (DDR-193 §5) — worth knowing how
   // often the link actually gets followed, which is the half nobody sees.
@@ -213,7 +248,12 @@ export async function handleInviteRoutes(request, env, { account, ctx = null } =
   const signedInAsInvitee = account && existing && account.id === existing.id;
   const mode = signedInAsInvitee ? 'join' : existing ? 'sign-in' : 'create';
 
-  if (request.method === 'GET') return html(invitePage({ ...view, mode }));
+  if (request.method === 'GET') {
+    // Remember the invitation across "install the app, sign in from it".
+    return html(invitePage({ ...view, mode }), 200, {
+      'set-cookie': pendingCookie(invite.id, PENDING_INVITE_MS / 1000),
+    });
+  }
   if (request.method !== 'POST') return html('<p>Not allowed.</p>', 405);
 
   if (mode === 'join') {
@@ -265,6 +305,61 @@ export async function handleInviteRoutes(request, env, { account, ctx = null } =
       'set-cookie': `maude_session=${session.token}; Path=/; Max-Age=${30 * 24 * 3600}; SameSite=Lax; Secure; HttpOnly`,
     },
   });
+}
+
+/**
+ * Sign-in redeems a pending invitation (S9 Q6). Call it once a session exists
+ * for `account`. Only an invitation addressed to THIS account's e-mail is
+ * redeemed — the cookie is a reminder, never a credential. Returns the
+ * `set-cookie` value that clears the reminder (whatever happened), and the
+ * invitation when it was redeemed.
+ */
+export async function redeemPendingInvite(
+  env,
+  request,
+  account,
+  { now = Date.now(), ctx = null } = {}
+) {
+  const cookie = request.headers.get('cookie') ?? '';
+  const m = new RegExp(`(?:^|;\\s*)${PENDING_INVITE_COOKIE}=([0-9a-f-]{36})(?:;|$)`).exec(cookie);
+  if (!m) return { redeemed: null, clear: null };
+  const clear = pendingCookie('', 0);
+  if (!account?.email) return { redeemed: null, clear };
+  let invite = null;
+  try {
+    invite = await liveInvite(env, m[1], { now });
+  } catch {
+    return { redeemed: null, clear };
+  }
+  if (!invite || invite.email.toLowerCase() !== account.email.toLowerCase()) {
+    return { redeemed: null, clear };
+  }
+  await redeem(env, invite, account.id, { now, ctx });
+  return { redeemed: { id: invite.id, project: invite.project_id }, clear };
+}
+
+/**
+ * Where an invitation redeemed in the last half hour should land the app:
+ * `{ project, canvas? }`, or null. Read at handoff mint (S9 Q6).
+ */
+export async function landingForInvite(db, { email, projectId, now = Date.now() }) {
+  if (!email) return null;
+  const since = now - PENDING_INVITE_MS;
+  let row = null;
+  try {
+    row = await db
+      .prepare(
+        `SELECT canvas_path FROM project_invites
+          WHERE project_id = ? AND email = ? AND redeemed_at IS NOT NULL AND redeemed_at > ?
+          ORDER BY redeemed_at DESC LIMIT 1`
+      )
+      .bind(projectId, email.toLowerCase(), since)
+      .first();
+  } catch {
+    return null; // v16 D1 (no canvas_path yet): no landing, nothing else changes
+  }
+  if (!row) return null;
+  return { project: projectId, ...(row.canvas_path ? { canvas: row.canvas_path } : {}) };
 }
 
 /** Every customer-facing string here, for the vocabulary lint. */

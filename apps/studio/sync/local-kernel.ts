@@ -53,6 +53,13 @@ import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
+import {
+  asTarget,
+  chatActionIds,
+  originFields,
+  type UndoTarget,
+  undoLabel,
+} from './undo-target.ts';
 
 /* ------------------------------------------------------------------ files */
 
@@ -374,6 +381,11 @@ export interface LocalHistoryRow {
   undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** V2-1.5 §5.1 origin keys (S5.5). */
+  runId?: string;
+  chatId?: string;
+  madeAt?: number;
+  partial?: true;
 }
 
 export type LocalOutcome = {
@@ -381,6 +393,8 @@ export type LocalOutcome = {
   code?: string;
   actionId?: string;
   revision?: number;
+  undoes?: string | string[];
+  skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
 };
 
 /** The `ctx.syncControl.current()` surface a local project answers through. */
@@ -390,10 +404,17 @@ export interface LocalRuntime {
     limit?: number;
     before?: number | null;
     path?: string | null;
+    chat?: string | null;
+    kind?: string | null;
+    mine?: boolean;
   }): Promise<LocalHistoryRow[]>;
   acceptedVersion(repoRel: string, revision: number): Promise<string | null>;
   acceptedRestore(repoRel: string, revision: number): Promise<LocalOutcome>;
-  acceptedUndo(actionId: string, redo?: boolean): Promise<LocalOutcome>;
+  acceptedUndo(
+    target: string | UndoTarget,
+    redo?: boolean,
+    o?: { via?: 'keys' | 'panel' }
+  ): Promise<LocalOutcome>;
 }
 
 export interface LocalHomeOptions {
@@ -589,6 +610,10 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         status: 'accepted',
         ...(body.actionId ? { actionId: body.actionId } : {}),
         ...(Number.isSafeInteger(body.revision) ? { revision: body.revision } : {}),
+        ...(typeof body.undoes === 'string' || Array.isArray(body.undoes)
+          ? { undoes: body.undoes }
+          : {}),
+        ...(Array.isArray(body.skipped) && body.skipped.length ? { skipped: body.skipped } : {}),
       };
     }
     return { status: 'rejected', code: String(body?.code ?? 'retryable') };
@@ -905,7 +930,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   async function rowsOf(
     o: OpenedStore,
-    q: { limit?: number; before?: number | null; entry?: string | null }
+    q: {
+      limit?: number;
+      before?: number | null;
+      entry?: string | null;
+      chat?: string | null;
+      kind?: string | null;
+      actor?: string | null;
+    }
   ): Promise<LocalHistoryRow[]> {
     const m = await o.store.manifest();
     const pathOf = new Map<string, string>(
@@ -915,6 +947,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       limit: Math.min(Math.max(q.limit ?? 50, 1), 200),
       before: q.before ?? null,
       entry: q.entry ?? null,
+      chat: q.chat ?? null,
+      kind: q.kind ?? null,
+      actor: q.actor ?? null,
     })) as {
       revision: number;
       actionId: string;
@@ -923,6 +958,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       label: string | null;
       committedAt: number;
       undoes: string | string[] | null;
+      origin?: Record<string, unknown> | null;
       effects: { doc: string | null; beforePath: string | null; afterPath: string | null }[];
     }[];
     return history.map((a) => {
@@ -941,6 +977,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         committedAt: a.committedAt,
         undoes: a.undoes,
         canvases: [...canvases].sort(),
+        ...originFields(a.origin),
       };
     });
   }
@@ -972,7 +1009,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         entry = (h as { entry?: string } | undefined)?.entry ?? null;
         if (!entry) return [];
       }
-      return rowsOf(o, { ...q, entry });
+      return rowsOf(o, {
+        limit: q.limit,
+        before: q.before,
+        entry,
+        chat: q.chat ?? null,
+        kind: q.kind ?? null,
+        actor: q.mine ? actor : null,
+      });
     },
     async acceptedVersion(repoRel, revision) {
       await readyP;
@@ -995,13 +1039,23 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         })
       );
     },
-    async acceptedUndo(actionId, redo = false) {
+    async acceptedUndo(raw, redo = false, o) {
       await settled();
-      if (!kernel) return { status: 'rejected', code: 'store-locked' };
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const target = asTarget(raw);
+      const label = undoLabel(target, redo, o?.via);
+      let ids: { actionId: string } | { actionIds: string[] };
+      if ('chatId' in target) {
+        // "Undo this chat": this person's own `ai` actions of the chat, as ONE action.
+        const rows = await rowsOf(opened, { limit: 200, chat: target.chatId, actor, kind: 'ai' });
+        const found = chatActionIds(rows, target.chatId);
+        if (!found.ok) return { status: 'rejected', code: found.code };
+        ids = { actionIds: found.actionIds };
+      } else ids = target;
       return serial(() =>
-        submit([{ op: redo ? 'history.redo' : 'history.undo', actionId }], {
+        submit([{ op: redo ? 'history.redo' : 'history.undo', ...ids }], {
           kind: redo ? 'redo' : 'undo',
-          label: redo ? 'Redo' : 'Undo',
+          label,
         })
       );
     },

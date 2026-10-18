@@ -70,6 +70,8 @@ fn main() {
                 "new_home_tab",
                 "take_pending_intent",
                 "index_search",
+                // S1.5: ⌘K across projects — open another project's result.
+                "open_search_result",
                 "relink_project",
                 "open_project_folder",
                 // V2-3 patches (windows.rs): one-shot values parked per label.

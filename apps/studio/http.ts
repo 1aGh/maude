@@ -15,6 +15,7 @@ import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
 import { localDepsFromSource } from './access/closure.ts';
+import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
 import {
   cancelSignin,
   getClaudeAuthStatus,
@@ -23,7 +24,7 @@ import {
   startInstall,
   startSignin,
 } from './acp/login-state.ts';
-import { probeAcpAvailabilityAuthed } from './acp/probe.ts';
+import { probeAcpAvailability, probeAcpAvailabilityAuthed } from './acp/probe.ts';
 import { activitySnapshot, runningChats } from './acp/running.ts';
 import {
   chatTranscriptSeq,
@@ -131,7 +132,7 @@ import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
-import { createOutbox } from './outbox/index.ts';
+import { createOutbox, type GateFacts } from './outbox/index.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
@@ -1155,6 +1156,8 @@ export interface Http {
    * the app shell, or arbitrary repo files. WS upgrades are gated in server.ts.
    */
   isCanvasSafeRoute(pathname: string): boolean;
+  /** S5.6 — the chat's outbox door (acp/ask-queue.ts): server.ts hands it to `createAcp`. */
+  askQueue: AskQueue;
 }
 
 export function createHttp(
@@ -1536,17 +1539,23 @@ export function createHttp(
   // server's routes map. The outbox has no senders yet — S5 / S8 / S9 register
   // their doors and enqueue in-process; until then it serves the content-lane
   // view and the (empty) intent list, and nothing is sent.
+  // S5.6 — the first sender: `ai.prompt` → the run registry (acp/ask-queue.ts). The drain reads
+  // `senders[kind]` per pass, so the door is filled in once the registry exists (below).
+  const outboxSenders: Parameters<typeof createOutbox>[0]['senders'] = {};
+  // ONE source of gate facts for the chat (queue or send now) and the drain (release).
+  // `online` has no server-side source yet (the shell's reachability) — it stays open, as before.
+  const outboxGates = (): GateFacts => ({
+    online: true,
+    hubReachable: true,
+    signedIn: true,
+    aiConnected: probeAcpAvailability().available,
+    aiReady: true,
+    allowanceResetsAt: currentAllowanceResetsAt(),
+  });
   const outbox = createOutbox({
     designRoot: ctx.paths.designRoot,
-    senders: {},
-    gates: () => ({
-      online: true,
-      hubReachable: true,
-      signedIn: true,
-      aiConnected: true,
-      aiReady: true,
-      allowanceResetsAt: null,
-    }),
+    senders: outboxSenders,
+    gates: outboxGates,
     target: () => ({ projectId: null, projectName: ctx.projectLabel, role: 'owner' }),
     onChange: (seq) => ctx.bus.emit('outbox:changed', { seq }),
   });
@@ -1572,8 +1581,18 @@ export function createHttp(
       autoRenew: false,
       emit: (e, p) => ctx.bus.emit(e, p),
     });
+  const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
+  outboxSenders['ai.prompt'] = askQueue.sender;
+  // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
+  void outbox.drain.wake().catch(() => null);
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
+    projectUndo: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     ai: {
       registry: runs,
       repoRoot: ctx.paths.repoRoot,
@@ -3263,23 +3282,8 @@ export function createHttp(
         json: { ok: r.status === 'accepted', ...r },
       });
     },
-    '/_api/project/undo': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
-        return new Response('Forbidden', { status: 403 });
-      const body = await readJson<{ actionId?: unknown; redo?: unknown }>(req, 4096);
-      if (typeof body?.actionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.actionId)) {
-        return new Response('body must include { actionId }', { status: 400 });
-      }
-      const r = await ctx.syncControl
-        ?.current?.()
-        ?.acceptedUndo?.(body.actionId, body.redo === true);
-      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({
-        status: r.status === 'accepted' ? 200 : 409,
-        json: { ok: r.status === 'accepted', ...r },
-      });
-    },
+    // `/_api/project/undo` + `/_api/project/undo-stack` are table routes since
+    // S5.5 (routes/project-undo.ts): one id, several, or a whole chat.
     '/_api/sync/resync': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       // REFUSALS ANSWER IN JSON, WITH A REASON.
@@ -6626,6 +6630,7 @@ export function createHttp(
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,
+    askQueue,
   };
 }
 

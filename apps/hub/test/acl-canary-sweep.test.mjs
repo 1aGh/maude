@@ -93,7 +93,10 @@ function normalize(text, targets) {
     out = out.split(v).join('<T>').split(encodeURIComponent(v)).join('<T>');
   }
   // Volatile fields a refusal may carry (proposal ids, timestamps).
-  return out.replace(/"(proposalHash|transactionId|committedAt|at|date|uptimeMs|startedAt|now)":("[^"]*"|\d+)/g, '"$1":0');
+  return out.replace(
+    /"(proposalHash|transactionId|committedAt|at|date|uptimeMs|startedAt|now)":("[^"]*"|\d+)/g,
+    '"$1":0'
+  );
 }
 
 function assertNoLeak(where, ...texts) {
