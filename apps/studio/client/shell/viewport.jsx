@@ -1,11 +1,19 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { canvasUrl } from '../canvas-url.js';
 import { SYSTEM_TAB } from './constants.js';
 import { FilePreview, sanitizeDisplayText } from '../panels/file-preview.jsx';
-import { basename, previewKind } from './util.js';
+import { basename, previewKind, shellToast } from './util.js';
 import { SystemView } from '../system/system-view.jsx';
+import { isNativeApp } from '../github.js';
+import { exportSelectionFor } from '../selection-scope.js';
+import { ShellStoreContext } from '../stores/shell-store.jsx';
+import { subscribeViewCode } from '../v2/code/code-bus.js';
+import { CanvasLoadFailure } from '../v2/code/canvas-error-card.jsx';
+import { CodeView, mayViewCode } from '../v2/code/code-view.jsx';
+import { dispatchCanvasOp } from '../v2/left-panel/left-panel-bus.js';
+import { nativeDoors } from '../v2/shell/native-doors.js';
 
 export function Viewport({
   tabs,
@@ -38,6 +46,32 @@ export function Viewport({
   useEffect(() => {
     if (previewPath) previewRef.current?.focus();
   }, [previewPath]);
+
+  // S11.7 — View code (⌘K / the Canvases row menu): the open canvas's TSX, read-only, with the selected
+  // artboard's lines marked. The request waits in code-bus.js until this mounts; a code view of one
+  // canvas follows the open canvas when the tab changes. Can view is never offered it (the server
+  // refuses the source to them too). The shell store is read optionally so a bare Viewport still renders.
+  const shell = useContext(ShellStoreContext)?.shellCore;
+  const role = cfg?.cloud?.role;
+  const [codeReq, setCodeReq] = useState(null);
+  useEffect(
+    () =>
+      subscribeViewCode((r) => {
+        if (mayViewCode(role)) setCodeReq(r);
+      }),
+    [role]
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a tab change re-points the code view at the open canvas
+  useEffect(() => {
+    setCodeReq((c) => (c ? { canvas: null } : c));
+  }, [activePath]);
+  const codeCanvas = codeReq ? (codeReq.canvas ?? activePath) : null;
+  const codeShown = !!codeCanvas && /\.tsx$/i.test(codeCanvas) && mayViewCode(role);
+  const doors = useMemo(() => nativeDoors(), []);
+  const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+  const codeArtboard = shell
+    ? exportSelectionFor(shell.selected, activePath, shell.canvasActiveArtboard).activeArtboardId
+    : null;
   // An open canvas keeps the URL it was opened with. The capability in it is
   // re-minted on a timer (canvas-url.js); letting that change the `src` of a
   // live iframe would reload every open canvas every few minutes. The fresh
@@ -145,6 +179,17 @@ export function Viewport({
           />
         );
       })}
+      {codeShown && (
+        <CodeView
+          key={codeCanvas}
+          canvas={codeCanvas}
+          designRel={designRel}
+          artboardId={codeArtboard}
+          doors={doors}
+          stamp={canvasReloadNonce}
+          onClose={() => setCodeReq(null)}
+        />
+      )}
       {loadingPath && loadingPath === activePath && (
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
@@ -156,36 +201,42 @@ export function Viewport({
         // failures happened and offers the recovery that used to require
         // quitting the app (or knowing that switching projects and back
         // re-reads /_config).
-        <div className="st-canvas-error" role="alert" data-testid="canvas-load-error">
-          <div className="st-canvas-error-card">
-            <div className="st-canvas-error-title">
-              {canvasError.kind === 'server'
-                ? "Maude's server isn't responding"
-                : "This canvas didn't finish loading"}
+        <div
+          className={`st-canvas-error${canvasError.kind === 'server' ? '' : ' st-canvas-error--v2'}`}
+          role="alert"
+          data-testid="canvas-load-error"
+        >
+          {canvasError.kind === 'server' ? (
+            <div className="st-canvas-error-card">
+              <div className="st-canvas-error-title">Maude's server isn't responding</div>
+              <div className="st-canvas-error-body">
+                The canvas couldn't be reached. This usually means Maude's server restarted
+                underneath this window — your files on disk are untouched.
+              </div>
+              <button
+                type="button"
+                className="btn btn--primary"
+                data-testid="canvas-load-retry"
+                onClick={() => onRetryCanvasLoad?.(canvasError.path)}
+              >
+                Reload canvas
+              </button>
             </div>
-            <div className="st-canvas-error-body">
-              {canvasError.kind === 'server' ? (
-                <>
-                  The canvas couldn't be reached. This usually means Maude's server restarted
-                  underneath this window — your files on disk are untouched.
-                </>
-              ) : (
-                <>
-                  The server is up, but{' '}
-                  <code>{sanitizeDisplayText(basename(canvasError.path))}</code> never finished
-                  compiling. Its own error, if it has one, is in the canvas frame.
-                </>
-              )}
-            </div>
-            <button
-              type="button"
-              className="btn btn--primary"
-              data-testid="canvas-load-retry"
-              onClick={() => onRetryCanvasLoad?.(canvasError.path)}
-            >
-              Reload canvas
-            </button>
-          </div>
+          ) : (
+            // S11.7 — "<Canvas> can't be drawn right now." + Ask AI to fix it. The error, the line and the
+            // way back sit under Show details; `canvas-load-retry` lives there as "Reload canvas".
+            <CanvasLoadFailure
+              key={canvasError.path}
+              canvas={canvasError.path}
+              designRel={designRel}
+              doors={doors}
+              canEdit={!cfg?.readOnly}
+              askAiAvailable={isNativeApp() && !cfg?.readOnly}
+              onAskAi={(text) => dispatchCanvasOp('ask-ai-fix', canvasError.path, text)}
+              onReload={() => onRetryCanvasLoad?.(canvasError.path)}
+              onNotify={(msg, ok) => shellToast(msg, ok)}
+            />
+          )}
         </div>
       )}
     </div>

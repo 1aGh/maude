@@ -492,7 +492,7 @@
     "hook": "canvas-load-retry",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Retry button on the canvas load-error card.",
+    "meaning": "The Retry button on the canvas load-error card (server-down card), and \"Reload canvas\" under Show details on the broken-canvas card (S11.7).",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "Viewport"
@@ -12537,6 +12537,470 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S11.7: the broken-canvas card (\"<Canvas> can't be drawn right now.\"). `data-kind` = `syntax` | `render` (S6.12 mounts the render kind).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's one sentence.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What happened and that nothing is lost, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-ask-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Ask AI to fix it\": pre-fills the AI chat composer, never sends. Desktop, people who may edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-go-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Render kind: \"Go back to 14:05\" (S1.13 `history.go-back`).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-last-good-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Render kind: \"Last good version · 6 Oct, 14:05\".",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-wait",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's one-line wait while the server is asked what is wrong.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasLoadFailure"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-message",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: the error message (untrusted text, mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: \"Pricing.tsx · line 212, column 19\".",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-copy-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy beside the place.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-excerpt",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: the lines around the error with a caret.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: no error was reported (or the viewer may not read it).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-open-editor",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: Open in editor (desktop app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: Copy error.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-last-good",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: Last good version (syntax kind).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S11.7: the code view, a read-only panel over the canvas (06 ad-code). `role=\"dialog\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The canvas file path in the code view's header (mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-readonly",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Read only\" lock chip.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy the whole source.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-open-editor",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Open in editor (desktop app only; not drawn elsewhere).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Close the code view.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-door-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The editor door refused: said in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-marked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Which artboard's lines are marked, and where.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scrolling source. Lines carry `data-line`; the selected artboard's carry `data-marked=\"true\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The server refused the source (Can view).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-missing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The canvas is not on this Mac.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The source could not be read.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-truncated",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A very long file is cut; the rest is in the file.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-copy-command",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Advanced: Copy beside one terminal / Claude Code command (repeats).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
     "v2": "new"
   }
 ]
