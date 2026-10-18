@@ -154,6 +154,13 @@ export function createMenuHandlers(d) {
     'view.panels': () => panelLayout.toggleHidden(),
     'view.pin-panels': () => panelLayout.togglePinned(),
     'view.comments': () => d.toggleRightPanel('comments'),
+    // S9.22b — the Comments panel on a filter, and a thread (`{ file?, id }`; none = the oldest unread
+    // mention's thread, else just the panel). The shell's own useCommentsShell runners.
+    'comments.filter-open': () => d.onCommentsFilter('open'),
+    'comments.filter-mine': () => d.onCommentsFilter('mine'),
+    'comments.filter-resolved': () => d.onCommentsFilter('resolved'),
+    'comments.filter-all': () => d.onCommentsFilter('all'),
+    'comments.open-thread': (params) => d.onOpenCommentThread(params?.file, params?.id),
     'view.exports': () => d.onToggleExports(),
     // V2-4.4a — Assets is the left panel's third tab; Layers as a panel is the switch that puts Layers there
     // (or in the Inspector); Trash is the Canvases panel's last row (⌘K, no menu row).
@@ -294,12 +301,13 @@ export const menuRunner = (() => {
       if (def?.exec === 'canvas') return true;
       return def?.exec === 'native' && !!NATIVE_COMMANDS[id] && invoke !== null;
     },
-    /** @returns true when something ran */
-    run(id) {
+    /** @returns true when something ran. `params` reach a shell handler that takes them
+     *  (`comments.open-thread` `{ file?, id }`); every other handler ignores them. */
+    run(id, params) {
       if (!handlers) return false;
       const fn = handlers[id];
       if (fn) {
-        fn();
+        fn(params);
         return true;
       }
       const def = ACTIONS_BY_ID.get(id);
