@@ -16,7 +16,9 @@ const fileItems = (
 describe('File › Pull a local copy… / Share on GitHub…', () => {
   test('registered, desktop only, in the File menu', () => {
     for (const id of ['project.pull-copy', 'project.share-github']) {
-      expect(ACTIONS_BY_ID.get(id)?.visible).toEqual({ shell: ['desktop'] });
+      // decision v2-A6c-can-view-menu-minrole: the app-level rows are drawn for every role (Can view
+      // reaches them through the menu's minRole), still desktop only
+      expect(ACTIONS_BY_ID.get(id)?.visible).toEqual({ shell: ['desktop'], minRole: 'comment' });
       expect(fileItems).toContain(id);
     }
   });
