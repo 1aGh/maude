@@ -19,8 +19,10 @@ mod app_state;
 mod bus;
 mod crash_reporter;
 mod deep_link;
+mod doors;
 mod home;
 mod keychain;
+mod lifecycle;
 // issue #105 — WebKitGTK's GStreamer media path is the one part of the shell that
 // can kill the renderer before the user sees a single pixel of their canvas.
 #[cfg(target_os = "linux")]
@@ -34,6 +36,8 @@ mod prefs;
 mod present;
 mod profiles;
 mod project_resolve;
+// S5.14: ⌘Q asks first while AI is working, then stops and keeps what AI finished.
+mod quit;
 mod server_json;
 mod sidecar;
 mod tabs;
@@ -118,6 +122,7 @@ fn install_signal_handler(handle: tauri::AppHandle) {
                     sidecar::log_shutdown("[maude] termination signal received — killing sidecar");
                     sidecar::kill_server(&handle);
                     home::kill(&handle);
+                    lifecycle::clean_exit(&handle);
                     std::process::exit(0);
                 }
                 Err(e) => {
@@ -171,6 +176,11 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
     // The splash runs on the app-local origin; a page already on its server
     // may ask too (a reload).
     let caller = windows::caller_project(&webview, true)?;
+    // S1.19: a tab whose folder is gone gets the moved-folder card's answer
+    // (`{missing, pid, name, place}` — its own project only) and goes there.
+    if let Some(card) = tabs::missing_answer(webview.app_handle(), &caller) {
+        return Ok(card);
+    }
     if let Some(name) = windows::resting_name(webview.app_handle(), &caller.label) {
         return Ok(serde_json::json!({ "resting": true, "name": name }));
     }
@@ -218,6 +228,36 @@ async fn pick_directory(
         windows::remember_pick(&caller.label, p);
     }
     Ok(picked)
+}
+
+/// S5.10 — "Choose a folder…" in the AI composer's paperclip: the native
+/// folder picker, returning the chosen folder (or `None` on cancel) for the
+/// server's read-only attach consent. Unlike `pick_directory` it does NOT
+/// remember the pick: an attached folder is something the AI may READ once the
+/// person consents, never a folder this tab may open or switch to (V2-3.6 M3's
+/// `PICKED_FOLDER` stays the "Open another folder…" pick only).
+#[tauri::command]
+async fn pick_attach_folder(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    let _caller = windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+                                         // E2E (debug builds only): the harness names the folder instead of the OS dialog.
+    #[cfg(debug_assertions)]
+    if let Ok(p) = std::env::var("MAUDE_E2E_PICK_ATTACH_DIR") {
+        if !p.is_empty() {
+            return Ok(Some(p));
+        }
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().set_parent(&webview.window()).pick_folder(move |folder| {
+        let path = folder
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.to_string_lossy().to_string());
+        let _ = tx.send(path);
+    });
+    rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())
 }
 
 /// Native "Save As…" for an export payload — opens a save dialog seeded with the
@@ -488,8 +528,22 @@ fn open_local_project(
     if !p.join(".design").is_dir() {
         return Err("That folder isn’t a Maude project yet (no design system). Open it and run “Set up a design system” first.".to_string());
     }
+    // S1.22b: a registered project other than the picked folder must be one of
+    // THIS tab's account (⌘K's rule) and keeps its binding — the switch never
+    // moves the tab onto another account's project, nor adopts the last sign-in.
+    let binding = {
+        let st = app_state::load(&app);
+        windows::in_tab_open_rule(
+            &st,
+            &caller.pid,
+            &st.profile_for(&caller.root),
+            &windows::pid_for_root(&p.to_string_lossy()),
+            windows::picked_covers(&caller.label, &p),
+            windows::is_boot_root(&p),
+        )?
+    };
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
-    app_state::set_last_project(&app, &p);
+    app_state::set_last_project_with(&app, &p, binding);
     // The pick is spent once it opened something (it is registered now).
     windows::PICKED_FOLDER.take(&caller.label);
     sidecar::switch_project(&app, &caller.label, p, open);
@@ -505,7 +559,7 @@ fn remember_and_open(app: &tauri::AppHandle, path: PathBuf, caller: Option<Strin
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         // V2-3.7: Home is pinned and stays; the opened tab becomes active.
-        match windows::open_project_window(&app, &path, caller.as_deref(), None) {
+        match windows::open_project_window(&app, &path, caller.as_deref(), None, app_state::Binding::Adopt) {
             Ok(_) => {}
             Err(e) => sidecar::log_line(&format!("[maude] could not open {}: {e}", path.display())),
         }
@@ -638,9 +692,14 @@ pub fn run() {
             tabs::tab_activate,
             tabs::tab_close,
             tabs::tab_reorder,
+            // S1.22b: the tab menu, Rename… and the tab overview (strip-only).
+            tabs::tab_menu,
+            tabs::tab_rename,
+            tabs::tab_overview,
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
+            notify::e2e_dock_badge,
             open_project_folder,
             home::shell_state,
             home::home_session,
@@ -680,16 +739,29 @@ pub fn run() {
             deep_link::e2e_deliver_deep_link,
             project_resolve::resolve_project_for_link,
             notify::send_notification,
+            // S5.14: the asked tab's answer to the quit dialog.
+            quit::quit_answer,
             managed::managed_project_open,
             managed::managed_projects_list,
             profiles::profiles_list,
             profiles::profiles_create,
             profiles::profiles_delete,
+            profiles::accounts_list,
+            pick_attach_folder,
+            // S11.16: the native doors + the crash notice.
+            doors::project_reveal_path,
+            doors::project_open_in_editor,
+            doors::diagnostics_reveal_logs,
+            lifecycle::take_crash_notice,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .setup(|app| {
             let handle = app.handle().clone();
+            // S1.22b: the menu is NSApp's by now (tauri init_app_menu runs before setup);
+            // hide the ⇧⌘] / ⇧⌘[ items, keeping their keys (menu.rs).
+            #[cfg(target_os = "macos")]
+            menu::hide_hidden_items();
 
             // Crash reporting (Phase 32 / Task 4) — prime the opt-in toggle from
             // prefs.json and install the panic hook FIRST, so a panic anywhere in
@@ -793,6 +865,8 @@ pub fn run() {
             if let Err(e) = home::ensure_home_window(&handle, None) {
                 sidecar::log_line(&format!("[maude] FATAL: could not open the Home tab: {e}"));
             }
+            // S11.16: did the last run quit cleanly? Marks this one either way.
+            let crashed = lifecycle::start(&handle);
             match &plan {
                 BootPlan::Project(root) => {
                     windows::boot_windows(&handle, Some(&root.to_string_lossy()));
@@ -802,6 +876,7 @@ pub fn run() {
                     windows::boot_windows(&handle, reopen.as_deref());
                 }
             }
+            lifecycle::after_boot(&handle, crashed);
 
 
             // 3. SIGTERM/SIGINT → kill sidecar + exit.
@@ -819,6 +894,8 @@ pub fn run() {
             notify::spawn_activity_poller(&handle);
             // V2-3.10: `index://changed` to Home when a running project's index changes.
             home::spawn_index_watch(&handle);
+            // S1.19: a tab whose folder moved on disk shows the card.
+            tabs::spawn_root_watch(&handle);
 
             // The bundled app parks maude:// links; the client validates and
             // opens a file locally or asks before a project switch.
@@ -842,6 +919,12 @@ pub fn run() {
                 WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
                     let _ = window.hide();
+                }
+                // S5.14: elsewhere closing the shell quits — the same ask-first round trip.
+                #[cfg(not(target_os = "macos"))]
+                WindowEvent::CloseRequested { api, .. } if !quit::approved() => {
+                    api.prevent_close();
+                    quit::request(window.app_handle());
                 }
                 WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                     tabs::layout(window.app_handle());
@@ -898,10 +981,16 @@ pub fn run() {
         } => {
             api.prevent_exit();
         }
-        // Kill every sidecar on Cmd+Q / app termination.
+        // Kill every sidecar on Cmd+Q / app termination. S5.14: an exit that skipped the quit
+        // dialog (the Dock's Quit, logout, an update restart) stops the runs first, bounded.
         RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+            quit::last_chance(app_handle);
             sidecar::kill_server(app_handle);
             home::kill(app_handle);
+            // S11.16: only the final Exit is a clean quit (an ExitRequested can still be held).
+            if matches!(event, RunEvent::Exit) {
+                lifecycle::clean_exit(app_handle);
+            }
         }
         // Dock click with the shell hidden (its close button, V2-3.7): show it
         // again on the tab that was active.
@@ -928,6 +1017,16 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
             menu::action_target(&s.windows.lock().unwrap_or_else(|e| e.into_inner()))
         })
     };
+    // S5.14: Maude ▸ Quit ⌘Q is a native item (menu.rs) — ask first while AI is working.
+    if id == quit::MENU_QUIT {
+        quit::request(app);
+        return;
+    }
+    // S1.22b: a row of the tab menu (right-click a tab; tabs::tab_menu builds it).
+    if let Some((item, label)) = tabs::tab_menu_command(id) {
+        tabs::run_tab_menu(app, item, &label);
+        return;
+    }
     let Some(route) = menu::route(id) else {
         return; // a predefined item: AppKit handled it
     };

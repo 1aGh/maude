@@ -58,6 +58,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // S11.6 — the code view: source text is a download (Can view refused; test/canvas-source-route.test.ts).
   { method: 'GET', route: '/_api/canvas-source', refused: ['view'] },
   { method: 'GET', route: '/_api/canvas-errors', refused: ['view'] },
+  // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
+  { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

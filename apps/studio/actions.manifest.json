@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "3014bc31a2be",
   "actions": [
     {
       "id": "search.open",
@@ -2281,6 +2281,29 @@
       }
     },
     {
+      "id": "tab.overview",
+      "label": "Show all tabs",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "the name this Mac shows for a tab; the project files never change"
+      }
+    },
+    {
       "id": "tab.select-1",
       "label": "Show tab 1",
       "kind": "command",
@@ -2535,6 +2558,120 @@
       "agent": {
         "path": "human",
         "because": "ai-chat"
+      }
+    },
+    {
+      "id": "history.filter",
+      "label": "Filter versions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "All · Named · Made by AI · People; the rows themselves: maude design history list"
+      }
+    },
+    {
+      "id": "history.view-version",
+      "label": "View this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history show"
+      }
+    },
+    {
+      "id": "history.compare",
+      "label": "Compare",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history diff"
+      }
+    },
+    {
+      "id": "history.name",
+      "label": "Name this version…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history name <canvas> <ref> \"<name>\""
+      }
+    },
+    {
+      "id": "history.restore",
+      "label": "Restore this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref>"
+      }
+    },
+    {
+      "id": "history.restore-artboard",
+      "label": "Restore only this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --artboard <id>"
+      }
+    },
+    {
+      "id": "history.restore-object",
+      "label": "Restore this object",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --element <artboard>/<id>"
+      }
+    },
+    {
+      "id": "history.go-back",
+      "label": "Go back to the last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
       }
     }
   ],
@@ -2916,6 +3053,12 @@
     {
       "scope": "design",
       "verb": "design history undo",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design history name",
       "effect": "shared",
       "tier": "prompt"
     },

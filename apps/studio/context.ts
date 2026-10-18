@@ -305,7 +305,11 @@ export interface Context {
         kind?: string | null;
         mine?: boolean;
       }): Promise<unknown[] | null>;
-      acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      acceptedVersion?(
+        repoRel: string,
+        revision: number,
+        lane?: 'html' | 'css' | 'meta'
+      ): Promise<string | null>;
       acceptedRestore?(
         repoRel: string,
         revision: number

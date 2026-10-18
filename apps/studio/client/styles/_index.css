@@ -37,6 +37,8 @@
 @import url("./6-acp-chat.css");
 /* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
 @import url("../v2/ai/ai.css");
+/* S5.14 — the quit dialog and the "Stopped" divider + Keep going. */
+@import url("../v2/ai/quit.css");
 /* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */
 @import url("../v2/ai/ai-run.css");
 /* S5.11 — the ✦ N run list and the waiting card. */

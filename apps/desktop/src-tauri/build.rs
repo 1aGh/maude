@@ -54,6 +54,10 @@ fn main() {
                 "profiles_list",
                 "profiles_create",
                 "profiles_delete",
+                // S1.22b (profiles.rs): the account card's list — own account named, others counted.
+                "accounts_list",
+                // S5.10 (lib.rs): the AI composer's folder picker (never remembered as an open pick).
+                "pick_attach_folder",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
@@ -62,6 +66,10 @@ fn main() {
                 "tab_activate",
                 "tab_close",
                 "tab_reorder",
+                // S1.22b: the tab menu (native, right-click), Rename…, the tab overview.
+                "tab_menu",
+                "tab_rename",
+                "tab_overview",
                 // V2-3.3 Home window (home.rs, lib.rs). The Home-only ones are
                 // granted by the RUNTIME `home` capability (home::HOME_PERMISSIONS).
                 "shell_state",
@@ -93,6 +101,8 @@ fn main() {
                 "e2e_menu_state",
                 // V2-3.9 (notify.rs): the dot half of one poll tick.
                 "e2e_ai_transition",
+                // S5.14 (notify.rs): the Dock badge count (ai-needs-away).
+                "e2e_dock_badge",
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",
@@ -106,6 +116,8 @@ fn main() {
                 // Finding 1d (bus.rs): every shell → page message goes through
                 // the Channel a page hands this — never an event.
                 "shell_subscribe",
+                // S5.14 (quit.rs): the asked project tab's answer to the quit dialog.
+                "quit_answer",
             ]),
         ),
     )

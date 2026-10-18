@@ -8,6 +8,7 @@
   },
   "permissions": [
     "allow-shell-subscribe",
+    "allow-quit-answer",
     "allow-github-sign-in",
     "allow-github-open-verification",
     "allow-open-github-url",
@@ -52,6 +53,12 @@
     "allow-resolve-project-for-link",
     "allow-send-notification",
     "allow-managed-project-open",
-    "allow-managed-projects-list"
+    "allow-managed-projects-list",
+    "allow-accounts-list",
+    "allow-pick-attach-folder",
+    "allow-project-reveal-path",
+    "allow-project-open-in-editor",
+    "allow-diagnostics-reveal-logs",
+    "allow-take-crash-notice"
   ]
 }

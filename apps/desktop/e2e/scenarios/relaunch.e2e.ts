@@ -1,10 +1,22 @@
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 import { browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
-import { relaunchApp, savedSession, waitSavedSession } from '../helpers/session';
+import {
+  appPid,
+  relaunchApp,
+  savedSession,
+  startApp,
+  waitGone,
+  waitSavedSession,
+} from '../helpers/session';
 import {
   activeTab,
+  focusTab,
   HOME,
   handles,
   labels,
@@ -94,6 +106,27 @@ describe('relaunch (native-desktop)', () => {
       interval: 500,
       timeoutMsg: 'the restored active tab never reached its server',
     });
+    // S1.22a (GAP-RELAUNCH-3): the front tab says what just happened, in the words of
+    // `tabsRestoredWords` (client/shell-events.js; pinned at model level by shell-events.test.ts).
+    // The shell sends `shell://tabs-restored {count}` to the active tab only, once, for two or more
+    // tabs; the toast is a notification card in the TOP document.
+    const reopened = '2 tabs reopened. Each one starts when you open it.';
+    await browser.switchToWindow(tabB);
+    await browser.waitUntil(
+      async () =>
+        browser.execute(
+          (want: string) =>
+            Array.from(document.querySelectorAll('[data-testid^="notice-"]')).some((el) =>
+              (el.textContent ?? '').includes(want)
+            ),
+          reopened
+        ),
+      {
+        timeout: 30_000,
+        interval: 200,
+        timeoutMsg: `no on-screen toast said "${reopened}" in the restored front tab`,
+      }
+    );
     expect(await onSplash(tabA)).toBe(true);
     expect(await browser.execute(() => document.hidden)).toBe(true);
     await capture('relaunch-2-restored');
@@ -124,4 +157,84 @@ describe('relaunch (native-desktop)', () => {
     await browser.switchToWindow(HOME);
     await capture('relaunch-3-home-active');
   });
+
+  // S11.16 (C37) — the crash leg. `<app data>/running.json` is written at launch and removed on
+  // a clean quit (lifecycle.rs); a kill -9 leaves it, and the next launch tells each tab it
+  // reopened — once — through `take_crash_notice` (`{kind: 'app://crashed', startedAt}`).
+  // S11.17's callout may take it first on mount; then its words are the proof instead.
+  const crashed = 'Maude quit unexpectedly.';
+
+  /** Open B (it rests after a relaunch) and wait until its page is on its own server. */
+  async function openB(): Promise<void> {
+    await focusTab(tabB);
+    await browser.waitUntil(async () => (await browser.getUrl()).startsWith('http://localhost:'), {
+      timeout: 120_000,
+      interval: 500,
+      timeoutMsg: 'tab B never reached its server after the relaunch',
+    });
+  }
+
+  const calloutSays = (want: string) =>
+    browser.execute(
+      (w: string) => (document.body?.textContent ?? '').includes(w),
+      want
+    ) as Promise<boolean>;
+
+  it('4 · kill -9, relaunch: the reopened tab hears app://crashed once', async () => {
+    const before = appPid();
+    const started = runningMarker();
+    expect(started?.pid).toBe(before);
+    process.kill(before, 'SIGKILL');
+    await waitGone(before, 30_000);
+    // Nothing ran on the way out: the marker is still the killed run's.
+    expect(runningMarker()?.pid).toBe(before);
+    const after = await startApp();
+    expect(after).not.toBe(before);
+    await browser.waitUntil(async () => runningMarker()?.pid === after, {
+      timeout: 30_000,
+      timeoutMsg: 'the relaunch never marked its own run',
+    });
+    await openB();
+    const notice = await invokeTauri<{ kind: string; startedAt: number | null } | null>(
+      'take_crash_notice'
+    );
+    if (notice) {
+      expect(notice.kind).toBe('app://crashed');
+      expect(notice.startedAt).toBe(started?.startedAt ?? null);
+    } else {
+      // Taken by the page itself on mount (S11.17): its callout is on screen.
+      await browser.waitUntil(() => calloutSays(crashed), {
+        timeout: 15_000,
+        timeoutMsg: `the reopened tab neither had a crash notice nor said "${crashed}"`,
+      });
+    }
+    // Once: a second ask (a reload) hears nothing.
+    expect(await invokeTauri('take_crash_notice')).toBe(null);
+    await capture('relaunch-4-after-kill-9');
+  });
+
+  it('5 · a clean quit (SIGTERM) leaves no marker and the next launch says nothing', async () => {
+    const before = appPid();
+    process.kill(before, 'SIGTERM');
+    await waitGone(before, 30_000);
+    expect(runningMarker()).toBe(null);
+    const after = await startApp();
+    expect(after).not.toBe(before);
+    await openB();
+    expect(await invokeTauri('take_crash_notice')).toBe(null);
+    await browser.pause(2_000);
+    expect(await calloutSays(crashed)).toBe(false);
+    await capture('relaunch-5-after-clean-quit');
+  });
 });
+
+/** `<app data>/running.json` of the e2e app (lifecycle.rs), or null when there is none. */
+function runningMarker(): { pid: number; startedAt: number } | null {
+  try {
+    // The e2e app's data dir (the same folder helpers/session.ts reads app-state.json from).
+    const dir = join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e');
+    return JSON.parse(readFileSync(join(dir, 'running.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}

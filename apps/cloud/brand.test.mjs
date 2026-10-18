@@ -30,6 +30,19 @@ function declarations(css) {
   return out;
 }
 
+/**
+ * The DS (schema v1, V2-2.15) names some tokens by alias — `--accent-muted:
+ * var(--accent-soft)`, `--canvas-dot: var(--x-canvas-dot)`. The pages inline the
+ * RESOLVED value, so compare against the DS value with every bare `var(--x)`
+ * followed to its own declaration. An alias is indirection, not drift: the
+ * resolved value must still equal the page's exactly.
+ */
+function resolveAlias(ds, value, depth = 0) {
+  const m = /^var\((--[a-z0-9-]+)\)$/i.exec(value);
+  if (!m || depth > 8 || !ds.has(m[1])) return value;
+  return resolveAlias(ds, ds.get(m[1]), depth + 1);
+}
+
 describe('the tokens are the design system’s, not lookalikes', () => {
   it('every token the pages use matches the DS value exactly', () => {
     // "Close enough" is how a product ends up with two indigos.
@@ -41,8 +54,8 @@ describe('the tokens are the design system’s, not lookalikes', () => {
     for (const [name, value] of mine) {
       if (!ds.has(name)) {
         drift.push(`${name} is not in the design system at all`);
-      } else if (ds.get(name) !== value) {
-        drift.push(`${name}: page has "${value}", DS has "${ds.get(name)}"`);
+      } else if (resolveAlias(ds, ds.get(name)) !== value) {
+        drift.push(`${name}: page has "${value}", DS has "${resolveAlias(ds, ds.get(name))}"`);
       }
     }
     assert.deepEqual(drift, [], `token drift:\n  ${drift.join('\n  ')}`);

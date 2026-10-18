@@ -43,6 +43,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘O', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'finding', order: 20 },
     native: { menu: 'File', order: 3 },
   },
   {
@@ -53,6 +54,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘T', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 30 },
     native: { menu: 'File', order: 4 },
   },
   {
@@ -77,6 +79,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'native',
     keys: [kb('⌘W', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 40 },
     native: { menu: 'File', order: 5 },
   },
   {
@@ -85,7 +88,13 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Show next tab',
     kind: 'command',
     exec: 'native',
-    keys: [kb('⌃tab', 'global', { inText: true, when: DESKTOP })],
+    // S1.22b: ⇧⌘] as in Safari / Chrome / Arc — a hidden native item of its own
+    // (native-menu.ts `next_tab_alt`: a menu item carries one accelerator).
+    keys: [
+      kb('⌃tab', 'global', { inText: true, when: DESKTOP }),
+      kb('⇧⌘]', 'global', { inText: true, alias: true, when: DESKTOP }),
+    ],
+    help: { group: 'tabs-windows', order: 10 },
     native: { menu: 'Window', order: 1 },
   },
   {
@@ -93,8 +102,32 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Show previous tab',
     kind: 'command',
     exec: 'native',
-    keys: [kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP })],
+    keys: [
+      kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP }),
+      kb('⇧⌘[', 'global', { inText: true, alias: true, when: DESKTOP }),
+    ],
+    help: { group: 'tabs-windows', order: 20 },
     native: { menu: 'Window', order: 2 },
+  },
+  {
+    // S1.22b: every open tab in one list in the tab strip (square, name, account, state; Find a
+    // tab) — Window ▸ Show All Tabs, the strip's "N more", ⇧⌘\ as in Safari.
+    id: 'tab.overview',
+    label: 'Show all tabs',
+    kind: 'command',
+    exec: 'native',
+    keys: [kb('⇧⌘\\', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 25 },
+    native: { menu: 'Window', order: 3 },
+  },
+  {
+    // S1.22b: the tab menu's (right-click a tab) Rename… — the name THIS MAC shows for the
+    // project (strip, window title, Home); the folder and the project's own files never change.
+    id: 'tab.rename',
+    label: 'Rename…',
+    kind: 'command',
+    exec: 'native',
+    visible: DESKTOP,
   },
   // Jump to project tab 1…8, and to the LAST project tab (Home is Show Home). ⌘<n>, as in Safari /
   // Chrome / Arc / Terminal (V2-3.11): Actual size moved to ⇧0, so ⌘1 is free. ⌥⌘<n> stays

@@ -860,12 +860,23 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'tab.next',
     exec: 'native',
-    keys: [{ chord: '⌃tab', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [
+      { chord: '⌃tab', layer: 'global', inText: true, when: { shell: ['desktop'] } },
+      { chord: '⇧⌘]', layer: 'global', inText: true, alias: true, when: { shell: ['desktop'] } },
+    ],
   },
   {
     id: 'tab.prev',
     exec: 'native',
-    keys: [{ chord: '⌃⇧tab', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [
+      { chord: '⌃⇧tab', layer: 'global', inText: true, when: { shell: ['desktop'] } },
+      { chord: '⇧⌘[', layer: 'global', inText: true, alias: true, when: { shell: ['desktop'] } },
+    ],
+  },
+  {
+    id: 'tab.overview',
+    exec: 'native',
+    keys: [{ chord: '⇧⌘\\', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-1',

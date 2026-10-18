@@ -655,9 +655,141 @@ fn move_cloud_credential(src: &Path, dest: &Path, raw: &[u8]) -> Result<(), Stri
     Ok(())
 }
 
+// ── S1.22b: the accounts on this Mac, for the account card by the faces ──────
+
+/// The projects of an account, as far as the calling tab may know them: the
+/// names on its OWN account (the projects its sign-out signs out with it), only
+/// a count on any other (V2-3.6 M2 — a project page never learns another
+/// account's e-mail or projects; decision `maude/v2-S1.22b-accounts-own-only`).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum AccountProjects {
+    Names(Vec<String>),
+    Count(usize),
+}
+
+/// One row of `accounts_list` — `[{id, label, email, projects}]`.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Account {
+    pub id: String,
+    pub label: String,
+    pub email: Option<String>,
+    pub projects: AccountProjects,
+}
+
+/// Pure half of `accounts_list`: every profile on this Mac, from the caller's
+/// view. `caller_profile` (the calling tab's own binding) gets its e-mail and
+/// the sanitized names of every project bound to it (the caller included);
+/// every other profile gets its label and a project count — no e-mail, no
+/// names. A project's binding reads as `profile_for` does (missing/invalid ⇒
+/// `default`). `name_of(root, registry_name)` names a project.
+pub fn accounts_for(
+    profiles: &[Profile],
+    st: &crate::app_state::AppState,
+    caller_profile: &str,
+    name_of: impl Fn(&str, &str) -> String,
+) -> Vec<Account> {
+    let bound_to = |e: &crate::app_state::ProjectEntry| {
+        if validate_id(&e.profile).is_ok() {
+            e.profile.clone()
+        } else {
+            DEFAULT_ID.to_string()
+        }
+    };
+    profiles
+        .iter()
+        .take(MAX_PROFILES)
+        .map(|p| {
+            let on_it = st.projects.values().filter(|e| bound_to(e) == p.id);
+            let mine = p.id == caller_profile;
+            let projects = if mine {
+                let mut names: Vec<String> = on_it
+                    .map(|e| crate::notify::sanitize_title(&name_of(&e.root, &e.name)))
+                    .filter(|n| !n.is_empty())
+                    .collect();
+                names.sort();
+                AccountProjects::Names(names)
+            } else {
+                AccountProjects::Count(on_it.count())
+            };
+            Account {
+                id: p.id.clone(),
+                label: crate::notify::sanitize_title(&p.label),
+                email: if mine { p.cloud_email.clone() } else { None },
+                projects,
+            }
+        })
+        .collect()
+}
+
+/// `accounts_list()` — the shell side of S1.22a's account card (`accountsList()`).
+/// Project tabs only (label + own server origin, `caller_project`); the
+/// caller's account is the binding of ITS project, never an argument.
+#[tauri::command]
+pub fn accounts_list(app: tauri::AppHandle, webview: tauri::Webview) -> Result<Vec<Account>, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let st = crate::app_state::load(&app);
+    let mine = st.profile_for(&caller.root);
+    Ok(accounts_for(&list_all(), &st, &mine, |root, name| {
+        if Path::new(root).is_dir() {
+            crate::windows::project_display_name(root)
+        } else {
+            name.to_string()
+        }
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// S1.22b (V2-3.6 M2 kept): a project tab learns its own account's e-mail and
+    /// project names, and only a label + a count of every other account.
+    #[test]
+    fn accounts_list_names_only_the_callers_own_account() {
+        let prof = |id: &str, label: &str, email: Option<&str>| Profile {
+            id: id.into(),
+            label: label.into(),
+            github_login: Some(format!("{id}-gh")),
+            cloud_email: email.map(str::to_string),
+            created_at: 0,
+        };
+        let profiles = vec![
+            prof("default", "Personal", Some("you@gmail.com")),
+            prof("work", "Work\u{202e}", Some("you@work-studio.cz")),
+            prof("empty", "Spare", None),
+        ];
+        let mut st = crate::app_state::AppState::default();
+        for (root, profile) in [
+            ("/p/alligators", "work"),
+            ("/p/matchday", "work"),
+            ("/p/portfolio", "default"),
+            ("/p/odd", "../bad"),
+        ] {
+            let pid = st.upsert(root, 1);
+            st.projects.get_mut(&pid).unwrap().profile = profile.into();
+        }
+        let name_of = |root: &str, _: &str| root.trim_start_matches("/p/").to_string();
+        let out = accounts_for(&profiles, &st, "work", name_of);
+        assert_eq!(out.len(), 3);
+        // The caller's own account: its e-mail and every project on it, sanitized label.
+        assert_eq!(out[1].id, "work");
+        assert_eq!(out[1].label, "Work");
+        assert_eq!(out[1].email.as_deref(), Some("you@work-studio.cz"));
+        assert_eq!(
+            out[1].projects,
+            AccountProjects::Names(vec!["alligators".into(), "matchday".into()])
+        );
+        // Another account: no e-mail, no names — a count (an invalid binding reads as default).
+        assert_eq!(out[0].email, None);
+        assert_eq!(out[0].projects, AccountProjects::Count(2));
+        assert_eq!(out[2].projects, AccountProjects::Count(0));
+        let wire = serde_json::to_string(&out).unwrap();
+        for leak in ["you@gmail.com", "portfolio", "odd", "-gh"] {
+            assert!(!wire.contains(leak), "{leak} reached a project page: {wire}");
+        }
+        assert!(wire.contains(r#""projects":2"#) && wire.contains(r#""projects":["alligators","matchday"]"#));
+    }
 
     /// Low 2c: `cloud_signed_in` acts only on this caller's own prepare — same
     /// label, project and profile, once, within the TTL.

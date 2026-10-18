@@ -144,6 +144,10 @@ pub struct WindowBook {
     tabs: Vec<String>,
     /// The ACTIVE tab (V2-3.7: the one shown in the shell), `home` included.
     focused: Option<String>,
+    /// S15-A3: the front tab that has a tab switch / dialog in flight
+    /// (`claim_front`). Cleared when that command returns or another tab
+    /// becomes active.
+    front_claim: Option<String>,
 }
 
 impl WindowBook {
@@ -335,10 +339,34 @@ impl WindowBook {
             Some(e) => {
                 e.last_focused = tick;
                 e.dot = None;
+                if self.front_claim.as_deref() != Some(label) {
+                    self.front_claim = None;
+                }
                 self.focused = Some(label.to_string());
                 true
             }
             None => false,
+        }
+    }
+
+    /// S15-A3: check AND claim "the tab in front" in one step, under the book
+    /// lock: `label` must be in front (`front_only`) and must not already have
+    /// a switch or a dialog in flight. Concurrent calls from one tab no longer
+    /// all pass before the first switch lands.
+    pub fn claim_front(&mut self, label: &str) -> Result<(), String> {
+        front_only(self, label)?;
+        if self.front_claim.is_some() {
+            return Err("This tab is already switching.".to_string());
+        }
+        self.front_claim = Some(label.to_string());
+        Ok(())
+    }
+
+    /// Drop `label`'s claim (its command returned). A claim another tab took
+    /// since is left alone.
+    pub fn release_front(&mut self, label: &str) {
+        if self.front_claim.as_deref() == Some(label) {
+            self.front_claim = None;
         }
     }
 
@@ -597,6 +625,10 @@ pub fn open_in_as(
 /// (`notify::sanitize_title`, contract §5.2 "Title" — one line, no bidi
 /// controls) — AppKit draws it.
 pub fn project_display_name(root: &str) -> String {
+    // S1.22b: the name the person gave the tab on this Mac wins (Rename…).
+    if let Some(n) = crate::app_state::display_name_of(&pid_for_root(root)) {
+        return crate::notify::sanitize_title(&n);
+    }
     let from_config = std::fs::read(Path::new(root).join(".design").join("config.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
@@ -1012,16 +1044,19 @@ pub fn open_window_for_root(
 /// `open_window_for_root` + the registry upsert (`lastOpenedAt`, MRU) — every
 /// open a person asked for (the `open_project` command, File › Open Project…).
 /// `open` = a designRoot-relative canvas for a NEW window's first navigate.
+/// `binding`: may an unbound project adopt `lastSignInProfile` (S15-A1) —
+/// `Keep` whenever a project tab opens another project by pid.
 pub fn open_project_window(
     app: &AppHandle,
     root: &Path,
     caller: Option<&str>,
     open: Option<&str>,
+    binding: crate::app_state::Binding,
 ) -> Result<Opened, String> {
     if !root.join(".design").is_dir() {
         return Err("That folder isn’t a Maude project yet (no design system). Open it and run “Set up a design system” first.".to_string());
     }
-    crate::app_state::upsert_project(app, root);
+    crate::app_state::upsert_project(app, root, binding);
     open_window_for_root(app, &root.to_string_lossy(), caller, open)
 }
 
@@ -1081,6 +1116,12 @@ fn wake_when_settled(app: &AppHandle, label: String, root: String) {
             still && book.set_resting(&label, false)
         };
         if !wake {
+            return;
+        }
+        // S1.19: a folder that moved while its tab rested — the card, not a
+        // server that cannot start.
+        if crate::tabs::root_missing(&root) {
+            crate::tabs::show_missing(&app, &label, &root);
             return;
         }
         crate::sidecar::log_line(&format!("[maude] {label} was resting — waking {root}"));
@@ -1207,14 +1248,15 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
         let name = project_display_name(&root);
         let app2 = app.clone();
         let label2 = label.clone();
+        // S5.14 (V2-1.15 §5.8, 03 `ai-quit` "Closing a project tab asks the same").
         app.dialog()
-            .message(format!(
-                "AI is still working in {name}. Closing the tab stops it."
-            ))
-            .title(format!("Stop AI in {name}?"))
+            .message(
+                "AI stops where it is. Everything AI finished so far is kept as a version, and each chat can carry on next time.",
+            )
+            .title(format!("Close {name} while AI is working?"))
             .parent(&window)
             .buttons(MessageDialogButtons::OkCancelCustom(
-                "Stop and close".to_string(),
+                "Close tab".to_string(),
                 "Cancel".to_string(),
             ))
             .show(move |stop| {
@@ -1232,7 +1274,11 @@ pub fn close_guard(app: &AppHandle, label: &str) -> CloseGuard {
                 crate::sidecar::log_line(&format!(
                     "[maude] {label2} closed with AI running — stopping {root} now"
                 ));
-                crate::sidecar::shutdown_instance(&app2, &root);
+                // S5.14: stop the runs (partial versions, leases, "Stopped" divider) first.
+                tauri::async_runtime::spawn(async move {
+                    crate::quit::stop_project(&app2, &root, "close-tab").await;
+                    crate::sidecar::shutdown_instance(&app2, &root);
+                });
             });
     });
     CloseGuard::Hold
@@ -1673,6 +1719,44 @@ pub fn caller_in_front<R: Runtime>(webview: &tauri::Webview<R>) -> Result<(), St
     front_only(&book, webview.label())
 }
 
+/// A held `WindowBook::claim_front`; released when dropped (the command
+/// returned, whatever way).
+pub struct FrontClaim<R: Runtime> {
+    app: AppHandle<R>,
+    label: String,
+}
+
+impl<R: Runtime> Drop for FrontClaim<R> {
+    fn drop(&mut self) {
+        if let Some(state) = self.app.try_state::<SidecarState>() {
+            state
+                .windows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .release_front(&self.label);
+        }
+    }
+}
+
+/// `caller_in_front` + the claim (S15-A3), for the calling webview: the
+/// commands that switch the active tab or open a dialog from a project tab
+/// (`open_project`, `open_search_result`, `relink_project`).
+pub fn claim_front<R: Runtime>(webview: &tauri::Webview<R>) -> Result<FrontClaim<R>, String> {
+    let app = webview.app_handle().clone();
+    let state = app
+        .try_state::<SidecarState>()
+        .ok_or_else(|| "Maude is still starting.".to_string())?;
+    state
+        .windows
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .claim_front(webview.label())?;
+    Ok(FrontClaim {
+        app: app.clone(),
+        label: webview.label().to_string(),
+    })
+}
+
 /// `target` of `open_project`: a canvas (designRoot-relative) and an artboard.
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, Serialize)]
 pub struct OpenTarget {
@@ -1811,6 +1895,51 @@ pub fn local_project_allowed(app: &AppHandle, label: &str, path: &Path) -> bool 
     ok
 }
 
+/// Whether `path` is the folder the last picker shown to `label` returned (or a
+/// direct child of it) — PEEKS, like `local_project_allowed`.
+pub fn picked_covers(label: &str, path: &Path) -> bool {
+    let picked = PICKED_FOLDER.take(label);
+    let ok = picked.is_some() && local_path_allowed(false, picked.as_deref(), path);
+    if let Some(p) = picked {
+        PICKED_FOLDER.park(label, p);
+    }
+    ok
+}
+
+/// S1.22b (S1.19 follow-up) — THE rule for `open_local_project`, a project tab
+/// switching itself in place to `target_pid`: the folder the person just
+/// picked may be opened and adopts `lastSignInProfile` as any picked folder
+/// does (S15-A1 `Adopt`); the caller's own project and the launch folder keep
+/// their binding; any other registered project must be one `index_scope`
+/// gives the caller — its own account (`home::tab_may_open`, the ⌘K and
+/// `open_project({pid})` rule) — and keeps ITS binding (`Keep`). So a page can
+/// neither move its tab onto another account's project nor re-bind one.
+pub fn in_tab_open_rule(
+    st: &crate::app_state::AppState,
+    caller_pid: &str,
+    caller_profile: &str,
+    target_pid: &str,
+    picked: bool,
+    boot_root: bool,
+) -> Result<crate::app_state::Binding, String> {
+    use crate::app_state::Binding;
+    if picked {
+        return Ok(Binding::Adopt);
+    }
+    if target_pid == caller_pid || boot_root {
+        return Ok(Binding::Keep);
+    }
+    crate::home::tab_may_open(st, caller_pid, caller_profile, target_pid).map(|_| Binding::Keep)
+}
+
+/// The `MAUDE_PROJECT_ROOT` launch folder is `path` (this process's own env).
+pub fn is_boot_root(path: &Path) -> bool {
+    std::env::var("MAUDE_PROJECT_ROOT")
+        .ok()
+        .filter(|r| !r.is_empty())
+        .is_some_and(|r| same_dir(Path::new(&r), path))
+}
+
 /// Everything parked for `label` dies with the window — a later window that
 /// reuses the label must not inherit it — and with an in-tab switch, so the
 /// project the label shows next cannot take what was parked for the last one
@@ -1822,6 +1951,7 @@ pub fn drop_parked_for(label: &str) {
     crate::deep_link::LINK_OPENED.take(label);
     crate::deep_link::PENDING_LINKS.take(label);
     PICKED_FOLDER.take(label);
+    crate::lifecycle::drop_for(label);
 }
 
 /// `take_tabs_restored()` — the restore count parked for THIS window, once.
@@ -1857,24 +1987,18 @@ pub fn resolve_open_root(
             Caller::Home => Ok(PathBuf::from(root)),
             Caller::Project(_) => Err("Only Home can open a project by its folder.".to_string()),
         },
-        (Some(pid), None) => {
-            if let Caller::Project(c) = caller {
-                if c.pid == pid {
-                    return Ok(PathBuf::from(&c.root));
-                }
-            }
-            let entry = st
+        (Some(pid), None) => match caller {
+            Caller::Home => st
                 .projects
                 .get(pid)
-                .ok_or_else(|| "That project isn't in your list.".to_string())?;
-            match caller {
-                Caller::Home => Ok(PathBuf::from(&entry.root)),
-                Caller::Project(c) if entry.profile == st.profile_for(&c.root) => {
-                    Ok(PathBuf::from(&entry.root))
-                }
-                Caller::Project(_) => Err("That project belongs to another account.".to_string()),
-            }
-        }
+                .map(|e| PathBuf::from(&e.root))
+                .ok_or_else(|| "That project isn't in your list.".to_string()),
+            Caller::Project(c) if c.pid == pid => Ok(PathBuf::from(&c.root)),
+            // S15-A4: the one project-tab rule (`index_scope`), with its one
+            // refusal for another profile's pid and an unknown one.
+            Caller::Project(c) => crate::home::tab_may_open(st, &c.pid, &st.profile_for(&c.root), pid)
+                .map(|e| PathBuf::from(&e.root)),
+        },
     }
 }
 
@@ -1911,10 +2035,17 @@ pub async fn open_project(
     intent: Option<crate::home::OpenIntent>,
 ) -> Result<OpenedProject, String> {
     let caller = caller_any(&webview, false)?;
-    // 1g: a background project tab may not switch the active tab.
-    if matches!(caller, Caller::Project(_)) {
-        caller_in_front(&webview)?;
-    }
+    // 1g: a background project tab may not switch the active tab — and two
+    // calls racing from the front tab do not both pass before the switch
+    // lands (S15-A3): the claim is held until this command returns.
+    let _front = match caller {
+        Caller::Project(_) => Some(claim_front(&webview)?),
+        Caller::Home => None,
+    };
+    let binding = match caller {
+        Caller::Home => crate::app_state::Binding::Adopt,
+        Caller::Project(_) => crate::app_state::Binding::Keep,
+    };
     let st = crate::app_state::load(&app);
     let path = resolve_open_root(&caller, &st, pid.as_deref(), root.as_deref())?;
     let target = target.map(validate_target).transpose()?;
@@ -1923,7 +2054,7 @@ pub async fn open_project(
         return Err("That project folder doesn’t exist.".to_string());
     }
     let canvas = target.as_ref().and_then(|t| t.canvas.clone());
-    let opened = open_project_window(&app, &path, Some(webview.label()), canvas.as_deref())?;
+    let opened = open_project_window(&app, &path, Some(webview.label()), canvas.as_deref(), binding)?;
     let label = opened.label().to_string();
     park_navigate_for_new(&opened, target.as_ref());
     if let Some(intent) = intent {
@@ -1949,7 +2080,7 @@ pub async fn e2e_open_root(
     #[cfg(debug_assertions)]
     {
         caller_any(&webview, false)?;
-        let opened = open_project_window(&app, Path::new(&root), Some(webview.label()), None)?;
+        let opened = open_project_window(&app, Path::new(&root), Some(webview.label()), None, crate::app_state::Binding::Adopt)?;
         Ok(OpenedProject::from(&opened))
     }
     #[cfg(not(debug_assertions))]
@@ -2245,6 +2376,17 @@ mod tests {
         assert_eq!(resolve_open_root(&project, &st, Some("lself"), None).unwrap(), PathBuf::from(A));
         assert_eq!(resolve_open_root(&project, &st, Some("lsame"), None).unwrap(), PathBuf::from(B));
         assert!(resolve_open_root(&project, &st, Some("lwork"), None).is_err());
+        // S15-A4: ONE rule with ⌘K's open (`home::tab_may_open`), and one
+        // answer for another profile's pid and an unknown one — no oracle.
+        let other = resolve_open_root(&project, &st, Some("lwork"), None).unwrap_err();
+        let unknown = resolve_open_root(&project, &st, Some("lnope"), None).unwrap_err();
+        assert_eq!(other, unknown, "another profile's pid answers differently from an unknown one");
+        assert_eq!(other, crate::home::NOT_THIS_TABS);
+        assert_eq!(
+            crate::home::search_result_target(&st, "lself", "default", "lwork", "ui/x.tsx".into(), None)
+                .unwrap_err(),
+            other
+        );
         // {pid} from Home: any registered project, never an unknown one.
         assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), None).is_ok());
         assert!(resolve_open_root(&Caller::Home, &st, Some("lnope"), None).is_err());
@@ -2597,6 +2739,55 @@ mod tests {
         assert!(unchecked.is_empty(), "granted commands with no Rust caller check: {unchecked:?}");
     }
 
+    /// S1.22b (S1.19 follow-up): `open_local_project` switches a tab in place only
+    /// to a project of its own account (or the folder the person picked), and
+    /// never re-binds a registered one to the last sign-in.
+    #[test]
+    fn open_local_project_keeps_the_tabs_account_and_the_targets_binding() {
+        use crate::app_state::{AppState, Binding};
+        let mut st = AppState::default();
+        let a = st.upsert("/s122b/a", 1);
+        let same = st.upsert("/s122b/same", 1);
+        let other = st.upsert("/s122b/other", 1);
+        st.projects.get_mut(&other).unwrap().profile = "work".into();
+        st.last_sign_in_profile = Some("work".into());
+        // Another account's project: refused with the ⌘K answer, picked or not registered alike.
+        assert_eq!(
+            in_tab_open_rule(&st, &a, "default", &other, false, false),
+            Err(crate::home::NOT_THIS_TABS.to_string())
+        );
+        assert!(in_tab_open_rule(&st, &a, "default", "nobody", false, false).is_err());
+        // Same account: allowed, and the target keeps its binding (no adopt of `work`).
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &same, false, false), Ok(Binding::Keep));
+        st.open_with("/s122b/same", 2, Binding::Keep);
+        assert_eq!(st.profile_for("/s122b/same"), "default");
+        // Itself and the launch folder keep theirs; a picked folder adopts as before.
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &a, false, false), Ok(Binding::Keep));
+        assert_eq!(in_tab_open_rule(&st, &a, "default", "boot", false, true), Ok(Binding::Keep));
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &other, true, false), Ok(Binding::Adopt));
+        // The command takes the rule and the binding, not the Adopt-only `set_last_project`.
+        let src = include_str!("lib.rs");
+        let body = &src[src.find("fn open_local_project(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap_or(body.len())];
+        assert!(body.contains("windows::in_tab_open_rule("), "open_local_project skips the rule");
+        assert!(body.contains("set_last_project_with(&app, &p, binding)"));
+        assert!(!body.contains("app_state::set_last_project(&app"));
+    }
+
+    /// S5.10: the attach picker is a project tab's, from the tab in front, and
+    /// never remembers its folder as one the tab may open (V2-3.6 M3).
+    #[test]
+    fn pick_attach_folder_is_caller_checked_and_never_remembers_the_pick() {
+        let src = include_str!("lib.rs");
+        let body = &src[src.find("async fn pick_attach_folder(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap()];
+        assert!(body.contains("windows::caller_project(&webview, false)?"));
+        assert!(body.contains("windows::caller_in_front(&webview)?"));
+        assert!(!body.contains("remember_pick") && !body.contains("PICKED_FOLDER"));
+        let env = body.find("MAUDE_E2E_PICK_ATTACH_DIR").unwrap();
+        assert!(body[..env].contains("#[cfg(debug_assertions)]"));
+    }
+
     /// V2-3.6 M3: a project page switches its tab only to a registered
     /// project or the folder its last picker returned (or a direct child).
     #[test]
@@ -2786,18 +2977,58 @@ mod tests {
             ("lib.rs", "async fn save_export("),
             ("lib.rs", "async fn pick_media_file("),
             ("lib.rs", "async fn pick_media_files("),
-            ("home.rs", "pub async fn relink_project("),
             ("home.rs", "pub async fn new_home_tab("),
-            ("windows.rs", "pub async fn open_project("),
             ("present.rs", "pub async fn present_displays("),
             ("present.rs", "pub async fn present_audience_open("),
-            ("home.rs", "pub async fn open_search_result("),
         ] {
             assert!(
                 body(&src(file), sig).contains("caller_in_front("),
                 "{sig} lets a hidden tab act"
             );
         }
+        // S15-A3: the ones that switch the tab (or hold a picker) claim it.
+        for (file, sig) in [
+            ("home.rs", "pub async fn relink_project("),
+            ("windows.rs", "pub async fn open_project("),
+            ("home.rs", "pub async fn open_search_result("),
+        ] {
+            assert!(
+                body(&src(file), sig).contains("claim_front(&webview)?"),
+                "{sig} lets a hidden tab act, or two calls race the switch"
+            );
+        }
+    }
+
+    /// S15-A3: "the tab in front" is checked AND claimed under the book lock.
+    /// Two calls from the front tab no longer both pass before the first
+    /// switch lands; the claim ends with the command or when another tab
+    /// becomes active, and a stale release never frees another tab's claim.
+    #[test]
+    fn the_front_tab_claims_its_switch_once() {
+        let mut b = WindowBook::default();
+        b.insert(HOME_LABEL, Role::Home, 0);
+        for l in ["p-a", "p-b"] {
+            b.insert(
+                l,
+                Role::Project {
+                    pid: l.into(),
+                    root: format!("/{l}"),
+                },
+                0,
+            );
+        }
+        assert!(b.focus("p-a", 1));
+        assert!(b.claim_front("p-b").is_err(), "a background tab claimed the front");
+        assert!(b.claim_front("p-a").is_ok());
+        assert!(b.claim_front("p-a").is_err(), "a second call raced the first switch");
+        b.release_front("p-a");
+        assert!(b.claim_front("p-a").is_ok(), "the claim outlived its command");
+        // The switch lands: p-b is in front, p-a's claim is gone.
+        assert!(b.focus("p-b", 2));
+        assert!(b.claim_front("p-a").is_err());
+        assert!(b.claim_front("p-b").is_ok());
+        b.release_front("p-a"); // p-a's command returns late
+        assert!(b.claim_front("p-b").is_err(), "a stale release freed another tab's claim");
     }
 
     /// V2-3.6 M2 / M5 / L3: what the shipped capabilities may never grant.

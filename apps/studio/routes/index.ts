@@ -14,11 +14,13 @@
 // `origin: 'canvas'` is the only way onto the canvas origins; http.ts and
 // routes/canvas-origin.ts derive both allowlists from it.
 
+import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -27,7 +29,12 @@ import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-for
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
+import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 
+const trashAccessNone = resolveAccess(null);
+
+// S1.7 — the access a Trash request is judged with (interim until S9.9's currentAccess()).
+export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
@@ -47,6 +54,10 @@ export interface RouteDeps {
   edit: Omit<EditRouteDeps, 'runs'>;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
+  trash?: TrashRouteDeps;
+  /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
+  history?: HistoryRouteDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
   /** S11.6 — `GET /_api/canvas-source` + `GET /_api/canvas-errors` (main origin, `export`) */
@@ -71,6 +82,15 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createProjectUndoRoutes(
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
+    ...createTrashRoutes(
+      deps.trash ?? {
+        control: () => null,
+        // no home wired: nobody may write, and there is nothing to list
+        access: () => trashAccessNone,
+        readSource: () => null,
+      }
+    ),
+    ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
     ...createPresentRoutes(deps.present),
     ...createCanvasSourceRoutes(deps.canvasSource),
   ];

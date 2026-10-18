@@ -1217,7 +1217,8 @@ export function createHub(config = {}) {
           canvasHost: Boolean(studioProxy && isCanvasHost(request)),
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
-          deps: { access: accessService },
+          // S1.7 — the v2 handlers' doors into the project (routes-v2/trash.mjs).
+          deps: { access: accessService, accepted: () => accepted, auth: acceptedAuth },
         })
       ) {
         bailFromOnRequest();

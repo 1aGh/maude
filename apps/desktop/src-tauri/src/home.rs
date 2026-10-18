@@ -693,7 +693,12 @@ pub fn build_shell_state(
             ShellProject {
                 pid: pid.clone(),
                 root: e.root.clone(),
-                name: name_of(&e.root, &e.name),
+                // S1.22b: a tab renamed on this Mac shows that name on Home too.
+                name: e
+                    .display_name
+                    .as_deref()
+                    .map(crate::notify::sanitize_title)
+                    .unwrap_or_else(|| name_of(&e.root, &e.name)),
                 profile: e.profile.clone(),
                 place,
                 focused: label.is_some() && book.focused() == label.as_deref(),
@@ -1158,6 +1163,31 @@ pub async fn index_search(
     Ok(json!({ "groups": groups }))
 }
 
+/// What a project tab refuses with for a pid it may not open — ONE answer for
+/// another profile's project and for a pid nobody registered, so a page
+/// learns nothing about which pids exist outside its scope.
+pub const NOT_THIS_TABS: &str = "That project isn't one this tab can open.";
+
+/// THE rule for a project tab opening another project by pid (S15-A4): only
+/// a pid `index_search` could have answered for it — `index_scope` (the
+/// caller's profile, minus the caller). `open_search_result` and the pid path
+/// of `open_project` both go through here; `open_project` adds the caller's
+/// own pid in front of it (open once focuses itself).
+pub fn tab_may_open<'a>(
+    st: &'a AppState,
+    caller_pid: &str,
+    caller_profile: &str,
+    pid: &str,
+) -> Result<&'a crate::app_state::ProjectEntry, String> {
+    if !index_scope(st, caller_pid, caller_profile)
+        .iter()
+        .any(|p| p == pid)
+    {
+        return Err(NOT_THIS_TABS.to_string());
+    }
+    st.projects.get(pid).ok_or_else(|| NOT_THIS_TABS.to_string())
+}
+
 /// Pure half of `open_search_result` (S1.5, decision
 /// `v2-S1-cross-project-open-command`): the folder and the target a ⌘K row of
 /// ANOTHER project names. Only a pid `index_search` could have answered for
@@ -1173,16 +1203,7 @@ pub fn search_result_target(
     canvas: String,
     artboard: Option<String>,
 ) -> Result<(PathBuf, windows::OpenTarget), String> {
-    if !index_scope(st, caller_pid, caller_profile)
-        .iter()
-        .any(|p| p == pid)
-    {
-        return Err("That result isn't one this tab can open.".to_string());
-    }
-    let entry = st
-        .projects
-        .get(pid)
-        .ok_or_else(|| "That project isn't in your list.".to_string())?;
+    let entry = tab_may_open(st, caller_pid, caller_profile, pid)?;
     let target = windows::validate_target(windows::OpenTarget {
         canvas: Some(canvas),
         artboard,
@@ -1208,7 +1229,9 @@ pub async fn open_search_result(
     artboard: Option<String>,
 ) -> Result<windows::OpenedProject, String> {
     let caller = windows::caller_project(&webview, false)?;
-    windows::caller_in_front(&webview)?; // 1g: a background tab may not switch tabs
+    // 1g: a background tab may not switch tabs; S15-A3: claimed, so a second
+    // ↵ racing this one is refused until it returns.
+    let _front = windows::claim_front(&webview)?;
     let st = crate::app_state::load(&app);
     let profile = st.profile_for(&caller.root);
     let (path, target) =
@@ -1216,11 +1239,14 @@ pub async fn open_search_result(
     if !path.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
     }
+    // S15-A1: the scope check saw the target's binding as it is — the open
+    // must not re-bind an unbound target to `lastSignInProfile`.
     let opened = windows::open_project_window(
         &app,
         &path,
         Some(webview.label()),
         target.canvas.as_deref(),
+        crate::app_state::Binding::Keep,
     )?;
     windows::park_navigate_for_new(&opened, Some(&target));
     if let windows::Opened::Existing(label) = &opened {
@@ -1239,14 +1265,23 @@ fn index_dir() -> Option<PathBuf> {
     }
 }
 
-/// Who may relink `pid` (V2-3.6 N-M6): Home any registered project; a
-/// project window only its OWN — the new folder inherits the entry's profile,
-/// so a page must never rebind another project (another profile's) to a
-/// folder the person picks without knowing what for.
-pub fn relink_allowed(caller: &windows::Caller, pid: &str) -> Result<(), String> {
+/// Who may relink `pid` (V2-3.6 N-M6, widened by S1.19): Home any registered
+/// project; a project tab only its OWN, and only while its folder is gone —
+/// the tab on the moved-folder card. The new folder inherits the entry's
+/// profile, so a page must never rebind another project (another profile's),
+/// nor its own working project, to a folder the person picks without knowing
+/// what for. `missing` is `tabs::root_missing`, read from disk per call.
+pub fn relink_allowed(
+    caller: &windows::Caller,
+    pid: &str,
+    missing: impl Fn(&str) -> bool,
+) -> Result<(), String> {
     match caller {
         windows::Caller::Home => Ok(()),
-        windows::Caller::Project(c) if c.pid == pid => Ok(()),
+        windows::Caller::Project(c) if c.pid == pid && missing(&c.root) => Ok(()),
+        windows::Caller::Project(c) if c.pid == pid => {
+            Err("This project's folder is where it was.".to_string())
+        }
         windows::Caller::Project(_) => {
             Err("A project window can only find the folder of its own project.".to_string())
         }
@@ -1254,19 +1289,26 @@ pub fn relink_allowed(caller: &windows::Caller, pid: &str) -> Result<(), String>
 }
 
 /// `relink_project({pid})` — "Find the folder…": pick where the project moved
-/// to, rebind its registry entry and carry its index entry over. Home, or a
-/// project window for itself (`relink_allowed`). The picker is a sheet on the
-/// calling window, titled with the project it is for. Resolves the new pid,
-/// or `null` when the picker was cancelled.
+/// to, rebind its registry entry, carry its index entry over, and move the tab
+/// showing it to the new folder (`tabs::follow_relink`). Home, or the tab
+/// whose folder is gone, for itself (`relink_allowed`) — from the app-local
+/// card (`root-missing.html`), the one project-tab page on that origin that
+/// may ask. The picker is a sheet on the calling window, titled with the
+/// project it is for. Resolves the new pid, or `null` when cancelled.
 #[tauri::command]
 pub async fn relink_project(
     app: AppHandle,
     webview: tauri::Webview,
     pid: String,
 ) -> Result<Option<String>, String> {
-    let who = windows::caller_any(&webview, false)?;
-    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
-    relink_allowed(&who, &pid)?;
+    let who = if webview.label() == HOME_LABEL {
+        windows::caller_any(&webview, false)?
+    } else {
+        windows::Caller::Project(windows::caller_project(&webview, true)?)
+    };
+    // 1g: no native dialog from a hidden tab; S15-A3: one picker at a time.
+    let _front = windows::claim_front(&webview)?;
+    relink_allowed(&who, &pid, crate::tabs::root_missing)?;
     let name = match crate::app_state::load(&app).projects.get(&pid) {
         Some(e) => crate::notify::sanitize_title(&e.name),
         None => return Err("That project isn't in your list.".to_string()),
@@ -1297,6 +1339,7 @@ pub async fn relink_project(
             }
         }
     }
+    crate::tabs::follow_relink(&app, &pid, &folder.to_string_lossy());
     state_changed(&app);
     Ok(Some(new_pid))
 }
@@ -1351,16 +1394,51 @@ mod tests {
         );
     }
 
+    /// S1.19: Find the folder… from a tab works only for the tab whose folder
+    /// is gone, for its own project — the card's tab. A tab whose folder is
+    /// where it was is refused (it would rebind a working project to a folder
+    /// picked for something else), and so is every other tab, even one whose
+    /// own folder is gone. Home relinks any registered project.
     #[test]
-    fn relink_is_home_or_the_project_itself() {
-        let me = windows::Caller::Project(windows::CallerProject {
-            label: "p-laaaaaaaaaaaaaaaa".into(),
-            pid: "laaaaaaaaaaaaaaaa".into(),
-            root: "/tmp/me".into(),
-        });
-        assert!(relink_allowed(&windows::Caller::Home, "lbbbbbbbbbbbbbbbb").is_ok());
-        assert!(relink_allowed(&me, "laaaaaaaaaaaaaaaa").is_ok());
-        assert!(relink_allowed(&me, "lbbbbbbbbbbbbbbbb").is_err());
+    fn relink_from_missing_tab_only() {
+        let base = std::env::temp_dir().join(format!("maude-s119-relink-{}", std::process::id()));
+        let here = base.join("here");
+        std::fs::create_dir_all(here.join(".design")).unwrap();
+        let gone = base.join("gone"); // never created: the folder moved away
+        let tab = |pid: &str, root: &std::path::Path| {
+            windows::Caller::Project(windows::CallerProject {
+                label: format!("p-{pid}"),
+                pid: pid.into(),
+                root: root.to_string_lossy().into(),
+            })
+        };
+        let missing = crate::tabs::root_missing;
+        let card = tab("laaaaaaaaaaaaaaaa", &gone);
+        let working = tab("lcccccccccccccccc", &here);
+        assert!(relink_allowed(&card, "laaaaaaaaaaaaaaaa", missing).is_ok(), "the card's own relink");
+        assert!(
+            relink_allowed(&working, "lcccccccccccccccc", missing).is_err(),
+            "a tab whose folder is where it was relinked itself"
+        );
+        assert!(relink_allowed(&card, "lbbbbbbbbbbbbbbbb", missing).is_err(), "another tab's project");
+        assert!(relink_allowed(&working, "laaaaaaaaaaaaaaaa", missing).is_err(), "the card's project from another tab");
+        assert!(relink_allowed(&windows::Caller::Home, "lbbbbbbbbbbbbbbbb", missing).is_ok());
+        // The command: a tab is resolved WITH the app-local origin (the card),
+        // Home without it; claimed in front; then the rule above; then the tab
+        // follows the relink.
+        let src = include_str!("home.rs");
+        let i = src.find("pub async fn relink_project(").unwrap();
+        let body = &src[i..i + src[i + 1..].find("#[cfg(test)]").unwrap()];
+        for needle in [
+            "windows::caller_any(&webview, false)?",
+            "windows::caller_project(&webview, true)?",
+            "claim_front(&webview)?",
+            "relink_allowed(&who, &pid, crate::tabs::root_missing)?",
+            "follow_relink(",
+        ] {
+            assert!(body.contains(needle), "relink_project lost {needle}");
+        }
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -1561,9 +1639,10 @@ mod tests {
         let body = &src[i..i + src[i + 1..].find("#[tauri::command").map_or(src.len() - i, |e| e + 1)];
         for needle in [
             "windows::caller_project(&webview, false)?",
-            "caller_in_front(",
+            "claim_front(&webview)?",
             "search_result_target(",
             "open_project_window(",
+            "crate::app_state::Binding::Keep",
             "park_navigate_for_new(",
         ] {
             assert!(body.contains(needle), "open_search_result lost {needle}");

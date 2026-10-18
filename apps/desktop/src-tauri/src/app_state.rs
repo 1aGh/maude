@@ -92,6 +92,63 @@ pub struct ProjectEntry {
     /// not inherited. See `ProjectEntry::is_bound`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bound: bool,
+    /// S1.22b — the name the person gave this project's tab ON THIS MAC (the tab
+    /// menu's Rename…). Wins over `.design/config.json`'s name and the folder's
+    /// name in the strip, the window title, Home and notifications; never written
+    /// into the project (its folder, its config, its git) — machine-local like the
+    /// binding. Absent = the project's own name. A 1.x build ignores the key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+}
+
+/// S1.22b — the most a tab's display name may be (characters, after `sanitize_title`).
+pub const MAX_DISPLAY_NAME: usize = 80;
+
+/// Pure: what Rename… stores for `raw` — one sanitized line, trimmed, capped;
+/// `None` (back to the project's own name) when nothing is left.
+pub fn clean_display_name(raw: &str) -> Option<String> {
+    let one = crate::notify::sanitize_title(raw);
+    let t: String = one.trim().chars().take(MAX_DISPLAY_NAME).collect();
+    let t = t.trim().to_string();
+    (!t.is_empty()).then_some(t)
+}
+
+/// The renamed projects (`pid → displayName`) as of the last load or save, so
+/// `windows::project_display_name` can answer from a root without a file read.
+static DISPLAY_NAMES: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
+
+fn cache_display_names(st: &AppState) {
+    let names = st
+        .projects
+        .iter()
+        .filter_map(|(pid, e)| e.display_name.clone().map(|n| (pid.clone(), n)))
+        .collect();
+    *DISPLAY_NAMES.lock().unwrap_or_else(|e| e.into_inner()) = names;
+}
+
+/// The name the person gave `pid`'s tab on this Mac, if any.
+pub fn display_name_of(pid: &str) -> Option<String> {
+    DISPLAY_NAMES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(pid)
+        .cloned()
+}
+
+/// Rename… (`tabs::tab_rename`): store `name` as `pid`'s display name on this
+/// Mac (`None`/blank clears it). Err for a pid that is not in the registry.
+pub fn set_display_name(app: &tauri::AppHandle, pid: &str, name: Option<&str>) -> Result<(), String> {
+    update(app, |st, _| set_display_name_in(st, pid, name))
+}
+
+/// Pure half of `set_display_name`.
+pub fn set_display_name_in(st: &mut AppState, pid: &str, name: Option<&str>) -> Result<(), String> {
+    let e = st
+        .projects
+        .get_mut(pid)
+        .ok_or_else(|| "That project isn't in your list.".to_string())?;
+    e.display_name = name.and_then(clean_display_name);
+    Ok(())
 }
 
 impl ProjectEntry {
@@ -100,6 +157,17 @@ impl ProjectEntry {
     pub fn is_bound(&self) -> bool {
         self.bound || self.profile != profiles::DEFAULT_ID
     }
+}
+
+/// May an open bind an unbound project to `lastSignInProfile` (V2-3.8)?
+/// `Adopt`: an open from Home, or of a folder the person picked. `Keep`: a
+/// project tab opening ANOTHER registered project by pid (⌘K across,
+/// `open_project({pid})`) — the tab was scoped on that project's current
+/// profile, so the open must not move it to another one (S15-A1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Binding {
+    Adopt,
+    Keep,
 }
 
 fn default_profile() -> String {
@@ -197,6 +265,7 @@ impl AppState {
                 last_opened_at: 0,
                 managed: None,
                 bound: false,
+                display_name: None,
             });
         e.root = root.to_string();
         if e.name.is_empty() {
@@ -216,11 +285,19 @@ impl AppState {
     /// V2-3.8: an unbound entry adopts `lastSignInProfile` here and is bound
     /// from then on; a bound one keeps its profile.
     fn open(&mut self, root: &str, now: u64) -> String {
+        self.open_with(root, now, Binding::Adopt)
+    }
+
+    /// `open`, choosing whether an unbound entry may adopt `lastSignInProfile`
+    /// (S15-A1): an open the person made from Home, or of a folder they
+    /// picked, does; a project tab opening ANOTHER project keeps that
+    /// project's binding as it is — the tab was scoped on it.
+    pub(crate) fn open_with(&mut self, root: &str, now: u64, binding: Binding) -> String {
         let pid = self.upsert(root, now);
         let recent = self
             .last_sign_in_profile
             .clone()
-            .filter(|p| profiles::validate_id(p).is_ok());
+            .filter(|p| binding == Binding::Adopt && profiles::validate_id(p).is_ok());
         if let Some(e) = self.projects.get_mut(&pid) {
             e.last_opened_at = now;
             if let (false, Some(p)) = (e.is_bound(), recent) {
@@ -446,11 +523,13 @@ fn legacy_marker(app: &tauri::AppHandle) -> Option<PathBuf> {
 
 /// Read persisted state (v2; v1 and the legacy marker migrate transparently).
 pub fn load(app: &tauri::AppHandle) -> AppState {
-    load_from(
+    let st = load_from(
         state_path(app).as_deref(),
         legacy_marker(app).as_deref(),
         now_ms(),
-    )
+    );
+    cache_display_names(&st);
+    st
 }
 
 /// Load → mutate → save, under the in-process lock.
@@ -466,6 +545,7 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
     if let Some(p) = state_path(app) {
         save_to(&p, &mut st);
     }
+    cache_display_names(&st);
     out
 }
 
@@ -473,11 +553,11 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
 /// (`open_project`, Home, File › Open Project…): `lastOpenedAt` + the MRU head
 /// that Home's `ShellState.recent` reads (V2-3.3). The session is left alone —
 /// the tab set is part b's. Returns its pid.
-pub fn upsert_project(app: &tauri::AppHandle, root: &Path) -> String {
+pub fn upsert_project(app: &tauri::AppHandle, root: &Path, binding: Binding) -> String {
     let root = root.to_string_lossy().to_string();
     update(app, |st, now| {
         forget_missing_recent(st);
-        st.open(&root, now)
+        st.open_with(&root, now, binding)
     })
 }
 
@@ -678,10 +758,16 @@ pub fn is_first_run(app: &tauri::AppHandle) -> bool {
 /// Remember `path` as the last project: registry upsert, MRU head, one-tab session
 /// (and, via `save_to`, the v1 keys).
 pub fn set_last_project(app: &tauri::AppHandle, path: &Path) {
+    set_last_project_with(app, path, Binding::Adopt);
+}
+
+/// `set_last_project`, choosing whether an unbound entry may adopt
+/// `lastSignInProfile` (S15-A1; `open_local_project` keeps a registered one's).
+pub fn set_last_project_with(app: &tauri::AppHandle, path: &Path, binding: Binding) {
     let s = path.to_string_lossy().to_string();
     update(app, |st, now| {
         forget_missing_recent(st);
-        let pid = st.open(&s, now);
+        let pid = st.open_with(&s, now, binding);
         st.session = Some(one_tab_session(&pid, now));
     });
     // A project was opened this run — lets MAUDE_FORCE_ONBOARDING dismiss the wizard.
@@ -1079,6 +1165,31 @@ mod tests {
         let e = fresh.open("/v238/v238recent/e", 1);
         assert_eq!(fresh.projects[&e].profile, "default");
         assert!(!fresh.projects[&e].is_bound());
+    }
+
+    /// S15-A1: a project tab opening ANOTHER project (⌘K across, the pid path
+    /// of `open_project`) never binds it — an unbound project stays unbound
+    /// on `default`, the profile the tab's scope check saw — and still counts
+    /// as opened. Home's first open keeps adopting (the test above).
+    #[test]
+    fn an_open_from_a_project_tab_never_adopts_a_profile() {
+        let (reg, mut st, _shared) = shared_fixture("s15a1");
+        let out = github_sign_in(&mut st, &reg, "/s15/s15a1/work", "s15a1-x");
+        assert!(st.last_sign_in_profile.is_some());
+        let d = st.upsert("/s15/s15a1/d", 0);
+        let pid = st.open_with("/s15/s15a1/d", 9, Binding::Keep);
+        assert_eq!(pid, d);
+        assert_eq!(st.profile_for("/s15/s15a1/d"), "default", "a tab open re-bound the project");
+        assert!(!st.projects[&d].is_bound());
+        assert_eq!(st.projects[&d].last_opened_at, 9);
+        assert_eq!(st.recent.first(), Some(&d));
+        // The next open from Home is the first-open binding, unchanged.
+        st.open_with("/s15/s15a1/d", 10, Binding::Adopt);
+        assert_eq!(st.projects[&d].profile, out.profile);
+        // And the commands pick `Keep` for a project caller (source pin).
+        let src = include_str!("windows.rs");
+        assert!(src.contains("Caller::Project(_) => crate::app_state::Binding::Keep"));
+        assert!(include_str!("home.rs").contains("crate::app_state::Binding::Keep"));
     }
 
     #[test]

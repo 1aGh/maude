@@ -1122,6 +1122,11 @@ export function createAcceptedRevisions({
               'history.undo',
               'history.redo',
               'history.restore',
+              // S1.6 (S1-trash.md §3) — a v2 studio spots an older hub by their absence.
+              'history.name',
+              'history.aside',
+              'trash.restore',
+              'trash.clear',
             ],
             // S5.1a — `history.undo { actionIds }` takes this many targets.
             undoTargets: MAX_UNDO_TARGETS,
@@ -1180,6 +1185,9 @@ export function createAcceptedRevisions({
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
           readOnly,
+          // S1.6/S1.7 — the per-op role gate: `delete` (trash.clear) is the
+          // project owner's, never a canvas-only session's (S1-trash.md §5).
+          can: (cap) => cap !== 'delete' || (!!who.owner && !canvasOnly),
           ...(canvasOnly ? { inScope: proposalScope(canvasOnly) } : {}),
         });
         metrics.record(body, performance.now() - t0);
@@ -1223,6 +1231,13 @@ export function createAcceptedRevisions({
         respondJson(200, {
           history: canvasOnly ? scopeActions(canvasOnly, history, await rowsOf()) : history,
         });
+        return true;
+      }
+      if (route === 'trash' && method === 'GET') {
+        // S1.7 — the shared Trash's records (S1-trash.md §1) + where each
+        // artboard item's canvas lives now. L18: a canvas-only session gets
+        // only the items whose canvas it was granted (path, never slug).
+        respondJson(200, await trashListing(canvasOnly));
         return true;
       }
       if (route === 'lane' && method === 'GET') {
@@ -1319,8 +1334,59 @@ export function createAcceptedRevisions({
     }
   }
 
+  /** S1.7 — `GET v1/trash`: the store's records, the live paths, L18-filtered. */
+  async function trashListing(canvasOnly = null) {
+    const { canvases, artboards } = await kernel.trash();
+    const { docs = [] } = await kernel.bootstrap();
+    const live = {};
+    for (const d of docs)
+      if (!d.retired && d.entry && d.path) live[d.entry] = { doc: d.doc, path: d.path };
+    const trashedPath = new Map(canvases.map((c) => [c.entry, c.path]));
+    const pathOf = (a) => live[a.entry]?.path ?? trashedPath.get(a.entry) ?? null;
+    const sees = (p) => !canvasOnly || (!!p && canvasOnly.seesCanvas(p));
+    const keptArtboards = artboards.filter((a) => sees(pathOf(a)));
+    const named = {};
+    for (const a of keptArtboards) if (live[a.entry]) named[a.entry] = live[a.entry];
+    return {
+      canvases: canvases.filter((c) => sees(c.path)),
+      artboards: keptArtboards,
+      live: named,
+    };
+  }
+
+  /**
+   * S1.7 — the hub door `POST /api/trash/clear` (V2-1.7 §5.6): the kernel op
+   * `trash.clear` for the project owner. The door's row refuses every
+   * canvas-only session; the kernel re-checks the role per op.
+   */
+  let doorTx = 0;
+  async function clearTrash({ who, items }) {
+    if (!isReady()) await refreshOnce();
+    const s = await kernel.state();
+    const bytes = JSON.stringify({
+      protocol: 1,
+      projectId,
+      epoch: s.epoch,
+      transactionId: `hub_trash_${Date.now().toString(36)}_${(++doorTx).toString(36)}`,
+      origin: { client: 'hub-trash-door' },
+      action: {
+        kind: 'trash.clear',
+        label: 'Cleared out the trash',
+        operations: [{ op: 'trash.clear', ...(items ? { items } : {}) }],
+      },
+    });
+    const canvasOnly = who.access?.canvasOnly === true;
+    return kernel.submit(bytes, {
+      actor: who.actor,
+      readOnly: !!who.readOnly || canvasOnly,
+      can: (cap) => cap !== 'delete' || (!!who.owner && !canvasOnly),
+    });
+  }
+
   return {
     kernel,
+    trashListing,
+    clearTrash,
     refreshOnce,
     setFormat,
     seedFormat,
