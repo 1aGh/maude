@@ -20,6 +20,7 @@ import { canvasOfSlug, createWsVisibility, seesSlug } from './access/filters.ts'
 import {
   accessForDesktop,
   acpRefusal,
+  lanesClosedFromProxy,
   notInScopeResponse,
   runWithAccess,
   setAccessFallback,
@@ -591,6 +592,8 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             // absent header is an unproven session. S9.11 — from the access, so a
             // hub-linked desktop viewer is read-only too (and a grant edits its canvas).
             readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
+            // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -655,6 +658,8 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             // proxy's claim (fail closed as before), on a desktop the linked hub's
             // stored claim — a hub-linked viewer's socket was writable here.
             readOnly: !access.can('edit', null),
+            // S9.15c — a paused project: no comment write over this socket either.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
             // S9.11 (V2-1.16 L12) — what this socket may hear.
             access,
           },
@@ -805,6 +810,8 @@ function startCanvasServer(
             ...(WORKSPACE && req.headers.get('x-maude-collab-follow') === '1'
               ? { follow: true }
               : {}),
+            // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
           },
         });
         if (ok) return undefined as unknown as Response;
