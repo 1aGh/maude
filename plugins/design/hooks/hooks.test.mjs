@@ -248,6 +248,21 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
     expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
   });
 
+  test('pre-bash: a write to /_api/cloud/move → human-only; a status GET passes (S6.0c)', async () => {
+    const url = 'http://127.0.0.1:4399/_api/cloud/move';
+    for (const cmd of [
+      `maude design curl-local --method POST --data '{}' ${url}`,
+      `curl -sS -X POST -H 'Sec-Fetch-Site: same-origin' ${url}`,
+    ]) {
+      const r = await hook('pre-bash', bash(project, 's3', 'mv1', cmd));
+      expect(isDeny(r, 'human-only')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('Share sheet');
+    }
+    expect(
+      await hook('pre-bash', bash(project, 's3', 'mv2', `maude design curl-local ${url}`))
+    ).toMatchObject({ status: 0, stdout: '' });
+  });
+
   test('pre-bash: a maude command redirected outside the project → out-of-project (§9 Q3)', async () => {
     // only classified, never run: the probe path must not appear
     const probe = join(homedir(), `.maude-poc-${process.pid}`);

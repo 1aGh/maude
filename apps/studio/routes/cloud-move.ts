@@ -79,6 +79,7 @@ const WORDS = {
     'The team server needs an update before this project can move to Maude 2. Your work is still on this Mac.',
   stopped:
     'Moving to the cloud stopped before it finished. Try again — your work is still on this Mac.',
+  windowOnly: 'Move to cloud from the Share sheet in the Maude window.',
 };
 
 const json = (status: number, body: unknown) =>
@@ -328,6 +329,14 @@ export function createCloudMoveRoutes(deps: CloudMoveDeps): RouteSpec[] {
       // answers 409 before anything happens.
       readOnly: 'allowed',
       handle(req) {
+        // S6.0c (decision maude/v2-lead-cloud-move-window-only): moving uploads the whole project to
+        // a billed account, so it is the person's act in the Maude window — the same gate as
+        // migrate's apply (routes/project-format.ts). Only a browser's own same-origin fetch carries
+        // `Sec-Fetch-Site: same-origin` (a page cannot set it); the auto-approved loopback helper
+        // (`maude design curl-local`) refuses to forge it and the design hook denies a write here
+        // (cli/lib/bash-guard.mjs `human-only`). Checked before the body, the job file or the cloud.
+        if (req.headers.get('sec-fetch-site') !== 'same-origin')
+          return json(403, { ok: false, reason: 'window-only', error: WORDS.windowOnly });
         const next = gate.then(() => startMove(req));
         gate = next.catch(() => null);
         return next;

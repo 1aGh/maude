@@ -5,7 +5,7 @@
 //                                                                                 → additionalContext or nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
 //   post-edit   PostToolUse       check (studio, else local) · rollback · touched   → block or nothing
-//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · out-of-project (bash-guard)
+//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · human-only · out-of-project (bash-guard)
 //                                                                                     → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing

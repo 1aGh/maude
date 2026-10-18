@@ -132,6 +132,9 @@ function writeConfig(extra: Record<string, unknown> = {}) {
   );
 }
 
+/** What the Maude window's own fetch carries and no other local client can be made to send. */
+const FROM_WINDOW = { 'sec-fetch-site': 'same-origin' };
+
 /** A route reply, read loosely. */
 type Reply = { ok?: boolean; reason?: string; state?: string; project?: string; error?: string };
 
@@ -153,7 +156,8 @@ function routes(over: { localFormat?: number } = {}) {
     if (!s) throw new Error(`no ${method} spec`);
     return s;
   };
-  const post = async (body: unknown = {}, headers: Record<string, string> = {}) => {
+  /** A POST exactly as sent — no browser header unless `headers` names one (curl, an agent). */
+  const send = async (body: unknown = {}, headers: Record<string, string> = {}) => {
     const res = await find('POST').handle(
       new Request('http://127.0.0.1:4399/_api/cloud/move', {
         method: 'POST',
@@ -164,6 +168,9 @@ function routes(over: { localFormat?: number } = {}) {
     );
     return { status: res.status, body: (await res.json().catch(() => null)) as Reply };
   };
+  /** A POST from the Maude window: a browser stamps Sec-Fetch-Site on its own fetch (S6.0c). */
+  const post = (body: unknown = {}, headers: Record<string, string> = {}) =>
+    send(body, { ...FROM_WINDOW, ...headers });
   const get = async () => {
     const res = await find('GET').handle(
       new Request('http://127.0.0.1:4399/_api/cloud/move', { headers: { host: '127.0.0.1:4399' } }),
@@ -179,7 +186,7 @@ function routes(over: { localFormat?: number } = {}) {
     }
     throw new Error('the move never settled');
   };
-  return { specs, post, get, settle };
+  return { specs, post, send, get, settle };
 }
 
 beforeEach(() => {
@@ -407,6 +414,73 @@ describe('POST /_api/cloud/move — the move, idempotent per folder', () => {
     await r.post();
     expect((await r.settle()).state).toBe('ready');
     expect(fake.events).not.toContain('format');
+  });
+});
+
+// ── the window only (S6.0c) ─────────────────────────────────────────────────
+
+describe('POST /_api/cloud/move — the Maude window only (S6.0c)', () => {
+  const jobFile = () => join(designRoot, '_state', 'cloud-move.json');
+
+  // curl / `maude design curl-local` / an agent's script send no Sec-Fetch-Site; another local
+  // page (a project on another port, Home) is `same-site`; `none` is a typed URL, never a fetch.
+  for (const [who, headers] of [
+    ['a local client without browser headers (curl, an agent)', {}],
+    ['a page on another loopback port', { 'sec-fetch-site': 'same-site' }],
+    ['a navigation, not the window’s fetch', { 'sec-fetch-site': 'none' }],
+  ] as const) {
+    test(`${who} → 403, nothing provisioned, the cloud never called`, async () => {
+      signIn();
+      const r = routes();
+      const res = await r.send({ name: 'Exfil' }, headers);
+      expect(res.status).toBe(403);
+      expect(res.body).toMatchObject({ ok: false, reason: 'window-only' });
+      expect(fake.events).toEqual([]);
+      expect(existsSync(jobFile())).toBe(false);
+      expect(await r.get()).toEqual({ state: 'idle' });
+      expect(readConfig().linkedHub).toBeUndefined();
+    });
+  }
+
+  test('a failed move on file is not resumed from outside the window', async () => {
+    signIn();
+    mkdirSync(join(designRoot, '_state'), { recursive: true });
+    const failed = {
+      v: 1,
+      state: 'failed',
+      project: 'alligators',
+      name: 'Alligators',
+      error: 'x',
+      startedAt: 1,
+      updatedAt: 1,
+    };
+    writeFileSync(jobFile(), JSON.stringify(failed));
+    const r = routes();
+    expect((await r.send()).status).toBe(403);
+    await Bun.sleep(20);
+    expect(fake.events).toEqual([]);
+    expect(JSON.parse(readFileSync(jobFile(), 'utf8'))).toEqual(failed);
+  });
+
+  test('the window’s own fetch (Sec-Fetch-Site: same-origin) starts the move', async () => {
+    signIn();
+    const r = routes();
+    const res = await r.send({}, FROM_WINDOW);
+    expect(res).toEqual({
+      status: 200,
+      body: { ok: true, project: 'alligators', state: 'provisioning' },
+    });
+    expect((await r.settle()).state).toBe('ready');
+  });
+
+  test('GET (status) stays open to a local client — it carries no credential', async () => {
+    signIn();
+    const r = routes();
+    await r.post();
+    const s = await r.settle();
+    expect(s).toEqual({ state: 'ready', project: 'alligators' });
+    expect(JSON.stringify(s)).not.toMatch(/mpt_|ptok_|hubtok_/);
+    expect(readFileSync(jobFile(), 'utf8')).not.toMatch(/mpt_|ptok_|hubtok_/);
   });
 });
 
