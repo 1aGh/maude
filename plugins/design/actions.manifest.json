@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "c6891e1105a2",
+  "manifestVersion": "d45c2bda3bfa",
   "actions": [
     {
       "id": "search.open",
@@ -888,6 +888,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot"
+      }
+    },
+    {
+      "id": "artboard.trash",
+      "label": "Move artboard to the trash",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the <DCArtboard id=\"…\"> element (canvas-tsx.md § Remove an artboard), its layout.artboards[] entry in the .meta.json and, in the .annotations.json, the annotations whose parentArtboard is it with what sits in its sections; the canvas keeps at least one artboard"
       }
     },
     {

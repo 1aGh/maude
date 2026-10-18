@@ -218,9 +218,9 @@ export const EDIT_ACTIONS: ActionDef[] = [
             when: { selection: ['clip'], notFacts: ['selectFocused'] },
           })
       ),
-      // v1 canvas use-keyboard-discipline: the selected element / artboard.
-      ...mods('⌫', '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } }),
-      ...mods('⌦', '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } }),
+      // v1 canvas use-keyboard-discipline: the selected element (an artboard's ⌫ is `artboard.trash`).
+      ...mods('⌫', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
+      ...mods('⌦', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
     ],
   },
   {
@@ -375,6 +375,21 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'canvas',
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { keywords: ['position', 'grid', 'back', 'artboard'] },
+  },
+  // S2.10b/c — ⌫ / "Move to trash" on a selected artboard: the `artboard.trash` edit-op, ONE `kind: 'trash'`
+  // action that takes the board, its place and its annotations (the Trash lists it, one ⌘Z brings all
+  // back). The selection-layer ⌫ moved here from `object.remove`, which keeps element selections.
+  {
+    id: 'artboard.trash',
+    label: 'Move artboard to the trash',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    keys: [
+      ...mods('⌫', '⇧', 'selection', { when: { ...OBJ, selection: ['artboard'] } }),
+      ...mods('⌦', '⇧', 'selection', { when: { ...OBJ, selection: ['artboard'] } }),
+    ],
+    search: { keywords: ['delete', 'remove', 'trash', 'artboard'] },
   },
   // S2.10 — "Ask AI about this artboard ⌘/" in the artboard menu. The composer that takes the artboard is S5's; the row
   // is greyed with its own line until then (⌘/ stays `ai.chat`).

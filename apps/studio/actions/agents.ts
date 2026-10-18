@@ -197,6 +197,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'
   ),
   'artboard.ask-ai': { effect: 'none', agent: human('ai-chat') },
+  // S2.10c — the same result by hand: the board's JSX, its layout entry and its annotations go together.
+  'artboard.trash': TSX(
+    'Remove the <DCArtboard id="…"> element (canvas-tsx.md § Remove an artboard), its layout.artboards[] entry in the .meta.json and, in the .annotations.json, the annotations whose parentArtboard is it with what sits in its sections; the canvas keeps at least one artboard'
+  ),
   'element.set-id': TSX(
     'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
   ),
