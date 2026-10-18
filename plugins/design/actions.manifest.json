@@ -938,7 +938,7 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: \"text.detach-style\", params: {values: {\"font-size\": \"28px\", …}}}"
+        "how": "Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: \"text.detach-style\", params: {values: {\"font-size\": \"var(--type-xl)\", …}}} — the values as the design system wrote them (tokens), not px"
       }
     },
     {

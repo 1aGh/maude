@@ -277,7 +277,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'Delete the inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle from the element’s style so its t-* class shows (params.props names fewer). Over HTTP: POST /_api/edit-op {op: "text.reset-style", params: {props?}}'
   ),
   'text.detach-style': TSX(
-    'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "28px", …}}}'
+    'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "var(--type-xl)", …}}} — the values as the design system wrote them (tokens), not px'
   ),
   // ── view ──
   'view.panels': PREF(),
