@@ -241,6 +241,11 @@ export default function TeamProjects({ variant = 'door', initialServer = '', ser
     setErr('');
     setBusy(key);
     const r = await fn();
+    // A browser door (S9.17b) opened a cell tab: this window does not reload, so the row frees up.
+    if (r.ok && r.via) {
+      setBusy('');
+      return;
+    }
     if (r.ok) {
       // The shell is switching; the window reloads onto the project. Keep the
       // row busy so a second click can't start another open meanwhile.

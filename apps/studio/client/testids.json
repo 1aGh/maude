@@ -9098,7 +9098,7 @@
     "hook": "home-cloud-open-<projectId>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Open on a cloud row: Can edit / Can comment → `/_home/cloud/prepare` → `managed_project_open` → `open_project({root})`; Can view → `open_cloud_url`.",
+    "meaning": "Open on a cloud row: Can edit / Can comment → `/_home/cloud/prepare` → `managed_project_open` → `open_project({root})`; Can view → the same prepare, whose `409 browser-door` opens `open_cell_tab({url, profile})` (no cell tabs → `open_cloud_url` with the origin; a cloud with no door → `open_cloud_url`).",
     "producer": {
       "file": "apps/studio/client/home/home-app.jsx",
       "symbol": "ProfileGroup"

@@ -20,6 +20,7 @@
 // `null` and `shellListen` is a no-op — the page shows the index without shell actions.
 
 import { listen as busListen } from '../shell-bus.js';
+import { openBrowserDoor } from '../v2/cloud/browser-door.js';
 
 export const HOME_HEADER = 'x-maude-home';
 export const DEV_SECRET_KEY = 'maude-home-page-secret';
@@ -187,5 +188,9 @@ export const managedProjectOpen = (p) =>
     ...(typeof p.profile === 'string' ? { profile: p.profile } : {}),
   });
 export const openCloudUrl = (url) => shellInvoke('open_cloud_url', { url });
+/** S9.17b — a browser door (`{url}` from a prepare's 409) as a cell tab of `profile`; outside the
+ *  app, in the browser. → `{ok, via}` | `{ok: false, error}`. */
+export const openCellDoor = (url, profile) =>
+  openBrowserDoor({ url, profile }, { invoke: inShell() ? shellInvoke : null });
 /** The `maude://` link parked for THIS window (deep_link.rs), once; null when none. */
 export const takePendingDeepLink = () => shellInvoke('take_pending_deep_link');

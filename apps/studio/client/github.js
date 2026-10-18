@@ -8,6 +8,7 @@
 // the IdentityBar shows the "open the desktop app" state instead of sign-in.
 
 import { listen as shellListen } from './shell-bus.js';
+import { browserDoorOf, openBrowserDoor } from './v2/cloud/browser-door.js';
 
 export function isNativeApp() {
   return typeof window !== 'undefined' && !!window.__TAURI__;
@@ -151,10 +152,14 @@ export const managedProjectsList = () => invoke('managed_projects_list');
 
 /**
  * Prepare, then open. Resolves `{ ok: true, path }` once the switch has started
- * (the webview reloads onto the project), or `{ ok: false, error }`.
+ * (the webview reloads onto the project), or `{ ok: false, error }`. A Can view
+ * account's browser door (S9.17b) opens the cell as a tab instead — `{ ok: true,
+ * via }`, nothing switches here; a project tab names no profile (Rust uses its own).
  */
 export async function openTeamProject(input) {
   const r = await prepareProject(input);
+  const door = browserDoorOf(r.json);
+  if (door) return openBrowserDoor({ url: door.url }, { invoke: isNativeApp() ? invoke : null });
   if (!r.ok || !r.json?.ok) {
     return {
       ok: false,
