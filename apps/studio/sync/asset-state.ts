@@ -167,6 +167,43 @@ export async function askHubPresence(opts: {
   return out;
 }
 
+/**
+ * A media reference written as a string in a canvas source, normalised to the designRoot-relative
+ * rel a placeholder frame is keyed by: `"/assets/x.png"`, `'./assets/x.png'`, `` `assets/x.png` ``
+ * all name `assets/x.png`. A URL (`https:`, `data:`, `blob:`, `//host`), a query or a fragment is
+ * not a project file and is skipped.
+ */
+export function normaliseAssetRef(raw: string): string | null {
+  let s = raw.trim();
+  if (!s || /^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith('//')) return null;
+  s = s.replace(/[?#].*$/, '');
+  while (s.startsWith('./')) s = s.slice(2);
+  s = s.replace(/^\/+/, '');
+  return isAssetStateRel(s) && classifyProjectFile(s) === 'inert-media' ? s : null;
+}
+
+/** Every media rel a canvas source names, first-seen order, unique. Pure. */
+export function assetRefsInSource(source: string): string[] {
+  const out = new Set<string>();
+  const re = /["'`]([^"'`\n\r${}]{1,512})["'`]/g;
+  for (let m = re.exec(source); m; m = re.exec(source)) {
+    const rel = normaliseAssetRef(m[1] as string);
+    if (rel) out.add(rel);
+  }
+  return [...out];
+}
+
+/** The plane's rows that mean "this Mac still owes the hub these bytes" (§5.5 `uploading`). */
+export function uploadingFromRows(
+  rows: Readonly<Record<string, { state?: string }>>
+): Map<string, { progress?: number }> {
+  const out = new Map<string, { progress?: number }>();
+  for (const [rel, row] of Object.entries(rows)) {
+    if (row?.state === 'pushing' || row?.state === 'local-only') out.set(rel, {});
+  }
+  return out;
+}
+
 /** True when a regular file (not a symlink, not a dir) sits at `rel` under designRoot. */
 function fileOnDisk(designRoot: string, rel: string): boolean {
   const abs = path.join(designRoot, rel);
@@ -177,6 +214,11 @@ function fileOnDisk(designRoot: string, rel: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The linked hub's presence asker (`askHubPresence` bound to its url + token). */
+export interface AssetPresenceAsker {
+  ask(rels: readonly string[]): Promise<Map<string, HubPresenceItem> | null>;
 }
 
 export interface AssetStateService {
@@ -192,7 +234,7 @@ export interface AssetStateService {
  */
 export function createAssetStateService(deps: {
   designRoot: string;
-  hub: () => { ask(rels: readonly string[]): Promise<Map<string, HubPresenceItem> | null> } | null;
+  hub: () => AssetPresenceAsker | null;
   uploading?: () => ReadonlyMap<string, { progress?: number }> | null;
   now?: () => number;
   ttlMs?: number;

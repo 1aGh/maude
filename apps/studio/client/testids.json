@@ -13596,5 +13596,44 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "asset-frames",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer that holds the placeholder frames (dgn `asset-state`, S8.19). Absent when every picture is here.",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: one picture's placeholder frame. `data-rel` = the designRoot-relative file, `data-state` = waiting | missing. Says a name only (\"Waiting for Jonas's Mac\"); uncertain = \"Not here yet\".",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-frame-relink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: a Missing frame's Relink… button (posts dgn `asset-relink-request`). Hidden until the relink sheet lands (`RELINK_LIVE`).",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
   }
 ]

@@ -48,6 +48,12 @@ import { type AcceptedLink, createAcceptedLink } from './accepted-link.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
+import {
+  askHubPresence,
+  createHeldReporter,
+  reportHeld,
+  uploadingFromRows,
+} from './asset-state.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
 import {
@@ -546,6 +552,16 @@ export interface SyncRuntime {
   agentFor(slug: string): CanvasSyncAgent | undefined;
   /** Current offline/sync status payload (Task 8), or null when unlinked. */
   status(): import('./status.ts').SyncStatusPayload | null;
+  /**
+   * S8.19 — ask the linked hub "who holds these" (contract S8-S9-asset-presence §5.4). Null in a
+   * cell (a cell IS the hub: there is no peer hub to ask) and once stopped.
+   */
+  assetPresenceAsker?(): import('./asset-state.ts').AssetPresenceAsker | null;
+  /**
+   * S8.19 — this Mac's own pending pushes (the file plane's `local-only` / `pushing` rows, or the
+   * legacy sweep's file on the wire): what reads as `uploading`. Null when nothing is known.
+   */
+  assetUploading?(): ReadonlyMap<string, { progress?: number }> | null;
   /**
    * Stop the asset sweep child, if one is running. `false` means there was
    * nothing to cancel — the caller reports that, rather than pretending.
@@ -1601,6 +1617,12 @@ export function createSyncRuntime(
    */
   let filePlane: import('./file-plane.ts').FilePlane | null = null;
   let fileLedger: import('./file-ledger.ts').FileLedger | null = null;
+  /**
+   * S8.19 — tells the hub "this Mac holds these" after a plane pass: the journal file plane never
+   * probes, so without it no hub would ever learn a holder (decision v2-S8.19-plane-feeds-presence).
+   * Built with the plane; never in a cell (a cell IS the hub).
+   */
+  let heldReporter: ReturnType<typeof createHeldReporter> | null = null;
   /** Cumulative files sent up this boot — the doručenka's push half. */
   let filePushed = 0;
   /** Debounce for a plane pass triggered by a local write. */
@@ -1692,6 +1714,9 @@ export function createSyncRuntime(
         const r = await lane.reconcile();
         lastPlaneResult = r;
         planeResultSink?.(r);
+        // S8.19 — the held set rides AFTER the pass (the plane now has a picture of the disk);
+        // single-flight, floored, never throws, and never awaited by the pass's waiters.
+        if (!cellPairing) void heldReporter?.afterPass();
       } catch (err) {
         console.error('[sync/files] pass failed:', err);
       } finally {
@@ -5284,6 +5309,13 @@ export function createSyncRuntime(
               // resolves.
               label: hostname().slice(0, 32),
             });
+            // S8.19 — the plane's held report (`/_asset-probe` held + sweep.final). This block
+            // is already `!cellPairing`; the token is read per send (silent renewal).
+            heldReporter = createHeldReporter({
+              designRoot: ctx.paths.designRoot,
+              canvasGroups: ctx.cfg.canvasGroups,
+              send: (rels) => reportHeld({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
+            });
             console.log(
               '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
             );
@@ -5356,6 +5388,7 @@ export function createSyncRuntime(
     fileLedger?.stop();
     fileLedger = null;
     filePlane = null;
+    heldReporter = null;
     // The control channel is a doorbell into this runtime; it goes with it.
     // Reported on the way out so the poke-miss question is answerable from a
     // session's log rather than from a hunch (DDR-226 §10).
@@ -5536,6 +5569,22 @@ export function createSyncRuntime(
     size: () => agents.size + projections.size,
     agentFor: (slug) => agents.get(slug),
     status: () => statusStore?.get() ?? null,
+    // S8.19 — presence (§5.4) through the same transport every hub call uses; a cell has no peer
+    // hub, and a stopped runtime asks nothing (the service then reads "Not here yet").
+    assetPresenceAsker: () => {
+      if (cellPairing || stopped) return null;
+      return {
+        ask: (rels) => askHubPresence({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
+      };
+    },
+    assetUploading: () => {
+      if (cellPairing) return null;
+      const out = fileLedger ? uploadingFromRows(fileLedger.rows()) : new Map();
+      // The legacy sweep (a journal-less hub): the one file on the wire right now.
+      const active = legacyPushRunning ? statusStore?.get()?.assets?.active : null;
+      if (active) out.set(active, {});
+      return out;
+    },
     cancelAssetSweep: () => {
       if (!legacyPushRunning) return false;
       legacyPushCancel = true;

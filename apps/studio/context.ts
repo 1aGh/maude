@@ -280,6 +280,18 @@ export interface Context {
      *  retire step. Null in solo mode. Structural on purpose — see above. */
     current?(): {
       cancelAssetSweep(): boolean;
+      /** S8.19 — see SyncRuntime.assetPresenceAsker / assetUploading (routes/asset-state.ts). */
+      assetPresenceAsker?(): {
+        ask(rels: readonly string[]): Promise<Map<
+          string,
+          {
+            rel: string;
+            state: 'here' | 'waiting' | 'missing' | 'unknown';
+            who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
+          }
+        > | null>;
+      } | null;
+      assetUploading?(): ReadonlyMap<string, { progress?: number }> | null;
       retireForMove?(fromSlug: string, toRel: string): Promise<boolean>;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeLane. */
       proposeLane?(

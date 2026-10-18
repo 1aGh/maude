@@ -109,6 +109,7 @@ import {
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
 import { usePresentStage } from './present/present-stage.tsx';
 import type { ArtboardPrintProp } from './print/units.ts';
@@ -2351,6 +2352,9 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
           ToolPalette's inline zoom is removed in tool-palette.tsx). It carries
           MORE than the mock — fit + actual-size — so no capability is lost. */}
       {showZoom ? <DCZoomToolbar /> : null}
+      {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
+          that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
+      <AssetPlaceholderLayer />
     </div>
   );
 
@@ -2946,7 +2950,7 @@ export interface CanvasRectsManifest {
 // mirrors the pickSpecimenEl chrome denylist (canvas-comment-mount.tsx) plus
 // the annotation layer's own root.
 const RECTS_CHROME_SELECTOR =
-  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar';
+  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar, .dc-absent-layer';
 
 const RECTS_INTERACTIVE_TAGS = new Set([
   'button',
