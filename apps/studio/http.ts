@@ -171,7 +171,7 @@ import {
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
-import { createResyncTrace } from './sync/resync-trace.ts';
+import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
@@ -476,7 +476,9 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
     handle: (req, params) => {
       const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
       if (!sameOrigin)
-        return spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 });
+        return (
+          spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 })
+        );
       if (!isTrustedRequestHost(req))
         return (
           spec.refuse?.('untrusted-host') ??
@@ -1578,7 +1580,11 @@ export function createHttp(
   // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
   // it, `/_sync-status` below reports it ("Resyncing… 1 204 of 1 318", then the result).
   const resyncTrace = createResyncTrace({
-    read: () => ctx.syncControl?.current?.()?.status?.() ?? null,
+    // ctx.syncControl's structural type (context.ts) omits `status()`; the live runtime has it
+    read: () =>
+      (
+        ctx.syncControl?.current?.() as { status?(): ResyncStatusSource | null } | null | undefined
+      )?.status?.() ?? null,
     expectFiles: () => readSyncSettings(ctx.paths.repoRoot)?.syncFiles !== false,
   });
   const tableSpecs = allSpecs({

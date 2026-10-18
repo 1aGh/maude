@@ -55,6 +55,9 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S11.11 — `sync.resync`: Resync now re-compares every file with the cloud copy and sends what is newer
+  // here, so it is an edit (routes/sync.ts is `readOnly: 'refused'`; the cloud cell refuses it outright).
+  { method: 'POST', route: '/_api/sync/resync', refused: ['view', 'comment'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

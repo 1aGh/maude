@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "524b3ec910b7",
   "actions": [
     {
       "id": "search.open",
@@ -1802,7 +1802,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design status"
+        "verb": "maude design sync status"
       }
     },
     {
@@ -1834,9 +1834,31 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
+        "path": "cli",
+        "verb": "maude design logs"
+      }
+    },
+    {
+      "id": "diag.copy-logs",
+      "label": "Copy logs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design logs"
+      }
+    },
+    {
+      "id": "diag.logs-show-in-finder",
+      "label": "Show logs in Finder",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
         "path": "human",
-        "because": "view-pref",
-        "note": "opens the log sheet; the files sit in ~/.maude/logs"
+        "because": "native-window",
+        "note": "reveals ~/.maude/logs in Finder; the agent reads `maude design logs`"
       }
     },
     {
@@ -1893,9 +1915,13 @@
       "exec": "shell",
       "effect": "shared",
       "agent": {
-        "path": "human",
-        "because": "hub-link",
-        "note": "restarts the sync link; read its state with `maude design status`"
+        "path": "cli",
+        "verb": "maude design sync resync"
+      },
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/resync",
+        "method": "POST"
       }
     },
     {
@@ -2752,6 +2778,18 @@
     },
     {
       "scope": "design",
+      "verb": "design logs",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design annotate",
       "effect": "project",
       "tier": "auto"
@@ -2923,6 +2961,18 @@
       "scope": "design",
       "verb": "design exports",
       "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync resync",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync",
+      "effect": "shared",
       "tier": "prompt"
     },
     {

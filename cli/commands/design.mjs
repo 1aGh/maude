@@ -173,6 +173,11 @@ const BIN_VERBS = new Set([
   // S5.4 (V2-1.15 §5.10). `runs list` — the AI runs on this project and the artboards each holds,
   // so a terminal Claude plans around busy ones; `runs stop <run>` stops one of YOUR runs.
   'runs',
+  // S11.11 (Menu › Diagnostics). `logs` — this Mac's sync / server / AI / export log lines, redacted,
+  // as Diagnostics › Logs shows them. `sync status|resync` — the one-word Sync status and Resync now
+  // (watches the trace and prints the result sentence). `logs` and `sync status` only read.
+  'logs',
+  'sync',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
@@ -413,6 +418,10 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Recent exports; export one again as the Export sheet does (file lands in the project).
   runs list [--canvas <canvas>] [--json] · runs stop <run>
         The AI runs on this project and the artboards each is changing; stop one of yours.
+  logs [--source all|sync|server|ai|export] [--tail N] [--grep <text>] [--json]
+        This Mac's Maude log lines, redacted, merged by time (what Diagnostics › Logs shows). Read-only.
+  sync status [--json] · sync resync [--no-wait] [--json]
+        Sync in one word + the last resync; or compare every file with the cloud copy. Resync asks first.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 

@@ -58,13 +58,20 @@ const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── diagnostics (V2-4.7b) ──
-  'diag.sync': { effect: 'none', agent: cli('maude design status') },
+  'diag.sync': { effect: 'none', agent: cli('maude design sync status') },
   'diag.server': { effect: 'none', agent: cli('maude design status') },
   'diag.ai': { effect: 'none', agent: cli('maude doctor') },
   'diag.ai-recheck': { effect: 'none', agent: cli('maude doctor') },
-  'diag.logs': {
+  // S11.11 — `maude design logs` prints the same redacted lines the sheet shows (the files sit in
+  // ~/.maude/logs); copying and revealing the folder are the person's clipboard and Finder.
+  'diag.logs': { effect: 'none', agent: cli('maude design logs') },
+  'diag.copy-logs': { effect: 'none', agent: cli('maude design logs') },
+  'diag.logs-show-in-finder': {
     effect: 'none',
-    agent: human('view-pref', 'opens the log sheet; the files sit in ~/.maude/logs'),
+    agent: human(
+      'native-window',
+      'reveals ~/.maude/logs in Finder; the agent reads `maude design logs`'
+    ),
   },
   'diag.address': {
     effect: 'none',
@@ -78,9 +85,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: human('view-pref', 'copies the project path the agent already works in'),
   },
+  // S11.11 — `maude design sync resync` waits for the trace and prints the result sentence (a
+  // shared effect: it prompts). The route refuses a read-only session and a cloud member.
   'sync.resync': {
     effect: 'shared',
-    agent: human('hub-link', 'restarts the sync link; read its state with `maude design status`'),
+    agent: cli('maude design sync resync'),
+    minRole: 'edit',
+    server: { route: '/_api/sync/resync', method: 'POST' },
   },
   'sync.download-all': {
     effect: 'none',
