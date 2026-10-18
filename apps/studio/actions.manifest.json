@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "83cc311d4639",
+  "manifestVersion": "3f76c1fa074c",
   "actions": [
     {
       "id": "search.open",
@@ -1672,6 +1672,18 @@
       "agent": {
         "path": "cli",
         "verb": "maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]"
+      }
+    },
+    {
+      "id": "export.copy-png",
+      "label": "Copy as PNG",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export png"
       }
     },
     {

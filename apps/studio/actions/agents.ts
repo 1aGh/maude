@@ -377,6 +377,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]'
     ),
   },
+  // S8.8 — the clipboard is the person's; an agent exports the same PNG to a file (`export png`) and reads it.
+  'export.copy-png': {
+    effect: 'none',
+    agent: cli('maude design export png'),
+  },
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
   'export.rerun-last': {
     effect: 'project',

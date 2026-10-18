@@ -17,6 +17,7 @@ import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
+import { runCopyPng } from '../export/copy-png.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
@@ -132,6 +133,8 @@ export function createMenuHandlers(d) {
     'import.brand': () => d.onImportBrand(),
     'video.assemble': () => d.onAssembleVideo(),
     'export.open': () => d.setExportDialog({ mode: 'export' }),
+    // S8.8 — Copy as PNG (⇧⌘C): the selection rendered by the export, on the clipboard
+    'export.copy-png': () => runCopyPng().then((r) => d.toast?.(r.message)),
     'handoff.open': () => d.setExportDialog({ mode: 'handoff' }),
     'canvas.close': () => d.onCloseCanvas(),
     'account.switch': () => d.onSwitchAccount(),
