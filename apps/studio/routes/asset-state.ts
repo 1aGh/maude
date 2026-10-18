@@ -17,7 +17,8 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
+import { notInScopeResponse } from '../access/request.ts';
+import type { Access } from '../access/scope.ts';
 import {
   type AssetPresenceAsker,
   type AssetStateService,
@@ -38,6 +39,12 @@ export interface AssetStateRouteDeps {
   /** For `?canvas=` — absent: only `?rel=` is answered. */
   designRoot?: string;
   designRel?: string;
+  /**
+   * THIS request's session (access/request.ts `currentAccess`). A canvas-only session reads the media of
+   * a canvas it sees (`?canvas=`) and nothing else: `?rel=` names a file of the whole project, and the
+   * answer names people (V2-1.16 U3, class `filtered`). Absent: the unit tests' stub tables.
+   */
+  access?: (req: Request) => Access;
 }
 
 /** The slice of the sync runtime the service reads (sync/index.ts `SyncRuntime`). */
@@ -54,6 +61,7 @@ export function assetStateDepsFor(opts: {
   designRoot: string;
   designRel: string;
   runtime: () => AssetStateRuntime | null;
+  access?: (req: Request) => Access;
   env?: Record<string, string | undefined>;
 }): AssetStateRouteDeps {
   const inCell = (opts.env ?? process.env).MAUDE_WORKSPACE_MODE === '1';
@@ -66,6 +74,7 @@ export function assetStateDepsFor(opts: {
     service: () => (inCell ? null : service),
     designRoot: opts.designRoot,
     designRel: opts.designRel,
+    ...(opts.access ? { access: opts.access } : {}),
   };
 }
 
@@ -92,6 +101,19 @@ export function createAssetStateRoutes(deps: AssetStateRouteDeps): RouteSpec[] {
         const params = new URL(req.url).searchParams;
         const canvas = params.get('canvas');
         let rels = params.getAll('rel');
+        const access = deps.access?.(req);
+        if (access?.canvasOnly) {
+          // Byte-identical to a canvas that is not there (U1): ?rel= and an unseen ?canvas= both read so.
+          if (canvas === null) return notInScopeResponse();
+          const want =
+            deps.designRoot && deps.designRel !== undefined
+              ? resolveCanvasRel(deps.designRoot, deps.designRel, canvas)
+              : null;
+          if (!want || !(access.seesCanvas(want) && access.can('read', want)))
+            return notInScopeResponse();
+        } else if (access && !access.can('read', null)) {
+          return notInScopeResponse();
+        }
         if (canvas !== null) {
           if (rels.length) return json(400, { error: 'bad-rel' });
           const found = canvasRels(deps, canvas);

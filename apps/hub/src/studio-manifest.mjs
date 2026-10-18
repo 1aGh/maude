@@ -299,6 +299,9 @@ export const STUDIO_ROUTES = Object.freeze({
   // S11.4 — which canvases of the project are on this checkout vs still coming. A read; the
   // studio filters it by the proxied access (a canvas-only member learns only its grants).
   '/_api/sync/availability': { safe: 'read', unsafe: null },
+  // S11.13 — a cell has no local decision graph and no desktop runtime to describe: refused there.
+  '/_api/kg/summary': REFUSED,
+  '/_api/settings/about': REFUSED,
   // S8.19 — asset state merges THIS machine's disk + upload queue with its linked hub's
   // presence. A cell is the hub: its studio has no peer hub to ask, and a browser member's
   // client reads a refusal as the quiet "Not here yet" (contract §5.5, offline row).

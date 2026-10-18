@@ -1001,13 +1001,22 @@ const c2s: C2S = {
     owner: 'v2/comments/comment-bridge (S9.22)',
     parse: p({ reqId: reqIdV }),
   },
+  // A6b-2: S8.2 retired the in-canvas export dialog (export-dialog.tsx) that sent these two; the shell
+  // still answers them (the gate in use-canvas-bridge stays), nothing in the tree asks.
   'export-request': {
     gate: 'active',
     status: 'live',
     owner: BR,
+    orphan: 'no-sender',
     parse: p({ id: str, payload: jsonObj }),
   },
-  'export-history-request': { gate: 'active', status: 'live', owner: BR, parse: p({ id: str }) },
+  'export-history-request': {
+    gate: 'active',
+    status: 'live',
+    owner: BR,
+    orphan: 'no-sender',
+    parse: p({ id: str }),
+  },
   'open-export': { gate: 'active', status: 'legacy', owner: BR, parse: p({ detail: jsonObj }) },
   'export-capture-progress': {
     gate: 'asked',
@@ -1516,16 +1525,19 @@ const s2c: S2C = {
     owner: 'canvas-lib (export)',
     parse: p({ id: str }),
   },
+  // A6b-2: the answers to the two retired in-canvas export requests (see c2s `export-request`).
   'export-result': {
     gate: 'parent',
     status: 'live',
     owner: 'export-dialog',
+    orphan: 'no-handler',
     parse: p({ id: str, ok: bool, browser: opt(bool), jobId: opt(str), error: opt(str) }),
   },
   'export-history-result': {
     gate: 'parent',
     status: 'live',
     owner: 'export-dialog',
+    orphan: 'no-handler',
     parse: p({ id: str, history: arrOf(jsonObj) }),
   },
   'timeline-play': {

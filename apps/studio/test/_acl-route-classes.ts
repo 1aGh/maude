@@ -34,6 +34,9 @@ const NONE = [
   '/_api/ui-prefs',
   '/_api/timeline-media',
   '/_api/whats-new',
+  // A6b-2 — S11.13 Settings › Advanced reads: a number, plugin versions
+  '/_api/kg/summary',
+  '/_api/settings/about',
   '/_api/shell/status',
   '/_api/workspace/disclosure',
   '/_api/workspace/sign-in',
@@ -93,6 +96,11 @@ const FILTERED = [
   '/_api/acp/chats/search',
   '/_api/cloud/history',
   '/_api/generate-jobs',
+  // A6b-2 — S8.1 estimate counts over the canvases the session sees; S8.4 retry of one of its jobs; S8.19 media
+  // presence of a canvas it sees (routes/asset-state.ts refuses a canvas-only session everything else)
+  '/_api/export-estimate',
+  '/_api/export-jobs/retry',
+  '/_api/asset-state',
 ];
 
 const CANVAS = [
@@ -189,6 +197,8 @@ const CANVAS = [
 ];
 
 const PROJECT = [
+  // A6b-2 — S6.0b: uploads the whole folder to the person's own cloud account (window-only, the owner's act)
+  '/_api/cloud/move',
   // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
   '/_api/trash/clear',
   '/_api/ai/attach/file',

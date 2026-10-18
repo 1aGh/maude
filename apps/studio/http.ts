@@ -1949,6 +1949,8 @@ export function createHttp(
     },
     // S11.11 — POST /_api/sync/resync (routes/sync.ts), moved from the legacy literal.
     sync: { control: () => ctx.syncControl, trace: resyncTrace },
+    // S11.13 — Settings › Advanced reads: the decision-memory count and the bundled plugin versions.
+    settings: { repoRoot: ctx.paths.repoRoot },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
     chat: {
       designRoot: ctx.paths.designRoot,
@@ -1994,6 +1996,7 @@ export function createHttp(
       designRoot: ctx.paths.designRoot,
       designRel: ctx.paths.designRel,
       runtime: () => ctx.syncControl?.current?.() ?? null,
+      access: (req) => accessOf(req),
     }),
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source

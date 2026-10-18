@@ -33,15 +33,10 @@ const C2S = DGN_TABLE.c2s as Record<string, { status: string; orphan?: string; g
 const S2C = DGN_TABLE.s2c as Record<string, { status: string; orphan?: string; gate: string }>;
 const spec = (t: string) => C2S[t] ?? S2C[t];
 
-/** Dynamic send sites the table resolves by hand: `bridgeRequest(reqDgn, resDgn)` →
- *  export(-history)-request. (The inspector knobs' ⌘Z used to send `{dgn: dir}`; it is the
- *  run-action lane now — a stray dynamic `undo`/`redo` send fails here.) */
-const DYNAMIC: Record<string, { file: string; resolves: string[] }> = {
-  '<dynamic:reqDgn>': {
-    file: 'apps/studio/export-dialog.tsx',
-    resolves: ['export-request', 'export-history-request'],
-  },
-};
+/** Dynamic send sites the table resolves by hand. `bridgeRequest(reqDgn, resDgn)` in the in-canvas export
+ *  dialog was the only one; S8.2 retired that dialog, so a dynamic send is now a failure to explain
+ *  (the inspector knobs' ⌘Z used to send `{dgn: dir}`; it is the run-action lane now). */
+const DYNAMIC: Record<string, { file: string; resolves: string[] }> = {};
 
 describe('dgn table ↔ sources (T1)', () => {
   test('the inventory sees the bridge (sanity)', () => {

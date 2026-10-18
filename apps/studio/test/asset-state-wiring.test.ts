@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { resolveAccess } from '../access/scope.ts';
 import { assetStateDepsFor, createAssetStateRoutes } from '../routes/asset-state.ts';
 import {
   assetRefsInSource,
@@ -151,5 +152,36 @@ describe('GET /_api/asset-state?canvas=', () => {
     const res = await get(spec!, 'rel=assets/here.png');
     expect(res.status).toBe(503);
     expect(JSON.stringify(await res.json())).not.toContain('missing');
+  });
+});
+
+describe('A6b-2: a canvas-only session (class filtered, V2-1.16 U3)', () => {
+  const tereza = resolveAccess({ v: 1, role: null, grants: [{ c: 'ui/Post.tsx', r: 'viewer' }] });
+  const route = (access: ReturnType<typeof resolveAccess>) => {
+    const [spec] = createAssetStateRoutes({
+      ...assetStateDepsFor({
+        designRoot: project(),
+        designRel: '.design',
+        env: {},
+        runtime: () => null,
+      }),
+      access: () => access,
+    });
+    return spec!;
+  };
+
+  test('reads the media of a canvas it sees, and nothing else', async () => {
+    const spec = route(tereza);
+    expect((await get(spec, 'canvas=ui/Post.tsx')).status).toBe(200);
+    // a project-wide file name: refused as a missing canvas is
+    expect((await get(spec, 'rel=assets/here.png')).status).toBe(403);
+    // a canvas it was not granted: the media refs of someone else's canvas stay unread
+    expect((await get(spec, 'canvas=ui/Other.tsx')).status).toBe(403);
+  });
+
+  test('the owner reads both forms', async () => {
+    const spec = route(resolveAccess({ v: 1, role: 'owner' }));
+    expect((await get(spec, 'rel=assets/here.png')).status).toBe(200);
+    expect((await get(spec, 'canvas=ui/Post.tsx')).status).toBe(200);
   });
 });

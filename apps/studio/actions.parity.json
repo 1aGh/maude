@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 129,
+  "humanMax": 130,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -114,6 +114,12 @@
       "from": 118,
       "by": "decision:maude/v2-S11.10-git-actions-human",
       "why": "A6b-1 integration, measured from the merged registry (+20 human, -9): S11.10 +8 (history.branch-switch, continue-draft, discard-file, fetch, new-branch, open-pr, publish, save-with-note: human 'git', decision:maude/v2-S11.10-git-actions-human); S1.15 +1 (history.compare-pictures: view-pref, decision:maude/v2-S1.15-compare-pictures-human); S11.9 +5 (canvases.show-file-names, layers.show-tags, layers.select-by-selector: view-pref; canvas.reveal-in-finder, canvas.open-in-editor: native-window, decision:maude/v2-S11.9-left-advanced-view-prefs-human); S11.13 +4 (settings.experimental-teams, reset-all, reset-panel-layout, use-own-plugin-copy: view-pref); S11.2 +1 (ai.ask-fill-artboard: summon); S11.11 +1 diag.logs-show-in-finder (native-window) -1 diag.logs (cli); S12.8 -7 (view.design-system, view.inspector, view.layers, view.layers-panel, settings.open, help.shortcuts, help.whats-new now `maude design open --panel`); S11.11 -1 sync.resync (cli)."
+    },
+    {
+      "to": 130,
+      "from": 129,
+      "by": "decision:maude/v2-lead-cloud-move-window-only",
+      "why": "A6b-2 integration, measured from the merged registry (+1): S6.0c share.move-to-cloud (human 'billing': it uploads the whole project to the person's billed Maude Cloud account — the Maude window only, the studio refuses a POST without its Sec-Fetch-Site and the design hook denies one). S8.x adds no human row: export.retry, asset.relink and export.copy-png all have an agent path."
     }
   ],
   "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. V2-5 A5 integration: measured 113 human actions in the merged registry (107 on feat + trash.clear from S1.7b + four ai.attach-* from S5.10 + present.presenter-view from S3.6b); every other A5 slice adds no human row. V2-5 A6a integration: measured 118 human actions in the merged registry (113 on feat + artboard.ask-ai S2.10 + element.set-id S2.2b/lead + edit.undo-history S2.20 + history.filter S1.12b − view.trash S1.17 (cli) + tab.overview + tab.rename S1.22b); every other A6a slice adds no human row."

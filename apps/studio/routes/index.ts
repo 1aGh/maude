@@ -36,6 +36,7 @@ import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
+import { createSettingsRoutes, type SettingsRouteDeps } from './settings.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
 import type { RouteSpec } from './table.ts';
@@ -98,6 +99,8 @@ export interface RouteDeps {
   availability?: AvailabilityRouteDeps;
   /** S11.11 — `POST /_api/sync/resync` (moved from http.ts) + the trace `/_sync-status` reports */
   sync: SyncRouteDeps;
+  /** S11.13 — `GET /_api/kg/summary` + `GET /_api/settings/about` (Settings › Advanced; counts and versions only) */
+  settings?: SettingsRouteDeps;
   /** S6.0b — `POST|GET /_api/cloud/move`: a local folder becomes a cloud project (S6-S9 §5.5) */
   cloudMove: CloudMoveDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
@@ -155,6 +158,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
     ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
     ...createSyncRoutes(deps.sync),
+    ...(deps.settings ? createSettingsRoutes(deps.settings) : []),
     ...createCloudMoveRoutes(deps.cloudMove),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
   ];
