@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "5cc203442c09",
+  "manifestVersion": "b3e5a6b63e60",
   "actions": [
     {
       "id": "search.open",
@@ -3160,6 +3160,30 @@
     {
       "scope": "design",
       "verb": "design runs",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds usage",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds revisions",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds",
       "effect": "shared",
       "tier": "prompt"
     },

@@ -154,6 +154,10 @@ const BIN_VERBS = new Set([
   // V2-2.15. `ds-upgrade` — the system-file steps of "bring a design system up to the schema"
   // (V2-1.13 §5.10): analyse / plan / validate (V1–V4, V8 → 13) / stage / apply. Never implicit.
   'ds-upgrade',
+  // S10.3 (V2-1.6 §5.12, S10 §2.4). `ds` — a converted design system's reviews from a terminal:
+  // status / usage / revisions list (reads), publish, pending, keep, undo, pick, canvas
+  // update|leave, trash, restore, clear (owner). Asks the running studio; in-process otherwise.
+  'ds',
   // V2-2.4b (contract V2-1.11 §5.2/§5.3, V2-1.18 §5.3). `check` validates the files Claude writes,
   // by kind (canvas TSX, boards, meta, hand-offs…). Read-only; the PostToolUse hook runs it.
   'check',
