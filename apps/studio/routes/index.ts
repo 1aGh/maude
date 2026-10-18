@@ -22,6 +22,7 @@ import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
+import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -70,6 +71,8 @@ export interface RouteDeps {
   comments?: CommentRouteDeps;
   /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
   annotations?: AnnotationRouteDeps;
+  /** S10.3 — a converted design system's reviews (`/_api/ds/*`, main origin only, Q15 gates) */
+  ds?: DsRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -117,5 +120,13 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       }
     ),
     ...(convert?.specs ?? []),
+    ...createDsRoutes(
+      deps.ds ?? {
+        // no engine wired: every DS route answers 503 `ds-unavailable`
+        engine: () => null,
+        access: () => trashAccessNone,
+        person: async () => ({ name: '' }),
+      }
+    ),
   ];
 }

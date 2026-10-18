@@ -84,6 +84,9 @@ import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
+import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
+import { createDsOutsideWatcher } from './ds/outside.ts';
+import { registerDsUndoHook } from './ds/undo-hook.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
@@ -1604,8 +1607,34 @@ export function createHttp(
   outboxSenders['ai.prompt'] = askQueue.sender;
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
+  // S10.3 — the design-system engine (S10.2) over THE kernel port, its one ⌘Z hook, and the
+  // outside-change watcher (W = 5 s quiet per system folder, fed by the design-root fs events).
+  const dsEngine = createDsEngine({
+    designRoot: ctx.paths.designRoot,
+    kernel: kernelPortFrom(() => ctx.syncControl?.current?.() ?? null),
+  });
+  registerDsUndoHook(dsEngine);
+  const dsOutside = createDsOutsideWatcher({
+    designRoot: ctx.paths.designRoot,
+    engine: dsEngine,
+    onChange: (system) => ctx.bus.emit('ds:outside', { system }),
+  });
+  ctx.bus.on('fs:any', (rel: string) => dsOutside.notify(rel));
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    // S10.3 — `/_api/ds/*` (routes/ds.ts): Q15 gates on the session's access, the person by
+    // the same rule as a sticky's converter, the usage index the project index hosts (S10.5)
+    ds: {
+      engine: () => dsEngine,
+      outside: () => dsOutside,
+      usage: () => projectIndex.dsUsage(),
+      access: (req) => accessOf(req),
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
     // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
     // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local
@@ -1823,6 +1852,8 @@ export function createHttp(
       managed: isWorkspaceMode(),
     }),
     persist: !isWorkspaceMode(),
+    // S10.5 — host the ds-usage index (lazy; persisted on a desktop, memory-only in a cell)
+    dsUsage: { persist: !isWorkspaceMode() },
   });
   ctx.bus.on('fs:any', (rel: string) => {
     projectIndex.update([rel]);
