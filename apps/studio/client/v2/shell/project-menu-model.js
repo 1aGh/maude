@@ -173,9 +173,12 @@ export function menuCtx({
   readOnly = false,
   canvasOpen = false,
   presenting = false,
+  linkedHub = false,
 } = {}) {
   const facts = new Set();
   if (native) facts.add('native');
+  // S3.7b — a desktop project linked to a cloud hub (Copy presentation link is enabled there).
+  if (linkedHub) facts.add('linkedHub');
   if (canvasOpen) facts.add('canvasOpen');
   if (presenting) facts.add('presenting');
   return {

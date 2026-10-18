@@ -21,6 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
+import { createBlankCanvas } from '../v2/create/new-canvas.js';
 import { presentFrom, presentStep } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
@@ -207,11 +208,11 @@ export const SHELL_KEY_HANDLERS = {
     if (d.activePath === SYSTEM_TAB) d.closeTab(SYSTEM_TAB);
     else d.openSystem();
   },
-  // N — open the new-brief-board composer (the browser reserves ⌘N and never delivers it).
+  // ⌘N — a blank canvas, named by the server (S6.1, C4), opened at once. (The brief board is
+  // `canvas.new-brief`, from the menu and ⌘K.)
   'canvas.new': (d, { event: e }) => {
     e.preventDefault();
-    d.openPanelExclusive('tree');
-    setTimeout(() => document.querySelector('[aria-label="New blank brief board"]')?.click(), 60);
+    createBlankCanvas({ toast: shellToast });
   },
   // ? — keyboard-shortcuts cheat sheet (DS shortcuts overlay)
   'help.shortcuts': (d, { event: e }) => {

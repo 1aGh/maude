@@ -1,7 +1,7 @@
 // dialogs/shortcuts-overlay.jsx — the "?" sheet (Maude v2, V2-4.6; 06 ad-search).
 //
 // Built from the action registry's keymap when it opens (v2/search/help-model.js): every visible key,
-// grouped Edit tools · Preview tools · File · Canvas · Panels and AI · Objects · Timeline · Present, a
+// grouped Edit tools · Preview tools · File · Tabs and windows · Finding a canvas · Canvas · Panels and AI · Objects · Timeline · Present, a
 // "Find a shortcut" box that uses the ⌘K matcher's fold, and one Advanced fold — View › Advanced and
 // Diagnostics keys with their path, then "Keys and tools that moved" (old → new). A key is read from
 // the registry here, never typed, so a re-binding shows up on the next "?".

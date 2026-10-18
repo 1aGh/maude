@@ -52,11 +52,54 @@ const CHANGED_DEBOUNCE: Duration = Duration::from_millis(16);
 
 /// The AI dot of a background tab: the activity poller (notify.rs, V2-3.9 T6) sets it when
 /// the tab's AI finishes or needs you; activating the tab clears it. Live only.
+/// S5.14 (03 `ai-other-tab`, `ai-needs-tab`): `working` is the tab's spark while a run is
+/// live there, and `needs-you` draws as the azure question mark — both LEVELS read from that
+/// project's runs each tick (`mark_for`), so they clear by themselves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Dot {
     Done,
     NeedsYou,
+    Working,
+}
+
+/// S5.14 — the mark a background tab shows after one poll tick: `level` is what its runs say
+/// now (`RunsSnapshot::level`: needs you › working › nothing), `current` what the tab shows,
+/// `finished` whether a run ended `done` this tick. Needs you and working are levels; done
+/// stays until the tab is activated (V2-3.7 §6) and gives way to a new level.
+pub fn mark_for(level: Option<Dot>, current: Option<Dot>, finished: bool) -> Option<Dot> {
+    match level {
+        Some(l) => Some(l),
+        None if finished || current == Some(Dot::Done) => Some(Dot::Done),
+        None => None,
+    }
+}
+
+/// S5.14 — put `mark` on `root`'s tab exactly (the level path; `set_dot` keeps the old
+/// transition rule for its e2e helper). The active tab takes none (`WindowBook::set_dot`).
+/// True when the strip state changed.
+pub fn set_mark(app: &AppHandle, root: &str, level: Option<Dot>, finished: bool) -> bool {
+    let changed_now = app.try_state::<SidecarState>().is_some_and(|s| {
+        let mut book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        set_mark_in(&mut book, root, level, finished)
+    });
+    if changed_now {
+        changed(app);
+    }
+    changed_now
+}
+
+/// Pure half of `set_mark`.
+pub fn set_mark_in(book: &mut WindowBook, root: &str, level: Option<Dot>, finished: bool) -> bool {
+    let Some(label) = book.label_for_root(root) else {
+        return false;
+    };
+    let current = book.entry(&label).and_then(|e| e.dot);
+    let next = mark_for(level, current, finished);
+    if next == current {
+        return false;
+    }
+    book.set_dot(&label, next)
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -595,6 +638,302 @@ pub async fn e2e_shell_bounds(
     }
 }
 
+// ── A moved folder (S1.19, 11 · pn-cant-open, V2-1.1 §5.5) ──────────────────
+//
+// A tab whose project folder is gone shows the app-local card
+// `root-missing.html` instead of a dead page: "<name> isn't where it was." /
+// Find the folder… / "Closing the tab keeps it on Home." Its server is
+// stopped, the tab vouches for no server origin (N-M3) and the registry entry
+// is kept (Home lists it as "isn't where it was"). Find the folder… is
+// `relink_project({pid})` from the card — the one place a project tab on the
+// app-local origin may call it, and only for its own pid while its folder is
+// gone (home::relink_allowed). The relink moves the tab to the new folder
+// (`follow_relink`): same tab, same label, the entry's profile and recents.
+
+/// The card's app-local document.
+pub const MISSING_PAGE: &str = "root-missing.html";
+/// How often the shell looks for a tab whose folder went away.
+const ROOT_WATCH_MS: u64 = 2_000;
+
+/// Is the project at `root` gone — moved, renamed, or no design system left?
+/// The same test relaunch (`plan_tabs`) and `open_project_window` apply.
+pub fn root_missing(root: &str) -> bool {
+    !std::path::Path::new(root).join(".design").is_dir()
+}
+
+fn missing_url() -> tauri::Url {
+    #[cfg(windows)]
+    const CARD: &str = "http://tauri.localhost/root-missing.html";
+    #[cfg(not(windows))]
+    const CARD: &str = "tauri://localhost/root-missing.html";
+    CARD.parse().expect("the card url parses")
+}
+
+/// Is `url` the card (the app-local `root-missing.html`)?
+pub fn on_card(url: &tauri::Url) -> bool {
+    windows::is_app_local(url) && url.path() == format!("/{MISSING_PAGE}")
+}
+
+/// "Desktop › Portfolio 2026": where the folder was, from the home folder when
+/// it was under it, else from the top. Long paths keep their last four parts.
+pub fn place_words(root: &str, home: Option<&std::path::Path>) -> String {
+    let path = std::path::Path::new(root);
+    let rel = home
+        .and_then(|h| path.strip_prefix(h).ok())
+        .filter(|r| r.components().next().is_some())
+        .unwrap_or(path);
+    let parts: Vec<String> = rel
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(s) => {
+                Some(crate::notify::sanitize_title(&s.to_string_lossy()))
+            }
+            _ => None,
+        })
+        .filter(|s| !s.is_empty())
+        .collect();
+    let keep = parts.len().saturating_sub(4);
+    let mut out = parts[keep..].join(" › ");
+    if keep > 0 {
+        out = format!("… › {out}");
+    }
+    out
+}
+
+/// What the card shows, for the tab's OWN project only (no input: the pid and
+/// root come from the calling window's book entry).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct MissingCard {
+    pub missing: bool,
+    pub pid: String,
+    pub name: String,
+    pub place: String,
+}
+
+pub fn missing_card(
+    st: &crate::app_state::AppState,
+    pid: &str,
+    root: &str,
+    home: Option<&std::path::Path>,
+) -> MissingCard {
+    let base = || {
+        std::path::Path::new(root)
+            .file_name()
+            .map(|n| crate::notify::sanitize_title(&n.to_string_lossy()))
+            .unwrap_or_default()
+    };
+    let name = st
+        .projects
+        .get(pid)
+        .map(|e| crate::notify::sanitize_title(&e.name))
+        .filter(|n| !n.is_empty())
+        .unwrap_or_else(base);
+    MissingCard {
+        missing: true,
+        pid: pid.to_string(),
+        name: if name.is_empty() { "This project".to_string() } else { name },
+        place: place_words(root, home),
+    }
+}
+
+/// For `resolve_dev_server_url`: the card's answer when the calling tab's
+/// folder is gone, else `None`.
+pub fn missing_answer(app: &AppHandle, caller: &windows::CallerProject) -> Option<serde_json::Value> {
+    if !root_missing(&caller.root) {
+        return None;
+    }
+    let st = crate::app_state::load(app);
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    serde_json::to_value(missing_card(&st, &caller.pid, &caller.root, home.as_deref())).ok()
+}
+
+/// Put `label` on the card: not resting (focus must not try to wake a server
+/// for a folder that is gone), no server origin, its server stopped. Only
+/// while the tab still shows `root`.
+pub fn show_missing(app: &AppHandle, label: &str, root: &str) {
+    let Some(state) = app.try_state::<SidecarState>() else {
+        return;
+    };
+    let still = {
+        let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        let still = book.root_of(label).as_deref() == Some(root);
+        if still {
+            book.set_resting(label, false);
+            book.clear_origin(label);
+        }
+        still
+    };
+    if !still {
+        return;
+    }
+    crate::sidecar::shutdown_instance(app, root);
+    if let Some(w) = app.get_webview(label) {
+        if let Err(e) = w.navigate(missing_url()) {
+            crate::sidecar::log_line(&format!("[maude] could not show the moved-folder card in {label}: {e}"));
+        }
+    }
+    crate::sidecar::log_line(&format!("[maude] {label}: its folder is gone — showing the card"));
+    changed(app);
+    crate::home::state_changed(app);
+}
+
+/// The tab showing `old_pid` follows a relink to `new_root` (S1.19): same tab
+/// and label, the registry entry's profile and recents (app_state::relink).
+/// The front tab starts the new folder's server; a background one rests.
+pub fn follow_relink(app: &AppHandle, old_pid: &str, new_root: &str) {
+    let Some(state) = app.try_state::<SidecarState>() else {
+        return;
+    };
+    let moved = {
+        let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        book.label_for_pid(old_pid).and_then(|label| {
+            let (_, old_root) = book.project_of(&label)?;
+            book.set_project(&label, new_root);
+            let front = book.front_label().as_deref() == Some(label.as_str());
+            book.set_resting(&label, !front);
+            Some((label, old_root, front))
+        })
+    };
+    let Some((label, old_root, front)) = moved else {
+        return;
+    };
+    if old_root != new_root {
+        crate::sidecar::shutdown_instance(app, &old_root);
+    }
+    windows::show_splash(app, &label);
+    if front {
+        crate::sidecar::attach_or_spawn(app, new_root);
+        crate::sidecar::spawn_enforce_cap(app);
+        windows::navigate_when_up(app, label.clone(), new_root.to_string(), None);
+    }
+    crate::sidecar::log_line(&format!("[maude] {label} found its folder again: {new_root}"));
+    changed(app);
+    windows::schedule_session_save(app);
+    crate::home::state_changed(app);
+}
+
+/// One project tab as the root watch sees it.
+#[derive(Clone, Debug)]
+pub struct WatchedTab {
+    pub label: String,
+    pub root: String,
+    pub on_card: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RootAction {
+    /// The folder is gone (two looks in a row): show the card.
+    Card { label: String, root: String },
+    /// The card's folder is back where it was: open it again.
+    Back { label: String, root: String },
+}
+
+/// The root watch's memory: tabs whose folder was missing at the last look.
+#[derive(Default)]
+pub struct RootWatch {
+    suspect: std::collections::HashSet<String>,
+}
+
+impl RootWatch {
+    /// Pure: what to do this tick. A folder must be missing on two looks in a
+    /// row before its tab goes to the card (a checkout or a sync that swaps
+    /// the folder for a moment is not a move); a card whose folder is back
+    /// opens it again. A tab no longer listed is forgotten.
+    pub fn tick(&mut self, tabs: &[WatchedTab], missing: impl Fn(&str) -> bool) -> Vec<RootAction> {
+        let mut out = Vec::new();
+        let mut next = std::collections::HashSet::new();
+        for t in tabs {
+            let gone = missing(&t.root);
+            match (t.on_card, gone) {
+                (true, false) => out.push(RootAction::Back {
+                    label: t.label.clone(),
+                    root: t.root.clone(),
+                }),
+                (false, true) if self.suspect.contains(&t.label) => out.push(RootAction::Card {
+                    label: t.label.clone(),
+                    root: t.root.clone(),
+                }),
+                (false, true) => {
+                    next.insert(t.label.clone());
+                }
+                _ => {}
+            }
+        }
+        self.suspect = next;
+        out
+    }
+}
+
+/// The card's folder came back: the front tab opens it, a background one rests
+/// until it is switched to.
+fn reopen_from_card(app: &AppHandle, label: &str, root: &str) {
+    let Some(state) = app.try_state::<SidecarState>() else {
+        return;
+    };
+    let front = {
+        let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        if book.root_of(label).as_deref() != Some(root) {
+            return;
+        }
+        let front = book.front_label().as_deref() == Some(label);
+        book.set_resting(label, !front);
+        front
+    };
+    windows::show_splash(app, label);
+    if front {
+        crate::sidecar::attach_or_spawn(app, root);
+        crate::sidecar::spawn_enforce_cap(app);
+        windows::navigate_when_up(app, label.to_string(), root.to_string(), None);
+    }
+    changed(app);
+}
+
+/// Look every `ROOT_WATCH_MS` for a project tab whose folder went away while
+/// it was open (renamed or moved on disk) and put it on the card; a card
+/// whose folder is back opens it again. The book is read under its lock, the
+/// webview URLs after it (a webview call waits on the main thread, which takes
+/// the book lock in the navigation guard).
+pub fn spawn_root_watch(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut watch = RootWatch::default();
+        loop {
+            tokio::time::sleep(Duration::from_millis(ROOT_WATCH_MS)).await;
+            let Some(state) = app.try_state::<SidecarState>() else {
+                continue;
+            };
+            if state.shutting_down.load(Ordering::SeqCst) {
+                break;
+            }
+            let listed: Vec<(String, String)> = {
+                let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+                book.tab_labels()
+                    .iter()
+                    .filter(|l| book.entry(l).is_some_and(|e| !e.closing))
+                    .filter_map(|l| book.root_of(l).map(|r| (l.clone(), r)))
+                    .collect()
+            };
+            let tabs: Vec<WatchedTab> = listed
+                .into_iter()
+                .filter_map(|(label, root)| {
+                    let url = app.get_webview(&label)?.url().ok()?;
+                    Some(WatchedTab {
+                        on_card: on_card(&url),
+                        label,
+                        root,
+                    })
+                })
+                .collect();
+            for action in watch.tick(&tabs, root_missing) {
+                match action {
+                    RootAction::Card { label, root } => show_missing(&app, &label, &root),
+                    RootAction::Back { label, root } => reopen_from_card(&app, &label, &root),
+                }
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -738,10 +1077,37 @@ mod tests {
     fn the_poller_sets_the_dot_before_the_notification_cooldown() {
         let src = include_str!("notify.rs");
         let body = &src[src.find("async fn poll_one(").unwrap()..];
-        let dot = body.find("mark_tab(app, project_root, &fired);").expect("poll_one marks the tab");
+        // S5.14: the mark is a level, set every tick — before the "nothing fired" return.
+        let dot = body.find("mark_tab(app, project_root, &snapshot, &fired);").expect("poll_one marks the tab");
         let cooldown = body.find("NOTIFY_COOLDOWN_MS").unwrap();
         let empty = body.find("if fired.is_empty()").unwrap();
-        assert!(empty < dot && dot < cooldown, "dot after any transition, before the cooldown");
+        assert!(dot < empty && dot < cooldown, "the mark every tick, before the cooldown");
+    }
+
+    // S5.14 — 03 `ai-other-tab` (a spark while working) and `ai-needs-tab` (the azure ?).
+    #[test]
+    fn the_tab_mark_is_the_runs_level_and_done_stays_until_the_tab_is_seen() {
+        use Dot::*;
+        assert_eq!(mark_for(Some(Working), None, false), Some(Working));
+        assert_eq!(mark_for(Some(NeedsYou), Some(Working), false), Some(NeedsYou));
+        assert_eq!(mark_for(Some(Working), Some(NeedsYou), false), Some(Working), "answered: back to the spark");
+        assert_eq!(mark_for(None, Some(Working), true), Some(Done), "the run finished");
+        assert_eq!(mark_for(None, Some(Working), false), None, "stopped / cancelled: no mark");
+        assert_eq!(mark_for(None, Some(NeedsYou), false), None, "the question went away");
+        assert_eq!(mark_for(None, Some(Done), false), Some(Done), "done stays until activated");
+        assert_eq!(mark_for(Some(Working), Some(Done), false), Some(Working), "a new run takes over");
+
+        let mut b = book_abc();
+        b.focus("p-a", 5);
+        assert!(set_mark_in(&mut b, B, Some(Working), false));
+        assert!(!set_mark_in(&mut b, B, Some(Working), false), "no change, no push");
+        assert_eq!(b.entry("p-b").unwrap().dot, Some(Working));
+        assert!(set_mark_in(&mut b, B, Some(NeedsYou), false));
+        assert!(set_mark_in(&mut b, B, None, true));
+        assert_eq!(b.entry("p-b").unwrap().dot, Some(Done));
+        assert!(!set_mark_in(&mut b, A, Some(Working), false), "the active tab takes no mark");
+        // The strip reads the value as a kebab-case string.
+        assert_eq!(serde_json::to_value(Working).unwrap(), "working");
     }
 
     #[test]
@@ -872,6 +1238,97 @@ mod tests {
             for p in ["allow-tabs-state", "allow-tab-activate", "allow-tab-close", "allow-tab-reorder"] {
                 assert!(!s.contains(&format!("\"{p}\"")), "{} grants {p}", f.display());
             }
+        }
+    }
+
+    /// S1.19: renaming a project folder on disk puts its tab on the card (on
+    /// the second look — a folder swapped for a moment is not a move), and a
+    /// card whose folder is back opens it again. A tab already on the card is
+    /// left there while the folder is still gone.
+    #[test]
+    fn a_moved_folder_puts_its_tab_on_the_card() {
+        let tab = |label: &str, root: &str, on_card: bool| WatchedTab {
+            label: label.into(),
+            root: root.into(),
+            on_card,
+        };
+        let gone = std::cell::RefCell::new(std::collections::HashSet::<String>::new());
+        let missing = |r: &str| gone.borrow().contains(r);
+        let mut w = RootWatch::default();
+        let tabs = [tab("p-a", "/a", false), tab("p-b", "/b", false)];
+        assert!(w.tick(&tabs, missing).is_empty());
+        gone.borrow_mut().insert("/a".into()); // renamed on disk
+        assert!(w.tick(&tabs, missing).is_empty(), "one look is not a move");
+        assert_eq!(
+            w.tick(&tabs, missing),
+            vec![RootAction::Card { label: "p-a".into(), root: "/a".into() }]
+        );
+        // On the card while the folder is still gone: nothing more to do.
+        let carded = [tab("p-a", "/a", true), tab("p-b", "/b", false)];
+        assert!(w.tick(&carded, missing).is_empty());
+        assert!(w.tick(&carded, missing).is_empty());
+        // A folder gone for one look only never reaches the card.
+        gone.borrow_mut().insert("/b".into());
+        assert!(w.tick(&carded, missing).is_empty());
+        gone.borrow_mut().remove("/b");
+        assert!(w.tick(&carded, missing).is_empty());
+        // The folder is back where it was: the tab opens it again.
+        gone.borrow_mut().remove("/a");
+        assert_eq!(
+            w.tick(&carded, missing),
+            vec![RootAction::Back { label: "p-a".into(), root: "/a".into() }]
+        );
+        // The disk test is the relaunch one: no design system ⇒ gone.
+        let base = std::env::temp_dir().join(format!("maude-s119-watch-{}", std::process::id()));
+        std::fs::create_dir_all(base.join("p").join(".design")).unwrap();
+        assert!(!root_missing(&base.join("p").to_string_lossy()));
+        assert!(root_missing(&base.join("q").to_string_lossy()));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// S1.19: the card's words come from the tab's own registry entry (the
+    /// name the person knew) and the folder's old place, from the home folder.
+    #[test]
+    fn the_card_names_the_project_and_where_it_was() {
+        let home = std::path::Path::new("/Users/x");
+        assert_eq!(place_words("/Users/x/Desktop/Portfolio 2026", Some(home)), "Desktop › Portfolio 2026");
+        assert_eq!(place_words("/Volumes/Work/site", Some(home)), "Volumes › Work › site");
+        assert_eq!(place_words("/Users/x/a/b/c/d/e", Some(home)), "… › b › c › d › e");
+        let mut st = crate::app_state::AppState::default();
+        let mut e = crate::app_state::ProjectEntry {
+            root: "/Users/x/Desktop/Portfolio 2026".into(),
+            name: "Portfolio 2026".into(),
+            ..Default::default()
+        };
+        st.projects.insert("lp".into(), e.clone());
+        assert_eq!(
+            missing_card(&st, "lp", &e.root, Some(home)),
+            MissingCard {
+                missing: true,
+                pid: "lp".into(),
+                name: "Portfolio 2026".into(),
+                place: "Desktop › Portfolio 2026".into(),
+            }
+        );
+        e.name.clear();
+        st.projects.insert("lp".into(), e.clone());
+        assert_eq!(missing_card(&st, "lp", &e.root, Some(home)).name, "Portfolio 2026");
+        // The card is the app-local root-missing.html, never a page that only
+        // shares its name on a server.
+        assert!(on_card(&missing_url()));
+        assert!(!on_card(&"http://localhost:4400/root-missing.html".parse().unwrap()));
+        assert!(!on_card(&"tauri://localhost/index.html".parse().unwrap()));
+        // The splash forwards to it, and the card's page is in the bundle.
+        assert!(include_str!("../../src/index.html").contains("answer.missing"));
+        let card = include_str!("../../src/root-missing.html");
+        for words in [
+            "isn't where it was.",
+            "Nothing inside has changed — the folder was moved or renamed.",
+            "Find the folder…",
+            "Closing the tab keeps it on Home.",
+            "invoke('relink_project'",
+        ] {
+            assert!(card.contains(words), "the card lost {words:?}");
         }
     }
 }

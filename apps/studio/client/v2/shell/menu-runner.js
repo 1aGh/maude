@@ -14,12 +14,14 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
+import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -62,10 +64,11 @@ const noop = () => {};
 export function createMenuHandlers(d) {
   const h = {
     // ── File ──
+    // S6.1: a blank canvas, named by the server (C4), opened at once. The tree composer is the brief board's.
     'canvas.new': () => {
-      d.openPanelExclusive('tree');
-      setTimeout(() => document.querySelector('[aria-label="New blank brief board"]')?.click(), 60);
+      createBlankCanvas({ toast: d.toast });
     },
+    'canvas.new-brief': () => openBriefBoardComposer(d),
     // IdentityBar owns the create dialog's state; it hears this the way it hears the native menu.
     'project.new': () => {
       if (!d.native) {
@@ -186,6 +189,15 @@ export function createMenuHandlers(d) {
     // S3.5 — the Order and notes… sheet on the active canvas (the shell mounts it; the server refuses
     // every role below edit on PATCH /_api/present-meta).
     'present.order-notes': () => d.setOrderNotesOpen(true),
+    // S3.6b — a person's click (the Present ⌄ row, ⌘K). With one display there is nothing to show it on: the
+    // row is hidden there, and a palette run says why instead of switching on a preference that does nothing.
+    'present.presenter-view': () => {
+      if (!presenterAvailable(presenterStore.get())) {
+        d.toast?.('Presenter view needs a second display.');
+        return;
+      }
+      presenterStore.toggle();
+    },
     // ── Help ──
     'help.shortcuts': () => d.setShortcutsOpen(true),
     'help.guides': () => d.setHelpOpen(true),

@@ -47,12 +47,19 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { MIGRATION_ACTOR } from '../../hub/src/project-transactions/baseline.mjs';
 import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transactions/kernel.mjs';
-import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
+import { laneHash, mergeLane } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
+import { serializeBoard } from '../annotations/schema.ts';
+import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
+import { createActionStage, type RunFence, type RunStageSummary } from './action-stage.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
+import { hashBytes } from './echo-guard.ts';
+import { mergeSource } from './source-merge.ts';
+import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
   asTarget,
   chatActionIds,
@@ -65,6 +72,12 @@ import {
 
 export const STORE_FILE = 'project-store.sqlite';
 export const LOCK_FILE = 'project-store.lock';
+/** S5.5b — this home's held AI runs (V2-1.5 §5.5), apart from the hub link's `ai-stage.json`. */
+export const AI_STAGE_FILE = 'ai-stage-local.json';
+/** S5.5b — how long a studio write's content note waits for the watcher to read it. */
+export const WRITE_NOTE_MS = 30_000;
+/** The label a person's studio edit carries (the hub link's `LANE_LABEL.html`). */
+export const STUDIO_EDIT_LABEL = 'Edit canvas';
 /** A foreign machine's store, kept read-only (C1). */
 export const FOREIGN_STORE = /^project-store\.([A-Za-z0-9_-]{1,64})\.sqlite$/;
 const SQLITE_SIDECARS = ['', '-wal', '-shm'] as const;
@@ -72,6 +85,19 @@ const SQLITE_SIDECARS = ['', '-wal', '-shm'] as const;
 /** The lanes a local canvas carries. Comments stay per machine (`_comments/`). */
 export const LOCAL_LANES = ['html', 'meta', 'annotations'] as const;
 type LocalLane = (typeof LOCAL_LANES)[number];
+/**
+ * The lanes the watcher records from disk. The board (and the comments a
+ * conversion touches) have a second writer — the collab room projects onto
+ * them — so, as on a hub link (projection.ts), they are never proposed from a
+ * file event: they reach the store only as an explicit action (S4.7
+ * `proposeLanes`), and an accepted undo merges back into what the disk holds.
+ */
+const WATCHED_LANES = ['html', 'meta'] as const;
+/** S4.7 — lanes only an explicit action writes; published three-way onto the disk. */
+const EXPLICIT_LANES = ['annotations', 'comments'] as const;
+type ExplicitLane = (typeof EXPLICIT_LANES)[number];
+const isExplicit = (lane: string): lane is ExplicitLane =>
+  (EXPLICIT_LANES as readonly string[]).includes(lane);
 
 /** What the watcher's actions say (V2-1.9 §5.2). */
 export const OUTSIDE_KIND = 'outside';
@@ -397,12 +423,27 @@ export type LocalOutcome = {
   actionId?: string;
   revision?: number;
   undoes?: string | string[];
-  skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
+  skipped?: Array<{
+    doc?: string;
+    lane?: string;
+    id?: string;
+    reason: string;
+    conflictWith?: string;
+  }>;
+  /** S1.7 — trash.restore: where the canvas came back; trash.clear: the ids cleared. */
+  path?: string;
+  cleared?: string[];
 };
 
 /** The `ctx.syncControl.current()` surface a local project answers through. */
 export interface LocalRuntime {
   cancelAssetSweep(): boolean;
+  /** S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). */
+  proposeLanes(
+    slug: string,
+    lanes: Array<{ lane: string; text: string; baseText: string }>,
+    o: { kind: string; label: string }
+  ): Promise<LocalOutcome>;
   acceptedHistory(q: {
     limit?: number;
     before?: number | null;
@@ -418,6 +459,39 @@ export interface LocalRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
+  acceptedTrash(): Promise<TrashListing | null>;
+  acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
+  acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+  acceptedLinkDocs(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
+  /** S1.18 — is the entry in the shared Trash (cleared items excluded)? */
+  acceptedTrashed(entry: string): Promise<boolean>;
+  /** S5.5b (U21) — the same run-stage surface the hub runtime has (sync/index.ts). */
+  beginAiAction(
+    key: string,
+    label: string,
+    meta?: { runId?: string; chatId?: string; actor?: string }
+  ): void;
+  claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
+  endAiAction(
+    key: string,
+    outcome: 'done' | 'failed' | 'stopped',
+    o?: { fence?: RunFence }
+  ): Promise<AiActionOutcome | null>;
+  resolveAiAction(
+    choice: 'publish' | 'discard',
+    runId?: string
+  ): Promise<(AiActionOutcome & { canvases?: number }) | null>;
+}
+
+/** What a run's end answers: the action it landed as and the artboards it touched. */
+export interface AiActionOutcome {
+  status: 'accepted' | 'rejected' | 'discarded';
+  code?: string;
+  actionId?: string;
+  /** design-root-relative canvas → artboards (V2-1.5 §5.7). */
+  touched?: Record<string, string[]>;
 }
 
 export interface LocalHomeOptions {
@@ -434,7 +508,11 @@ export interface LocalHomeOptions {
   settleMs?: number;
   /** Retry the lock this often while read-only; 0 = never (tests). */
   lockRetryMs?: number;
+  /** S5.5b — how long a run's last tool write gets to reach the watcher before the run ends. */
+  aiSettleMs?: number;
   log?: Pick<Console, 'warn' | 'error'>;
+  /** S1.7b — ctx.bus.emit: `trash:changed` when an accepted action changed the Trash. */
+  emit?: (event: string, payload: unknown) => void;
 }
 
 export interface ForeignStore {
@@ -452,6 +530,14 @@ export interface LocalHome {
   runtime: LocalRuntime;
   /** The fs watcher feed: a design-root-relative path changed. */
   observe(rel: string): void;
+  /**
+   * S5.5b — the studio itself wrote `content` to canvas `rel` (api.ts `source-written`): when
+   * the watcher reads exactly that content it is the person's `edit`, never `outside` and never
+   * an AI run's.
+   */
+  noteWritten(rel: string, content: string): void;
+  /** S5.5b — the runs this home stages (open and held), no bytes. */
+  aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
   observeMove(fromRel: string, toRel: string): void;
   /** Propose every pending observation now. */
@@ -512,6 +598,68 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   let retryTimer: ReturnType<typeof setInterval> | null = null;
   let closed = false;
   const foreignOpen = new Map<string, OpenedStore>();
+  const aiSettleMs = opts.aiSettleMs ?? 250;
+
+  /* ------------------------------------------------------- S5.5b — AI runs */
+
+  // A run's tool writes are STAGED here (sync/action-stage.ts — the same stage the hub link
+  // uses), so the watcher never records a canvas a run covers as `outside`: the run lands as
+  // ONE `ai` action when it ends (V2-1.5 §5.5, U21). The disk stays the working copy, so it may
+  // hold staged bytes the store has not accepted; `seen` remembers what each lane held when the
+  // watcher last read it — the `d0` a change is composed from (`R.mine = merge3(d0, d1, mine)`)
+  // and the base a person's edit made on top of staged bytes is proposed from.
+  /** `${rel}|${lane}` → the lane's value on disk when last read (or written) here. */
+  const seen = new Map<string, string>();
+  /** rel → the studio's own write of it (api.ts `source-written`), until the watcher reads it. */
+  const notes = new Map<string, { hash: string; at: number }>();
+  /** >0 while a proposal made FROM the disk is accepted: the disk already holds it. */
+  let fromDisk = 0;
+  let runTx = 0;
+  const stage = createActionStage({
+    designRoot: opts.designRoot,
+    stateFile: path.join(stateDir, AI_STAGE_FILE),
+    propose: async (a) => {
+      // The local store has no lease rows (the run registry's lease home is in process), so a
+      // fence would only ever mismatch: the publish goes without it.
+      const r = await serial(() =>
+        submit(a.operations, { kind: a.kind, label: a.label }, actor, a.origin ?? {}, true)
+      );
+      return {
+        protocol: PROTOCOL,
+        status: r.status,
+        transactionId: a.transactionId,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+        ...(r.revision !== undefined ? { revision: r.revision } : {}),
+      };
+    },
+    newTransactionId: () => `lt_run_${now().toString(36)}_${(++runTx).toString(36)}`,
+    attribute: (slug, before, after) =>
+      /\.tsx$/i.test(slug)
+        ? { canvas: slug, artboards: attributeArtboards(slug, before, after).artboards }
+        : null,
+    log: { log() {}, warn: (m: string) => log.warn(m) },
+    now,
+  });
+
+  function noteWritten(rel: string, content: string): void {
+    const canvas = canvasOfRel(rel);
+    if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
+    notes.set(canvas, { hash: hashBytes(content), at: now() });
+  }
+
+  /** The studio's note for this html, consumed (null when the content is not the studio's). */
+  function takeNote(rel: string, html: string | undefined): { at: number } | null {
+    const n = notes.get(rel);
+    if (!n) return null;
+    if (now() - n.at > WRITE_NOTE_MS) {
+      notes.delete(rel);
+      return null;
+    }
+    if (html === undefined || hashBytes(html) !== n.hash) return null;
+    notes.delete(rel);
+    return { at: n.at };
+  }
 
   /* ---------------------------------------------------------------- open */
 
@@ -554,6 +702,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       now,
       log,
     });
+    // S5.5b (U14) — a run the last session left comes back HELD, before the boot reconcile
+    // reads the disk: its bytes are its stage's, never an `outside` row.
+    stage.restore();
   }
 
   function openReadOnly(): void {
@@ -595,7 +746,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     operations: unknown[],
     action: { kind: string; label: string | null },
     as: string = actor,
-    origin: Record<string, unknown> = {}
+    origin: Record<string, unknown> = {},
+    /** The proposal IS what the disk holds: its acceptance writes nothing back. */
+    disk = false
   ): Promise<LocalOutcome> {
     if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
     const { epoch } = await opened.store.state();
@@ -607,9 +760,15 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       origin: { deviceId: machine.id, client: 'studio-local', madeAt: now(), ...origin },
       action: { kind: action.kind, label: action.label, operations },
     });
-    // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
-    // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
-    const { body } = await kernel.submit(bytes, { actor: as, can: () => true });
+    if (disk) fromDisk += 1;
+    let body: any;
+    try {
+      // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
+      // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
+      ({ body } = await kernel.submit(bytes, { actor: as, can: () => true }));
+    } finally {
+      if (disk) fromDisk -= 1;
+    }
     if (body?.status === 'accepted') {
       return {
         status: 'accepted',
@@ -619,6 +778,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           ? { undoes: body.undoes }
           : {}),
         ...(Array.isArray(body.skipped) && body.skipped.length ? { skipped: body.skipped } : {}),
+        ...(Array.isArray(body.cleared) ? { cleared: body.cleared } : {}),
       };
     }
     return { status: 'rejected', code: String(body?.code ?? 'retryable') };
@@ -627,10 +787,19 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   /* ------------------------------------------------------------ disk ⇄ lanes */
 
   const abs = (rel: string) => path.join(opts.designRoot, ...rel.split('/'));
+  // The board is NOT a sibling: it sits at the design root under the canvas's
+  // flat slug (`<slug>.annotations.json`, api.ts `annotationsPath`, DDR-242).
   const sibling = (rel: string, lane: LocalLane) =>
     lane === 'html'
       ? rel
-      : rel.replace(/\.tsx$/i, lane === 'meta' ? '.meta.json' : '.annotations.json');
+      : lane === 'meta'
+        ? rel.replace(/\.tsx$/i, '.meta.json')
+        : `${canvasSlugFromRel(rel, designRel)}.annotations.json`;
+  /** S4.7 — the file an explicit lane is published to. */
+  const explicitFile = (rel: string, lane: ExplicitLane) =>
+    lane === 'annotations'
+      ? sibling(rel, 'annotations')
+      : `_comments/${canvasSlugFromRel(rel, designRel)}.json`;
   const readText = (rel: string): string | null => {
     try {
       return readFileSync(abs(rel), 'utf8');
@@ -674,6 +843,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const live: string | null = await store.docByPath(rel);
     const onDisk = existsSync(abs(rel));
     if (!onDisk) {
+      for (const lane of LOCAL_LANES) seen.delete(`${rel}|${lane}`);
       if (!live) return null;
       const st = (await store.heads([live]))[live];
       return submit(
@@ -684,7 +854,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     }
     if (!inGroups(rel)) return null;
     const values: Partial<Record<LocalLane, string>> = {};
-    for (const lane of LOCAL_LANES) {
+    for (const lane of WATCHED_LANES) {
       const v = diskLane(rel, lane);
       if (v !== null) values[lane] = v;
     }
@@ -700,16 +870,52 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const head = (await store.heads([live]))[live] as {
       lanes: Record<string, { hash: string | null }>;
     };
+    // S5.5b — the studio's own write is the person's edit; a write a run claims (or a run
+    // covers) joins that run's stage; anything else is outside, as before.
+    const noted = action.kind === OUTSIDE_KIND ? takeNote(rel, values.html) : null;
     const ops: unknown[] = [];
-    for (const lane of LOCAL_LANES) {
+    const nextSeen: Array<[string, string]> = [];
+    for (const lane of WATCHED_LANES) {
       const v = values[lane];
       if (v === undefined) continue;
+      const k = `${rel}|${lane}`;
       const headHash = hashOr(head?.lanes?.[lane]?.hash);
-      if (laneHash(v) === headHash) continue;
-      ops.push({ op: 'lane.replace', doc: live, lane, content: v, base: headHash });
+      const prev = seen.get(k);
+      if (prev !== undefined ? prev === v : laneHash(v) === headHash) continue;
+      const base =
+        prev ?? (headHash === EMPTY_HASH ? '' : (((await store.blob(headHash)) as string) ?? ''));
+      if (!noted && action.kind === OUTSIDE_KIND && stage.captures(rel, true, v)) {
+        seen.set(k, v);
+        void stage
+          .capture(rel, live, {
+            lane,
+            content: v,
+            baseContent: base,
+            transactionId: `lt_stage_${now().toString(36)}_${(++runTx).toString(36)}`,
+            stageable: true,
+          })
+          .catch(() => null);
+        continue;
+      }
+      ops.push(
+        laneHash(base) === headHash
+          ? { op: 'lane.replace', doc: live, lane, content: v, base: headHash }
+          : { op: 'lane.replace', doc: live, lane, content: v, baseContent: base }
+      );
+      nextSeen.push([k, v]);
     }
     if (!ops.length) return null;
-    return submit(ops, { ...action, label: action.label ?? NAME(rel) }, as);
+    const r = noted
+      ? await submit(
+          ops,
+          { kind: 'edit', label: STUDIO_EDIT_LABEL },
+          as,
+          { madeAt: noted.at },
+          true
+        )
+      : await submit(ops, { ...action, label: action.label ?? NAME(rel) }, as, {}, true);
+    if (r.status === 'accepted') for (const [k, v] of nextSeen) seen.set(k, v);
+    return r;
   }
 
   /** Every canvas on disk under the groups, design-root-relative. */
@@ -787,9 +993,75 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       retiredFor: string | null;
       movedFrom: string | null;
     }[];
+    /** S1.6 — what a clear-out removed (kernel `extra.cleared`). */
+    trashCleared?: {
+      entry: string;
+      artboard: string;
+      rev: number;
+      doc?: string;
+      path?: string | null;
+    }[];
   }): Promise<void> {
     const store = opened?.store;
     if (!store) return;
+    try {
+      await publishChanges(store, p);
+    } finally {
+      if (p.trashCleared?.length) await clearCopies(store, p.trashCleared);
+      if (
+        p.trashCleared?.length ||
+        p.changes.some((c) => (c.deleted && !c.retiredFor) || c.revived)
+      )
+        bumpTrashSeq(opts.emit);
+    }
+  }
+
+  /**
+   * S1.7b — the owner cleared items out (S1 Q4): this machine's own parked
+   * copies of exactly those canvases go (sync/trash-clear-copies.ts). The
+   * bytes compared are the canvas as the store held it when it was trashed.
+   */
+  async function clearCopies(
+    store: NonNullable<typeof opened>['store'],
+    cleared: NonNullable<Parameters<typeof publish>[0]['trashCleared']>
+  ): Promise<void> {
+    try {
+      const bodyAt = async (doc: string, rev: number) => {
+        const h = await store.laneAt(doc, 'html', Math.max(rev - 1, 0));
+        return h ? ((await store.blob(h)) ?? '') : '';
+      };
+      const items: ParkedCanvas[] = [];
+      for (const c of cleared)
+        if (c.artboard === '' && c.doc && c.path)
+          items.push({ path: c.path, body: await bodyAt(c.doc, c.rev) });
+      if (!items.length) return;
+      const paths = new Set(items.map((i) => i.path));
+      const remaining: ParkedCanvas[] = [];
+      if (typeof store.trash === 'function')
+        for (const c of (await store.trash({})).canvases as {
+          doc: string;
+          path: string;
+          rev: number;
+        }[])
+          if (paths.has(c.path)) remaining.push({ path: c.path, body: await bodyAt(c.doc, c.rev) });
+      removeClearedCopies({
+        designRoot: opts.designRoot,
+        designRel,
+        cleared: items,
+        remaining,
+        log: (line) => log.warn(line),
+      });
+    } catch (err) {
+      log.warn(`[local-kernel] clear-out cleanup failed: ${(err as Error).message}`);
+    }
+  }
+
+  async function publishChanges(
+    store: NonNullable<typeof opened>['store'],
+    p: Parameters<typeof publish>[0]
+  ): Promise<void> {
+    // S5.5b — a proposal made from the disk (a watched write, a run landing): nothing to write.
+    if (fromDisk > 0) return;
     // What the store held before this action, per lane — the disk must still
     // say that, or it carries a byte the store never accepted.
     const before = async (doc: string, lane: LocalLane) =>
@@ -836,30 +1108,169 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         }
       }
       for (const [lane, value] of Object.entries(lanes)) {
+        if (isExplicit(lane)) {
+          if (!c.created && !c.revived)
+            await publishExplicit(c.path, c.doc, lane, value, p.revision);
+          continue;
+        }
         if (!(LOCAL_LANES as readonly string[]).includes(lane)) continue;
         const l = lane as LocalLane;
         const rel = sibling(c.path, l);
         const current = diskLane(c.path, l);
-        if (current !== null && laneHash(current) === laneHash(value)) continue;
+        if (current !== null && laneHash(current) === laneHash(value)) {
+          seen.set(`${c.path}|${l}`, current);
+          continue;
+        }
         if (!c.created && !c.revived && !(await diskMatches(c.path, c.doc, l))) {
           log.warn(`[local-kernel] ${rel} changed on disk since — left as it is`);
           continue;
         }
-        if (value === '') {
-          if (l !== 'html') {
-            try {
-              unlinkSync(abs(rel));
-            } catch {
-              /* absent */
-            }
-          }
-          continue;
-        }
-        const text = l === 'meta' ? mergeSharedMetaIntoLocal(readText(rel), value) : value;
-        if (text === null) continue;
-        atomicWrite(abs(rel), text);
+        writeLane(c.path, l, value);
       }
     }
+  }
+
+  /**
+   * S4.7 — an accepted change of an explicit lane reaches the disk THREE-WAY:
+   * what the store held before → what it holds now, replayed onto what the disk
+   * holds (by element / comment id — mergeLane). Nothing the store never saw is
+   * overwritten: an unrecorded sticky edit or a new comment stays.
+   */
+  async function publishExplicit(
+    rel: string,
+    doc: string,
+    lane: ExplicitLane,
+    value: string,
+    revision: number
+  ): Promise<void> {
+    const store = opened?.store;
+    if (!store) return;
+    const h = await store.laneAt(doc, lane, revision - 1);
+    const before = h ? (((await store.blob(h)) as string | null) ?? '') : '';
+    const fileRel = explicitFile(rel, lane);
+    const raw = readText(fileRel);
+    const disk = raw === null ? '' : laneValueFromFile(lane, raw);
+    if (disk === null) {
+      log.warn(`[local-kernel] ${fileRel} is unreadable — left as it is`);
+      return;
+    }
+    const m = mergeLane(lane, before, value, disk);
+    if (!m.ok) {
+      log.warn(`[local-kernel] ${fileRel} changed on disk since — left as it is`);
+      return;
+    }
+    if (m.content === disk) return;
+    if (m.content === '') {
+      if (lane === 'comments') {
+        try {
+          unlinkSync(abs(fileRel));
+        } catch {
+          /* absent */
+        }
+      } else atomicWrite(abs(fileRel), serializeBoard([]));
+      return;
+    }
+    // The bytes the studio itself writes: api.ts `saveCommentsForFile` / the canonical board.
+    const text = lane === 'comments' ? JSON.stringify(JSON.parse(m.content), null, 2) : m.content;
+    mkdirSync(path.dirname(abs(fileRel)), { recursive: true });
+    atomicWrite(abs(fileRel), text);
+  }
+
+  /**
+   * S4.7 — several lanes of one canvas as ONE action (a sticky ↔ comment
+   * conversion). The studio writes the files itself (the room bridge, the
+   * sidebar); this records what they became. An explicit lane the store has
+   * fallen behind on (a board edit the watcher does not record) is first
+   * brought up to the disk's `baseText` by an `outside` row, so the action's
+   * before-content IS what the disk held — its undo takes back exactly it.
+   */
+  async function proposeLanes(
+    slug: string,
+    lanes: Array<{ lane: string; text: string; baseText: string }>,
+    o: { kind: string; label: string }
+  ): Promise<LocalOutcome> {
+    await readyP;
+    return serial(async () => {
+      if (!opened || !kernel) return { status: 'rejected', code: 'store-locked' } as LocalOutcome;
+      const store = opened.store;
+      const m = await store.manifest();
+      const live = (m.docs as { doc: string; path: string; retired: boolean }[]).find(
+        (d) => !d.retired && d.path && canvasSlugFromRel(d.path, designRel) === slug
+      );
+      if (!live) return { status: 'rejected', code: 'unknown-canvas' } as LocalOutcome;
+      const head = (await store.heads([live.doc]))[live.doc] as {
+        lanes: Record<string, { hash: string | null }>;
+      };
+      const catchUp: unknown[] = [];
+      const ops: unknown[] = [];
+      for (const l of lanes) {
+        if (!isExplicit(l.lane) && !(LOCAL_LANES as readonly string[]).includes(l.lane))
+          return { status: 'rejected', code: 'invalid' } as LocalOutcome;
+        const lane = l.lane as LocalLane | ExplicitLane;
+        const content = laneValueFromFile(lane, l.text);
+        const base = laneValueFromFile(lane, l.baseText);
+        if (content === null || base === null)
+          return { status: 'rejected', code: 'invalid' } as LocalOutcome;
+        const headHash = hashOr(head?.lanes?.[lane]?.hash);
+        if (laneHash(base) !== headHash)
+          catchUp.push({ op: 'lane.replace', doc: live.doc, lane, content: base, base: headHash });
+        ops.push({ op: 'lane.replace', doc: live.doc, lane, content, base: laneHash(base) });
+      }
+      if (catchUp.length) {
+        const r = await submit(catchUp, { kind: OUTSIDE_KIND, label: null }, actor, {}, true);
+        if (r.status !== 'accepted') return r;
+      }
+      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, {}, true);
+      if (r.status === 'accepted') {
+        for (const l of lanes) if (!isExplicit(l.lane)) seen.set(`${live.path}|${l.lane}`, l.text);
+      }
+      return r;
+    });
+  }
+
+  /** Write one lane's value to its file (an empty side lane removes the file). */
+  function writeLane(canvasRel: string, l: LocalLane, value: string): void {
+    const rel = sibling(canvasRel, l);
+    if (value === '') {
+      if (l !== 'html') {
+        try {
+          unlinkSync(abs(rel));
+        } catch {
+          /* absent */
+        }
+        seen.set(`${canvasRel}|${l}`, '');
+      }
+      return;
+    }
+    const text = l === 'meta' ? mergeSharedMetaIntoLocal(readText(rel), value) : value;
+    if (text === null) return;
+    atomicWrite(abs(rel), text);
+    seen.set(`${canvasRel}|${l}`, value);
+  }
+
+  /**
+   * A discarded run's bytes leave the disk: its deltas are taken back out of what the disk holds
+   * now (three-way — a person's edit made since stays). A lane that cannot be untangled is left
+   * as it is, and the next watched change records it.
+   */
+  function unstage(l: { slug: string; lane: string; base: string; mine: string }): void {
+    if (!(LOCAL_LANES as readonly string[]).includes(l.lane)) return;
+    const lane = l.lane as LocalLane;
+    const disk = diskLane(l.slug, lane);
+    if (disk === null) return;
+    let next: string | null = null;
+    if (disk === l.mine) next = l.base;
+    else if (lane === 'html') {
+      const m = mergeSource(l.mine, l.base, disk);
+      next = m.ok ? m.merged : null;
+    }
+    if (next === null) {
+      log.warn(
+        `[local-kernel] ${l.slug}: the discarded AI changes could not be taken out — left as it is`
+      );
+      return;
+    }
+    if (next !== disk) writeLane(l.slug, lane, next);
   }
 
   /* -------------------------------------------------------------- watcher */
@@ -1003,6 +1414,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   const runtime: LocalRuntime = {
     cancelAssetSweep: () => false,
+    proposeLanes: (slug, lanes, o) => proposeLanes(slug, lanes, o),
     async acceptedHistory(q) {
       await settled();
       const o = opened;
@@ -1064,7 +1476,117 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         })
       );
     },
+    // S1.7 — the shared Trash over the store's readers (S1-trash.md §1). A local
+    // project is its owner's, so `submit` passes every cap (S1.6).
+    async acceptedTrash() {
+      await settled();
+      const o = opened;
+      if (!o || typeof o.store.trash !== 'function') return null;
+      const { canvases, artboards } = await o.store.trash({});
+      const live: TrashListing['live'] = {};
+      for (const entry of new Set((artboards as { entry: string }[]).map((a) => a.entry))) {
+        const doc = await o.store.liveDocByEntry(entry);
+        const h = doc ? (await o.store.heads([doc]))[doc] : null;
+        if (doc && h?.path) live[entry] = { doc, path: h.path };
+      }
+      return { canvases, artboards, live, you: actor };
+    },
+    async acceptedTrashRestore(entry) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const o = opened;
+      const [item] = (await o.store.trash({ entry })).canvases as { path: string }[];
+      const r = await serial(() =>
+        submit([{ op: 'trash.restore', entry }], {
+          kind: 'restore',
+          label: item ? `Restored “${NAME(item.path)}” from the trash` : 'Restored from the trash',
+        })
+      );
+      if (r.status !== 'accepted') return r;
+      const doc = await o.store.liveDocByEntry(entry);
+      const h = doc ? (await o.store.heads([doc]))[doc] : null;
+      return h?.path ? { ...r, path: h.path } : r;
+    },
+    async acceptedTrashClear(items) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      return serial(() =>
+        submit([{ op: 'trash.clear', ...(items ? { items } : {}) }], {
+          kind: 'trash.clear',
+          label: 'Cleared out the trash',
+        })
+      );
+    },
+    // S1.18 — the manifest rows a stable link resolves over (history/links.ts).
+    async acceptedLinkDocs() {
+      await settled();
+      const o = opened;
+      if (!o) return null;
+      const m = await o.store.manifest();
+      return (m.docs as { entry: string; path: string | null; retired: boolean }[]).map((d) => ({
+        entry: d.entry,
+        path: d.path,
+        retired: !!d.retired,
+      }));
+    },
+    async acceptedTrashed(entry) {
+      await settled();
+      const o = opened;
+      if (!o) return false;
+      const t = (await o.store.trash({ entry })) as { canvases?: unknown[] } | null;
+      return (t?.canvases?.length ?? 0) > 0;
+    },
+    beginAiAction(key, label, meta) {
+      if (!kernel) return;
+      stage.begin(key, label, meta ?? {});
+    },
+    claimAiWrite(key, repoRel, hash) {
+      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+      const canvas = rel ? canvasOfRel(rel) : null;
+      if (canvas) stage.claim(key, canvas, hash ?? null);
+    },
+    async endAiAction(key, outcome) {
+      if (!kernel) return null;
+      // The watcher delivers the run's last tool write a beat after the tool returns.
+      if (aiSettleMs > 0) await new Promise((r) => setTimeout(r, aiSettleMs));
+      await settled();
+      const touched = stage.summaryOf(key)?.touched;
+      const r = await stage.end(key, outcome);
+      return r ? aiOutcome(r, touched) : null;
+    },
+    async resolveAiAction(choice, runId) {
+      if (!kernel) return null;
+      await settled();
+      const held = stage.runs().filter((r) => r.state === 'held' && (!runId || r.runId === runId));
+      if (!held.length) return null;
+      if (choice === 'discard') {
+        const lanes = held.flatMap((r) => stage.lanesOf(r.runId));
+        const canvases = stage.discard(runId);
+        await serial(async () => {
+          for (const l of lanes) unstage(l);
+        });
+        return { status: 'discarded', canvases };
+      }
+      const touched: Record<string, string[]> = {};
+      for (const r of held)
+        for (const [c, ids] of Object.entries(r.touched))
+          touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
+      const r = await stage.publish(runId);
+      return r ? aiOutcome(r, touched) : null;
+    },
   };
+
+  function aiOutcome(
+    r: { status: 'accepted' | 'rejected'; code?: string; actionId?: unknown },
+    touched: Record<string, string[]> | undefined
+  ): AiActionOutcome {
+    return {
+      status: r.status,
+      ...(r.code ? { code: r.code } : {}),
+      ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+      ...(touched && Object.keys(touched).length ? { touched } : {}),
+    };
+  }
 
   /* -------------------------------------------------------------- foreign */
 
@@ -1120,6 +1642,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     runtime,
     observe,
     observeMove,
+    noteWritten,
+    aiRuns: () => stage.runs(),
     flush: () => drain(),
     foreignStores,
     foreignHistory,
@@ -1186,7 +1710,10 @@ export function withLocalHome<S extends SupervisorLike>(
 interface StudioLike {
   cfg: { linkedHub?: unknown; canvasGroups?: { path: string }[] };
   paths: { designRoot: string; designRel: string };
-  bus: { on(event: string, fn: (payload: any) => void): unknown };
+  bus: {
+    on(event: string, fn: (payload: any) => void): unknown;
+    emit?(e: string, p: unknown): void;
+  };
 }
 
 /**
@@ -1212,6 +1739,7 @@ export function attachLocalHome<S extends SupervisorLike>(
           designRoot: ctx.paths.designRoot,
           designRel: ctx.paths.designRel,
           canvasGroups: () => ctx.cfg.canvasGroups ?? null,
+          ...(ctx.bus.emit ? { emit: (e, p) => ctx.bus.emit?.(e, p) } : {}),
         });
       } catch (err) {
         // Never take the studio down: the project keeps working without
@@ -1224,6 +1752,11 @@ export function attachLocalHome<S extends SupervisorLike>(
   };
   ctx.bus.on('fs:any', (rel: string) => {
     if (isLocal()) get()?.observe(rel);
+  });
+  // S5.5b — the studio's own write (api.ts, after it landed): the person's edit, by content.
+  ctx.bus.on('source-written', (p: { rel?: unknown; content?: unknown } | null) => {
+    if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+    get()?.noteWritten(p.rel, p.content);
   });
   ctx.bus.on(
     'canvas-list-update',

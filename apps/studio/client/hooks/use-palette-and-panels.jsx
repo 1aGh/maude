@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
+import { normalizeOpenPath } from '../share-link.js';
+import { copyPresentationLink } from '../v2/present/copy-link.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -17,7 +19,17 @@ import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName, openCount, shellToast } from '../shell/util.js';
 import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../v2/create/new-canvas.js';
 import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
+import {
+  goneWords,
+  OPEN_LINK_EVENT,
+  openedFromWords,
+  planOpenLink,
+  resolveLink,
+  stableLinkFor,
+  takeOpenLinks,
+} from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
@@ -162,12 +174,68 @@ export function usePaletteAndPanels({
   // action id (the palette opened what the key toggles — Phase 4 unifies them).
   // S1.2 — "Copy link" on a canvas row, and its File-menu / ⌘K twins (`canvas.copy-link`, `canvas.trash`),
   // which reach here as a `maude:canvas-op` event from the menu runner (it holds no shell closures for
-  // these). The link is the one Share offers today; S1.18's stable `…/c/<entry>` resolver replaces it.
-  const copyCanvasLink = (path) => {
+  // these). S1.18: the stable link (`maude://open/<project>?c=<entry>`, survives a move or rename) when this
+  // project has an op log; otherwise — a legacy project, the cloud shell — the one Share offers today.
+  const copyCanvasLink = async (path) => {
     const links = shareLinksFor(path);
-    const link = links.web ?? links.app ?? links.local;
+    const stable =
+      shareShell === 'cloud'
+        ? null
+        : await stableLinkFor({ path, appLink: links.app }).catch(() => null);
+    const link = stable ?? links.web ?? links.app ?? links.local;
     if (link) copyShareLink(link);
   };
+  // S1.18 — a canvas link the shell delivered to this window (CloudBar → open-link.js): resolve its entry
+  // here, then open the canvas, glide to the artboard (the S1.3 jump), open the comment, say where it came
+  // from. In the Trash → the Trash; not here → "This canvas isn't in <project> any more."
+  const commentsRef = useRef(commentsByFile);
+  commentsRef.current = commentsByFile;
+  const openLinkRef = useRef(null);
+  openLinkRef.current = async (link) => {
+    const plan = planOpenLink(await resolveLink(link.entry), link);
+    if (plan.kind === 'trash') return menuRunner.run('view.trash');
+    if (plan.kind !== 'open') {
+      if (plan.kind === 'gone') shellToast(goneWords(localProjectName || project?.name));
+      return;
+    }
+    const designRel = cfg?.designRel ?? '.design';
+    const file =
+      (groups ?? [])
+        .flatMap((g) => g.paths || [])
+        .find((p) => normalizeOpenPath(p, designRel) === plan.path) ?? null;
+    if (!file) return void openLinkedFile(plan.path);
+    if (plan.artboard) canvasOpRef.current?.({ op: 'jump', path: file, artboardId: plan.artboard });
+    else if (file !== activePath) openTab(file);
+    if (plan.comment) {
+      jumpToComment(file, plan.comment);
+      openRightPanel('comments');
+    }
+    const say = () => {
+      const c = plan.comment
+        ? (commentsRef.current?.[file] ?? []).find((x) => x?.id === plan.comment)
+        : null;
+      shellToast(
+        openedFromWords({
+          who: typeof c?.author === 'string' && c.author.trim() ? c.author.trim() : null,
+          canvas: displayName(basename(file)),
+          artboard: plan.artboard,
+        }),
+        true
+      );
+    };
+    // A comment's author is known once its canvas's comments load.
+    if (plan.comment) setTimeout(say, JUMP_LADDER_MS[1]);
+    else say();
+  };
+  useEffect(() => {
+    const drain = () => {
+      for (const link of takeOpenLinks()) void openLinkRef.current?.(link);
+    };
+    if (!treeLoaded) return undefined;
+    drain();
+    window.addEventListener(OPEN_LINK_EVENT, drain);
+    return () => window.removeEventListener(OPEN_LINK_EVENT, drain);
+  }, [treeLoaded]);
   const canvasOpRef = useRef(null);
   canvasOpRef.current = ({ op, path, label, artboardId }) => {
     if (!path) return;
@@ -182,7 +250,9 @@ export function usePaletteAndPanels({
         for (const msg of plan.messages) setTimeout(() => postToActiveCanvas(msg), delay);
       return;
     }
-    if (op === 'copy-link') copyCanvasLink(path);
+    // S6.1 — a canvas the shell just made (⌘N): open it. The tree catches up over the list-update socket.
+    if (op === 'open') openTab(path);
+    else if (op === 'copy-link') copyCanvasLink(path);
     else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
   };
   useEffect(() => {
@@ -194,12 +264,9 @@ export function usePaletteAndPanels({
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
-        openPanelExclusive('tree');
-        setTimeout(
-          () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-          60
-        );
+        createBlankCanvas({ toast: shellToast });
       },
+      'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
       'canvas.new-video': () => createVideo(),
       'export.open': () => setExportDialog({ mode: 'export' }),
       'share.copy-link': () => {
@@ -207,6 +274,15 @@ export function usePaletteAndPanels({
         const link = links.web ?? links.app ?? links.local;
         if (link) copyShareLink(link);
       },
+      // S3.7b — the presentation link (hub `/present/<canvas>`), off the share link's public origin.
+      'present.copy-link': () =>
+        copyPresentationLink({
+          rel: normalizeOpenPath(sharePath, cfg.designRel),
+          webLink: shareLinksFor(sharePath).web,
+          online: typeof navigator === 'undefined' || navigator.onLine !== false,
+          writeText: (s) => navigator.clipboard.writeText(s),
+          notify: ({ title, kind }) => shellToast(title, kind === 'success'),
+        }),
       'handoff.open': () => setExportDialog({ mode: 'handoff' }),
       'ai.generate': () => setGenerateOpen(true),
       'settings.open': () => setSettingsOpen(true),
@@ -232,6 +308,7 @@ export function usePaletteAndPanels({
       cloudTab: !!cfg.cloud, // V2-4.8a: "Back to Home" and "Sign out" are a cloud tab's rows
       readOnly: viewerMode,
       canvasOpen: !!activePath && activePath !== SYSTEM_TAB,
+      linkedHub: !!cloudLinkedHub?.url,
     });
     // V2-4 gate (design blocker 6): a row's key is the registry's live chord in this shell, written by
     // `formatChord` (⌥⇧⌘), or none — never v1's display string (New canvas "N" was Sticky's key, the

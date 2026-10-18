@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import { type Dirent, renameSync } from 'node:fs';
+import { type Dirent, existsSync, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -14,6 +14,12 @@ import {
   stat as statp,
 } from 'node:fs/promises';
 import path from 'node:path';
+import {
+  filterCommentsAll,
+  filterIndexData,
+  filterSystemData,
+  projectVisibility,
+} from './access/filters.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -26,10 +32,27 @@ import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
-import { renderBriefBoard, validateCanvasName, validateFolderName } from './canvas-create.ts';
+import {
+  nameFromPrompt,
+  nextFreeCanvasName,
+  renderBlankCanvas,
+  renderBriefBoard,
+  UNTITLED_CANVAS,
+  validateCanvasName,
+  validateFolderName,
+} from './canvas-create.ts';
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
+import { readAnchors, withSanitizedAnchors } from './comments/anchors.ts';
+import { mentionsOf } from './comments/mentions.ts';
+import {
+  applyCommentOp,
+  type CommentOp,
+  type CommentRecord,
+  type OpActor,
+  type OpResult,
+} from './comments/ops.ts';
 import { dropPin, rekeyUserState } from './home/user-state.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
@@ -458,6 +481,55 @@ export type ReorderRevertResult =
   | { ok: true; dir: 'undo' | 'redo' }
   | { ok: false; status: number; error: string };
 
+/** S4.7 — one lane of a two-lane action, as file text (the runtime canonicalizes). */
+export interface LaneChange {
+  lane: 'annotations' | 'comments';
+  text: string;
+  baseText: string;
+}
+
+export interface LanesOutcome {
+  status: 'accepted' | 'rejected';
+  code?: string;
+  actionId?: string;
+  /** Not answered yet: the proposal waits in the durable outbox. */
+  queued?: boolean;
+}
+
+/** S4.7 — the home a two-lane action goes to (the hub runtime or the local home). */
+export interface LanesProposer {
+  /** Accepted-revisions mode: the action IS the change; the disk is written raw. */
+  accepted: boolean;
+  send(lanes: LaneChange[]): Promise<LanesOutcome>;
+}
+
+export type ConvertChange<T> = (cur: {
+  board: AnnotationElement[];
+  comments: Comment[];
+}) =>
+  | { ok: true; ops: AnnotationOp[]; comments: Comment[]; result: T }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+/** What a conversion replaced — the no-home undo token's payload. */
+export interface ConvertSnapshot {
+  file: string;
+  /** canonical board text ('' = no board) */
+  boardBefore: string;
+  boardAfter: string;
+  commentsBefore: Comment[];
+  commentsAfter: Comment[];
+}
+
+export type ConvertResult<T> =
+  | {
+      ok: true;
+      result: T;
+      snapshot: ConvertSnapshot;
+      actionId?: string;
+      queued?: boolean;
+    }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
 export interface Api {
   // File tree
   fileSlug(file: string): string;
@@ -477,6 +549,9 @@ export interface Api {
   commentsPatch(id: string, patch: Partial<Comment>): Promise<Comment | null>;
   commentsDelete(id: string): Promise<boolean>;
   commentsAddReply(id: string, payload: { body: string; author?: string }): Promise<Comment | null>;
+  /** S9.7b — `POST /_api/comments/op` (routes/comments.ts): one op on `file`'s threads. */
+  commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult>;
+  commentFileOf(id: string): Promise<string | null>;
   gitCommitters(): Promise<GitCommitter[]>;
   /**
    * Phase 8 — local `git config user.name`, cached for the process lifetime.
@@ -526,6 +601,14 @@ export interface Api {
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
+  /** S4.7 — the board and the comments of one canvas as ONE project action. */
+  convertLanes<T>(
+    file: string,
+    change: ConvertChange<T>,
+    proposer: LanesProposer | null
+  ): Promise<ConvertResult<T>>;
+  /** S4.7 — the no-home undo of a conversion (refused `stale` once a lane moved on). */
+  restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -587,6 +670,7 @@ export interface Api {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
@@ -1392,41 +1476,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  // Security (adversarial review 2026-07-30): the timeline anchor is read by
-  // the /design:edit agent (edit.md §0.6b treats `lane` as navigation), and a
-  // comment can arrive from an UNTRUSTED hub peer (DDR-054) via the sync-persist
-  // path — which does NOT go through commentsAdd's validation. So re-clamp the
-  // anchor HERE, at the read boundary every consumer (incl. /_comments served to
-  // the agent) passes through: bound `lane`/`clipStableId` length, coerce frame
-  // ints, and drop unknown fields — a poisoned over-long `lane` can't smuggle an
-  // instruction past the 40-char label the feature is documented to carry.
-  function sanitizeTimelineAnchor(raw: unknown): Comment['timeline'] | undefined {
-    if (!raw || typeof raw !== 'object') return undefined;
-    const t = raw as Record<string, unknown>;
-    const anchor: NonNullable<Comment['timeline']> = {};
-    if (typeof t.clipStableId === 'string' && t.clipStableId.length <= 200)
-      anchor.clipStableId = t.clipStableId;
-    if (Number.isFinite(Number(t.frameOffset)))
-      anchor.frameOffset = Math.max(0, Math.round(Number(t.frameOffset)));
-    if (Number.isFinite(Number(t.frame))) anchor.frame = Math.max(0, Math.round(Number(t.frame)));
-    if (typeof t.lane === 'string' && t.lane.length <= 40) anchor.lane = t.lane;
-    return anchor.clipStableId != null || anchor.frame != null ? anchor : undefined;
-  }
-
+  // Security (adversarial review 2026-07-30): every anchor is read by the /design:edit agent as
+  // navigation, and a comment can arrive from an UNTRUSTED hub peer (DDR-054) via the sync-persist
+  // path, which does NOT go through commentsAdd. So the anchors are re-clamped HERE, at the read
+  // boundary every consumer passes through (comments/anchors.ts — one reader for the studio and
+  // the hub door): a shape that fails is dropped, the comment renders detached, never deleted.
   function backfillComment(raw: unknown): Comment {
-    const c = (raw ?? {}) as Partial<Comment>;
-    const timeline = sanitizeTimelineAnchor((c as { timeline?: unknown }).timeline);
+    const c = withSanitizedAnchors((raw ?? {}) as Partial<Comment>);
     return {
       ...(c as Comment),
       author: typeof c.author === 'string' ? c.author : '',
       thread: Array.isArray(c.thread) ? c.thread : [],
       mentions: Array.isArray(c.mentions) ? c.mentions : [],
-      ...(timeline ? { timeline } : { timeline: undefined }),
-      // Same trust boundary for the #134/#136 anchors: a peer-synced comment
-      // never passed commentsAdd, so an anchor that fails its shape is dropped
-      // (the comment then renders from `bounds`, detached — never deleted).
-      annotationId: isAnnotationId(c.annotationId) ? c.annotationId : undefined,
-      world: isWorldPoint(c.world) ? { x: c.world.x, y: c.world.y } : undefined,
     };
   }
 
@@ -1487,7 +1548,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         /* ignore */
       }
     }
-    return out;
+    // S9.10 (V2-1.16 L10) — only the canvases THIS request's session sees. Every id-based
+    // mutation below scans this map, so an invisible id answers as a missing one (U1).
+    return filterCommentsAll(out, projectVisibility(ctx).current(), paths.designRel);
   }
 
   function newCommentId(): string {
@@ -1587,11 +1650,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return out;
   }
 
-  function mentionsUnion(c: Comment): string[] {
-    const all = [c.text, ...c.thread.map((r) => r.body)].join('\n');
-    return parseMentions(all);
-  }
-
   async function commentsAdd(payload: Partial<Comment> & { file: string; text: string }) {
     if (!payload || typeof payload.file !== 'string' || !payload.file) return null;
     if (typeof payload.text !== 'string' || !payload.text.trim()) return null;
@@ -1647,6 +1705,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // #134/#136 — annotation / world anchors (peer-supplied: shape-checked).
     if (isAnnotationId(payload.annotationId)) c.annotationId = payload.annotationId;
     if (isWorldPoint(payload.world)) c.world = { x: payload.world.x, y: payload.world.y };
+    Object.assign(c, readAnchors(payload)); // S9.7 — + artboard / t / mm
     list.push(c);
     await publishComments(payload.file, list, base);
     return c;
@@ -1676,7 +1735,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         created: new Date().toISOString(),
       };
       entry.thread = [...entry.thread, reply];
-      entry.mentions = mentionsUnion(entry);
+      entry.mentions = mentionsOf(entry);
       await publishComments(file, list, base);
       return entry;
     }
@@ -1705,12 +1764,29 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }
         if (typeof patch.text === 'string' && patch.text.trim()) {
           entry.text = patch.text.trim().slice(0, 4000);
-          entry.mentions = mentionsUnion(entry);
+          entry.mentions = mentionsOf(entry);
         }
       }
       await publishComments(file, list, base);
       return first;
     }
+    return null;
+  }
+
+  /** S9.7b — one comment op (comments/ops.ts) on `file`'s threads, as the session's `actor`. */
+  async function commentOp(file: string, op: CommentOp, actor: OpActor): Promise<OpResult> {
+    const list = await loadCommentsForFile(file);
+    const now = new Date().toISOString();
+    const ctx = { actor, now, newId: newCommentId, newReplyId };
+    const result = applyCommentOp(list as CommentRecord[], op, ctx);
+    if (result.ok) await publishComments(file, result.list, list);
+    return result;
+  }
+
+  /** The canvas file a thread lives in — how the op route judges a reply by id alone. */
+  async function commentFileOf(id: string): Promise<string | null> {
+    for (const [file, list] of Object.entries(await loadAllComments()))
+      if (list.some((c) => c.id === id)) return file;
     return null;
   }
 
@@ -2483,6 +2559,119 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     } finally {
       await rm(temp, { force: true });
     }
+  }
+
+  /**
+   * S4.7 — one canvas's board AND its comments as ONE project action (contract
+   * S4-S9-votes-comments §3.2, V2-1.5). `change` sees both lanes as they are and
+   * answers the board ops + the next comment list; the two lanes then reach the
+   * home together:
+   *
+   *   - accepted mode (hub): both files are written raw — the per-lane hooks
+   *     would propose each lane as its own action — and `proposer.send` carries
+   *     both `lane.replace` ops in one proposal;
+   *   - the local home: the ordinary write paths (live room bridge, sidebar), then
+   *     `proposer.send` records both lanes as one action;
+   *   - no home (`proposer` null): the ordinary write paths; the caller keeps the
+   *     returned snapshot for its undo token.
+   *
+   * Serialized on the board's chain, so no op batch lands between the read and
+   * the write.
+   */
+  async function convertLanes<T>(
+    file: string,
+    change: ConvertChange<T>,
+    proposer: LanesProposer | null
+  ): Promise<ConvertResult<T>> {
+    return onAnnotationChain(file, async () => {
+      const read = await readBoard(file);
+      if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+      const elements = read.text ? parseBoard(read.text).elements : [];
+      const boardBefore = read.text ?? '';
+      const comments = await loadCommentsForFile(file);
+      const commentsBefore = structuredClone(comments);
+      const c = change({ board: elements, comments: structuredClone(comments) });
+      if (!c.ok) return c;
+      const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), c.ops);
+      if (r.rejected.length) {
+        return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+      }
+      const boardAfter = serializeBoard([...r.state.values()]);
+      if (boardAfter.length > MAX_ANNOTATIONS_BYTES) {
+        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+      }
+      const commentsAfter = dedupeCommentsById(c.comments);
+      const lanes: LaneChange[] = [
+        { lane: 'annotations', text: boardAfter, baseText: boardBefore },
+        {
+          lane: 'comments',
+          text: JSON.stringify(commentsAfter),
+          baseText: JSON.stringify(commentsBefore),
+        },
+      ];
+      const snapshot: ConvertSnapshot = {
+        file,
+        boardBefore,
+        boardAfter,
+        commentsBefore,
+        commentsAfter,
+      };
+      if (proposer?.accepted) {
+        // The project decides first: a refused conversion leaves both files as they are.
+        const answer = await proposer.send(lanes);
+        if (answer.status !== 'accepted') {
+          return { ok: false, status: 409, body: { ok: false, reason: answer.code ?? 'rejected' } };
+        }
+        await writeBoardFile(file, boardAfter);
+        await saveCommentsForFile(file, commentsAfter);
+        ctx.bus.emit('comments', { file, comments: commentsAfter });
+        return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+      }
+      const live = hooks.applyAnnotationOpsLive?.(file, c.ops) ?? null;
+      if (live === 'too-large') {
+        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+      }
+      if (!live) {
+        await writeBoardFile(file, boardAfter);
+        onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore);
+      }
+      await publishComments(file, commentsAfter, commentsBefore);
+      if (!proposer) return { ok: true, result: c.result, snapshot };
+      const answer = await proposer.send(lanes);
+      return { ok: true, result: c.result, snapshot, ...actionOf(answer) };
+    });
+  }
+
+  const actionOf = (a: LanesOutcome): { actionId?: string; queued?: boolean } => ({
+    ...(a.status === 'accepted' && a.actionId ? { actionId: a.actionId } : {}),
+    ...(a.queued ? { queued: true } : {}),
+  });
+
+  /**
+   * S4.7 — put a conversion's two lanes back as they were (the no-home undo
+   * token, contract §3.2 "Legacy link / no op log"). Refused as `stale` once
+   * either lane moved on since the conversion — a later change is never undone
+   * along with it.
+   */
+  async function restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }> {
+    return onAnnotationChain(s.file, async () => {
+      const read = await readBoard(s.file);
+      if (!read.ok) return { ok: false, reason: 'unreadable' };
+      const comments = await loadCommentsForFile(s.file);
+      const sameComments = JSON.stringify(comments) === JSON.stringify(s.commentsAfter);
+      if ((read.text ?? '') !== s.boardAfter || !sameComments)
+        return { ok: false, reason: 'stale' };
+      const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+      const ops = diffToOps(byId(s.boardAfter), byId(s.boardBefore || serializeBoard([])));
+      const live = hooks.applyAnnotationOpsLive?.(s.file, ops) ?? null;
+      if (live === 'too-large') return { ok: false, reason: 'too-large' };
+      if (!live) {
+        await writeBoardFile(s.file, s.boardBefore || serializeBoard([]));
+        onAnnotationsChanged?.(s.file, s.boardBefore, undefined, s.boardAfter);
+      }
+      await publishComments(s.file, s.commentsBefore, s.commentsAfter);
+      return { ok: true };
+    });
   }
 
   // Phase 23 — content-addressed asset write. Reachable from the (potentially
@@ -3372,21 +3561,48 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // gated by `validateCanvasName` (path + JSX + JSON injection boundary); `group`
   // is allowlisted to the configured canvas groups; a `resolve()` containment
   // assert is the defense-in-depth backstop.
+  // V2 S6.1 (C4) — a `blank` create with no name is named by the server ("Untitled canvas", " 2", …, or
+  // from `fromPrompt`). Creates run one at a time so two ⌘N in the same instant cannot both pick the
+  // same free name (the pick and the write are separated by awaits).
+  let blankCreateQueue: Promise<unknown> = Promise.resolve();
   async function createCanvas(input: {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     // DDR-150 P4 Task 12 — video-comp assemble payload (kind === 'video-comp').
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
     height?: unknown;
   }): Promise<CreateCanvasResult> {
+    const run = blankCreateQueue.then(() => createCanvasNow(input));
+    blankCreateQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  async function createCanvasNow(input: {
+    name?: unknown;
+    kind?: unknown;
+    group?: unknown;
+    fromPrompt?: unknown;
+    clips?: unknown;
+    fps?: unknown;
+    width?: unknown;
+    height?: unknown;
+  }): Promise<CreateCanvasResult> {
     // v1 stamps blank brief-boards + assembled video-comps — richer generation
-    // stays with `/design:new` (Claude).
-    const kind = input.kind == null || input.kind === '' ? 'brief-board' : input.kind;
-    if (kind !== 'brief-board' && kind !== 'video-comp') {
-      return { ok: false, status: 400, error: 'kind must be "brief-board" or "video-comp"' };
+    // stays with `/design:new` (Claude). V2 S6.1 adds the blank canvas: with no `kind`, a name means a
+    // brief board (every v1 caller) and no name means a blank canvas.
+    const noName = input.name == null || input.name === '';
+    const kind =
+      input.kind == null || input.kind === '' ? (noName ? 'blank' : 'brief-board') : input.kind;
+    if (kind !== 'brief-board' && kind !== 'video-comp' && kind !== 'blank') {
+      return {
+        ok: false,
+        status: 400,
+        error: 'kind must be "blank", "brief-board" or "video-comp"',
+      };
     }
     // Parse + validate the assemble clip list up front (video-comp only).
     const assembleClips: AssembleClip[] = [];
@@ -3411,7 +3627,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         assembleClips.push({ src, mediaKind, durationInFrames });
       }
     }
-    const v = validateCanvasName(input.name);
+    // A blank canvas with no name is named below, once the folder is known.
+    const autoName = kind === 'blank' && noName;
+    let v = autoName ? validateCanvasName(UNTITLED_CANVAS) : validateCanvasName(input.name);
     if (!v.ok || !v.name || !v.componentName) {
       return { ok: false, status: 400, error: v.error ?? 'invalid name' };
     }
@@ -3426,6 +3644,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
 
     const groupAbs = path.join(paths.designRoot, group);
+    if (autoName) {
+      const base =
+        input.fromPrompt == null ? UNTITLED_CANVAS : nameFromPrompt(input.fromPrompt).canvas;
+      // A canvas in the trash is not in the folder, so it does not hold its name.
+      const free = nextFreeCanvasName(
+        base,
+        (n) =>
+          existsSync(path.join(groupAbs, `${n}.tsx`)) ||
+          existsSync(path.join(groupAbs, `${n}.meta.json`))
+      );
+      v = validateCanvasName(free);
+      if (!v.ok || !v.name || !v.componentName) {
+        return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      }
+    }
     const fileAbs = path.join(groupAbs, `${v.name}.tsx`);
     // Containment backstop, two layers (Phase 22 security review F2). The name
     // regex already forbids traversal, but `group` comes from config
@@ -3478,6 +3711,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           error: err instanceof Error ? err.message : 'assemble failed',
         };
       }
+    } else if (kind === 'blank') {
+      tsx = renderBlankCanvas({
+        name: v.name,
+        componentName: v.componentName,
+        dsName,
+        platform,
+        historyDir: path.posix.join(paths.designRel, '_history', slug),
+      });
     } else {
       tsx = renderBriefBoard({
         name: v.name,
@@ -3502,16 +3743,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             created: now,
             last_modified: now,
           }
-        : {
-            kind: 'brief-board',
-            title: v.name,
-            subtitle: 'brief board',
-            brief: v.name,
-            designSystem: dsName,
-            platform,
-            created: now,
-            last_modified: now,
-          };
+        : kind === 'blank'
+          ? {
+              // `canvas`, not a new kind: the index and a v1 peer both know it (V2 S6.1).
+              kind: 'canvas',
+              title: v.name,
+              subtitle: 'blank canvas',
+              brief: '',
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            }
+          : {
+              kind: 'brief-board',
+              title: v.name,
+              subtitle: 'brief board',
+              brief: v.name,
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            };
     await Bun.write(fileAbs, tsx);
     await Bun.write(
       path.join(groupAbs, `${v.name}.meta.json`),
@@ -7067,14 +7320,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
-    return {
-      project: cfg.name,
-      projectLabel: ctx.projectLabel,
-      designRoot: paths.designRel,
-      groups,
-      canvasDesignSystems,
-      canvasKinds,
-    };
+    // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
+    return filterIndexData(
+      {
+        project: cfg.name,
+        projectLabel: ctx.projectLabel,
+        designRoot: paths.designRel,
+        groups,
+        canvasDesignSystems,
+        canvasKinds,
+      },
+      projectVisibility(ctx).current(),
+      paths.designRel,
+      cfg.designSystems ?? []
+    );
   }
 
   function tokenKind(name: string, value: string): string {
@@ -7239,32 +7498,40 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       description: d.description ?? null,
     }));
 
-    return {
-      project: cfg.name,
-      designRoot: paths.designRel,
-      systemDir: sysRel,
-      ds: dsEntry
-        ? {
-            name: dsEntry.name,
-            path: dsEntry.path,
-            description: dsEntry.description ?? null,
-            rootClass: dsEntry.rootClass ?? null,
-            themeDefault: dsEntry.themeDefault ?? null,
-          }
-        : null,
-      availableDesignSystems,
-      defaultDesignSystem: cfg.defaultDesignSystem ?? availableDesignSystems[0]?.name ?? null,
-      readme,
-      readmePath,
-      tokens,
-      tokenGroups,
-      tokensPath,
-      previewGallery,
-      uiKitsGallery,
-      rootClass: dsEntry?.rootClass ?? cfg.rootClass,
-      themeDefault: dsEntry?.themeDefault ?? cfg.themeDefault,
-      teamAccentDefault: cfg.teamAccentDefault,
-    };
+    // S9.10 (V2-1.16 L8/L9) — a canvas-only session: only the DS its canvases render with
+    // (an invisible `ds` is an unknown one — null, the caller's 404), no README.
+    return filterSystemData(
+      {
+        project: cfg.name,
+        designRoot: paths.designRel,
+        systemDir: sysRel,
+        ds: dsEntry
+          ? {
+              name: dsEntry.name,
+              path: dsEntry.path,
+              description: dsEntry.description ?? null,
+              rootClass: dsEntry.rootClass ?? null,
+              themeDefault: dsEntry.themeDefault ?? null,
+            }
+          : null,
+        availableDesignSystems,
+        defaultDesignSystem: cfg.defaultDesignSystem ?? availableDesignSystems[0]?.name ?? null,
+        readme,
+        readmePath,
+        tokens,
+        tokenGroups,
+        tokensPath,
+        previewGallery,
+        uiKitsGallery,
+        rootClass: dsEntry?.rootClass ?? cfg.rootClass,
+        themeDefault: dsEntry?.themeDefault ?? cfg.themeDefault,
+        teamAccentDefault: cfg.teamAccentDefault,
+      },
+      projectVisibility(ctx).current(),
+      paths.designRel,
+      cfg.designSystems ?? [],
+      tokensCssRel
+    );
   }
 
   return {
@@ -7277,6 +7544,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     commentsPatch,
     commentsDelete,
     commentsAddReply,
+    commentOp,
+    commentFileOf,
     gitCommitters,
     gitCurrentUser,
     parseMentions,
@@ -7295,6 +7564,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     saveAnnotations,
     applyAnnotationOps,
     projectAnnotations,
+    convertLanes,
+    restoreConversion,
     saveAsset,
     listAssets,
     readAssetBytes,

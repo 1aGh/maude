@@ -96,6 +96,24 @@ export function projectGroups(result, { ownPid = null, query = '' } = {}) {
 const PROJECT_GROUPS = new Set(['canvases', 'artboards']);
 
 /**
+ * S15-A2: "Did you mean" is one flat list, so a row of ANOTHER project carries its project on the row
+ * itself — the square, the name and where it is ("not open — opens a tab") — since ↵ on it switches
+ * project. This tab's rows stay as they are.
+ */
+function labelledDidYouMean(view, others) {
+  const byPid = new Map(
+    others.map((g) => [
+      g.pid,
+      { name: g.name, square: projectSquare(g.pid, g.name), aside: PLACE_ASIDE[g.place] },
+    ])
+  );
+  const label = (r) => (r.pid && byPid.has(r.pid) ? { ...r, project: byPid.get(r.pid) } : r);
+  const groups = view.groups.map((g) => ({ ...g, rows: g.rows.map(label) }));
+  const shown = groups.flatMap((g) => g.rows);
+  return { ...view, groups, items: view.ask ? [...shown, view.ask] : shown };
+}
+
+/**
  * `assemble` with other projects in it. No other project answered → today's view, unchanged. Otherwise
  * this tab's canvases and artboards become ONE group under this project's square ("this tab"), first,
  * then one group per other project, then Actions · Tools · Settings. Counts, close matches and
@@ -114,7 +132,7 @@ export function assembleAcross({
   if (!others.length) return assemble({ query, local, remote, canAskAI });
   const theirs = others.flatMap((g) => g.rows);
   const view = assemble({ query, local, remote: [...remote, ...theirs], canAskAI });
-  if (view.didYouMean) return view;
+  if (view.didYouMean) return labelledDidYouMean(view, others);
   const quiet = (r) => (r.close && r.weak ? { ...r, quiet: true } : r);
   const mine = view.groups
     .filter((g) => PROJECT_GROUPS.has(g.id))
