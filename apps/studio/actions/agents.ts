@@ -165,6 +165,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
+  'object.enter': NAV('<canvas>@<element>'),
+  'object.step-out': NAV('<canvas>@<element>'),
   'object.select-child': NAV('<canvas>@<element>'),
   'object.select-parent': NAV('<canvas>@<element>'),
   'object.select-next': NAV('<canvas>@<element>'),

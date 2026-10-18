@@ -141,11 +141,29 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: mods('⌥⌘V', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
   },
   {
+    // S2.1 (ed-obj-enter) — go inside the selected frame: its first object is selected and clicks
+    // now pick at that depth. ↵ here, double-click on the canvas (CanvasRouter's drill). Took ↵
+    // from `object.select-child`, which stays as the ⌘K / agent entry for the same step.
+    id: 'object.enter',
+    label: 'Go inside',
+    kind: 'command',
+    exec: 'canvas',
+    keys: [kb('↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
+  },
+  {
+    // S2.1 — one level out: the parent is selected; at the top the selection is dropped. Its key is
+    // esc, i.e. `ui.step-back`'s selection rung (one esc action, V2-1.3 §5.5) — no binding here.
+    id: 'object.step-out',
+    label: 'Step out',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { selection: ['object'] },
+  },
+  {
     id: 'object.select-child',
     label: 'Select first child',
     kind: 'command',
     exec: 'canvas',
-    keys: [kb('↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
   },
   {
     id: 'object.select-parent',

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "cebb78d1a7ce",
+  "manifestVersion": "b16240260864",
   "actions": [
     {
       "id": "search.open",
@@ -444,6 +444,28 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Copy the style props from one element’s JSX to another"
+      }
+    },
+    {
+      "id": "object.enter",
+      "label": "Go inside",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.step-out",
+      "label": "Step out",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
       }
     },
     {

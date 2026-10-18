@@ -79,7 +79,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
-    id: 'object.select-child',
+    id: 'object.enter',
     exec: 'canvas',
     keys: [{ chord: '↵', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } }],
   },
