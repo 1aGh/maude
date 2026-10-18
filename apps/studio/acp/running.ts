@@ -22,6 +22,31 @@ type RunningChatsProbe = () => string[];
 
 let probe: RunningChatsProbe | null = null;
 
+// S5.3 — the run registry (ai/runs.ts) is where a chat's run lives. Until S5.6 moves the ACP turn
+// onto it, both questions below are answered by the UNION of the registry's live runs and the
+// bridge probe: dropping the probe now would make the branch-switch warning lose every chat whose
+// turn the registry has not seen yet.
+interface LiveRun {
+  chatId: string | null;
+  state: 'waiting' | 'starting' | 'running' | 'needs-you' | 'ended';
+}
+type LiveRunsProbe = () => LiveRun[];
+
+let liveRuns: LiveRunsProbe | null = null;
+
+/** Registered once by server.ts with `registry.live`. A later call replaces the earlier one. */
+export function registerLiveRuns(fn: LiveRunsProbe | null): void {
+  liveRuns = fn;
+}
+
+function registryRuns(): LiveRun[] {
+  try {
+    return liveRuns?.() ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /** Registered once by `createAcp`. A later call replaces the earlier one — the
  *  last manager constructed is the live one. */
 export function registerRunningChatsProbe(fn: RunningChatsProbe): void {
@@ -32,11 +57,17 @@ export function registerRunningChatsProbe(fn: RunningChatsProbe): void {
  *  (web serve without the panel, tests) — never throws, because a failure to
  *  answer must not block a branch switch. */
 export function runningChats(): string[] {
+  let bridged: string[];
   try {
-    return probe?.() ?? [];
+    bridged = probe?.() ?? [];
   } catch {
-    return [];
+    bridged = [];
   }
+  // a waiting ask counts: it starts by itself, and would then write into the switched tree
+  const fromRegistry = registryRuns().flatMap((r) =>
+    r.chatId && r.state !== 'ended' ? [r.chatId] : []
+  );
+  return [...new Set([...bridged, ...fromRegistry])];
 }
 
 // feature-acp-turn-notifications Task 2 — a richer PULL registry alongside the
@@ -77,12 +108,26 @@ export function registerActivityProbe(fn: ActivityProbe): void {
 /** Per-chat activity snapshot + a monotonic `seq`. Empty/unchanged-seq when no
  *  ACP manager exists — never throws, same failure posture as `runningChats`. */
 export function activitySnapshot(): ActivitySnapshot {
-  let chats: ChatActivity[];
+  let bridged: ChatActivity[];
   try {
-    chats = activityProbe?.() ?? [];
+    bridged = activityProbe?.() ?? [];
   } catch {
-    chats = [];
+    bridged = [];
   }
+  // The union, one row per chat; the more actionable state wins (awaiting-input > running).
+  // A waiting ask has no turn yet, so it is not activity here.
+  const byChat = new Map<string, ChatActivityState>();
+  const rank = (st: ChatActivityState) => (st === 'awaiting-input' ? 2 : st === 'running' ? 1 : 0);
+  const note = (chatId: string, st: ChatActivityState) => {
+    const cur = byChat.get(chatId);
+    if (cur === undefined || rank(st) > rank(cur)) byChat.set(chatId, st);
+  };
+  for (const c of bridged) note(c.chatId, c.state);
+  for (const r of registryRuns()) {
+    if (!r.chatId || r.state === 'ended' || r.state === 'waiting') continue;
+    note(r.chatId, r.state === 'needs-you' ? 'awaiting-input' : 'running');
+  }
+  const chats: ChatActivity[] = [...byChat].map(([chatId, state]) => ({ chatId, state }));
   // Order-independent key — chat enumeration order can shuffle between calls
   // (Map iteration) without the underlying state having changed.
   const key = [...chats]

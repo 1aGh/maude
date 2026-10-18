@@ -33,6 +33,14 @@ const DOC_NAME = /^[A-Za-z0-9._/-]{1,300}$/;
 // `_` (runtime state), `-` or `.`.
 const DIR_COMPONENT = /^[\p{L}\p{N}][\p{L}\p{N} _-]{0,99}$/u;
 const MAX_DIR_DEPTH = 16;
+/** `origin.runId` / `origin.chatId` (V2-1.5 §5.1). */
+const ORIGIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/** `history.undo { actionIds }` takes 1–50 distinct ids (V2-1.5 §5.2). */
+export const MAX_UNDO_TARGETS = 50;
+const ACTION_ID_MAX = 160;
+/** `fence.runId` (V2-1.15 §5.1 RunId) and the most leases one publish names. */
+const RUN_ID = /^r_[A-Za-z0-9_-]{6,64}$/;
+export const MAX_FENCE_LEASES = 200;
 
 /** Codes whose rejection is terminal for these exact bytes (retained). */
 const TERMINAL = new Set([
@@ -43,6 +51,8 @@ const TERMINAL = new Set([
   'invalid',
   'undo-conflict',
   'path-conflict',
+  // A newer grant took the artboard; these bytes can never pass again.
+  'lease-fenced',
 ]);
 
 const HTTP = {
@@ -59,6 +69,7 @@ const HTTP = {
   'transaction-id-reused': 409,
   'undo-conflict': 409,
   'path-conflict': 409,
+  'lease-fenced': 409,
   retryable: 503,
 };
 
@@ -167,8 +178,47 @@ export function createKernel({
       for (const k of ['deviceId', 'sessionId', 'client']) {
         if (typeof p.origin[k] === 'string') origin[k] = p.origin[k].slice(0, 128);
       }
+      // V2-1.5 §5.1 — which AI run / chat made it, and when the person made
+      // it (their clock). Kept only when well-formed; anything else under these
+      // names is dropped, never refused (a v1 client sends none of them).
+      for (const k of ['runId', 'chatId']) {
+        if (typeof p.origin[k] === 'string' && ORIGIN_ID.test(p.origin[k])) origin[k] = p.origin[k];
+      }
+      if (Number.isSafeInteger(p.origin.madeAt) && p.origin.madeAt >= 0)
+        origin.madeAt = p.origin.madeAt;
     }
-    return { p, label, kind, origin };
+    return { p, label, kind, origin, fence: parseFence(p.fence) };
+  }
+
+  /**
+   * V2-1.15 §5.3 — an AI run's publish carries its lease tokens:
+   * `fence: { runId, leases: [{entry, artboard, token}] }`, at most 200. Absent
+   * on every v1 proposal (and on undo / Keep). Malformed → `invalid`: a fence
+   * that cannot be read must not be taken as "no fence".
+   */
+  function parseFence(f) {
+    if (f === undefined || f === null) return null;
+    const bad = (reason) => new Reject('invalid', { reason });
+    if (typeof f !== 'object' || Array.isArray(f)) throw bad('bad fence');
+    if (typeof f.runId !== 'string' || !RUN_ID.test(f.runId)) throw bad('bad fence.runId');
+    if (!Array.isArray(f.leases) || f.leases.length > MAX_FENCE_LEASES)
+      throw bad(`fence.leases takes at most ${MAX_FENCE_LEASES}`);
+    const leases = f.leases.map((l) => {
+      if (
+        !l ||
+        typeof l.entry !== 'string' ||
+        !l.entry ||
+        l.entry.length > 300 ||
+        typeof l.artboard !== 'string' ||
+        !l.artboard ||
+        l.artboard.length > 128 ||
+        !Number.isSafeInteger(l.token) ||
+        l.token < 1
+      )
+        throw bad('bad fence lease');
+      return { entry: l.entry, artboard: l.artboard, token: l.token };
+    });
+    return { runId: f.runId, leases };
   }
 
   // ------------------------------------------------------------ working state
@@ -549,64 +599,146 @@ export function createKernel({
     return null;
   }
 
-  /** Effect-aware compensation of one accepted action (DDR-241 §6). */
+  /**
+   * The actions an undo/redo targets: `actionId` (one, v1) or `actionIds`
+   * (V2-1.5 §5.2: 1–50 distinct ids). Both at once is malformed.
+   */
+  function undoTargets(op) {
+    if (op.actionIds === undefined) return { ids: [op.actionId], many: false };
+    const bad = (reason) => new Reject('invalid', { reason });
+    if (op.actionId !== undefined) throw bad('actionId or actionIds, not both');
+    const ids = op.actionIds;
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > MAX_UNDO_TARGETS)
+      throw bad(`actionIds takes 1–${MAX_UNDO_TARGETS} ids`);
+    if (ids.some((id) => typeof id !== 'string' || !id || id.length > ACTION_ID_MAX))
+      throw bad('bad actionIds');
+    if (new Set(ids).size !== ids.length) throw bad('actionIds must be distinct');
+    return { ids, many: true };
+  }
+
+  /**
+   * The target actions in one store call when the home has `actions` (a cloud
+   * cell answers 50 targets in one RPC, not 50); a store without it — an older
+   * Durable Object during a rollout — is asked one id at a time.
+   */
+  async function loadActions(ids) {
+    if (ids.length > 1 && typeof store.actions === 'function') {
+      try {
+        const got = await store.actions(ids);
+        if (Array.isArray(got) && got.length === ids.length) return got;
+      } catch (err) {
+        if (err instanceof StoreConflict) throw err;
+      }
+    }
+    const out = [];
+    for (const id of ids) out.push(await store.action(id));
+    return out;
+  }
+
+  /** `(entry, lane)` — the unit a lane revert works on. */
+  const laneKey = (e) => `${e.entry ?? e.doc}\u0000${e.lane}`;
+
+  /**
+   * Revert one `(entry, lane)` to the before-content of `first` — the OLDEST
+   * target effect on it — rebased three-way through every later effect on that
+   * lane except the targets' own (`targetIds`). Returns `{ applied }` or
+   * `{ skipped }`.
+   */
+  async function revertLane(work, first, targetIds, many) {
+    // The entry may have moved since; follow it to its live document — first in
+    // this proposal's own state (a document this undo just revived is live here
+    // and not yet in the store), then in the store.
+    let liveDoc = null;
+    for (const [doc, s] of work.docs) {
+      if (s && !s.retired && first.entry && s.entry === first.entry) liveDoc = doc;
+    }
+    liveDoc ??= first.entry ? await store.liveDocByEntry(first.entry) : first.doc;
+    const st = liveDoc ? await work.load(liveDoc) : null;
+    if (!st || st.retired) {
+      return { skipped: { doc: first.doc, lane: first.lane, reason: 'document no longer exists' } };
+    }
+    const before = await work.content(first.beforeHash);
+    const head = st.lanes[first.lane];
+    let target = before;
+    if (head?.effect !== first.effect) {
+      // A later effect owns the head. Rebase the revert through EVERY later
+      // effect on this entry's lane, in order: a peer who touched what we
+      // revert — even if they later wrote the same value back (ABA) — makes
+      // that step a conflict instead of letting equal text hide their work.
+      // The targets' own later effects are what is being undone: skipped.
+      const chain = (await store.effectsAfter(first.entry, first.lane, first.rev)).filter(
+        (x) => x.op !== 'move' && !targetIds.has(x.actionId)
+      );
+      let x = before;
+      for (const step of chain) {
+        const m = mergeLane(
+          first.lane,
+          await work.content(step.beforeHash),
+          x,
+          await work.content(step.afterHash)
+        );
+        if (!m.ok) {
+          return {
+            skipped: {
+              doc: st.doc,
+              lane: first.lane,
+              reason: 'changed by someone else since',
+              // Multi-target only, so a v1 single undo answers byte for byte as before.
+              ...(many ? { conflictWith: step.actionId } : {}),
+            },
+          };
+        }
+        x = m.content;
+      }
+      target = x;
+    }
+    const checked = checkLane(first.lane, target, { path: st.path ?? undefined });
+    if (!checked.ok) return { skipped: { doc: st.doc, lane: first.lane, reason: checked.reason } };
+    return { applied: work.setLane(st, first.lane, checked.content, { op: 'undo' }) };
+  }
+
+  /**
+   * Effect-aware compensation of one accepted action (DDR-241 §6) — or of
+   * several as ONE action (V2-1.5 §5.2, "Undo this chat"): lanes revert to the
+   * oldest target's before-content, rebased through everyone else's later
+   * work; manifest and directory effects compensate newest target first.
+   */
   async function opUndo(work, op, auth) {
-    const target = await store.action(op.actionId);
-    if (!target) throw new Reject('dependency-missing', { reason: 'unknown action' });
-    if (target.actor !== auth.actor)
-      throw new Reject('forbidden', { reason: 'undo targets your own actions' });
+    const { ids, many } = undoTargets(op);
+    const targets = [];
+    const found = await loadActions(ids);
+    for (const t of found) {
+      if (!t) throw new Reject('dependency-missing', { reason: 'unknown action' });
+      if (t.actor !== auth.actor)
+        throw new Reject('forbidden', { reason: 'undo targets your own actions' });
+      targets.push(t);
+    }
+    const targetIds = new Set(targets.map((t) => t.actionId));
+    // The oldest target effect on each (entry, lane): where its revert starts.
+    // Within one action, the effect whose after is a sibling's before precedes it.
+    const firstOn = new Map();
+    for (const t of [...targets].sort((a, b) => a.revision - b.revision)) {
+      for (const e of t.effects) {
+        if (!LANE_NAMES.includes(e.lane) || e.op === 'move') continue;
+        const k = laneKey(e);
+        const prior = firstOn.get(k);
+        if (!prior || (prior.actionId === e.actionId && e.afterHash === prior.beforeHash))
+          firstOn.set(k, e);
+      }
+    }
+    const reverted = new Set();
     const skipped = [];
     let applied = 0;
-    for (const e of [...target.effects].reverse()) {
-      if (LANE_NAMES.includes(e.lane)) {
-        if (e.op === 'move') continue; // a move's lane copy is the manifest effect's job
-        // The entry may have moved since; follow it to its live document.
-        const liveDoc = e.entry ? await store.liveDocByEntry(e.entry) : e.doc;
-        const st = liveDoc ? await work.load(liveDoc) : null;
-        if (!st || st.retired) {
-          skipped.push({ doc: e.doc, lane: e.lane, reason: 'document no longer exists' });
-          continue;
-        }
-        const before = await work.content(e.beforeHash);
-        const head = st.lanes[e.lane];
-        let target = before;
-        if (head?.effect !== e.effect) {
-          // A later effect owns the head. Rebase the revert through EVERY later
-          // effect on this entry's lane, in order: a peer who touched what we
-          // revert — even if they later wrote the same value back (ABA) — makes
-          // that step a conflict instead of letting equal text hide their work.
-          const chain = (await store.effectsAfter(e.entry, e.lane, e.rev)).filter(
-            (x) => x.op !== 'move'
-          );
-          let x = before;
-          let conflict = false;
-          for (const step of chain) {
-            const m = mergeLane(
-              e.lane,
-              await work.content(step.beforeHash),
-              x,
-              await work.content(step.afterHash)
-            );
-            if (!m.ok) {
-              conflict = true;
-              break;
-            }
-            x = m.content;
-          }
-          if (conflict) {
-            skipped.push({ doc: st.doc, lane: e.lane, reason: 'changed by someone else since' });
-            continue;
-          }
-          target = x;
-        }
-        const checked = checkLane(e.lane, target, { path: st.path ?? undefined });
-        if (!checked.ok) {
-          skipped.push({ doc: st.doc, lane: e.lane, reason: checked.reason });
-          continue;
-        }
-        if (work.setLane(st, e.lane, checked.content, { op: 'undo' })) applied++;
-        continue;
-      }
+    const effects = [...targets]
+      .sort((a, b) => b.revision - a.revision)
+      .flatMap((t) => [...t.effects].reverse());
+    // Manifest and directory effects first (newest target first, effects in
+    // reverse): a revived document must be live before its lanes revert, and a
+    // document this undo deletes needs no lane revert — it is retired with its
+    // lanes as they stand, so the redo's revive brings them back whole.
+    const deletedHere = new Set();
+    for (const e of effects) {
+      if (LANE_NAMES.includes(e.lane)) continue;
       if (e.lane === '@manifest') {
         if (e.op === 'create') {
           const st = await work.load(e.doc);
@@ -615,6 +747,7 @@ export function createKernel({
             continue;
           }
           await opDocDelete(work, { doc: e.doc });
+          deletedHere.add(e.entry);
           applied++;
         } else if (e.op === 'delete') {
           const st = await work.load(e.doc);
@@ -676,8 +809,20 @@ export function createKernel({
         applied++;
       }
     }
+    // Then one lane revert per (entry, lane), from the oldest target on it.
+    for (const e of effects) {
+      if (!LANE_NAMES.includes(e.lane)) continue;
+      if (e.op === 'move') continue; // a move's lane copy is the manifest effect's job
+      const k = laneKey(e);
+      if (reverted.has(k)) continue;
+      reverted.add(k);
+      if (e.entry && deletedHere.has(e.entry)) continue;
+      const r = await revertLane(work, firstOn.get(k) ?? e, targetIds, many);
+      if (r.skipped) skipped.push(r.skipped);
+      else if (r.applied) applied++;
+    }
     if (applied === 0) throw new Reject('undo-conflict', { skipped });
-    return { skipped, undoes: target.actionId };
+    return { skipped, undoes: many ? ids : targets[0].actionId, many };
   }
 
   async function opRestore(work, op) {
@@ -710,7 +855,7 @@ export function createKernel({
   // ------------------------------------------------------------ submit
 
   async function process(bytes, auth) {
-    const { p, label, kind, origin } = parseEnvelope(bytes);
+    const { p, label, kind, origin, fence } = parseEnvelope(bytes);
     const proposalHash = sha256(bytes);
     const actor = auth.actor;
     const tx = p.transactionId;
@@ -834,6 +979,8 @@ export function createKernel({
       effects: work.effects.map((e) => ({ effect: e.effect, doc: e.doc, lane: e.lane, op: e.op })),
       merged,
       ...(undo?.skipped?.length ? { skipped: undo.skipped } : {}),
+      // A multi-target undo names what it undid; a single one answers as in v1.
+      ...(undo?.many ? { undoes: undo.undoes } : {}),
     };
     let committed;
     try {
@@ -859,9 +1006,21 @@ export function createKernel({
         dirs: { add: [...work.dirs.add], remove: [...work.dirs.remove] },
         effects: work.effects,
         result,
+        ...(fence ? { fence } : {}),
       });
     } catch (err) {
       if (err instanceof StoreConflict) {
+        if (err.code === 'lease-fenced') {
+          throw new Reject('lease-fenced', {
+            reason: 'another AI run was given this artboard since',
+            keys: (err.keys ?? []).map((k) => ({
+              entry: k.entry,
+              artboard: k.artboard,
+              token: k.token,
+              fence: k.fence,
+            })),
+          });
+        }
         throw new Reject(err.code === 'epoch-stale' ? 'epoch-stale' : 'retryable', {
           reason: err.message,
         });

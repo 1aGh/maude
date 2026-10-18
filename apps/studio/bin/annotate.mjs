@@ -29,6 +29,7 @@ import { AiBatch, AiOpError, CREATE_SIZE, describeTypes } from '../annotations/a
 import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts';
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
 import { serializeBoard } from '../annotations/schema.ts';
+import { TEMPLATES, templateBoard } from '../annotations/templates.ts';
 import {
   canvasRelFromArg,
   fileSlug,
@@ -50,7 +51,7 @@ const FLOW_GAP_Y = 60;
 const HELP = `annotate — the AI whiteboard write verb (DDR-242, via \`maude design annotate\`)
 
 Usage:
-  maude design annotate <rel-path> [--ops <file|-> | --flow <file|-> | --board <file|->]
+  maude design annotate <rel-path> [--ops <file|-> | --flow <file|-> | --board <file|-|template-id>]
                         [--near <artboardId>] [--in <artboardId>]
                         [--pin <cdId|selector>] [--no-pointer]
                         [--canvas-state <path>] [--rects <path>]
@@ -88,6 +89,9 @@ ${describeTypes()}
 
 --flow <file|->     { nodes: [{ id, label, shape? }], edges: [{ from, to, label? }] } —
                     auto-laid-out left→right, wired by BOUND arrows.
+--board <template-id>  one of the starter templates the studio's Templates panel offers:
+                    ${TEMPLATES.map((t) => t.id).join(' · ')}
+                    (the same spec the panel expands; an id wins over a file of that name)
 --board <file|->    { title?, layout?, groups?, nodes?, edges?, connections? } — a whole
                     template: layout "columns" (default; "grid"/"lanes" alias it) = one
                     titled section per group with its cards (string or {text,color?})
@@ -715,7 +719,7 @@ async function main() {
     ops = applyOriginOffset(flowToOps(parseJsonInput(readInput(args.flow), '--flow')), pl.origin);
   } else if (args.board != null) {
     ops = applyOriginOffset(
-      boardToOps(parseJsonInput(readInput(args.board), '--board')),
+      boardToOps(templateBoard(args.board) ?? parseJsonInput(readInput(args.board), '--board')),
       pl.origin
     );
   } else {

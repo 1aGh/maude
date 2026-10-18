@@ -5,7 +5,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { localDepsFromSource } from '../http.ts';
+import { localDepsFromSource } from '../access/closure.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'ds-canvas-deps-'));
 mkdirSync(join(root, 'ui'), { recursive: true });

@@ -201,4 +201,28 @@ export const EDIT_ACTIONS: ActionDef[] = [
       mods(a, '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } })
     ),
   },
+  // S2.2 (D18) — the inspector's Advanced actions. Shell commands on the selected element, ⌘K only
+  // (their homes are the buttons and the id field inside Inspector › Advanced, client/v2/inspector/).
+  // Greyed without an object selected. Setting an id is a write, so it is greyed below Can edit too.
+  {
+    id: 'inspector.copy-css',
+    label: 'Copy CSS',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { selection: ['object'] },
+  },
+  {
+    id: 'element.copy-id',
+    label: 'Copy element id',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { selection: ['object'] },
+  },
+  {
+    id: 'element.set-id',
+    label: 'Edit element id…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
 ];

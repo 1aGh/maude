@@ -181,7 +181,11 @@ export type HumanReason =
   | 'onboarding'
   // V2-1.5 §5.3: ⌘Z / ⇧⌘Z walk the person's own undo stack; an agent undoes one action by id
   // (`maude design history undo --action <id>`) — decision:maude/v2-2.4b-undo-keys-human
-  | 'keys';
+  | 'keys'
+  // S5 (V2-1.15 Q5): the AI chat's own surface — the panel, its composer and its chat list. An
+  // agent already holds the capability the chat wraps (it IS the AI); the row is the person's way
+  // to drive that conversation — decision:maude/v2-S5.7-chat-actions-human-ai-chat
+  | 'ai-chat';
 
 export type AgentPath =
   | { path: 'file'; format: FormatId; skill: SkillRef; how: string }

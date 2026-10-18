@@ -28,11 +28,18 @@ export const METHODS = Object.freeze([
   'revisions',
   'history',
   'action',
+  'actions',
   'manifest',
   'docByPath',
   'laneAt',
   'effectsAfter',
   'liveDocByEntry',
+  // V2-1.15 §5.2 — AI runs and leases (each one transaction = one RPC).
+  'runsBegin',
+  'runsClaim',
+  'runsRenew',
+  'runsEnd',
+  'runsList',
 ]);
 
 export function openRemoteProjectStore({
@@ -60,7 +67,8 @@ export function openRemoteProjectStore({
     const answer = await res.json();
     if (answer?.ok) return answer.value;
     const e = answer?.error ?? {};
-    if (e.name === 'StoreConflict') throw new StoreConflict(e.code);
+    if (e.name === 'StoreConflict')
+      throw new StoreConflict(e.code, '', Array.isArray(e.keys) ? { keys: e.keys } : undefined);
     throw new Error(`project store: ${e.message ?? 'failed'}`);
   };
   // READS ARE RETRIED; WRITES NEVER ARE. A read that met a transport blip (a
@@ -75,11 +83,14 @@ export function openRemoteProjectStore({
     'revisions',
     'history',
     'action',
+    'actions',
     'manifest',
     'docByPath',
     'laneAt',
     'effectsAfter',
     'liveDocByEntry',
+    // Sweeps lapsed runs as it reads — asking twice changes nothing more.
+    'runsList',
   ]);
   const read = async (method, args) => {
     for (let attempt = 0; ; attempt++) {

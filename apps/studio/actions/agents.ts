@@ -13,6 +13,7 @@
 // Kept beside the registry (keyed by id) rather than on each ActionDef: 115 definitions across 12
 // files, three of them factories. The manifest is the merged view either way.
 
+import { TEMPLATES } from '../annotations/templates.ts';
 import type { ActionDefAI, ActionId, AgentPath, HumanReason } from './types.ts';
 
 const file = (
@@ -95,6 +96,33 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
+  // S1.2 — the row menu's other rows. The link is the canvas's address (`maude design open <canvas>` moves
+  // the person's view to it). Trash: until S1.17's `maude design trash`, an agent parks the files the way
+  // `DELETE /_api/canvas` does, and the Trash lists them from the manifest.
+  'canvas.copy-link': {
+    effect: 'none',
+    agent: human('view-pref', 'copies to the clipboard; an agent shares the canvas path instead'),
+  },
+  'canvas.trash': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it'
+    ),
+  },
+  // S1.2 — pins are the person's (`/_api/pins`); the sort order is a per-project view preference.
+  'canvases.pin': PREF(
+    'a per-person pin; an agent reads the canvas list with `maude design index`'
+  ),
+  'canvases.unpin': PREF(
+    'a per-person pin; an agent reads the canvas list with `maude design index`'
+  ),
+  'canvases.sort': PREF(
+    'the order the Canvases panel lists in; `maude design index` lists them all'
+  ),
   'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
   'import.brand': { effect: 'project', agent: cli('maude design import-brand') },
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
@@ -122,6 +150,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'select.none': NAV('<canvas> --select none'),
   'select.all-annotations': NAV('<canvas> --select annotations'),
   'object.duplicate': TSX('Copy the element’s JSX next to it; give the copy a new element id'),
+  // S2.2 — Inspector › Advanced. The copies read what is already in the file; the id is the
+  // `data-cd-id` literal (V2-1.4 §5.5), renamed together with every reference to it.
+  'inspector.copy-css': {
+    effect: 'none',
+    agent: file('canvas-tsx', 'design:design', 'Read the element’s style={{…}} in the .tsx'),
+  },
+  'element.copy-id': {
+    effect: 'none',
+    agent: file('canvas-tsx', 'design:design', 'Read the element’s data-cd-id in the .tsx'),
+  },
+  'element.set-id': TSX(
+    'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
+  ),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.select-child': NAV('<canvas>@<element>'),
@@ -182,6 +223,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),
   'tool.stickers': BOARD('Add a sticker element to the canvas’s .annotations.json'),
+  // S4.4: a template is a --board spec; the verb is the agent's door to the same expansion
+  ...Object.fromEntries(
+    TEMPLATES.map((t) => [
+      `annotation.template-${t.id}`,
+      {
+        effect: 'project',
+        agent: cli(`maude design annotate <canvas> --board ${t.id}`),
+      } satisfies ActionDefAI,
+    ])
+  ),
   'mode.preview': NAV('<canvas> --mode preview'),
   // ── ui / timeline ──
   'ui.step-back': PREF('the user’s navigation history'),
@@ -215,6 +266,31 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
   'ai.draw-mark': { effect: 'external', agent: cli('maude design draw-build') },
+  // ── AI runs (S5.3, V2-1.15 §5.10). `ai.runs.list` / `ai.stop` become the cli verbs
+  // `maude design runs list|stop` with S5.4, which builds the verb; until then the ✦ N list is
+  // the person's view and Stop the person's control. Keep going / cancel are human by Q5. No
+  // `server` field yet: rule 7 wants a per-role refusal row a role suite runs (S9's
+  // access-local-gate); the routes are routes/ai.ts. ──
+  'ai.runs.list': {
+    effect: 'none',
+    minRole: 'edit',
+    agent: human('view-pref', 'S5.4 makes it `maude design runs list` (V2-1.15 §5.10)'),
+  },
+  'ai.stop': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: human('ai-chat', 'S5.4 adds `maude design runs stop <run>` for an agent’s own runs'),
+  },
+  'ai.cancel-waiting': {
+    effect: 'none',
+    minRole: 'edit',
+    agent: human('ai-chat'),
+  },
+  'ai.keep-going': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: human('ai-chat'),
+  },
   'help.whats-new': HELP,
   'help.tour': HELP,
   'help.intro': HELP,
@@ -274,4 +350,22 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'tab.select-last': { effect: 'none', agent: human('native-window') },
   'app.check-updates': { effect: 'none', agent: human('native-window') },
+  // ── AI chat (S5.7) ──
+  // The chat is Claude Code on this Mac; an agent is already the AI, so these rows are the
+  // person's way to drive the conversation list. `_chat/` is per-Mac runtime state (DDR-115),
+  // never versioned and never synced, hence effect 'none'.
+  'chat.new': { effect: 'none', agent: human('ai-chat') },
+  'chat.rename': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
+  'chat.archive': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
+  'chat.trash': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
+  'chat.copy-transcript': { effect: 'none', agent: human('ai-chat') },
+  // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
+  // runs in a shell and resumes a session with `claude --resume` itself.
+  'chat.open-in-terminal': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell'
+    ),
+  },
 };

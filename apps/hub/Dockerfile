@@ -67,6 +67,11 @@ COPY apps/studio/git/safe-rel.ts /build/apps/studio/git/safe-rel.ts
 # at all while it calls the REAL slug function rather than a copy of it.
 COPY apps/studio/sync/canvas-path.ts /build/apps/studio/sync/canvas-path.ts
 COPY apps/studio/canvas-slug.ts /build/apps/studio/canvas-slug.ts
+# The ONE role table and the access claim (V2-1.7, S9.1/S9.2): role-matrix.mjs
+# re-exports roles.ts, and cloud-identity / render-token / the mint door import
+# scope.ts (its closure.ts import is type-only, erased by the bundler).
+COPY apps/studio/access/roles.ts /build/apps/studio/access/roles.ts
+COPY apps/studio/access/scope.ts /build/apps/studio/access/scope.ts
 # The source validator the studio projector gates disk writes with, and the
 # byte ceilings it reads. The workspace agent refuses to write or commit a body
 # it rejects (audit 2026-09-13 P0 #2) — with the SAME parser, not a hub-side

@@ -67,14 +67,26 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     );
     await capture('topbar share');
     await (await $('button[aria-label="Close share dialog"]')).click();
+    // S1.2: another row's link comes from its row menu's "Copy link" (the Share sheet is the open canvas's)
+    if (process.platform === 'darwin') {
+      execFileSync('/usr/bin/pbcopy', { input: 'share-link-before-copy' });
+    } else {
+      await browser.execute(() => navigator.clipboard.writeText('share-link-before-copy'));
+    }
     await (await $(tid('tree-row-menu-ui-export'))).click();
-    await (await $('button=Share…')).click();
-    expect(await (await $(tid('share-app-url'))).getValue()).toBe(
-      'maude://open/project?open=ui/Export.tsx'
+    await (await $(tid('canvas-menu-copy-link'))).click();
+    await browser.waitUntil(
+      async () => {
+        const copied =
+          process.platform === 'darwin'
+            ? execFileSync('/usr/bin/pbpaste', { encoding: 'utf8' })
+            : await browser.execute(() => navigator.clipboard.readText());
+        return copied === 'maude://open/project?open=ui/Export.tsx';
+      },
+      { timeout: 5000, timeoutMsg: 'Copy link did not write the row’s app link to the clipboard' }
     );
     await active('.design/ui/Smoke.tsx');
-    await capture('share another row');
-    await (await $('button[aria-label="Close share dialog"]')).click();
+    await capture('copy link of another row');
   });
 
   it('opens a same-project file directly and parks a foreign-project link', async () => {

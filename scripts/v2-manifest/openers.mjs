@@ -584,7 +584,7 @@ const diagView = (v) => [
 /** step kinds: post ([path, body] — a same-origin POST) · hover · frameDown (press on a canvas element and hold) · mouseMove ([dx, dy] while held) · mouseUp · click (main frame) · frameClick (canvas iframe) · frameDblclick · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
  *  aria-expanded=false inside a root, bounded) · palette (⌘K + type each needed action's label) ·
  *  run (⌘K, pick one action by id) · push (a WS frame) · type (into the focused field) · fill
- *  ([selector, text]) · `optional`
+ *  ([selector, text]) · ensureOpen (a fold toggle: clicked only while aria-expanded="false") · `optional`
  *  skips a click whose target is not on screen. */
 const LOCAL_SHELLS = ['desktop', 'browser'];
 export const OPENERS = [
@@ -772,11 +772,14 @@ export const OPENERS = [
     id: 'canvas-menu-artboard',
     steps: [{ frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true }],
   },
-  // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector
+  // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector. Since
+  // S2.2 `css-panel`, `inspector-section-*` and `inspector-body-layout` sit inside the Inspector's
+  // › Advanced fold, so each opener opens it first (`ensureOpen`, a no-op when it is open already).
   {
     id: 'inspector-advanced',
     steps: [
       { frameClick: '[data-cd-id="home-hero-title"]' },
+      { ensureOpen: tid('fold-inspector-toggle') },
       { click: tid('inspector-section-advanced'), optional: true },
     ],
   },
@@ -786,6 +789,7 @@ export const OPENERS = [
     id: 'inspector-inspect',
     steps: [
       { frameClick: '[data-cd-id="home-hero-title"]' },
+      { ensureOpen: tid('fold-inspector-toggle') },
       { click: 'button.st-rp-tab:has-text("Inspect")', optional: true },
     ],
   },
@@ -801,6 +805,7 @@ export const OPENERS = [
     id: 'inspector-grid',
     steps: [
       { frameClick: '[data-cd-id="home-hero-grid"]', modifiers: ['Meta'] },
+      { ensureOpen: tid('fold-inspector-toggle') },
       { click: tid('inspector-section-grid'), optional: true },
     ],
   },
@@ -815,7 +820,10 @@ export const OPENERS = [
   { id: 'left-trash', state: 'trash-full', steps: [{ click: tid('canvases-trash-row') }] },
   {
     id: 'inspector-artboard',
-    steps: [{ frameClick: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true }],
+    steps: [
+      { frameClick: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      { ensureOpen: tid('fold-inspector-toggle') },
+    ],
   },
   // Export: the options each format opens, and the note a workspace with no render service gets
   { id: 'export-png', steps: [{ key: 'Shift+Meta+E' }, { click: tid('export-format-png') }] },

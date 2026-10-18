@@ -42,6 +42,28 @@ export const SEARCH_ACTIONS: ActionDef[] = [
     keys: mods('⌘F', '⇧', 'global', { inText: false, when: SHELL_NOT_TYPING }),
     legacy: { sheet: 'Search files' },
   },
+  // S1.2 (11 · pn-organise) — the Canvases panel's pin and sort, from ⌘K. Pins are per person (the hover
+  // pin, `/_api/pins`), so a viewer pins too; Sort is a per-project view preference.
+  {
+    id: 'canvases.pin',
+    label: 'Pin canvas',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { facts: ['canvasOpen'] },
+  },
+  {
+    id: 'canvases.unpin',
+    label: 'Unpin canvas',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { facts: ['canvasOpen'] },
+  },
+  {
+    id: 'canvases.sort',
+    label: 'Sort canvases',
+    kind: 'command',
+    exec: 'shell',
+  },
   {
     id: 'canvases.refresh',
     label: 'Refresh canvases',
