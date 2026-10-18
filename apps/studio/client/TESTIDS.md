@@ -754,8 +754,17 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-chat-header` | testid | The AI chat panel's header row (03 AI Chat): spark · chat title ⌄ · ✦ N running · New chat · Hide. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-new` | testid | The AI chat header's New chat icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
 | `ai-chat-hide` | testid | The AI chat header's Hide icon (replaces the old "Close assistant" button): folds the island to its spark corner icon. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
-| `ai-chat-count` | testid | The AI chat header's "✦ N" chip: how many of YOUR chats are running; absent at zero. Click opens the chat list. | `client/panels/chat-header.jsx` · `ChatHeader` | — | stable |
+| `ai-chat-count` | testid | The AI chat header's "✦ N" chip: how many of YOUR AI runs are live (a waiting ask counts; other people's AI never does); absent at zero. Click opens the run list (`ai-runs-list`). | `client/v2/ai/RunList.jsx` · `RunsCount` | — | stable |
 | `ai-chat-island` | testid | The AI chat panel itself (the `aside` frame, landmark "AI chat panel"). Hidden, never unmounted, while folded. | `client/v2/ai/AiChatIsland.jsx` · `AiChatIsland` | — | stable |
+| `ai-runs-list` | testid | The list under "✦ N": "Yours", then "On this canvas" (other people's runs, View only). Esc closes; a row takes you to its artboard. | `client/v2/ai/RunList.jsx` · `RunList` | — | stable |
+| `ai-run-<runId>` | testid | One row of the run list. `data-state` = working | waiting | needs, `data-view-only="true"` on another person's run. | `client/v2/ai/RunList.jsx` · `RunList` | — | stable |
+| `ai-waiting-stack` | testid | The waiting cards of the open chat (absent when nothing waits). | `client/v2/ai/WaitingCard.jsx` · `WaitingCards` | — | stable |
+| `ai-waiting-card` | testid | The card for a second ask on a busy artboard: "Waiting for “<run>” to finish on <artboard>." `data-run` = the waiting run id. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
+| `ai-waiting-cancel` | testid | The × on the waiting card: cancels the ask (no turn ran). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
+| `ai-waiting-copy` | testid | The waiting card's "Run on a copy". Not drawn until the copy route exists (`RUN_ON_COPY_LIVE`). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
+| `ai-waiting-note` | testid | The one line under the waiting card when × or Run on a copy was refused. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
+| `ai-rings` | testid | Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
+| `ai-ring-<artboardId>` | testid | Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-scope-chip` | testid | The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-scope-menu` | testid | The scope chip's menu (`role=menu`): Whole canvas · the artboard in view · Choose artboards… · No canvas — just ask. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-scope-item-<id>` | testid | One row of the scope menu. `<id>` = whole | artboard:<artboardId> | choose | none; while choosing artboards: artboard-<artboardId> and done. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
