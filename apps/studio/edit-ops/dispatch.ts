@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
+import { artboardResize } from './artboard-resize.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import {
   EDIT_OP_STATUS,
@@ -24,7 +25,9 @@ import {
 } from './types.ts';
 
 /** THE op table. Append one line per writer (S2.2 element.set-id, S2.6 object.frame, S3.0 links…). */
-export const EDIT_OPS: readonly EditOp[] = [];
+export const EDIT_OPS: readonly EditOp[] = [
+  artboardResize, // S2.8 artboard.resize
+];
 
 export interface AiHoldHit {
   /** a run of this Mac's person (Stop is in the AI chat) — else a member's */

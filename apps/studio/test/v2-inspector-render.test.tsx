@@ -1,6 +1,6 @@
 // S2.2 — the Inspector frame rendered: header (name · kind chip · crumbs · "Uses <system>"), the numbered
 // sections other slices fill, and "› Advanced" holding the unchanged v1 raw editor (no Designer/Advanced
-// switch any more). Real markup, real CssKnobs / ArtboardKnobs, real registry; only fetch and the
+// switch any more). Real markup, real CssKnobs, real registry; only fetch and the
 // clipboard are faked.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
@@ -252,7 +252,7 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     expect(facts?.textContent).toContain('cta primary');
   });
 
-  test('an artboard keeps its own editor (size, kind, body layout) inside Advanced', async () => {
+  test('an artboard has its own sections (S2.8); Advanced holds only what has no section yet', async () => {
     const host = await frame({
       selected: {
         selector: '[data-dc-screen="desktop"]',
@@ -266,7 +266,8 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
       layersTree: null,
     });
     const body = q(host, 'fold-inspector-body');
-    expect(body?.querySelector('[aria-label="artboard width"]')).not.toBeNull();
+    // the size lives in the Artboard section (v2-inspector-artboard.test.tsx), no longer in the fold
+    expect(body?.querySelector('[aria-label="artboard width"]')).toBeNull();
     expect(body?.querySelector('[data-tour="css-panel"]')).toBeNull();
   });
 
