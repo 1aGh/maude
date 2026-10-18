@@ -845,12 +845,16 @@ function trackNetwork(context: BrowserContext): Net {
   context.on('request', (r) => {
     // Only READS: a write is recorded as a write (and a keepalive POST never "finishes" in the
     // protocol's eyes), a stream is open by design. What a document waits on is data coming in.
-    if (r.method() !== 'GET' || r.resourceType() === 'eventsource') return;
+    // One write IS waited for (V2-5 gate): an edit-op's answer changes the DOM (the notice, the inspector)
+    // and the canvas's undo stack — a snapshot taken before it lands made ⌘G and the ⌘Z after it flip
+    // between two bodies from run to run.
     const path = r
       .url()
       .replace(/^https?:\/\/[^/]+/, '')
       .split('?')[0];
-    open.set(r, `GET ${path}`);
+    const editOp = r.method() === 'POST' && path === '/_api/edit-op';
+    if ((r.method() !== 'GET' && !editOp) || r.resourceType() === 'eventsource') return;
+    open.set(r, `${r.method()} ${path}`);
   });
   const done = (r: Request) => void open.delete(r);
   context.on('requestfinished', done);
