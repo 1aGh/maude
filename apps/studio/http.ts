@@ -21,8 +21,11 @@ import {
   diffRefusal,
   exportTargetVerdict,
   filterAcceptedHistory,
+  filterAssetListing,
   filterConfig,
+  filterGitBranches,
   filterGitDiff,
+  filterGitStatus,
   filterIndexSearch,
   filterIndexSnapshot,
   mergeCanvasOnlyLog,
@@ -3012,7 +3015,12 @@ export function createHttp(
       // security review A3). That probe lands in phase-28 over the server-held
       // keychain token (server-side, never client-supplied), not here.
       const checkRemote = new URL(req.url).searchParams.get('remote') === '1';
-      return gitJson(await gitApi.status({ checkRemote }));
+      // S9.12 (V2-1.16 L6) — a canvas-only session's changed files are its visible ones.
+      const status = await gitApi.status({ checkRemote });
+      return gitJson({
+        ...status,
+        json: filterGitStatus(status.json, visOf(req), ctx.paths.designRel),
+      });
     },
 
     '/_api/git/log': async (req: Request) => {
@@ -3060,7 +3068,9 @@ export function createHttp(
     // watcher turns into a Yjs flush + reload (DDR-051) — no logic duplicated here.
     '/_api/git/branches': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return gitJson(await gitApi.branches());
+      // S9.12 (V2-1.16 L6, U4) — draft names are free text: a canvas-only session lists none.
+      const branches = await gitApi.branches();
+      return gitJson({ ...branches, json: filterGitBranches(branches.json, visOf(req)) });
     },
 
     '/_api/git/branch': async (req: Request) => {
@@ -4549,7 +4559,8 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const r = await api.listAssets();
       return Response.json(
-        { ok: true, assets: r.assets },
+        // S9.12 (V2-1.16 L8) — a canvas-only session lists the assets its closure reads.
+        { ok: true, assets: filterAssetListing(r.assets, visOf(req)) },
         { headers: { 'Cache-Control': 'no-store' } }
       );
     },
