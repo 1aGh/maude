@@ -81,6 +81,8 @@ export interface CheckOptions {
   tier?: 'fast' | 'stop';
   /** AI writes are strict: a lenient-loader drop is an error, not a warning */
   strict?: boolean;
+  /** S3.10a: another canvas's artboard ids (null = not in the project) — judges `link-dangling` */
+  canvasArtboards?: (canvas: string) => readonly string[] | null;
 }
 
 /** The check kind of a designRoot-relative POSIX path (V2-1.18 §5.3 "Kind (by path)"). Pure. */
@@ -222,7 +224,11 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       );
     else seen.set(ab.id, line);
   }
-  const ids = checkIdsAdapter(text, { against: opts.against ?? undefined, path: rel });
+  const ids = checkIdsAdapter(text, {
+    against: opts.against ?? undefined,
+    path: rel,
+    canvasArtboards: opts.canvasArtboards,
+  });
   for (const f of ids.findings) {
     // an element id that is not an id is file text: drop it, the line names the element
     const raw = typeof f.id === 'string' && !isValidElementId(f.id) ? f.id : null;
@@ -235,7 +241,7 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       line: f.line,
     };
     if (f.element) out.element = f.element;
-    (f.severity === 'error' ? r.errors : r.infos).push(out);
+    (f.severity === 'error' ? r.errors : f.severity === 'warning' ? r.warnings : r.infos).push(out);
   }
 }
 
