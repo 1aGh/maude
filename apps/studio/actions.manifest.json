@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "d8d7db9d2410",
+  "manifestVersion": "cebb78d1a7ce",
   "actions": [
     {
       "id": "search.open",
@@ -36,6 +36,42 @@
       "agent": {
         "path": "cli",
         "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvases.pin",
+      "label": "Pin canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a per-person pin; an agent reads the canvas list with `maude design index`"
+      }
+    },
+    {
+      "id": "canvases.unpin",
+      "label": "Unpin canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a per-person pin; an agent reads the canvas list with `maude design index`"
+      }
+    },
+    {
+      "id": "canvases.sort",
+      "label": "Sort canvases",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the order the Canvases panel lists in; `maude design index` lists them all"
       }
     },
     {
@@ -137,6 +173,33 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Move the .tsx and its .meta.json to another folder under the design root"
+      }
+    },
+    {
+      "id": "canvas.copy-link",
+      "label": "Copy canvas link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "copies to the clipboard; an agent shares the canvas path instead"
+      }
+    },
+    {
+      "id": "canvas.trash",
+      "label": "Move canvas to trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it"
       }
     },
     {

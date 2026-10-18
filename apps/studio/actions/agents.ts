@@ -96,6 +96,33 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
+  // S1.2 — the row menu's other rows. The link is the canvas's address (`maude design open <canvas>` moves
+  // the person's view to it). Trash: until S1.17's `maude design trash`, an agent parks the files the way
+  // `DELETE /_api/canvas` does, and the Trash lists them from the manifest.
+  'canvas.copy-link': {
+    effect: 'none',
+    agent: human('view-pref', 'copies to the clipboard; an agent shares the canvas path instead'),
+  },
+  'canvas.trash': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it'
+    ),
+  },
+  // S1.2 — pins are the person's (`/_api/pins`); the sort order is a per-project view preference.
+  'canvases.pin': PREF(
+    'a per-person pin; an agent reads the canvas list with `maude design index`'
+  ),
+  'canvases.unpin': PREF(
+    'a per-person pin; an agent reads the canvas list with `maude design index`'
+  ),
+  'canvases.sort': PREF(
+    'the order the Canvases panel lists in; `maude design index` lists them all'
+  ),
   'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
   'import.brand': { effect: 'project', agent: cli('maude design import-brand') },
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),

@@ -1707,9 +1707,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             );
           }
           await from.hover(selector(`canvas-row-ui-${slug(destination)}-${slug(name)}`));
-          await from.confirmNext();
+          await from.click(selector(`tree-row-menu-ui-${slug(destination)}-${slug(name)}`));
           const start = performance.now();
-          await from.click(`[aria-label="Delete canvas ${name}"]`);
+          // S1.2: the red × is the row menu's "Move to trash" now, and it asks nothing
+          await from.menu('Move to trash');
           return observeAll(
             all,
             `L04-delete-${from.name}-to`,
@@ -1740,9 +1741,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await until(async () => (await p.read('h1', true)) === name);
           }
           await from.hover(selector(`canvas-row-ui-${slug(name)}`));
-          await from.confirmNext();
+          await from.click(selector(`tree-row-menu-ui-${slug(name)}`));
           const start = performance.now();
-          await from.click(`[aria-label="Delete canvas ${name}"]`);
+          await from.menu('Move to trash');
           return observeAll(
             all,
             `L04-independent-delete-${from.name}`,
@@ -3490,9 +3491,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await openSeeded(rel, `Rename ${from.name}`, `L04-rename-${from.name}`);
           await from.hover(rowOf(rel));
           await from.click(selector(`tree-row-menu-${slug(rel.replace(/\.tsx$/, ''))}`));
-          await from.promptNext(`SurfaceRen-${from.name}-renamed`);
+          // S1.2: Rename is in place — the row's name turns into a field (↵ renames, esc keeps it)
+          await from.menu('Rename');
+          const field = selector(`canvas-rename-input-${slug(rel.replace(/\.tsx$/, ''))}`);
+          await from.fill(field, `SurfaceRen-${from.name}-renamed`);
           const start = performance.now();
-          await from.menu('Rename…');
+          await from.press('Enter');
           return observeAll(
             all,
             `L04-rename-${from.name}`,
@@ -5469,8 +5473,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           try {
             await offlineThen(() => writeFileSync(join(peer.root, '.design', rel), edited));
             await nativeSide.hover(rowOf(rel));
-            await nativeSide.confirmNext();
-            await nativeSide.click('[aria-label="Delete canvas SurfaceDelEdit"]');
+            await nativeSide.click(selector(`tree-row-menu-${slug(rel.replace(/\.tsx$/, ''))}`));
+            await nativeSide.menu('Move to trash');
             await until(() => [hubSide, nativeSide].every((p) => text(p, rel) === null), 30000);
             const start = performance.now();
             await fetch(`${control}/online`, { method: 'POST' });
@@ -5672,8 +5676,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           writeFileSync(join(hubSide.root, '.design', edited), editedBody);
           await until(async () => (await nativeSide.read(rowOf(doomed))) !== null, 30000);
           await nativeSide.hover(rowOf(doomed));
-          await nativeSide.confirmNext();
-          await nativeSide.click('[aria-label="Delete canvas SurfaceRestartDelete"]');
+          await nativeSide.click(selector(`tree-row-menu-${slug(doomed.replace(/\.tsx$/, ''))}`));
+          await nativeSide.menu('Move to trash');
           mkdirSync(join(nativeSide.root, '.design', folder), { recursive: true });
           writeFileSync(join(nativeSide.root, '.design', folder, '.gitkeep'), '');
           writeFileSync(join(peer.root, '.design', own), ownBody);

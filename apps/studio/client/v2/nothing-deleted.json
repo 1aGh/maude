@@ -2951,7 +2951,7 @@
     "testid:studio/client/app.jsx#sidebar/tree/aria-expanded-on-tree-rows": "testid:[aria-expanded] on tree rows",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-create-brief-board": "testid:[aria-label=\"Create brief board\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-create-folder": "testid:[aria-label=\"Create folder\"]",
-    "testid:studio/client/app.jsx#sidebar/tree/aria-label-delete-canvas-name": "testid:[aria-label=\"Delete canvas <name>\"]",
+    "testid:studio/client/app.jsx#sidebar/tree/aria-label-delete-canvas-name": "action:canvas.trash",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-blank-brief-board": "testid:[aria-label=\"New blank brief board\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-brief-board-name": "testid:[aria-label=\"New brief board name\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-folder-name": "testid:[aria-label=\"New folder name\"]",

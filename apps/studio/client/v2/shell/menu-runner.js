@@ -17,7 +17,7 @@ import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
-import { requestTrash } from '../left-panel/left-panel-bus.js';
+import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
 import { panelLayout } from './use-panel-layout.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
@@ -93,11 +93,32 @@ export function createMenuHandlers(d) {
     'canvas.duplicate': () => {
       if (d.activePath) d.onDuplicate(d.activePath);
     },
+    // S1.2 — rename in place: the Canvases panel turns the open canvas's name into a field (↵ renames, esc
+    // keeps it). The panel is brought up first and may not be mounted yet, so the request waits for it.
     'canvas.rename': () => {
       if (!d.activePath) return;
-      const current = d.canvasName;
-      const name = window.prompt('Rename canvas to:', current);
-      if (name?.trim() && name.trim() !== current) d.onRename(d.activePath, name.trim());
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'rename', path: d.activePath });
+    },
+    // S1.2 — pins are per person; these act on the open canvas (the row's hover pin does the same).
+    'canvases.pin': () => {
+      if (d.activePath) requestCanvasesOp({ op: 'pin', path: d.activePath, pinned: true });
+    },
+    'canvases.unpin': () => {
+      if (d.activePath) requestCanvasesOp({ op: 'pin', path: d.activePath, pinned: false });
+    },
+    'canvases.sort': () => {
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'sort' });
+    },
+    // S1.2 — the shell's tab hook owns the closures for these two (share links, the tree reload, the tab).
+    'canvas.copy-link': () => {
+      if (d.activePath) dispatchCanvasOp('copy-link', d.activePath);
+    },
+    'canvas.trash': () => {
+      if (d.activePath) dispatchCanvasOp('trash', d.activePath, d.canvasName);
     },
     'canvas.move': () => {
       if (d.activePath) d.onPickMoveDestination();
