@@ -1,6 +1,6 @@
-// V2-4 gate (standing rule 12) — per-role server enforcement for the roles that exist today:
-// owner · member · viewer (Can comment). Can view (`observer`) arrives with S9; until then a
-// credential that names it — or any role the studio does not know — must hold no edit (V2-1.7 R1).
+// V2-4 gate (standing rule 12) — per-role server enforcement: owner · member · viewer (Can
+// comment) · observer (Can view, S9.9 — per-capability since the local gate split). A role the
+// studio does not know must hold no edit (V2-1.7 R1).
 //
 // One row per WRITE route family. The studio's local gate (`readOnlyRefusal`, http.ts) is binary —
 // read-only or not — so owner and member get the same answer here; what only an owner may do
@@ -343,6 +343,32 @@ describe('cell child — the proxy vouches the role per request', () => {
       { 'x-maude-role': 'viewer' },
       new Set(['/_api/design/init', '/_api/generate/prefs'])
     );
+  }, 60000);
+  // S9.9 — Can view (`observer`) arrives: the viewer's refusals PLUS comment and export
+  // (V2-1.7 §5.2); its own place (camera, prefs, tree state, fetch, sign-in) still passes.
+  test('observer (x-maude-access claim): comment + export refused too, session writes pass', async () => {
+    const base = await bootCell();
+    const headers = {
+      'x-maude-role': 'observer',
+      'x-maude-readonly': '1',
+      'x-maude-access': Buffer.from(JSON.stringify({ v: 1, role: 'observer' })).toString(
+        'base64url'
+      ),
+    };
+    // `/_api/export` is the desktop's project export — a cell does not serve it to anyone.
+    const notServed = new Set(['/_api/design/init', '/_api/generate/prefs', '/_api/export']);
+    const wrong: string[] = [];
+    for (const row of ROWS) {
+      const got = refused(await send(base, row, headers));
+      const lane = row.family.startsWith('comments') || row.family === 'export';
+      const want = row.viewer === 'refused' || lane ? 'refused' : 'allowed';
+      const ok =
+        want === 'refused'
+          ? got === REFUSED || (notServed.has(row.path) && got.startsWith('404'))
+          : got !== REFUSED;
+      if (!ok) wrong.push(`${label(row)} → ${got} (observer: ${want})`);
+    }
+    expect(wrong).toEqual([]);
   }, 60000);
   test('owner / member (x-maude-readonly: 0): no write family is refused by the role gate', async () => {
     const base = await bootCell();

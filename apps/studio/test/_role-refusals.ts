@@ -11,7 +11,10 @@
 // refusal. Rule 7 also fails while the table has rows and no test file imports it, so a row is
 // never coverage on paper only. Add the row in the same change that adds the `server` field.
 //
-// Empty today: no action declares `server` yet.
+// S9.9 seeds it with the local gate's own classes (one row per capability the studio
+// enforces — V2-1.7 §5.7): no action declares `server` yet, so these rows are the server
+// half that the actions will point at. Roles are the registry's (`view` = Can view =
+// wire `observer`, `comment` = viewer, `edit` = member).
 
 import type { ActionDefAI, Role } from '../actions/types.ts';
 
@@ -23,8 +26,33 @@ export interface RoleRefusal {
   route: string;
   /** The roles the server must refuse on this route (at least every role below `minRole`). */
   refused: readonly Role[];
+  /** The JSON body sent (the refusal answers before any handler reads it). */
+  body?: unknown;
 }
 
-export const ROLE_REFUSALS: readonly RoleRefusal[] = [];
+export const ROLE_REFUSALS: readonly RoleRefusal[] = [
+  // comment — Can comment and up (D5: Can view may not comment)
+  { method: 'POST', route: '/_comments', refused: ['view'] },
+  { method: 'POST', route: '/_api/comments/c1/reply', refused: ['view'] },
+  // export — every download and export
+  { method: 'POST', route: '/_api/export', refused: ['view'] },
+  { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },
+  { method: 'POST', route: '/_api/export-history', refused: ['view'] },
+  { method: 'POST', route: '/_api/export-assemble', refused: ['view'] },
+  // annotate — stickies, marker, arrows (D5: Can comment may not annotate)
+  { method: 'POST', route: '/_api/annotations/ops', refused: ['view', 'comment'] },
+  { method: 'PUT', route: '/_api/annotations', refused: ['view', 'comment'] },
+  // edit — the versioned layout lane, canvas writes, the AI chat (D2)
+  {
+    method: 'PATCH',
+    route: '/_api/canvas-meta',
+    refused: ['view', 'comment'],
+    body: { file: '.design/ui/a.tsx', patch: { layout: { artboards: [] } } },
+  },
+  { method: 'POST', route: '/_api/edit-text', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
+  // delete — `/_api/trash/clear` (owner, §5.5) is S1's route; its row lands with it.
+  // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
+];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;
