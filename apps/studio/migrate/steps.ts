@@ -17,6 +17,13 @@ import { FORMAT2_TYPES, isKnownType, specOf } from '../annotations/registry.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import { asFormat } from '../format.ts';
+import {
+  SidecarWriteError,
+  serializeTranscript,
+  sidecarRelFor,
+  type Transcript,
+  type TranscriptWord,
+} from '../video/schema.ts';
 import { DS_EMITTER_PENDING, type DsSystemEntry, type DsTokensEmitter } from './ds-registry.ts';
 
 export interface StepCtx {
@@ -396,12 +403,7 @@ const chats: MigrationStep = {
 const MEDIA_EXTS = ['mp4', 'mov', 'm4v', 'webm', 'mp3', 'wav', 'm4a', 'aac', 'ogg'];
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
-interface Word {
-  id: string;
-  t0: number;
-  t1: number;
-  text: string;
-}
+type Word = TranscriptWord;
 
 function srtCues(src: string): Array<{ t0: number; t1: number; text: string }> {
   const ts = (s: string) => {
@@ -491,7 +493,7 @@ export function transcriptFromLegacy(
   }
   if (!words.length) return null;
   words.sort((a, b) => a.t0 - b.t0);
-  const transcript = {
+  const transcript: Transcript = {
     format: 'maude.transcript',
     v: 1,
     asset,
@@ -503,7 +505,17 @@ export function transcriptFromLegacy(
     speech: { source: 'words', regions: mergeRegions(spans) },
     createdAt,
   };
-  return { json: `${JSON.stringify(transcript, null, 2)}\n`, engine };
+  // Through the strict writer (video/schema.ts, S7.1): what the migrator creates is a file every v2
+  // reader accepts, or nothing — a base name the format can't carry is a note, never a bad file.
+  try {
+    return {
+      json: serializeTranscript(transcript, sidecarRelFor(asset, 'transcript') ?? ''),
+      engine,
+    };
+  } catch (e) {
+    if (e instanceof SidecarWriteError) return null;
+    throw e;
+  }
 }
 
 const transcripts: MigrationStep = {

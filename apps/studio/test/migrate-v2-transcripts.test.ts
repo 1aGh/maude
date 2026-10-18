@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { EXIT } from '../migrate/engine.ts';
 import { transcriptFromLegacy } from '../migrate/steps.ts';
+import { readTranscript, serializeTranscript, validateTranscript } from '../video/schema.ts';
 import { fullTreeHash, opts, type Project, run } from './_migrate-harness.ts';
 
 let p: Project | null = null;
@@ -86,6 +87,29 @@ describe('transcripts.import', () => {
     const rev = await run(opts(p, { direction: 'reverse' }));
     expect(rev.exitCode).toBe(EXIT.done);
     expect(fullTreeHash(p.design)).toBe(h0);
+  });
+
+  test('S7.1: what the step writes is a valid sidecar, and a second forward is a no-op', async () => {
+    p = project();
+    await run(opts(p));
+    for (const base of ['aaaa1111', 'bbbb2222']) {
+      const rel = `assets/${base}.transcript.json`;
+      const text = readFileSync(path.join(p.design, rel), 'utf8');
+      const r = readTranscript(text, rel);
+      expect(r.ok).toBe(true);
+      if (!r.ok) continue;
+      expect(validateTranscript(r.value, { strict: true, rel }).errors).toEqual([]);
+      expect(serializeTranscript(r.value, rel)).toBe(text); // our writer's own bytes
+    }
+    const h1 = fullTreeHash(p.design);
+    const again = await run(opts(p));
+    expect(again.exitCode).toBe(EXIT.atTarget);
+    expect(again.steps.find((s) => s.id === 'transcripts.import')?.status).toBe('noop');
+    expect(fullTreeHash(p.design)).toBe(h1);
+  });
+
+  test('a base name the format cannot carry gets a note, never a bad file', () => {
+    expect(transcriptFromLegacy(`assets/${'x'.repeat(65)}.mp4`, SRT, null, 'x')).toBeNull();
   });
 
   test('an edited transcript is not deleted by the reverse', async () => {

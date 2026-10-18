@@ -33,6 +33,8 @@ describe('kindOf — the V2-1.18 §5.3 dispatch by path', () => {
     ['ui/cut.edl.json', 'edl'],
     ['assets/a.footage.json', 'footage'],
     ['assets/a.photo.json', 'photo-edit'],
+    ['assets/ab12cd34.transcript.json', 'transcript'],
+    ['assets/ab12cd34.beats.json', 'beats'],
     ['config.json', 'design-config'],
     ['system/acme/tokens.json', 'ds'],
     ['system/acme/colors_and_type.css', 'ds'],
@@ -154,6 +156,34 @@ describe('checkFile', () => {
       },
     };
     expect(codes(JSON.stringify(v2), null)).toEqual([]);
+  });
+
+  test('S7.1: transcript / beats sidecars get the strict writer rules, never an unknown-key finding', () => {
+    const rel = 'assets/ab12cd34.transcript.json';
+    const t = {
+      format: 'maude.transcript',
+      v: 1,
+      asset: 'assets/ab12cd34.mp4',
+      engine: { id: 'whisper.cpp', timing: 'segment', newerKey: true },
+      words: [{ id: 'w0', t0: 0, t1: 1, text: 'a' }],
+      speech: { source: 'words', regions: [[0, 1]] },
+      createdAt: '2026-10-18T09:00:00Z',
+      zz: 1,
+    };
+    expect(checkFile(rel, JSON.stringify(t), { strict: true }).errors).toEqual([]);
+    const codes = (doc: unknown, at = rel) =>
+      checkFile(at, JSON.stringify(doc), { strict: true }).errors.map((e) => e.code);
+    expect(codes({ ...t, words: [{ id: 'w0', t0: 1, t1: 1, text: 'a' }] })).toEqual(['transcript']);
+    expect(codes(t, 'assets/00000000.transcript.json')).toEqual(['transcript']); // asset ≠ file name
+    expect(codes({ format: 'maude.beats' }, 'assets/ab12cd34.beats.json')[0]).toBe('beats');
+    // lenient (no --strict): parse only
+    expect(checkFile(rel, JSON.stringify({ any: 1 })).ok).toBe(true);
+    // the change-kind provenance key is part of the meta schema
+    const meta = JSON.stringify({
+      title: 'C',
+      artboardMeta: { copy: { madeFrom: { artboard: 'hero', label: 'Hero' } } },
+    });
+    expect(checkFile('ui/C.meta.json', meta, { strict: true, against: null }).errors).toEqual([]);
   });
 
   test('a DS-managed file is refused; runtime and unknown files are skipped', () => {

@@ -20,6 +20,8 @@
 //                the write changed + `dsRev` unchanged (./meta.ts)
 //   edl/footage  strict: validateEdl / validateFootageAnalysis (footage/schema.ts — the runtime source
 //                the edl.v1 schema mirrors); lenient: parse
+//   transcript/beats  strict: validateTranscript / validateBeats in writer mode (video/schema.ts, S7.1 —
+//                preserving: an unknown key is never a finding); lenient: parse
 //   handoff      maude.agent-handoff/1 of the role the file name declares (cli/lib/handoff.mjs)
 //   json kinds   parse
 //   runtime `_*` (other than hand-offs), files outside the design root, everything else: skipped
@@ -41,6 +43,7 @@ import { validateBoard } from '../annotations/validate-board.ts';
 import { isValidElementId } from '../element-ids.ts';
 import { validateEdl, validateFootageAnalysis } from '../footage/schema.ts';
 import { presentIdIssues } from '../present/meta-schema.ts';
+import { validateBeats, validateTranscript } from '../video/schema.ts';
 import { checkIdsAdapter } from './ids.ts';
 import { validateMeta } from './meta.ts';
 
@@ -50,6 +53,8 @@ export type CheckKind =
   | 'canvas-meta'
   | 'edl'
   | 'footage'
+  | 'transcript'
+  | 'beats'
   | 'photo-edit'
   | 'ds'
   | 'ds-managed'
@@ -103,6 +108,8 @@ export function kindOf(rel: string): CheckKind {
   if (rel.endsWith('.meta.json')) return 'canvas-meta';
   if (rel.endsWith('.edl.json')) return 'edl';
   if (rel.endsWith('.footage.json')) return 'footage';
+  if (rel.endsWith('.transcript.json')) return 'transcript';
+  if (rel.endsWith('.beats.json')) return 'beats';
   if (rel.endsWith('.photo.json')) return 'photo-edit';
   if (rel.endsWith('.tsx') && segs[0] !== 'system') return 'canvas-tsx';
   if (rel.endsWith('.json')) return 'json';
@@ -403,6 +410,19 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
               kind === 'edl'
                 ? 'write the EDL in the documented shape (apps/studio/schema/edl.v1.schema.json, skill design:footage-director)'
                 : 'write the analysis in the documented shape (skill design:footage-director)'
+            )
+          );
+    } else if ((kind === 'transcript' || kind === 'beats') && opts.strict) {
+      const doc = parseJson(rel, text, r);
+      const validate = kind === 'transcript' ? validateTranscript : validateBeats;
+      if (doc !== undefined)
+        for (const e of validate(doc, { strict: true, rel }).errors)
+          r.errors.push(
+            finding(
+              kind,
+              `${rel} › ${fileText(e.split(':')[0])}`,
+              cleanText(e, 200),
+              `write the ${kind} in the documented shape (apps/studio/schema/${kind}.v1.schema.json, skill design:video-comp)`
             )
           );
     } else if (kind === 'ds-managed')

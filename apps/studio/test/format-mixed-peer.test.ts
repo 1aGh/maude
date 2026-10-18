@@ -17,6 +17,7 @@ import * as lanes from '../../hub/src/project-transactions/lanes.mjs';
 import { readReplica, replicaBoardText, writeReplicaText } from '../annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
+import { applyArtboardMetaPatch, readArtboardVideoMeta } from '../kinds/meta.ts';
 
 const sticky = (id: string, index: string, extra: Record<string, unknown> = {}) =>
   ({
@@ -142,6 +143,36 @@ describe('mixed v1/v2 peers — meta lane (R6)', () => {
       expect(m.layout.artboards[0]).toMatchObject({ id: 'b0', x: 40 });
       expect(m.present).toEqual({ order: ['b1', 'b0'] });
       expect(m.artboardMeta).toEqual({ b0: { notes: 'Opening' } });
+    });
+  }
+
+  // S7.1: the video / change-kind keys ride the same top-level map (R6), next to a key no build
+  // knows yet. Written through kinds/meta.ts, the way the v2 studio writes them.
+  const s7 = (() => {
+    const r = applyArtboardMetaPatch(
+      { ...JSON.parse(m0), artboardMeta: { b1: { exports: [{ format: 'png', scale: 2 }] } } },
+      {
+        b0: { poster: 120, snap: 'beat', maxFrames: 5400 },
+        b1: { madeFrom: { artboard: 'b0', label: 'Reels' } },
+      },
+      new Set(['b0', 'b1'])
+    );
+    if (!r.ok) throw new Error('patch');
+    return JSON.stringify(r.next);
+  })();
+  for (const order of ['v2 first', 'v1 first'] as const) {
+    test(`${order}: S7 artboardMeta keys survive a v1 drag, byte-equal`, () => {
+      const accepted =
+        order === 'v2 first' ? accept('meta', m0, s7, v1) : accept('meta', m0, v1, s7);
+      const m = JSON.parse(accepted);
+      expect(m.layout.artboards[0]).toMatchObject({ id: 'b0', x: 40 });
+      expect(JSON.stringify(m.artboardMeta)).toBe(JSON.stringify(JSON.parse(s7).artboardMeta));
+      expect(readArtboardVideoMeta(m, 'b0')).toEqual({
+        poster: 120,
+        snap: 'beat',
+        maxFrames: 5400,
+      });
+      expect(readArtboardVideoMeta(m, 'b1').madeFrom).toEqual({ artboard: 'b0', label: 'Reels' });
     });
   }
 });
