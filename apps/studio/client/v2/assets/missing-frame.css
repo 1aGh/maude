@@ -1,0 +1,46 @@
+/* client/v2/assets/missing-frame.css — S8.19c: the Inspector's box for a picture that is not here, and the
+ * relink sheet's error line (12 Import and Assets, ia-missing). Tokens only. */
+
+@layer shell {
+  .asset-absent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font-size: var(--type-sm);
+  }
+  .asset-absent[data-state="missing"] {
+    border-color: var(--status-error);
+  }
+  .asset-absent p {
+    margin: 0;
+  }
+  .asset-absent-t strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .asset-absent[data-state="waiting"] .asset-absent-t strong {
+    color: var(--status-warn-text);
+  }
+  .asset-absent[data-state="missing"] .asset-absent-t strong {
+    color: var(--status-error-text);
+  }
+  .asset-absent-d {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .asset-absent-a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .asset-relink-err {
+    margin: 0;
+    color: var(--status-error-text);
+  }
+}

@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { AssetAbsentBox } from '../assets/missing-frame.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
@@ -188,6 +189,8 @@ export function InspectorFrame({
           Uses {ds}
         </p>
       ) : null}
+      {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
+      <AssetAbsentBox el={el1} canvas={canvasFile} />
       <HoldLine line={hold.line} />
       {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
       <fieldset className="ed-insp-fields" disabled={hold.view}>

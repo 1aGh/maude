@@ -20,6 +20,8 @@
 //                the write changed + `dsRev` unchanged (./meta.ts)
 //   edl/footage  strict: validateEdl / validateFootageAnalysis (footage/schema.ts — the runtime source
 //                the edl.v1 schema mirrors); lenient: parse
+//   gen          strict: validateGen (generation/gen-sidecar.ts — lenient on unknown keys; the gen.v1
+//                schema mirrors it); lenient: parse
 //   handoff      maude.agent-handoff/1 of the role the file name declares (cli/lib/handoff.mjs)
 //   json kinds   parse
 //   runtime `_*` (other than hand-offs), files outside the design root, everything else: skipped
@@ -40,6 +42,7 @@ import { jsonEq } from '../annotations/fields.ts';
 import { validateBoard } from '../annotations/validate-board.ts';
 import { isValidElementId } from '../element-ids.ts';
 import { validateEdl, validateFootageAnalysis } from '../footage/schema.ts';
+import { validateGen } from '../generation/gen-sidecar.ts';
 import { presentIdIssues } from '../present/meta-schema.ts';
 import { checkIdsAdapter } from './ids.ts';
 import { validateMeta } from './meta.ts';
@@ -51,6 +54,7 @@ export type CheckKind =
   | 'edl'
   | 'footage'
   | 'photo-edit'
+  | 'gen'
   | 'ds'
   | 'ds-managed'
   | 'design-config'
@@ -106,6 +110,7 @@ export function kindOf(rel: string): CheckKind {
   if (rel.endsWith('.edl.json')) return 'edl';
   if (rel.endsWith('.footage.json')) return 'footage';
   if (rel.endsWith('.photo.json')) return 'photo-edit';
+  if (rel.endsWith('.gen.json')) return 'gen';
   if (rel.endsWith('.tsx') && segs[0] !== 'system') return 'canvas-tsx';
   if (rel.endsWith('.json')) return 'json';
   return 'skip';
@@ -409,6 +414,18 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
               kind === 'edl'
                 ? 'write the EDL in the documented shape (apps/studio/schema/edl.v1.schema.json, skill design:footage-director)'
                 : 'write the analysis in the documented shape (skill design:footage-director)'
+            )
+          );
+    } else if (kind === 'gen' && opts.strict) {
+      const doc = parseJson(rel, text, r);
+      if (doc !== undefined)
+        for (const e of validateGen(doc).errors)
+          r.errors.push(
+            finding(
+              'gen',
+              `${rel} › ${fileText(e.split(':')[0])}`,
+              cleanText(e, 200),
+              'write the provenance in the documented shape (apps/studio/schema/gen.v1.schema.json, skill design:ai-generation)'
             )
           );
     } else if (kind === 'ds-managed')

@@ -28,6 +28,7 @@ import { objectLock } from './lock.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
 import { reorderOps } from './reorder.ts';
+import { assetRelink } from './relink.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
 import { layoutSetGap } from './set-gap.ts';
@@ -99,6 +100,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectInsertShape,
   artboardDraw,
   objectSetCornerRadius,
+  // S8.19c — Relink… on a missing picture: every reference to the old file, one write
+  assetRelink,
 ];
 
 export interface AiHoldHit {
@@ -126,6 +129,8 @@ export interface DispatchDeps {
    * link): the ordinary `writeLayout` + `write` path runs. A refusal writes nothing.
    */
   land?(plan: LandPlan): Promise<LandOutcome | null>;
+  /** is there a regular file at this designRoot-relative path (S8.19c — the relink target must exist) */
+  exists?(rel: string): boolean;
   log: WriteLog;
   /** S2.2b — the comments + board of a canvas; an id rename moves its references here. Without
    *  it a rename that has references to move is refused (never a half-rename). */
@@ -273,6 +278,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       op: req.op,
       targets: refs,
       params: req.params ?? {},
+      ...(deps.exists ? { exists: deps.exists } : {}),
     });
   } catch (e) {
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);

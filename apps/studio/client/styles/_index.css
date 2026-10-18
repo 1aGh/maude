@@ -97,6 +97,8 @@
 @import url("../v2/inspector/inspector.css");
 /* S2.3 — the section bodies: rows, token chips, the Gap menu, constraints (client/v2/inspector/sections/). */
 @import url("../v2/inspector/sections/sections.css");
+/* S8.19c — the Inspector's box for a picture that is waiting or missing, and the relink sheet (client/v2/assets/). */
+@import url("../v2/assets/missing-frame.css");
 /* Phase 4 gate — the a11y contrast floor (WCAG 1.4.3), utilities layer: wins over shell + components. */
 @import url("../v2/shell/contrast.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */

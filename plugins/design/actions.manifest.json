@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "dc096a21cb76",
+  "manifestVersion": "9d28f9ad5a0a",
   "actions": [
     {
       "id": "search.open",
@@ -1343,6 +1343,19 @@
       "agent": {
         "path": "cli",
         "verb": "maude design open <canvas>@<element> --mode edit"
+      }
+    },
+    {
+      "id": "asset.relink",
+      "label": "Relink…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./"
       }
     },
     {
@@ -4596,6 +4609,13 @@
       "id": "https://maude.sh/schema/edl/v1",
       "source": "hand",
       "skill": "design:footage-director"
+    },
+    {
+      "format": "gen",
+      "schema": "apps/studio/schema/gen.v1.schema.json",
+      "id": "https://maude.sh/schema/gen/v1",
+      "source": "hand",
+      "skill": "design:ai-generation"
     },
     {
       "format": "tokens",

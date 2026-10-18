@@ -18282,9 +18282,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-project.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-project.test.tsx"],
     "v2": "new"
   },
   {
@@ -18298,9 +18296,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-project.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-project.test.tsx"],
     "v2": "new"
   },
   {
@@ -18314,9 +18310,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-project.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-project.test.tsx"],
     "v2": "new"
   },
   {
@@ -18330,9 +18324,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-project.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-project.test.tsx"],
     "v2": "new"
   },
   {
@@ -18346,9 +18338,7 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-project.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-project.test.tsx"],
     "v2": "new"
   },
   {
@@ -18362,9 +18352,150 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-empty-project.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-empty-project.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-frames",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer that holds the placeholder frames (dgn `asset-state`, S8.19). Absent when every picture is here.",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: one picture's placeholder frame. `data-rel` = the designRoot-relative file, `data-state` = waiting | missing. Says a name only (\"Waiting for Jonas's Mac\"); uncertain = \"Not here yet\".",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-frame-relink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: a Missing frame's Relink… button (posts dgn `asset-relink-request`). The shell opens its relink sheet only for a rel its own asset-state answer calls missing.",
+    "producer": {
+      "file": "apps/studio/asset-placeholder.tsx",
+      "symbol": "AssetPlaceholderLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-absent-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspector: the box for a selected picture that is Waiting for someone's Mac or Missing. `data-state` = waiting | missing.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "AssetAbsentBox"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-absent-word",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspector's absent-picture box: its one status word (\"Missing\", \"Waiting for Jonas's Mac\", \"Not here yet\").",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "AssetAbsentBox"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-absent-relink",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspector's absent-picture box: Relink… (opens the relink sheet). Absent for Can view / Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "AssetAbsentBox"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-relink-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The relink sheet: pick a copy of a missing picture; every use points at it as one undo step.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "RelinkSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-relink-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The relink sheet: the hidden file input behind \"Choose a file…\".",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "RelinkSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-relink-choose",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The relink sheet: \"Choose a file…\" (imports the copy, then runs the `asset.relink` edit op).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "RelinkSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-relink-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The relink sheet: Cancel.",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "RelinkSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "asset-relink-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The relink sheet: why it did not relink, in one line (role=alert).",
+    "producer": {
+      "file": "apps/studio/client/v2/assets/missing-frame.jsx",
+      "symbol": "RelinkSheet"
+    },
+    "region": "other",
+    "consumers": [],
     "v2": "new"
   }
 ]

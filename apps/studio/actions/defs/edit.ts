@@ -624,4 +624,14 @@ export const EDIT_ACTIONS: ActionDef[] = [
     ],
     search: { keywords: ['inspect', 'switch', 'edit mode'] },
   },
+  // S8.19c — Relink… on a picture no device has: pick a copy, import it, re-point every reference to it
+  // (edit-op `asset.relink`). Opened from the placeholder frame's button and the Inspector's box; a write,
+  // so greyed below Can edit (the server refuses the edit-op anyway).
+  {
+    id: 'asset.relink',
+    label: 'Relink…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS },
+  },
 ];

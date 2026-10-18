@@ -86,6 +86,7 @@ import {
   transientFailures,
   writeBehindKey,
 } from './asset-lane.mjs';
+import { createAssetPresence } from './asset-presence.mjs';
 import {
   handleAssetProbeRoute,
   handleAssetRoute,
@@ -846,6 +847,22 @@ export function createHub(config = {}) {
     sweepNow: () => (revocationSweep?.enabled ? revocationSweep.tick() : null),
   });
 
+  // S8.19 — who holds which asset, and whose sweep finished (hub runtime in the
+  // data dir, never a project file). Fed by `/_asset-probe`, read by the
+  // routes-v2 `asset-presence` row.
+  const assetPresence = createAssetPresence({ dataDir, salt: secret ?? '' });
+  const presenceDeps = () => ({
+    store: assetPresence,
+    dataDir,
+    designRoot:
+      workspaceMode && repoDir ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design') : null,
+    journal,
+    materializer,
+    checkReadRateLimit: rateLimit
+      ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+      : undefined,
+  });
+
   /**
    * Who is asking an accepted-revisions or project-format route — the ONE
    * owner predicate both share (`admin`: an owner/admin bearer, a legacy
@@ -1288,6 +1305,7 @@ export function createHub(config = {}) {
             signInUrl: (req) => signInUrl({ request: req }),
             // Gate 0 A18 (S9.13) — the votes runtime, null until the store is open.
             votes: votesRoutes,
+            presence: presenceDeps(), // S8.19
           },
         })
       ) {
@@ -1565,6 +1583,7 @@ export function createHub(config = {}) {
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
+          presence: assetPresence,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
@@ -2723,6 +2742,7 @@ export function createHub(config = {}) {
     accepted,
     acceptedReady,
     projectStore,
+    assetPresence,
     /** Flush the pending commit and detach. The SIGTERM path depends on this. */
     async stopWorkspaceAgent() {
       if (!workspace) return;
@@ -2742,6 +2762,7 @@ export function createHub(config = {}) {
      * was written in between (F3 S17 on the cloud cell, 2026-09-24).
      */
     async finalBackup() {
+      assetPresence.flush();
       try {
         server.hocuspocus?.flushPendingStores?.();
         const debouncer = server.hocuspocus?.debouncer;

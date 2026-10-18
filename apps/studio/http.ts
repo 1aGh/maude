@@ -195,6 +195,7 @@ import {
   allSpecs,
   announceAction,
   canvasPathsOfIndex,
+  assetStateDepsFor,
   heldByAiRefusal,
   riderPatch,
   runStageHooks,
@@ -1966,6 +1967,12 @@ export function createHttp(
         apply: (file, ops, o) => api.applyAnnotationOps(file, ops, undefined, o),
       },
     },
+    // S8.19 — GET /_api/asset-state (routes/asset-state.ts): built once, over the live runtime.
+    assetState: assetStateDepsFor({
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      runtime: () => ctx.syncControl?.current?.() ?? null,
+    }),
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
     // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot

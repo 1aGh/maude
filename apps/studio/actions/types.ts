@@ -163,7 +163,8 @@ export type FormatId =
   | 'tokens'
   | 'components'
   | 'ds-config'
-  | 'photo-edit'
+  | 'photo-edit' // both photo sidecar shapes: every use + per use (S8 §5.5)
+  | 'gen' // assets/<sha8>.gen.json, maude.gen v1 (S8 §5.2)
   | 'footage'
   | 'edl'
   | 'design-config';

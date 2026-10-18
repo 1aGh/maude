@@ -236,6 +236,8 @@ import { ViewBarHost } from './v2/history/history-host.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
+import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
+import { useRelinkSheet } from './v2/assets/missing-frame.jsx';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { SystemView } from './system/system-view.jsx';
@@ -2819,6 +2821,7 @@ function ShellTree() {
       startTour,
       syncStatus,
       tabs,
+      wsConnected,
       theme,
       timelineOpen,
       togglePanel,
@@ -2906,6 +2909,17 @@ function ShellTree() {
       panelLayout.show();
       openPanelExclusive('assets');
     },
+  });
+  // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
+  // (dgn `asset-state`); a Missing frame's Relink… (and the Inspector's box) opens the relink sheet (S8.19c).
+  const relink = useRelinkSheet({ canEdit: !viewerMode });
+  useAssetStateLane({
+    onRelink: relink.onRelink,
+    syncStatus,
+    wsConnected,
+    canvasOrigin: () => cfg?.canvasOrigin || window.location.origin,
+    activeWindow: () =>
+      activePath ? (iframesRef.current.get(activePath)?.contentWindow ?? null) : null,
   });
   // The AI chat island's body. Always mounted (the island is `hidden`, not removed), so its stream survives
   // a Hide (DDR-123).
@@ -3135,6 +3149,7 @@ function ShellTree() {
           </div>
         </div>
       )}
+      {relink.sheet}
       {shareDialog && (
         <ShareDialog
           target={shareDialog}

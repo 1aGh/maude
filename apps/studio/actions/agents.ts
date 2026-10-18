@@ -228,6 +228,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: file('canvas-tsx', 'design:design', 'Read the element’s data-cd-id in the .tsx'),
   },
+  // S8.19c — one edit-op; an agent edits the same string literals by hand.
+  'asset.relink': TSX(
+    'Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./'
+  ),
   // S2.8 — an artboard's size is its JSX width/height (+ the bare `fixed` prop); its place is the meta layout.
   'artboard.resize': TSX(
     'Set the DCArtboard’s width and height props (64–8192); add the bare `fixed` prop to make the height exact. Its position is layout.artboards[] in the .meta.json, not a prop'

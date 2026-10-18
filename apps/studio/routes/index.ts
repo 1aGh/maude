@@ -21,6 +21,7 @@ import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
 import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
+import { type AssetStateRouteDeps, createAssetStateRoutes } from './asset-state.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
@@ -50,6 +51,8 @@ export { heldByAiRefusal } from './agent.ts';
 export { canvasPathsOfIndex } from './availability.ts';
 // S2.9b — the `annotations` rider of the legacy `/_api/canvas-meta` PATCH (one action, one ⌘Z)
 export { riderPatch } from './canvas-meta-rider.ts';
+// S8.19 — the asset-state service, built once by http.ts over the live sync runtime.
+export { assetStateDepsFor } from './asset-state.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
 
@@ -92,6 +95,8 @@ export interface RouteDeps {
   sync: SyncRouteDeps;
   /** S6.0b — `POST|GET /_api/cloud/move`: a local folder becomes a cloud project (S6-S9 §5.5) */
   cloudMove: CloudMoveDeps;
+  /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
+  assetState?: AssetStateRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -145,5 +150,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
     ...createSyncRoutes(deps.sync),
     ...createCloudMoveRoutes(deps.cloudMove),
+    ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
   ];
 }

@@ -287,6 +287,12 @@ const ACCEPTED = {
     ['GET', `${V1}/trash/${tg.slug.replace(/[^A-Za-z0-9_-]/g, '')}${q(tg)}`],
     ['POST', `${V1}/trash`, json({ doc: tg.doc, path: tg.path })],
   ],
+  // S8.19 — asset presence is asked per `rel`, B's and the twin's alike.
+  'asset-presence': (tg) => [
+    ['GET', `${V1}/asset-presence?rel=${enc(tg.path)}`],
+    ['GET', `${V1}/asset-presence?rel=${enc(tg.path)}&rel=${enc(tg.asset)}`],
+    ['POST', `${V1}/asset-presence`, '{}'],
+  ],
 };
 
 /** Name a pattern row by a probe path: the accepted route it matches. */
@@ -305,6 +311,7 @@ const PATTERN_PROBES = {
   'votes/:id/ballot': `${V1}/votes/x1/ballot`,
   'votes/:id/end': `${V1}/votes/x1/end`,
   trash: `${V1}/trash`,
+  'asset-presence': `${V1}/asset-presence`,
 };
 
 /** The builder for a row: exact/prefix by key, a pattern by the probe it matches. */

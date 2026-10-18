@@ -582,6 +582,52 @@ async function readBoundedJson(request, cap) {
 }
 
 /**
+ * Does this hub hold `rel`'s bytes? The probe's presence check, shared with the
+ * S8.19 asset-presence query so both answer alike. `ctx` needs `designRoot`
+ * and, on a cell, `journal` + `materializer`.
+ *
+ * CHECKOUT-ONLY COMPAT SHIM (Sync v2 Increment 5). The probe used to answer
+ * from both stores — checkout AND bucket — because the checkout could lag the
+ * bucket after a wake. The boot hydrate now refills the checkout for every
+ * plane class, so the checkout IS "what this cell can serve" and the bucket
+ * half's object-store reads bought nothing but latency. Answering "absent" for
+ * a file the bucket alone holds costs one idempotent re-upload, which is the
+ * safe direction.
+ */
+export function presenceHolds(ctx, rel) {
+  if (typeof rel !== 'string' || !ctx.designRoot) return false;
+  // CELL MODE (cell materializer Task 11 — amends "asset presence means BOTH
+  // stores"): inert media lives in the bucket and a disk that is only a cache
+  // says nothing. Present = a live journal row whose bytes are durable
+  // (mirrored) or still held here pinned until they are.
+  if (ctx.materializer) {
+    const row = ctx.journal?.latestFor?.(rel);
+    if (row && !row.deleted && row.sha256 && row.class === 'inert-media') {
+      return row.mirroredAtMs != null || ctx.materializer.isPinned(row.sha256);
+    }
+  }
+  if (rel.startsWith('assets/')) {
+    const key = rel.slice('assets/'.length);
+    if (!ASSET_KEY.test(key)) return false;
+    const mirror = resolveCheckoutAssetTarget(ctx.designRoot, rel);
+    return mirror.ok && existsSync(mirror.writeAbs);
+  }
+  // Checkout-resident project files — judged by the SAME decision the write
+  // door uses, so the probe can never answer about a path a writer would
+  // refuse.
+  const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
+  return target.ok && existsSync(target.abs);
+}
+
+/** May this session learn whether `rel` exists? (V2-1.16 L5, on the real landing path.) */
+export function presenceVisible(access, designRoot, rel) {
+  if (typeof rel !== 'string' || !designRoot || !access?.sees(rel)) return false;
+  if (rel.startsWith('assets/')) return true;
+  const target = resolveCheckoutFileWrite(designRoot, rel);
+  return target.ok && access.sees(target.realRel);
+}
+
+/**
  * `POST /_asset-probe` — "which of these do you already have?"
  *
  * WHY A BATCH, AND WHY POST (RCA 2026-08-11 part 2). The desktop sweep asked
@@ -645,42 +691,7 @@ export async function handleAssetProbeRoute(ctx) {
     return true;
   }
 
-  // CHECKOUT-ONLY COMPAT SHIM (Sync v2 Increment 5). The probe used to answer
-  // from both stores — checkout AND bucket — because the checkout could lag
-  // the bucket after a wake. The boot hydrate now refills the checkout for
-  // every plane class, so the checkout IS "what this cell can serve" and the
-  // bucket half's object-store reads bought nothing but latency. Callers are
-  // the legacy client window only (a plane-speaking desktop never probes);
-  // answering "absent" for a file the bucket alone holds costs one idempotent
-  // re-upload, which is the safe direction.
   const present = [];
-  // CELL MODE (cell materializer Task 11 — amends "asset presence means BOTH
-  // stores"): inert media lives in the bucket and a disk that is only a cache
-  // says nothing. Present = a live journal row whose bytes are durable
-  // (mirrored) or still held here pinned until they are.
-  const cellHolds = (rel) => {
-    const row = ctx.journal?.latestFor?.(rel);
-    if (!row || row.deleted || !row.sha256 || row.class !== 'inert-media') return null;
-    return row.mirroredAtMs != null || ctx.materializer.isPinned(row.sha256);
-  };
-  const holds = (rel) => {
-    if (typeof rel !== 'string' || !ctx.designRoot) return false;
-    if (ctx.materializer) {
-      const cell = cellHolds(rel);
-      if (cell !== null) return cell;
-    }
-    if (rel.startsWith('assets/')) {
-      const key = rel.slice('assets/'.length);
-      if (!ASSET_KEY.test(key)) return false;
-      const mirror = resolveCheckoutAssetTarget(ctx.designRoot, rel);
-      return mirror.ok && existsSync(mirror.writeAbs);
-    }
-    // Checkout-resident project files — judged by the SAME decision the write
-    // door uses, so the probe can never answer about a path a writer would
-    // refuse.
-    const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
-    return target.ok && existsSync(target.abs);
-  };
   // V2-1.16 L5 — a path this session does not see is reported absent (U1),
   // judged on the real landing path like the writers judge it.
   const access = fileAccessFor(match, {
@@ -688,13 +699,13 @@ export async function handleAssetProbeRoute(ctx) {
     journal: ctx.journal,
     dataDir,
   });
-  const visible = (rel) => {
-    if (typeof rel !== 'string' || !ctx.designRoot || !access.sees(rel)) return false;
-    if (rel.startsWith('assets/')) return true;
-    const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
-    return target.ok && access.sees(target.realRel);
-  };
-  for (const rel of paths) if (visible(rel) && holds(rel)) present.push(rel);
+  for (const rel of paths) {
+    if (presenceVisible(access, ctx.designRoot, rel) && presenceHolds(ctx, rel)) present.push(rel);
+  }
+  // S8.19 — the two optional fields (`held`, `sweep`) feed the hub's asset
+  // presence store. A v1 body carries neither and records nothing; the answer
+  // below is the same either way.
+  ctx.presence?.feedProbe?.({ match, access, body: body.value, paths });
 
   const payload = JSON.stringify({ present });
   response

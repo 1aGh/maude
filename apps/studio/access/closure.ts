@@ -21,7 +21,7 @@ import path, { dirname, resolve, sep } from 'node:path';
 import { canvasArtifacts } from '../canvas-artifacts.ts';
 import type { Paths } from '../context.ts';
 import { dsDepsFor, importsDs } from '../ds/ds-resolver.ts';
-import type { Access } from './scope.ts';
+import { type Access, PER_USE_PHOTO_RE } from './scope.ts';
 
 /** Relative import specifiers (side-effect, `from`, literal dynamic `import()`), in source order. */
 const SPEC_RES = [
@@ -150,10 +150,42 @@ const ASSET_SIDECAR_SUFFIXES = [
   '.footage.json',
   '.transcript.json',
   '.beats.json',
+  '.gen.json', // the generation provenance of a take (S8 §5.2) — rides with its image
   '.srt',
   '.vtt',
   '.json', // the bare whisper dump beside old captions (V2-1.10)
 ];
+
+/**
+ * The per-use photo edit `assets/<img8>.<edit8>.photo.json` (S8 §5.1). Never admitted as an
+ * asset or by the suffix list: only a granted canvas's `data-photo-edit="<edit8>"` on the
+ * element whose `src` is `assets/<img8>.<ext>` admits it (S8 §5.6), so another canvas's
+ * per-use edit stays invisible (U1).
+ */
+const PHOTO_EDIT_ATTR_RE = /\bdata-photo-edit\s*=\s*(?:\{\s*)?["'`]([0-9a-f]{8,16})["'`]/g;
+
+/**
+ * Per-use edits a text names: `data-photo-edit="<edit8>"` bound to the asset references of ITS
+ * element (the tag around the attribute, up to the next `<`), as `<asset base>.<edit8>.photo.json`
+ * candidates. Static only (G3), like `staticAssetRefs`; the caller keeps what exists.
+ */
+export function perUsePhotoRefs(text: string): string[] {
+  const out: string[] = [];
+  if (!text.includes('data-photo-edit')) return out;
+  PHOTO_EDIT_ATTR_RE.lastIndex = 0;
+  for (let m = PHOTO_EDIT_ATTR_RE.exec(text); m !== null; m = PHOTO_EDIT_ATTR_RE.exec(text)) {
+    const start = text.lastIndexOf('<', m.index);
+    const next = text.indexOf('<', m.index);
+    const tag = text.slice(start === -1 ? 0 : start, next === -1 ? text.length : next);
+    for (const ref of staticAssetRefs(tag)) {
+      const slash = ref.lastIndexOf('/');
+      const dot = ref.indexOf('.', slash + 1);
+      if (slash !== 'assets/'.length - 1 || dot <= slash + 1) continue;
+      out.push(`${ref.slice(0, dot)}.${m[1]}.photo.json`);
+    }
+  }
+  return out;
+}
 
 /** A computed asset path or a non-literal dynamic import (G3). */
 const DYNAMIC_RES = [
@@ -371,11 +403,15 @@ function compute(canvases: string[], project: ProjectReader, head: string): Clos
     staticAssetRefs(text).filter((r) => files.has(r) && !isAssetSidecar(r, files));
 
   const closureAssets = new Set<string>();
+  const perUse = new Set<string>();
   for (const canvas of canvases) {
     for (const rel of ownedOf(canvas)) {
       owned.add(rel);
       if (!ownedBy.has(rel)) ownedBy.set(rel, canvas);
       read.add(rel);
+      // S8 §5.6: a per-use edit is read only through the attribute in a granted canvas's own file.
+      const text = TEXT_SCAN_RE.test(rel) ? textOf(rel) : null;
+      if (text !== null) for (const p of perUsePhotoRefs(text)) if (files.has(p)) perUse.add(p);
     }
     // The transitive relative import graph, from the canvas (and the DS override it pulls in).
     const queue: string[] = [canvas];
@@ -419,9 +455,18 @@ function compute(canvases: string[], project: ProjectReader, head: string): Clos
     const base = asset.slice(0, asset.lastIndexOf('.'));
     for (const suffix of ASSET_SIDECAR_SUFFIXES) {
       const side = `${base}${suffix}`;
-      if (side !== asset && files.has(side)) read.add(side);
+      if (side !== asset && files.has(side) && !PER_USE_PHOTO_RE.test(side)) read.add(side);
     }
     assetUsers.set(asset, new Set());
+  }
+  // Only for an asset the closure already holds (the element's own `src` put it there).
+  for (const p of perUse) {
+    const base = (PER_USE_PHOTO_RE.exec(p) as RegExpExecArray)[1] as string;
+    for (const asset of closureAssets)
+      if (asset.slice(0, asset.lastIndexOf('.')) === base) {
+        read.add(p);
+        break;
+      }
   }
 
   // Every referrer of every closure asset, project-wide (the photo-sidecar rule, G2). A file
@@ -450,6 +495,8 @@ function compute(canvases: string[], project: ProjectReader, head: string): Clos
 }
 
 function isAssetSidecar(rel: string, files: Set<string>): boolean {
+  // A per-use edit is never an asset of its own, even when a text names its path literally.
+  if (PER_USE_PHOTO_RE.test(rel)) return true;
   for (const suffix of ASSET_SIDECAR_SUFFIXES) {
     if (!rel.endsWith(suffix)) continue;
     const base = rel.slice(0, -suffix.length);

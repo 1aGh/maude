@@ -24,7 +24,7 @@
 // the board and the Trash's Restore (the S1.13 splice) does too. Only where the trash is one action:
 // on a legacy link they stay where they are, as the layout entry does (a member left behind is inert).
 
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
@@ -370,6 +370,17 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
             write: writeSource,
             writeLayout,
             land,
+            exists: (rel) => {
+              // a regular file inside the design root (a symlink is not one — `to` is a copy, not a pointer)
+              try {
+                const target = abs(rel);
+                const back = path.relative(deps.designRoot, target);
+                if (back.startsWith('..') || path.isAbsolute(back)) return false;
+                return lstatSync(target).isFile();
+              } catch {
+                return false;
+              }
+            },
             heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),
             heldArtboard,
             actionFor: (rel, after) =>

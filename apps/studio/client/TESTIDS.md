@@ -966,6 +966,25 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-waiting-note` | testid | The one line under the waiting card when × or Run on a copy was refused. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-rings` | testid | Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-ring-<artboardId>` | testid | Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
+| `asset-frames` | testid | Inside the canvas iframe: the layer that holds the placeholder frames (dgn `asset-state`, S8.19). Absent when every picture is here. | `asset-placeholder.tsx` · `AssetPlaceholderLayer` | — | new |
+| `asset-frame` | testid | Inside the canvas iframe: one picture's placeholder frame. `data-rel` = the designRoot-relative file, `data-state` = waiting / missing. Says a name only ("Waiting for Jonas's Mac"); uncertain = "Not here yet". | `asset-placeholder.tsx` · `AssetPlaceholderLayer` | — | new |
+| `asset-frame-relink` | testid | Inside the canvas iframe: a Missing frame's Relink… button (posts dgn `asset-relink-request`). The shell opens its relink sheet only for a rel its own asset-state answer calls missing. | `asset-placeholder.tsx` · `AssetPlaceholderLayer` | — | new |
+| `asset-absent-box` | testid | The Inspector: the box for a selected picture that is Waiting for someone's Mac or Missing. `data-state` = waiting | missing. | `client/v2/assets/missing-frame.jsx` · `AssetAbsentBox` | — | new |
+| `asset-absent-word` | testid | The Inspector's absent-picture box: its one status word ("Missing", "Waiting for Jonas's Mac", "Not here yet"). | `client/v2/assets/missing-frame.jsx` · `AssetAbsentBox` | — | new |
+| `asset-absent-relink` | testid | The Inspector's absent-picture box: Relink… (opens the relink sheet). Absent for Can view / Can comment. | `client/v2/assets/missing-frame.jsx` · `AssetAbsentBox` | — | new |
+| `asset-relink-sheet` | testid | The relink sheet: pick a copy of a missing picture; every use points at it as one undo step. | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-input` | testid | The relink sheet: the hidden file input behind "Choose a file…". | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-choose` | testid | The relink sheet: "Choose a file…" (imports the copy, then runs the `asset.relink` edit op). | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-cancel` | testid | The relink sheet: Cancel. | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-error` | testid | The relink sheet: why it did not relink, in one line (role=alert). | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-absent-box` | testid | The Inspector: the box for a selected picture that is Waiting for someone's Mac or Missing. `data-state` = waiting | missing. | `client/v2/assets/missing-frame.jsx` · `AssetAbsentBox` | — | new |
+| `asset-absent-word` | testid | The Inspector's absent-picture box: its one status word ("Missing", "Waiting for Jonas's Mac", "Not here yet"). | `client/v2/assets/missing-frame.jsx` · `AssetAbsentBox` | — | new |
+| `asset-absent-relink` | testid | The Inspector's absent-picture box: Relink… (opens the relink sheet). Absent for Can view / Can comment. | `client/v2/assets/missing-frame.jsx` · `AssetAbsentBox` | — | new |
+| `asset-relink-sheet` | testid | The relink sheet: pick a copy of a missing picture; every use points at it as one undo step. | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-input` | testid | The relink sheet: the hidden file input behind "Choose a file…". | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-choose` | testid | The relink sheet: "Choose a file…" (imports the copy, then runs the `asset.relink` edit op). | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-cancel` | testid | The relink sheet: Cancel. | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
+| `asset-relink-error` | testid | The relink sheet: why it did not relink, in one line (role=alert). | `client/v2/assets/missing-frame.jsx` · `RelinkSheet` | — | new |
 | `ai-attach-clip` | testid | The paperclip in the AI prompt row; opens the attach menu. | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
 | `ai-attach-menu` | testid | The paperclip's menu (Attach files… · Choose a folder… · From Assets · Paste a screenshot ⌘V · Or drag files here). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
 | `ai-attach-menu-<id>` | testid | One row of the attach menu: `files`, `folder` (desktop app only), `assets`, `screenshot`, `drag` (disabled reminder). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
