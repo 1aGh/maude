@@ -280,6 +280,18 @@ export interface DocProjection {
    * Resolves with the inverse's outcome; null when the projection is not in accepted mode.
    */
   proposeInverse(value: string, undoes: string): Promise<ProposalOutcome> | null;
+  /**
+   * S10.3b — the value a proposal of `lane` made now is derived from: the newest unanswered
+   * proposal's value, else what disk and the accepted replica last agreed on. A caller that
+   * proposes this lane outside the projection (a multi-canvas action, `SyncRuntime.proposeFiles`)
+   * bases it here, exactly as `proposeLane` does.
+   */
+  agreedLane(lane: ProposalLane): string;
+  /**
+   * S10.3b — resolve once the accepted replica holds `value` for `lane` (true), or after `ms`
+   * (false); then the doc→file writer is flushed, so an accepted action is on disk on return.
+   */
+  settleLane(lane: ProposalLane, value: string, ms?: number): Promise<boolean>;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
   /**
@@ -1314,6 +1326,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         original: candidate?.original ?? null,
         base: candidate?.base ?? null,
       };
+    },
+    agreedLane(lane) {
+      return pending.get(lane)?.lastValue ?? agreedValue(lane);
+    },
+    async settleLane(lane, value, ms = 3_000) {
+      const want = laneHash(value);
+      await untilLaneHash(lane, want, ms);
+      const reached = laneHash(readLaneFromDoc(doc, lane)) === want;
+      if (!stopped) await flush();
+      return reached;
     },
     proposeLane(lane, value, o) {
       if (!acceptedOn() || stopped) return null;

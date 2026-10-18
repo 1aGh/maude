@@ -98,7 +98,12 @@ export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
 ]);
 
 /** Clearing out the trash is the owner's (§5.5 `delete`); the per-Mac `_trash/` prune is not this. */
-export const DELETE_WRITES: ReadonlySet<string> = new Set(['/_api/trash/clear']);
+export const DELETE_WRITES: ReadonlySet<string> = new Set([
+  '/_api/trash/clear',
+  // S10.3b — a design-system token's clear-out (routes/ds.ts `clear`, owner — Q15); the hub's
+  // studio manifest already classes it `delete`.
+  '/_api/ds/clear',
+]);
 
 export interface SessionAllowlist {
   exact: ReadonlySet<string>;

@@ -195,6 +195,50 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
     test: 'test/acl-l18-trash.test.ts',
   },
+  // S10.3 routes/ds.ts — a converted design system's reviews (V2-1.6 §5.11–§5.12)
+  '/_api/ds/state': { class: 'read' },
+  '/_api/ds/revision': { class: 'read' },
+  '/_api/ds/revisions': { class: 'read' },
+  '/_api/ds/usage': { class: 'read' },
+  '/_api/ds/publish': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-publish.test.ts',
+  },
+  '/_api/ds/pending': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles)',
+    test: 'test/ds-routes-roles.test.ts',
+  },
+  '/_api/ds/outside': {
+    class: 'file-plane',
+    rows: 'keep: a revision + head.json base; undo: the working files from base — Plane B only',
+  },
+  '/_api/ds/pick': {
+    class: 'lane',
+    via: 'the pending entry dropped from the DS canvas meta (proposeFiles) + head.json base = K',
+    test: 'test/ds-conflict-pick.test.ts',
+  },
+  '/_api/ds/canvas': {
+    class: 'lane',
+    via: 'a canvas meta dsRev (+ its data-ds-rev="head" strips) as ONE kernel action (proposeFiles)',
+    test: 'test/ds-undo-hook.test.ts',
+  },
+  '/_api/ds/trash': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/restore': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/clear': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)

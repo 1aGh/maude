@@ -9,6 +9,7 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { type AssetIndex, createAssetIndex } from './assets.ts';
+import { createDsUsage, type DsUsageIndex } from './ds-usage.ts';
 import {
   extractCanvas,
   type IndexContext,
@@ -53,6 +54,10 @@ export interface IndexServiceOptions {
   history?: (() => HistorySource | null) | HistorySource | null;
   /** hash asset bytes in the background for tile keys (default true) */
   hashAssets?: boolean;
+  /** Host the design-system usage index (S10.5, V2-1.6 §5.13). `true` persists it under
+   *  `<designRoot>/_cache/index/ds-usage.json`; `{ persist: false }` keeps it in memory. Off by
+   *  default: Home's closed-project rebuild and one-shot CLIs must not write into a project. */
+  dsUsage?: boolean | { persist?: boolean };
 }
 
 export interface IndexService {
@@ -94,6 +99,8 @@ export interface IndexService {
   forgetVersion(canvas: string, at: { rev: number } | { sha: string }): void;
   /** hashing and the history scan are idle (tests, one-shot CLIs) */
   settled(): Promise<void>;
+  /** the hosted design-system usage index, or null when the host did not ask for it */
+  dsUsage(): DsUsageIndex | null;
 }
 
 const isCanvasRel = (rel: string) => rel.endsWith('.tsx');
@@ -224,6 +231,7 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
     }
     lastBuildMs = performance.now() - t0;
     assetIdx.reset();
+    usage?.resync();
     emit([...rows.keys()]);
   }
 
@@ -243,9 +251,20 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       } else continue;
       touched.push(rel);
     }
+    // the rows are current now; the usage index also reads stylesheets, system files and config
+    usage?.changed(rels);
     if (touched.length) emit([...new Set(touched)]);
     return seq;
   }
+
+  const usage: DsUsageIndex | null = o.dsUsage
+    ? createDsUsage({
+        designRoot: () => o.context().designRoot,
+        canvases: () => [...rows.values()].map((c) => ({ rel: c.rel, ds: c.ds })),
+        persist: o.dsUsage === true || o.dsUsage.persist === true,
+        now,
+      })
+    : null;
 
   rebuild();
   if (history) assetIdx.startHistoryScan();
@@ -311,11 +330,13 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       dirty = true;
       write();
       assetIdx.flush();
+      usage?.flush();
     },
     stop() {
       if (timer) clearTimeout(timer);
       timer = null;
       assetIdx.stop();
+      usage?.stop();
       live.delete(svc);
     },
     buildMs: () => lastBuildMs,
@@ -329,6 +350,7 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
     forgetVersion: (canvas, at) =>
       assetIdx.forgetVersion(canvas, 'rev' in at ? `r${at.rev}` : `git:${at.sha}`),
     settled: () => assetIdx.settled(),
+    dsUsage: () => usage,
   };
   if (persist) live.add(svc);
   return svc;

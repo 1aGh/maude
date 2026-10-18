@@ -189,6 +189,19 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('runs', 'shared', {
     note: 'a sub-verb not tiered above prompts until it gets its own entry',
   }),
+  // S10.3 (V2-1.6 §5.12, S10 §2.4) — the design-system verbs. `status`, `usage` and
+  // `revisions list` read (the helper refuses any other word after them); every other sub-verb
+  // changes the system for everyone and prompts. Clearing a token out of the trash is the owner's
+  // — the studio refuses anyone else (rule 12). A future `revisions` write (prune) gets its own
+  // sub-verb, never a flag on `revisions`.
+  d('ds status', 'none'),
+  d('ds usage', 'none'),
+  d('ds revisions', 'none', {
+    note: 'only `revisions list <ds>`; the helper refuses any other form',
+  }),
+  d('ds', 'shared', {
+    note: 'publish / pending / keep / undo / pick / canvas / trash / restore / clear change the system for everyone',
+  }),
   // S9.7b — one `POST /_api/comments/op` each, as the session, marked AI-written (C3: no mentions).
   d('comments reply', 'shared', { note: 'posts a reply where others see it' }),
   d('comments resolve', 'shared', { note: 'resolves a thread for everyone' }),

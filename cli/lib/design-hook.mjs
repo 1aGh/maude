@@ -478,6 +478,37 @@ function runtimeGuard(input, rel, fenceOf) {
   };
 }
 
+/**
+ * S10.3b — a design system's `revisions/*` (content-addressed, immutable) and `revisions/head.json`
+ * (the pointer the ⌘Z hook moves) are written only by the DS engine (V2-1.6 §5.15; S10.2's
+ * `ds/head.ts` is the sole head.json writer). A hand edit would fork the history the review and
+ * every peer read, so the hook refuses it BEFORE the write — anyone, main agent included. The
+ * systems are the config's `designSystems[].path` plus the `system/<ds>/` convention
+ * (check/index.ts `kindOf` 'ds-managed', which still blocks a write that got past this).
+ */
+function dsManagedGuard(ctx, rel) {
+  const lc = rel.toLowerCase();
+  const segs = lc.split('/');
+  let hit =
+    segs[0] === 'system' &&
+    segs.length >= 3 &&
+    (segs[2] === 'revisions' || segs[segs.length - 1] === 'head.json');
+  if (!hit) {
+    const cfg = readJson(join(ctx.designRoot, 'config.json'), {});
+    const systems = Array.isArray(cfg?.designSystems) ? cfg.designSystems : [];
+    hit = systems.some((s) => {
+      if (typeof s?.path !== 'string') return false;
+      const root = s.path
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '')
+        .toLowerCase();
+      return !!root && (lc.startsWith(`${root}/revisions/`) || lc === `${root}/head.json`);
+    });
+  }
+  if (!hit) return null;
+  return `ds-managed: ${shownRel(rel)} is design-system history Maude keeps — revisions and head.json are never written by hand. Change the system with \`maude design ds\` (pending --set, publish, keep, undo, pick); \`maude design ds status --json\` shows where it stands.`;
+}
+
 /** The run id the hand-offs carry: stable per session, no studio needed (V2-1.18 §5.1 shape). */
 const runIdOf = (ctx) => `r_${sha(ctx.session).slice(0, 16)}`;
 /** A design path as a reason names it: plain when it is plain, else cleaned + quoted (F3). */
@@ -772,6 +803,12 @@ async function preEdit(ctx, input) {
   if (!d) {
     const outside = outsideGuard(ctx, input, fenceOf);
     return outside ? deny(outside) : null;
+  }
+  // S10.3b: a design system's managed files (revisions, the review's own state) are written by the
+  // DS verbs, never by an editing tool.
+  if (!d.runtime) {
+    const managed = dsManagedGuard(ctx, d.rel);
+    if (managed) return deny(managed);
   }
   if (isSubagent(input) && fenceOf().error) return deny(fenceReason(input, fence.error));
   if (d.runtime) {

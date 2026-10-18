@@ -130,6 +130,18 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   },
   { method: 'POST', route: '/_api/share/people/:id/remove', refused: ['view', 'comment', 'edit'] },
   { method: 'POST', route: '/_api/share/invites/:id/resend', refused: ['view', 'comment', 'edit'] },
+  // S10.3b — the design-system writes (routes/ds.ts, Q15): every one is a project edit; a token's
+  // clear-out is the owner's (`writeCapability` classes /_api/ds/clear `delete`).
+  ...[
+    '/_api/ds/publish',
+    '/_api/ds/pending',
+    '/_api/ds/outside',
+    '/_api/ds/pick',
+    '/_api/ds/canvas',
+    '/_api/ds/trash',
+    '/_api/ds/restore',
+  ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
+  { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

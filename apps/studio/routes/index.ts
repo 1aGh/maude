@@ -26,6 +26,7 @@ import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
+import { createDsRoutes, type DsRouteDeps } from './ds.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
@@ -114,6 +115,8 @@ export interface RouteDeps {
   share: ShareRouteDeps;
   /** S9.24 — the object-conflict card: `GET /_api/sync/conflicts`, `POST …/resolve` (one lane edit) */
   syncConflicts?: SyncConflictRouteDeps;
+  /** S10.3 — a converted design system's reviews (`/_api/ds/*`, main origin only, Q15 gates) */
+  ds?: DsRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -178,5 +181,13 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
     ...createShareRoutes(deps.share),
     ...(deps.syncConflicts ? createSyncConflictRoutes(deps.syncConflicts) : []),
+    ...createDsRoutes(
+      deps.ds ?? {
+        // no engine wired: every DS route answers 503 `ds-unavailable`
+        engine: () => null,
+        access: () => trashAccessNone,
+        person: async () => ({ name: '' }),
+      }
+    ),
   ];
 }

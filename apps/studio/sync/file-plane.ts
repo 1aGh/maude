@@ -499,6 +499,13 @@ export interface FilePlaneOptions {
    * the file plane was still working.
    */
   onProgress?: () => void;
+  /**
+   * S10.3b — a pull landed the hub's bytes at design-root-relative `rel` (after the atomic
+   * rename). The DS outside watcher attributes the change to a peer (ds/outside.ts `notify(rel,
+   * {kind:'peer'})`) instead of reading it as an unknown outside edit. Bookkeeping only: a
+   * throw is swallowed.
+   */
+  onDelivered?: (rel: string) => void;
 }
 
 interface SyncableLocalFile {
@@ -2284,6 +2291,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           // pass re-hashes everything it just wrote.
           restat(rel);
           out.pulled.push(rel);
+          try {
+            opts.onDelivered?.(rel);
+          } catch {
+            /* attribution only */
+          }
         } else {
           out.failed.push({ rel, reason: 'could not materialize' });
         }

@@ -565,6 +565,45 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     ]);
   }
 
+  /**
+   * S10.3b — lanes of SEVERAL canvases as ONE action (a design-system publish: the followers'
+   * metas, the DS canvas's `dsPending`, the TSX `data-ds-rev` strips). One proposal on the
+   * durable content lane (V2-1.14: the outbox holds it until the hub answers), so the hub
+   * commits it as one attributed action and one ⌘Z takes every lane back together. Answered
+   * when the hub answers — never reported as queued: the caller writes its off-lane half
+   * (`head.json`) only after an acceptance that carries the action id.
+   */
+  function docsEdit(
+    edits: Array<{
+      slug: string;
+      lane: LaneProposal['lane'];
+      content: string;
+      baseContent: string;
+    }>,
+    action: {
+      kind: string;
+      label: string;
+      writeId?: string;
+      /** S2.10b — an artboard-trash action names what it removed (S1-trash.md §2) */
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
+  ): Promise<StructuralOutcome> {
+    return structural(
+      action.label,
+      action.kind,
+      edits.map((e) => ({
+        op: 'lane.replace',
+        doc: opts.docNameFor(e.slug),
+        lane: e.lane,
+        content: e.content,
+        baseContent: e.baseContent,
+        ...(action.writeId ? { writeId: action.writeId } : {}),
+      })),
+      Number.POSITIVE_INFINITY,
+      action.origin?.trashed?.length ? { trashed: action.origin.trashed } : undefined
+    );
+  }
+
   return {
     client,
     refresh,
@@ -662,22 +701,12 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         origin?: { trashed?: Array<{ artboard: string; label?: string }> };
       }
     ): Promise<StructuralOutcome> {
-      const doc = opts.docNameFor(slug);
-      return structural(
-        action.label,
-        action.kind,
-        lanes.map((l) => ({
-          op: 'lane.replace',
-          doc,
-          lane: l.lane,
-          content: l.content,
-          baseContent: l.baseContent,
-          ...(action.writeId ? { writeId: action.writeId } : {}),
-        })),
-        Number.POSITIVE_INFINITY,
-        action.origin?.trashed?.length ? { trashed: action.origin.trashed } : undefined
+      return docsEdit(
+        lanes.map((l) => ({ slug, ...l })),
+        action
       );
     },
+    docsEdit,
     /** Logical history, newest first (optionally one entry's). */
     history(q: {
       limit?: number;

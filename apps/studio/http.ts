@@ -91,6 +91,9 @@ import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { createReferenceLanes } from './edit-ops/references.ts';
+import { createDsEngine, kernelPortFrom } from './ds/engine.ts';
+import { createDsOutsideWatcher } from './ds/outside.ts';
+import { registerDsUndoHook } from './ds/undo-hook.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { contentDisposition } from './exporters/file-names.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
@@ -1756,6 +1759,23 @@ export function createHttp(
     // S8.4 — Retry: only the failed items of one of THIS session's group jobs
     retry: (id, items, session, allow) => exportJobs.retry(id, items, session, allow),
   };
+  // S10.3 — the design-system engine (S10.2) over THE kernel port, its one ⌘Z hook, and the
+  // outside-change watcher (W = 5 s quiet per system folder, fed by the design-root fs events).
+  const dsEngine = createDsEngine({
+    designRoot: ctx.paths.designRoot,
+    kernel: kernelPortFrom(() => ctx.syncControl?.current?.() ?? null),
+  });
+  registerDsUndoHook(dsEngine);
+  const dsOutside = createDsOutsideWatcher({
+    designRoot: ctx.paths.designRoot,
+    engine: dsEngine,
+    onChange: (system) => ctx.bus.emit('ds:outside', { system }),
+  });
+  ctx.bus.on('fs:any', (rel: string) => dsOutside.notify(rel));
+  // S10.3b — a file the file plane delivered is a peer's change, not an unknown outside edit
+  ctx.bus.on('file-plane:delivered', (p: { rel?: unknown }) => {
+    if (typeof p?.rel === 'string') dsOutside.notify(p.rel, { kind: 'peer' });
+  });
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S11.4 — what is on this Mac vs still coming: the runtime's in-memory listing against the
@@ -1776,6 +1796,19 @@ export function createHttp(
       readBoard: (file) => api.readBoard(file),
       applyAnnotationOps: (file, ops) => api.applyAnnotationOps(file, ops),
       access: (req) => accessOf(req),
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
+    // S10.3 — `/_api/ds/*` (routes/ds.ts): Q15 gates on the session's access, the person by
+    // the same rule as a sticky's converter, the usage index the project index hosts (S10.5)
+    ds: {
+      engine: () => dsEngine,
+      outside: () => dsOutside,
+      usage: () => projectIndex.dsUsage(),
+      access: (req) => accessOf(req),
+      person: async (req) => {
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
+        return { name: vouched || (await api.gitCurrentUser()) || 'You' };
+      },
       emit: (e, p) => ctx.bus.emit(e, p),
     },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
@@ -2105,6 +2138,8 @@ export function createHttp(
       managed: isWorkspaceMode(),
     }),
     persist: !isWorkspaceMode(),
+    // S10.5 — host the ds-usage index (lazy; persisted on a desktop, memory-only in a cell)
+    dsUsage: { persist: !isWorkspaceMode() },
   });
   ctx.bus.on('fs:any', (rel: string) => {
     projectIndex.update([rel]);

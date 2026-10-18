@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "1b8bf9cc7b59",
+  "manifestVersion": "1458810509fc",
   "actions": [
     {
       "id": "search.open",
@@ -4334,6 +4334,176 @@
         "skill": "design:whiteboard",
         "how": "add the record’s `mine` to <slug>.annotations.json under a NEW id, to the right of the element; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
       }
+    },
+    {
+      "id": "ds.publish",
+      "label": "Update canvases",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/publish",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds publish <ds> [--leave-out <canvas>…]"
+      }
+    },
+    {
+      "id": "ds.cancel-pending",
+      "label": "Cancel",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --cancel"
+      }
+    },
+    {
+      "id": "ds.keep-outside",
+      "label": "Keep",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/outside",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds keep <ds>"
+      }
+    },
+    {
+      "id": "ds.undo-outside",
+      "label": "Undo",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/ds/outside",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds undo <ds>"
+      }
+    },
+    {
+      "id": "ds.pick",
+      "label": "Use this",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pick",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pick <ds> <css> --use canvas|file"
+      }
+    },
+    {
+      "id": "ds.canvas-update",
+      "label": "Update",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/canvas",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds canvas update <canvas>"
+      }
+    },
+    {
+      "id": "ds.canvas-leave",
+      "label": "Keep this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/canvas",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds canvas leave <canvas>"
+      }
+    },
+    {
+      "id": "ds.trash-token",
+      "label": "Move to Trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/trash",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds trash <ds> <css> --replacement <css>"
+      }
+    },
+    {
+      "id": "ds.restore-token",
+      "label": "Restore",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds restore <ds> <css>"
+      }
+    },
+    {
+      "id": "ds.clear-token",
+      "label": "Clear out",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "owner",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/clear",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds clear <ds> <css>"
+      }
     }
   ],
   "verbs": [
@@ -4857,6 +5027,30 @@
     },
     {
       "scope": "design",
+      "verb": "design ds status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds usage",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds revisions",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design comments reply",
       "effect": "shared",
       "tier": "prompt"
@@ -5140,6 +5334,22 @@
       "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
       "source": "hand",
       "skill": "design:design-system"
+    },
+    {
+      "format": "ds-revision",
+      "schema": "apps/studio/schema/ds-revision-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-revision-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system",
+      "runtime": true
+    },
+    {
+      "format": "ds-head",
+      "schema": "apps/studio/schema/ds-head-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-head-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system",
+      "runtime": true
     },
     {
       "format": "design-config",

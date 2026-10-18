@@ -42,6 +42,9 @@ export const SUB_VERBS = {
   sync: { status: NATIVE, resync: NATIVE },
   // S7.6c (V2-1.10 §5.7): a video's captions — `list` reads, `add` / `export` write in the project.
   captions: { add: NATIVE, list: NATIVE, export: NATIVE },
+  // S10.3 (S10 §2.4): the design-system reads; the helper (ds/ds-verb.ts) refuses a write flag
+  // after them. Every other `ds` sub-verb falls to the `ds` entry and prompts.
+  ds: { status: NATIVE, usage: NATIVE, revisions: NATIVE },
 };
 
 const STEP_FLAGS = {
