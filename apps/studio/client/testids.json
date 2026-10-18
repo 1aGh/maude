@@ -11630,5 +11630,19 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "insp-mab-<field>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The value of one field in the inspector over several artboards; `<field>` is preset, w, h, x, y or bg. Shows what the boards share, or \"Mixed\" (`data-mixed`). Read-only: group moves go through the align bar.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi-artboard.jsx",
+      "symbol": "Value"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-multi-artboard.test.tsx"],
+    "v2": "new"
   }
 ]

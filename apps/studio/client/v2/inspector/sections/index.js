@@ -4,6 +4,7 @@
 
 import { offArtboardSections } from '../kinds/artboard.jsx';
 import { offMulti } from '../kinds/multi.jsx';
+import { offMultiArtboard } from '../kinds/multi-artboard.jsx';
 import { offBorder } from './border.jsx';
 import { offCorners } from './corners.jsx';
 import { offEffects } from './effects.jsx';
@@ -22,6 +23,7 @@ export function unregisterSections() {
   offLayout();
   offFill();
   offMulti();
+  offMultiArtboard();
   offCorners();
   offBorder();
   offEffects();

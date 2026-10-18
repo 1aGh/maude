@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
@@ -189,4 +189,172 @@ describe('edit-artboards (part 1) — select, resize onto a preset, long page', 
   // TODO(S2.8 part 2, needs a 6000 px fixture board): the sticky name rides the window top, the contextual minimap
   // lists the sections, a click on one pans there, and the inspector line says "You're looking at 1727–5636 of 6000."
   it.skip('a 6000 px page keeps its name stuck, shows the minimap, and says where you are', async () => {});
+});
+
+/**
+ * 14 Editing — artboards, part 2 (S2.9): ⇧-click four boards, the align bar says "4 artboards" and has Tidy up; the
+ * pointer on it shows dashed outlines of one even row; the click moves the boards in ONE commit (positions in the
+ * `.meta.json` layout lane, never the camera file); ⌘Z puts them back. Also the bubble while one board is dragged.
+ * WRITTEN, NOT RUN (the lead runs the desktop lane). The canvas is written at run time and removed after, so the
+ * committed fixture set — and the other scenarios' canvas counts — stay as they are.
+ */
+const ARRANGE_TSX = join(HERE, '../fixtures/project/.design/ui/Arrange.tsx');
+const ARRANGE_META = join(HERE, '../fixtures/project/.design/ui/Arrange.meta.json');
+const BOARDS = ['one', 'two', 'three', 'four'];
+const START: Array<[number, number]> = [
+  [0, 40],
+  [300, 90],
+  [620, 0],
+  [930, 120],
+];
+
+const arrangeSource =
+  () => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
+
+export default function Arrange() {
+  return (
+    <DesignCanvas>
+      <DCSection id="arrange" title="Arrange" subtitle="S2.9">
+${BOARDS.map((id) => `        <DCArtboard id="${id}" label="Board ${id}" width={240} height={320} fixed>\n          <div data-cd-id="${id}-body" style={{ padding: 16 }}>{"${id}"}</div>\n        </DCArtboard>`).join('\n')}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+`;
+const arrangeMeta = () =>
+  JSON.stringify(
+    {
+      title: 'Arrange',
+      sections: [
+        {
+          id: 'arrange',
+          title: 'Arrange',
+          artboards: BOARDS.map((id) => ({ id, label: `Board ${id}`, width: 240, height: 320 })),
+        },
+      ],
+      layout: { artboards: BOARDS.map((id, i) => ({ id, x: START[i]?.[0], y: START[i]?.[1] })) },
+    },
+    null,
+    2
+  );
+
+const layoutOf = () =>
+  (
+    JSON.parse(readFileSync(ARRANGE_META, 'utf8')) as {
+      layout: { artboards: Array<{ id: string; x: number; y: number }> };
+    }
+  ).layout.artboards;
+
+/** Dispatch pointer/click events on a board's name inside the canvas frame. */
+function onLabel(id: string, types: string[], mods: Record<string, number | boolean> = {}) {
+  return browser.execute(
+    (bid, ts, m) => {
+      const iframe = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+      const win = iframe.contentWindow as Window & typeof globalThis;
+      const label = iframe.contentDocument?.querySelector(
+        `[data-dc-screen="${bid}"] .dc-artboard-label`
+      ) as HTMLElement;
+      for (const t of ts)
+        label.dispatchEvent(
+          new win.MouseEvent(t, { bubbles: true, cancelable: true, button: 0, ...m })
+        );
+    },
+    id,
+    types,
+    mods
+  );
+}
+
+/** Run a small read inside the canvas frame (the function text is evaluated there, with its document). */
+const inFrame = <T>(fn: (doc: Document) => T) =>
+  browser.execute((src) => {
+    const iframe = document.querySelector('[data-testid="canvas-frame"]') as HTMLIFrameElement;
+    return new Function('doc', `return (${src})(doc)`)(iframe.contentDocument);
+  }, fn.toString()) as Promise<T>;
+
+describe('edit-artboards (part 2) — arrange: Tidy up', () => {
+  before(() => {
+    fixtures.snapshot();
+    writeFileSync(ARRANGE_TSX, arrangeSource());
+    writeFileSync(ARRANGE_META, arrangeMeta());
+    startReport('edit-artboards (part 2)');
+  });
+  after(() => {
+    rmSync(ARRANGE_TSX, { force: true });
+    rmSync(ARRANGE_META, { force: true });
+    fixtures.restore();
+  });
+
+  it('⇧-click four boards: the align bar says "4 artboards" and offers Tidy up', async () => {
+    await waitForSidecar();
+    const row = await canvasRow('canvas-row-ui-arrange');
+    await row.waitForExist({ timeout: 60_000 });
+    await row.click();
+    await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await onLabel('one', ['pointerdown', 'pointerup', 'click']);
+    for (const id of BOARDS.slice(1))
+      await onLabel(id, ['pointerdown', 'pointerup', 'click'], { shiftKey: true });
+    await browser.waitUntil(
+      async () =>
+        (await inFrame((d) => d.querySelector('[data-testid="edit-align-count"]')?.textContent)) ===
+        '4 artboards',
+      { timeout: 15_000, timeoutMsg: 'the align bar never said "4 artboards"' }
+    );
+    expect(await inFrame((d) => d.querySelector('[data-testid="edit-tidy"]')?.textContent)).toBe(
+      'Tidy up'
+    );
+    await capture('artboards-selected-align-bar-tidy');
+  });
+
+  it('the pointer on Tidy up shows four dashed outlines in one row and writes nothing', async () => {
+    const before = readFileSync(ARRANGE_META, 'utf8');
+    await inFrame((d) => {
+      const b = d.querySelector('[data-testid="edit-tidy"]') as HTMLElement;
+      const win = d.defaultView as Window & typeof globalThis;
+      b.dispatchEvent(new win.PointerEvent('pointerover', { bubbles: true }));
+      return true;
+    });
+    const tops = await inFrame((d) =>
+      [...d.querySelectorAll('[data-testid="edit-tidy-ghost"]')].map(
+        (g) => (g as HTMLElement).style.top
+      )
+    );
+    expect(tops.length).toBe(4);
+    expect(new Set(tops).size).toBe(1); // one line
+    await capture('tidy-preview-one-row-even-gaps');
+    expect(readFileSync(ARRANGE_META, 'utf8')).toBe(before);
+  });
+
+  it('Tidy up: one row on the lowest board’s line, even gaps — positions in the layout lane, one ⌘Z back', async () => {
+    await inFrame((d) => {
+      (d.querySelector('[data-testid="edit-tidy"]') as HTMLElement).click();
+      return true;
+    });
+    await browser.waitUntil(() => new Set(layoutOf().map((b) => b.y)).size === 1, {
+      timeout: 15_000,
+      timeoutMsg: 'the boards never landed on one line',
+    });
+    const row = layoutOf();
+    expect(row[0]?.y).toBe(120); // the lowest board's top
+    const gaps = row.slice(1).map((b, i) => b.x - ((row[i]?.x ?? 0) + 240));
+    expect(new Set(gaps).size).toBe(1);
+    // the camera is per user: nothing about the tidy reaches the versioned file
+    expect(readFileSync(ARRANGE_META, 'utf8')).not.toMatch(/viewport|zoom/);
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(
+      () => JSON.stringify(layoutOf().map((b) => [b.x, b.y])) === JSON.stringify(START),
+      { timeout: 15_000, timeoutMsg: 'one ⌘Z did not put all four boards back' }
+    );
+  });
+
+  it('dragging one board shows its place beside the pointer: "X … · Y …"', async () => {
+    await onLabel('four', ['pointerdown'], { clientX: 0 });
+    await onLabel('four', ['pointermove'], { clientX: 40, clientY: 8 });
+    const bubble = await inFrame(
+      (d) => d.querySelector('[data-testid="edit-ab-bubble"]')?.textContent ?? null
+    );
+    expect(bubble).toMatch(/^X -?\d+ · Y -?\d+$/);
+    await capture('artboard-drag-bubble');
+    await browser.keys('Escape');
+  });
 });
