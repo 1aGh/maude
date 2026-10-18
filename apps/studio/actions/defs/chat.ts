@@ -57,6 +57,17 @@ export const CHAT_ACTIONS: ActionDef[] = [
     search: ROW,
   },
   {
+    // S5.5b (V2-1.5 §5.3) — the chat row ⋯ menu and Version history's AI row: every action this
+    // person's AI made in the chat, undone as ONE new version (POST /_api/project/undo {chatId}).
+    // An old team server answers `needs-hub-update` and the row is disabled with its line.
+    id: 'chat.undo',
+    label: 'Undo this chat',
+    kind: 'command',
+    exec: 'shell',
+    visible: DESKTOP_EDIT,
+    search: ROW,
+  },
+  {
     id: 'chat.copy-transcript',
     label: 'Copy transcript',
     kind: 'command',
