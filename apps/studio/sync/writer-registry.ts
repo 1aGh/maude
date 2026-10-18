@@ -81,6 +81,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-array-src': { ...LANE_SOURCE, rows: 'V06' },
   '/_api/clip-edit': { ...LANE_SOURCE, rows: 'V07–V10' },
   // --- shared meta, annotations, comments (S19, S23, S24)
+  // S9.7b — the comment door: one comments/ops.ts op as the session.
+  '/_api/comments/op': {
+    class: 'lane',
+    rows: 'S24',
+    via: 'api.commentOp → publishComments (onCommentsChanged, doc first) → comments lane',
+    test: 'test/comments-op-route.test.ts',
+  },
   '/_api/canvas-meta': {
     class: 'lane',
     rows: 'S19',

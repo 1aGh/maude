@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "6c52ed92b9c7",
   "actions": [
     {
       "id": "search.open",
@@ -1174,7 +1174,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design comments list"
+        "verb": "maude design comments add --as-ai"
       }
     },
     {
@@ -1505,7 +1505,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design comments list"
+        "verb": "maude design comments add --as-ai"
       }
     },
     {
@@ -2933,6 +2933,30 @@
     },
     {
       "scope": "design",
+      "verb": "design comments reply",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments resolve",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments reopen",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments add",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design comments",
       "effect": "shared",
       "tier": "prompt"
@@ -3142,6 +3166,14 @@
       "id": "https://maude.sh/schema/canvas-meta/v2",
       "source": "hand",
       "skill": "design:design#_guide-17"
+    },
+    {
+      "format": "comments",
+      "schema": "apps/studio/schema/comments.v2.schema.json",
+      "id": "https://maude.sh/schema/comments/v2",
+      "source": "hand",
+      "skill": "design:design#_guide-05",
+      "runtime": true
     },
     {
       "format": "edl",
