@@ -271,5 +271,35 @@
   .ed-insp-line-act:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  /* S2.11b — the numbered slot a lifted card would land in (Layers draws what the canvas draws).
+     Reduced motion collapses the fade to 1 ms: the place still shows, it just does not animate. */
+  .st-layer-slot {
+    border: 1px dashed var(--accent);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
+    pointer-events: none;
+    animation: st-layer-slot-in var(--dur-panel) var(--ease-out);
+  }
+  .st-layer-slot-n {
+    min-width: var(--space-4);
+    padding: 0 var(--space-1);
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    text-align: center;
+  }
+  @keyframes st-layer-slot-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .st-layer-slot {
+      animation-duration: 1ms;
+    }
   }
 }

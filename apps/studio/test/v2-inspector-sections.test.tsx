@@ -338,6 +338,57 @@ describe('Layout', () => {
   });
 });
 
+describe('Position pins go through object.constrain (S2.11b)', () => {
+  const GEO = { x: 1296, y: 486, w: 80, h: 44, parentW: 1440, parentH: 600 };
+  const FREE = {
+    authored: { position: 'absolute', left: '1296px', top: '486px' },
+    computed: { position: 'absolute' },
+    geometry: GEO,
+    refs: [{ artboard: 'desktop', element: 'book-call' }],
+  };
+  const ran: Array<Record<string, unknown>> = [];
+  const over = { onRunAction: (m: Record<string, unknown>) => ran.push(m) };
+  beforeEach(() => {
+    ran.length = 0;
+  });
+  test('Right then Bottom: each pin is ONE run-action carrying both edges and the measured box; no edit-css', async () => {
+    const host = await frame(over, FREE);
+    await pick(q(host, 'insp-pin-h'), 'right');
+    expect(ran.length).toBe(1);
+    expect(ran[0]).toEqual({
+      dgn: 'run-action',
+      v: 1,
+      id: 'object.constrain',
+      params: {
+        targets: [{ artboard: 'desktop', element: 'book-call' }],
+        h: 'right',
+        v: 'top',
+        geometry: GEO,
+      },
+    });
+    // the second pin builds on the first (the file has not reloaded yet): 64 from the corner
+    await pick(q(host, 'insp-pin-v'), 'bottom');
+    expect(ran.length).toBe(2);
+    expect(ran[1]?.params).toMatchObject({ h: 'right', v: 'bottom' });
+    expect(posts).toEqual([]);
+  });
+  test('the pin picture toggles an edge the same way', async () => {
+    const host = await frame(over, FREE);
+    await click(host.querySelector('[aria-label="Pin right"]'), 'pin right');
+    expect(ran[0]?.params).toMatchObject({ h: 'both', v: 'top' });
+  });
+  test('an old canvas bundle (no refs) or no way to run an action keeps the edit-css path', async () => {
+    const host = await frame(over, { ...FREE, refs: undefined });
+    await pick(q(host, 'insp-pin-h'), 'both');
+    expect(ran).toEqual([]);
+    expect(edits().length).toBeGreaterThan(0);
+    posts.length = 0;
+    const host2 = await frame({}, FREE);
+    await pick(q(host2, 'insp-pin-h'), 'both');
+    expect(edits().length).toBeGreaterThan(0);
+  });
+});
+
 describe('Position', () => {
   const PLACED = {
     authored: { position: 'absolute', left: '1220px', top: '22px' },

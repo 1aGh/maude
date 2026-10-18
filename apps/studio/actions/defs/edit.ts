@@ -287,6 +287,72 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['object'] },
     search: { keywords: ['rotate', 'turn', 'angle'] },
   },
+  // S2.11 (ed-lay-auto · ed-lay-reorder · ed-lay-free) — layout. Place freely makes X and Y the
+  // object's own (CSS, not data-cd-*); ← → (↑ ↓ in a column) move an object earlier / later in its
+  // auto layout — the keys are handled in the canvas (a flex child's arrows), because a registry
+  // predicate cannot say "inside auto layout", and v1's nudge ignores a child that sits in a layout.
+  // `object.reorder-to` (the drop of a drag, ⌥ = a copy) and `object.constrain` (the Position row's
+  // pins) are the same family: edit-ops with params, run by the gesture, not offered in ⌘K.
+  // `layout.convert-to-absolute` is v1's "Convert layout to absolute", re-homed in the inspector's
+  // Layout › Advanced; the right-click row stays.
+  {
+    id: 'object.place-freely',
+    label: 'Place freely',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['absolute', 'free', 'position', 'ignore auto layout', 'x y'] },
+  },
+  {
+    id: 'object.reorder-earlier',
+    label: 'Move earlier',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['reorder', 'order', 'earlier', 'before', 'left', 'up'] },
+  },
+  {
+    id: 'object.reorder-later',
+    label: 'Move later',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['reorder', 'order', 'later', 'after', 'right', 'down'] },
+  },
+  {
+    id: 'object.reorder-to',
+    label: 'Move next to…',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'object.constrain',
+    label: 'Constraints',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  // S2.11c — ⌥ on a gap drag: one gap value over several auto layouts, one write and one undo step.
+  // A gesture, like `object.reorder-to`: not offered in ⌘K.
+  {
+    id: 'layout.set-gap',
+    label: 'Set gap',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'layout.convert-to-absolute',
+    label: 'Convert children to absolute position',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['remove auto layout', 'absolute', 'free', 'unlayout', 'convert layout'] },
+  },
   // S2.2 (D18) — the inspector's Advanced actions. Shell commands on the selected element, ⌘K only
   // (their homes are the buttons and the id field inside Inspector › Advanced, client/v2/inspector/).
   // Greyed without an object selected. Setting an id is a write, so it is greyed below Can edit too.

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { StIcon } from '../shell/icons.jsx';
 import { LayerRowTools } from '../v2/inspector/layers-row-tools.jsx';
+import { LayerSlotRow } from '../v2/inspector/layers-slot.jsx';
 
 // ---------- Inspector panel (display-only) ----------
 //
@@ -288,28 +289,33 @@ export function LayerRow({
         ) : null}
       </div>
       {hasKids && !isCollapsed
-        ? node.children.map((c, ci) => (
-            <LayerRow
-              key={`${c.id}:${c.index}`}
-              node={c}
-              depth={depth + 1}
-              selectedId={selectedId}
-              selectedIndex={selectedIndex}
-              collapsed={collapsed}
-              hiddenOverride={hiddenOverride}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onHover={onHover}
-              onToggleVisibility={onToggleVisibility}
-              onReorder={onReorder}
-              onRowPointerDown={onRowPointerDown}
-              dragState={dragState}
-              componentMap={componentMap}
-              lockedKeys={lockedKeys}
-              onToggleLock={onToggleLock}
-              onRename={onRename}
-            />
-          ))
+        ? node.children.map((c, ci) =>
+            // S2.11b — the numbered slot a lifted card would land in (drawn from a copy of the tree)
+            c.slot ? (
+              <LayerSlotRow key="__slot__" node={c} depth={depth + 1} />
+            ) : (
+              <LayerRow
+                key={`${c.id}:${c.index}`}
+                node={c}
+                depth={depth + 1}
+                selectedId={selectedId}
+                selectedIndex={selectedIndex}
+                collapsed={collapsed}
+                hiddenOverride={hiddenOverride}
+                onToggle={onToggle}
+                onSelect={onSelect}
+                onHover={onHover}
+                onToggleVisibility={onToggleVisibility}
+                onReorder={onReorder}
+                onRowPointerDown={onRowPointerDown}
+                dragState={dragState}
+                componentMap={componentMap}
+                lockedKeys={lockedKeys}
+                onToggleLock={onToggleLock}
+                onRename={onRename}
+              />
+            )
+          )
         : null}
     </>
   );

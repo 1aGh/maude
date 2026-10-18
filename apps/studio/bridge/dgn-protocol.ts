@@ -117,6 +117,12 @@ export interface CanvasToShell {
     expectRev?: string;
   };
   'active-artboard': { id: Id | null };
+  /**
+   * S2.11b — the slot a lifted card would land in, for Layers to draw the same numbered place
+   * (ed-lay-reorder). `index` is 1-based among `total` siblings of the frame `parentId`; `index: 0`
+   * = the drag ended (no slot). A frame with no `data-cd-id` has no `parentId` and Layers draws none.
+   */
+  'reorder-slot': { index: number; total: number; parentId?: Id };
   'layers-tree': { artboardId: Id | null; tree: LayerNode[] };
   'open-inspector': { tab?: string };
   'copy-style': Empty;
@@ -511,16 +517,18 @@ const shape =
     }
     return out;
   };
+/** A whole number in [min, max]. */
+const intIn =
+  (min: number, max: number): V =>
+  (v) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : BAD;
+/** The `data-cd-id` grammar the writers accept (api.ts CD_ID_RE): word characters and dashes, 1–64. */
+const cdId: V = (v) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : BAD);
 const rect = shape({ x: num, y: num, w: num, h: num });
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
 const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
-/** S3.7a — bounded ints, like the awareness `present` field (S3-present-session §2). */
-const intIn =
-  (lo: number, hi: number): V =>
-  (v) =>
-    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : BAD;
 const PRESENT_SID = /^[a-z0-9]{8,32}$/;
 const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
@@ -677,6 +685,22 @@ const c2s: C2S = {
     }),
   },
   'active-artboard': { gate: 'active', status: 'live', owner: BR, parse: p({ id: nul(str) }) },
+  'reorder-slot': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/reorder-slot',
+    parse: (raw) => {
+      const r = p<CanvasToShell['reorder-slot']>({
+        index: intIn(0, MAX_ARR),
+        total: intIn(0, MAX_ARR),
+        parentId: opt(cdId),
+      })(raw);
+      // a slot lies inside its total and names its frame; index 0 is "the drag ended"
+      if (!r || r.index > r.total) return null;
+      if (r.index > 0 && r.parentId === undefined) return null;
+      return r;
+    },
+  },
   'layers-tree': {
     gate: 'active',
     status: 'live',

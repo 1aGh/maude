@@ -14,14 +14,18 @@ import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { alignOps } from './align.ts';
 import { artboardResize } from './artboard-resize.ts';
+import { objectConstrain } from './constraints.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
+import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
+import { reorderOps } from './reorder.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
+import { layoutSetGap } from './set-gap.ts';
 import { elementSetId } from './set-id.ts';
 import {
   EDIT_OP_STATUS,
@@ -64,6 +68,12 @@ export const EDIT_OPS: readonly EditOp[] = [
   // S2.10 — ⌘D / ⌥-drag / the artboard menu: a copy beside its source, in one write
   artboardDuplicate,
   artboardDuplicateAtWidth,
+  // S2.11 — Place freely, constraints, reorder (earlier / later / to a slot)
+  objectPlaceFreely,
+  objectConstrain,
+  ...reorderOps,
+  // S2.11c — ⌥ "every gap at once": one gap value over several auto layouts, one write
+  layoutSetGap,
 ];
 
 export interface AiHoldHit {

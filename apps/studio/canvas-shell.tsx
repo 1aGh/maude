@@ -85,6 +85,8 @@ import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
 import { editOpRecord } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
+// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
+import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
@@ -1928,6 +1930,12 @@ function buildRegistry(deps: {
     }
     await runSubtreeConvert(containerEl, containerId, artboardId);
   };
+  // S2.11 — the registry action `layout.convert-to-absolute` (⌘K, Layout › Advanced) runs this same
+  // function: editing/layout-actions.ts calls it through the window.
+  if (typeof window !== 'undefined')
+    (
+      window as unknown as { __maudeConvertToAbsolute?: (el: HTMLElement) => Promise<void> }
+    ).__maudeConvertToAbsolute = postConvertToAbsolute;
   // Artboard-level (context menu + kind switch).
   const postConvertArtboardToAbsolute = async (
     artboardId: string,
@@ -3831,6 +3839,8 @@ function ReorderDrag() {
       settleKey: string | null;
       /** The last PREVIEWED (already reflowed) drop, committed on release. */
       applied: { refId: string; position: 'before' | 'after' | 'inside-end' } | null;
+      /** S2.11 — the neighbour element `applied` names (⌥ copy needs the node, not the id). */
+      appliedRef: HTMLElement | null;
       /** Stamped [data-cd-id] nodes in their ORIGINAL order — for computing a
        *  reused instance's occurrence index even after the DOM reflowed. */
       snapshot: Element[] | null;
@@ -3965,7 +3975,7 @@ function ReorderDrag() {
     // its own cursor-following transform. Deltas divide by each element's own
     // zoom (screen px → world px), same math as the float. Respects
     // prefers-reduced-motion (skips straight to the end state).
-    const REFLOW_MS = 180;
+    // S2.11 — neighbours slide on --dur-panel / --ease-out (panelMotion), not a private 180 ms.
     const animateReflow = (moved: HTMLElement, act: () => void) => {
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         act();
@@ -3997,8 +4007,9 @@ function ReorderDrag() {
       }
       if (!anims.length) return;
       void document.body.offsetWidth; // flush the inverted state
+      const motion = panelMotion();
       for (const a of anims) {
-        a.el.style.transition = `transform ${REFLOW_MS}ms ease`;
+        a.el.style.transition = `transform ${motion.ms}ms ${motion.easing}`;
         a.el.style.transform = 'translate(0px, 0px)';
       }
       setTimeout(() => {
@@ -4007,7 +4018,7 @@ function ReorderDrag() {
           a.el.style.transition = a.prevTransition;
           a.el.style.transform = a.prevTransform;
         }
-      }, REFLOW_MS + 40);
+      }, motion.ms + 40);
     };
 
     // Move the node to match the target (used by the settle preview AND the
@@ -4057,6 +4068,7 @@ function ReorderDrag() {
       if (!drop) return;
       animateReflow(d.el, () => applyDrop(d.el, t));
       d.applied = drop;
+      d.appliedRef = t.kind === 'inside' ? t.container : t.el;
       d.el.style.transform = 'none';
       const rect = d.el.getBoundingClientRect();
       d.zoom = d.el.offsetWidth ? rect.width / d.el.offsetWidth : 1;
@@ -4086,6 +4098,7 @@ function ReorderDrag() {
       else d.el.setAttribute('style', d.prevStyle);
       setHighlight(null);
       hideDivider();
+      reorderSlot.end();
       suppressNextCanvasClick();
       drag = null;
       setElementDragActive(false);
@@ -4133,6 +4146,7 @@ function ReorderDrag() {
         settle: null,
         settleKey: null,
         applied: null,
+        appliedRef: null,
         snapshot: null,
         outOfFlow: outOfFlowPos === 'absolute' || outOfFlowPos === 'fixed',
         originLeft: 0,
@@ -4162,6 +4176,7 @@ function ReorderDrag() {
         // reflect the pre-drag layout, not the reflowed one.
         d.snapshot = [...document.querySelectorAll('[data-cd-id]')];
         d.prevStyle = d.el.getAttribute('style');
+        if (!d.outOfFlow) reorderSlot.begin(d.el, d.origin?.parent ?? null);
         if (d.outOfFlow) {
           // Resolved (used) value in px — matches the unit space `left`/`top`
           // are written back in, regardless of an ancestor's zoom transform
@@ -4197,6 +4212,7 @@ function ReorderDrag() {
       const target = computeTarget(e.clientX, e.clientY, d);
       const current = target ? isCurrentPosition(target, d) : false;
       d.target = target && !current ? target : null;
+      reorderSlot.move(e.clientX, e.clientY, e.altKey, !!target);
       if (!d.target) {
         clearSettle(d);
         setHighlight(null);
@@ -4227,9 +4243,12 @@ function ReorderDrag() {
       setElementDragActive(false);
       setHighlight(null);
       hideDivider();
+      const slot = reorderSlot.end();
       if (!d || e.pointerId !== d.pointerId) return;
       if (!d.dragging) return; // a plain click — leave it to native handlers
       clearSettle(d);
+      // S2.11 — where the float was when the pointer let go (screen px), before it is un-floated
+      const floatRect = d.el.getBoundingClientRect();
       // Occurrence index of a node among its like-id siblings, read from the
       // PRE-drag snapshot (the live DOM already reflowed for an in-flow drop). For
       // a reused component (many DOM nodes share one internal id) the server maps
@@ -4280,6 +4299,43 @@ function ReorderDrag() {
       // Un-float: restore the element's exact original inline style.
       if (d.prevStyle == null) d.el.removeAttribute('style');
       else d.el.setAttribute('style', d.prevStyle);
+      // S2.11 — a drop outside the frame places the card freely; ⌥ drops a copy in the slot. Both
+      // are edit-ops (editing/reorder-slot.tsx); the card goes back to where it was lifted from so
+      // the canvas shows what the file has until the remount.
+      if (slot && (slot.out || e.altKey)) {
+        const fresh = d.target ? targetToDrop(d.target) : null;
+        const drop = fresh ?? d.applied;
+        const refEl = fresh
+          ? d.target?.kind === 'inside'
+            ? d.target.container
+            : (d.target?.el ?? null)
+          : d.appliedRef;
+        if (d.applied && d.origin) {
+          try {
+            d.origin.parent.insertBefore(d.el, d.origin.next);
+          } catch {
+            /* origin gone — remount re-syncs */
+          }
+        }
+        if (
+          takeOver({
+            el: d.el,
+            floatRect: {
+              left: floatRect.left,
+              top: floatRect.top,
+              width: floatRect.width,
+              height: floatRect.height,
+            },
+            ref: refEl,
+            position: drop?.position ?? null,
+            altKey: e.altKey,
+            out: slot.out,
+          })
+        ) {
+          suppressNextCanvasClick();
+          return;
+        }
+      }
       // Commit priority: a fresh (un-settled) target under the cursor wins;
       // otherwise the last settled preview (the layout the user is LOOKING at).
       let drop = d.target ? targetToDrop(d.target) : null;

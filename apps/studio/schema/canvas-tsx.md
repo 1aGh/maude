@@ -97,3 +97,17 @@ Annotations that belong to a moved artboard move with it (their `x` / `y` in the
 4. **Annotations are not copied** with an artboard (v2.0).
 
 "Rename" is the `label` prop (up to 80 characters). "Reset position" removes the board's `layout.artboards[]` entry.
+## Auto layout, reorder and free placement: the same result by hand (S2.11)
+
+The gap bands, the token ruler, the reorder slot, Place freely and the constraints run `edit-op`s
+(`apps/studio/edit-ops/{place-freely,constraints,reorder}.ts`) or the Layout section's CSS writer. An agent edits
+the file and gets the same bytes.
+
+| Gesture | What the file looks like afterwards |
+| --- | --- |
+| Drag a gap (clicks onto the system's space stops; ⌘ any number; ⌥ every gap of that size in the frame) | `style.gap` on the frame, in px (`var(--space-N)` when the system names the stop). Padding is `style.padding*`. |
+| Drag a card to a new slot · ← → · move earlier / later | The card's JSX moves among its siblings: in an auto layout the order in the code is the order on the canvas (and in Layers). One move, nothing else changes. |
+| ⌥-drag | The card is duplicated into the slot; the copy keeps no `data-cd-id` or `data-cd-locked`. |
+| Place freely (or drag out of the frame) | On the card: `style.position: "absolute"`, `left`, `top`, `width`, `height` in px as it sits now (inside its frame's padding box, margin taken off). A frame that was `static` gets `position: "relative"`. CSS only — no `data-cd-*` is added. A `style` the file computes is left alone. |
+| Constraints (Position › Pins) | On a freely placed object: Right replaces `left` with `right: <distance to the frame's right edge>`, Bottom likewise with `bottom`; Left & Right sets both and drops `width`; Center is `calc(50% ± Npx)`; Scale is percentages. Datum pinned Right and Top keeps `right: 64px; top: 64px` in every size of the frame, so a story made with Duplicate at another width still shows it there. |
+| Convert children to absolute position | Each child gets `position: "absolute"` with `left` / `top` / `width` / `height` as rendered, and a static frame `position: "relative"` (its own size is frozen when it would collapse). The children no longer take part in the layout, so the frame stops arranging them. |

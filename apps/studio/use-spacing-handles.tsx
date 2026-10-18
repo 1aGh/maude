@@ -19,6 +19,9 @@
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { globalCdOccurrence, resolveSelectionEl } from './dom-selection.ts';
 import { isElementDragActive } from './drag-state.ts';
+import { layoutOpsDeps } from './editing/reorder-slot.tsx';
+import { framesWithGap, runSetGap } from './editing/set-gap.ts';
+import { gapValue, rulerWindow, spaceStops, tokenRuler } from './editing/token-ruler.tsx';
 import {
   computeGapDrag,
   computeGapMidpoints,
@@ -114,6 +117,10 @@ interface SpacingDrag {
    *  Alt+Shift (all) box-model modifiers (`paddingSideSet`), which can touch
    *  sides OTHER than the one grabbed. Undefined for a gap drag. */
   paddingBefore?: Record<PaddingSide, string | null>;
+  /** S2.11 — the design system's space stops (px, ascending); a gap drag clicks onto them. Empty = free. */
+  stops: number[];
+  /** S2.11 — which gap (0 = between the first two children) is held; the bands light that one. */
+  gapIndex: number;
 }
 
 /** One touched property's before/after — the shape `resizeElement`'s multi-prop
@@ -261,6 +268,20 @@ export function SpacingHandlesOverlay(): ReactNode {
     }
   }, []);
 
+  /**
+   * ⌥ — every gap that was the size of the held one, in this frame and the frames inside it, becomes
+   * the new value: ONE `layout.set-gap` edit-op (one write, one undo step; S2.11c). A refusal puts the
+   * held frame's preview back.
+   */
+  const commitEveryGap = useCallback(async (d: SpacingDrag, value: number) => {
+    const frames = [d.el, ...framesWithGap(d.el, d.startValue)];
+    const result = await runSetGap(frames, value, layoutOpsDeps.current);
+    if (result && !result.ok) {
+      if (d.before == null) d.el.style.removeProperty(d.prop);
+      else d.el.style.setProperty(d.prop, d.before);
+    }
+  }, []);
+
   useEffect(() => {
     const c = containerRef.current;
     if (!c) return;
@@ -292,6 +313,8 @@ export function SpacingHandlesOverlay(): ReactNode {
         startClientY: e.clientY,
         zoom: zoom > 0 ? zoom : 1,
         startValue: computedPx(cs, prop),
+        stops: isGap ? spaceStops(document) : [],
+        gapIndex: isGap ? Array.from(c.querySelectorAll('.dc-spacing-handle--gap')).indexOf(t) : -1,
         prop,
         before: el.style.getPropertyValue(prop) || null,
         // Alt (pair) / Alt+Shift (all sides) can touch sides OTHER than the one
@@ -324,17 +347,37 @@ export function SpacingHandlesOverlay(): ReactNode {
       return sides.map((s) => ({ prop: `padding-${s}`, before: d.paddingBefore?.[s] ?? null }));
     };
 
+    // S2.11 — a gap clicks onto the system's space stops (⌘ = any number); padding stays free.
+    const valueFor = (d: SpacingDrag, ev: PointerEvent, dx: number, dy: number): number => {
+      if (d.kind !== 'gap')
+        return computePaddingDrag(d.side ?? 'top', d.startValue, dx, dy, d.zoom);
+      const raw = computeGapDrag(d.axis, d.startValue, dx, dy, d.zoom);
+      return gapValue(raw, d.stops, ev.metaKey || ev.ctrlKey);
+    };
+    const showRuler = (d: SpacingDrag, ev: PointerEvent, value: number) => {
+      if (!d.stops.length) return;
+      const free = ev.metaKey || ev.ctrlKey;
+      tokenRuler.show({
+        x: ev.clientX,
+        y: ev.clientY,
+        stops: rulerWindow(d.stops, value),
+        on: free ? null : value,
+        value,
+        free,
+        all: ev.altKey,
+        gapIndex: d.gapIndex,
+      });
+    };
+
     const onMove = (e: PointerEvent) => {
       const d = dragRef.current;
       if (!d || e.pointerId !== d.pointerId) return;
       e.preventDefault();
       const dx = e.clientX - d.startClientX;
       const dy = e.clientY - d.startClientY;
-      const next =
-        d.kind === 'gap'
-          ? computeGapDrag(d.axis, d.startValue, dx, dy, d.zoom)
-          : computePaddingDrag(d.side ?? 'top', d.startValue, dx, dy, d.zoom);
+      const next = valueFor(d, e, dx, dy);
       for (const entry of touchedEntries(d, e)) d.el.style.setProperty(entry.prop, `${next}px`);
+      if (d.kind === 'gap') showRuler(d, e, next);
     };
 
     const onUp = (e: PointerEvent) => {
@@ -345,17 +388,17 @@ export function SpacingHandlesOverlay(): ReactNode {
         `.dc-spacing-handle[data-prop="${d.prop}"][data-dragging="true"]`
       );
       if (handle) delete handle.dataset.dragging;
+      tokenRuler.hide();
       const dx = e.clientX - d.startClientX;
       const dy = e.clientY - d.startClientY;
-      const next =
-        d.kind === 'gap'
-          ? computeGapDrag(d.axis, d.startValue, dx, dy, d.zoom)
-          : computePaddingDrag(d.side ?? 'top', d.startValue, dx, dy, d.zoom);
+      const next = valueFor(d, e, dx, dy);
       const entries = touchedEntries(d, e);
       const after = `${next}px`;
       const changed = entries.some((entry) => after !== (entry.before ?? `${d.startValue}px`));
       if (!changed) return; // no-op guard
-      commit(d, entries, next);
+      // ⌥ on a gap: one multi-frame op carries the held frame too (no second write for it)
+      if (d.kind === 'gap' && e.altKey) void commitEveryGap(d, next);
+      else commit(d, entries, next);
     };
 
     // Restore the pre-drag inline value(s) if the shell reports the write
@@ -380,13 +423,14 @@ export function SpacingHandlesOverlay(): ReactNode {
     window.addEventListener('pointercancel', onUp);
     window.addEventListener('message', onFail);
     return () => {
+      tokenRuler.hide();
       c.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('message', onFail);
     };
-  }, [one, commit]);
+  }, [one, commit, commitEveryGap]);
 
   return <div ref={containerRef} aria-hidden="true" />;
 }

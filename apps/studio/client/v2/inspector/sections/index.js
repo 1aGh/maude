@@ -3,6 +3,7 @@
 // frame is wired (client/inspector/inspector-panel.jsx).
 
 import { offArtboardSections } from '../kinds/artboard.jsx';
+import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
 import { offMulti } from '../kinds/multi.jsx';
 import { offMultiArtboard } from '../kinds/multi-artboard.jsx';
 import { offBorder } from './border.jsx';
@@ -31,4 +32,6 @@ export function unregisterSections() {
   offInteraction();
   offExportSlot();
   offArtboardSections();
+  offPlaceFreely();
+  offConvert();
 }

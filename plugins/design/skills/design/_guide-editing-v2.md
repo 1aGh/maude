@@ -37,3 +37,12 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
 - **Rename** is the `label` prop (double-click the name, ↵ saves, esc cancels, Tab opens the next artboard's name).
 - **Reset position** removes the artboard's `layout.artboards[]` entry: it returns to the default grid.
 - Full recipe: `apps/studio/schema/canvas-tsx.md` ("Duplicate an artboard").
+## Layout: auto layout, reorder, free placement (S2.11)
+
+- **Gap and padding** are `style.gap` / `style.padding*` on the frame (a Design-system space token when the system
+  has the stop). **Reorder** is moving the card's JSX among its siblings — in an auto layout the order in the code
+  is the order on the canvas; a copy (⌥-drag) is a duplicate without `data-cd-id` / `data-cd-locked`.
+- **Place freely** = `position: "absolute"` plus `left`, `top`, `width`, `height` in px on the card (and
+  `position: "relative"` on a static frame). Plain CSS, never a `data-cd-*` attribute. **Constraints** keep edges:
+  `right` / `bottom` carry the distance to the frame's edge instead of `left` / `top`; both edges drop `width`.
+  Datum with `right: 64px; top: 64px` stays 64 from the corner at every artboard size.

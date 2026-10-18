@@ -5,8 +5,14 @@
 // placed by its frame, and says so. Rotation keeps the rest of the transform. Constraints pin edges; converting
 // from one pin to another needs the object's distances to the frame's edges, which the canvas reports as
 // `el.geometry` ({ x, y, w, h, parentW, parentH } in world px) — until it does, the pins read but do not write.
+//
+// S2.11b: a pin is ONE `object.constrain` edit-op, asked of the canvas through `run-action` (`ctx.onRunAction`)
+// with the pins and the measured box — all four edges in one write, one undo step ("64 from the corner"). A
+// canvas bundle that does not report `refs` (an old one) has no such action; there the pins keep writing the
+// CSS declarations through /_api/edit-css, exactly as before.
 
 import { RotateCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { constraintsToCss, positionToCss, toWords } from '../../../../edit-ops/words-css.ts';
 import { NumberField, Select } from '../../../inspector-controls.jsx';
 import { useCssWrite } from '../css-write.js';
@@ -59,13 +65,28 @@ const pinsOf = (c) => ({
   bottom: c.v === 'bottom' || c.v === 'both',
 });
 
+/** The shell → canvas message for one pin change: the canvas runs `object.constrain` (editing/layout-actions.ts). */
+export function constrainMessage(ref, pins, geometry) {
+  return {
+    dgn: 'run-action',
+    v: 1,
+    id: 'object.constrain',
+    params: { targets: [ref], h: pins.h, v: pins.v, geometry },
+  };
+}
+
 export function PositionBody({ el, ctx }) {
   const { css, editable, write } = useCssWrite(el, ctx);
   const read = effectiveCss(el, css);
   const placed = PLACED.has((read.position || '').trim());
   const geometry = el?.geometry ?? null;
   const words = toWords(css, { geometry }).position;
-  const c = words.constraints ?? { h: 'left', v: 'top' };
+  // the pins just asked for, shown until the canvas re-posts the file as it is now
+  const [asked, setAsked] = useState(null);
+  const fresh = `${el?.id ?? ''}#${el?.index ?? 0}~${JSON.stringify(el?.authored ?? null)}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear on a fresh selection payload only
+  useEffect(() => setAsked(null), [fresh]);
+  const c = asked ?? words.constraints ?? { h: 'left', v: 'top' };
   const free = placed && ['absolute', 'fixed'].includes((read.position || '').trim());
   const ctxw = { geometry, transform: css.transform };
   // each field writes only the declarations it owns: X the left/right edges, Y the top/bottom, Rotation the transform
@@ -80,6 +101,12 @@ export function PositionBody({ el, ctx }) {
     );
   const setPin = (next) => {
     if (!editable || !geometry) return;
+    const ref = Array.isArray(el?.refs) ? el.refs[0] : null;
+    if (ctx?.onRunAction && ref) {
+      setAsked({ h: next.h, v: next.v });
+      ctx.onRunAction(constrainMessage(ref, next, geometry));
+      return;
+    }
     write(constraintsToCss(next, geometry));
   };
   const toggle = (edge) => {

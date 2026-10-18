@@ -13458,6 +13458,314 @@
     "v2": "new"
   },
   {
+    "hook": "edit-gap-bands",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer of bands over a selected auto-layout frame (a row or column of two or more children).",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-gap-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one band over a gap between two children, tinted in the guide colour; `data-hot` marks the gap being dragged.",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pad-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one band along an edge of the frame's padding (`data-key` is top, right, bottom or left).",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-gap-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the chip on a gap band with its size in world px (\"24\").",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pad-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the chip on the top and left padding bands (\"24\").",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ruler beside the pointer while a gap is dragged; `data-free` while ⌘ makes it any number.",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler-stop-<px>",
+    "kind": "testid (pattern)",
+    "pattern": true,
+    "meaning": "Canvas iframe: one stop of the ruler (the design system's space scale, five around the current value); `data-on` is the lit one.",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler-free",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the number the gap would be while ⌘ ignores the stops.",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the hint under the ruler, \"⌘ any number · ⌥ every gap at once\".",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-slot-layer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer drawn while a card is lifted to be reordered.",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-slot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the empty, numbered slot where the lifted card will land (`data-n` is its place).",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-slot-n",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the number in the slot.",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-slot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers: the empty, numbered row where a lifted card will land, among its frame's rows (`data-n` is its place) — the same slot the canvas draws.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/layers-slot.jsx",
+      "symbol": "LayerSlotRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the tag that follows the lifted card (\"Small apps · moves to 1 of 3\"; `data-copy` while ⌥ is held, `data-out` outside the frame).",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pin-guides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer of pin guides for a freely placed object that keeps edges of its frame.",
+    "producer": {
+      "file": "apps/studio/editing/place-freely.tsx",
+      "symbol": "PinGuides"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pin-guide-<edge>",
+    "kind": "testid (pattern)",
+    "pattern": true,
+    "meaning": "Canvas iframe: the guide from a pinned edge to the frame's edge; `<edge>` is top, right, bottom or left.",
+    "producer": {
+      "file": "apps/studio/editing/place-freely.tsx",
+      "symbol": "PinGuides"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pin-chip-<edge>",
+    "kind": "testid (pattern)",
+    "pattern": true,
+    "meaning": "Canvas iframe: the distance on that guide in world px (\"64\").",
+    "producer": {
+      "file": "apps/studio/editing/place-freely.tsx",
+      "symbol": "PinGuides"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-place-freely",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Position: the Place freely button of an object that sits in an auto layout (runs `object.place-freely`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "PlaceFreelyBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-reorder-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Position: \"In auto layout, ← → move it earlier or later.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "PlaceFreelyBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-layout-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Layout: the \"Advanced\" subhead above Convert.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "ConvertBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-layout-convert",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Layout › Advanced: Convert children to absolute position (runs `layout.convert-to-absolute`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "ConvertBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-layout-convert-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Layout › Advanced: what Convert does, and that ⌘Z brings the layout back.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "ConvertBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "edit-tidy",
     "kind": "testid",
     "pattern": false,
