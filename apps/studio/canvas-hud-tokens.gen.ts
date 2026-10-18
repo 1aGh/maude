@@ -5,6 +5,11 @@
 export const HUD_TOKENS_CSS = `
 :root,
 :root[data-maude-theme="dark"] {
+  --guide:    oklch(0.55 0.20 328);
+  --guide-fg: oklch(1 0 0);
+  /* the v1 name of --guide (DDR-046); an old canvas that still says var(--guide-magenta) keeps its colour */
+  --guide-magenta: var(--guide);
+
   --maude-hud-accent:        oklch(0.680 0.180 268);
   --maude-hud-accent-hover:  oklch(0.730 0.170 268);
   --maude-hud-accent-active: oklch(0.630 0.180 268);
