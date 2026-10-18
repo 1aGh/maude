@@ -551,9 +551,9 @@
       "home": "insp",
       "drawnAt": "ad-inspector",
       "v2": {
-        "action": null,
+        "action": "layout.convert-to-absolute",
         "testid": "canvas-menu-item-convert-to-absolute",
-        "where": "Right-click an element in the canvas › Convert layout to absolute… (an artboard’s menu has the same row; until S2)"
+        "where": "Inspector › Layout › Advanced › Convert children to absolute position (S2.11); the right-click row on an element stays (an artboard’s menu has the same row; S2.10)"
       }
     },
     {
@@ -3359,7 +3359,7 @@
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-edit-save": "testid:comment-edit-save",
     "testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-id": "testid:canvas-menu-item-<id>",
     "testid:studio/context-menu.tsx#canvas iframe chrome/dc-context-menu-data-action": "D6",
-    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "D7",
+    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "testid:.dc-elem-ctx-tb / [data-on]",
     "testid:studio/cursors-overlay.tsx#canvas iframe chrome/dc-cursor-dc-peer-selection-data-peer-gesture": "testid:.dc-cursor / .dc-peer-selection / [data-peer-gesture]",
     "testid:studio/figma/to-artboard.ts#canvas iframe chrome/data-dc-element": "testid:[data-dc-element]",
     "testid:studio/measure-overlay.tsx#canvas iframe chrome/dc-cv-measure-line-dc-cv-measure-pill": "testid:.dc-cv-measure-line / .dc-cv-measure-pill",
@@ -3456,15 +3456,31 @@
     "testid:studio/editing/align-bar.tsx#canvas/edit-align-edge": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas/edit-align-guide": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas/edit-distribute-axis": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-band": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-bands": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-chip": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-pad-band": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-pad-chip": "v2 code (added after the freeze)",
     "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-badge": "v2 code (added after the freeze)",
     "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-tip": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-gap-side": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-gaps": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-freely.tsx#canvas/edit-pin-chip-edge": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guide-edge": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guides": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot-layer": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot-n": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-tag": "v2 code (added after the freeze)",
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-angle": "v2 code (added after the freeze)",
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-handle": "v2 code (added after the freeze)",
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-hint": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
-    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)"
+    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-free": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-hint": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-stop-px": "v2 code (added after the freeze)"
   }
 }

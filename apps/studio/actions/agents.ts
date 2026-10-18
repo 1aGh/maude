@@ -223,6 +223,26 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.rotate': TSX(
     'Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions'
   ),
+  // S2.11 — layout. Place freely / constraints are inline CSS on the element; reordering is moving the
+  // element's JSX among its siblings (their order IS the layout order).
+  'object.place-freely': TSX(
+    'Give the element style position: "absolute" with left, top, width and height (px) as it sits now; if its parent is static, give the parent position: "relative"'
+  ),
+  'object.reorder-earlier': TSX(
+    'Move the element’s JSX one place earlier among its siblings (in an auto layout the order in the code is the order on the canvas)'
+  ),
+  'object.reorder-later': TSX(
+    'Move the element’s JSX one place later among its siblings (in an auto layout the order in the code is the order on the canvas)'
+  ),
+  'object.reorder-to': TSX(
+    'Move the element’s JSX before, after or inside another element; for a copy, duplicate it first (a copy keeps no data-cd-id)'
+  ),
+  'object.constrain': TSX(
+    'On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages'
+  ),
+  'layout.convert-to-absolute': TSX(
+    'Give each child position: "absolute" with left/top/width/height as rendered, and a static parent position: "relative" with its own width/height fixed if it would collapse; the children then no longer take part in the layout'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
