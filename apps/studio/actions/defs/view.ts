@@ -349,7 +349,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     icon: 'link',
     exec: 'shell',
     visible: { minRole: 'edit' },
-    enabled: { any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
+    // S3.8 (S3-present-session §5): offline the copy waits — greyed until the network is back.
+    enabled: { facts: ['online'], any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
     search: {
       keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
       note: 'in a cloud project',

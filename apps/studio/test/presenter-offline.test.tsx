@@ -5,6 +5,8 @@
 //   · Copy presentation link waits for a connection (its reason is the row's note)
 // The host reads the existing GET /_api/assets for which files are here — no new endpoint.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
@@ -17,6 +19,8 @@ afterAll(async () => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { ACTIONS_BY_ID } from '../actions/index.ts';
+import { isEnabled } from '../actions/resolve.ts';
 import { ShellStoreContext } from '../client/stores/shell-store.jsx';
 import { copyAvailability, copyPresentationLink } from '../client/v2/present/copy-link.js';
 import { PresenterViewHost } from '../client/v2/present/presenter-host.jsx';
@@ -305,6 +309,22 @@ describe('Copy presentation link waits for a connection', () => {
     expect(menuCtx({}).facts.has('online')).toBe(true);
     expect(menuCtx({ online: true }).facts.has('online')).toBe(true);
     expect(menuCtx({ online: false }).facts.has('online')).toBe(false);
+  });
+
+  // A6c (S3.8 patches): the registry row reads the fact, and the shell's menu passes both facts —
+  // `linkedHub` was missing on the desktop, so the row stayed greyed in every linked project.
+  test('the row is enabled on online + a cloud link, greyed offline; app.jsx passes both facts', () => {
+    const def = ACTIONS_BY_ID.get('present.copy-link');
+    const linked = (online: boolean) => menuCtx({ native: true, linkedHub: true, online });
+    expect(isEnabled(def, linked(true))).toBe(true);
+    expect(isEnabled(def, linked(false))).toBe(false);
+    expect(isEnabled(def, menuCtx({ cloudTab: true, online: false }))).toBe(false);
+    expect(isEnabled(def, menuCtx({ native: true, online: true }))).toBe(false);
+    const app = readFileSync(join(import.meta.dir, '..', 'client', 'app.jsx'), 'utf8');
+    const call = app.slice(app.indexOf('menuCtx({\n        native,'));
+    const args = call.slice(0, call.indexOf('})'));
+    expect(args).toContain('linkedHub: !!cloudLinkedHub?.url');
+    expect(args).toContain('online');
   });
 
   test('offline it copies nothing and says why', async () => {

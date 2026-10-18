@@ -230,6 +230,7 @@ import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
+import { useOnline } from './v2/empty/use-empty-canvas.js';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
 import { undoProjection } from './v2/undo/use-undo-projection.jsx';
@@ -1586,6 +1587,7 @@ function ShellProjectPill() {
       annotationsVisible,
       autoOpenInspector,
       cfg,
+      cloudLinkedHub,
       changesOpen,
       commentsPanelOpen,
       exportCenter,
@@ -1648,6 +1650,7 @@ function ShellProjectPill() {
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const native = isNativeApp();
+  const online = useOnline();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const [movePicker, setMovePicker] = useState(null);
   const pillRef = useRef(null);
@@ -1802,8 +1805,20 @@ function ShellProjectPill() {
         observer: cfg?.cloud?.role === 'observer',
         canvasOpen,
         presenting: presentMode,
+        // S3.8 — Copy presentation link reads both: a cloud-linked desktop, and the network up.
+        linkedHub: !!cloudLinkedHub?.url,
+        online,
       }),
-    [native, isCloudTab, viewerMode, cfg?.cloud?.role, canvasOpen, presentMode]
+    [
+      native,
+      isCloudTab,
+      viewerMode,
+      cfg?.cloud?.role,
+      canvasOpen,
+      presentMode,
+      cloudLinkedHub?.url,
+      online,
+    ]
   );
   // V2-4.8a: the megaphone's unseen dot, as a word on the Help row; and no "Back to Home" in a hub that
   // serves one project (no dashboard to go back to — the v1 link was absent there too).
