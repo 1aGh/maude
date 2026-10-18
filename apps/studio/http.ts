@@ -30,6 +30,7 @@ import {
   filterGitStatus,
   filterIndexSearch,
   filterIndexSnapshot,
+  filterTrashListing,
   mergeCanvasOnlyLog,
   projectVisibility,
   type Seer,
@@ -3591,7 +3592,8 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
-        const entries = listTrash(ctx.paths.designRoot);
+        // S9.12b — a canvas-only session lists only the copies of canvases it sees.
+        const entries = filterTrashListing(listTrash(ctx.paths.designRoot), visOf(req));
         const bytes = entries.reduce((n, e) => n + e.size, 0);
         return Response.json(
           // Cap the wire size; totals stay exact so the panel never lies.
