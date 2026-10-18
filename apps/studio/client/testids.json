@@ -7870,6 +7870,56 @@
     "v2": "new"
   },
   {
+    "hook": "root-missing-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The moved-folder card a project tab shows when its folder is gone (11 · pn-cant-open): the app-local root-missing.html, shown once resolve_dev_server_url answers {missing}.",
+    "producer": { "file": "apps/desktop/src/root-missing.html", "symbol": "(page)" },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"<name> isn't where it was.\" on the moved-folder card (the registry's name for the tab's own project).",
+    "producer": { "file": "apps/desktop/src/root-missing.html", "symbol": "(page)" },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-place",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"It was in Desktop › Portfolio 2026. Nothing inside has changed — the folder was moved or renamed.\"",
+    "producer": { "file": "apps/desktop/src/root-missing.html", "symbol": "(page)" },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-find",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Find the folder…\" on the moved-folder card → relink_project({pid}) for the tab's own pid; on a relink Rust moves the tab to the new folder.",
+    "producer": { "file": "apps/desktop/src/root-missing.html", "symbol": "(page)" },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "root-missing-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why the picked folder could not be used, on the moved-folder card (role=alert, hidden when empty).",
+    "producer": { "file": "apps/desktop/src/root-missing.html", "symbol": "(page)" },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "canvases-pinned",
     "kind": "testid",
     "pattern": false,
@@ -9369,6 +9419,19 @@
     "kind": "testid",
     "pattern": false,
     "meaning": "The project's square (initial + Home's tone for its pid) on a ⌘K project group header (S1.5, desktop only).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-project-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "On another project's row in \"Did you mean\" (one flat list): its square, name and where it is (\"in another tab\" / \"not open — opens a tab\") — ↵ switches project (S15-A2, desktop only).",
     "producer": {
       "file": "apps/studio/client/dialogs/command-palette.jsx",
       "symbol": "CommandPalette"
