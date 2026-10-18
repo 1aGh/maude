@@ -1684,6 +1684,11 @@ export function createHttp(
       snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
       actionFor: (repoRel, after) =>
         ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
+      // S2.10 — an artboard copy's place goes to the layout lane in the same request (routes/edit.ts)
+      meta: {
+        load: (file) => api.loadCanvasMeta(file),
+        patch: (file, patch) => api.patchCanvasMeta(file, patch),
+      },
     },
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
