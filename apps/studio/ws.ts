@@ -3,6 +3,8 @@
 
 import type { ServerWebSocket, WebSocketHandler } from 'bun';
 
+import type { WsVisibility } from './access/filters.ts';
+import type { Access } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
@@ -40,6 +42,9 @@ export type WsData =
       /** WHO opened this socket, as the proxy vouched it — Cloud Phase 27.
        *  `''` on a desktop, where the project's git identity is the person. */
       user?: string;
+      /** S9.11 (V2-1.16 L12) — WHAT this socket may hear: the upgrade request's access,
+       *  stamped by server.ts. Absent = the identity (a hand-built test socket). */
+      access?: Access;
     }
   | {
       id: string;
@@ -58,6 +63,8 @@ export type WsData =
        *  gated to the comment lane in collab/room.ts — the WS mirror of the
        *  role matrix's `viewer.comment === true`. */
       readOnly?: boolean;
+      /** S9.11 (L11) — the upgrade request's access (`summon` is stripped without it). */
+      access?: Access;
     }
   | {
       // T2 (9.1-A) — HMR-only socket for the segregated canvas origin. Receives
@@ -68,6 +75,8 @@ export type WsData =
       id: string;
       remote: string;
       kind: 'canvas-hmr';
+      /** S9.11 (L12) — the render token's access, stamped at the upgrade. */
+      access?: Access;
     }
   | {
       // Phase 31 (DDR-123) — ACP chat bridge socket. Main origin ONLY,
@@ -149,6 +158,14 @@ export function isSameOriginWs(req: Request): boolean {
   return hostPort(originHost) === hostPort(reqHost ?? '');
 }
 
+function safeParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export interface Ws {
   handler: WebSocketHandler<WsData>;
   broadcast(payload: unknown): void;
@@ -166,9 +183,28 @@ export function createWs(
   inspects: InspectRegistry,
   collab: Collab,
   activity: Activity,
-  acp: Acp
+  acp: Acp,
+  /** S9.11 (V2-1.16 L12) — the canvas-only frame filter; absent = every frame to everyone. */
+  scope?: WsVisibility
 ): Ws {
   const clients = new Set<ServerWebSocket<WsData>>();
+
+  /**
+   * S9.11 — `frame` as THIS socket may receive it (`msg` is its JSON): the same string for
+   * a project session (U7), the filtered frame for a canvas-only one, or null (not sent).
+   */
+  function scoped(
+    ws: ServerWebSocket<WsData>,
+    frame: unknown,
+    msg: string,
+    addressed = false
+  ): string | null {
+    if (!scope || scope.seerFor(ws) === null) return msg;
+    const obj = typeof frame === 'string' ? safeParse(frame) : frame;
+    if (!obj || typeof obj !== 'object') return null;
+    const out = scope.frameFor(ws, obj as Record<string, unknown>, { addressed });
+    return out === null ? null : out === obj ? msg : JSON.stringify(out);
+  }
 
   function send(ws: ServerWebSocket<WsData>, payload: unknown) {
     try {
@@ -190,7 +226,8 @@ export function createWs(
       // PROJECT and reaches everyone, which is why the audience is opt-in
       // rather than the default.
       if (session && ws.data.session !== session) continue;
-      send(ws, msg);
+      const out = scoped(ws, payload, msg, !!session);
+      if (out !== null) send(ws, out);
     }
   }
 
@@ -201,7 +238,8 @@ export function createWs(
     const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
     for (const ws of clients) {
       if (ws.data.kind !== 'inspector' && ws.data.kind !== 'canvas-hmr') continue;
-      send(ws, msg);
+      const out = scoped(ws, payload, msg);
+      if (out !== null) send(ws, out);
     }
   }
 
@@ -290,7 +328,11 @@ export function createWs(
     ws.data.kind === 'inspector' && ws.data.session === '';
   ctx.bus.on('ui-open', (open: unknown) => {
     const msg = JSON.stringify({ type: 'ui-open', open });
-    for (const ws of clients) if (isOpenTarget(ws)) send(ws, msg);
+    for (const ws of clients) {
+      if (!isOpenTarget(ws)) continue;
+      const out = scoped(ws, { type: 'ui-open', open }, msg);
+      if (out !== null) send(ws, out);
+    }
   });
 
   // feature-background-export-notification-center — export job queue state
@@ -358,10 +400,15 @@ export function createWs(
     realm: 'main' | 'canvas',
     readOnly: boolean
   ): RoomConn {
+    const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
     const conn: RoomConn = {
       id: ws.data.id,
       realm,
       readOnly,
+      // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
+      ...(access
+        ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
+        : {}),
       send(payload: Uint8Array) {
         try {
           // Bun's ws.send accepts Uint8Array directly as binary.
@@ -402,11 +449,13 @@ export function createWs(
       // opening mid-edit seeds its overlay state (Phase 13). Inspector-origin
       // sockets only — `canvas-hmr` sockets get no snapshot by design and rely
       // on live `activity` broadcasts.
-      send(ws, {
+      const snapshot = {
         type: 'snapshot',
         state: inspects.for(ws.data.kind === 'inspector' ? ws.data.session : '').state,
         activity: activity.state,
-      });
+      };
+      const out = scoped(ws, snapshot, JSON.stringify(snapshot));
+      if (out !== null) send(ws, out);
     },
     async close(ws) {
       if (ws.data.kind === 'acp') {
@@ -484,6 +533,16 @@ export function createWs(
           });
           return;
         }
+        // S9.11 (L10/L12) — a canvas-only socket names only canvases it sees: asking for (or
+        // commenting on) another canvas is answered as if it did not exist — nothing at all.
+        if (
+          scope &&
+          (msg.type === 'comments-request' || msg.type === 'comments-add') &&
+          !scope.visibleTo(ws, {
+            file: typeof msg.file === 'string' ? msg.file : msg.payload?.file,
+          })
+        )
+          return;
         const inspect = inspects.for(ws.data.kind === 'inspector' ? ws.data.session : '');
         if (msg.type === 'active' && typeof msg.file === 'string') inspect.setActive(msg.file);
         else if (msg.type === 'tabs' && Array.isArray(msg.tabs)) inspect.setOpenTabs(msg.tabs);

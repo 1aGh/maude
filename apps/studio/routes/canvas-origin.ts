@@ -12,6 +12,40 @@ import type { Http } from '../http.ts';
 
 type Handler = (req: Request) => Response | Promise<Response>;
 
+/**
+ * S9.9 — the `/_api/canvas-meta` keys canvas code may PATCH: exactly what canvas-lib's
+ * `patchCanvasMeta` sends (an artboard drag's `layout`, the camera's `viewport`). Every
+ * other key is refused from the canvas origin for ANY role, so a planted canvas cannot
+ * reach a lane the canvas runtime never uses (overlays / locked are the shell's).
+ */
+export const CANVAS_ORIGIN_META_KEYS: ReadonlySet<string> = new Set(['layout', 'viewport']);
+
+function canvasOriginMeta(handler: Handler): Handler {
+  // Own props carried over (Object.assign below) so a tagged test handler keeps its tag.
+  const wrapped: Handler = async (req) => {
+    if (req.method === 'PATCH' || req.method === 'POST') {
+      let patch: unknown;
+      try {
+        patch = ((await req.clone().json()) as { patch?: unknown } | null)?.patch;
+      } catch {
+        patch = undefined;
+      }
+      if (
+        patch &&
+        typeof patch === 'object' &&
+        Object.keys(patch).some((k) => !CANVAS_ORIGIN_META_KEYS.has(k))
+      ) {
+        return Response.json(
+          { error: 'read-only', reason: 'read-only', message: 'Ask the owner to change this.' },
+          { status: 403, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+    }
+    return handler(req);
+  };
+  return Object.assign(wrapped, handler);
+}
+
 export function canvasOriginRoutes(
   http: Pick<Http, 'routes' | 'canvasRoutes' | 'tableCanvasPaths'>
 ): Record<string, Handler> {
@@ -22,7 +56,7 @@ export function canvasOriginRoutes(
   const routes: Record<string, Handler> = {
     '/_health': http.routes['/_health'],
     '/_api/git-user': http.routes['/_api/git-user'],
-    '/_api/canvas-meta': http.routes['/_api/canvas-meta'],
+    '/_api/canvas-meta': canvasOriginMeta(http.routes['/_api/canvas-meta'] as Handler),
     '/_api/annotations': http.routes['/_api/annotations'],
     '/_api/annotations/ops': http.routes['/_api/annotations/ops'],
     // Phase 23 — capped binary image upload (magic-byte sniff + category cap +

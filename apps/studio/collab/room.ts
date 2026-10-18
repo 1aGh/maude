@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import { Awareness, removeAwarenessStates } from 'y-protocols/awareness';
 import * as Y from 'yjs';
+import { stripUnheldFields } from './awareness-bridge.ts';
 
 import { stripPresenterAwareness } from '../present/relay-strip.ts';
 import { isBodyLane, rootTypesTouched } from './origins.ts';
@@ -54,6 +55,12 @@ export interface RoomConn extends CollabConn {
    * every pre-existing caller is a loopback desktop peer.
    */
   readOnly?: boolean;
+  /**
+   * S9.11 (V2-1.7 §5.5) — may this conn publish `summon` (Bring everyone here)? Absent =
+   * yes, for the same reason `readOnly` defaults to writable; ws.ts sets it from the
+   * socket's access (`summon`: owner + member).
+   */
+  summon?: boolean;
 }
 
 export interface RoomCallbacks {
@@ -328,6 +335,9 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       // Learn which clientIDs belong to which conn from the update origin, so
       // disconnect() can evict them precisely.
       if (except) {
+        // S9.11 — a conn without `summon` never publishes it (stripped before anyone hears).
+        if (except.summon === false)
+          stripUnheldFields(awareness, added.concat(updated), (cap) => cap !== 'summon');
         for (const id of added) connByClient.set(id, except.id);
         for (const id of updated) connByClient.set(id, except.id);
         for (const id of removed) connByClient.delete(id);
