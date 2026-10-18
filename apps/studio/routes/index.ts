@@ -14,6 +14,7 @@
 // `origin: 'canvas'` is the only way onto the canvas origins; http.ts and
 // routes/canvas-origin.ts derive both allowlists from it.
 
+import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
@@ -24,7 +25,12 @@ import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-for
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
+import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 
+const trashAccessNone = resolveAccess(null);
+
+// S1.7 — the access a Trash request is judged with (interim until S9.9's currentAccess()).
+export { trashAccess } from '../history/trash.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
@@ -42,6 +48,8 @@ export interface RouteDeps {
   chat: ChatRouteDeps;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
+  trash?: TrashRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -59,6 +67,14 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createChatRoutes(deps.chat),
     ...createProjectUndoRoutes(
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+    ),
+    ...createTrashRoutes(
+      deps.trash ?? {
+        control: () => null,
+        // no home wired: nobody may write, and there is nothing to list
+        access: () => trashAccessNone,
+        readSource: () => null,
+      }
     ),
   ];
 }
