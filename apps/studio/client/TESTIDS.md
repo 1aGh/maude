@@ -104,6 +104,17 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `canvases-trash-clear` | testid | "Clear out…" in the Trash foot (hidden for a viewer); asks before it does anything. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
 | `canvases-trash-ask` | testid | The "Clear out the trash?" confirmation. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
 | `canvases-trash-clear-yes` | testid | The primary button of the clear-out confirmation. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | — | stable — re-emit |
+| `canvases-trash-count` | testid | Trash view header: what is in the shared Trash, "3 canvases · 1 artboard" (only the parts there are). | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-group-today` | testid | Trash view: the Today group (heading + its rows). Absent while nothing was trashed today. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-group-earlier` | testid | Trash view: the Earlier group (heading + its rows). Absent while nothing is older. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-sub` | testid | A Trash row's second line: "root · You, just now" / "artboard of Combine-kampan · Jonas, 14:05". | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-note` | testid | The one status line under the Trash list after Restore / Clear out (`data-outcome` ok | not-yet | refused). An artboard's Restore shows the not-yet line here, quietly. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-unreachable` | testid | Trash view: "The team server did not answer" — the list shown is from a moment ago. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-foot` | testid | The Trash view's foot: "Kept until you clear it out." plus Clear out… for an owner. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-ask-body` | testid | The clear-out confirmation's body: what goes for good, and for whom. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-trash-clear-cancel` | testid | Cancel on the clear-out confirmation. | `client/v2/left-panel/trash-view.jsx` · `TrashView` | test:v2-trash-view | new (S1.8) |
+| `canvases-kept` | testid | Canvases > Advanced > "Kept on this Mac": the per-Mac list (conflict losers, sync quarantine, migration copies) moved out of the shared Trash. Absent when nothing is parked or for a viewer. | `client/v2/canvases/kept-on-this-mac.jsx` · `KeptRow` | test:v2-trash-view | new (S1.8) |
+| `canvases-kept-toggle` | testid | Open / Hide on the "Kept on this Mac" row (`aria-expanded`); its list uses the canvases-trash-item / -restore / -clear / -ask ids. | `client/v2/canvases/kept-on-this-mac.jsx` · `KeptRow` | test:v2-trash-view | new (S1.8) |
 | `canvases-advanced` | testid | The "Advanced" disclosure row at the foot of the Canvases panel (`aria-expanded`). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
 | `canvases-advanced-fold` | testid | The Canvases > Advanced container (`data-open` while open). | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
 | `canvases-hidden-files` | testid | The "Show hidden files" switch in Canvases > Advanced (`role="switch"`). Same function as Menu > View > Advanced > Hidden files. | `client/v2/left-panel/canvases-advanced.jsx` · `CanvasesAdvanced` | — | stable — re-emit |
@@ -401,21 +412,30 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
 | `chat-perm-paths` | testid | The list of paths a permission request touches. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
 | `chat-elicit-prompt` | testid | The "Claude is asking you" elicitation card. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | e2e:acp-ask-user-question, whats-new | stable — re-emit |
+| `chat-overflow-menu` | testid | The chat panel overflow (⋯) menu. | `client/panels/ChatPanel.jsx` · `ChatPanel` | — | stable — re-emit |
+| `chat-caps-connecting` | testid | Capability bar placeholder while the agent connects. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
+| `chat-caps-bar` | testid | The capability bar (live model/mode/effort pickers). | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
+| `chat-mode-picker` | testid | The permission-mode picker in the capability bar. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
+| `chat-permission-prompt` | testid | The tool-permission prompt card. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope | stable — re-emit |
+| `chat-perm-queue` | testid | Queue counter on the permission prompt. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | stable — re-emit |
+| `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
+| `chat-perm-paths` | testid | The list of paths a permission request touches. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope | stable — re-emit |
+| `chat-elicit-prompt` | testid | The "Claude is asking you" elicitation card. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question, whats-new | stable — re-emit |
 | `chat-elicit-step` | testid | Step counter on a multi-question elicitation. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-back` | testid | Elicitation Back button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
-| `chat-elicit-submit` | testid | Elicitation Submit button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | e2e:acp-ask-user-question | stable — re-emit |
+| `chat-elicit-submit` | testid | Elicitation Submit button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question | stable — re-emit |
 | `chat-elicit-next` | testid | Elicitation Next button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
-| `chat-elicit-skip` | testid | Elicitation Skip button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
+| `chat-elicit-skip` | testid | Elicitation Skip button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | stable — re-emit |
 | `chat-elicit-cancel` | testid | Elicitation Cancel button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-question-<id>` | testid (pattern) | One question fieldset (`<id>` = question id). | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
-| `chat-elicit-option-<id>-<i>` | testid (pattern) | Option `<i>` of question `<id>`; `chat-elicit-option-<id>-other` is the free-text "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question` | e2e:acp-ask-user-question | stable — re-emit |
-| `chat-elicit-custom-<id>` | testid (pattern) | Free-text input behind the "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
+| `chat-elicit-option-<id>-<i>` | testid (pattern) | Option `<i>` of question `<id>`; `chat-elicit-option-<id>-other` is the free-text "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question | stable — re-emit |
+| `chat-elicit-custom-<id>` | testid (pattern) | Free-text input behind the "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | stable — re-emit |
 | `chat-elicit-text-<id>` | testid (pattern) | Text answer input for a text question. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-secret-warning` | testid | Warning shown when a question asks for a secret. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `.chat-input` | selector | The composer textarea. | `client/v2/ai/Composer.jsx` · `HighlightedInput` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-write-scope | stable — re-emit |
 | `[aria-label="Send message"]` | selector | Composer send button. | `client/v2/ai/Composer.jsx` · `Composer` | e2e:acp-ask-user-question, e2e:acp-write-scope | stable — re-emit |
 | `[aria-label="Stop"]` | selector | The composer's Stop button; rendered only while the thread is running. | `client/v2/ai/Composer.jsx` · `Composer` | e2e-helper:assistant | stable — re-emit |
-| `.btn--danger (permission prompt)` | selector | The deny/destructive button on the permission prompt (`[data-testid="chat-permission-prompt"] .btn--danger`). | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
+| `.btn--danger (permission prompt)` | selector | The deny/destructive button on the permission prompt (`[data-testid="chat-permission-prompt"] .btn--danger`). | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope | stable — re-emit |
 | `.rdy-copy / .rdy-fix-tx / .rdy-fix-tx--err` | selector | Readiness list: copy-command button, fix transcript, and its error state. | `client/panels/ReadinessList.jsx` · `Row`<br>`client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 
 ### timeline
@@ -819,10 +839,24 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-waiting-stack` | testid | The waiting cards of the open chat (absent when nothing waits). | `client/v2/ai/WaitingCard.jsx` · `WaitingCards` | — | stable |
 | `ai-waiting-card` | testid | The card for a second ask on a busy artboard: "Waiting for “<run>” to finish on <artboard>." `data-run` = the waiting run id. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-waiting-cancel` | testid | The × on the waiting card: cancels the ask (no turn ran). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
-| `ai-waiting-copy` | testid | The waiting card's "Run on a copy". Not drawn until the copy route exists (`RUN_ON_COPY_LIVE`). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
+| `ai-waiting-copy` | testid | The waiting card's "Run on a copy" (POST /_api/ai/runs/:id/copy, S5.11b). | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-waiting-note` | testid | The one line under the waiting card when × or Run on a copy was refused. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-rings` | testid | Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-ring-<artboardId>` | testid | Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
+| `ai-attach-clip` | testid | The paperclip in the AI prompt row; opens the attach menu. | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-menu` | testid | The paperclip's menu (Attach files… · Choose a folder… · From Assets · Paste a screenshot ⌘V · Or drag files here). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-menu-<id>` | testid | One row of the attach menu: `files`, `folder` (desktop app only), `assets`, `screenshot`, `drag` (disabled reminder). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-input` | testid | The hidden file input behind Attach files… (e2e sets files on it). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-chips` | testid | The attachment chips row inside the prompt. | `client/v2/ai/AChip.jsx` · `AttachChips` | — | new (S5.10) |
+| `ai-attach-chip-<n>` | testid | One attachment chip, by position. `data-state` = uploading / ready / wait / error; `data-kind` = image / video / audio / file / folder. | `client/v2/ai/AChip.jsx` · `AChip` | — | new (S5.10) |
+| `ai-attach-chip-x-<n>` | testid | A chip's × (removes it; a folder chip also detaches the folder from this chat). | `client/v2/ai/AChip.jsx` · `AChip` | — | new (S5.10) |
+| `ai-attach-held` | testid | The line under the chips naming a folder that won't be sent (asked, or Not now). | `client/v2/ai/AChip.jsx` · `AttachChips` | — | new (S5.10) |
+| `ai-attach-notice` | testid | The status line for a refused attachment (type, size, a folder AI may not read). | `client/v2/ai/AChip.jsx` · `AttachChips` | — | new (S5.10) |
+| `ai-attach-drop` | testid | "Drop to attach" — painted over the AI chat panel while files are dragged over it. | `client/v2/ai/DropOverlay.jsx` · `DropOverlay` | — | new (S5.10) |
+| `ai-attach-consent` | testid | The folder consent card: Let AI read “<folder>” (N files)? | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
+| `ai-attach-consent-path` | testid | The consent card's full path line, shown only for a folder outside the project. | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
+| `ai-attach-consent-allow` | testid | Let AI read — the only control that records a folder grant. | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
+| `ai-attach-consent-notnow` | testid | Not now — keeps the chip, sends without it. | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
 | `ai-scope-chip` | testid | The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-chat-list` | testid | The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-list-back` | testid | "‹ Chats": back from the chat list to the chat. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
@@ -865,6 +899,26 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-jump` | testid | The "Jump to latest" pill at the foot of a long chat, shown while you read earlier turns; click scrolls to the newest. | `client/v2/ai/BigChat.jsx` · `JumpPill` | — | new |
 | `ai-jump-count` | testid | The "N new" beside Jump to latest: messages that arrived since you left the bottom. | `client/v2/ai/BigChat.jsx` · `JumpPill` | — | new |
 | `ai-chat-pin` | testid | The AI chat header's pin: Pin to the side / Unpin (`aria-pressed`). The shell's pin model — View › Advanced › Pin panels to the side. | `client/v2/ai/BigChat.jsx` · `PinButton` | — | new |
+| `ai-needs-slot` | testid | The place between the chat feed and the field where the open question, a failure and the kept prompt's line live. | `client/v2/ai/NeedsYouSlot.jsx` · `NeedsYouSlot` | — | new |
+| `ai-permission-title` | testid | The permission card's title ("Edit Foo.tsx?"). Its verb is the verb on the allow button. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-detail` | testid | What the agent called the call, under the title (never hidden behind the short title). | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-always` | testid | "Always for this canvas" check on the permission card. Absent when the agent offered no `allow_always` option, and for an out-of-project write. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-allow` | testid | The permission card's primary button; its label is the title's verb. Answers with the once-only option, or the standing one when the box is ticked. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-decline` | testid | "Not now" on the permission card (also `.btn--danger`, drawn quiet). | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-option` | testid | One button of a multi-way permission set (ExitPlanMode and the like); repeats. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-choice-question` | testid | The choice card's question line. | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
+| `ai-problem-card` | testid | A refusal the server coded (`read-only`, `not-queued`): what happened and what is safe. `data-code` = the code. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
+| `ai-problem-title` | testid | The problem card's sentence. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
+| `ai-problem-verb` | testid | The problem card's one verb, when it has one. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
+| `ai-not-ready` | testid | The state of a kept prompt. `data-kind` = offline | connect | setting-up | used-up | waiting. | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-queued-line` | testid | "Queued — sends when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-offline-line` | testid | "AI is back when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-quota-line` | testid | The almost-used-up meter above the field ("90% of this 5-hour allowance used · resets 18:40"). | `client/v2/ai/NotReady.jsx` · `QuotaLine` | — | new |
+| `ai-connect-sheet` | testid | The one "Connect your Claude account?" sheet (CONTRACT §7). `data-phase` = idle | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-go` | testid | The sheet's Connect button (installs Claude Code if missing, then opens the browser sign-in). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-cancel` | testid | The sheet's Cancel (withdraws a sign-in in flight, else drops the kept prompt). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-error` | testid | Why Connect did not finish. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-fold-needs` | testid | The azure count on the folded AI spark when chats wait for you (wins over the busy dot). | `client/v2/ai/FoldNeeds.jsx` · `FoldNeeds` | — | new |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `embed-view` | testid | Root of the embed shell (`?embed` location). | `client/embed-view.jsx` · `EmbedView` | — | stable — re-emit |
@@ -1043,7 +1097,26 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `present-counter` | testid | "3 / 14" — the place in the run (`present-position`); skipped artboards are not counted. | `client/v2/present/present-controls.jsx` · `PresentControls` | test:present-controls | new in v2 (S3.2b) |
 | `present-label` | testid | The presented artboard's name, from the canvas index; absent when it has none. | `client/v2/present/present-controls.jsx` · `PresentControls` | test:present-controls | new in v2 (S3.2b) |
 | `present-slot-transport` | testid | Slot for S3.3's media transport (pause · time · sound); absent while empty. | `client/v2/present/present-controls.jsx` · `PresentControls` | — | new in v2 (S3.2b) |
-| `present-slot-presenter` | testid | Slot for S3.6b's Presenter view button (desktop, two displays); absent while empty. | `client/v2/present/present-controls.jsx` · `PresentControls` | — | new in v2 (S3.2b) |
+| `present-slot-presenter` | testid | Slot for the Presenter view button (desktop, another display); absent while empty. | `client/v2/present/present-controls.jsx` · `PresentControls` | test/presenter-view.test.tsx | new in v2 (S3.2b) |
+| `presenter-view` | testid | Presenter view on the Mac while Present · Artboards runs with it on: now, next, notes, the clock and the order map. Hidden with one display. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-end` | testid | Presenter view › End (esc): leaves Present and closes the audience window. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-audience` | testid | Presenter view's top bar: "Audience on <display>", or why the audience screen would not open. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-audience-retry` | testid | Presenter view › Try again, shown when the audience screen would not open. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-elapsed` | testid | Presenter view clock: time since Present started. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-wall` | testid | Presenter view clock: the wall time. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-now` | testid | Presenter view › the Now box (the presented artboard). | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-now-label` | testid | Presenter view › "Now · 3 of 14 · <artboard>". | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-next-box` | testid | Presenter view › the Next box (the artboard after this one in the run). | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-next-label` | testid | Presenter view › "Next · <artboard>" (or "Next · the end"). | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-prev` | testid | Presenter view › Previous artboard. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-next` | testid | Presenter view › Next artboard. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-notes` | testid | Presenter view › the presented artboard's speaker notes, one paragraph per line. | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-order-map` | testid | Presenter view › the run drawn as the canvas layout; one cell per artboard. | `client/v2/present/order-map.jsx` · `OrderMap` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-order-count` | testid | Presenter view › "Order · 15 artboards · 1 skipped". | `client/v2/present/presenter-view.jsx` · `PresenterView` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-cell-<id>` | testid (pattern) | One artboard in the order map, where it sits on the canvas; `<id>` is the artboard id. `data-n` is its run number, `aria-current` marks the one on screen, `data-skip` a skipped one (dimmed, eye-off, not clickable). A click jumps both screens. | `client/v2/present/order-map.jsx` · `OrderMap` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `presenter-skipped-mark` | testid | The eye-off mark on a skipped artboard in the order map. | `client/v2/present/order-map.jsx` · `OrderMap` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `present-presenter-view` | testid | Present controls › Presenter view (laptop glyph); `aria-pressed` while on. Only with another display. | `client/v2/present/presenter-button.jsx` · `PresenterViewButton` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
+| `mode-present-presenter-view` | testid | Present ⌄ › Presenter view on another display (a check while on, the display's name). Only in the desktop app with another display. | `client/v2/shell/mode-switch.jsx` · `ModeSwitch` | test/presenter-view.test.tsx | new in v2 (S3.6b) |
 | `present-leave` | testid | "esc to leave" — leaves Present for where it was entered from. | `client/v2/present/present-controls.jsx` · `PresentControls` | test:present-controls | new in v2 (S3.2b) |
 | `present-pill` | testid | Present the canvas: "Presenting the canvas · 21% · esc to leave". Replaces the v1 exit button and keeps its `.st-present-exit` class and `aria-label="Exit presentation mode"`. | `client/v2/present/canvas-pill.jsx` · `CanvasPill` | test:present-controls | new in v2 (S3.2b) |
 | `present-pointer` | testid | The presenter's Pointer layer in the canvas document (L): a fixed, click-through overlay holding the dot and its trail. | `present/pointer-dot.tsx` · `createPointerDot` | test:pointer-dot | new in v2 (S3.2b) |
@@ -1052,6 +1125,17 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `present-peer-pointers` | testid | Layer holding other people's Pointers, drawn from awareness `pointer`. | `present/pointer-dot.tsx` · `PointerPeers` | — | new in v2 (S3.2b) |
 | `present-peer-pointer` | testid | One peer's Pointer dot. | `present/pointer-dot.tsx` · `PointerPeers` | — | new in v2 (S3.2b) |
 | `.maude[data-theme]` | selector | The shell root `div.maude` and its `data-theme="light\|dark"` (mirrored on `<html data-theme>`). The token blocks in `styles/1-tokens-maude.css` are scoped to `.maude[data-theme=…]`. *`team-project` reads `<html data-theme>`; `shell-text-contrast` reads the CSS token blocks.* | `client/app.jsx` · `App` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e:team-project, test:shell-text-contrast | stable — re-emit |
+
+### empty states
+
+| Hook | Kind | Meaning | Producer | Consumers | v2 |
+| --- | --- | --- | --- | --- | --- |
+| `empty-<copy-id>` | testid (pattern) | The root of an empty state read from the copy table; `<copy-id>` is the copy id (`es-panels-canvas.comments-none`), also on `data-copy`. Carries the situation, the next step, chips and at most one action. | `client/v2/empty/empty.jsx` · `Empty` | test:v2-empty-kit | new |
+| `empty-spot-<name>` | testid (pattern) | A spot (`canvas`, `ai`, `none`, `comment`, `image`, `done`, `offline`, `trash`); decorative, `aria-hidden`. | `client/v2/empty/spot.jsx` · `Spot` | test:v2-empty-kit | new |
+| `empty-ask` | testid | The "Ask AI" button of an empty state (azure, spark glyph); a real button, takes the keys label (`⌘/`). | `client/v2/empty/ask-button.jsx` · `AskButton` | test:v2-empty-kit | new |
+| `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
+| `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
+| `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
 
 ## What's New spotlights
 

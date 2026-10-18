@@ -28,6 +28,12 @@ export interface RouteSpec {
    * always allowed.
    */
   readOnly: 'allowed' | 'refused';
+  /**
+   * S9.7b — the canvas this request acts on (designRoot-relative), when the body does not name
+   * it the generic way (`access/request.ts targetOf`). The local gate judges scope and capability
+   * on THIS answer instead: `undefined` = no target, `null` = not one the session may name.
+   */
+  target?(req: Request): Promise<string | null | undefined>;
   handle(req: Request, params: Record<string, string>): Response | Promise<Response>;
 }
 
@@ -85,6 +91,8 @@ export function mountRoutes(specs: readonly RouteSpec[]): {
   dynamic: (req: Request) => Promise<Response> | null;
   readOnlyAllowed: { exact: string[]; patterns: RegExp[] };
   canvasPaths: string[];
+  /** the spec's own `target` for an exact path + method (the local gate's `targetFor`) */
+  targetFor: (req: Request, pathname: string) => Promise<string | null | undefined> | undefined;
 } {
   for (const s of specs)
     if (s.origin === 'canvas' && s.path.includes(':'))
@@ -122,6 +130,8 @@ export function mountRoutes(specs: readonly RouteSpec[]): {
       patterns: writes.filter((s) => s.path.includes(':')).map((s) => paramRe(s.path)),
     },
     canvasPaths: [...new Set(specs.filter((s) => s.origin === 'canvas').map((s) => s.path))],
+    targetFor: (req, pathname) =>
+      specs.find((s) => s.target && s.path === pathname && s.method === req.method)?.target?.(req),
   };
 }
 

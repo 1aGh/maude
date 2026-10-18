@@ -21,6 +21,7 @@ import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.j
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
+import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -201,6 +202,15 @@ export function createMenuHandlers(d) {
     // S3.5 — the Order and notes… sheet on the active canvas (the shell mounts it; the server refuses
     // every role below edit on PATCH /_api/present-meta).
     'present.order-notes': () => d.setOrderNotesOpen(true),
+    // S3.6b — a person's click (the Present ⌄ row, ⌘K). With one display there is nothing to show it on: the
+    // row is hidden there, and a palette run says why instead of switching on a preference that does nothing.
+    'present.presenter-view': () => {
+      if (!presenterAvailable(presenterStore.get())) {
+        d.toast?.('Presenter view needs a second display.');
+        return;
+      }
+      presenterStore.toggle();
+    },
     // ── Help ──
     'help.shortcuts': () => d.setShortcutsOpen(true),
     'help.guides': () => d.setHelpOpen(true),

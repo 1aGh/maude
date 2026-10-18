@@ -13,11 +13,13 @@ import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { levelOf, ROLES } from '../access/roles.ts';
 import type { AccessClaim } from '../access/scope.ts';
 import { type TrashListing, type TrashRuntime, trashAccess } from '../history/trash.ts';
 import type { RouteSpec } from '../routes/table.ts';
 import { createTrashRoutes } from '../routes/trash.ts';
 import { type LocalHome, openLocalHome } from '../sync/local-kernel.ts';
+import { ROLE_REFUSALS } from './_role-refusals.ts';
 
 const dirs: string[] = [];
 const homes: LocalHome[] = [];
@@ -149,12 +151,37 @@ describe('L18 — clear-out is the owner’s, on the server', () => {
     const r = await call(specs, 'POST', '/_api/trash/clear', OWNER, { items: ['canvas:n_a'] });
     expect(r).toMatchObject({ status: 200, body: { ok: true, cleared: ['canvas:n_a'] } });
     expect(calls).toEqual(['clear:canvas:n_a']);
-    expect(emitted).toEqual([['trash:changed', { seq: 1 }]]);
+    // One process-wide seq (history/trash.ts): it only grows, and a GET answers the latest.
+    expect(emitted).toEqual([['trash:changed', { seq: expect.any(Number) }]]);
+    const seq = (emitted[0] as [string, { seq: number }])[1].seq;
+    expect((await call(specs, 'GET', '/_api/trash', OWNER)).body.seq).toBe(seq);
     const bad = await call(specs, 'POST', '/_api/trash/clear', OWNER, {
       items: ['canvas:n_a', 'canvas:n_a'],
     });
     expect(bad.status).toBe(400);
   });
+});
+
+describe('L18 — the registry’s refusal rows hold on the server (rule 7)', () => {
+  // Every `server` route of a Trash action (test/_role-refusals.ts) is refused, per refused
+  // registry role, to EVERY project role that renders as it — and the home is never asked.
+  const rows = ROLE_REFUSALS.filter((r) => r.route.startsWith('/_api/trash'));
+  test('trash.clear has its row', () => {
+    expect(rows.map((r) => `${r.method} ${r.route}`)).toContain('POST /_api/trash/clear');
+  });
+  for (const row of rows)
+    for (const level of row.refused)
+      test(`${row.method} ${row.route} refuses ${level}`, async () => {
+        const roles = ROLES.filter((r) => r !== 'owner' && levelOf(r) === level);
+        expect(roles.length).toBeGreaterThan(0);
+        for (const role of roles) {
+          const { runtime, calls } = fakeRuntime();
+          const specs = cellRoutes(runtime);
+          const r = await call(specs, row.method as 'POST', row.route, claim({ v: 1, role }), {});
+          expect(r.status).toBe(403);
+          expect(calls).toEqual([]);
+        }
+      });
 });
 
 describe('L18 — a canvas-only session sees only its canvases', () => {
