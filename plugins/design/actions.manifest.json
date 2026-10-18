@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "a1bf03c79708",
   "actions": [
     {
       "id": "search.open",
@@ -680,6 +680,45 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
+      }
+    },
+    {
+      "id": "inspector.copy-code",
+      "label": "Copy code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the .tsx (find its data-cd-id)"
+      }
+    },
+    {
+      "id": "inspector.edit-css-as-text",
+      "label": "Edit CSS as text…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Edit the element’s style={{…}} props in the .tsx, one declaration per property"
+      }
+    },
+    {
+      "id": "element.detach",
+      "label": "Detach from shared component",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the component definition under a new name and point this one instance at the copy; the other places keep the original"
       }
     },
     {

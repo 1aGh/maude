@@ -278,4 +278,27 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
   },
+  // S11.8 — Inspector › Advanced, the code half. Copy code reads the canvas source (`/_api/canvas-source`,
+  // which needs `export`: Can comment and up, never Can view); the other two write the element's JSX.
+  {
+    id: 'inspector.copy-code',
+    label: 'Copy code',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { minRole: 'comment' as const, selection: ['object'] },
+  },
+  {
+    id: 'inspector.edit-css-as-text',
+    label: 'Edit CSS as text…',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
+  {
+    id: 'element.detach',
+    label: 'Detach from shared component',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['object'] },
+  },
 ];

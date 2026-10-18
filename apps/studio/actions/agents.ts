@@ -163,6 +163,22 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'element.set-id': TSX(
     'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
   ),
+  // S11.8 — Inspector › Advanced, the code half. Copy code is the element's JSX read from the .tsx; Edit CSS as
+  // text is the style props; Detach is `/_api/detach-component` (clone the definition, repoint ONE usage).
+  'inspector.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspector.edit-css-as-text': TSX(
+    'Edit the element’s style={{…}} props in the .tsx, one declaration per property'
+  ),
+  'element.detach': TSX(
+    'Copy the component definition under a new name and point this one instance at the copy; the other places keep the original'
+  ),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),
