@@ -16,6 +16,7 @@
 //
 // No Node, Bun or Worker globals. No I/O but `sql`.
 
+import { createVotesCore, VOTES_DDL } from '../votes.mjs';
 import { createRunsCore, RUNS_DDL } from './runs-core.mjs';
 
 export const STORE_SCHEMA_VERSION = 1;
@@ -90,6 +91,8 @@ const DDL = [
   // V2-1.15 §5.2 — AI runs, leases, the waiting line (additive: CREATE IF NOT
   // EXISTS, no schema bump; an old hub opening this store ignores them).
   ...RUNS_DDL,
+  // Gate 0 A18 (S4.6) — formal votes and hub-held ballots (additive, as runs).
+  ...VOTES_DDL,
 ];
 
 function one(rows) {
@@ -154,6 +157,7 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
   }
 
   const runs = createRunsCore(sql, { now, meta, setMeta });
+  const votes = createVotesCore(sql, { now });
 
   function migrate() {
     sql.transaction(() => {
@@ -670,5 +674,10 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
     runsRenew: runs.runsRenew,
     runsEnd: runs.runsEnd,
     runsList: runs.runsList,
+    votesStart: votes.votesStart,
+    votesCast: votes.votesCast,
+    votesEnd: votes.votesEnd,
+    votesGet: votes.votesGet,
+    votesList: votes.votesList,
   };
 }

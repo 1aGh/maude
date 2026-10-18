@@ -40,6 +40,12 @@ export const METHODS = Object.freeze([
   'runsRenew',
   'runsEnd',
   'runsList',
+  // Gate 0 A18 (S4.6) — votes and hub-held ballots (each one transaction = one RPC).
+  'votesStart',
+  'votesCast',
+  'votesEnd',
+  'votesGet',
+  'votesList',
 ]);
 
 export function openRemoteProjectStore({
@@ -91,6 +97,9 @@ export function openRemoteProjectStore({
     'liveDocByEntry',
     // Sweeps lapsed runs as it reads — asking twice changes nothing more.
     'runsList',
+    // End lapsed votes as they read — asking twice changes nothing more.
+    'votesGet',
+    'votesList',
   ]);
   const read = async (method, args) => {
     for (let attempt = 0; ; attempt++) {
