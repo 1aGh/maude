@@ -108,7 +108,10 @@ describe('a canvas mode-request is held while viewing (note 6)', () => {
 describe('the framed past version (canvasUrl)', () => {
   const cfg = { designRel: '.design' };
   test('?sha= + read-only + no comment layer, and the canvas knows to hold still', () => {
-    const u = new URL(canvasUrl('.design/ui/Uniformy-2027.tsx', cfg, { viewing: 'r41' }), 'http://x');
+    const u = new URL(
+      canvasUrl('.design/ui/Uniformy-2027.tsx', cfg, { viewing: 'r41' }),
+      'http://x'
+    );
     expect(u.searchParams.get('sha')).toBe('r41');
     expect(u.searchParams.get('ro')).toBe('1');
     expect(u.searchParams.get('comments')).toBe('0');

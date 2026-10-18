@@ -15,10 +15,7 @@ afterAll(async () => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import {
-  VersionHistoryHost,
-  ViewBarHost,
-} from '../client/v2/history/history-host.jsx';
+import { VersionHistoryHost, ViewBarHost } from '../client/v2/history/history-host.jsx';
 import { VersionHistoryPanel } from '../client/v2/history/history-panel.jsx';
 import { checkName } from '../client/v2/history/name-dialog.jsx';
 import {
@@ -95,7 +92,10 @@ let answers: {
   rows: ROWS,
   now: { canvas: 'ui/Uniformy-2027.tsx', ref: 'r43', status: 'Saved', canName: true },
   fail: false,
-  restore: { status: 200, body: { ok: true, actionId: 'a_restore', line: 'Restored “Schváleno trenéry”' } },
+  restore: {
+    status: 200,
+    body: { ok: true, actionId: 'a_restore', line: 'Restored “Schváleno trenéry”' },
+  },
   name: { status: 200, body: { ok: true, actionId: 'a_name' } },
 };
 const reset = () => {
@@ -120,7 +120,9 @@ const fetchImpl = (async (url: string, init?: { method?: string; body?: string }
     if (answers.fail) return j(503, { ok: false, reason: 'unreachable' });
     const q = new URL(url, 'http://x').searchParams;
     const rows =
-      q.get('filter') === 'named' ? answers.rows.filter((r) => (r as { named?: unknown }).named) : answers.rows;
+      q.get('filter') === 'named'
+        ? answers.rows.filter((r) => (r as { named?: unknown }).named)
+        : answers.rows;
     return j(200, { ok: true, source: 'accepted', rows, now: answers.now });
   }
   if (url === '/_api/project/restore') return j(answers.restore.status, answers.restore.body);
@@ -157,7 +159,11 @@ const click = async (el: Element | null) => {
   });
   await flush();
 };
-const toasts: Array<{ msg: string; ok: boolean; action?: { label: string; onClick: () => unknown } }> = [];
+const toasts: Array<{
+  msg: string;
+  ok: boolean;
+  action?: { label: string; onClick: () => unknown };
+}> = [];
 const toast = (msg: string, ok: boolean, action?: { label: string; onClick: () => unknown }) =>
   toasts.push({ msg, ok, action });
 const base = {
@@ -190,7 +196,9 @@ describe('the rows', () => {
   test('before the first change: the Now row and "Versions appear here as you work."', async () => {
     answers.rows = [];
     await mount(<VersionHistoryPanel {...base} />);
-    expect(q('[data-testid="vh-empty"] strong')?.textContent).toBe('Versions appear here as you work.');
+    expect(q('[data-testid="vh-empty"] strong')?.textContent).toBe(
+      'Versions appear here as you work.'
+    );
     expect(q('[data-testid="vh-empty"]')?.textContent).toContain("There's nothing to save.");
     expect(q('[data-testid="vh-now"]')).not.toBeNull();
   });
@@ -284,7 +292,9 @@ describe('looking, restoring, naming', () => {
     await act(async () => {
       await toasts.at(-1)?.action?.onClick();
     });
-    expect(calls.find((c) => c.url === '/_api/project/undo')?.body).toEqual({ actionId: 'a_restore' });
+    expect(calls.find((c) => c.url === '/_api/project/undo')?.body).toEqual({
+      actionId: 'a_restore',
+    });
     expect(toasts.at(-1)?.msg).toBe('Restore undone.');
   });
 
@@ -301,7 +311,10 @@ describe('looking, restoring, naming', () => {
     );
     await click(q('[data-testid="vh-restore"]'));
     expect(left).toBe(0); // still looking: nothing changed
-    expect(toasts.at(-1)).toMatchObject({ msg: "The team server didn't take the restore.", ok: false });
+    expect(toasts.at(-1)).toMatchObject({
+      msg: "The team server didn't take the restore.",
+      ok: false,
+    });
     expect(toasts.at(-1)?.action?.label).toBe('Retry restore');
   });
 
@@ -313,7 +326,9 @@ describe('looking, restoring, naming', () => {
     expect((q('[data-testid="vh-name-save"]') as HTMLButtonElement).disabled).toBe(true); // empty
     // happy-dom does not route a native `input` event into React's onChange: call the prop (the house way)
     const propsKey = Object.keys(input).find((k) => k.startsWith('__reactProps$')) as string;
-    const props = (input as unknown as Record<string, { onChange: (e: unknown) => void }>)[propsKey];
+    const props = (input as unknown as Record<string, { onChange: (e: unknown) => void }>)[
+      propsKey
+    ];
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
         input,
@@ -375,9 +390,7 @@ describe('the host: Viewing is the mode store’s hold, esc returns', () => {
   test('another canvas in front ends the hold', async () => {
     await mount(<ViewBarHost activePath={PATH} />);
     shellMode.view({ path: PATH, at: 'r41', title: 'x', when: 'y', who: 'z' });
-    await act(async () =>
-      root.render(<ViewBarHost activePath=".design/ui/Other.tsx" />)
-    );
+    await act(async () => root.render(<ViewBarHost activePath=".design/ui/Other.tsx" />));
     expect(shellMode.get().viewing).toBeNull();
   });
 
@@ -424,7 +437,9 @@ describe('the pure helpers', () => {
   test('restoreLine / viewingWords / checkName', () => {
     expect(restoreLine(ROWS[2] as never, null)).toBe('Restored “Schváleno trenéry”');
     expect(restoreLine(ROWS[1] as never, null)).toBe('Restored 18 Oct, 14:05');
-    expect(restoreLine(ROWS[1] as never, { line: 'Went back to 14:05' })).toBe('Went back to 14:05');
+    expect(restoreLine(ROWS[1] as never, { line: 'Went back to 14:05' })).toBe(
+      'Went back to 14:05'
+    );
     expect(viewingWords(ROWS[0] as never).who).toBe('AI');
     expect(checkName('  ').ok).toBe(false);
     expect(checkName('x'.repeat(81))).toMatchObject({ ok: false });

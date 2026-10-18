@@ -12280,5 +12280,437 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "vh-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history (⌥⌘H): the panel in the right slot; the dock id stays `changes`. Header, the four filters, the Now row, the rows, the Advanced fold.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history's close button.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-filter-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One filter of Version history (`aria-pressed`): `<id>` is all, named, ai or people — All · Named · Made by AI · People.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-now",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Now row: \"Now\", the canvas and its save word, and Name this version….",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-now-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Now row's second line: \"<canvas> · Saved\" (the save word of CONTRACT §6).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-now-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Now row while a past version is held: a click returns to now.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Now row › \"Name this version…\" (\"Saving…\", disabled, while the canvas has unsent changes); absent for Can view and Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The grouped rows (Today / Yesterday / 4 Oct …).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-row-<ref>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One version row; `<ref>` is its last revision (`r41`). A click looks at that version (the Viewing hold); `aria-current` marks the one held.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-acts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The held row's actions: Compare (when Compare is wired) and Restore this version (edit only).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-compare",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Held row › Compare (S1.15).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-restore",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Held row › \"Restore this version\": a new version, then a toast \"Restored 5 Oct, 18:40 · Undo\". Absent for Can view and Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Row"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Show older versions\" at the foot of the list.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The empty state: \"Versions appear here as you work.\" (or the filter's own line).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-loading",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Skeleton rows while the first page loads.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-failed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Couldn't load versions\" (`role=alert`) with Retry versions.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Retry versions: pressed by hand, never automatic.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-offline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Offline — showing versions up to 14:05\" above the rows.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-nocanvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open a canvas to see its versions.\" when no canvas is in front.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-viewbar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Viewing bar: \"Viewing “…” · 5 Oct, 18:40 · Jonas\" and \"esc back to now\", shown while the mode store holds a past version.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/view-bar.jsx",
+      "symbol": "ViewBar"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-viewbar-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Viewing bar's words.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/view-bar.jsx",
+      "symbol": "ViewBar"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-viewbar-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Viewing bar's \"esc back to now\" button.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/view-bar.jsx",
+      "symbol": "ViewBar"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Name this version\" dialog (`role=dialog`, modal).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dim behind the Name this version dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The name field (1–80 characters).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-save",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Name version (the dialog's primary button).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-name-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The reason under the name field (`role=alert`).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/name-dialog.jsx",
+      "symbol": "NameDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-history-panel.test.tsx"
+    ],
+    "v2": "new"
   }
 ]

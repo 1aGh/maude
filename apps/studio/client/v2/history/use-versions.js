@@ -217,7 +217,7 @@ export async function nameVersion({ path, at, name, fetchImpl, onChanged }) {
   };
 }
 
-const PICTURE_POLLS_MS =[1500, 3000, 5000, 8000, 12000, 20000];
+const PICTURE_POLLS_MS = [1500, 3000, 5000, 8000, 12000, 20000];
 /** The shell turns the socket's `{type:'thumb-ready'}` into this window event (app.jsx). */
 export const THUMB_EVENT = 'maude:thumb-ready';
 

@@ -1825,8 +1825,8 @@
       "drawnAt": null,
       "v2": {
         "action": "history.open",
-        "testid": "git-panel",
-        "where": "Menu › Version history ⇧⌘G → today’s Changes / History panel: empty states, “Cloud is saving”, result banners, Undo a restore, Retry (until S1)"
+        "testid": "vh-panel",
+        "where": "Menu › Version history ⌥⌘H → the Version history panel (S1.14): “Versions appear here as you work.”, “Couldn’t load versions” + Retry versions, result banners as one-action toasts (“Restored 5 Oct, 18:40 · Undo”), Undo a restore; › Advanced keeps today’s git body and DiffView compare (testid git-panel) until S1.15 / S11 reword it"
       }
     },
     {

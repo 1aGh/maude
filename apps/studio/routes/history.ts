@@ -41,8 +41,8 @@ import {
   type VersionsRuntime,
 } from '../history/versions.ts';
 import type { AttributionCache } from '../index/extractors/attribution-cache.ts';
-import type { ThumbRequest, ThumbResult } from '../thumbs/service.ts';
 import type { RestoreOptions } from '../sync/local-kernel.ts';
+import type { ThumbRequest, ThumbResult } from '../thumbs/service.ts';
 import { announceAction } from './project-undo.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -193,9 +193,9 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
   };
 
   /** S1.14: each row's picture, asked of the service in row order (the first screenful `visible`). */
-  async function withPictures<R extends { thumb: object | null }>(
-    rows: R[]
-  ): Promise<Array<R & { picture?: ThumbResult }>> {
+  async function withPictures(
+    rows: ReadonlyArray<{ thumb: object | null }>
+  ): Promise<ReadonlyArray<{ thumb: object | null; picture?: ThumbResult }>> {
     const ask = deps.thumb;
     if (!ask) return rows;
     return Promise.all(
