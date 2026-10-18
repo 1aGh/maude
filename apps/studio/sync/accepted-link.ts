@@ -412,6 +412,31 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     dirMove(from: string, to: string, waitMs = 8_000): Promise<StructuralOutcome> {
       return structural('Move folder', 'folder.move', [{ op: 'dir.move', from, to }], waitMs);
     },
+    /**
+     * S4.7 — several lanes of ONE canvas as ONE action (a sticky ↔ comment
+     * conversion: `annotations` + `comments`). One proposal, so one undo
+     * restores every lane together (contract S4-S9-votes-comments §3.2).
+     */
+    lanesEdit(
+      slug: string,
+      lanes: Array<{ lane: LaneProposal['lane']; content: string; baseContent: string }>,
+      action: { kind: string; label: string; writeId?: string }
+    ): Promise<StructuralOutcome> {
+      const doc = opts.docNameFor(slug);
+      return structural(
+        action.label,
+        action.kind,
+        lanes.map((l) => ({
+          op: 'lane.replace',
+          doc,
+          lane: l.lane,
+          content: l.content,
+          baseContent: l.baseContent,
+          ...(action.writeId ? { writeId: action.writeId } : {}),
+        })),
+        Number.POSITIVE_INFINITY
+      );
+    },
     /** Logical history, newest first (optionally one entry's). */
     history(q: {
       limit?: number;

@@ -288,6 +288,12 @@ export interface Context {
         text: string,
         opts?: { baseText?: string; writeId?: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
+      /** S4.7 — several lanes of one canvas as ONE action (SyncRuntime / the local home). */
+      proposeLanes?(
+        slug: string,
+        lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+        opts: { kind: string; label: string; writeId?: string }
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeFolder. */
       proposeFolder?(
         op:

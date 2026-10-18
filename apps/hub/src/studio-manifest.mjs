@@ -124,6 +124,12 @@ export const STUDIO_ROUTES = Object.freeze({
   // path (DDR-242 §4) — the same capability as the whole-board write.
   '/_api/annotations': { safe: 'read', unsafe: 'annotate' },
   '/_api/annotations/ops': { safe: 'read', unsafe: 'annotate' },
+  // S4.7 — sticky ↔ comment moves a note between the board and the thread list:
+  // an annotation write (the comment half needs `comment`, which `annotate` implies).
+  '/_api/annotations/to-comment': { safe: null, unsafe: 'annotate' },
+  '/_api/comments/to-sticky': { safe: null, unsafe: 'annotate' },
+  // The no-op-log undo token — a cell is always in accepted mode and never issues one.
+  '/_api/annotations/convert-undo': REFUSED,
   // A photo edit is a validated JSON sidecar next to the asset
   // (`assets/<sha8>.photo.json`) — the decode/compositing runs in the member's
   // browser, the exact division of labour that makes `/_canvas-shell`

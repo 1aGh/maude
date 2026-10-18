@@ -18,6 +18,7 @@ import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
@@ -67,6 +68,8 @@ export interface RouteDeps {
   chatAttach?: ChatAttachDeps;
   /** S9.7b — `POST /_api/comments/op`: one comment op (comments/ops.ts) as the session */
   comments?: CommentRouteDeps;
+  /** S4.7 — sticky ↔ comment (one action, two lanes) + its undo guard on `projectUndo` */
+  annotations?: AnnotationRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -74,6 +77,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
   // ONE run registry (S5.3, ai/runs.ts): the hook routes' view writes it, the shell status counts
   // it (V2-3.4), and `/_api/ai/runs*` reads it — never a second map.
   deps.agent.runs ??= createAgentRuns(deps.agent.bracket, undefined, deps.ai.registry);
+  const convert = deps.annotations ? createAnnotationRoutes(deps.annotations) : null;
+  const projectUndo = deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel };
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
@@ -86,7 +91,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
     ...(deps.chatAttach ? createChatAttachRoutes(deps.chatAttach) : []),
     ...createProjectUndoRoutes(
-      deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+      convert ? { ...projectUndo, guard: convert.undoGuard } : projectUndo
     ),
     ...createPresentRoutes(deps.present),
     ...createTrashRoutes(
@@ -111,5 +116,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
         }),
       }
     ),
+    ...(convert?.specs ?? []),
   ];
 }

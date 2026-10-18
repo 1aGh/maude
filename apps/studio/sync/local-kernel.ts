@@ -47,8 +47,9 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { MIGRATION_ACTOR } from '../../hub/src/project-transactions/baseline.mjs';
 import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transactions/kernel.mjs';
-import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
+import { laneHash, mergeLane } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
+import { serializeBoard } from '../annotations/schema.ts';
 import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
@@ -84,6 +85,19 @@ const SQLITE_SIDECARS = ['', '-wal', '-shm'] as const;
 /** The lanes a local canvas carries. Comments stay per machine (`_comments/`). */
 export const LOCAL_LANES = ['html', 'meta', 'annotations'] as const;
 type LocalLane = (typeof LOCAL_LANES)[number];
+/**
+ * The lanes the watcher records from disk. The board (and the comments a
+ * conversion touches) have a second writer — the collab room projects onto
+ * them — so, as on a hub link (projection.ts), they are never proposed from a
+ * file event: they reach the store only as an explicit action (S4.7
+ * `proposeLanes`), and an accepted undo merges back into what the disk holds.
+ */
+const WATCHED_LANES = ['html', 'meta'] as const;
+/** S4.7 — lanes only an explicit action writes; published three-way onto the disk. */
+const EXPLICIT_LANES = ['annotations', 'comments'] as const;
+type ExplicitLane = (typeof EXPLICIT_LANES)[number];
+const isExplicit = (lane: string): lane is ExplicitLane =>
+  (EXPLICIT_LANES as readonly string[]).includes(lane);
 
 /** What the watcher's actions say (V2-1.9 §5.2). */
 export const OUTSIDE_KIND = 'outside';
@@ -424,6 +438,12 @@ export type LocalOutcome = {
 /** The `ctx.syncControl.current()` surface a local project answers through. */
 export interface LocalRuntime {
   cancelAssetSweep(): boolean;
+  /** S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). */
+  proposeLanes(
+    slug: string,
+    lanes: Array<{ lane: string; text: string; baseText: string }>,
+    o: { kind: string; label: string }
+  ): Promise<LocalOutcome>;
   acceptedHistory(q: {
     limit?: number;
     before?: number | null;
@@ -767,10 +787,19 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   /* ------------------------------------------------------------ disk ⇄ lanes */
 
   const abs = (rel: string) => path.join(opts.designRoot, ...rel.split('/'));
+  // The board is NOT a sibling: it sits at the design root under the canvas's
+  // flat slug (`<slug>.annotations.json`, api.ts `annotationsPath`, DDR-242).
   const sibling = (rel: string, lane: LocalLane) =>
     lane === 'html'
       ? rel
-      : rel.replace(/\.tsx$/i, lane === 'meta' ? '.meta.json' : '.annotations.json');
+      : lane === 'meta'
+        ? rel.replace(/\.tsx$/i, '.meta.json')
+        : `${canvasSlugFromRel(rel, designRel)}.annotations.json`;
+  /** S4.7 — the file an explicit lane is published to. */
+  const explicitFile = (rel: string, lane: ExplicitLane) =>
+    lane === 'annotations'
+      ? sibling(rel, 'annotations')
+      : `_comments/${canvasSlugFromRel(rel, designRel)}.json`;
   const readText = (rel: string): string | null => {
     try {
       return readFileSync(abs(rel), 'utf8');
@@ -825,7 +854,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     }
     if (!inGroups(rel)) return null;
     const values: Partial<Record<LocalLane, string>> = {};
-    for (const lane of LOCAL_LANES) {
+    for (const lane of WATCHED_LANES) {
       const v = diskLane(rel, lane);
       if (v !== null) values[lane] = v;
     }
@@ -846,7 +875,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const noted = action.kind === OUTSIDE_KIND ? takeNote(rel, values.html) : null;
     const ops: unknown[] = [];
     const nextSeen: Array<[string, string]> = [];
-    for (const lane of LOCAL_LANES) {
+    for (const lane of WATCHED_LANES) {
       const v = values[lane];
       if (v === undefined) continue;
       const k = `${rel}|${lane}`;
@@ -1079,6 +1108,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         }
       }
       for (const [lane, value] of Object.entries(lanes)) {
+        if (isExplicit(lane)) {
+          if (!c.created && !c.revived)
+            await publishExplicit(c.path, c.doc, lane, value, p.revision);
+          continue;
+        }
         if (!(LOCAL_LANES as readonly string[]).includes(lane)) continue;
         const l = lane as LocalLane;
         const rel = sibling(c.path, l);
@@ -1094,6 +1128,104 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         writeLane(c.path, l, value);
       }
     }
+  }
+
+  /**
+   * S4.7 — an accepted change of an explicit lane reaches the disk THREE-WAY:
+   * what the store held before → what it holds now, replayed onto what the disk
+   * holds (by element / comment id — mergeLane). Nothing the store never saw is
+   * overwritten: an unrecorded sticky edit or a new comment stays.
+   */
+  async function publishExplicit(
+    rel: string,
+    doc: string,
+    lane: ExplicitLane,
+    value: string,
+    revision: number
+  ): Promise<void> {
+    const store = opened?.store;
+    if (!store) return;
+    const h = await store.laneAt(doc, lane, revision - 1);
+    const before = h ? (((await store.blob(h)) as string | null) ?? '') : '';
+    const fileRel = explicitFile(rel, lane);
+    const raw = readText(fileRel);
+    const disk = raw === null ? '' : laneValueFromFile(lane, raw);
+    if (disk === null) {
+      log.warn(`[local-kernel] ${fileRel} is unreadable — left as it is`);
+      return;
+    }
+    const m = mergeLane(lane, before, value, disk);
+    if (!m.ok) {
+      log.warn(`[local-kernel] ${fileRel} changed on disk since — left as it is`);
+      return;
+    }
+    if (m.content === disk) return;
+    if (m.content === '') {
+      if (lane === 'comments') {
+        try {
+          unlinkSync(abs(fileRel));
+        } catch {
+          /* absent */
+        }
+      } else atomicWrite(abs(fileRel), serializeBoard([]));
+      return;
+    }
+    // The bytes the studio itself writes: api.ts `saveCommentsForFile` / the canonical board.
+    const text = lane === 'comments' ? JSON.stringify(JSON.parse(m.content), null, 2) : m.content;
+    mkdirSync(path.dirname(abs(fileRel)), { recursive: true });
+    atomicWrite(abs(fileRel), text);
+  }
+
+  /**
+   * S4.7 — several lanes of one canvas as ONE action (a sticky ↔ comment
+   * conversion). The studio writes the files itself (the room bridge, the
+   * sidebar); this records what they became. An explicit lane the store has
+   * fallen behind on (a board edit the watcher does not record) is first
+   * brought up to the disk's `baseText` by an `outside` row, so the action's
+   * before-content IS what the disk held — its undo takes back exactly it.
+   */
+  async function proposeLanes(
+    slug: string,
+    lanes: Array<{ lane: string; text: string; baseText: string }>,
+    o: { kind: string; label: string }
+  ): Promise<LocalOutcome> {
+    await readyP;
+    return serial(async () => {
+      if (!opened || !kernel) return { status: 'rejected', code: 'store-locked' } as LocalOutcome;
+      const store = opened.store;
+      const m = await store.manifest();
+      const live = (m.docs as { doc: string; path: string; retired: boolean }[]).find(
+        (d) => !d.retired && d.path && canvasSlugFromRel(d.path, designRel) === slug
+      );
+      if (!live) return { status: 'rejected', code: 'unknown-canvas' } as LocalOutcome;
+      const head = (await store.heads([live.doc]))[live.doc] as {
+        lanes: Record<string, { hash: string | null }>;
+      };
+      const catchUp: unknown[] = [];
+      const ops: unknown[] = [];
+      for (const l of lanes) {
+        if (!isExplicit(l.lane) && !(LOCAL_LANES as readonly string[]).includes(l.lane))
+          return { status: 'rejected', code: 'invalid' } as LocalOutcome;
+        const lane = l.lane as LocalLane | ExplicitLane;
+        const content = laneValueFromFile(lane, l.text);
+        const base = laneValueFromFile(lane, l.baseText);
+        if (content === null || base === null)
+          return { status: 'rejected', code: 'invalid' } as LocalOutcome;
+        const headHash = hashOr(head?.lanes?.[lane]?.hash);
+        if (laneHash(base) !== headHash)
+          catchUp.push({ op: 'lane.replace', doc: live.doc, lane, content: base, base: headHash });
+        ops.push({ op: 'lane.replace', doc: live.doc, lane, content, base: laneHash(base) });
+      }
+      if (catchUp.length) {
+        const r = await submit(catchUp, { kind: OUTSIDE_KIND, label: null }, actor, {}, true);
+        if (r.status !== 'accepted') return r;
+      }
+      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, {}, true);
+      if (r.status === 'accepted') {
+        for (const l of lanes) if (!isExplicit(l.lane)) seen.set(`${live.path}|${l.lane}`, l.text);
+      }
+      return r;
+    });
   }
 
   /** Write one lane's value to its file (an empty side lane removes the file). */
@@ -1282,6 +1414,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   const runtime: LocalRuntime = {
     cancelAssetSweep: () => false,
+    proposeLanes: (slug, lanes, o) => proposeLanes(slug, lanes, o),
     async acceptedHistory(q) {
       await settled();
       const o = opened;
