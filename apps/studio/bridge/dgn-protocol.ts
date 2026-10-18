@@ -301,6 +301,15 @@ export interface ShellToCanvas {
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
   // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
   'reveal-artboard': { artboardId: Id; glide: boolean; flash: boolean };
+  // S5.11 (V2-1.15 §5.8, P3): which artboards an AI is on, for the ring + tag the canvas draws. A state, a
+  // name and a count per artboard — never a prompt, a question or a progress line (the canvas is untrusted).
+  // `done` is the settled ring after a run (driven by the V2-1.5 action event, not the registry).
+  'ai-runs': {
+    artboards: Record<
+      Id,
+      { state: 'running' | 'needs-you' | 'done'; who: string; tag: string; waiting: number }
+    >;
+  };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -444,6 +453,30 @@ const strMap: V = (v) => {
   }
   return out;
 };
+/** A map of validated values with a bounded key count; `__proto__`/`constructor`/`prototype` keys are REJECTED. */
+export const RING_KEYS_MAX = 256;
+const recOf =
+  (f: V, max = RING_KEYS_MAX): V =>
+  (v) => {
+    if (!isPlain(v)) return BAD;
+    const keys = Object.keys(v);
+    if (keys.length > max) return BAD;
+    const out: Record<string, unknown> = Object.create(null);
+    for (const k of keys) {
+      if (k.length > 200 || k === '__proto__' || k === 'constructor' || k === 'prototype')
+        return BAD;
+      const r = f(v[k]);
+      if (r === BAD) return BAD;
+      out[k] = r;
+    }
+    return out;
+  };
+const shortStr =
+  (max: number): V =>
+  (v) =>
+    typeof v === 'string' && v.length <= max ? v : BAD;
+const count: V = (v) =>
+  typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 9999 ? v : BAD;
 const shape =
   (fields: Record<string, V>): V =>
   (v) => {
@@ -1061,6 +1094,21 @@ const s2c: S2C = {
     orphan: 'no-handler',
     owner: 'canvas-lib',
     parse: p({ artboardId: str, glide: bool, flash: bool }),
+  },
+  'ai-runs': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'artboard-activity-overlay',
+    parse: p({
+      artboards: recOf(
+        shape({
+          state: lit('running', 'needs-you', 'done'),
+          who: shortStr(200),
+          tag: shortStr(120),
+          waiting: count,
+        })
+      ),
+    }),
   },
   'insert-template': {
     gate: 'parent',

@@ -4956,10 +4956,10 @@
     "hook": "ai-chat-count",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The AI chat header's \"✦ N\" chip: how many of YOUR chats are running; absent at zero. Click opens the chat list.",
+    "meaning": "The AI chat header's \"✦ N\" chip: how many of YOUR AI runs are live (a waiting ask counts; other people's AI never does); absent at zero. Click opens the run list (`ai-runs-list`).",
     "producer": {
-      "file": "apps/studio/client/panels/chat-header.jsx",
-      "symbol": "ChatHeader"
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunsCount"
     },
     "region": "other",
     "consumers": [],
@@ -4973,6 +4973,123 @@
     "producer": {
       "file": "apps/studio/client/v2/ai/AiChatIsland.jsx",
       "symbol": "AiChatIsland"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-runs-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list under \"✦ N\": \"Yours\", then \"On this canvas\" (other people's runs, View only). Esc closes; a row takes you to its artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-run-<runId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the run list. `data-state` = working | waiting | needs, `data-view-only=\"true\"` on another person's run.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-stack",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The waiting cards of the open chat (absent when nothing waits).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCards"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card for a second ask on a busy artboard: \"Waiting for “<run>” to finish on <artboard>.\" `data-run` = the waiting run id.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The × on the waiting card: cancels the ask (no turn ran).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The waiting card's \"Run on a copy\". Not drawn until the copy route exists (`RUN_ON_COPY_LIVE`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one line under the waiting card when × or Run on a copy was refused.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-rings",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard.",
+    "producer": {
+      "file": "apps/studio/artboard-activity-overlay.tsx",
+      "symbol": "ArtboardRingsLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-ring-<artboardId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person.",
+    "producer": {
+      "file": "apps/studio/artboard-activity-overlay.tsx",
+      "symbol": "ArtboardRingsLayer"
     },
     "region": "other",
     "consumers": [],

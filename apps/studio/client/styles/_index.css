@@ -39,6 +39,8 @@
 @import url("../v2/ai/ai.css");
 /* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */
 @import url("../v2/ai/ai-run.css");
+/* S5.11 — the ✦ N run list and the waiting card. */
+@import url("../v2/ai/runs.css");
 /* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
 @import url("../v2/shell/floating-panels.css");
 @import url("../v2/shell/project-pill.css");
