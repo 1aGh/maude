@@ -440,6 +440,12 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: cli('maude design history undo --chat <id>'),
   },
+  // S5.10 — attaching is how a PERSON hands the AI a file or a folder; an agent already reads files
+  // itself (and a folder grant is consent only the person can give).
+  'ai.attach-files': { effect: 'project', minRole: 'edit', agent: human('ai-chat') },
+  'ai.attach-folder': { effect: 'none', minRole: 'edit', agent: human('ai-chat') },
+  'ai.attach-assets': { effect: 'none', minRole: 'edit', agent: human('ai-chat') },
+  'ai.attach-screenshot': { effect: 'project', minRole: 'edit', agent: human('ai-chat') },
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {

@@ -799,6 +799,20 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-waiting-note` | testid | The one line under the waiting card when × or Run on a copy was refused. | `client/v2/ai/WaitingCard.jsx` · `WaitingCard` | — | stable |
 | `ai-rings` | testid | Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-ring-<artboardId>` | testid | Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
+| `ai-attach-clip` | testid | The paperclip in the AI prompt row; opens the attach menu. | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-menu` | testid | The paperclip's menu (Attach files… · Choose a folder… · From Assets · Paste a screenshot ⌘V · Or drag files here). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-menu-<id>` | testid | One row of the attach menu: `files`, `folder` (desktop app only), `assets`, `screenshot`, `drag` (disabled reminder). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-input` | testid | The hidden file input behind Attach files… (e2e sets files on it). | `client/v2/ai/AttachMenu.jsx` · `AttachMenu` | — | new (S5.10) |
+| `ai-attach-chips` | testid | The attachment chips row inside the prompt. | `client/v2/ai/AChip.jsx` · `AttachChips` | — | new (S5.10) |
+| `ai-attach-chip-<n>` | testid | One attachment chip, by position. `data-state` = uploading / ready / wait / error; `data-kind` = image / video / audio / file / folder. | `client/v2/ai/AChip.jsx` · `AChip` | — | new (S5.10) |
+| `ai-attach-chip-x-<n>` | testid | A chip's × (removes it; a folder chip also detaches the folder from this chat). | `client/v2/ai/AChip.jsx` · `AChip` | — | new (S5.10) |
+| `ai-attach-held` | testid | The line under the chips naming a folder that won't be sent (asked, or Not now). | `client/v2/ai/AChip.jsx` · `AttachChips` | — | new (S5.10) |
+| `ai-attach-notice` | testid | The status line for a refused attachment (type, size, a folder AI may not read). | `client/v2/ai/AChip.jsx` · `AttachChips` | — | new (S5.10) |
+| `ai-attach-drop` | testid | "Drop to attach" — painted over the AI chat panel while files are dragged over it. | `client/v2/ai/DropOverlay.jsx` · `DropOverlay` | — | new (S5.10) |
+| `ai-attach-consent` | testid | The folder consent card: Let AI read “<folder>” (N files)? | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
+| `ai-attach-consent-path` | testid | The consent card's full path line, shown only for a folder outside the project. | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
+| `ai-attach-consent-allow` | testid | Let AI read — the only control that records a folder grant. | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
+| `ai-attach-consent-notnow` | testid | Not now — keeps the chip, sends without it. | `client/v2/ai/Consent.jsx` · `Consent` | — | new (S5.10) |
 | `ai-scope-chip` | testid | The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-chat-list` | testid | The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
 | `ai-chat-list-back` | testid | "‹ Chats": back from the chat list to the chat. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |

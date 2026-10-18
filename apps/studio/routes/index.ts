@@ -19,6 +19,7 @@ import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
+import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -61,6 +62,8 @@ export interface RouteDeps {
   trash?: TrashRouteDeps;
   /** S1.18 — `GET /_api/link/resolve` (stable canvas links: entry → path) */
   links?: LinksRouteDeps;
+  /** S5.10 — attachments (→ Assets / this Mac's `_chat/attachments/`) + folder consent */
+  chatAttach?: ChatAttachDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -78,6 +81,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createChatRoutes(deps.chat),
     // S2.1 — AI holds read THE run registry (V2-1.15 §4 #13)
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
+    ...(deps.chatAttach ? createChatAttachRoutes(deps.chatAttach) : []),
     ...createProjectUndoRoutes(
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),

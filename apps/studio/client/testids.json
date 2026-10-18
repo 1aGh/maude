@@ -12663,5 +12663,187 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "ai-attach-clip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The paperclip in the AI prompt row; opens the attach menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AttachMenu.jsx",
+      "symbol": "AttachMenu"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The paperclip's menu (Attach files… · Choose a folder… · From Assets · Paste a screenshot ⌘V · Or drag files here).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AttachMenu.jsx",
+      "symbol": "AttachMenu"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-menu-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the attach menu: `files`, `folder` (desktop app only), `assets`, `screenshot`, `drag` (disabled reminder).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AttachMenu.jsx",
+      "symbol": "AttachMenu"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hidden file input behind Attach files… (e2e sets files on it).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AttachMenu.jsx",
+      "symbol": "AttachMenu"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-chips",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The attachment chips row inside the prompt.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AChip.jsx",
+      "symbol": "AttachChips"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-chip-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One attachment chip, by position. `data-state` = uploading / ready / wait / error; `data-kind` = image / video / audio / file / folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AChip.jsx",
+      "symbol": "AChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-chip-x-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A chip's × (removes it; a folder chip also detaches the folder from this chat).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AChip.jsx",
+      "symbol": "AChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-held",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the chips naming a folder that won't be sent (asked, or Not now).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AChip.jsx",
+      "symbol": "AttachChips"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-notice",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The status line for a refused attachment (type, size, a folder AI may not read).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/AChip.jsx",
+      "symbol": "AttachChips"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-drop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Drop to attach\" — painted over the AI chat panel while files are dragged over it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/DropOverlay.jsx",
+      "symbol": "DropOverlay"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-consent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The folder consent card: Let AI read “<folder>” (N files)?",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Consent.jsx",
+      "symbol": "Consent"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-consent-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The consent card's full path line, shown only for a folder outside the project.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Consent.jsx",
+      "symbol": "Consent"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-consent-allow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Let AI read — the only control that records a folder grant.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Consent.jsx",
+      "symbol": "Consent"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-attach-consent-notnow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Not now — keeps the chip, sends without it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Consent.jsx",
+      "symbol": "Consent"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
   }
 ]

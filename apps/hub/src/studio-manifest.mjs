@@ -301,6 +301,13 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/acp/chats/clear': REFUSED,
   '/_api/acp/chats/restore': REFUSED,
   '/_api/acp/chats/search': REFUSED,
+  // S5.10: attachments + folder consent belong to the Mac the chat runs on, never a cell's
+  '/_api/ai/attach/file': REFUSED,
+  '/_api/ai/attach/folder': REFUSED,
+  '/_api/ai/attach/folder/detach': REFUSED,
+  '/_api/ai/attach/folder/revoke': REFUSED,
+  '/_api/ai/attach/folders': REFUSED,
+  '/_api/ai/attach/folder/list': REFUSED,
   '/_api/acp/chats/trash': REFUSED,
   '/_api/acp/focus': REFUSED,
   '/_api/acp/status': REFUSED,

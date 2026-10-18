@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "324ce79af3e1",
+  "manifestVersion": "481e196e5b17",
   "actions": [
     {
       "id": "search.open",
@@ -2562,6 +2562,54 @@
       "kind": "command",
       "exec": "shell",
       "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-files",
+      "label": "Attach files…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-folder",
+      "label": "Choose a folder…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-assets",
+      "label": "From Assets",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-screenshot",
+      "label": "Paste a screenshot",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
       "agent": {
         "path": "human",
         "because": "ai-chat"
