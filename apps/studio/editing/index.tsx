@@ -14,6 +14,7 @@ import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
+import { EmptyArtboardReporter } from './empty-reporter.tsx';
 import { LockBadge } from './lock-badge.tsx';
 import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
@@ -104,6 +105,8 @@ export function EditingLayer() {
       <LockBadge readOnly={isReadOnlyCanvas()} />
       <NudgeReadout readOnly={isReadOnlyCanvas()} />
       {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
+      {/* S11.2 — tells the shell what is empty: the artboard count and the selected empty artboard */}
+      <EmptyArtboardReporter />
       <ArtboardHandles />
       {editChrome ? <StickyName /> : null}
       {editChrome ? <MinimapContext /> : null}

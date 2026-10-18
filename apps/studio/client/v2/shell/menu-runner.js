@@ -17,6 +17,7 @@ import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
+import { runFillAsk } from '../empty/fill-ask.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
@@ -218,6 +219,15 @@ export function createMenuHandlers(d) {
         return;
       }
       d.toggleRightPanel('assistant');
+    },
+    // S11.2 — the empty-artboard hint's Ask AI, from ⌘K: the chat opens with "Fill <board> starting from …" in
+    // its field (never sent). The empty host knows which board; unbound it does nothing.
+    'ai.ask-fill-artboard': () => {
+      if (!d.native) {
+        d.toast('AI chat is in the Maude desktop app.');
+        return;
+      }
+      runFillAsk();
     },
     // ── the AI chat panel's Advanced rows (S5.12) ──
     ...createAdvancedHandlers(d),

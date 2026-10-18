@@ -190,6 +190,14 @@ export interface CanvasToShell {
   select: { selection: Selection };
   'clear-select': Empty;
   artboards: { count: number };
+  /** S11.2 — the ONE selected artboard has nothing on it (the shell draws the hint at `rect`, iframe viewport px);
+   *  `rect: null` = it is not empty now / something else is selected. `label` / `from` are untrusted text. */
+  'artboard-empty': {
+    artboardId: Id | null;
+    rect: Rect | null;
+    label?: string;
+    from?: string;
+  };
   'insert-artboard-request': { id?: Id; label?: string; width?: number; height?: number };
 
   // ── V2-1.2 mode lane — live since V2-4.3b (set-mode / mode-changed / mode-request); the rest new ──
@@ -860,12 +868,20 @@ const c2s: C2S = {
     orphan: 'no-sender',
     parse: none,
   },
+  // S11.2 — live: the canvas reports its real artboard count (editing/empty-report.ts); the empty canvas
+  // ("Your canvas is ready.") shows at 0.
   artboards: {
     gate: 'active',
-    status: 'legacy',
-    owner: BR,
-    orphan: 'no-sender',
+    status: 'live',
+    owner: 'v2/empty (S11.2); the shell bridge keeps the Layers count',
     parse: p({ count: num }),
+  },
+  // S11.2 — the shell draws the empty-artboard hint (Q5 of S11-slices): the copy lives in one table.
+  'artboard-empty': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/empty (S11.2)',
+    parse: p({ artboardId: nul(str), rect: nul(rect), label: opt(str), from: opt(str) }),
   },
   'insert-artboard-request': {
     gate: 'active',
