@@ -9355,7 +9355,7 @@
     "hook": "palette-group-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`.",
+    "meaning": "A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`, or `did-you-mean` (typo-only hits, S1.4).",
     "producer": {
       "file": "apps/studio/client/dialogs/command-palette.jsx",
       "symbol": "CommandPalette"
@@ -9391,6 +9391,32 @@
     "v2": "new"
   },
   {
+    "hook": "palette-did-you-mean-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Nothing called …” line above the “Did you mean” group, when every hit is a typo and no word of the query was right.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-recent-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Nothing opened yet.” line under Recent when nothing was opened on this Mac (Start here follows).",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "palette-close-note",
     "kind": "testid",
     "pattern": false,
@@ -9407,7 +9433,7 @@
     "hook": "palette-count",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The ⌘K footer: “Type to search” or “N results”.",
+    "meaning": "The ⌘K footer: “Type to search”, “N results”, “N close matches”, “0 results · N close match”, or on a Mac with nothing opened “Every tool is here — type its name”.",
     "producer": {
       "file": "apps/studio/client/dialogs/command-palette.jsx",
       "symbol": "CommandPalette"

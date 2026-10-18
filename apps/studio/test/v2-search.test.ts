@@ -124,7 +124,13 @@ describe('the list', () => {
       expect(last.id).toBe('ask-ai');
       expect(last.keys).toBe('⌘↵');
     }
-    expect(find('hub').ask?.name).toBe('Ask AI to find “hub”');
+    // the words follow what is above it (S1.4): hits → "Ask AI — find “hub” by what it looks like",
+    // none → "Ask AI to find “zzzz nothing” — it looks inside canvases too"
+    expect(find('hub').ask).toMatchObject({
+      name: 'Ask AI',
+      meta: ' — find “hub” by what it looks like',
+    });
+    expect(find('zzzz nothing').ask?.name).toBe('Ask AI to find “zzzz nothing”');
   });
 
   test('no AI on this surface → no Ask AI row, and the empty copy drops "or ask AI"', () => {

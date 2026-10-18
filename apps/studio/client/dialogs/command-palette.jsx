@@ -13,12 +13,14 @@ import { getPaletteEnv } from '../v2/search/search-env.js';
 import { useModalFocus } from '../v2/shell/modal-focus.js';
 import { REMOTE_DEBOUNCE_MS, searchIndex } from '../v2/search/search-remote.js';
 import {
+  askRow as askRowFor,
   assemble,
   emptyCopy,
+  footerCount,
   remoteRows,
-  resultsCount,
   sanitizeQuery,
 } from '../v2/search/search-model.js';
+import { fetchRecents, RECENT_EMPTY, recentRows, startRows } from '../v2/search/search-recent.js';
 
 const FALLBACK_ICON = {
   canvases: 'file',
@@ -66,6 +68,8 @@ export function CommandPalette({ open, onClose, actions }) {
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const [remote, setRemote] = useState({ q: '', rows: [] });
+  // Canvases opened on this Mac (`known: false` = the server did not say, so no day-one screen)
+  const [recents, setRecents] = useState({ known: false, opened: {} });
   const listRef = useRef(null);
   const inputRef = useRef(null);
   // V2-4 gate (a11y B2/W3): Tab stays inside, esc closes from any row, focus goes back to the opener.
@@ -82,7 +86,14 @@ export function CommandPalette({ open, onClose, actions }) {
       setQ('');
       setActive(0);
       setRemote({ q: '', rows: [] });
+      setRecents({ known: false, opened: {} });
+      const ctl = new AbortController();
+      fetchRecents({ signal: ctl.signal }).then((r) => {
+        if (!ctl.signal.aborted) setRecents(r);
+      });
+      return () => ctl.abort();
     }
+    return undefined;
   }, [open]);
 
   // Canvases + artboards: the project index, one request per pause in typing.
@@ -92,7 +103,10 @@ export function CommandPalette({ open, onClose, actions }) {
     const timer = setTimeout(async () => {
       const res = await searchIndex(clean, { signal: ctl.signal });
       if (res && !ctl.signal.aborted)
-        setRemote({ q: clean, rows: remoteRows(res, { designRel: getPaletteEnv().designRel }) });
+        setRemote({
+          q: clean,
+          rows: remoteRows(res, { designRel: getPaletteEnv().designRel, query: clean }),
+        });
     }, REMOTE_DEBOUNCE_MS);
     return () => {
       clearTimeout(timer);
@@ -113,31 +127,40 @@ export function CommandPalette({ open, onClose, actions }) {
   /** Everything on screen for a query (the live input value or the rendered one). */
   const viewFor = (query, remoteRowsNow) => {
     if (!sanitizeQuery(query)) {
-      const rows = shortList.map((a) => ({
-        group: 'short',
-        id: a.id,
-        name: a.label,
-        icon: a.icon,
-        keys: a.kbd ?? '',
-        heading: a.group,
-        run: a.run,
-      }));
-      const ask = canAskAI
-        ? {
-            group: 'ask-ai',
-            id: 'ask-ai',
-            name: 'Ask AI',
-            meta: ' — describe what you want on the canvas',
-            keys: '⌘↵',
-          }
-        : null;
-      return { short: true, groups: [], rows, items: ask ? [...rows, ask] : rows, ask, total: 0 };
+      const designRel = getPaletteEnv().designRel;
+      const recent = recentRows(recents.opened, { designRel });
+      // Nothing opened yet on this Mac: say so, and list where to start (05 · es-search-more).
+      const dayOne = recents.known && recent.length === 0;
+      const rows = dayOne
+        ? startRows(actions)
+        : [
+            ...recent,
+            ...shortList.map((a) => ({
+              group: 'short',
+              id: a.id,
+              name: a.label,
+              icon: a.icon,
+              keys: a.kbd ?? '',
+              heading: a.group,
+              run: a.run,
+            })),
+          ];
+      const ask = canAskAI ? askRowFor('', dayOne ? 'first' : 'idle') : null;
+      return {
+        short: true,
+        dayOne,
+        groups: [],
+        rows,
+        items: ask ? [...rows, ask] : rows,
+        ask,
+        total: 0,
+      };
     }
     return assemble({ query, local, remote: remoteRowsNow, canAskAI });
   };
   const view = useMemo(
     () => viewFor(q, remote.q === clean ? remote.rows : []),
-    [q, clean, remote, local, shortList, canAskAI]
+    [q, clean, remote, local, shortList, canAskAI, recents, actions]
   );
   const items = view.items;
 
@@ -168,7 +191,7 @@ export function CommandPalette({ open, onClose, actions }) {
         aria-disabled={item.disabled ? true : undefined}
         tabIndex={-1}
         data-testid={`palette-row-${item.id}`}
-        className={`st-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}`}
+        className={`st-pal-item${i === active ? ' is-active' : ''}${item.disabled ? ' is-dim' : ''}${item.quiet ? ' is-quiet' : ''}`}
         onMouseEnter={() => setActive(i)}
         onClick={() => go(item)}
       >
@@ -179,7 +202,11 @@ export function CommandPalette({ open, onClose, actions }) {
           <span className="st-pal-ltxt">
             <Marked text={item.name} marks={item.marks} />
           </span>
-          {item.meta ? <span className="st-pal-meta">{item.meta}</span> : null}
+          {item.meta ? (
+            <span className="st-pal-meta">
+              <Marked text={item.meta} marks={item.metaMarks} />
+            </span>
+          ) : null}
         </span>
         {item.where ? <span className="st-pal-where">{item.where}</span> : null}
         {item.keys ? (
@@ -201,7 +228,7 @@ export function CommandPalette({ open, onClose, actions }) {
       if (tail && tail.heading === (item.heading ?? null)) tail.rows.push(item);
       else runs.push({ heading: item.heading ?? null, rows: [item] });
     }
-    body = runs.map((run, r) => {
+    const shortRuns = runs.map((run, r) => {
       const hd = `${baseId}-short-${r}`;
       return run.heading ? (
         // biome-ignore lint/a11y/useSemanticElements: an ARIA listbox may only own option or group children; a <fieldset> is a form grouping and would break the listbox tree
@@ -215,6 +242,23 @@ export function CommandPalette({ open, onClose, actions }) {
         run.rows.map((item) => rowButton(item, 'short'))
       );
     });
+    // Nothing opened yet: Recent says so in one line and Start here lists where to begin (05 · es-search-more)
+    body = view.dayOne ? (
+      <>
+        <div role="presentation">
+          <div className="st-pal-group" role="presentation">
+            Recent
+          </div>
+          <p className="st-pal-recent-none" data-testid="palette-recent-empty">
+            <span className="st-pal-sit">{RECENT_EMPTY.headline}</span>
+            <span className="st-pal-next">{RECENT_EMPTY.next}</span>
+          </p>
+        </div>
+        {shortRuns}
+      </>
+    ) : (
+      shortRuns
+    );
   } else if (view.empty) {
     const copy = emptyCopy(q, canAskAI);
     body = (
@@ -229,18 +273,21 @@ export function CommandPalette({ open, onClose, actions }) {
     );
   } else {
     // The close-matches note is a status line, not an option: it sits above the listbox.
-    note = view.closeOnly ? (
-      <div className="st-pal-note" data-testid="palette-close-note" role="status">
-        Nothing called “{q.trim()}”.
-        {view.closeWord ? (
-          <>
-            {' '}
-            Showing close matches for <strong>{view.closeWord}</strong>.
-          </>
-        ) : null}
-      </div>
-    ) : null;
-    body = view.groups.map((g) => (
+    note =
+      view.closeOnly && !view.didYouMean ? (
+        <div className="st-pal-note" data-testid="palette-close-note" role="status">
+          Nothing called “{q.trim()}”.
+          {view.closeWord ? (
+            <>
+              {' '}
+              Showing close matches for <strong>{view.closeWord}</strong>.
+            </>
+          ) : null}
+        </div>
+      ) : null;
+    // A misspelling and no word right: the CONTRACT line first, then what it may have meant
+    const copy = view.didYouMean ? emptyCopy(q, canAskAI) : null;
+    const groupsBody = view.groups.map((g) => (
       // biome-ignore lint/a11y/useSemanticElements: an ARIA listbox may only own option or group children; a <fieldset> would break the listbox tree
       <div
         key={g.id}
@@ -252,9 +299,20 @@ export function CommandPalette({ open, onClose, actions }) {
           {g.title}
           {g.aside ? <span className="st-pal-aside">{g.aside}</span> : null}
         </div>
-        {g.rows.map((row) => rowButton(row, g.id))}
+        {g.rows.map((row) => rowButton(row, g.id === 'did-you-mean' ? row.group : g.id))}
       </div>
     ));
+    body = copy ? (
+      <>
+        <div className="st-pal-none" data-testid="palette-did-you-mean-note" role="presentation">
+          <strong className="st-pal-sit">{copy.headline}</strong>
+          <span className="st-pal-next">{copy.next}</span>
+        </div>
+        {groupsBody}
+      </>
+    ) : (
+      groupsBody
+    );
   }
 
   // Ask AI is the LAST row (after the body, so its arrow-key index is the last one too).
@@ -341,11 +399,15 @@ export function CommandPalette({ open, onClose, actions }) {
               <Kbd>↓</Kbd> move
             </span>
             <span>
-              <Kbd>↵</Kbd> open
+              <Kbd>↵</Kbd> {view.dayOne ? 'run' : 'open'}
             </span>
           </span>
           <span data-testid="palette-count" role="status" aria-live="polite">
-            {view.short ? 'Type to search' : resultsCount(view.total)}
+            {view.dayOne
+              ? 'Every tool is here — type its name'
+              : view.short
+                ? 'Type to search'
+                : footerCount(view)}
           </span>
         </div>
       </div>
