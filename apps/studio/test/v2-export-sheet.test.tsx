@@ -50,6 +50,22 @@ describe('the sheet model', () => {
     expect(initialState({}, { hasSelection: false }).nothingSelected).toBe(true);
   });
 
+  test('S2.13: the Export area opens This canvas with its region as ONE picture (unit one)', () => {
+    const region = { rect: { x: 10, y: 20, w: 300, h: 200 } };
+    const s = initialState(
+      { mode: 'export', scope: 'canvas', region, unit: 'one' },
+      { hasSelection: true }
+    );
+    expect([s.scope, s.region, s.unit]).toEqual(['canvas', region, 'one']);
+    const spec = buildSpec(s, { designRel: '.design', activePath: '.design/a.tsx' });
+    expect([spec.scope, spec.region, spec.unit]).toEqual(['canvas', region, 'one']);
+    // no region: a unit alone is never sent
+    const bare = initialState({ scope: 'canvas', unit: 'one' }, { hasSelection: false });
+    expect(
+      buildSpec(bare, { designRel: '.design', activePath: '.design/a.tsx' }).unit
+    ).toBeUndefined();
+  });
+
   test('the world menu’s Export project ZIP opens Whole project on ZIP', () => {
     const s = initialState({ scope: 'project', format: 'zip' }, { hasSelection: true });
     expect([s.scope, s.format]).toEqual(['project', 'zip']);

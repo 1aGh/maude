@@ -65,6 +65,7 @@ export function initialState(request = {}, ctx = {}) {
     scale: num(request.scale),
     annotations: false,
     region: request.region ?? null,
+    unit: request.unit === 'one' || request.unit === 'each' ? request.unit : null,
     at: request.at ?? null,
     nothingSelected: !ctx.hasSelection && asked === null,
   };
@@ -116,6 +117,7 @@ export function buildSpec(state, ctx = {}) {
   }
   if (state.region && (state.scope === 'selection' || state.scope === 'canvas'))
     spec.region = state.region;
+  if (state.unit && state.region) spec.unit = state.unit;
   if (state.at) spec.at = state.at;
   const options = {};
   if (RASTER.has(state.format)) options.size = { scale: effectiveScale(state, ctx.kind) };

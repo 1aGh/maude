@@ -987,11 +987,16 @@ export function useCanvasBridge({
         // hand back the capability the other now refuses.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         if (e.source === activeWin) {
+          const region = exportRegionOf(m.detail);
+          const asked = m.detail && typeof m.detail.scope === 'string' ? m.detail.scope : undefined;
+          // S2.13 → S8.2 — the Export area is a world rectangle of THIS canvas, drawn as one picture: scope
+          // canvas + region + unit one (not "the selection", which the legacy name maps to).
+          const area = asked === 'selection-bounds' && region;
           setExportDialog({
             mode: 'export',
-            scope: m.detail && typeof m.detail.scope === 'string' ? m.detail.scope : undefined,
-            // S2.13 — Export area: the world rectangle the sheet is to capture (S8's `region` param reads it)
-            region: exportRegionOf(m.detail),
+            scope: area ? 'canvas' : asked,
+            region,
+            ...(area ? { unit: 'one' } : {}),
           });
         }
       } else if (m.dgn === 'open-timeline-request') {
