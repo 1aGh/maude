@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import { type Dirent, renameSync } from 'node:fs';
+import { type Dirent, existsSync, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -26,7 +26,15 @@ import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
-import { renderBriefBoard, validateCanvasName, validateFolderName } from './canvas-create.ts';
+import {
+  nameFromPrompt,
+  nextFreeCanvasName,
+  renderBlankCanvas,
+  renderBriefBoard,
+  UNTITLED_CANVAS,
+  validateCanvasName,
+  validateFolderName,
+} from './canvas-create.ts';
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
@@ -587,6 +595,7 @@ export interface Api {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
@@ -3372,21 +3381,48 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // gated by `validateCanvasName` (path + JSX + JSON injection boundary); `group`
   // is allowlisted to the configured canvas groups; a `resolve()` containment
   // assert is the defense-in-depth backstop.
+  // V2 S6.1 (C4) — a `blank` create with no name is named by the server ("Untitled canvas", " 2", …, or
+  // from `fromPrompt`). Creates run one at a time so two ⌘N in the same instant cannot both pick the
+  // same free name (the pick and the write are separated by awaits).
+  let blankCreateQueue: Promise<unknown> = Promise.resolve();
   async function createCanvas(input: {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     // DDR-150 P4 Task 12 — video-comp assemble payload (kind === 'video-comp').
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
     height?: unknown;
   }): Promise<CreateCanvasResult> {
+    const run = blankCreateQueue.then(() => createCanvasNow(input));
+    blankCreateQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  async function createCanvasNow(input: {
+    name?: unknown;
+    kind?: unknown;
+    group?: unknown;
+    fromPrompt?: unknown;
+    clips?: unknown;
+    fps?: unknown;
+    width?: unknown;
+    height?: unknown;
+  }): Promise<CreateCanvasResult> {
     // v1 stamps blank brief-boards + assembled video-comps — richer generation
-    // stays with `/design:new` (Claude).
-    const kind = input.kind == null || input.kind === '' ? 'brief-board' : input.kind;
-    if (kind !== 'brief-board' && kind !== 'video-comp') {
-      return { ok: false, status: 400, error: 'kind must be "brief-board" or "video-comp"' };
+    // stays with `/design:new` (Claude). V2 S6.1 adds the blank canvas: with no `kind`, a name means a
+    // brief board (every v1 caller) and no name means a blank canvas.
+    const noName = input.name == null || input.name === '';
+    const kind =
+      input.kind == null || input.kind === '' ? (noName ? 'blank' : 'brief-board') : input.kind;
+    if (kind !== 'brief-board' && kind !== 'video-comp' && kind !== 'blank') {
+      return {
+        ok: false,
+        status: 400,
+        error: 'kind must be "blank", "brief-board" or "video-comp"',
+      };
     }
     // Parse + validate the assemble clip list up front (video-comp only).
     const assembleClips: AssembleClip[] = [];
@@ -3411,7 +3447,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         assembleClips.push({ src, mediaKind, durationInFrames });
       }
     }
-    const v = validateCanvasName(input.name);
+    // A blank canvas with no name is named below, once the folder is known.
+    const autoName = kind === 'blank' && noName;
+    let v = autoName ? validateCanvasName(UNTITLED_CANVAS) : validateCanvasName(input.name);
     if (!v.ok || !v.name || !v.componentName) {
       return { ok: false, status: 400, error: v.error ?? 'invalid name' };
     }
@@ -3426,6 +3464,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
 
     const groupAbs = path.join(paths.designRoot, group);
+    if (autoName) {
+      const base =
+        input.fromPrompt == null ? UNTITLED_CANVAS : nameFromPrompt(input.fromPrompt).canvas;
+      // A canvas in the trash is not in the folder, so it does not hold its name.
+      const free = nextFreeCanvasName(
+        base,
+        (n) =>
+          existsSync(path.join(groupAbs, `${n}.tsx`)) ||
+          existsSync(path.join(groupAbs, `${n}.meta.json`))
+      );
+      v = validateCanvasName(free);
+      if (!v.ok || !v.name || !v.componentName) {
+        return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      }
+    }
     const fileAbs = path.join(groupAbs, `${v.name}.tsx`);
     // Containment backstop, two layers (Phase 22 security review F2). The name
     // regex already forbids traversal, but `group` comes from config
@@ -3478,6 +3531,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           error: err instanceof Error ? err.message : 'assemble failed',
         };
       }
+    } else if (kind === 'blank') {
+      tsx = renderBlankCanvas({
+        name: v.name,
+        componentName: v.componentName,
+        dsName,
+        platform,
+        historyDir: path.posix.join(paths.designRel, '_history', slug),
+      });
     } else {
       tsx = renderBriefBoard({
         name: v.name,
@@ -3502,16 +3563,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             created: now,
             last_modified: now,
           }
-        : {
-            kind: 'brief-board',
-            title: v.name,
-            subtitle: 'brief board',
-            brief: v.name,
-            designSystem: dsName,
-            platform,
-            created: now,
-            last_modified: now,
-          };
+        : kind === 'blank'
+          ? {
+              // `canvas`, not a new kind: the index and a v1 peer both know it (V2 S6.1).
+              kind: 'canvas',
+              title: v.name,
+              subtitle: 'blank canvas',
+              brief: '',
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            }
+          : {
+              kind: 'brief-board',
+              title: v.name,
+              subtitle: 'brief board',
+              brief: v.name,
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            };
     await Bun.write(fileAbs, tsx);
     await Bun.write(
       path.join(groupAbs, `${v.name}.meta.json`),
