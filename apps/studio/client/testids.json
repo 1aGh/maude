@@ -5907,6 +5907,136 @@
     "v2": "new"
   },
   {
+    "hook": "share-cluster-account",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The account chip, first in the Share cluster (desktop, signed in, two or more accounts on this Mac): which account this project tab is bound to (`data-account` = the profile id). Opens `account-card`. S1.22a (canvas 11 pn-accounts).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The account card under the chip (`role=dialog`): this account, the other accounts on this Mac, Sign in as another account…, Sign out of …, the footnote.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-current",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's first row: the face, `<label> · <email>` and `<project> uses this account`.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-other-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One other account on this Mac with its projects (\"Also on this Mac\"); `<id>` = the profile id. Present only when the shell supplies the account list.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-switch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign in as another account… — runs the shell's own `account.switch` handler.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-signout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Sign out of <email>… with the line naming every project on it; pressing it only asks (`account-card-confirm`).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inline confirm (`role=alertdialog`): `Sign out of <email>?` · Cancel · Sign out.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-signout-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm's primary button: calls the existing `POST /_api/cloud/signout` (clears this profile's credential; projects on it are signed out).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-signout-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm's Cancel: signs nothing out.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "account-card-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Kept on this Mac — <project> opens as <account> next time.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/account-card.jsx",
+      "symbol": "AccountChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "shell-prompt-input",
     "kind": "testid",
     "pattern": false,
