@@ -466,6 +466,24 @@ pub fn project_focused(app: &AppHandle, root: &str) {
     let _ = (app, root);
 }
 
+/// Debug-only e2e helper (S5.14 `ai-needs-away`): the Dock badge's count as the poller last set
+/// it (the Dock is not DOM-reachable). Granted only by capabilities/debug/e2e-webdriver.json; a
+/// release build answers Err.
+#[tauri::command]
+pub fn e2e_dock_badge(app: AppHandle) -> Result<usize, String> {
+    #[cfg(debug_assertions)]
+    {
+        let state = app.try_state::<NotifyPollState>().ok_or("no poller")?;
+        let n = state.badge.lock().expect("notify mutex poisoned").count();
+        Ok(n)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = app;
+        Err("debug builds only".into())
+    }
+}
+
 /// The cached `ai` counts of `root`'s running instance, if probed.
 pub fn cached_ai(app: &AppHandle, root: &str) -> Option<crate::sidecar::AiCounts> {
     let state = app.try_state::<NotifyPollState>()?;

@@ -89,6 +89,8 @@ fn main() {
                 "e2e_menu_state",
                 // V2-3.9 (notify.rs): the dot half of one poll tick.
                 "e2e_ai_transition",
+                // S5.14 (notify.rs): the Dock badge count (ai-needs-away).
+                "e2e_dock_badge",
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",

@@ -642,6 +642,7 @@ pub fn run() {
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
+            notify::e2e_dock_badge,
             open_project_folder,
             home::shell_state,
             home::home_session,
