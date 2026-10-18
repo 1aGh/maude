@@ -194,6 +194,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'present.canvas': NAV('<canvas> --mode present'),
   'present.from-selection': NAV('<canvas> --mode present'),
   'present.from-start': NAV('<canvas> --mode present'),
+  // S3.5 — the agent writes the same keys the sheet does, in the canvas's .meta.json (V2-1.12 R6);
+  // the studio's own writes go through PATCH /_api/present-meta, which refuses every role below edit.
+  'present.order-notes': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/present-meta', method: 'PATCH' },
+    agent: file(
+      'canvas-meta',
+      'design:design',
+      'present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json'
+    ),
+  },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
