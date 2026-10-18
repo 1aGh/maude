@@ -18,6 +18,7 @@ import {
   modesOf,
   type PendingView,
   type SectionKind,
+  safeCssName,
   type TokenKind,
 } from './types.ts';
 
@@ -234,7 +235,8 @@ export function buildBoardModel(
   }
   // a pending `add` names a token no file declares yet
   for (const [css, entry] of Object.entries(pendingTokens)) {
-    if (tm.tokens[css] || !isObj(entry) || !isObj(entry.add)) continue;
+    // a pending entry is data written by people and agents: only a registry-shaped name becomes a swatch
+    if (!safeCssName(css) || tm.tokens[css] || !isObj(entry) || !isObj(entry.add)) continue;
     const t = build(css, {
       css,
       values: {},
