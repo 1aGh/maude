@@ -25,6 +25,7 @@ import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
+import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
 import type { RouteSpec } from './table.ts';
 
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
@@ -48,6 +49,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S11.11 — `POST /_api/sync/resync` (moved from http.ts) + the trace `/_sync-status` reports */
+  sync: SyncRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -69,5 +72,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
     ...createPresentRoutes(deps.present),
+    ...createSyncRoutes(deps.sync),
   ];
 }
