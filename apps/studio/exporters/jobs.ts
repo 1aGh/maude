@@ -62,6 +62,7 @@ import {
 } from './spec-run.ts';
 import type { ExportSpecV2 } from './spec-v2.ts';
 import { scanUnsupportedMedia } from './unsupported-media.ts';
+import { type AiRunReader, holdJobForAi } from './wait-ai.ts';
 
 /** Extended shape of the old Phase 6.5 T10 history entry — additive fields only. */
 export interface ExportHistoryEntry {
@@ -395,6 +396,8 @@ function mergeDegraded(
 /** Seams a test replaces (the engine call); production passes nothing. */
 export interface ExportJobQueueDeps {
   runExport?: typeof runExport;
+  /** S8.9 — the run registry a `wait:'ai'` job holds on (server.ts passes `() => runRegistry`) */
+  runs?: () => AiRunReader | null;
 }
 
 export function createExportJobQueue(
@@ -811,6 +814,22 @@ export function createExportJobQueue(
         emit(job);
         await persistAndEvict();
         throw new Error(laneRefusal);
+      }
+      // S8.9 — `wait:'ai'`: held here (queued, items `waiting`), BEFORE a render slot, until the
+      // AI run on the target ends; dies with the run. See exporters/wait-ai.ts.
+      const diedWith = await holdJobForAi(job, args.group, {
+        bus,
+        reader: deps.runs?.() ?? null,
+        emit: () => emit(job),
+        signal: controller.signal,
+      });
+      if (diedWith) {
+        job.status = 'failed';
+        job.finishedAt = new Date().toISOString();
+        job.error = diedWith;
+        emit(job);
+        await persistAndEvict();
+        throw new Error(diedWith);
       }
       const release = await semaphore.acquire();
       // Started here, not at enqueue — the timeout bounds RENDER time (the

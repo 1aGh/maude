@@ -18623,6 +18623,90 @@
     "v2": "new"
   },
   {
+    "hook": "export-access-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one line on top of the sheet for a Can comment person (“You can comment on this project…”). Absent for editors; Can view has no sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/access-line.jsx",
+      "symbol": "AccessLine"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-edges.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-ai-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line shown while AI is changing the artboard the export reaches (“AI is changing this artboard right now — “…””).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/version.jsx",
+      "symbol": "AiHint"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-edges.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-row-version",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Version row: only while a run of yours holds the target artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/version.jsx",
+      "symbol": "VersionRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-edges.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-version",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Version radio group; `data-value` is `now` (default) or `ai`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/version.jsx",
+      "symbol": "VersionRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-edges.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-version-now",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version option “From 14:05” — the last finished version, exported now (the spec carries no `wait`).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/version.jsx",
+      "symbol": "VersionRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-edges.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-version-wait",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version option “Wait for AI” — the spec carries `wait:'ai'`; the job holds until the run ends and dies with a run that did not finish.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/version.jsx",
+      "symbol": "VersionRow"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-edges.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "export-scope-<id>",
     "kind": "testid",
     "pattern": true,
