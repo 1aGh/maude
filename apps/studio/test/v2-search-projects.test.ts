@@ -3,6 +3,8 @@
 // "not open — opens a tab"); this project never answers twice; ↵ on another project's row asks the shell
 // with ids only; a browser tab asks nobody.
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ProjectSquare } from '../client/home/home-icons.jsx';
 import { assemble, remoteRows } from '../client/v2/search/search-model.js';
 import {
@@ -191,6 +193,43 @@ describe('assembleAcross — grouped by project once another project answers', (
     const others = projectGroups(ACROSS, { ownPid: SELF, query: 'mobil' });
     const v = assembleAcross({ query: 'mobil', remote: [], others, own });
     expect(v.groups.map((g) => g.id)).toEqual([`project-${STUDIO}`, `project-${FOLIO}`]);
+  });
+
+  // S15-A2: "Did you mean" is one flat list — a row of another project keeps its project ON the row
+  // (square, name, "not open — opens a tab"), since ↵ on it switches project.
+  test('“Did you mean”: another project’s row still says which project it is and where', () => {
+    // every row reached through a typo: the index answers what is close to "mobjle"
+    const typo = {
+      groups: [
+        ACROSS.groups[0],
+        {
+          ...ACROSS.groups[1],
+          rows: [{ ...ACROSS.groups[1].rows[0], key: 'case/Mobile-app.tsx', name: 'Mobile app' }],
+        },
+      ],
+    };
+    const others = projectGroups(typo, { ownPid: SELF, query: 'mobjle' });
+    const v = assembleAcross({ query: 'mobjle', remote: [], others, own });
+    expect(v.didYouMean).toBe(true);
+    expect(v.groups.map((g) => g.id)).toEqual(['did-you-mean']);
+    const rows = v.groups[0].rows.filter((r) => r.pid);
+    expect(new Set(rows.map((r) => r.pid))).toEqual(new Set([STUDIO, FOLIO]));
+    for (const r of rows) {
+      const g = typo.groups.find((x) => x.pid === r.pid);
+      expect(r.project).toEqual({
+        name: g.name,
+        square: projectSquare(g.pid, g.name),
+        aside: PLACE_ASIDE[g.place],
+      });
+    }
+    expect(v.items.filter((r) => r.pid).every((r) => r.project)).toBe(true);
+    // The palette draws it on the row (it is not a group header any more).
+    const src = readFileSync(
+      join(import.meta.dir, '../client/dialogs/command-palette.jsx'),
+      'utf8'
+    );
+    expect(src).toContain('data-testid="palette-project-label"');
+    expect(src).toContain('{item.project.name} · {item.project.aside}');
   });
 
   test('another project shows its first rows; the rest are one more word away', () => {

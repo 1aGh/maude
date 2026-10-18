@@ -7,6 +7,7 @@
 // Advanced layer — §7 A9), Trash (also the panel's last row), and Refresh tree (⇧⌘R).
 
 import { StIcon } from '../../shell/icons.jsx';
+import { KeptRow } from '../canvases/kept-on-this-mac.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
 import { TrashIcon } from './canvases-pinned.jsx';
@@ -41,6 +42,8 @@ export function CanvasesAdvanced({
   trash,
   onOpenTrash,
   showTrash = true,
+  kept = null,
+  onKeptChanged,
   activePath = null,
   isSystem = false,
   children,
@@ -99,6 +102,8 @@ export function CanvasesAdvanced({
           </span>
         </div>
       ) : null}
+      {/* S1.8 (Q5) — the per-Mac list (conflict losers, sync's quarantined copies) lives here, not in the shared Trash. */}
+      {showTrash ? <KeptRow kept={kept} onChanged={onKeptChanged} /> : null}
       <div className="lp-adv-row lp-adv-foot">
         <span
           className="lp-adv-k"

@@ -99,7 +99,21 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
   // of the hub route table whose WRITE half names a capability a viewer holds.
   // (`/auth/browser/signout` was on the old list too; the old 400-character
   // source scrape simply never reached it.)
-  const ALLOWED = ['/api/export', '/auth/browser/signout', '/auth/logout'];
+  const ALLOWED = [
+    // Gate 0 A18 (S4.6) — a vote's ballot: a server-held pick, never a document byte
+    // (test/votes-*.test.mjs; picks never ride presence).
+    String(/^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/votes\/([A-Za-z0-9_-]{1,128})\/ballot$/),
+    // S9.6 — your own access answer, and asking the owner for access: rows in the access
+    // store, never the project (routes-v2/access.mjs).
+    '/api/access/me',
+    '/api/access/requests',
+    // S9.7 — the comment door (C3): a server-authored envelope with a shape-checked body; a
+    // comment on the viewer's own Y connection is still dropped (test/comments-door.test.mjs).
+    '/api/comments',
+    '/api/export',
+    '/auth/browser/signout',
+    '/auth/logout',
+  ];
   // Doors that authenticate with something other than a peer token answer for
   // themselves, so the gate checks nothing on their write half. Pinned the same way.
   const SELF_AUTHENTICATING = [
@@ -111,9 +125,14 @@ describe('the read-only allowlist is a decision, not a convenience', () => {
     '/auth/oidc/callback',
     '/auth/oidc/start',
     '/auth/session',
+    // S9.6 — the control plane's access-changed poke: authenticated by its own shared secret.
+    '/internal/access-changed',
     '/internal/revocation-sweep',
     '/join',
     '/join/*',
+    // S3.7b — the presentation link writes nothing: GET/HEAD redirect, every
+    // other method is the handler's 405 (cookie or bearer, judged per canvas).
+    '/present/*',
     '/studio/signin',
   ];
 

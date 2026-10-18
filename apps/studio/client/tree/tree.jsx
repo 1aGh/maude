@@ -1299,6 +1299,7 @@ export function Sidebar({
         <TrashView
           trash={trash}
           readOnly={readOnly}
+          projectName={cloud?.projectName || ''}
           onBack={() => setTrashOpen(false)}
           onChanged={reloadTrash}
         />
@@ -1411,6 +1412,8 @@ export function Sidebar({
             wsConnected={wsConnected}
             trash={trash}
             showTrash={!readOnly}
+            kept={trash && !trash.legacy ? trash.kept : null}
+            onKeptChanged={reloadTrash}
             onOpenTrash={() => setTrashOpen(true)}
             activePath={activePath === SYSTEM_TAB ? null : activePath}
             isSystem={activePath === SYSTEM_TAB}

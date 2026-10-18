@@ -165,6 +165,13 @@ export const LEGACY_ROWS = Object.freeze([
     scope: 'filtered',
     canvasDoor: true,
   },
+  // S1.7 — the shared Trash's records; L18: cut to a canvas-only session's canvases.
+  {
+    pattern: accepted('trash'),
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
   { pattern: accepted('mode'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
   { pattern: accepted('parity'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
   // Any other shape answers its own 404 / 405; it is still the project's lane.

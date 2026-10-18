@@ -18,6 +18,7 @@ export const SEARCH_ACTIONS: ActionDef[] = [
       kb('⌘K', 'global', { inText: true }),
       kb('⇧⌘K', 'global', { inText: true, alias: true, when: { focus: SHELL_FOCI } }),
     ],
+    help: { group: 'finding', order: 10 },
     legacy: { sheet: 'Command palette' },
   },
   {

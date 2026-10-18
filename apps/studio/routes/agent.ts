@@ -19,6 +19,7 @@ import {
   type AgentRuns,
   artboardSpans,
   changedArtboards,
+  changedElements,
   createAgentRuns,
   RUN_ACTORS,
   RUN_OUTCOMES,
@@ -530,15 +531,27 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
     rel: string,
     snapRel: string | null,
     session = ''
-  ): { artboards: string[]; lostIds: string[]; trashed: string[] } {
+  ): {
+    artboards: string[];
+    lostIds: string[];
+    trashed: string[];
+    elements: Array<{ artboard: string; element: string }>;
+  } {
     const after = readDesignFile(deps, rel) ?? '';
     const before = snapRel ? readDesignFile(deps, snapRel) : null;
     const isNew =
       snapRel !== null && before === null && readDesignFile(deps, `${snapRel}.new`) !== null;
     if (before === null && !isNew)
-      return { artboards: (artboardSpans(after) ?? []).map((s) => s.id), lostIds: [], trashed: [] };
+      return {
+        artboards: (artboardSpans(after) ?? []).map((s) => s.id),
+        lostIds: [],
+        trashed: [],
+        elements: [],
+      };
     return {
       artboards: changedArtboards(before, after).artboards,
+      // S5.5b — the elements it changed: the run holds them (409 held-by-ai) until it ends
+      elements: changedElements(before, after),
       lostIds: before !== null ? checkIds(after, { against: before, path: rel }).lostIds : [],
       trashed: before !== null ? parkRemovedArtboards(rel, before, after, session) : [],
     };
@@ -571,6 +584,7 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
     }
     for (const rel of designWritesSince(designRoot, since)) {
       let artboards: string[] = [];
+      let elements: Array<{ artboard: string; element: string }> = [];
       if (CANVAS_RE.test(rel)) {
         const name = snaps[rel];
         const snap =
@@ -579,11 +593,12 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
             : null;
         const c = canvasChange(rel, snap, session);
         artboards = c.artboards;
+        elements = c.elements;
         out.lostIds.push(...c.lostIds);
         out.trashed.push(...c.trashed);
       }
       for (const a of artboards) if (!out.artboards.includes(a)) out.artboards.push(a);
-      if (run) runs.touch(run.session || session, rel, artboards, chat);
+      if (run) runs.touch(run.session || session, rel, artboards, chat, elements);
     }
     return out;
   }
@@ -782,10 +797,10 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const rel = designPathRel(b.path);
       if (!rel) return bad('path is a file inside the design root');
       if (isRuntimeRel(rel)) return json(200, empty);
-      const { artboards, lostIds, trashed } = CANVAS_RE.test(rel)
+      const { artboards, lostIds, trashed, elements } = CANVAS_RE.test(rel)
         ? canvasChange(rel, `_runs/${session}/snap/${toolUseId}`, session)
-        : empty;
-      runs.touch(session, rel, artboards, chat);
+        : { ...empty, elements: [] };
+      runs.touch(session, rel, artboards, chat, elements);
       return json(200, { artboards, lostIds, trashed });
     }),
     spec({ path: '/_api/agent/run/end' }, (b) => {
