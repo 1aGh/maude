@@ -16,11 +16,11 @@
 // foot are thin.
 
 import { useEffect, useRef, useState } from 'react';
+import { LAST_GOOD, restoreRequest } from '../../../history/surface-requests.ts';
 import { splitLines } from './highlight.js';
 
 export const SOURCE_ROUTE = '/_api/canvas-source';
 export const ERRORS_ROUTE = '/_api/canvas-errors';
-export const RESTORE_ROUTE = '/_api/project/restore';
 
 /** The most characters of an error message / source line the card and the AI prompt carry. */
 const MAX_TEXT = 600;
@@ -233,10 +233,11 @@ const GO_BACK_WORDS = {
  */
 export async function goBackToLastGood(canvas, { fetchImpl = (...a) => fetch(...a) } = {}) {
   try {
-    const res = await fetchImpl(RESTORE_ROUTE, {
-      method: 'POST',
+    const rq = restoreRequest({ path: canvas, at: LAST_GOOD });
+    const res = await fetchImpl(rq.route, {
+      method: rq.method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: canvas, at: '@last-good' }),
+      body: JSON.stringify(rq.body),
     });
     const body = await readJson(res);
     if (res.ok && body?.ok !== false) {

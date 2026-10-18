@@ -13,6 +13,8 @@
 // told what to draw (`trashed-artboards`), it never says what is in the Trash.
 // Words follow CONTRACT §3 (artboard, "moved to the trash") and §4 (counts read for 1 and for many; "You").
 
+import { trashRestoreRequest } from '../../../history/surface-requests.ts';
+
 /** The app shell relays the bus's `trash:changed { seq }` as this window event (S1.8's `use-trash.js`). */
 export const TRASH_CHANGED_EVENT = 'maude:trash-changed';
 
@@ -152,7 +154,8 @@ export async function restoreAll(items, { fetchImpl = globalThis.fetch } = {}) {
   const failed = [];
   const actionIds = [];
   for (const item of items) {
-    const { status, data } = await postJson(fetchImpl, '/_api/trash/restore', { id: item.id });
+    const rq = trashRestoreRequest(item.id);
+    const { status, data } = await postJson(fetchImpl, rq.route, rq.body);
     if (status >= 200 && status < 300 && data?.ok !== false) {
       restored.push(item.id);
       if (typeof data?.actionId === 'string') actionIds.push(data.actionId);

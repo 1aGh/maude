@@ -3,7 +3,7 @@
 // The canvas has no artboards left and the Trash holds them. The shell draws ONE card over the empty canvas —
 // the situation, why it is fine, one verb — and tells the canvas to keep the outlines where the artboards stood
 // (all-trashed-relay.js → artboard-ghosts-overlay.tsx). Restore N puts every artboard back where it was (S1.13's
-// splice, one `POST /_api/trash/restore` each) and the toast's Undo takes them all back to the trash as one step.
+// splice, one trash restore each) and the toast's Undo takes them all back to the trash as one step.
 //
 //   AllTrashedCard   the card (presentational): the kit's Empty with the table's words. Can view sees it without
 //                    the button; the server refuses a restore from them anyway (hidden ≠ refused).

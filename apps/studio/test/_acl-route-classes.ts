@@ -87,6 +87,8 @@ const FILTERED = [
   '/_api/project/history',
   '/_api/project/undo-stack',
   '/_api/sync/trash',
+  // A6b-1 — S11.4: listed ∖ on disk; a canvas-only session is narrowed to the canvas it names (routes/availability.ts)
+  '/_api/sync/availability',
   '/_api/acp/chats',
   '/_api/acp/chats/search',
   '/_api/cloud/history',
@@ -106,6 +108,9 @@ const CANVAS = [
   '/_api/project/source',
   '/_api/project/name',
   '/_api/project/aside',
+  // A6b-1 — S1.16 object history (`path`) and S11.6 canvas build errors (`canvas`): each names one canvas
+  '/_api/project/object-history',
+  '/_api/canvas-errors',
   '/_api/trash/restore',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
   // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).

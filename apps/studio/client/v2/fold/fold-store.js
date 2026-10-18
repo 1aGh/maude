@@ -22,7 +22,6 @@ export const FOLD_PANELS = Object.freeze([
   // S11.13 — the rest of 06's "Advanced, inside each panel". Owners register by id: a panel's fold keeps
   // working under any id (the store takes any valid one); listing it here makes ⌘K "Open all" and
   // Settings › Advanced › Reset cover it before it has ever been opened on this Mac.
-  'left.layers',
   'history',
   'code',
   'connections',

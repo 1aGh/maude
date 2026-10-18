@@ -29,6 +29,13 @@ describe('use-tool-mode / static', () => {
       'section',
       'arrow',
       'text',
+      'el-text', // S2.12b — Edit's click-to-type Text
+      'frame', // S2.13 — the drag tools
+      'el-shape',
+      'ellipse',
+      'line',
+      'polygon',
+      'slice',
       'eraser',
     ]);
     expect(DEFAULT_TOOLS.map((t) => t.shortcut)).toEqual([
@@ -44,6 +51,13 @@ describe('use-tool-mode / static', () => {
       '⇧S',
       'A',
       'T',
+      'T', // el-text
+      'F', // frame
+      'R', // el-shape
+      '', // ellipse
+      '', // line
+      '', // polygon
+      '', // slice (Export area)
       'E',
     ]);
   });

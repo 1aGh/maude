@@ -45,12 +45,15 @@ function useFrameSrc(path, cfg, at) {
 
 /** Take the camera of both frames to one artboard — `zoom-to-artboard`, today's jump (S1.3), repeated
  *  on a short ladder because a frame mounts late. */
+// the held version's frames only reveal the artboard; the Viewing selection is not theirs to change
+const SELECTION_MESSAGES = new Set(['select-by-id']);
+
 function useFrameFocus(frames, path, focus, trigger) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: `trigger` re-arms it when a frame is replaced
   useEffect(() => {
     if (!focus) return undefined;
     const plan = planJump({ activePath: path, path, artboardId: focus, reducedMotion: true });
-    const messages = plan.messages.filter((m) => m.dgn !== 'select-by-id');
+    const messages = plan.messages.filter((m) => !SELECTION_MESSAGES.has(m.dgn));
     const post = () => {
       for (const f of frames.current)
         for (const m of messages) f?.contentWindow?.postMessage(m, '*');
