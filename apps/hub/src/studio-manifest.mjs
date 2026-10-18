@@ -115,6 +115,9 @@ export const STUDIO_ROUTES = Object.freeze({
 
   // ---- the one write a viewer holds --------------------------------------
   '/_comments': { safe: 'read', unsafe: 'comment' },
+  // S9.7b — the studio's comment door (routes/comments.ts): one comments/ops.ts op as the
+  // session. The studio judges a canvas-only session on the thread's own canvas.
+  '/_api/comments/op': { safe: 'read', unsafe: 'comment' },
   // An annotation is drawn ON the design and versioned with it
   // (`*.annotations.json`, DDR-115/DDR-242), which is why the matrix files it
   // with `edit` and not with `comment`. `/ops` is the canvas's element-op write
@@ -243,6 +246,15 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/undo': REFUSED,
   // S5.5 — "your ⌘Z stack" is the same per-person question as undo itself.
   '/_api/project/undo-stack': REFUSED,
+  // S1.12b — Version history. Rows and words are reading the project (Can view
+  // included); raw source at a version is a download (`export`, like
+  // `/_api/canvas-source`); naming and keeping a version aside are edits. The
+  // studio judges each session's vouched claim itself (canvas-only scope, U1).
+  '/_api/project/versions': { safe: 'read', unsafe: null },
+  '/_api/project/changes': { safe: 'read', unsafe: null },
+  '/_api/project/source': { safe: 'export', unsafe: null },
+  '/_api/project/name': { safe: null, unsafe: 'edit' },
+  '/_api/project/aside': { safe: null, unsafe: 'edit' },
   // S1.7 — the shared Trash. The studio judges each session's vouched claim
   // itself (L18: a canvas-only session lists only its canvases, restore needs
   // `trash` on the canvas, clear-out the project owner's `delete`), because its
@@ -250,6 +262,10 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/trash': { safe: 'read', unsafe: null },
   '/_api/trash/restore': { safe: null, unsafe: 'trash' },
   '/_api/trash/clear': { safe: null, unsafe: 'delete' },
+  // S1.18 — entry → path. The studio reads each session's claim per request (S9.9, http.ts
+  // `links.scope`): a canvas-only visitor resolves only its granted canvases, every other entry is
+  // `unknown` (history/links.ts — no existence oracle). A read: anyone who may view may follow a link.
+  '/_api/link/resolve': { safe: 'read', unsafe: 'read' },
   // Signs in and stores a credential on the machine that serves it — that is
   // the desktop's own copy-making step, never something a cell does for a
   // visitor (plan T21).
@@ -303,6 +319,13 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/acp/chats/clear': REFUSED,
   '/_api/acp/chats/restore': REFUSED,
   '/_api/acp/chats/search': REFUSED,
+  // S5.10: attachments + folder consent belong to the Mac the chat runs on, never a cell's
+  '/_api/ai/attach/file': REFUSED,
+  '/_api/ai/attach/folder': REFUSED,
+  '/_api/ai/attach/folder/detach': REFUSED,
+  '/_api/ai/attach/folder/revoke': REFUSED,
+  '/_api/ai/attach/folders': REFUSED,
+  '/_api/ai/attach/folder/list': REFUSED,
   '/_api/acp/chats/trash': REFUSED,
   '/_api/acp/focus': REFUSED,
   '/_api/acp/status': REFUSED,

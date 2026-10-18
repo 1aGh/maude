@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "5dbae7e11a4f",
+  "manifestVersion": "c6891e1105a2",
   "actions": [
     {
       "id": "search.open",
@@ -988,9 +988,25 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "shows the Trash list; the parked files are under <designRoot>/_trash/"
+        "path": "cli",
+        "verb": "maude design trash list"
+      }
+    },
+    {
+      "id": "trash.restore",
+      "label": "Restore",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/trash/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design trash restore <id>"
       }
     },
     {
@@ -1215,6 +1231,30 @@
       }
     },
     {
+      "id": "present.presenter-view",
+      "label": "Presenter view on another display",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "needs a person and a second display"
+      }
+    },
+    {
+      "id": "present.copy-link",
+      "label": "Copy presentation link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
+      },
+      "minRole": "edit"
+    },
+    {
       "id": "settings.theme",
       "label": "Theme",
       "kind": "toggle",
@@ -1411,7 +1451,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design comments list"
+        "verb": "maude design comments add --as-ai"
       }
     },
     {
@@ -1742,7 +1782,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design comments list"
+        "verb": "maude design comments add --as-ai"
       }
     },
     {
@@ -2785,6 +2825,168 @@
         "path": "human",
         "because": "ai-chat"
       }
+    },
+    {
+      "id": "ai.attach-files",
+      "label": "Attach files…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-folder",
+      "label": "Choose a folder…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-assets",
+      "label": "From Assets",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-screenshot",
+      "label": "Paste a screenshot",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "history.filter",
+      "label": "Filter versions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "All · Named · Made by AI · People; the rows themselves: maude design history list"
+      }
+    },
+    {
+      "id": "history.view-version",
+      "label": "View this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history show"
+      }
+    },
+    {
+      "id": "history.compare",
+      "label": "Compare",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history diff"
+      }
+    },
+    {
+      "id": "history.name",
+      "label": "Name this version…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history name <canvas> <ref> \"<name>\""
+      }
+    },
+    {
+      "id": "history.restore",
+      "label": "Restore this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref>"
+      }
+    },
+    {
+      "id": "history.restore-artboard",
+      "label": "Restore only this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --artboard <id>"
+      }
+    },
+    {
+      "id": "history.restore-object",
+      "label": "Restore this object",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --element <artboard>/<id>"
+      }
+    },
+    {
+      "id": "history.go-back",
+      "label": "Go back to the last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
+      }
     }
   ],
   "verbs": [
@@ -2966,6 +3168,12 @@
     {
       "scope": "design",
       "verb": "design history diff",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash list",
       "effect": "none",
       "tier": "auto"
     },
@@ -3164,7 +3372,31 @@
     },
     {
       "scope": "design",
+      "verb": "design trash restore",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash clear",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design history undo",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design history name",
       "effect": "shared",
       "tier": "prompt"
     },
@@ -3177,6 +3409,30 @@
     {
       "scope": "design",
       "verb": "design runs",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments reply",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments resolve",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments reopen",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments add",
       "effect": "shared",
       "tier": "prompt"
     },
@@ -3391,6 +3647,14 @@
       "id": "https://maude.sh/schema/canvas-meta/v2",
       "source": "hand",
       "skill": "design:design#_guide-17"
+    },
+    {
+      "format": "comments",
+      "schema": "apps/studio/schema/comments.v2.schema.json",
+      "id": "https://maude.sh/schema/comments/v2",
+      "source": "hand",
+      "skill": "design:design#_guide-05",
+      "runtime": true
     },
     {
       "format": "edl",

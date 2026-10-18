@@ -58,6 +58,7 @@ import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
 import { hashBytes } from './echo-guard.ts';
+import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { mergeSource } from './source-merge.ts';
 import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
@@ -410,6 +411,10 @@ export interface LocalHistoryRow {
   undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** S1.12b — per canvas, the lanes the action touched there (additive). */
+  lanes: Record<string, string[]>;
+  /** S1.12b — a `name` action's target revision and name (`origin.named`; null clears). */
+  named?: RowNamed;
   /** V2-1.5 §5.1 origin keys (S5.5). */
   runId?: string;
   chatId?: string;
@@ -435,19 +440,33 @@ export type LocalOutcome = {
   cleared?: string[];
 };
 
+/**
+ * S1.13 (V2-1.9 §5.8) — a restore that is not "the whole canvas at a revision": the studio computed
+ * the lanes (history/restore-artboard.ts, restore-object.ts, an aside body) and proposes them as ONE
+ * `kind: 'restore'` action, each `lane.replace` carrying `baseContent` = the head it read, so the
+ * kernel merges three-way onto whatever landed since. `label` alone relabels a whole restore.
+ */
+export interface RestoreOptions {
+  label?: string;
+  lanes?: Array<{
+    lane: 'html' | 'css' | 'meta' | 'annotations';
+    content: string;
+    baseContent: string;
+  }>;
+}
+
 /** The `ctx.syncControl.current()` surface a local project answers through. */
 export interface LocalRuntime {
   cancelAssetSweep(): boolean;
-  /** S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). */
+  /**
+   * S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). `o.origin`
+   * (S1.13b): envelope origin keys the kernel keeps, e.g. an artboard-trash action's
+   * `trashed` (S1-trash.md §2).
+   */
   proposeLanes(
     slug: string,
     lanes: Array<{ lane: string; text: string; baseText: string }>,
-    /** S2.10b — `origin.trashed`: an artboard-trash action (S1-trash.md §2) */
-    o: {
-      kind: string;
-      label: string;
-      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
-    }
+    o: { kind: string; label: string; origin?: Record<string, unknown> }
   ): Promise<LocalOutcome>;
   acceptedHistory(q: {
     limit?: number;
@@ -457,13 +476,40 @@ export interface LocalRuntime {
     kind?: string | null;
     mine?: boolean;
   }): Promise<LocalHistoryRow[]>;
-  acceptedVersion(repoRel: string, revision: number): Promise<string | null>;
-  acceptedRestore(repoRel: string, revision: number): Promise<LocalOutcome>;
+  /**
+   * S1.11 — `lane`: the source (default), or its meta; the local store has no CSS lane (→ null).
+   * S1.13 — `{ aside: true }`: the body a `history.aside` at exactly `revision` kept for that lane.
+   */
+  acceptedVersion(
+    repoRel: string,
+    revision: number,
+    lane?: 'html' | 'css' | 'meta' | 'annotations',
+    o?: { aside?: boolean }
+  ): Promise<string | null>;
+  /** S1.13 — `o.lanes`: one artboard / object / kept-aside restore, ONE `restore` action. */
+  acceptedRestore(repoRel: string, revision: number, o?: RestoreOptions): Promise<LocalOutcome>;
+  /** S1.12b — `history.name` (V2-1.9 §5.4); `null` clears. */
+  acceptedName(repoRel: string, revision: number, name: string | null): Promise<LocalOutcome>;
+  /** S1.12b — `history.aside`: a version nobody kept, no head moves. */
+  acceptedAside(
+    repoRel: string,
+    lane: 'html' | 'css' | 'meta' | 'annotations',
+    content: string,
+    label?: string
+  ): Promise<LocalOutcome>;
   acceptedUndo(
     target: string | UndoTarget,
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
+  acceptedTrash(): Promise<TrashListing | null>;
+  acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
+  acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+  acceptedLinkDocs(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
+  /** S1.18 — is the entry in the shared Trash (cleared items excluded)? */
+  acceptedTrashed(entry: string): Promise<boolean>;
   /** S5.5b (U21) — the same run-stage surface the hub runtime has (sync/index.ts). */
   beginAiAction(
     key: string,
@@ -480,10 +526,6 @@ export interface LocalRuntime {
     choice: 'publish' | 'discard',
     runId?: string
   ): Promise<(AiActionOutcome & { canvases?: number }) | null>;
-  /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
-  acceptedTrash(): Promise<TrashListing | null>;
-  acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
-  acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
 }
 
 /** What a run's end answers: the action it landed as and the artboards it touched. */
@@ -761,11 +803,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       origin: { deviceId: machine.id, client: 'studio-local', madeAt: now(), ...origin },
       action: { kind: action.kind, label: action.label, operations },
     });
-    // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
-    // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
     if (disk) fromDisk += 1;
     let body: any;
     try {
+      // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
+      // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
       ({ body } = await kernel.submit(bytes, { actor: as, can: () => true }));
     } finally {
       if (disk) fromDisk -= 1;
@@ -1062,6 +1104,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     store: NonNullable<typeof opened>['store'],
     p: Parameters<typeof publish>[0]
   ): Promise<void> {
+    // S5.5b — a proposal made from the disk (a watched write, a run landing): nothing to write.
+    if (fromDisk > 0) return;
     // What the store held before this action, per lane — the disk must still
     // say that, or it carries a byte the store never accepted.
     const before = async (doc: string, lane: LocalLane) =>
@@ -1187,11 +1231,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   async function proposeLanes(
     slug: string,
     lanes: Array<{ lane: string; text: string; baseText: string }>,
-    o: {
-      kind: string;
-      label: string;
-      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
-    }
+    o: { kind: string; label: string; origin?: Record<string, unknown> }
   ): Promise<LocalOutcome> {
     await readyP;
     return serial(async () => {
@@ -1224,8 +1264,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         const r = await submit(catchUp, { kind: OUTSIDE_KIND, label: null }, actor, {}, true);
         if (r.status !== 'accepted') return r;
       }
-      const origin = o.origin?.trashed?.length ? { trashed: o.origin.trashed } : {};
-      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, origin, true);
+      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, o.origin ?? {}, true);
       if (r.status === 'accepted') {
         for (const l of lanes) if (!isExplicit(l.lane)) seen.set(`${live.path}|${l.lane}`, l.text);
       }
@@ -1380,14 +1419,20 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       committedAt: number;
       undoes: string | string[] | null;
       origin?: Record<string, unknown> | null;
-      effects: { doc: string | null; beforePath: string | null; afterPath: string | null }[];
+      effects: {
+        doc: string | null;
+        lane: string;
+        beforePath: string | null;
+        afterPath: string | null;
+      }[];
     }[];
     return history.map((a) => {
-      const canvases = new Set<string>();
-      for (const e of a.effects) {
-        const p = e.afterPath ?? (e.doc ? pathOf.get(e.doc) : null) ?? e.beforePath;
-        if (p && /\.tsx$/i.test(p)) canvases.add(p);
-      }
+      const { canvases, lanes } = canvasLanes(
+        a.effects,
+        (d) => pathOf.get(d),
+        (p) => /\.tsx$/i.test(p)
+      );
+      const named = namedField(a.kind, a.origin);
       return {
         revision: a.revision,
         actionId: a.actionId,
@@ -1397,7 +1442,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         label: a.label,
         committedAt: a.committedAt,
         undoes: a.undoes,
-        canvases: [...canvases].sort(),
+        canvases,
+        lanes,
+        ...(named ? { named } : {}),
         ...originFields(a.origin),
       };
     });
@@ -1440,24 +1487,87 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         actor: q.mine ? actor : null,
       });
     },
-    async acceptedVersion(repoRel, revision) {
+    async acceptedVersion(repoRel, revision, lane = 'html', opt) {
+      if (!(LOCAL_LANES as readonly string[]).includes(lane)) return null;
       await readyP;
       const o = opened;
       if (!o) return null;
       const doc = await docOf(o, repoRel);
       if (!doc) return null;
-      const hash = await o.store.laneAt(doc, 'html', revision);
+      if (opt?.aside) {
+        // The `@aside` effect of that one action (kernel opHistoryAside): its body, by hash.
+        const [r] = (await o.store.revisions({ after: revision - 1, limit: 1 })) as {
+          revision: number;
+          effects?: { doc: string; lane: string; op: string; afterHash: string | null }[];
+        }[];
+        const e =
+          r?.revision === revision
+            ? r.effects?.find(
+                (x) => x.lane === '@aside' && x.doc === doc && x.op === `aside.${lane}`
+              )
+            : undefined;
+        return e?.afterHash ? ((await o.store.blob(e.afterHash)) as string | null) || null : null;
+      }
+      const hash = await o.store.laneAt(doc, lane, revision);
       return hash ? ((await o.store.blob(hash)) as string | null) || null : null;
     },
-    async acceptedRestore(repoRel, revision) {
+    async acceptedRestore(repoRel, revision, opt) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const doc = await docOf(opened, repoRel);
+      if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
+      if (opt?.lanes) {
+        // The local store keeps no CSS lane (LOCAL_LANES): a splice never carries one here.
+        if (
+          !opt.lanes.length ||
+          opt.lanes.some((l) => !(LOCAL_LANES as readonly string[]).includes(l.lane))
+        )
+          return { status: 'rejected', code: 'invalid' };
+        const lanes = opt.lanes;
+        return serial(() =>
+          submit(
+            lanes.map((l) => ({
+              op: 'lane.replace',
+              doc,
+              lane: l.lane,
+              content: l.content,
+              baseContent: l.baseContent,
+            })),
+            { kind: 'restore', label: opt.label ?? `Restore ${NAME(repoRel)}` }
+          )
+        );
+      }
+      return serial(() =>
+        submit([{ op: 'history.restore', revision, docs: [doc] }], {
+          kind: 'history.restore',
+          label: opt?.label ?? `Restore ${NAME(repoRel)} to version ${revision}`,
+        })
+      );
+    },
+    async acceptedName(repoRel, revision, name) {
       await settled();
       if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
       const doc = await docOf(opened, repoRel);
       if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
       return serial(() =>
-        submit([{ op: 'history.restore', revision, docs: [doc] }], {
-          kind: 'history.restore',
-          label: `Restore ${NAME(repoRel)} to version ${revision}`,
+        submit([{ op: 'history.name', doc, revision, name }], {
+          kind: 'name',
+          label: name ?? 'Name cleared',
+        })
+      );
+    },
+    async acceptedAside(repoRel, lane, content, label) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      // The local store keeps no CSS lane (LOCAL_LANES): nothing to set aside there.
+      if (!(LOCAL_LANES as readonly string[]).includes(lane))
+        return { status: 'rejected', code: 'invalid' };
+      const doc = await docOf(opened, repoRel);
+      if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
+      return serial(() =>
+        submit([{ op: 'history.aside', doc, lane, content, ...(label ? { label } : {}) }], {
+          kind: 'aside',
+          label: label ?? 'Version not kept',
         })
       );
     },
@@ -1480,44 +1590,6 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           label,
         })
       );
-    },
-    beginAiAction(key, label, meta) {
-      if (!kernel) return;
-      stage.begin(key, label, meta ?? {});
-    },
-    claimAiWrite(key, repoRel, hash) {
-      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
-      const canvas = rel ? canvasOfRel(rel) : null;
-      if (canvas) stage.claim(key, canvas, hash ?? null);
-    },
-    async endAiAction(key, outcome) {
-      if (!kernel) return null;
-      // The watcher delivers the run's last tool write a beat after the tool returns.
-      if (aiSettleMs > 0) await new Promise((r) => setTimeout(r, aiSettleMs));
-      await settled();
-      const touched = stage.summaryOf(key)?.touched;
-      const r = await stage.end(key, outcome);
-      return r ? aiOutcome(r, touched) : null;
-    },
-    async resolveAiAction(choice, runId) {
-      if (!kernel) return null;
-      await settled();
-      const held = stage.runs().filter((r) => r.state === 'held' && (!runId || r.runId === runId));
-      if (!held.length) return null;
-      if (choice === 'discard') {
-        const lanes = held.flatMap((r) => stage.lanesOf(r.runId));
-        const canvases = stage.discard(runId);
-        await serial(async () => {
-          for (const l of lanes) unstage(l);
-        });
-        return { status: 'discarded', canvases };
-      }
-      const touched: Record<string, string[]> = {};
-      for (const r of held)
-        for (const [c, ids] of Object.entries(r.touched))
-          touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
-      const r = await stage.publish(runId);
-      return r ? aiOutcome(r, touched) : null;
     },
     // S1.7 — the shared Trash over the store's readers (S1-trash.md §1). A local
     // project is its owner's, so `submit` passes every cap (S1.6).
@@ -1559,6 +1631,63 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           label: 'Cleared out the trash',
         })
       );
+    },
+    // S1.18 — the manifest rows a stable link resolves over (history/links.ts).
+    async acceptedLinkDocs() {
+      await settled();
+      const o = opened;
+      if (!o) return null;
+      const m = await o.store.manifest();
+      return (m.docs as { entry: string; path: string | null; retired: boolean }[]).map((d) => ({
+        entry: d.entry,
+        path: d.path,
+        retired: !!d.retired,
+      }));
+    },
+    async acceptedTrashed(entry) {
+      await settled();
+      const o = opened;
+      if (!o) return false;
+      const t = (await o.store.trash({ entry })) as { canvases?: unknown[] } | null;
+      return (t?.canvases?.length ?? 0) > 0;
+    },
+    beginAiAction(key, label, meta) {
+      if (!kernel) return;
+      stage.begin(key, label, meta ?? {});
+    },
+    claimAiWrite(key, repoRel, hash) {
+      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+      const canvas = rel ? canvasOfRel(rel) : null;
+      if (canvas) stage.claim(key, canvas, hash ?? null);
+    },
+    async endAiAction(key, outcome) {
+      if (!kernel) return null;
+      // The watcher delivers the run's last tool write a beat after the tool returns.
+      if (aiSettleMs > 0) await new Promise((r) => setTimeout(r, aiSettleMs));
+      await settled();
+      const touched = stage.summaryOf(key)?.touched;
+      const r = await stage.end(key, outcome);
+      return r ? aiOutcome(r, touched) : null;
+    },
+    async resolveAiAction(choice, runId) {
+      if (!kernel) return null;
+      await settled();
+      const held = stage.runs().filter((r) => r.state === 'held' && (!runId || r.runId === runId));
+      if (!held.length) return null;
+      if (choice === 'discard') {
+        const lanes = held.flatMap((r) => stage.lanesOf(r.runId));
+        const canvases = stage.discard(runId);
+        await serial(async () => {
+          for (const l of lanes) unstage(l);
+        });
+        return { status: 'discarded', canvases };
+      }
+      const touched: Record<string, string[]> = {};
+      for (const r of held)
+        for (const [c, ids] of Object.entries(r.touched))
+          touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
+      const r = await stage.publish(runId);
+      return r ? aiOutcome(r, touched) : null;
     },
   };
 

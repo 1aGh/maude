@@ -721,6 +721,14 @@ export function createActionStage(opts: ActionStageOptions) {
           }))
         : [];
     },
+    /** S5.11b — a lane's accepted value under the staged runs (their base); null = none staged it. */
+    accepted(slug: string, lane: LaneProposal['lane']): string | null {
+      for (const r of runs.values()) {
+        const l = r.lanes.get(`${slug}|${lane}`);
+        if (l) return l.base;
+      }
+      return null;
+    },
     /** Held wins over open; null when no run is staged. */
     get state(): StageState | null {
       if (runs.size === 0) return null;

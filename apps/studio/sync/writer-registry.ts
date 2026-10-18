@@ -88,6 +88,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-array-src': { ...LANE_SOURCE, rows: 'V06' },
   '/_api/clip-edit': { ...LANE_SOURCE, rows: 'V07–V10' },
   // --- shared meta, annotations, comments (S19, S23, S24)
+  // S9.7b — the comment door: one comments/ops.ts op as the session.
+  '/_api/comments/op': {
+    class: 'lane',
+    rows: 'S24',
+    via: 'api.commentOp → publishComments (onCommentsChanged, doc first) → comments lane',
+    test: 'test/comments-op-route.test.ts',
+  },
   '/_api/canvas-meta': {
     class: 'lane',
     rows: 'S19',
@@ -158,6 +165,20 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S1.12b routes/history.ts — Version history (V2-1.9 §5.11)
+  '/_api/project/versions': { class: 'read' },
+  '/_api/project/changes': { class: 'read' },
+  '/_api/project/source': { class: 'read' },
+  '/_api/project/name': {
+    class: 'structural',
+    via: 'history.name { doc, revision, name|null } — one `name` action, an @name effect + names row, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
+  '/_api/project/aside': {
+    class: 'structural',
+    via: 'history.aside { doc, lane, content, label? } — one `aside` action, the body as an @aside blob, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
   // S1.7 routes/trash.ts — the shared Trash over the one op log (S1-trash.md)
   '/_api/trash': { class: 'read' },
   '/_api/trash/restore': {
@@ -170,6 +191,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
     test: 'test/acl-l18-trash.test.ts',
   },
+  // S1.18 — a stable canvas link's entry → path (history/links.ts)
+  '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',
@@ -277,6 +300,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/acp/chats/restore': { class: 'local' },
   '/_api/acp/chats/search': { class: 'local' },
   '/_api/acp/chats/trash': { class: 'local' },
+  // S5.10 routes/chat-attach.ts: a photo / footage / sound attachment lands in Assets (the same
+  // writer as /_api/asset); a PDF and every folder grant are this Mac's (`_chat/`, `_state/`)
+  '/_api/ai/attach/file': { class: 'file-plane', rows: 'S27' },
+  '/_api/ai/attach/folder': { class: 'local' },
+  '/_api/ai/attach/folder/detach': { class: 'local' },
+  '/_api/ai/attach/folder/revoke': { class: 'local' },
+  '/_api/ai/attach/folders': { class: 'local' },
+  '/_api/ai/attach/folder/list': { class: 'local' },
   '/_api/acp/focus': { class: 'local' },
   '/_api/acp/running': { class: 'local' },
   '/_api/acp/status': { class: 'local' },
@@ -291,6 +322,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ai/runs/:id/stop': { class: 'local' },
   '/_api/ai/runs/:id/cancel': { class: 'local' },
   '/_api/ai/runs/:id/keep-going': { class: 'local' },
+  // S5.11b — Run on a copy writes the canvas source as the WAITING run's tool write: claimed for
+  // that run's stage before it lands, so it is published with the run's own action (one version).
+  '/_api/ai/runs/:id/copy': {
+    class: 'lane',
+    via: "copy write claimed for the waiting run's stage (claimAiWrite) → watcher import → staged into that run's action",
+    test: 'test/ai-run-copy.test.ts',
+  },
   '/_api/claude/install': { class: 'local' },
   '/_api/claude/install-status': { class: 'local' },
   '/_api/claude/signin': { class: 'local' },

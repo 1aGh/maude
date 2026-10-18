@@ -65,7 +65,18 @@ export interface CommentFrom {
   convertedBy: string;
   at: string;
   spot?: { x: number; y: number; artboard?: string };
+  /** The sticky's paper (a palette colour) and size, so "Turn back" gives the same sticky back. */
+  fill?: string;
+  w?: number;
+  h?: number;
 }
+
+/** The colour forms the sticky palettes produce (annotations/fields.ts COLOR_RE). */
+export const FROM_FILL_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+/** A sticky is never larger than this (world px) — anything else is not a sticky's size. */
+const FROM_SIZE_MAX = 4096;
+export const fromSize = (n: unknown): number | undefined =>
+  typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= FROM_SIZE_MAX ? n : undefined;
 
 export interface AddPayload {
   file: string;
@@ -139,7 +150,7 @@ function bounds(v: unknown): Comment['bounds'] {
 /** A trusted `from`, bounded; `convertedBy` is always the acting session (= `author`). */
 export function sanitizeFrom(v: unknown, actor: OpActor, now: string): CommentFrom | undefined {
   if (!isObject(v)) return undefined;
-  const { kind, id, author, authorId, at, spot } = v;
+  const { kind, id, author, authorId, at, spot, fill, w, h } = v;
   if (typeof kind !== 'string' || !FROM_KIND_RE.test(kind)) return undefined;
   if (typeof id !== 'string' || !FROM_ID_RE.test(id)) return undefined;
   if (typeof author !== 'string' || author.length > 120) return undefined;
@@ -155,6 +166,11 @@ export function sanitizeFrom(v: unknown, actor: OpActor, now: string): CommentFr
     )
       out.spot.artboard = spot.artboard;
   }
+  if (typeof fill === 'string' && FROM_FILL_RE.test(fill)) out.fill = fill;
+  const fw = fromSize(w);
+  const fh = fromSize(h);
+  if (fw !== undefined) out.w = fw;
+  if (fh !== undefined) out.h = fh;
   return out;
 }
 

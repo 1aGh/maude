@@ -24,7 +24,14 @@ import { randomBytes } from 'node:crypto';
 import { keyBetween } from '../annotations/fractional-index.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
 import type { Comment, ConvertSnapshot, LaneChange, LanesOutcome, LanesProposer } from '../api.ts';
-import { applyCommentOp, type CommentRecord, isOwnComment, type OpActor } from '../comments/ops.ts';
+import {
+  applyCommentOp,
+  type CommentRecord,
+  FROM_FILL_RE,
+  fromSize,
+  isOwnComment,
+  type OpActor,
+} from '../comments/ops.ts';
 import type { UndoTarget } from '../sync/undo-target.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -36,7 +43,7 @@ const ARTBOARD_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
 const ANSWER_WAIT_MS = 8_000;
 /** In-memory undo tokens / conversion records, per server (contract §3.2). */
 const MAX_REMEMBERED = 200;
-/** A turned-back sticky's size (the sticky's own size is not part of `from`). */
+/** A turned-back sticky's size when its `from` recorded none (a comment converted before A5). */
 const STICKY_SIZE = 200;
 const LABEL_TEXT = 40;
 
@@ -285,6 +292,10 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
                 ...(typeof author.id === 'string' ? { authorId: author.id } : {}),
                 at,
                 spot: { x, y, ...(parentArtboard ? { artboard: parentArtboard } : {}) },
+                // its look, so "Turn back" gives the same sticky back (sanitizeFrom bounds both)
+                ...(typeof el.fill === 'string' ? { fill: el.fill } : {}),
+                ...(w > 0 ? { w } : {}),
+                ...(h > 0 ? { h } : {}),
               },
             }
           );
@@ -331,7 +342,16 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
           const c = comments.find((x) => x.id === commentId) as CommentRecord | undefined;
           if (!c) return { ok: false, status: 404, body: { ok: false, reason: 'gone' } };
           const from = c.from as
-            | { kind?: unknown; id?: unknown; author?: unknown; authorId?: unknown; spot?: unknown }
+            | {
+                kind?: unknown;
+                id?: unknown;
+                author?: unknown;
+                authorId?: unknown;
+                spot?: unknown;
+                fill?: unknown;
+                w?: unknown;
+                h?: unknown;
+              }
             | undefined;
           if (!from || from.kind !== 'sticky')
             return { ok: false, status: 409, body: { ok: false, reason: 'not-converted' } };
@@ -349,8 +369,14 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
               : `s_${randomBytes(6).toString('hex')}`;
           const spot = (from.spot ?? {}) as { x?: unknown; y?: unknown; artboard?: unknown };
           const world = (c as { world?: { x: number; y: number } }).world;
-          const x = num(spot.x) ?? (world ? world.x - STICKY_SIZE / 2 : 0);
-          const y = num(spot.y) ?? (world ? world.y - STICKY_SIZE / 2 : 0);
+          // The sticky's own size and paper when the conversion recorded them (sanitizeFrom bounded
+          // both on the way in); a pre-A5 `from` carries neither and gets today's default sticky.
+          const sw = fromSize(from.w) ?? STICKY_SIZE;
+          const sh = fromSize(from.h) ?? STICKY_SIZE;
+          const fill =
+            typeof from.fill === 'string' && FROM_FILL_RE.test(from.fill) ? from.fill : undefined;
+          const x = num(spot.x) ?? (world ? world.x - sw / 2 : 0);
+          const y = num(spot.y) ?? (world ? world.y - sh / 2 : 0);
           const top = board
             .filter((e) => e.parent === undefined || e.parent === null)
             .map((e) => e.index)
@@ -364,8 +390,9 @@ export function createAnnotationRoutes(deps: AnnotationRouteDeps) {
             index: keyBetween(top ?? null, null),
             x,
             y,
-            w: STICKY_SIZE,
-            h: STICKY_SIZE,
+            w: sw,
+            h: sh,
+            ...(fill ? { fill } : {}),
             text: c.text,
             ...(authorName
               ? {

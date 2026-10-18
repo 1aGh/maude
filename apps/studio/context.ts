@@ -311,7 +311,17 @@ export interface Context {
         kind?: string | null;
         mine?: boolean;
       }): Promise<unknown[] | null>;
-      acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      acceptedVersion?(
+        repoRel: string,
+        revision: number,
+        lane?: 'html' | 'css' | 'meta'
+      ): Promise<string | null>;
+      /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+      acceptedLinkDocs?(): Promise<
+        { entry: string; path: string | null; retired: boolean }[] | null
+      >;
+      /** S1.18 — the shared Trash, where the home knows it (the local op log). */
+      acceptedTrashed?(entry: string): Promise<boolean>;
       acceptedRestore?(
         repoRel: string,
         revision: number
@@ -367,6 +377,8 @@ export interface Context {
       } | null>;
       /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
       claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+      /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+      acceptedCanvas?(repoRel: string): string | null;
       resolveAiAction?(
         choice: 'publish' | 'discard',
         runId?: string

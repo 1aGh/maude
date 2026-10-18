@@ -65,13 +65,14 @@ const PRE_V2 = {
 } as const;
 
 describe('the vocabulary (§5.1)', () => {
-  test('four roles, weakest first; twelve capabilities', () => {
+  test('four roles, weakest first; thirteen capabilities', () => {
     expect([...ROLES]).toEqual(['observer', 'viewer', 'member', 'owner']);
     expect([...CAPABILITIES]).toEqual([
       'read',
       'session',
       'request',
       'comment',
+      'vote',
       'export',
       'annotate',
       'edit',
