@@ -119,6 +119,9 @@ export const WS_FRAME_CLASSES = Object.freeze({
   'config-updated': 'none',
   'acp-focus': 'none',
   refused: 'none',
+  // S1.7b — the shared Trash moved: `{ seq }` only, no path. A canvas-only session re-reads
+  // `GET /_api/trash`, which lists only its canvases (routes/trash.ts, L18).
+  'trash:changed': 'none',
   'fs:html': 'canvas',
   'fs:css': 'canvas',
   'fs:json': 'canvas',
