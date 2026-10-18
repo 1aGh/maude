@@ -474,9 +474,13 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
     ...spec,
     handle: (req, params) => {
       const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
-      if (!sameOrigin) return new Response('cross-origin rejected', { status: 403 });
+      if (!sameOrigin)
+        return spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+        return (
+          spec.refuse?.('untrusted-host') ??
+          new Response('local request required (DNS-rebinding guard)', { status: 403 })
+        );
       return spec.handle(req, params);
     },
   };

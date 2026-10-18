@@ -28,6 +28,13 @@ export interface RouteSpec {
    * always allowed.
    */
   readOnly: 'allowed' | 'refused';
+  /**
+   * What a refusal at the two gates `guardTableRoute` applies says (S11.11): the cross-origin gate
+   * and the DNS-rebinding gate. Absent, they answer the table's plain-text 403. A control route a
+   * panel renders (Resync) sets it so the refusal carries `{ ok:false, reason, detail }` — the
+   * GATES stay exactly the same; only the words differ.
+   */
+  refuse?(reason: 'cross-origin' | 'untrusted-host'): Response;
   handle(req: Request, params: Record<string, string>): Response | Promise<Response>;
 }
 
