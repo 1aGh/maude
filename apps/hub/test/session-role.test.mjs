@@ -140,15 +140,25 @@ describe('the door stores what it vouched for', () => {
       (m) => m[0]
     );
     assert.ok(mints.length >= 2, 'expected at least the self-hosted and platform doors');
+    // Two legal shapes. A self-hosted door translates the account role itself;
+    // the platform door (S9.2) asks the one mint door, whose claim is translated
+    // by `claimOf` → `legacyClaim` → `projectRoleForAccount`.
+    const viaDoor = mints.filter((m) => /\.\.\.peerSessionFields\(door,/.test(m));
     for (const mint of mints) {
+      if (viaDoor.includes(mint)) continue;
       assert.match(mint, /role: projectRole,/);
       assert.match(mint, /readOnly: isReadOnlyRole\(projectRole\),/);
     }
-    // Each mint is preceded by a translation — `projectRoleForAccount(...)`,
+    assert.equal(
+      [...BROWSER_AUTH_SRC.matchAll(/const door = peerTokenDoor\(claimOf\(/g)].length,
+      viaDoor.length,
+      'every door-backed mint must decide through peerTokenDoor(claimOf(…))'
+    );
+    // Each other mint is preceded by a translation — `projectRoleForAccount(...)`,
     // never a raw account role passed through. One translation per door.
     assert.equal(
       [...BROWSER_AUTH_SRC.matchAll(/const projectRole = projectRoleForAccount\(/g)].length,
-      mints.length,
+      mints.length - viaDoor.length,
       'every mint site must translate the account role first'
     );
   });

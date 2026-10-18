@@ -11,9 +11,10 @@ import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:fs';
-import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
+import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
+import { localDepsFromSource } from './access/closure.ts';
 import {
   cancelSignin,
   getClaudeAuthStatus,
@@ -48,7 +49,6 @@ import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
-import { dsDepsFor } from './ds/ds-resolver.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
@@ -630,66 +630,8 @@ const RUNTIME_BOOT_ID = `${Date.now().toString(36)}${Math.random().toString(36).
 // gets the stale bundle even after the HMR hard-reload. (DDR-067.)
 let CHROME_EPOCH = 0;
 
-/** Relative import specifiers in a canvas source → absolute paths (the files
- *  Bun.build inlines): sibling `.css`, and — RC6 of
- *  rca/issue-canvas-hmr-optimistic-update-consistency — imported local
- *  `.tsx/.ts/.jsx/.js` modules, which are inlined exactly like CSS (only
- *  RUNTIME_PACKAGES stay external, canvas-build.ts), so an edit to an imported
- *  sibling must bust the mtime-keyed cache the same way. Extensionless
- *  specifiers contribute EVERY resolution candidate (`.tsx`, `.ts`, …,
- *  `index.tsx`); missing candidates stat as 0, so a dep file APPEARING later
- *  also changes the signature. One level only — no transitive graph (the
- *  import-graph HMR re-emit is a tracked follow-up). Bare / virtual specifiers
- *  (`@maude/…`, npm) are skipped. Resolved paths are clamped to `designRoot`:
- *  a canvas source is attacker-influenced under linked mode (DDR-054), and
- *  these paths are `stat`-ed for mtime, so a `../../../etc/…` specifier must
- *  not let the freshness probe reach outside the design tree. Legit DS imports
- *  (`../../system/<ds>/…`) stay inside designRoot. */
-export function localDepsFromSource(
-  source: string,
-  canvasAbsPath: string,
-  designRoot: string
-): string[] {
-  const dir = dirname(canvasAbsPath);
-  const root = resolve(designRoot);
-  const deps: string[] = [];
-  const seen = new Set<string>();
-  const push = (abs: string) => {
-    if (abs !== root && !abs.startsWith(root + sep)) return; // clamp (DDR-054)
-    if (seen.has(abs)) return;
-    seen.add(abs);
-    deps.push(abs);
-  };
-  const specRes = [
-    /\bimport\s+["']([^"']+)["']/g, // side-effect: import './x.css'
-    /\bfrom\s+["']([^"']+)["']/g, // import … from / export … from
-    /\bimport\(\s*["']([^"']+)["']\s*\)/g, // dynamic import('./x')
-  ];
-  for (const re of specRes) {
-    for (let m = re.exec(source); m !== null; m = re.exec(source)) {
-      const spec = m[1];
-      if (!spec?.startsWith('.')) continue;
-      const base = resolve(dir, spec);
-      if (/\.(css|tsx|ts|jsx|js)$/i.test(spec)) {
-        push(base);
-      } else {
-        for (const cand of [
-          `${base}.tsx`,
-          `${base}.ts`,
-          `${base}.jsx`,
-          `${base}.js`,
-          resolve(base, 'index.tsx'),
-          resolve(base, 'index.ts'),
-        ])
-          push(cand);
-      }
-    }
-  }
-  // P-11 (V2-1.13 §5.11): `@maude/ds` is generated from the canvas's system, so its meta,
-  // config.json and the system's preview/_ds.tsx override are deps too — a system change rebuilds.
-  for (const p of dsDepsFor(source, canvasAbsPath, designRoot)) push(p);
-  return deps;
-}
+// `localDepsFromSource` (the canvas build's freshness deps) lives in `access/closure.ts` since S9.1:
+// the ACL closure scanner walks the same import graph (V2-1.7 G3), so there is one home for it.
 
 /** mtime signature over the .tsx + every inlined relative dep (`.css` + local
  *  modules). A missing/unreadable file contributes 0 — a delete is itself a

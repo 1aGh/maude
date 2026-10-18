@@ -26,9 +26,10 @@
 import { createHash } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
-
+import { legacyClaim } from '../../studio/access/scope.ts';
+import { OBSERVER_REFUSAL } from './access-gate.mjs';
 import { RENDER_TOKEN_TTL_MS } from './render-token.mjs';
-import { isReadOnlyRole } from './role-matrix.mjs';
+import { FLOOR_ROLE, isReadOnlyRole } from './role-matrix.mjs';
 import { servicePage } from './studio-door.mjs';
 import { decide } from './studio-manifest.mjs';
 
@@ -198,13 +199,26 @@ const HOP_BY_HOP = new Set([
   'upgrade',
 ]);
 
+/** A role (+ the render capability's sorted grants) as the access claim it states. */
+function claimFrom(role, grants) {
+  const claim = legacyClaim(role);
+  return Array.isArray(grants) && grants.length
+    ? { ...claim, grants: grants.map(({ c, r }) => ({ c, r })) }
+    : claim;
+}
+
+/** `x-maude-access` — base64url(JSON AccessClaim) (V2-1.7 §5.4). */
+export function encodeAccessClaim(claim) {
+  return Buffer.from(JSON.stringify(claim), 'utf8').toString('base64url');
+}
+
 /**
  * The headers we send upstream: the client's, minus anything hop-by-hop, minus
  * anything it could have used to impersonate the proxy — plus the truth.
  */
 export function upstreamHeaders(
   incoming,
-  { role, user, sessionKey, publicUrl, canvasToken, renderToken, collabRealm }
+  { role, access, grants, user, sessionKey, publicUrl, canvasToken, renderToken, collabRealm }
 ) {
   const out = {};
   for (const [k, v] of Object.entries(incoming ?? {})) {
@@ -235,6 +249,12 @@ export function upstreamHeaders(
   // another language, in a package that ships to end users on npm. One table
   // (`role-matrix.mjs`), one authority; everything else mirrors its answer.
   out[`${INJECTED_HEADER_PREFIX}readonly`] = isReadOnlyRole(role) ? '1' : '0';
+  // V2-1.7 §5.4 — the whole ACCESS CLAIM (project role + canvas grants), which
+  // the studio's `withSession` reads into `currentAccess()` (S9.9). The role and
+  // readonly headers above stay what they were — the PROJECT role and its
+  // projection — so a grant cannot widen a studio gate that does not read the
+  // claim yet (interim, fail closed, like `peerSessionFields`).
+  out[`${INJECTED_HEADER_PREFIX}access`] = encodeAccessClaim(access ?? claimFrom(role, grants));
   if (user) out[`${INJECTED_HEADER_PREFIX}user`] = user;
   // The capability that opens the cookieless canvas origin. The client appends
   // it to every canvas iframe URL; minting it here keeps the signing secret in
@@ -375,6 +395,10 @@ function refuse(response, status, body) {
 export const READ_ONLY_MESSAGE =
   'You can look at this project, comment and download it, but not change it.';
 
+/** Can view holds no comment and no download, so it reads its own sentence (V2-1.7 §5.9). */
+const readOnlyMessageFor = (role) =>
+  role === 'observer' ? OBSERVER_REFUSAL.error : READ_ONLY_MESSAGE;
+
 /**
  * Build the proxy.
  *
@@ -441,7 +465,7 @@ export function createStudioProxy({
         return true;
       }
       refuse(response, 403, {
-        error: READ_ONLY_MESSAGE,
+        error: readOnlyMessageFor(session.role),
         reason: 'read-only',
         capability: verdict.capability,
       });
@@ -477,6 +501,7 @@ export function createStudioProxy({
       port: up.port,
       headers: upstreamHeaders(request.headers, {
         role: session.role,
+        access: session.access,
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
@@ -636,9 +661,10 @@ export function createStudioProxy({
       return true;
     }
     // The capability that actually authenticated this request, and the role it
-    // vouches. Older tokens carry no claim — the floor is `viewer`.
+    // vouches. A token without a claim falls to the floor — Can view, never a
+    // role that downloads (V2-1.7 §5.4).
     const auth = verdict?.ok ? verdict : cookieVerdict;
-    const role = auth?.role ?? 'viewer';
+    const role = auth?.role ?? FLOOR_ROLE;
     // DDR-247 — an embed's capability reads and nothing else. Checked before
     // the role table on purpose: a viewer may still comment, an embed may not.
     if (unsafeMethod && auth?.readOnly) {
@@ -669,7 +695,7 @@ export function createStudioProxy({
           return true;
         }
         refuse(response, 403, {
-          error: READ_ONLY_MESSAGE,
+          error: readOnlyMessageFor(role),
           reason: 'read-only',
           capability: writeVerdict.capability,
         });
@@ -718,6 +744,7 @@ export function createStudioProxy({
         // the studio's own canvas-origin allowlist (DDR-088 — no source
         // routes, no export, no config exist on this origin at any role).
         role,
+        grants: auth?.grants,
         // The MEMBER, not null: the capability names its subject, and
         // `/_api/git-user` on the canvas listener is where collab presence gets
         // its display name. Without this every cloud peer is `anonymous-…` (the
@@ -849,7 +876,8 @@ export function createStudioProxy({
       port: up.port,
       path: `${rest}${url.search}`,
       headers: upstreamHeaders(request.headers, {
-        role: verdict.role ?? 'viewer',
+        role: verdict.role ?? FLOOR_ROLE,
+        grants: verdict.grants,
         user: verdict.subject ?? null,
         sessionKey: null,
         publicUrl: env.MAUDE_PUBLIC_CANVAS_ORIGIN ?? null,
@@ -931,6 +959,7 @@ export function createStudioProxy({
       port: up.port,
       headers: upstreamHeaders(request.headers, {
         role: session.role,
+        access: session.access,
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
