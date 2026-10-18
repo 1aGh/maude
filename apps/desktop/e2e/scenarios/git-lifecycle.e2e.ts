@@ -4,14 +4,15 @@ import { join } from 'node:path';
 
 import { $, browser, expect } from '@wdio/globals';
 
-import { openHistory } from '../helpers/chrome';
+import { currentBranch, openHistory } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 
 /**
- * DDR-133 — the COMPLETE git lifecycle, driven through the desktop app UI (switcher +
- * GitPanel), DOM-driven, one screenshot per operation. Boots into a real github-backed
+ * DDR-133 — the COMPLETE git lifecycle, driven through the desktop app UI (S11.10: Menu › Version
+ * history › Advanced — the Branch select, New branch…, Fetch, Save a version with a note…,
+ * Publish, Add to main), DOM-driven, one screenshot per operation. Boots into a real github-backed
  * clone (wdio.lifecycle.conf.ts → make-lifecycle-fixture); MAUDE_USE_SYSTEM_GIT=1 lets
  * push/pull/fetch authenticate via the developer's git credential helper.
  *
@@ -34,7 +35,7 @@ function gh(...args: string[]): string {
 }
 const tid = (s: string) => `[data-testid="${s}"]`;
 
-/** Wait for the bottom-dock switcher trigger (the app shell is up / reloaded). Polls
+/** Wait for the bottom-dock project trigger (the app shell is up / reloaded). Polls
  *  with isDisplayed wrapped in try/catch: mid-reload (after a checkout/refresh) the JS
  *  context is torn down and isDisplayed (execute/async) THROWS rather than returning
  *  false — treat that as "not ready yet" and keep polling. */
@@ -51,19 +52,11 @@ async function waitForShell(timeout = 120_000): Promise<WebdriverIO.Element> {
   );
   return $(tid('repo-switcher-trigger'));
 }
-async function openSwitcher(): Promise<void> {
-  // Idempotent: the popup closes only on an outside mousedown (no Escape handler), so
-  // re-clicking the trigger when it's already open would TOGGLE it shut. Return early
-  // if it's already showing.
-  const popup = await $(tid('repo-switcher-popup'));
-  if (await popup.isDisplayed().catch(() => false)) return;
-  const trigger = await waitForShell();
-  await trigger.click();
-  await popup.waitForDisplayed({ timeout: 10_000 });
-}
-/** The branch label shown in the trigger (e.g. "main" / "smoke/ui-lifecycle"). */
-async function triggerText(): Promise<string> {
-  return (await waitForShell()).getText();
+/** The git lives one fold down in Version history (the helper opens the panel and the fold, and
+ *  leaves them open when they already are). */
+async function openAdvanced(): Promise<void> {
+  await waitForShell();
+  await openHistory();
 }
 
 describe('git-lifecycle (native-desktop)', () => {
@@ -89,42 +82,42 @@ describe('git-lifecycle (native-desktop)', () => {
     expect(url).toMatch(/^http:\/\/(localhost|127\.0\.0\.1):\d+/);
     await waitForShell();
     expect(await isNativeShell()).toBe(true);
-    expect(await triggerText()).toContain('main');
+    expect(await currentBranch()).toBe('main');
     await capture('01-booted-on-main');
 
     // (switch-repos is exercised by the separate git-switch-repos scenario — the
     // open_local_project sidecar-respawn is too WebDriver-flaky to chain inline.)
 
-    // ── 1. NEW BRANCH (switcher → New branch → name → create) ──────────────────
-    await openSwitcher();
+    // ── 1. NEW BRANCH (Advanced → New branch… → name → Create branch) ──────────
+    await openAdvanced();
     await $(tid('switcher-new-branch')).click();
     const input = await $(tid('switcher-new-branch-input'));
     await input.waitForDisplayed({ timeout: 10_000 });
     await input.setValue(BR);
     await $(tid('switcher-new-branch-create')).click();
-    await browser.waitUntil(async () => (await triggerText()).includes(BR), {
+    await browser.waitUntil(async () => (await currentBranch()) === BR, {
       timeout: 60_000,
-      timeoutMsg: 'new-branch: trigger never showed the new branch',
+      timeoutMsg: 'new-branch: the Branch select never showed the new branch',
     });
     await capture('02-new-branch-created');
 
-    // ── 2. SWITCH BRANCHES (checkout main → back) — reload-based, reliable ──────
-    await openSwitcher();
-    await $(tid('branch-row-main')).click();
-    await browser.waitUntil(async () => (await triggerText()).includes('main'), {
+    // ── 2. SWITCH BRANCHES (the Branch select: main → back) — reload-based, reliable ──
+    await openAdvanced();
+    await $(tid('vh-git-branch')).selectByAttribute('value', 'main');
+    await browser.waitUntil(async () => (await currentBranch()) === 'main', {
       timeout: 60_000,
       timeoutMsg: 'switch-branches: did not check out main',
     });
     await capture('03-switched-to-main');
-    await openSwitcher();
-    await $(`[data-testid="branch-row-${BR.replace(/[^a-z0-9]+/gi, '-')}"]`).click();
-    await browser.waitUntil(async () => (await triggerText()).includes(BR), {
+    await openAdvanced();
+    await $(tid('vh-git-branch')).selectByAttribute('value', BR);
+    await browser.waitUntil(async () => (await currentBranch()) === BR, {
       timeout: 60_000,
       timeoutMsg: 'switch-branches: did not return to the feature branch',
     });
     await capture('04-switched-back-to-feature-branch');
 
-    // ── 3. COMMIT (write a change → open Changes → message → Save all) ─────────
+    // ── 3. COMMIT (write a change → Save a version with a note… → note → Save all) ──
     writeFileSync(
       join(PRIMARY, '.design', 'ui-lifecycle.txt'),
       'changed via the UI lifecycle e2e\n'
@@ -135,6 +128,7 @@ describe('git-lifecycle (native-desktop)', () => {
     await waitForShell();
     await openHistory();
     await $(tid('git-panel')).waitForDisplayed({ timeout: 20_000 });
+    await $(tid('vh-git-save')).click();
     const msg = await $(tid('git-commit-message'));
     await msg.waitForDisplayed({ timeout: 20_000 });
     await msg.setValue('smoke: ui lifecycle commit');
@@ -173,22 +167,22 @@ describe('git-lifecycle (native-desktop)', () => {
       '-f',
       `sha=${git('rev-parse', 'origin/main')}`
     );
-    await openSwitcher();
+    await openAdvanced();
     await $(tid('switcher-fetch')).click();
+    // an <option> is never "displayed" to WebDriver — it is in the select once the fetch lands
     const remoteRow = await $(tid('branch-row-smoke-from-remote'));
-    await remoteRow.waitForDisplayed({ timeout: 30_000 });
+    await remoteRow.waitForExist({ timeout: 30_000 });
     await capture('07-fetched-remote-branch');
 
-    // ── 6. MERGE TO MAIN (fold) — done while main is in sync, so the publish is ──
-    // clean. We're still on smoke/ui-lifecycle, so the "Merge this branch → main"
-    // CTA is present; the popup is already open from the fetch (openSwitcher is a
-    // no-op when open).
-    await openSwitcher();
+    // ── 6. ADD TO MAIN (fold) — done while main is in sync, so the publish is ──
+    // clean. We're still on smoke/ui-lifecycle, so the "Add to main" button is
+    // present; the fold is already open from the fetch.
+    await openAdvanced();
     await $(tid('switcher-merge')).click();
     const confirm = await $(tid('switcher-merge-confirm'));
     await confirm.waitForDisplayed({ timeout: 10_000 });
     await confirm.click();
-    await browser.waitUntil(async () => (await triggerText()).includes('main'), {
+    await browser.waitUntil(async () => (await currentBranch()) === 'main', {
       timeout: 90_000,
       timeoutMsg: 'merge: did not land back on main after fold',
     });

@@ -3,6 +3,7 @@ import { release, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
+import { currentBranch } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
 import { readServerInfo, waitForSidecar } from '../helpers/sidecar';
@@ -95,10 +96,11 @@ async function waitAnyResting(
   return hit as unknown as { label: string; name: string; url: string };
 }
 
+/** The branch HEAD is on — Version history › Advanced › Branch (S11.10); the dock names the project only. */
 async function triggerText(): Promise<string> {
   const t = await $(tid('repo-switcher-trigger'));
   await t.waitForDisplayed({ timeout: 120_000 });
-  return t.getText();
+  return currentBranch();
 }
 
 async function waitBranch(branch: string): Promise<void> {

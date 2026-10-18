@@ -832,9 +832,6 @@ export function Sidebar({
   resizing,
   dirtyByPath,
   project,
-  gitBranch,
-  remoteSync,
-  onGetLatest,
   canvasKinds,
   onMoveCanvas,
   onNewFolder,
@@ -858,10 +855,6 @@ export function Sidebar({
   filesReady,
   treeLoadFailures = 0,
   onShare,
-  // feature-cloud-managed-git-posture — the widened DDR-218 gate, resolved once
-  // in App and handed down. Withdraws the drafts switcher: a local branch
-  // switch moves a HEAD the cell knows nothing about.
-  savingIsManaged = false,
 }) {
   const filteredGroups = useMemo(() => {
     if (!search) return groups;
@@ -1433,27 +1426,12 @@ export function Sidebar({
         destinations={rowMenuDestinations}
         onPickDestination={(dest) => onMoveCanvas(menuExtra.path, dest)}
       />
-      {/* Phase 29 (E4) — the project + draft switcher: a compact one-line dock that
-          opens UPWARD, sitting directly above the GitHub identity avatar so the two
-          form one bottom dock. Renders nothing until the project is a git repo.
-
-          WITHDRAWN while somebody else is committing (feature-cloud-managed-git-
-          posture). A draft is a local branch, and switching one moves a HEAD the
-          cell knows nothing about — it would rewrite the working tree under a
-          project whose history is being written elsewhere. Same
-          presentation-not-a-control rule as the rest of DDR-218: `/_api/git/branch`
-          and `/_api/git/checkout` keep exactly their old gates, and a terminal
-          `git checkout` still works (and still flushes into Yjs via DDR-051's
-          watcher). Absent, not disabled — there is nothing to explain here. */}
-      {/* Plan T22 — withdrawn means the BRANCH half. A managed project still
-          needs the way to another project, so the dock stays, project-only. */}
-      <RepoBranchSwitcher
-        project={project}
-        liveBranch={gitBranch}
-        remoteSync={remoteSync}
-        onGetLatest={onGetLatest}
-        projectOnly={savingIsManaged}
-      />
+      {/* The project switcher: a compact one-line dock that opens UPWARD, sitting directly above the GitHub
+          identity avatar so the two form one bottom dock. S11.10 — it is the way to another project ONLY now;
+          the branch half (drafts, New branch, Fetch, Add to main, Continue, the chat guard) lives in Version
+          history › Advanced, withdrawn there for a project somebody else saves (feature-cloud-managed-git-
+          posture, DDR-218). */}
+      <RepoBranchSwitcher project={project} />
       {/* Cloud Phase 23 C3 — Maude Cloud sign-in + remote-project attach, docked
           above the GitHub identity. Dev-server-backed, so it works in the desktop
           shell AND a plain browser. */}

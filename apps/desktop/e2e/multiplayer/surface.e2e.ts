@@ -7496,7 +7496,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                     resources: performance.getEntriesByType('resource').filter(e => e.name === frame.src)
                       .map(e => ({ start: e.startTime, duration: e.duration, responseStatus: e.responseStatus })) };
                 })`),
-                historyPanel: await p.read('.gp-panel'),
+                historyPanel: await p.read(selector('git-panel')),
                 historyRequests: await p.shell(
                   `performance.getEntriesByType('resource').filter(e => e.name.includes('/_api/project/history')).map(e => ({ path: new URL(e.name).pathname, start: e.startTime, duration: e.duration, responseStatus: e.responseStatus }))`
                 ),
@@ -7627,13 +7627,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(
             async () =>
               (await author.read(
-                `.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`
+                `.vh-git-ver:nth-of-type(2) [data-testid^="project-history-restore-"]`
               )) !== null,
             30000
           );
           const start = performance.now();
           await author.click(
-            `.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`
+            `.vh-git-ver:nth-of-type(2) [data-testid^="project-history-restore-"]`
           );
           return observeAll(
             all,

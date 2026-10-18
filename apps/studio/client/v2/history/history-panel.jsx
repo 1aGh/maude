@@ -24,6 +24,7 @@ import {
   whyLine,
 } from './blame.js';
 import { HistoryAdvanced } from './git-advanced.jsx';
+import { GIT_HINT } from './git-model.js';
 import { NameDialog } from './name-dialog.jsx';
 import { nowRow } from './rows.ts';
 import {
@@ -169,7 +170,9 @@ function Row({
  * @param p.onStopCompare   Stop comparing (back to Viewing the version)
  * @param p.onRows          (rows) the rows on screen, so Compare can name who made a change
  * @param p.onComparePictures  ({ file, beforeSha }) opens today's picture DiffView (Advanced)
- * @param p.advanced        the Advanced fold's body (the git body until S11 re-words it)
+ * @param p.role            'view' | 'comment' | 'edit' | 'owner' — the git part of Advanced is for editors only
+ * @param p.git             the shell's git bundle for Advanced (S11.10, git-advanced.jsx); absent = no git part
+ * @param p.advanced        anything else for the Advanced fold's body
  */
 export function VersionHistoryPanel({
   path,
@@ -187,6 +190,8 @@ export function VersionHistoryPanel({
   onStopCompare,
   onRows,
   onComparePictures,
+  role = canEdit ? 'edit' : 'view',
+  git = null,
   advanced = null,
   toast = shellToast,
   fetchImpl,
@@ -474,11 +479,15 @@ export function VersionHistoryPanel({
           </div>
         )}
       </div>
-      {advanced || onComparePictures ? (
-        <AdvancedFold panel="history" hint="branch, version ids">
+      {advanced || git || onComparePictures ? (
+        <AdvancedFold panel="history" hint={GIT_HINT}>
           <HistoryAdvanced
             canvas={path}
             version={sel}
+            versionRow={sel ? (v.rows.find((r) => r.ref === sel) ?? null) : null}
+            role={role}
+            git={git}
+            fetchImpl={fetchImpl}
             onComparePictures={onComparePictures}
             canView={!!path}
           >

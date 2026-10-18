@@ -1,5 +1,6 @@
 import { $, browser, expect } from '@wdio/globals';
 
+import { currentBranch } from '../helpers/chrome';
 import { capture, startReport } from '../helpers/evidence';
 import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -19,10 +20,11 @@ const PRIMARY = process.env.MAUDE_PROJECT_ROOT as string;
 const SECONDARY = process.env.MAUDE_E2E_SECONDARY_ROOT as string;
 const tid = (s: string) => `[data-testid="${s}"]`;
 
+/** The branch HEAD is on — Version history › Advanced › Branch (S11.10); the dock names the project only. */
 async function triggerText(): Promise<string> {
   const t = await $(tid('repo-switcher-trigger'));
   await t.waitForDisplayed({ timeout: 120_000 });
-  return t.getText();
+  return currentBranch();
 }
 const triggerHas = (s: string) => async () => {
   try {

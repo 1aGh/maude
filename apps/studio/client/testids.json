@@ -2348,10 +2348,10 @@
     "hook": "git-panel",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Changes (git) panel root.",
+    "meaning": "The git body of Version history › Advanced (root).",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2365,10 +2365,10 @@
     "hook": "git-panel-repo",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Project / shared-draft label in the Changes panel header (the cloud project when history comes from the cloud).",
+    "meaning": "Project / branch label at the head of the git body (the cloud project when the versions come from the cloud).",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [],
@@ -2380,8 +2380,8 @@
     "pattern": false,
     "meaning": "Note in a cloud-managed project that saving is automatic (replaces the commit form).",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [],
@@ -2395,10 +2395,10 @@
     "hook": "git-get-latest",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Get latest\" (pull) button (two render sites).",
+    "meaning": "\"Get latest\" (pull) button: the team-has-new-versions nudge and the publish-conflict banner.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "Banner"
     },
     "region": "git/history",
     "consumers": [
@@ -2410,10 +2410,10 @@
     "hook": "git-commit-message",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Commit message input.",
+    "meaning": "The note field of the \"Save a version\" dialog.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "SaveDialog"
     },
     "region": "git/history",
     "consumers": [
@@ -2425,10 +2425,10 @@
     "hook": "git-save-all",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Save all\" (commit) button.",
+    "meaning": "\"Save all\" in the \"Save a version\" dialog.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "SaveDialog"
     },
     "region": "git/history",
     "consumers": [
@@ -2440,10 +2440,10 @@
     "hook": "git-publish",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Publish\" (push) button.",
+    "meaning": "\"Publish N versions\" (push) button.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2455,10 +2455,10 @@
     "hook": "git-history-unreachable",
     "kind": "testid",
     "pattern": false,
-    "meaning": "History tab: the server history could not be reached.",
+    "meaning": "Every version list: the server history could not be reached.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionList"
     },
     "region": "git/history",
     "consumers": [],
@@ -2471,10 +2471,10 @@
     "hook": "git-history-retry",
     "kind": "testid",
     "pattern": false,
-    "meaning": "History tab: Retry button.",
+    "meaning": "Every version list: Retry button.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionList"
     },
     "region": "git/history",
     "consumers": [],
@@ -2487,10 +2487,10 @@
     "hook": "project-history-row-<revision>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One accepted project-history version row.",
+    "meaning": "One accepted project-history version row in \"Every version, with its id\".",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "AcceptedRow"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionItem"
     },
     "region": "git/history",
     "consumers": [
@@ -2504,10 +2504,10 @@
     "hook": "project-history-preview-<revision>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Preview button on a history row.",
+    "meaning": "Preview button on a version row.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "AcceptedRow"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionItem"
     },
     "region": "git/history",
     "consumers": [
@@ -2521,10 +2521,10 @@
     "hook": "project-history-restore-<revision>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Restore button on a history row.",
+    "meaning": "Restore button on a version row.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "AcceptedRow"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionItem"
     },
     "region": "git/history",
     "consumers": [
@@ -2536,10 +2536,10 @@
     "hook": "project-history-undo-<revision>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Undo button on the latest history row.",
+    "meaning": "Undo button on one of your own version rows.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "AcceptedRow"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionItem"
     },
     "region": "git/history",
     "consumers": [
@@ -2585,10 +2585,10 @@
     "hook": "save-local",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The local save (commit) control in the Changes panel.",
+    "meaning": "The local save (commit) control: the primary button of the \"Save a version\" dialog.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "SaveDialog"
     },
     "region": "git/history",
     "consumers": [
@@ -2600,10 +2600,10 @@
     "hook": "publish",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The Publish (push) button in the Changes panel (same element as `git-publish`).",
+    "meaning": "The Publish (push) button in Version history › Advanced (same element as `git-publish`).",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2615,10 +2615,10 @@
     "hook": "pull",
     "kind": "data-tour",
     "pattern": false,
-    "meaning": "The Get-latest (pull) button in the Changes panel (same element as one `git-get-latest`).",
+    "meaning": "The Get-latest (pull) button in Version history › Advanced (same element as one `git-get-latest`).",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2668,10 +2668,10 @@
     "hook": "branch-row-<branch>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A branch row in the switcher; `<branch>` from the module-local `slugify`/`tid` (e.g. `branch-row-main`, `branch-row-feat-local-work`).",
+    "meaning": "A branch option in the Branch select; `<branch>` from `tid` (e.g. `branch-row-main`, `branch-row-feat-local-work`).",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2702,10 +2702,10 @@
     "hook": "switcher-get-latest",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Switcher \"Get latest\" button.",
+    "meaning": "The \"your team has new versions\" nudge in Version history › Advanced (its button is `git-get-latest`).",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [],
@@ -2715,10 +2715,10 @@
     "hook": "switcher-resume",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Resume where you left off\" strip in the switcher.",
+    "meaning": "Drafts › Continue row: go back to the branch you were working on.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [],
@@ -2728,10 +2728,10 @@
     "hook": "switcher-resume-dismiss",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Dismiss for the resume strip.",
+    "meaning": "Dismiss for the Continue row.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [],
@@ -2741,10 +2741,10 @@
     "hook": "switcher-merge",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Switcher item \"add this draft to <shared>\" (merge).",
+    "meaning": "\"Add to main · opens a pull request\" button (on a branch).",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2756,10 +2756,10 @@
     "hook": "switcher-merge-confirm",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Confirm button for the merge.",
+    "meaning": "Confirm button of the \"Add to main\" dialog.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "AddDialog"
     },
     "region": "git/history",
     "consumers": [
@@ -2771,10 +2771,10 @@
     "hook": "switcher-fetch",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Switcher item that refreshes remote drafts.",
+    "meaning": "\"Fetch\" button: ask the remote for new branches.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2786,10 +2786,10 @@
     "hook": "switcher-new-branch",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Switcher item \"new draft\".",
+    "meaning": "\"New branch…\" button.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
     },
     "region": "git/history",
     "consumers": [
@@ -2801,10 +2801,10 @@
     "hook": "switcher-new-branch-input",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Branch-name input for a new draft.",
+    "meaning": "Branch-name input of the \"Create a branch\" dialog.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "BranchDialog"
     },
     "region": "git/history",
     "consumers": [
@@ -2816,10 +2816,10 @@
     "hook": "switcher-new-branch-create",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Create button for a new draft.",
+    "meaning": "Create button of the \"Create a branch\" dialog.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "BranchDialog"
     },
     "region": "git/history",
     "consumers": [
@@ -2831,10 +2831,10 @@
     "hook": "switcher-chat-guard",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Dialog that warns a branch switch would interrupt a running chat.",
+    "meaning": "Dialog that warns a branch change would interrupt a running chat.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "GuardDialog"
     },
     "region": "git/history",
     "consumers": [],
@@ -2846,8 +2846,8 @@
     "pattern": false,
     "meaning": "Cancel on the chat guard.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "GuardDialog"
     },
     "region": "git/history",
     "consumers": [],
@@ -2859,8 +2859,8 @@
     "pattern": false,
     "meaning": "Confirm on the chat guard.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "GuardDialog"
     },
     "region": "git/history",
     "consumers": [],
@@ -2870,10 +2870,10 @@
     "hook": "switcher-pr-link",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Button that opens/copies the pull-request link after a merge.",
+    "meaning": "Button that opens/copies the pull-request link after \"Add to main\".",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "AddDialog"
     },
     "region": "git/history",
     "consumers": [],
@@ -2885,8 +2885,8 @@
     "pattern": false,
     "meaning": "\"Got it\" on the pull-request result.",
     "producer": {
-      "file": "apps/studio/client/panels/RepoBranchSwitcher.jsx",
-      "symbol": "RepoBranchSwitcher"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "AddDialog"
     },
     "region": "git/history",
     "consumers": [],
@@ -7742,7 +7742,8 @@
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
     ],
-    "v2": "stable"
+    "v2": "retired",
+    "notes": "Retired S11.10: the Changes panel is the git body of Version history › Advanced. Its root is `git-panel`."
   },
   {
     "hook": ".gp-version",
@@ -7757,7 +7758,8 @@
     "consumers": [
       "apps/desktop/e2e/multiplayer/surface.e2e.ts"
     ],
-    "v2": "stable"
+    "v2": "retired",
+    "notes": "Retired S11.10: a version row is `.vh-git-ver` (or `project-history-row-<revision>`) in Version history › Advanced."
   },
   {
     "hook": ".gp-tabs / .gp-cloud-note",
@@ -7773,8 +7775,8 @@
     "sourceConsumers": [
       "apps/studio/test/git-cloud-posture.test.ts"
     ],
-    "v2": "stable",
-    "notes": "Source-text consumer only: `test/git-cloud-posture.test.ts` regex-matches `className=\"gp-tabs\"` / `className=\"gp-cloud-note\"` in `GitPanel.jsx`."
+    "v2": "retired",
+    "notes": "Retired S11.10: there are no tabs; the mode is `gitSurface()` (git-model.js) and the note is `git-cloud-managed`. `test/git-cloud-posture.test.ts` pins the new source text."
   },
   {
     "hook": ".dv-frame",
@@ -12114,10 +12116,10 @@
     "hook": "git-compare",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The compare-before/after button on a changed canvas in the Changes list.",
+    "meaning": "The compare-before/after button on a changed canvas in \"Not in a version yet\".",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "UnsavedList"
     },
     "region": "git/history",
     "consumers": [],
@@ -12127,10 +12129,10 @@
     "hook": "git-discard",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The discard button on a changed file (or canvas with its supporting files) in the Changes list. Desktop only (read-only elsewhere).",
+    "meaning": "The Discard button on a changed file (or canvas with its supporting files) in \"Not in a version yet\". Desktop only.",
     "producer": {
-      "file": "apps/studio/client/panels/GitPanel.jsx",
-      "symbol": "GitPanel"
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "UnsavedList"
     },
     "region": "git/history",
     "consumers": [],
@@ -15249,6 +15251,284 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-branch",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Branch select in Version history › Advanced (its options are `branch-row-<branch>`).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
+    },
+    "region": "git/history",
+    "consumers": [
+      "apps/desktop/e2e/helpers/chrome.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-continue",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Drafts › Continue: switch to the draft you were working on.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-remote",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Remote row (where the project is published).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-remote-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy the remote address.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "CopyButton"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-line note under the git head: a browser tab is read-only here.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-save",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Save a version with a note…\" button (opens the dialog).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
+    },
+    "region": "git/history",
+    "consumers": [
+      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-pull-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Pull a copy to this Mac…\" button (registry `project.pull-copy`).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "GitBody"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-notyet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Not in a version yet\": the changed files.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "UnsavedList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-changed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Changed in this version\": the file line and its lines.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "ChangedList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-changed-file",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The changed file line: badge, path, +added −removed.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "ChangedList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-diff",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The changed lines of the selected version.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "ChangedList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-versions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Every version, with its id\": the list.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-version-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One git version row in \"Every version, with its id\"; `<key>` is the commit id.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionItem"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-save-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Save a version\" dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "SaveDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-branch-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Create a branch\" dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "BranchDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-git-add-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Add to main\" dialog (and, after it, the pull-request result).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "AddDialog"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": ".vh-git-ver",
+    "kind": "selector",
+    "pattern": false,
+    "meaning": "A version row in \"Every version, with its id\" (what `.gp-version` was).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-parts.jsx",
+      "symbol": "VersionItem"
+    },
+    "region": "git/history",
+    "consumers": [
+      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
+    ],
+    "sourceConsumers": [
+      "apps/studio/test/v2-git-advanced.test.tsx"
     ],
     "v2": "new"
   }

@@ -215,7 +215,7 @@ export const HOOK_SHELLS = Object.freeze([
   [
     /^(g[i]t-save-all|g[i]t-get-latest|publish|save-local|pull)$/,
     ['desktop'],
-    "a browser tab opens the Changes panel read-only (GitPanel readOnly = !isNativeApp()): saving and publishing are the app's",
+    "a browser tab opens Version history › Advanced read-only (gitSurface: !native): saving and publishing are the app's",
   ],
   [
     /^(cloud-deeplink-|file-deeplink-|cloud-signin-refused$|sync-signin-again$|readiness-autosetup-where$)/,
