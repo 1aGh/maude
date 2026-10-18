@@ -25,6 +25,8 @@ export const SUB_VERBS = {
   history: { list: NATIVE, show: NATIVE, diff: NATIVE, restore: NATIVE, undo: NATIVE },
   comments: { list: NATIVE },
   exports: { list: NATIVE, again: NATIVE },
+  // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
+  runs: { list: NATIVE, stop: NATIVE },
 };
 
 const STEP_FLAGS = {

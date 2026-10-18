@@ -4,9 +4,14 @@
 //   fold(s)  NFD, strip combining marks, lower-case — "Trenéři" and "treneri" are the same word.
 //   query    folded words; EVERY word must match, in any order.
 //   per word contained in `name` → 3 (+1 when it starts a token) · in `meta` → 1 ·
-//            else (≥ 4 letters) a token within one edit (insert / delete / substitute / swap of two
-//            neighbours) of the word, or of the token's prefix of the word's length → 0.5, `close`.
+//            else (≥ 4 characters, NO digit in the word) a token within one edit (insert / delete /
+//            substitute / swap of two neighbours) of the word, or of the token's prefix of the word's
+//            length → 0.5, `close`. A word with a digit is a number, not a spelling: "2023" is another
+//            year than 2026, so it must be there exactly (S1.4, folding in S1.3's follow-up).
 //            A word that matches nothing drops the row.
+//   marks    `marks` = exact words in the name · `closeMarks` = the name's tokens a typo stood for ·
+//            `metaMarks` = the words found in the meta (exact or typo). Ranges index the UNFOLDED text.
+//   weak     no word of the query was there exactly — every one was a typo (⌘K shows such a row quiet).
 //   order    score ↓, then openedAt ↓, then name.
 
 export function fold(s: string): string {
@@ -82,46 +87,102 @@ export interface MatchInput {
   openedAt?: number;
 }
 
+export type Range = [number, number];
+
 export interface MatchHit<T extends MatchInput> {
   row: T;
   score: number;
   close: boolean;
-  marks: Array<[number, number]>;
+  marks: Range[];
+  closeMarks: Range[];
+  metaMarks: Range[];
+  weak: boolean;
+}
+
+/** The letter/digit runs of an already-folded text, with where each starts. */
+function tokensAt(text: string): Array<{ t: string; at: number }> {
+  const out: Array<{ t: string; at: number }> = [];
+  for (const m of text.matchAll(/[\p{L}\p{N}]+/gu)) out.push({ t: m[0], at: m.index ?? 0 });
+  return out;
+}
+
+/** Sorted, with touching or overlapping ranges merged. */
+function mergeRanges(ranges: Range[]): Range[] {
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const out: Range[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else out.push([r[0], r[1]]);
+  }
+  return out;
+}
+
+/** Where a typo of `w` sits among `toks`: the token's range (folded indexes), or null. */
+function nearToken(w: string, toks: Array<{ t: string; at: number }>): Range | null {
+  for (const k of toks) {
+    if (withinOneEdit(w, k.t)) return [k.at, k.at + k.t.length];
+    if (withinOneEdit(w, k.t.slice(0, w.length)))
+      return [k.at, k.at + Math.min(k.t.length, w.length)];
+  }
+  return null;
 }
 
 /** Score one row against folded query words; null = dropped. */
 export function scoreRow<T extends MatchInput>(row: T, qWords: string[]): MatchHit<T> | null {
   const name = foldMapped(row.name);
-  const meta = fold(row.meta ?? '');
-  const nameTokens = tokenize(name.text);
-  const metaTokens = tokenize(meta);
+  const meta = foldMapped(row.meta ?? '');
+  const nameTokens = tokensAt(name.text);
+  const metaTokens = tokensAt(meta.text);
   let score = 0;
   let close = false;
-  const marks: Array<[number, number]> = [];
+  let exact = 0;
+  const marks: Range[] = [];
+  const closeMarks: Range[] = [];
+  const metaMarks: Range[] = [];
+  const toOriginal = (m: { map: number[] }, [a, b]: Range): Range => [
+    m.map[a] as number,
+    m.map[b] as number,
+  ];
   for (const w of qWords) {
     const at = name.text.indexOf(w);
     if (at >= 0) {
       const startsToken = at === 0 || !/[\p{L}\p{N}]/u.test(name.text[at - 1] ?? '');
       score += startsToken ? 4 : 3;
-      marks.push([name.map[at] as number, name.map[at + w.length] as number]);
+      exact++;
+      marks.push(toOriginal(name, [at, at + w.length]));
       continue;
     }
-    if (meta.includes(w)) {
+    const inMeta = meta.text.indexOf(w);
+    if (inMeta >= 0) {
       score += 1;
+      exact++;
+      metaMarks.push(toOriginal(meta, [inMeta, inMeta + w.length]));
       continue;
     }
-    if (w.length >= 4) {
-      const near = (t: string) => withinOneEdit(w, t) || withinOneEdit(w, t.slice(0, w.length));
-      if (nameTokens.some(near) || metaTokens.some(near)) {
+    if (w.length >= 4 && !/\d/.test(w)) {
+      const inName = nearToken(w, nameTokens);
+      const viaMeta = inName ? null : nearToken(w, metaTokens);
+      if (inName || viaMeta) {
         score += 0.5;
         close = true;
+        if (inName) closeMarks.push(toOriginal(name, inName));
+        else if (viaMeta) metaMarks.push(toOriginal(meta, viaMeta));
         continue;
       }
     }
     return null;
   }
   marks.sort((a, b) => a[0] - b[0]);
-  return { row, score, close, marks };
+  return {
+    row,
+    score,
+    close,
+    marks,
+    closeMarks: mergeRanges(closeMarks),
+    metaMarks: mergeRanges(metaMarks),
+    weak: qWords.length > 0 && exact === 0,
+  };
 }
 
 /** Match rows against a query: every word must match; ranked; capped. */

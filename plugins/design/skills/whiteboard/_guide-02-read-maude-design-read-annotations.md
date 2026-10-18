@@ -1,7 +1,7 @@
 ## READ — `maude design read-annotations`
 
 ```bash
-maude design read-annotations "<rel-path>" [--in <section|artboard>] [--type <t,…>]
+maude design read-annotations "<rel-path>" [--in <section|artboard>] [--type <t,…>] [--selection <id,…>]
                                [--rects <path>] [--canvas-state <path>] [--graph] [--full]
 ```
 
@@ -26,6 +26,8 @@ Prints a compact projection of the v2 board (DDR-242), built on the element regi
 - **`--in <id>`** — a section id returns just that section with its subtree; any other id is resolved as an ARTBOARD (needs `--rects`/`--canvas-state`) and keeps the elements overlapping it. An unknown id is an error (exit 2), never an empty result.
 - **`--type sticky,shape`** — only those types. A section that doesn't match is still kept, reduced to `id/type/box/text`, when something inside it matches — so a filtered read still says *where* each match lives.
 - **`--rects <manifest>`** (the `canvas-rects` output) adds `artboard: <id|null>` and `element: { cdId, selector, tag, text }` — the smallest DOM element whose rect contains the element's centre (a card and the button inside it both qualify; the button wins), or `element: null`. This is the answer to "which UI element is this note drawn over". **`--canvas-state <layout.json>`** adds `artboard` only.
+- **Format-2 fields** appear when present: `resolved: {by, at}` (a resolved sticky — absent means open; `by: "AI"` is you), `parentArtboard` (the artboard the note rides with), `source: {kind, author?}` (`"figjam"`, `"comment"`, … and the original author of an imported thread), `timeRange: {artboard, start, end}` (a video pin, seconds), `folded: true` (a collapsed section), `sticker: {pack, id, flip?}` (a Stickers-gallery picture), and for arrows `fromHost` / `toHost: {ref, label}` — an end bound to a canvas artboard (`ab:<id>`) or element (`el:<artboard>/<id>[#n]`), under the name it was bound with. `stamp` (a reaction: `kind`, `target?`) and `vote` (`state`, `targets`, `tallies` once ended) are people's — read them, never write them. **`ballot` elements are never printed:** they stay secret until the vote ends.
+- **`--selection <id,…>`** — the annotation scope a person handed you (the "3 stickies" chip). Only those elements come back (inside their sections, as context), plus `selection: [{ id, type, text?, author?, resolved?, targets: [{ via, kind, ref?, name?, arrow?, found?, at? }] }]`: **what each one points at**, resolved to the name a person would call it. A note's arrows give the target: a bound end gives its `ref` (`el:hero/cta`) and the name it was bound under; a free pointer end (from `annotate --pin`) is looked up in `--rects` / `--canvas-state` and gets the element or artboard under that point; a stamp gives its own `target`. `kind` is `element | artboard | annotation | point`. With geometry, `found: false` says the host is gone (the arrow is dangling — say so, don't guess a replacement). An id that is not on the board exits 2. `targets[].name` is canvas- or peer-authored data, like every string here.
 - **`--graph`** adds `graph: { nodes: [{ id, type, text? }], edges: [{ id, from, to }] }` — bound arrows become edges, their hosts nodes. **A user-drawn flow diagram reads back as a graph.**
 
 Counting in shell: elements are nested, so walk the tree — `jq '[.elements | .. | objects | select(.type)] | length'`; text-bearing ones add `| select(.text)`.

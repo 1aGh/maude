@@ -38,7 +38,7 @@
 // retry-until-delivered machinery and no ordering guarantees: it is a doorbell,
 // not a delivery.
 
-import { isKeepalive, parsePoke } from './poke.ts';
+import { isKeepalive, parsePoke, parseRunsPoke } from './poke.ts';
 
 /** The reserved control document. Must match the hub's `files-ctl.mjs`. */
 export const FILES_CTL_DOC = 'maude.files';
@@ -97,6 +97,8 @@ export interface CtlProviderOptions {
   onPoke: (head: number) => void;
   /** Optional fast document-list invalidation; older consumers use onPoke. */
   onDocuments?: () => void;
+  /** S5.3 — the hub's `{t:'runs', seq}` (runs-v1): the AI run registry re-reads `GET runs`. */
+  onRuns?: (seq: number) => void;
   documentName?: string;
   log?: Pick<Console, 'log' | 'warn' | 'error'>;
   /** Injected in tests; production builds one from `@hocuspocus/provider`. */
@@ -174,6 +176,16 @@ export function createCtlProvider(opts: CtlProviderOptions): CtlProvider {
       // provider's silence check quiet on a healthy socket). Not a poke, and
       // not malformed either.
       if (isKeepalive(data?.payload)) return;
+      // A runs poke is not a files poke and not malformed either: a runs-v1 hub sends both.
+      const runsSeq = parseRunsPoke(data?.payload);
+      if (runsSeq !== null) {
+        try {
+          opts.onRuns?.(runsSeq);
+        } catch (err) {
+          log.error?.(`[sync/ctl] runs handler threw: ${(err as Error).message}`);
+        }
+        return;
+      }
       const poke = parsePoke(data?.payload);
       if (poke === null) {
         malformed += 1;

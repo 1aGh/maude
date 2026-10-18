@@ -10,9 +10,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
-
+import { legacyClaim } from '../../studio/access/scope.ts';
 import { handleBrowserAuth } from '../src/browser-auth.mjs';
 import { accessClaims, signAccessToken, signAccessTokenV2 } from '../src/cloud-identity.mjs';
+import { browserSession } from '../src/server.mjs';
 import { verifyToken } from '../src/tokens.mjs';
 
 const KEY = 'k'.repeat(64);
@@ -124,4 +125,28 @@ test('H-1 on the browser lane: a role-less token gets no session', async () => {
   const { response, session } = await browserSignIn(token);
   assert.equal(response.status, 403);
   assert.equal(session, null);
+});
+
+// S9.3 → the proxy: the session `browserSession` vouches for carries the claim, so the cell
+// proxy's `x-maude-access` names Can view instead of re-deriving a role (V2-5 A1 lead patch).
+test('the vouched browser session carries the stored claim; a v1 one gets its legacy claim', async () => {
+  const cookie = (session) => ({
+    headers: { cookie: `maude_studio=${encodeURIComponent(session)}` },
+  });
+  const observer = await browserSignIn(
+    signAccessTokenV2(
+      { email: 'o@x.test', project: TENANT, role: 'observer', iat: now(), exp: now() + 60_000 },
+      KEY
+    )
+  );
+  const o = browserSession(dataDir, '', cookie(observer.session));
+  assert.equal(o?.role, 'observer');
+  assert.deepEqual(o.access, { v: 1, role: 'observer' });
+
+  const viewer = await browserSignIn(
+    signAccessToken(accessClaims({ email: 'v@x.test', project: TENANT, role: 'viewer' }), KEY)
+  );
+  const v = browserSession(dataDir, '', cookie(viewer.session));
+  assert.equal(v?.role, 'viewer');
+  assert.deepEqual(v.access, legacyClaim('viewer'));
 });

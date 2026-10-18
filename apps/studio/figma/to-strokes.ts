@@ -248,7 +248,34 @@ export interface ToStrokesOptions {
   originOverride?: { x: number; y: number };
   /** Caller confirmed a board above `BOARD_STROKE_CEILING`. */
   confirmLarge?: boolean;
+  /**
+   * Place FigJam widgets (and stamps, tables, code blocks, embeds, link previews, media) as pictures
+   * of themselves instead of skipping them as `unmappable-type` — `import-figma --board --into`.
+   */
+  widgetsAsPictures?: boolean;
 }
+
+/** FigJam node types with no annotation equivalent that Figma can still render (`--into`). */
+const WIDGET_TYPES: ReadonlySet<string> = new Set([
+  'WIDGET',
+  'STAMP',
+  'TABLE',
+  'CODE_BLOCK',
+  'EMBED',
+  'LINK_UNFURL',
+  'MEDIA',
+]);
+
+/** The word an alt text uses for each (a `WIDGET` is "Widget"). */
+const WIDGET_LABEL: Readonly<Record<string, string>> = {
+  WIDGET: 'Widget',
+  STAMP: 'Stamp',
+  TABLE: 'Table',
+  CODE_BLOCK: 'Code block',
+  EMBED: 'Embed',
+  LINK_UNFURL: 'Link preview',
+  MEDIA: 'Media',
+};
 
 /** Thrown when a board exceeds the ceiling and the caller has not confirmed. */
 export class BoardTooLargeError extends Error {
@@ -348,6 +375,33 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
       if (clamped.changed) report.add(node.id, node.type, 'geometry-clamped');
       box = { x: clamped.x, y: clamped.y, w: bb.width, h: bb.height };
       nodeBBox.set(node.id, box);
+    }
+
+    // `--into` (C23): a widget has no Maude equivalent, but Figma can draw it — ask for the NODE
+    // and place the render as a picture, the way loose vector artwork is placed. Its contents are
+    // not recursed: the picture IS the widget.
+    if (opts.widgetsAsPictures && WIDGET_TYPES.has(node.type) && bb) {
+      const rb = node.absoluteRenderBounds;
+      const geo = rb ? { ...shift(rb.x, rb.y), w: rb.width, h: rb.height } : box;
+      const id = strokeId(node.id);
+      const kind = WIDGET_LABEL[node.type] ?? 'Widget';
+      const stroke: ImageStroke = {
+        id,
+        tool: 'image',
+        x: geo.x,
+        y: geo.y,
+        w: Math.max(1, geo.w),
+        h: Math.max(1, geo.h),
+        href: '',
+        alt: `${kind} “${attrValue(node.name, 40) || 'untitled'}” — as a picture`,
+        ...(groupIds.length ? { groupIds } : {}),
+        ...(node.rotation ? { rotation: -node.rotation } : {}),
+      };
+      strokes.push(stroke);
+      nodeToStroke.set(node.id, id);
+      pendingImages.push({ strokeId: id, nodeId: node.id, imageRef: null, format: 'png' });
+      report.add(node.id, node.type, 'asset-pending', 'widget as a picture');
+      return;
     }
 
     switch (node.type) {

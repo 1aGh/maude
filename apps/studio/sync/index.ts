@@ -5191,6 +5191,8 @@ export function createSyncRuntime(
               url: linkedHub.url,
               token,
               onDocuments: () => documentDiscovery?.schedule(),
+              // S5.3 — server.ts forwards it to the AI run registry (`registry.poke`).
+              onRuns: (seq) => ctx.bus.emit('hub:runs', { seq }),
               onPoke: () => {
                 // Reuses `pollRemoteSoon` rather than calling the file lanes
                 // directly, for two reasons: it already coalesces a burst into

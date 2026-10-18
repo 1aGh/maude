@@ -21,6 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
+import { presentFrom } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 
 // ── the timeline transport (was use-photo-and-timeline.jsx, DDR-150 P3 Task 9) ─────────────
@@ -319,6 +320,16 @@ for (const a of ACTIONS) {
     d.postToActiveCanvas(runActionMessage('tool.key', { key: chordFromEvent(e) }));
   };
 }
+// S3.1 — ⌥⌘↵ / ⇧⌥⌘↵: Present · Artboards through the one mode owner (D1). From the canvas the chord
+// arrives forwarded (`fromCanvas`); already presenting, nothing (esc leaves first).
+SHELL_KEY_HANDLERS['present.from-selection'] = (d, { event: e }) => {
+  e.preventDefault();
+  if (!d.presentMode) presentFrom('selection');
+};
+SHELL_KEY_HANDLERS['present.from-start'] = (d, { event: e }) => {
+  e.preventDefault();
+  if (!d.presentMode) presentFrom('start');
+};
 SHELL_KEY_HANDLERS['mode.preview'] = (d, { event: e }) => {
   e.preventDefault();
   d.postToActiveCanvas(runActionMessage('mode.preview'));

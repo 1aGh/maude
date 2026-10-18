@@ -64,6 +64,83 @@ describe('listTrash — one entry per writer shape', () => {
   });
 });
 
+// S1.2 — a canvas moved to the trash (api.deleteCanvas) parks a bundle `<stamp>__<slug>/` that records its
+// own way home in `_trash-manifest.json`; the toast's Undo restores it file by file through this same route.
+describe('a canvas bundle (`<stamp>__<slug>/` + `_trash-manifest.json`)', () => {
+  const STAMP = '2026-10-18T10-00-00-000Z';
+  const DIR = `_trash/${STAMP}__ui-hero`;
+  function bundle(root: string): void {
+    put(root, `${DIR}/Hero.tsx`, 'tsx');
+    put(root, `${DIR}/Hero.meta.json`, '{}');
+    put(root, `${DIR}/_history__ui-hero/snap-1.tsx`, 'old');
+    put(root, `${DIR}/_canvas-state__ui-hero.view.json`, '{}');
+    put(
+      root,
+      `${DIR}/_trash-manifest.json`,
+      JSON.stringify({
+        canvas: 'ui/Hero.tsx',
+        slug: 'ui-hero',
+        trashed: [
+          'ui/Hero.tsx',
+          'ui/Hero.meta.json',
+          '_history/ui-hero',
+          '_canvas-state/ui-hero.view.json',
+        ],
+      })
+    );
+  }
+
+  test('every file of the bundle knows where it came from', () => {
+    const root = makeRoot();
+    bundle(root);
+    const by = new Map(listTrash(root).map((e) => [e.trashRel, e]));
+    expect(by.get(`${DIR}/Hero.tsx`)?.sourceRel).toBe('ui/Hero.tsx');
+    expect(by.get(`${DIR}/Hero.meta.json`)?.sourceRel).toBe('ui/Hero.meta.json');
+    expect(by.get(`${DIR}/_history__ui-hero/snap-1.tsx`)?.sourceRel).toBe(
+      '_history/ui-hero/snap-1.tsx'
+    );
+    expect(by.get(`${DIR}/_canvas-state__ui-hero.view.json`)?.sourceRel).toBe(
+      '_canvas-state/ui-hero.view.json'
+    );
+    expect(by.get(`${DIR}/Hero.tsx`)?.reason).toBe('deleted');
+    expect(by.get(`${DIR}/Hero.tsx`)?.at).toBe(Date.parse('2026-10-18T10:00:00.000Z'));
+    // the bookkeeping file is not something to restore
+    expect(by.get(`${DIR}/_trash-manifest.json`)?.sourceRel).toBeNull();
+  });
+
+  test('restoring each file puts the canvas back', () => {
+    const root = makeRoot();
+    bundle(root);
+    for (const e of listTrash(root).filter((x) => x.sourceRel)) {
+      expect(restoreFromTrash(root, e.trashRel).ok).toBe(true);
+    }
+    expect(readFileSync(join(root, 'ui/Hero.tsx'), 'utf8')).toBe('tsx');
+    expect(readFileSync(join(root, '_history/ui-hero/snap-1.tsx'), 'utf8')).toBe('old');
+  });
+
+  test('a manifest that points outside the design root derives nothing', () => {
+    const root = makeRoot();
+    put(root, `${DIR}/Hero.tsx`, 'tsx');
+    put(
+      root,
+      `${DIR}/_trash-manifest.json`,
+      JSON.stringify({ canvas: 'x', trashed: ['../../etc/Hero.tsx'] })
+    );
+    expect(listTrash(root).find((e) => e.trashRel === `${DIR}/Hero.tsx`)?.sourceRel).toBeNull();
+  });
+
+  test('an artboard bundle (kind: artboard) is left as it was', () => {
+    const root = makeRoot();
+    put(root, `_trash/${STAMP}__ui-hero__a1/a1.artboard.tsx`, 'block');
+    put(
+      root,
+      `_trash/${STAMP}__ui-hero__a1/_trash-manifest.json`,
+      JSON.stringify({ kind: 'artboard', canvas: 'ui/Hero.tsx', artboard: 'a1' })
+    );
+    for (const e of listTrash(root)) expect(e.sourceRel).toBeNull();
+  });
+});
+
 describe('restoreFromTrash', () => {
   test('moves the file back to its derived source', () => {
     const root = makeRoot();

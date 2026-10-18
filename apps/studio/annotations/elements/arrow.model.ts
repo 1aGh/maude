@@ -10,7 +10,7 @@
 import { ARROW_HEADS, ARROW_LINES, DEFAULT_INK } from '../constants.ts';
 import { bool, color, type FieldSpec, id, num, oneOf, round } from '../fields.ts';
 import type { AnnotationElement, ArrowEnd, Box, ElementDef, GeomCtx } from '../types.ts';
-import { get, pointSegmentDist, rotatePoint } from './_shared.ts';
+import { canvasHostField, get, pointSegmentDist, rotatePoint } from './_shared.ts';
 
 const MAGNETS = [0, 0.5, 1] as const;
 
@@ -156,6 +156,10 @@ export function arrowEnds(el: AnnotationElement, ctx: GeomCtx): ResolvedArrow | 
 export const arrow: ElementDef = {
   type: 'arrow',
   fields: FIELDS,
+  // Format 2 (R5, contract S4 Q1): ends bound to an artboard (`ab:`) or a
+  // canvas element (`el:`). `start` / `end` keep caching the last resolved
+  // point, so a format-1 peer draws the arrow frozen (R2/R3).
+  ext: { endHost: canvasHostField(), startHost: canvasHostField() },
   caps: {
     box: false,
     rotatable: false,

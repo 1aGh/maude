@@ -42,7 +42,6 @@ export function canvasOriginRoutes(
     // V2-2.8 S6 — NOT the main-origin handler: the canvas origin gets the
     // no-e-mail projection (names + commit counts) for @mention suggestions.
     '/_api/git-committers': http.canvasRoutes['/_api/git-committers'],
-    '/_api/ai': http.routes['/_api/ai'],
     '/_comments': http.routes['/_comments'],
   } as Record<string, Handler>;
   // V2-2.5 — the table's `origin: 'canvas'` specs: the SAME guarded handler the

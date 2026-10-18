@@ -95,7 +95,14 @@ export async function startServer(root) {
     'bun',
     ['run', join(STUDIO_DIR, 'server.ts'), '--root', root, '--port', String(port)],
     {
-      env: { ...process.env, MAUDE_NO_AUTOBUILD: '1', NO_OPEN: '1' },
+      env: {
+        ...process.env,
+        MAUDE_NO_AUTOBUILD: '1',
+        NO_OPEN: '1',
+        // S5.1b — the unlinked fixture stamps a machine id; keep it in the fixture, never ~/.config.
+        MAUDE_MACHINE_FILE:
+          process.env.MAUDE_MACHINE_FILE ?? join(root, '.design', '_state', 'machine.json'),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );

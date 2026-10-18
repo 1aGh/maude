@@ -26,9 +26,13 @@ const sticky = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+// Valid format-2 shapes (S4.1 types them; a format-1 reader keeps them opaque).
+// `folded` is a section field, so on a sticky it stays an unknown key.
+const RESOLVED = { by: 'Jonas', at: '2026-10-01T10:00:00Z' };
+const TIME_RANGE = { artboard: 'reel', start: 1.5, end: 3 };
 const V2_FIELDS = {
-  timeRange: { from: 1.5, to: 3 },
-  resolved: true,
+  timeRange: TIME_RANGE,
+  resolved: RESOLVED,
   parentArtboard: 'hero',
   folded: true,
 };
@@ -65,8 +69,8 @@ describe('annotation extension fields on known types (P2)', () => {
         text: 'Ship it',
         folded: true,
         parentArtboard: 'hero',
-        resolved: true,
-        timeRange: { from: 1.5, to: 3 },
+        resolved: RESOLVED,
+        timeRange: TIME_RANGE,
       } as never,
       { id: 's2', type: 'sticky', index: 'a1', x: 0, y: 0, w: 200, h: 120, text: 'Next' } as never,
     ]);
@@ -101,11 +105,11 @@ describe('annotation extension fields on known types (P2)', () => {
   });
 
   test('a KNOWN field with an invalid value is still dropped, not resurrected as an extension', () => {
-    const r = validateElement(sticky({ fill: 'not-a-colour', resolved: true }));
+    const r = validateElement(sticky({ fill: 'not-a-colour', resolved: RESOLVED }));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(Object.hasOwn(r.el, 'fill')).toBe(false); // sticky's colour field is `fill`
-    expect(r.el.resolved).toBe(true);
+    expect(r.el.resolved).toEqual(RESOLVED);
   });
 
   test('extension values are sanitized JSON', () => {

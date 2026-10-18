@@ -36,11 +36,18 @@ export const STORE_METHODS = Object.freeze([
   'revisions',
   'history',
   'action',
+  'actions',
   'manifest',
   'docByPath',
   'laneAt',
   'effectsAfter',
   'liveDocByEntry',
+  // V2-1.15 §5.2 — AI runs and leases (each one transaction = one RPC).
+  'runsBegin',
+  'runsClaim',
+  'runsRenew',
+  'runsEnd',
+  'runsList',
 ]);
 const ALLOWED = new Set(STORE_METHODS);
 
@@ -84,7 +91,13 @@ export function createProjectStoreHost(storage, { now } = {}) {
       if (err instanceof StoreConflict) {
         return {
           ok: false,
-          error: { name: 'StoreConflict', code: err.code, message: err.message },
+          error: {
+            name: 'StoreConflict',
+            code: err.code,
+            message: err.message,
+            // `lease-fenced` names the artboards a newer grant took (V2-1.15 §5.3).
+            ...(Array.isArray(err.keys) ? { keys: err.keys } : {}),
+          },
         };
       }
       return {

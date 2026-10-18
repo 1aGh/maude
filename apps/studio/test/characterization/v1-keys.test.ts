@@ -252,6 +252,8 @@ async function bootLane(n: number, root: string, gen = 0): Promise<Lane> {
       ...process.env,
       HOME: home,
       XDG_CONFIG_HOME: join(home, '.config'),
+      // S5.1b — the local kernel's machine stamp stays in the throwaway HOME, never the person's.
+      MAUDE_MACHINE_FILE: join(home, '.config', 'maude', 'machine.json'),
       NO_OPEN: '1',
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',

@@ -11,11 +11,15 @@
 //   3. exec 'native' → the Tauri command that owns it (NATIVE_COMMANDS).
 // An id with none of the three has no runner: `runnableIds()` says so and the test pins it empty.
 
+import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
-import { requestTrash } from '../left-panel/left-panel-bus.js';
+import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
+import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
+import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
@@ -91,11 +95,32 @@ export function createMenuHandlers(d) {
     'canvas.duplicate': () => {
       if (d.activePath) d.onDuplicate(d.activePath);
     },
+    // S1.2 — rename in place: the Canvases panel turns the open canvas's name into a field (↵ renames, esc
+    // keeps it). The panel is brought up first and may not be mounted yet, so the request waits for it.
     'canvas.rename': () => {
       if (!d.activePath) return;
-      const current = d.canvasName;
-      const name = window.prompt('Rename canvas to:', current);
-      if (name?.trim() && name.trim() !== current) d.onRename(d.activePath, name.trim());
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'rename', path: d.activePath });
+    },
+    // S1.2 — pins are per person; these act on the open canvas (the row's hover pin does the same).
+    'canvases.pin': () => {
+      if (d.activePath) requestCanvasesOp({ op: 'pin', path: d.activePath, pinned: true });
+    },
+    'canvases.unpin': () => {
+      if (d.activePath) requestCanvasesOp({ op: 'pin', path: d.activePath, pinned: false });
+    },
+    'canvases.sort': () => {
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'sort' });
+    },
+    // S1.2 — the shell's tab hook owns the closures for these two (share links, the tree reload, the tab).
+    'canvas.copy-link': () => {
+      if (d.activePath) dispatchCanvasOp('copy-link', d.activePath);
+    },
+    'canvas.trash': () => {
+      if (d.activePath) dispatchCanvasOp('trash', d.activePath, d.canvasName);
     },
     'canvas.move': () => {
       if (d.activePath) d.onPickMoveDestination();
@@ -138,6 +163,13 @@ export function createMenuHandlers(d) {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
     },
+    // S2.2 — Inspector › Advanced: Copy CSS · Copy element id · Edit element id… (the mounted frame binds them)
+    ...Object.fromEntries(
+      INSPECTOR_ACTION_IDS.map((id) => [
+        id,
+        () => runInspectorAction(id).then((said) => (said ? d.toast?.(said) : undefined)),
+      ])
+    ),
     'view.inspector': () => d.toggleRightPanel('inspector'),
     'view.inspector-on-select': () => d.onToggleAutoOpenInspector(),
     'view.timeline-keep-open': () => d.onToggleTimeline(),
@@ -146,7 +178,10 @@ export function createMenuHandlers(d) {
     'view.zoom-controls': () => d.onToggleZoomCtl(),
     'view.print-guides': () => d.onTogglePrintGuides(),
     'view.hidden-files': () => d.onToggleShowHidden(),
-    'present.canvas': () => d.onTogglePresent(),
+    // S3.1 — every way into Present goes through the one mode owner (use-canvas-mode-lane).
+    'present.from-selection': () => presentFrom('selection'),
+    'present.from-start': () => presentFrom('start'),
+    'present.canvas': () => togglePresentCanvas(),
     // ── Help ──
     'help.shortcuts': () => d.setShortcutsOpen(true),
     'help.guides': () => d.setHelpOpen(true),
@@ -163,6 +198,11 @@ export function createMenuHandlers(d) {
         d.toast('AI chat is in the Maude desktop app.');
         return;
       }
+      // S5.8 — the panel already open with focus elsewhere: ⌘/ puts focus in its field, it does not fold
+      if (aiPanelWantsFocus()) {
+        requestFocusAI();
+        return;
+      }
       d.toggleRightPanel('assistant');
     },
     // ── top level ──
@@ -175,6 +215,13 @@ export function createMenuHandlers(d) {
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);
+  // S4.4: ⌘K "<Template> template" — the same `insert-template` a Templates-panel tile sends, so the
+  // pick trails the pointer until a click (S4.13). Only an open canvas has anywhere to put it.
+  for (const t of TEMPLATES)
+    h[`annotation.template-${t.id}`] = () => {
+      if (d.canvasOpen !== false)
+        d.postToActiveCanvas({ dgn: 'insert-template', id: t.id, follow: true });
+    };
   // V2-4.8a: outside the desktop app "Back to Home" is the cloud dashboard (the v1 menubar's
   // "← Dashboard" link). In the desktop app it stays the native Home tab (NATIVE_COMMANDS).
   if (!d.native) h['nav.home'] = () => d.onOpenDashboard?.();

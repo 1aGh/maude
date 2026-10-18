@@ -230,7 +230,15 @@ export function rankRows(rows, query, { limit = 200 } = {}) {
       { key: row.id, name: row.name, meta: [...row.keywords, row.where].filter(Boolean).join(' ') },
       qWords
     );
-    if (hit) hits.push({ row, score: hit.score, close: hit.close, marks: hit.marks });
+    if (hit)
+      hits.push({
+        row,
+        score: hit.score,
+        close: hit.close,
+        weak: hit.weak,
+        // a typo's token is marked like an exact word (11 · pn-k-close: "Uniformy" lit for "unifromy")
+        marks: mergeMarks(hit.marks, hit.closeMarks),
+      });
   }
   hits.sort(
     (a, b) =>
@@ -241,23 +249,58 @@ export function rankRows(rows, query, { limit = 200 } = {}) {
   return hits.slice(0, limit);
 }
 
-/** The canvases / artboards `/_api/index?q=` answered → result rows. */
-export function remoteRows(result, { designRel = '.design' } = {}) {
+/** Two sorted lists of [start, end) ranges as one sorted list, overlaps merged. */
+export function mergeMarks(...lists) {
+  const all = lists.flat().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const out = [];
+  for (const r of all) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else out.push([r[0], r[1]]);
+  }
+  return out;
+}
+
+/**
+ * A design-system specimen's meta line: "system/maude-v2/preview" → "Design system · maude-v2 · preview".
+ * The index keeps these canvases in the same list as the project's own (kind `specimen`); the line says
+ * what they are, so a person who typed "button" can tell the DS page from a canvas of theirs.
+ */
+export function canvasMeta(rel, folder) {
+  const m = /^system\/([^/]+)\/(.*)$/.exec(rel);
+  if (!m) return (folder || '').trim();
+  const sub = m[2].split('/').slice(0, -1);
+  return ['Design system', m[1], ...sub].join(' · ');
+}
+
+/**
+ * The canvases / artboards `/_api/index?q=` answered → result rows.
+ * `query` (what was asked) lets the row mark its meta line too — "artboard in LetakA6 · print" lights
+ * LetakA6 when the person typed it — and tell a row that matched only through typos (`weak`) from one
+ * that has a word right. Without it the server's own name marks stand.
+ */
+export function remoteRows(result, { designRel = '.design', query = '' } = {}) {
+  const qWords = fold(sanitizeQuery(query)).split(/\s+/).filter(Boolean);
   const out = [];
   for (const r of result?.rows ?? []) {
     const rel = r.key.split('#')[0];
     const board = r.group === 'artboards' ? r.key.split('#')[1] : null;
     const canvas = rel.replace(/^.*\//, '').replace(/\.tsx$/, '');
+    // "artboard in LetakA6 · print" / "ui/2026/combine"
+    const meta = board ? `artboard in ${canvas}` : canvasMeta(rel, r.meta);
+    // Re-score the strings the row SHOWS (the index matched on more: the folder, the kind).
+    const shown = qWords.length ? scoreRow({ key: r.key, name: r.name, meta }, qWords) : null;
     out.push({
       group: board ? 'artboards' : 'canvases',
       id: `${board ? 'artboard' : 'canvas'}:${r.key}`,
       name: r.name,
-      marks: r.marks ?? [],
-      close: !!r.close,
+      marks: shown ? mergeMarks(shown.marks, shown.closeMarks) : (r.marks ?? []),
+      metaMarks: shown?.metaMarks ?? [],
+      close: shown ? shown.close : !!r.close,
+      weak: shown?.weak ?? false,
       path: `${designRel}/${rel}`,
       artboardId: board,
-      // "artboard in LetakA6 · print" / "ui/2026/combine"
-      meta: board ? `artboard in ${canvas}` : (r.meta || '').trim(),
+      meta,
       keys: '',
       where: '',
       advanced: false,
@@ -280,7 +323,7 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
   const localHits = rankRows(local, q);
   const byGroup = new Map(GROUPS.map((g) => [g.id, []]));
   for (const h of localHits)
-    byGroup.get(h.row.group)?.push({ ...h.row, marks: h.marks, close: h.close });
+    byGroup.get(h.row.group)?.push({ ...h.row, marks: h.marks, close: h.close, weak: h.weak });
   for (const r of remote) byGroup.get(r.group)?.push(r);
   const groups = [];
   let total = 0;
@@ -299,36 +342,71 @@ export function assemble({ query, local = [], remote = [], canAskAI = false, cap
       rows,
     });
   }
-  const shown = groups.flatMap((g) => g.rows);
-  const closeOnly = shown.length > 0 && shown.every((r) => r.close);
-  const ask = canAskAI
-    ? {
-        group: 'ask-ai',
-        id: 'ask-ai',
-        name: q ? `Ask AI to find “${q}”` : 'Ask AI',
-        meta: q ? ' — it looks inside canvases too' : ' — describe what you want on the canvas',
-        keys: '⌘↵',
-        icon: 'spark',
-      }
-    : null;
+  const raw = groups.flatMap((g) => g.rows);
+  const closeOnly = raw.length > 0 && raw.every((r) => r.close);
+  // Every row got here through a typo and not one word was right (11 · pn-k-close, 05 · es-search-k):
+  // that is a misspelling to correct, not a search that found things — "Did you mean".
+  const didYouMean = closeOnly && raw.every((r) => r.weak);
+  // Among rows that DO have a word right, a near miss with none is drawn quiet (after the hits).
+  const hush = (r) => (!didYouMean && r.close && r.weak ? { ...r, quiet: true } : r);
+  const outGroups = didYouMean
+    ? [{ id: 'did-you-mean', title: 'Did you mean', rows: raw }]
+    : groups.map((g) => ({ ...g, rows: g.rows.map(hush) }));
+  const shown = outGroups.flatMap((g) => g.rows);
+  const state = shown.length === 0 || didYouMean ? 'none' : 'hits';
+  const ask = canAskAI ? askRow(q, state) : null;
   return {
-    groups,
+    groups: outGroups,
     items: ask ? [...shown, ask] : shown,
     total,
     empty: Boolean(q) && total === 0,
     closeOnly,
-    closeWord: closeOnly ? closeWordFor(q, shown[0]) : null,
+    didYouMean,
+    closeWord: closeOnly ? closeWordFor(q, shown) : null,
     ask,
   };
 }
 
-/** The word the close matches stand for: "Nothing called “unifromy”. Showing close matches for uniformy." */
-function closeWordFor(q, row) {
-  const w = fold(q).split(/\s+/).filter(Boolean)[0];
-  if (!w || !row) return null;
-  for (const t of row.name.split(/[^\p{L}\p{N}]+/u)) {
-    const f = fold(t);
-    if (f && (withinOneEdit(w, f) || withinOneEdit(w, f.slice(0, w.length)))) return t;
+/**
+ * The Ask AI row, last on every screen (CONTRACT §4, ⌘↵). Its words follow what is above it:
+ *   none   nothing matched (or only a misspelling): "Ask AI to find “pricng” — it looks inside canvases too"
+ *   hits   something matched: "Ask AI — find “letak a6 predni” by what it looks like"
+ *   idle   nothing typed: "Ask AI — describe what you want on the canvas"
+ *   first  nothing typed and nothing opened yet: "Ask AI — type what to make, or what to find"
+ * @param state 'none' | 'hits' | 'idle' | 'first'
+ */
+export function askRow(query, state) {
+  const q = sanitizeQuery(query);
+  const base = { group: 'ask-ai', id: 'ask-ai', keys: '⌘↵', icon: 'spark' };
+  if (q && state === 'none')
+    return { ...base, name: `Ask AI to find “${q}”`, meta: ' — it looks inside canvases too' };
+  if (q) return { ...base, name: 'Ask AI', meta: ` — find “${q}” by what it looks like` };
+  return {
+    ...base,
+    name: 'Ask AI',
+    meta:
+      state === 'first'
+        ? ' — type what to make, or what to find'
+        : ' — describe what you want on the canvas',
+  };
+}
+
+/**
+ * The word the close matches stand for: "Nothing called “unifromy”. Showing close matches for uniformy."
+ * It is the first query word that is NOT in any shown name as typed — "unifromy", not "2027".
+ */
+function closeWordFor(q, rows) {
+  const row = rows[0];
+  if (!row) return null;
+  const typed = fold(q).split(/\s+/).filter(Boolean);
+  const hay = fold(rows.map((r) => r.name).join(' '));
+  for (const w of typed) {
+    if (/\d/.test(w) || hay.includes(w)) continue;
+    for (const r of rows)
+      for (const t of r.name.split(/[^\p{L}\p{N}]+/u)) {
+        const f = fold(t);
+        if (f && (withinOneEdit(w, f) || withinOneEdit(w, f.slice(0, w.length)))) return t;
+      }
   }
   return null;
 }
@@ -345,4 +423,21 @@ export function emptyCopy(query, canAskAI) {
 /** The footer count, CONTRACT §4: "N results" (never "1 results"). */
 export function resultsCount(total) {
   return `${total} ${total === 1 ? 'result' : 'results'}`;
+}
+
+/** "1 close match" / "4 close matches" — the typo-only list's count (11 · pn-k-close). */
+export function closeCount(total) {
+  return `${total} close ${total === 1 ? 'match' : 'matches'}`;
+}
+
+/**
+ * The footer's count for a typed query, CONTRACT §4:
+ *   hits           "N results"
+ *   typo-only      "4 close matches" (the note above says what they stand for)
+ *   Did you mean   "0 results · 1 close match" (05 · es-search-k)
+ */
+export function footerCount(view) {
+  if (view.didYouMean) return `${resultsCount(0)} · ${closeCount(view.total)}`;
+  if (view.closeOnly) return closeCount(view.total);
+  return resultsCount(view.total);
 }

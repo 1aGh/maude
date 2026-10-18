@@ -40,7 +40,7 @@ interface Spies {
   closed: number;
 }
 
-function setup({ ai = true, index = null as object | null } = {}) {
+function setup({ ai = true, index = null as object | null, pins = null as object | null } = {}) {
   const spies: Spies = { ran: [], asked: [], opened: [], closed: 0 };
   unbind = bindPaletteEnv({
     designRel: '.design',
@@ -48,10 +48,15 @@ function setup({ ai = true, index = null as object | null } = {}) {
     askAI: (t: string) => spies.asked.push(t),
     openCanvas: (p: string, a: string | null) => spies.opened.push([p, a]),
   });
-  globalThis.fetch = (async () =>
-    index
+  globalThis.fetch = (async (url: string) => {
+    if (String(url).startsWith('/_api/pins'))
+      return pins
+        ? new Response(JSON.stringify(pins), { status: 200 })
+        : new Response('{}', { status: 404 });
+    return index
       ? new Response(JSON.stringify(index), { status: 200 })
-      : new Response('{}', { status: 404 })) as unknown as typeof fetch;
+      : new Response('{}', { status: 404 });
+  }) as unknown as typeof fetch;
   const rows = [
     ...actionSearchRows(desktop, { eager: false, run: (id: string) => spies.ran.push(id) }),
     ...settingsSearchRows({ cloud: null, run: (s: string) => spies.ran.push(`settings:${s}`) }),
@@ -256,6 +261,133 @@ describe('⌘K, the real palette', () => {
     const el = await mount(actions, spies);
     await key(el.querySelector('input') as HTMLInputElement, 'Escape');
     expect(spies.closed).toBe(1);
+  });
+});
+
+describe('⌘K words (S1.4)', () => {
+  const idx = (rows: object[]) => ({ q: 'x', closeOnly: false, rows });
+  const row = (group: string, key: string, name: string, meta: string) => ({
+    group,
+    key,
+    name,
+    meta,
+    score: 1,
+    close: true,
+    marks: [],
+  });
+
+  test('a Mac with nothing opened: Recent says so, Start here lists where to begin, Ask AI says what to type', async () => {
+    const { spies, actions } = setup({ pins: { pins: [], opened: {} } });
+    const el = await mount(actions, spies);
+    await act(async () => {
+      await sleep(30);
+    });
+    expect(el.querySelector('[data-testid="palette-recent-empty"]')?.textContent).toBe(
+      'Nothing opened yet.Canvases you open show up here, newest first.'
+    );
+    const ids = rowIds(el);
+    expect(ids.slice(0, 4)).toEqual([
+      'start:canvas.new',
+      'start:project.open',
+      'start:import.figma',
+      'start:help.shortcuts',
+    ]);
+    expect(ids[ids.length - 1]).toBe('ask-ai');
+    expect(el.querySelector('[data-testid="palette-row-ask-ai"]')?.textContent).toContain(
+      'Ask AI — type what to make, or what to find'
+    );
+    expect(el.querySelector('[data-testid="palette-count"]')?.textContent).toBe(
+      'Every tool is here — type its name'
+    );
+  });
+
+  test('canvases opened lately are listed under Recent, newest first, and ↵ opens one', async () => {
+    const { spies, actions } = setup({
+      pins: { pins: [], opened: { 'ui/Pricing.tsx': 5, 'ui/Homepage.tsx': 9 } },
+    });
+    const el = await mount(actions, spies);
+    await act(async () => {
+      await sleep(30);
+    });
+    expect(el.querySelector('[data-testid="palette-recent-empty"]')).toBeNull();
+    expect(rowIds(el).slice(0, 2)).toEqual(['recent:ui/Homepage.tsx', 'recent:ui/Pricing.tsx']);
+    await act(async () => {
+      (
+        el.querySelector('[data-testid="palette-row-recent:ui/Homepage.tsx"]') as HTMLElement
+      ).click();
+    });
+    expect(spies.opened).toEqual([['.design/ui/Homepage.tsx', null]]);
+  });
+
+  test('a misspelling: the CONTRACT line, then "Did you mean", and the footer says 0 results · 1 close match', async () => {
+    const { spies, actions } = setup({
+      index: idx([row('canvases', 'ui/Pricing.tsx', 'Pricing', 'ui')]),
+    });
+    const el = await mount(actions, spies);
+    const input = await type(el, 'pricng');
+    await act(async () => {
+      await sleep(250);
+    });
+    expect(el.querySelector('[data-testid="palette-did-you-mean-note"]')?.textContent).toBe(
+      'Nothing called “pricng”.Try another word, or ask AI to find it.'
+    );
+    expect(el.querySelector('[data-testid="palette-close-note"]')).toBeNull();
+    const group = el.querySelector('[data-testid="palette-group-did-you-mean"]');
+    expect(group?.textContent).toContain('Did you mean');
+    expect(rowIds(el)).toEqual(['canvas:ui/Pricing.tsx', 'ask-ai']);
+    expect(el.querySelector('[data-testid="palette-count"]')?.textContent).toBe(
+      '0 results · 1 close match'
+    );
+    expect(el.querySelector('[data-testid="palette-row-ask-ai"]')?.textContent).toContain(
+      'Ask AI to find “pricng” — it looks inside canvases too'
+    );
+    await key(input, 'Enter');
+    expect(spies.opened).toEqual([['.design/ui/Pricing.tsx', null]]);
+  });
+
+  test('typos in one word of two: the note, the marks (name and meta) and "N close matches"', async () => {
+    const { spies, actions } = setup({
+      index: idx([
+        row('canvases', 'ui/Uniformy-2027.tsx', 'Uniformy-2027', '2026/dresy'),
+        row('artboards', 'ui/Uniformy-2027.tsx#h', 'Domácí dres 2027', 'x'),
+      ]),
+    });
+    const el = await mount(actions, spies);
+    await type(el, 'unifromy 2027');
+    await act(async () => {
+      await sleep(250);
+    });
+    expect(el.querySelector('[data-testid="palette-close-note"]')?.textContent).toBe(
+      'Nothing called “unifromy 2027”. Showing close matches for Uniformy.'
+    );
+    expect(el.querySelector('[data-testid="palette-did-you-mean-note"]')).toBeNull();
+    const marks = (id: string, where: string) =>
+      [...el.querySelectorAll(`[data-testid="palette-row-${id}"] ${where} mark`)].map(
+        (m) => m.textContent
+      );
+    expect(marks('canvas:ui/Uniformy-2027.tsx', '.st-pal-ltxt')).toEqual(['Uniformy', '2027']);
+    expect(marks('artboard:ui/Uniformy-2027.tsx#h', '.st-pal-ltxt')).toEqual(['2027']);
+    expect(marks('artboard:ui/Uniformy-2027.tsx#h', '.st-pal-meta')).toEqual(['Uniformy']);
+    expect(el.querySelector('[data-testid="palette-count"]')?.textContent).toBe('2 close matches');
+  });
+
+  test('a near miss among rows that have a word right is quiet', async () => {
+    const { spies, actions } = setup({
+      index: idx([
+        { ...row('canvases', 'ui/a.tsx', 'Uniformy-lteak', 'a'), close: false },
+        row('canvases', 'ui/b.tsx', 'Unifromy-letak', 'b'),
+      ]),
+    });
+    const el = await mount(actions, spies);
+    await type(el, 'uniformy lteak');
+    await act(async () => {
+      await sleep(250);
+    });
+    const strong = el.querySelector('[data-testid="palette-row-canvas:ui/a.tsx"]');
+    const quiet = el.querySelector('[data-testid="palette-row-canvas:ui/b.tsx"]');
+    expect(strong?.classList.contains('is-quiet')).toBe(false);
+    expect(quiet?.classList.contains('is-quiet')).toBe(true);
+    expect(el.querySelector('[data-testid="palette-count"]')?.textContent).toBe('2 results');
   });
 });
 

@@ -49,9 +49,20 @@ require_file() {
 echo "$listing" | grep -E "^(site|plugins/[^/]+/[^/]+|apps/[^/]+)/package\.json$" >/dev/null \
   && fail "workspace package.json present in tarball" || true
 
-# Reserved-slot workspaces must be entirely absent.
-echo "$listing" | grep -E "^(site|apps/hub)/" >/dev/null \
+# Reserved-slot workspaces must be entirely absent — except the hub's project-transactions kernel,
+# which the studio's in-process local kernel (apps/studio/sync/local-kernel.ts, S5.1b) imports by
+# relative path, so `server.ts` run from the npm package resolves it. Nothing else under apps/hub.
+echo "$listing" | grep -E "^(site|apps/hub)/" | grep -vE "^apps/hub/src/project-transactions/[^/]+\.mjs$" >/dev/null \
   && fail "reserved workspace dir leaked into tarball" || true
+for required in \
+  apps/hub/src/project-transactions/baseline.mjs \
+  apps/hub/src/project-transactions/kernel.mjs \
+  apps/hub/src/project-transactions/lanes.mjs \
+  apps/hub/src/project-transactions/store-core.mjs \
+  apps/hub/src/project-transactions/runs-core.mjs
+do
+  require_file "$required"
+done
 
 # Transitive deps must never appear.
 echo "$listing" | grep -E "^node_modules/" >/dev/null \
@@ -89,7 +100,7 @@ done
 
 # Published harness code is runtime-only. Tests and their synthetic data can
 # contain sentinel credentials and must remain in the source checkout.
-echo "$listing" | grep -E "^(cli/.*\.test\.mjs|cli/(fixtures?|backups?|logs?|state)/|cli/.*/(fixtures?|backups?|logs?|state)/|apps/studio/(\.ai/|bun\.lock$)|apps/studio/.*\.(test|spec)\.[^/]+$|apps/studio/(.*/)?(tests?|fixtures?|backups?|logs?|state)/)" >/dev/null \
+echo "$listing" | grep -E "^(cli/.*\.test\.mjs|cli/(fixtures?|backups?|logs?|state)/|cli/.*/(fixtures?|backups?|logs?|state)/|apps/studio/(\.ai/|bun\.lock$)|apps/studio/.*\.(test|spec)\.[^/]+$|apps/studio/(.*/)?(tests?|fixtures?|backups?|logs?|state)/|apps/hub/.*\.(test|spec)\.[^/]+$)" >/dev/null \
   && fail "tests, fixtures, backups, logs, or machine state leaked into tarball" || true
 
 echo "$listing" | grep -E "(^|/)(\.DS_Store|\.env($|\.)|[^/]*\.(pem|key|secret|secrets|backup|bak|log))$" >/dev/null \
