@@ -1,0 +1,521 @@
+/* @maude/ds/board — the Design system canvas (S10.6). Drawn with the SYSTEM's own tokens, so a
+   section is the user's design content, never recoloured by the app theme. Each var() carries a
+   neutral fallback for a system that has not declared it yet. The system's own Dark is the
+   `.ds-dark` section class plus `data-theme` (set by DSRoot); the app's theme is never read. */
+
+.ds-board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--bg-1, Canvas);
+  color: var(--fg-0, CanvasText);
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: var(--type-sm, 13px);
+  line-height: 1.35;
+}
+.ds-board *,
+.ds-board *::before,
+.ds-board *::after {
+  box-sizing: border-box;
+}
+.ds-board p {
+  margin: 0;
+}
+
+.ds-pad {
+  position: absolute;
+  inset: 0;
+  padding: 32px;
+  overflow: hidden;
+}
+.ds-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ds-k {
+  margin: 0 0 8px;
+  font-size: var(--type-xs, 11px);
+  line-height: 1.3;
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-k--gap {
+  margin-top: 20px;
+}
+.ds-cap {
+  margin-top: 8px;
+  font-size: var(--type-xs, 11px);
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-more {
+  margin-top: 10px;
+}
+.ds-voice {
+  margin: 0 0 8px;
+  font-family: var(--font-display, inherit);
+  font-size: var(--type-xl, 24px);
+  line-height: 1.15;
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 44ch;
+  color: var(--fg-2, inherit);
+}
+.ds-empty b {
+  color: var(--fg-0, CanvasText);
+  font-weight: var(--weight-semibold, 600);
+}
+
+/* ─── Colour + Brand ─── */
+.ds-colour {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ds-modekey {
+  position: absolute;
+  right: 32px;
+  top: 28px;
+  font-size: var(--type-xs, 11px);
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-modekey b {
+  font-weight: var(--weight-semibold, 600);
+  color: var(--fg-1, inherit);
+}
+.ds-swg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.ds-sw {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 104px;
+}
+.ds-chip {
+  position: relative;
+  display: flex;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 6px);
+}
+.ds-chip > span {
+  flex: 1;
+}
+.ds-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  pointer-events: none;
+}
+.ds-sw > b {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-sw > em {
+  font-style: normal;
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-lock {
+  display: inline-grid;
+  flex: none;
+  color: var(--fg-2, inherit);
+}
+.ds-sw[data-locked] .ds-chip::after {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, currentColor 40%, transparent);
+}
+
+/* a pending edit: the value is already drawn "as edited" (board-scoped <style>); the flag says so */
+.ds-sw[data-pending],
+.ds-trow[data-pending],
+.ds-rad[data-pending],
+.ds-mo[data-pending],
+.ds-m[data-pending] {
+  outline: 1.5px dashed var(--accent, Highlight);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm, 6px);
+}
+.ds-flag {
+  position: absolute;
+  left: 0;
+  top: -19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent, Highlight);
+  color: var(--accent-fg, HighlightText);
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: var(--weight-semibold, 600);
+  white-space: nowrap;
+}
+.ds-flag--warn {
+  background: var(--status-warn, #b7791f);
+  color: var(--accent-fg, #fff);
+}
+.ds-flag--inline {
+  position: static;
+  margin-left: auto;
+}
+
+.ds-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ds-logos-tile {
+  display: grid;
+  place-items: center;
+  min-width: 88px;
+  height: 64px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-0, Canvas);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+  font-size: var(--type-xs, 11px);
+}
+.ds-logo-img {
+  max-width: 120px;
+  max-height: 44px;
+  display: block;
+}
+
+/* ─── Type ─── */
+.ds-type {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ds-trow {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: baseline;
+  gap: 16px;
+  padding: 5px 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, currentColor 10%, transparent);
+}
+.ds-tname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ds-tname b {
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-tname em,
+.ds-kv em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-tsample {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Space & shape ─── */
+.ds-radii {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ds-rad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 64px;
+}
+.ds-rad i {
+  display: block;
+  width: 56px;
+  height: 40px;
+  background: color-mix(in srgb, var(--accent, currentColor) 18%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--accent, currentColor);
+}
+.ds-rad b {
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-rad em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-space {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  min-height: 40px;
+}
+.ds-space span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.ds-space i {
+  display: block;
+  width: 14px;
+  background: var(--accent, currentColor);
+  border-radius: 2px;
+}
+.ds-space em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-elev {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.ds-el {
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 52px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-2, Canvas);
+  font-size: var(--type-xs, 11px);
+}
+.ds-kv {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  width: 100%;
+  padding: 3px 0;
+}
+.ds-kv b {
+  min-width: 130px;
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+}
+
+/* ─── Motion ─── */
+.ds-motion {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+  gap: 16px 20px;
+}
+.ds-mo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ds-mo b {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--type-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-mo em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-curve {
+  display: block;
+}
+.ds-curve-ax {
+  fill: none;
+  stroke: color-mix(in srgb, currentColor 25%, transparent);
+  stroke-width: 1;
+}
+.ds-curve-p {
+  fill: none;
+  stroke: var(--accent, currentColor);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.ds-bar-d {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.ds-bar-d i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent, currentColor);
+}
+.ds-motion-foot {
+  grid-column: 1 / -1;
+}
+
+/* ─── Components ─── */
+.ds-comps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-content: start;
+  gap: 14px;
+}
+.ds-m {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-2, Canvas);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent);
+  min-width: 0;
+}
+.ds-m-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ds-m-hd b {
+  font-size: var(--type-sm, 13px);
+  font-weight: var(--weight-semibold, 600);
+}
+.ds-m-hd em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--fg-3, color-mix(in srgb, currentColor 55%, transparent));
+}
+.ds-m-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.ds-m-sample {
+  display: inline-flex;
+}
+
+/* ─── Specimen ─── */
+.ds-specimen {
+  overflow: auto;
+}
+.ds-specimen-missing {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+/* ─── The bar (Maude's chrome over the user's design — neutral system colours, not the DS) ─── */
+.ds-bar {
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  translate: -50% 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 8px 0 14px;
+  border-radius: 12px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, CanvasText 16%, transparent),
+    0 2px 10px color-mix(in srgb, CanvasText 12%, transparent);
+  font:
+    500 13px / 1 system-ui,
+    -apple-system,
+    sans-serif;
+  white-space: nowrap;
+}
+.ds-bar b {
+  font-weight: 600;
+}
+.ds-bar-seg {
+  display: inline-flex;
+  margin: 0;
+  min-width: 0;
+  border: 0;
+  padding: 2px;
+  border-radius: 9px;
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.ds-bar-b {
+  appearance: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ds-bar-b[aria-pressed="true"] {
+  background: Canvas;
+  box-shadow: 0 0 0 1px color-mix(in srgb, CanvasText 14%, transparent);
+  font-weight: 600;
+}
+.ds-bar-b:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ds-bar-b:focus-visible {
+  outline: 2px solid Highlight;
+  outline-offset: 1px;
+}
+.ds-bar-p {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+}
+.ds-bar-sep {
+  width: 1px;
+  height: 18px;
+  background: color-mix(in srgb, CanvasText 16%, transparent);
+}
+.ds-upd-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: Highlight;
+}
+.ds-bar-review {
+  background: Highlight;
+  color: HighlightText;
+  padding: 5px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-board *,
+  .ds-bar * {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}

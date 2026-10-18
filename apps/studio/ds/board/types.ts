@@ -1,0 +1,210 @@
+// `@maude/ds/board` — the model the Design system canvas renders from (S10.6, V2-1.6 §5.2).
+//
+// PURE: no node imports, no registry — this file is bundled into the canvas next to the React
+// components. The server half (`build-model.ts`) reads the working files + `dsPending` + the
+// usage cache and produces a `BoardModel`; the generated `@maude/ds/board` module inlines it, so
+// the canvas origin needs no route (DDR-054: nothing privileged is reachable from the canvas).
+
+export type SectionKind =
+  | 'brand'
+  | 'colour'
+  | 'type'
+  | 'space'
+  | 'motion'
+  | 'components'
+  | 'patterns';
+
+/** The seven sections, in board order, with the artboard ids and sizes of 13's `SECS`. */
+export const SECTIONS: ReadonlyArray<{
+  kind: SectionKind;
+  id: string;
+  label: string;
+  /** where the section sits on a new board (13's SECS), design px */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}> = [
+  { kind: 'brand', id: 'ds-brand', label: 'Brand', x: 0, y: 0, w: 560, h: 620 },
+  { kind: 'colour', id: 'ds-colour', label: 'Colour', x: 608, y: 0, w: 1000, h: 620 },
+  { kind: 'type', id: 'ds-type', label: 'Type', x: 1656, y: 0, w: 600, h: 620 },
+  { kind: 'space', id: 'ds-space', label: 'Space & shape', x: 0, y: 700, w: 680, h: 560 },
+  { kind: 'motion', id: 'ds-motion', label: 'Motion', x: 728, y: 700, w: 440, h: 560 },
+  {
+    kind: 'components',
+    id: 'ds-components',
+    label: 'Components',
+    x: 1216,
+    y: 700,
+    w: 1040,
+    h: 560,
+  },
+  { kind: 'patterns', id: 'ds-patterns', label: 'Patterns', x: 0, y: 1340, w: 2256, h: 440 },
+];
+
+export type TokenKind =
+  | 'color'
+  | 'font'
+  | 'weight'
+  | 'length'
+  | 'duration'
+  | 'easing'
+  | 'shadow'
+  | 'number'
+  | 'other';
+
+/** What a pending (not yet published) edit says about one token. Values are per theme. */
+export interface PendingView {
+  values: Record<string, string>;
+  /** the token is on its way to the Trash; canvases will follow this one */
+  trashTo: string | null;
+  /** a token the edit adds */
+  added: boolean;
+  by: string | null;
+}
+
+export interface BoardToken {
+  /** the CSS custom-property name: the identity */
+  css: string;
+  section: SectionKind;
+  /** the registry group, or the slot kind, or `x` / `own` */
+  group: string;
+  kind: TokenKind;
+  /** the designer's name for it; falls back to the humanised CSS name */
+  label: string;
+  /** theme → the colour's own name ("Azure") */
+  valueNames: Record<string, string>;
+  locked: boolean;
+  /** theme → the CSS value text, as the files declare it */
+  values: Record<string, string>;
+  /** canvases that use it; null when the usage index has not run */
+  used: number | null;
+  pending: PendingView | null;
+}
+
+export interface BoardComponent {
+  name: string;
+  label: string;
+  className: string | null;
+  /** variant name → its modifier class (null = the base class alone) */
+  variants: Array<{ name: string; class: string | null }>;
+  sizes: Array<{ name: string; class: string | null }>;
+  /** canvases that use it; null when the usage index has not run */
+  used: number | null;
+  pending: boolean;
+  specimen: string | null;
+}
+
+export interface BoardLogo {
+  file: string;
+  /** an `image/svg+xml` data URI (≤ 24 KB, rendered through <img> so it can run nothing) */
+  src: string | null;
+}
+
+export interface BoardTypeRole {
+  role: string;
+  class: string;
+}
+
+export interface BoardModel {
+  format: 'maude.ds-board';
+  v: 1;
+  system: string;
+  /** the display name: tokens.json label, else the system's name */
+  label: string;
+  rootClass: string | null;
+  themes: { all: string[]; default: string; light: string; dark: string | null };
+  converted: boolean;
+  tokens: BoardToken[];
+  typeRoles: BoardTypeRole[];
+  components: BoardComponent[];
+  logos: BoardLogo[];
+  /** `dsPending` entries: tokens + component patches */
+  pendingCount: number;
+  /** canvases that follow the system; null when the usage index has not run */
+  canvases: number | null;
+}
+
+export type BoardMode = 'light' | 'dark';
+
+/** Which of the system's own themes the Light | Dark switch shows. */
+export function themeFor(model: BoardModel, mode: BoardMode): string {
+  return mode === 'dark' ? (model.themes.dark ?? model.themes.light) : model.themes.light;
+}
+
+/** The theme names → Light and Dark: a theme literally called light/dark wins, else the default
+ *  is Light and the first other theme is Dark. */
+export function modesOf(
+  themes: string[],
+  themeDefault: string
+): { light: string; dark: string | null } {
+  const has = (n: string) => themes.find((t) => t.toLowerCase() === n);
+  const named = has('dark');
+  const light = has('light') ?? themes.find((t) => t !== named) ?? themeDefault;
+  const dark = named ?? themes.find((t) => t !== light) ?? null;
+  return { light, dark: dark === light ? null : dark };
+}
+
+/** "--accent-hover" → "Accent hover" (the fallback name for a token nobody labelled). */
+export function humanize(css: string): string {
+  const words = css.replace(/^--/, '').replace(/[-_]+/g, ' ').trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : css;
+}
+
+export const usedWords = (n: number | null): string | null =>
+  n === null ? null : n === 0 ? 'Not used yet' : `Used in ${n} ${n === 1 ? 'canvas' : 'canvases'}`;
+
+const hasControl = (s: string): boolean => {
+  for (let i = 0; i < s.length; i++) if (s.charCodeAt(i) < 0x20) return true;
+  return false;
+};
+
+/** A value is safe to write into a `<style>` declaration: one value, no way out of it. */
+export function safeCssValue(v: unknown): v is string {
+  if (typeof v !== 'string') return false;
+  const t = v.trim();
+  if (!t || t.length > 240) return false;
+  if (/[;{}<>\\@]|\/\*|\*\//.test(t) || hasControl(t)) return false;
+  if (/url\s*\(|image-set\s*\(|expression\s*\(|javascript:/i.test(t)) return false;
+  let depth = 0;
+  for (const ch of t) {
+    if (ch === '(') depth++;
+    else if (ch === ')' && --depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+export const safeCssName = (n: string): boolean => /^--[A-Za-z0-9_-]{1,128}$/.test(n);
+
+const ident = (s: string): string => s.replace(/[^A-Za-z0-9_-]/g, '');
+
+/**
+ * The board's own `<style>`, scoped by `.ds-board[data-ds-board="<system>"]` and the section's
+ * (or a swatch half's) `[data-ds-mode]`: every token's value for that theme, with a pending edit
+ * taking the place of the file's value — so the canvas shows the system "as edited".
+ *
+ * It also makes the board own its theme. The shell re-themes any `[data-theme]` / rootClass
+ * wrapper under an artboard to follow the app's chrome (canvas-shell `artboardScopeSelector`,
+ * specificity 0,2,0); these rules are 0,3,0, so Light | Dark on the board is the system's own
+ * and the app's theme never repaints it.
+ *
+ * A pending entry is data written by people and agents (DDR-172 D8): anything that is not a
+ * plain value is dropped, and only registry-shaped names are written.
+ */
+export function boardThemeCss(model: BoardModel): string {
+  const scope = `.ds-board[data-ds-board="${ident(model.system)}"]`;
+  const blocks: string[] = [];
+  for (const theme of model.themes.all) {
+    const decls: string[] = [];
+    for (const t of model.tokens) {
+      if (!safeCssName(t.css)) continue;
+      const pend = t.pending && !t.pending.trashTo ? t.pending.values[theme] : undefined;
+      const value = safeCssValue(pend) ? pend : t.values[theme];
+      if (safeCssValue(value)) decls.push(`${t.css}:${value.trim()}`);
+    }
+    if (!decls.length) continue;
+    const m = `[data-ds-mode="${ident(theme)}"]`;
+    blocks.push(`${scope}${m},${scope} ${m}{${decls.join(';')}}`);
+  }
+  return blocks.join('\n');
+}

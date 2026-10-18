@@ -13,16 +13,52 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { BunPlugin } from 'bun';
 import { DEV_SERVER_ROOT } from '../paths.ts';
+import { boardDeps, buildBoardModel } from './board/build-model.ts';
 import { type SystemConfig, systemConfigsFrom } from './system.ts';
 
 export const DS_SPECIFIER = '@maude/ds';
+/** The Design system canvas's vocabulary (S10.6): `DSSection`, `Specimen`, `DsBar`. */
+export const DS_BOARD_SPECIFIER = '@maude/ds/board';
 const DS_IMPORT_RE = /\bfrom\s*["']@maude\/ds["']|\bimport\s*\(\s*["']@maude\/ds["']\s*\)/;
+const DS_BOARD_IMPORT_RE =
+  /\bfrom\s*["']@maude\/ds\/board["']|\bimport\s*\(\s*["']@maude\/ds\/board["']\s*\)/;
+const SPECIMEN_SRC_RE = /<Specimen\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/g;
 
 export const defaultComponentsPath = (): string =>
   path.join(DEV_SERVER_ROOT, 'ds', 'default-components.tsx');
 
 export function importsDs(source: string): boolean {
   return DS_IMPORT_RE.test(source);
+}
+
+export function importsDsBoard(source: string): boolean {
+  return DS_BOARD_IMPORT_RE.test(source);
+}
+
+/** Either specifier: the canvas needs the per-canvas generated modules (and their cache deps). */
+export const usesDs = (source: string): boolean => importsDs(source) || importsDsBoard(source);
+
+const boardEntryPath = () => path.join(DEV_SERVER_ROOT, 'ds', 'board', 'index.tsx');
+
+/**
+ * The specimen modules a Design system canvas draws (`<Specimen src="preview/x.tsx" />`):
+ * only a `.tsx` inside THIS system's folder counts; anything else is ignored (it would be an
+ * import the canvas could not make itself).
+ */
+export function specimenFiles(
+  designRoot: string,
+  sys: SystemConfig,
+  source: string
+): Array<{ src: string; abs: string }> {
+  const out = new Map<string, string>();
+  const base = path.resolve(designRoot, sys.path);
+  for (const m of source.matchAll(SPECIMEN_SRC_RE)) {
+    const src = m[1];
+    const abs = path.resolve(base, src);
+    if (!abs.startsWith(base + path.sep) || !/\.tsx$/.test(abs) || !existsSync(abs)) continue;
+    out.set(src, abs);
+  }
+  return [...out].map(([src, abs]) => ({ src, abs }));
 }
 
 function readJson(abs: string): Record<string, unknown> | null {
@@ -81,6 +117,30 @@ export function dsModuleSource(designRoot: string, canvasAbs: string): string {
   ].join('\n');
 }
 
+/** The generated `@maude/ds/board` module: the board's code, plus this system's model registered. */
+export function dsBoardModuleSource(designRoot: string, canvasAbs: string): string {
+  const entry = JSON.stringify(boardEntryPath());
+  const sys = canvasSystemFor(designRoot, canvasAbs);
+  if (!sys) return `export * from ${entry};\n`;
+  let source = '';
+  try {
+    source = readFileSync(canvasAbs, 'utf8');
+  } catch {
+    /* the canvas is being written */
+  }
+  const specimens = specimenFiles(designRoot, sys, source);
+  const model = buildBoardModel(designRoot, sys);
+  return [
+    `import { __registerBoardModel } from ${entry};`,
+    ...specimens.map((s, i) => `import * as specimen${i} from ${JSON.stringify(s.abs)};`),
+    `__registerBoardModel(${JSON.stringify(model)}, { ${specimens
+      .map((s, i) => `${JSON.stringify(s.src)}: specimen${i}`)
+      .join(', ')} });`,
+    `export * from ${entry};`,
+    '',
+  ].join('\n');
+}
+
 /**
  * Bun.build plugin: `@maude/ds` → the generated module for THIS canvas. The virtual path sits
  * under the dev-server root, so the import allowlist treats its imports as ours (the override
@@ -95,12 +155,19 @@ export function dsResolver(designRoot: string, canvasAbs: string): BunPlugin {
     `${encodeURIComponent(sys?.name ?? '_')}.tsx`
   );
   const exact = new RegExp(`^${virtual.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+  const boardVirtual = virtual.replace(/\.tsx$/, '.board.tsx');
+  const boardExact = new RegExp(`^${boardVirtual.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
   return {
     name: 'maude-ds',
     setup(builder) {
       builder.onResolve({ filter: /^@maude\/ds$/ }, () => ({ path: virtual }));
+      builder.onResolve({ filter: /^@maude\/ds\/board$/ }, () => ({ path: boardVirtual }));
       builder.onLoad({ filter: exact }, () => ({
         contents: dsModuleSource(designRoot, canvasAbs),
+        loader: 'tsx',
+      }));
+      builder.onLoad({ filter: boardExact }, () => ({
+        contents: dsBoardModuleSource(designRoot, canvasAbs),
         loader: 'tsx',
       }));
     },
@@ -113,9 +180,14 @@ export function dsResolver(designRoot: string, canvasAbs: string): BunPlugin {
  * system's `preview/_ds.tsx` override (present or not — appearing is a change too).
  */
 export function dsDepsFor(source: string, canvasAbs: string, designRoot: string): string[] {
-  if (!importsDs(source)) return [];
+  if (!usesDs(source)) return [];
   const deps = [metaPathFor(canvasAbs), path.join(designRoot, 'config.json')];
   const sys = canvasSystemFor(designRoot, canvasAbs);
-  if (sys) deps.push(overridePath(designRoot, sys));
+  if (sys && importsDs(source)) deps.push(overridePath(designRoot, sys));
+  if (sys && importsDsBoard(source)) {
+    // S10.6: the board renders from the working files, `dsPending` and the usage cache
+    for (const rel of boardDeps(sys)) deps.push(path.join(designRoot, rel));
+    for (const s of specimenFiles(designRoot, sys, source)) deps.push(s.abs);
+  }
   return deps;
 }

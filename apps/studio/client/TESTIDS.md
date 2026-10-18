@@ -1614,6 +1614,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `sync-conflict-keep-mine` | testid | Keep yours — registry `sync.conflict.keep-mine`; one lane edit (POST /_api/sync/conflicts/resolve choice mine). | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
 | `sync-conflict-keep-theirs` | testid | Keep <name>'s — registry `sync.conflict.keep-theirs`; nothing changes on the board, the card goes. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
 | `sync-conflict-keep-both` | testid | Keep both — registry `sync.conflict.keep-both`; this Mac's version is added beside theirs under a new id. Absent when one side deleted the element. | `client/v2/sync-states/conflict-card.jsx` · `ConflictCard` | test:v2-sync-states, e2e:offline-conflict | new |
+| `ds-section-<kind>` | testid | One section of the Design system canvas (`<kind>` = brand, colour, type, space, motion, components, patterns): the system's own themed frame. Lives inside the canvas iframe. | `ds/board/parts.tsx` · `Frame` | test:ds-board-render | new |
+| `ds-bar` | testid | The Design system canvas's bar: system name, Light \| Dark, changes waiting. Portalled into the canvas document body. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
+| `ds-bar-mode-<mode>` | testid | The bar's Light / Dark button (`<mode>` = light \| dark); `aria-pressed` is the previewed mode. It never changes the app theme. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
+| `ds-bar-pending` | testid | The bar's "N changes waiting" line, present only while `dsPending` holds entries. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
 
 ## What's New spotlights
 
