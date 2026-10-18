@@ -31,6 +31,7 @@ import { restoreArtboard, type SpliceLane, type SpliceSide } from '../history/re
 import { type ObjectKey, parseObjectKey, restoreObject } from '../history/restore-object.ts';
 import { formatTime } from '../history/titles.ts';
 import {
+  collectNames,
   type GitEntry,
   type HistoryRowLike,
   listVersions,
@@ -257,6 +258,19 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
     return r && r.revision === rev ? r : null;
   }
 
+  /** "Restored “<name>”" when that version is named, else "Restored 5 Oct, 18:40"; undefined when unknown. */
+  async function restoreLabel(t: Target, rev: number): Promise<string | undefined> {
+    const rt = runtime();
+    if (!rt) return undefined;
+    const [row, names] = await Promise.all([
+      rowAt(rt, t.repoRel, rev).catch(() => null),
+      collectNames(rt, t.repoRel, t.canvas, deps.actorName).catch(() => []),
+    ]);
+    const named = names.find((n) => n.rev === rev)?.name;
+    if (named) return `Restored “${named}”`;
+    return row ? `Restored ${fmt(row.madeAt ?? row.committedAt)}` : undefined;
+  }
+
   async function readSide(
     rt: HistoryRuntime,
     repoRel: string,
@@ -468,12 +482,24 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
           if (!Number.isSafeInteger(revision) || revision < 0)
             return new Response('body must include { path, revision }', { status: 400 });
         }
-        const r = await runtime()?.acceptedRestore?.(t.repoRel, revision);
+        // S1.14 — a restore by `at` says what it restored in the action's label ("Restored “<name>”" /
+        // "Restored 5 Oct, 18:40", §5.8): the row in Version history and the toast read it. The v1 body
+        // (`revision`) is left as it was.
+        const label = b.at !== undefined ? await restoreLabel(t, revision) : undefined;
+        const r = await runtime()?.acceptedRestore?.(
+          t.repoRel,
+          revision,
+          ...(label ? [{ label }] : [])
+        );
         // The v1 answer shape is kept: `maude design history restore` reads it.
         if (!r) return json(200, { ok: false, reason: 'legacy' });
         if (r.status === 'accepted' && r.actionId && !r.queued)
           void announceAction({ control: runtime, emit: deps.emit }, r.actionId);
-        return json(r.status === 'accepted' ? 200 : 409, { ok: r.status === 'accepted', ...r });
+        return json(r.status === 'accepted' ? 200 : 409, {
+          ok: r.status === 'accepted',
+          ...r,
+          ...(label ? { line: label } : {}),
+        });
       },
     },
     // ── new (V2-1.9 §5.11) ──

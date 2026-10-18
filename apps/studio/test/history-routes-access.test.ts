@@ -267,10 +267,34 @@ describe('Can edit: name, aside, restore reach the home', () => {
     expect(calls.aside[0]?.slice(0, 2)).toEqual(['.design/ui/a.tsx', 'html']);
     const r = await post(specs, '/_api/project/restore', { path: 'ui/a.tsx', at: 'r2' });
     expect(r.status).toBe(200);
-    expect(calls.restore).toEqual([['.design/ui/a.tsx', 2]]);
+    // S1.14: the action says what it restored — the row and the toast read this line
+    expect(calls.restore).toEqual([['.design/ui/a.tsx', 2, { label: 'Restored 18 Oct, 09:05' }]]);
+    expect(r.body.line).toBe('Restored 18 Oct, 09:05');
     // v1 body shape still accepted (maude design history restore)
     await post(specs, '/_api/project/restore', { path: '.design/ui/a.tsx', revision: 1 });
     expect(calls.restore[1]).toEqual(['.design/ui/a.tsx', 1]);
+  });
+
+  test('restoring a named version says its name (S1.14)', async () => {
+    const rows = history();
+    rows.push(
+      row({
+        at: T0 + 120 * MIN,
+        kind: 'name',
+        label: 'Schváleno trenéry',
+        lanes: {},
+        named: { rev: 2, name: 'Schváleno trenéry' },
+      } as Partial<HistoryRowLike> & { at: number })
+    );
+    const { rt, calls } = fakeRuntime(rows);
+    const { specs } = routes(rt, MEMBER);
+    const r = await post(specs, '/_api/project/restore', { path: 'ui/a.tsx', at: 'r2' });
+    expect(r.body.line).toBe('Restored “Schváleno trenéry”');
+    expect(calls.restore[0]).toEqual([
+      '.design/ui/a.tsx',
+      2,
+      { label: 'Restored “Schváleno trenéry”' },
+    ]);
   });
 
   test('a hub without history.name: 409 hub-too-old with the line', async () => {
