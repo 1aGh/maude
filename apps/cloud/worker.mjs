@@ -44,6 +44,7 @@ import { deletionWarningEmail, projectPausedEmail, sendEmail } from './email.mjs
 import { normalizeRoute } from './events.mjs';
 import { mintInstallationToken } from './github-app.mjs';
 import { handleHandoff } from './handoff.mjs';
+import { handleHomeApi } from './home-api.mjs';
 import { handleInviteRoutes } from './invites.mjs';
 import { handleLinkRoutes, sweepExpiredLinks } from './links.mjs';
 import { applySchema } from './migrate.mjs';
@@ -290,6 +291,11 @@ export default {
     // the Bearer client API.
     const deviceSurface = await handleDeviceAuth(request, env, { account, ctx });
     if (deviceSurface) return deviceSurface;
+
+    // Home's cloud source (Maude v2 S6.14, V2-1.1 §5.7): the caller's own
+    // projects and "Shared with you" — Bearer device token or the session.
+    const homeSurface = await handleHomeApi(request, env, { account });
+    if (homeSurface) return homeSurface;
 
     // The one-time browser→app handoff (Phase 23 B3 / Phase 17): a code in a
     // maude:// URL, a project token only ever in a POST body.
