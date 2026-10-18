@@ -551,6 +551,9 @@ pub fn run() {
             picked_media::release_picked_media,
             open_local_project,
             windows::open_project,
+            // S9.17: the browser door's cell tab + a project tab's mention notices.
+            windows::open_cell_tab,
+            notify::mention_notice,
             windows::e2e_open_root,
             // V2-3.7 the tab strip (strip-only, capabilities/strip.json).
             tabs::tabs_state,

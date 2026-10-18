@@ -71,6 +71,10 @@ fn main() {
                 "pick_attach_folder",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
+                // S9.17 (windows.rs): a `409 browser-door` opens the cell as a `c-*` tab.
+                "open_cell_tab",
+                // S9.17 (notify.rs): a project tab's unread mentions → Dock badge + notice.
+                "mention_notice",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
                 // capabilities/strip.json).
                 "tabs_state",

@@ -66,6 +66,8 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-managed-project-open",
     "allow-managed-projects-list",
     "allow-open-cloud-url",
+    // S9.17: a Can view project's `409 browser-door` opens a `c-*` cell tab.
+    "allow-open-cell-tab",
     "allow-resolve-dev-server-url",
     "allow-send-notification",
     // V2-3.5: a link for a project this machine doesn't know is parked for Home.
