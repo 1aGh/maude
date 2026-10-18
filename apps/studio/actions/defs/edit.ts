@@ -243,4 +243,23 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
   },
+  // S2.8 — artboards. Both take a size, so neither is a ⌘K row: their homes are the eight handles on a
+  // selected artboard (`artboard.resize` is the edit-op id they run, S2-edit-ops.md) and the artboard
+  // inspector's "Other widths › Add a width…" (a copy of the board at another width, beside it).
+  {
+    id: 'artboard.resize',
+    label: 'Resize artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.add-width',
+    label: 'Add a width',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
 ];
