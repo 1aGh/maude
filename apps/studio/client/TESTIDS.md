@@ -170,6 +170,7 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `palette-row-<id>` | testid | One ⌘K row; <id> is `action:<registry id>`, `tool:<id>`, `setting:<section>:<testid>:<n>`, `canvas:<rel>`, `artboard:<rel>#<id>`, `project:<pid>:canvas:<rel>` / `project:<pid>:artboard:<rel>#<id>` (another project's row, S1.5), `ask-ai`, or a short-list action id. The active row also has `.is-active`. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-group-<id>` | testid | A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`, `did-you-mean` (typo-only hits, S1.4), or — once another project answers (desktop, S1.5) — `project-self` (this tab) and `project-<pid>` per other project, each headed by its square and where it is. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-project-square` | testid | The project's square (initial + Home's tone for its pid) on a ⌘K project group header (S1.5, desktop only). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-project-label` | testid | On another project's row in "Did you mean" (one flat list): its square, name and where it is ("in another tab" / "not open — opens a tab") — ↵ switches project (S15-A2, desktop only). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-ask-ai` | testid | The wrapper of the last row, Ask AI (desktop only; ⌘↵ runs it). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-empty` | testid | The “Nothing called …” empty state. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-did-you-mean-note` | testid | The “Nothing called …” line above the “Did you mean” group, when every hit is a typo and no word of the query was right. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
@@ -741,6 +742,11 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `home-create-name` | testid | The project name in the New project sheet (empty = "Untitled project", C4 naming in create-local). | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
 | `home-create-submit` | testid | "Create project" in the New project sheet. | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
 | `home-create-cancel` | testid | Cancel in the New project sheet (Escape and the scrim answer the same). | `client/home/home-app.jsx` · `HomeApp` | test:home-page | new in v2 (V2-3.9) |
+| `root-missing-card` | testid | The moved-folder card a project tab shows when its folder is gone (11 · pn-cant-open): the app-local `root-missing.html`, shown once `resolve_dev_server_url` answers `{missing}`. | `../desktop/src/root-missing.html` · (page) | — | new in v2 (S1.19) |
+| `root-missing-title` | testid | "<name> isn't where it was." on the card (the registry's name for the tab's own project). | `../desktop/src/root-missing.html` · (page) | — | new in v2 (S1.19) |
+| `root-missing-place` | testid | "It was in Desktop › Portfolio 2026. Nothing inside has changed — the folder was moved or renamed." | `../desktop/src/root-missing.html` · (page) | — | new in v2 (S1.19) |
+| `root-missing-find` | testid | "Find the folder…" on the card → `relink_project({pid})` for the tab's own pid; on a relink Rust moves the tab to the new folder. | `../desktop/src/root-missing.html` · (page) | — | new in v2 (S1.19) |
+| `root-missing-error` | testid | Why the picked folder could not be used (`role="alert"`, hidden when empty). | `../desktop/src/root-missing.html` · (page) | — | new in v2 (S1.19) |
 
 ### other
 
