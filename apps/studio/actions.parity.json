@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 107,
+  "humanMax": 108,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -51,7 +51,13 @@
       "from": 106,
       "by": "decision:maude/v2-S2.6-select-matching-client-only",
       "why": "S2.6: object.select-matching (same style) is a selection in the person's window, with no route and no edit-op; an agent greps the canvas for the same className and style. Human 'view-pref'. One human row."
+    },
+    {
+      "to": 108,
+      "from": 107,
+      "by": "decision:maude/v2-S2.10-ask-ai-row-human",
+      "why": "S2.10: artboard.ask-ai is the artboard menu's Ask AI row (⌘/), a request the person makes of the AI chat; an agent has nobody to ask. Human 'ai-chat' like every chat row. The row is greyed until S5's composer takes the artboard."
     }
   ],
-  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row."
+  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. S2.10 integration: artboard.ask-ai (the artboard menu's Ask AI row; human 'ai-chat' like every chat row) is the 108th (decision:maude/v2-S2.10-ask-ai-row-human)."
 }
