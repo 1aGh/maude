@@ -1083,6 +1083,22 @@ export function filterGitBranches<T>(json: T, vis: Visibility): T {
   return { ...(json as object), branches: [] } as T;
 }
 
+/**
+ * GET /_api/sync/trash (S9.12b). A canvas-only session lists only the parked copies whose
+ * restore target it sees; an entry that does not say where it came from is not its to see.
+ * The caller recomputes the totals from what is left (U5).
+ */
+export function filterTrashListing<E extends { sourceRel: string | null }>(
+  entries: readonly E[],
+  vis: Visibility
+): E[] {
+  if (vis.full) return [...entries];
+  return entries.filter((e) => {
+    const r = typeof e?.sourceRel === 'string' ? toDesignRel(e.sourceRel, '') : null;
+    return r !== null && vis.sees(r);
+  });
+}
+
 /** GET /_api/assets (L8). A canvas-only session lists the assets its canvases' closure reads. */
 export function filterAssetListing<A extends { path: string }>(
   assets: readonly A[],

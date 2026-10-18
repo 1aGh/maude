@@ -279,7 +279,7 @@ export async function bootGateCell(
       headers: { 'content-type': 'application/json', origin: base, ...OWNER_SESSION },
       body: JSON.stringify({
         format: 'html',
-        scope: 'canvas-whole',
+        scope: 'canvas-as-separate',
         options: { canvasFile: `${D}/${B_REL}` },
       }),
     });
