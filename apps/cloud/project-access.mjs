@@ -17,15 +17,14 @@
 // list and capability table (with no `export` row) beside the cell's. Since
 // S9.1 both come from THE matrix, `apps/studio/access/roles.ts` (V2-1.7 §5.2).
 
-import { can as matrixCan, V1_ROLES } from '../studio/access/roles.ts';
+import { ROLES as MATRIX_ROLES, can as matrixCan } from '../studio/access/roles.ts';
 
 /**
- * The roles the control plane STORES, weakest first: the matrix's pre-v2 roles.
- * D1 pins them (`project_members.role CHECK (role IN ('viewer','member','owner'))`,
- * migrate.mjs v4/v5), so `observer` (Can view) is offered and accepted here only
- * once the V2-1.7 §5.8 migration rebuilds those tables.
+ * The roles the control plane STORES, weakest first: the matrix's roles. D1
+ * v17 (migrate.mjs, V2-1.7 §5.8) rebuilt `project_members` to admit `observer`
+ * (Can view), so S9.1's V1_ROLES stand-in is gone.
  */
-export const ROLES = V1_ROLES;
+export const ROLES = MATRIX_ROLES;
 
 /**
  * Decide access from facts, not from a query.
