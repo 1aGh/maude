@@ -15,14 +15,25 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { closureFor, createClosureCache, localDepsFromSource } from './access/closure.ts';
+import { localDepsFromSource } from './access/closure.ts';
+import {
+  canvasOnlyLogPaths,
+  diffRefusal,
+  exportTargetVerdict,
+  filterAcceptedHistory,
+  filterConfig,
+  filterGitDiff,
+  filterIndexSearch,
+  filterIndexSnapshot,
+  mergeCanvasOnlyLog,
+  projectVisibility,
+} from './access/filters.ts';
 import {
   accessForDesktop,
   accessFromProxy,
   COMMENT_WRITE_PATTERNS,
   COMMENT_WRITES,
   canvasScopeRefusal,
-  diskProjectReader,
   EXPORT_WRITES,
   type GateInput,
   localGate,
@@ -73,7 +84,7 @@ import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
-import type { ActiveJsonShape } from './exporters/scope.ts';
+import { type ActiveJsonShape, resolveScope } from './exporters/scope.ts';
 import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
@@ -1353,6 +1364,10 @@ export function createHttp(
   // untrusted canvas iframe origin can never read/write the director's analysis.
   const footageStore = createFootageStore(ctx);
   const gitApi = createGitEndpoints(ctx);
+  // S9.10 (V2-1.16 L6–L10) — what THIS request's session may see. A project role sees
+  // everything (every filter is the identity, U7); a canvas-only session its grants + closure.
+  const visibility = projectVisibility(ctx);
+  const visOf = (req: Request) => visibility.visibilityFor(accessOf(req));
   // Phase 28 (E3) — `/_api/github/*`. Same dual-allowlist rule: main-origin only,
   // and every route is token-bearing (server-held keychain token via the loopback
   // bridge), so all four also carry a loopback-Host check.
@@ -1841,8 +1856,12 @@ export function createHttp(
   };
 
   // The client's config (see the '/_config' route below for the gate in front of it).
+  // S9.10 (V2-1.16 L8) — a canvas-only session gets no canvas groups, only the DS its
+  // canvases render with, no new-canvas dir and no hub link (`filterConfig`); U7 identity.
+  const configJson = (req: Request, body: Record<string, unknown>) =>
+    Response.json(filterConfig(body, visOf(req), ctx.cfg.designSystems ?? []));
   const configResponse = (req: Request) =>
-    Response.json({
+    configJson(req, {
       ...ctx.cfg,
       canvasOrigin: ctx.canvasOrigin,
       // V2-1.12 §5.6 — readOnly is the role OR the format gate
@@ -2369,11 +2388,14 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const url = new URL(req.url);
       const q = url.searchParams.get('q');
+      // S9.10 (V2-1.16 L8/L9) — a canvas-only session's index is its canvases only: counts,
+      // stamp and seq derived from them (U5). Identity for a project role (U7).
+      const vis = visOf(req);
       if (q !== null)
-        return Response.json(projectIndex.search(q, { limit: 200 }), {
+        return Response.json(filterIndexSearch(projectIndex.search(q, { limit: 200 }), vis), {
           headers: { 'Cache-Control': 'no-store' },
         });
-      const snap = projectIndex.snapshot();
+      const snap = filterIndexSnapshot(projectIndex.snapshot(), vis);
       const since = Number(url.searchParams.get('since'));
       if (Number.isFinite(since) && since > 0 && since === snap.writer.seq)
         return Response.json({ unchanged: true, seq: snap.writer.seq });
@@ -3104,12 +3126,37 @@ export function createHttp(
       // ONLY (this route is absent from CANVAS_SAFE_API) — the path is
       // containment-validated in the endpoint before it reaches git.
       const u = new URL(req.url).searchParams;
-      return gitJson(await gitApi.log(u.get('limit'), u.get('path')));
+      // S9.10 (V2-1.16 L6, U4) — a canvas-only session's log runs over its own canvases'
+      // files only (`?path=` is already scope-checked); subjects are rewritten from them and
+      // the author's e-mail is dropped. A project role's log is unchanged (U7).
+      const logPaths = canvasOnlyLogPaths(visOf(req), u.get('path'), ctx.paths.designRel);
+      if (logPaths === null) return gitJson(await gitApi.log(u.get('limit'), u.get('path')));
+      const limit = Math.min(Math.max(Math.floor(Number(u.get('limit')) || 30), 1), 200);
+      const runs = await Promise.all(
+        logPaths.map(async ({ repoRel, canvas }) => {
+          const r = await gitApi.log(String(limit), repoRel);
+          const entries = (
+            r.json as { entries?: Parameters<typeof mergeCanvasOnlyLog>[0][0]['entries'] }
+          ).entries;
+          return { canvas, entries: r.status === 200 && Array.isArray(entries) ? entries : [] };
+        })
+      );
+      return gitJson({ status: 200, json: { entries: mergeCanvasOnlyLog(runs, limit) } });
     },
 
     '/_api/git/diff': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return gitJson(await gitApi.diff(new URL(req.url).searchParams.get('sha')));
+      // S9.10 (V2-1.16 L6) — a diff is raw source: the export class. A canvas-only list
+      // holds only the files its canvases own.
+      const vis = visOf(req);
+      if (diffRefusal(vis)) return readOnlyRefusalResponse();
+      const result = await gitApi.diff(new URL(req.url).searchParams.get('sha'));
+      if (vis.full || result.status !== 200) return gitJson(result);
+      const entries = (result.json as { entries?: Array<{ file: string }> }).entries ?? [];
+      return gitJson({
+        ...result,
+        json: { entries: filterGitDiff(entries, vis, ctx.paths.designRel) },
+      });
     },
 
     // ── Phase 29 (E4) — drafts (branches). MAIN-ORIGIN ONLY (absent from
@@ -3368,7 +3415,11 @@ export function createHttp(
         return gitJson({ status: 200, json: { ok: false, reason: 'unreachable' } });
       }
       if (rows === null) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
-      return gitJson({ status: 200, json: { ok: true, history: rows } });
+      // S9.10 (V2-1.16 L6, U4) — canvas-only: rows on visible canvases, labels rewritten.
+      return gitJson({
+        status: 200,
+        json: { ok: true, history: filterAcceptedHistory(rows, visOf(req), ctx.paths.designRel) },
+      });
     },
     '/_api/project/restore': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
@@ -6663,14 +6714,9 @@ export function createHttp(
   }
 
   // The closure of a session's grants is computed HERE, from this child's own disk
-  // (V2-1.7 G4), cached per (grants, generation); every file change bumps it.
+  // (V2-1.7 G4), cached per (grants, generation); every file change bumps it. S9.10 —
+  // one source per project (access/filters.ts), shared with api.ts's read filters.
   const designRel = relative(ctx.paths.repoRoot, ctx.paths.designRoot).split(sep).join('/');
-  let treeGeneration = 0;
-  ctx.bus.on('fs:any', () => {
-    treeGeneration++;
-  });
-  const closureCache = createClosureCache();
-  const projectReader = diskProjectReader(ctx.paths.designRoot, () => String(treeGeneration));
   const tableSession = {
     exact: new Set(laneRoutes.readOnlyAllowed.exact),
     patterns: laneRoutes.readOnlyAllowed.patterns,
@@ -6680,10 +6726,7 @@ export function createHttp(
       access,
       designRel,
       tableSession,
-      closure:
-        access.grants.length > 0
-          ? () => closureFor(access, projectReader, closureCache)
-          : undefined,
+      closure: access.grants.length > 0 ? () => visibility.closureOf(access) : undefined,
       exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
       // S9.7b — a table route's own target (a reply by comment id: the thread's canvas)
       targetFor: laneRoutes.targetFor,
@@ -6732,9 +6775,68 @@ export function createHttp(
     // one write that leads out.
     if (gate && !formatGateAllowsWrite(pathname, readOnlyAllowed))
       return formatRefusalResponse(gate);
+    // S9.10 (V2-1.16 L7 / L10) — two write lanes whose TARGET is not a request param, for a
+    // session whose grants (not its project role) decide: an export job's target is resolved
+    // the way the exporter resolves it; a reply's canvas is its comment's, looked up among the
+    // comments this session sees — so an invisible id is a missing one (U1).
+    if (access.grants.length > 0 && req.method === 'POST') {
+      const lane = await grantLaneRefusal(req, pathname, access);
+      if (lane !== undefined) return lane;
+    }
     const verdict = await localGate(req, pathname, g);
     if (verdict.ok) return null;
     return verdict.reason === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
+  }
+
+  const EXPORT_TARGET_ROUTES = new Set(['/_api/export', '/_api/export-jobs']);
+  const REPLY_RE = /^\/_api\/comments\/([A-Za-z0-9_]+)\/reply$/;
+
+  /** The refusal (or null = pass) for an export / reply by a grant session; undefined = not this lane. */
+  async function grantLaneRefusal(
+    req: Request,
+    pathname: string,
+    access: Access
+  ): Promise<Response | null | undefined> {
+    if (EXPORT_TARGET_ROUTES.has(pathname)) {
+      if (access.can('export', null)) return undefined;
+      const body = await req
+        .clone()
+        .json()
+        .catch(() => null);
+      const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+      if (!isScope(b.scope)) return undefined; // no target to judge: the role gate decides
+      const options = b.options && typeof b.options === 'object' ? b.options : {};
+      const targets =
+        b.scope === 'project-raw'
+          ? []
+          : await resolveScope({
+              scope: b.scope,
+              activeJson: inspect().state as unknown as ActiveJsonShape,
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              options: options as Record<string, unknown>,
+            });
+      const files = targets.flatMap((t) => (t.kind === 'element' ? [t.file] : []));
+      const verdict = exportTargetVerdict(
+        visibility.visibilityFor(access),
+        b.scope,
+        files,
+        ctx.paths.designRel
+      );
+      if (verdict === 'ok') return null;
+      return verdict === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
+    }
+    const reply = REPLY_RE.exec(pathname);
+    if (reply) {
+      if (access.can('comment', null)) return undefined;
+      // `loadAllComments` answers only the canvases this request's session sees.
+      const all = await api.loadAllComments();
+      const file = Object.entries(all).find(([, list]) => list.some((c) => c.id === reply[1]))?.[0];
+      if (!file) return new Response('Not found', { status: 404 });
+      const rel = toDesignRel(file, ctx.paths.designRel);
+      return rel !== null && access.can('comment', rel) ? null : readOnlyRefusalResponse();
+    }
+    return undefined;
   }
 
   const guardedRoutes = Object.fromEntries(
