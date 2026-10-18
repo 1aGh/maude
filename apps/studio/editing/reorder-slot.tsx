@@ -56,6 +56,29 @@ export function nameOf(el: Element): string {
   return el.tagName.toLowerCase();
 }
 
+/**
+ * The `reorder-slot` the canvas sends the shell so Layers draws the same numbered place (S2.11b).
+ * `null` (the drag ended) = `index: 0`. A frame with no `data-cd-id` sends no `parentId`; the row's
+ * parser then drops it and Layers draws nothing — the canvas's own slot is still there.
+ */
+export function slotMessage(
+  s: Pick<SlotState, 'el' | 'frame'> | null,
+  win: Window = window
+): { dgn: 'reorder-slot'; index: number; total: number; parentId?: string } {
+  if (!s) return { dgn: 'reorder-slot', index: 0, total: 0 };
+  const { index, total } = placeAmong(s.el, win);
+  const parentId = s.frame?.getAttribute('data-cd-id');
+  return { dgn: 'reorder-slot', index, total, ...(parentId ? { parentId } : {}) };
+}
+
+function postSlot(msg: ReturnType<typeof slotMessage>): void {
+  try {
+    window.parent.postMessage(msg, '*');
+  } catch {
+    /* the shell is not there; the canvas's own slot is unaffected */
+  }
+}
+
 const SKIP = '.dgn-pin, .dc-cv-halo, .dc-cv-group-bbox';
 
 /** Its place among the siblings that take part in the layout (out-of-flow ones do not count). */
@@ -303,21 +326,40 @@ function paintOf(s: SlotState): Paint | null {
   };
 }
 
+/** Dropped or put back: Layers closes the slot (once). */
+function tellEnd(told: { current: string }): void {
+  if (!told.current) return;
+  told.current = '';
+  postSlot(slotMessage(null));
+}
+
 export function ReorderSlot() {
   ensureStyles();
   const s = useSyncExternalStore(reorderSlot.subscribe, reorderSlot.get, reorderSlot.get);
   const [paint, setPaint] = useState<Paint | null>(null);
   const raf = useRef<number | null>(null);
+  // what Layers was last told, kept across `s` changes (⌥ / leaving the frame swap `s`, not the slot)
+  const told = useRef('');
+  // unmounting with a slot open closes it too
+  useEffect(() => () => tellEnd(told), []);
 
   useEffect(() => {
     if (!s) {
       setPaint(null);
+      tellEnd(told);
       return;
     }
     let last = '';
     const tick = () => {
       raf.current = requestAnimationFrame(tick);
       const next = paintOf(s);
+      // Layers draws the same slot: tell the shell when the place changes (not on every frame)
+      const msg = next ? slotMessage(s) : null;
+      const sig = msg ? `${msg.index}/${msg.total}/${msg.parentId ?? ''}` : '';
+      if (msg && sig !== told.current) {
+        told.current = sig;
+        postSlot(msg);
+      }
       const key = next
         ? `${next.line}|${Math.round(next.slot.left)},${Math.round(next.slot.top)}|${Math.round(next.tag.left)},${Math.round(next.tag.top)}`
         : '';

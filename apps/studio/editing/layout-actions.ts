@@ -12,8 +12,8 @@ import { resolveSelectionEl } from '../dom-selection.ts';
 import type { ElementRef } from '../edit-ops/types.ts';
 import type { Selection } from '../use-selection-set.tsx';
 import { runArranged } from './arrange.ts';
-import { refsOf } from './object-ops.ts';
-import { placeFreely } from './place-freely.tsx';
+import { layerParams, refsOf } from './object-ops.ts';
+import { constrain, placeFreely } from './place-freely.tsx';
 import { type LayoutOpsDeps, layoutOpsDeps } from './reorder-slot.tsx';
 
 export const LAYOUT_ACTIONS = [
@@ -26,6 +26,15 @@ export type LayoutAction = (typeof LAYOUT_ACTIONS)[number];
 
 export const isLayoutAction = (id: unknown): id is LayoutAction =>
   typeof id === 'string' && (LAYOUT_ACTIONS as readonly string[]).includes(id);
+
+/** `object.constrain` — the Position row's pins (S2.11b); its params carry the pins and the measured box. */
+export const CONSTRAIN_ACTION = 'object.constrain' as const;
+export const isConstrainAction = (id: unknown): id is typeof CONSTRAIN_ACTION =>
+  id === CONSTRAIN_ACTION;
+
+const PIN_H = ['left', 'right', 'both', 'center', 'scale'] as const;
+const PIN_V = ['top', 'bottom', 'both', 'center', 'scale'] as const;
+export const UNMEASURED_LINE = 'The canvas could not tell where it is; try again.';
 
 export const NEEDS_ONE_LINE = 'Select one object first.';
 export const NEEDS_FRAME_LINE = 'Select a frame first.';
@@ -97,4 +106,40 @@ export async function runLayoutAction(
     return;
   }
   await convert(el);
+}
+
+/**
+ * Run `object.constrain` from the shell's `run-action` (the Position row's pins): `params` carries
+ * `targets` (a Layers row names its own; otherwise the selection), `h`, `v` and the object's
+ * `geometry` in world px. One edit-op writes all four edges; a malformed ask asks nothing.
+ */
+export async function runConstrainAction(
+  params: unknown,
+  selected: readonly Selection[],
+  deps: LayoutOpsDeps = layoutOpsDeps.current
+): Promise<void> {
+  const p = params && typeof params === 'object' ? (params as Record<string, unknown>) : {};
+  const ref = (layerParams(params).refs ?? refsOf(selected))[0];
+  if (!ref) return void deps.toast?.(NEEDS_ONE_LINE, 'info');
+  const g = (p.geometry && typeof p.geometry === 'object' ? p.geometry : {}) as Record<
+    string,
+    unknown
+  >;
+  const num = (k: string): number | null => {
+    const v = g[k];
+    return typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 1_000_000 ? v : null;
+  };
+  const geometry = {
+    x: num('x'),
+    y: num('y'),
+    w: num('w'),
+    h: num('h'),
+    parentW: num('parentW'),
+    parentH: num('parentH'),
+  };
+  const h = (PIN_H as readonly unknown[]).includes(p.h) ? (p.h as (typeof PIN_H)[number]) : null;
+  const v = (PIN_V as readonly unknown[]).includes(p.v) ? (p.v as (typeof PIN_V)[number]) : null;
+  if (!h || !v || Object.values(geometry).some((n) => n === null))
+    return void deps.toast?.(UNMEASURED_LINE, 'error');
+  await constrain(ref, { h, v }, geometry as Parameters<typeof constrain>[2], deps);
 }

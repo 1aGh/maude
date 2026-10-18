@@ -20,9 +20,12 @@ import { AlignBar } from './align-bar.tsx';
 import { ARRANGE_ACTIONS } from './arrange.ts';
 import { GapBands } from './gap-bands.tsx';
 import {
+  CONSTRAIN_ACTION,
+  isConstrainAction,
   isLayoutAction,
   LAYOUT_ACTIONS,
   reorderKeyAction,
+  runConstrainAction,
   runLayoutAction,
 } from './layout-actions.ts';
 import { LockBadge } from './lock-badge.tsx';
@@ -46,6 +49,8 @@ export const EDITING_ACTIONS = [
   'object.rotate',
   // S2.11 — Place freely, move earlier / later, convert children to absolute position
   ...LAYOUT_ACTIONS,
+  // S2.11b — the Position row's pins: one object.constrain with the measured box
+  CONSTRAIN_ACTION,
 ] as const;
 
 export function EditingLayer() {
@@ -87,6 +92,8 @@ export function EditingLayer() {
           const { refs } = layerParams(m.params);
           void runLayoutAction(m.id, selRef.current, refs);
         }
+      } else if (isConstrainAction(m.id)) {
+        if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
       } else if (m.id === 'object.step-out') {
         if (!stepOut(selSet)) selSet.clear();
       } else if (m.id === 'object.enter') {

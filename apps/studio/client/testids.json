@@ -11492,6 +11492,20 @@
     "v2": "new"
   },
   {
+    "hook": "layers-slot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers: the empty, numbered row where a lifted card will land, among its frame's rows (`data-n` is its place) \u2014 the same slot the canvas draws.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/layers-slot.jsx",
+      "symbol": "LayerSlotRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "edit-reorder-tag",
     "kind": "testid",
     "pattern": false,

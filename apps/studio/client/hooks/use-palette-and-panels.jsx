@@ -601,6 +601,8 @@ export function usePaletteAndPanels({
           onClose={() => (id === 'layers' ? setLayersOpen(false) : setInspectorOpen(false))}
           onOptimistic={applyOptimisticStyle}
           onRecordEdit={recordSourceEdit}
+          // S2.11b — the Position row's pins ask the canvas for one `object.constrain` (run-action)
+          onRunAction={postToActiveCanvas}
           onReplaceMedia={onReplaceMedia}
           onResizeArtboard={resizeArtboardShell}
           onSetArtboardHug={setArtboardHugShell}

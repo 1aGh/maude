@@ -9,14 +9,19 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { ACTIONS_BY_ID } from '../actions/index.ts';
+import { DGN_TABLE } from '../bridge/dgn-protocol.ts';
+import { LayerRow } from '../client/inspector/layers.jsx';
+import { layersSlot, withSlot } from '../client/v2/inspector/layers-slot.jsx';
 import type { EditOpResult } from '../edit-ops/types.ts';
 import { computeBands } from '../editing/gap-bands.tsx';
 import { EDITING_ACTIONS } from '../editing/index.tsx';
 import {
+  isConstrainAction,
   isLayoutAction,
   NEEDS_FRAME_LINE,
   NEEDS_ONE_LINE,
   reorderKeyAction,
+  runConstrainAction,
   runLayoutAction,
 } from '../editing/layout-actions.ts';
 import {
@@ -37,6 +42,7 @@ import {
   reorderSlot,
   SLOT_CSS,
   slotLine,
+  slotMessage,
   slotRect,
   takeOver,
   translateOf,
@@ -371,6 +377,154 @@ describe('the reorder slot', () => {
   });
 });
 
+describe('the slot reaches Layers (S2.11b: dgn reorder-slot)', () => {
+  const parse = (raw: Record<string, unknown>) =>
+    (
+      DGN_TABLE.c2s as unknown as Record<string, { parse: (r: Record<string, unknown>) => unknown }>
+    )['reorder-slot']?.parse(raw);
+  test('the row is parent-gated and keeps index, total and the frame’s id — nothing else', () => {
+    expect(parse({ index: 2, total: 3, parentId: 'services', junk: 1 })).toEqual({
+      index: 2,
+      total: 3,
+      parentId: 'services',
+    });
+    // index 0 = no slot (the drag ended); the frame may be unstamped
+    expect(parse({ index: 0, total: 0 })).toEqual({ index: 0, total: 0 });
+    expect((DGN_TABLE.c2s as Record<string, { gate: string }>)['reorder-slot']?.gate).toBe(
+      'active'
+    );
+  });
+  test('whole numbers in bounds, a slot inside its total, an id that fits the grammar — else dropped', () => {
+    for (const bad of [
+      { index: 1.5, total: 3, parentId: 'a' },
+      { index: -1, total: 3, parentId: 'a' },
+      { index: 10001, total: 10001, parentId: 'a' },
+      { index: 4, total: 3, parentId: 'a' },
+      { index: 1, total: 3 }, // a slot to draw names its frame
+      { index: 1, total: 3, parentId: 'has space' },
+      { index: 1, total: 3, parentId: '../x' },
+      { index: 1, total: 3, parentId: 'a'.repeat(65) },
+      { total: 3, parentId: 'a' },
+      { index: '2', total: 3, parentId: 'a' },
+    ])
+      expect(parse(bad), JSON.stringify(bad)).toBeNull();
+  });
+  test('slotMessage: the place among its siblings and the frame it was lifted from; null = ended', () => {
+    document.body.innerHTML = `<section data-cd-id="services" style="display:flex"><i data-cd-id="a"></i><i data-cd-id="b"></i></section>`;
+    const b = document.querySelector('[data-cd-id="b"]') as HTMLElement;
+    const frame = document.querySelector('[data-cd-id="services"]') as HTMLElement;
+    expect(slotMessage({ el: b, frame, copy: false, out: false })).toEqual({
+      dgn: 'reorder-slot',
+      index: 2,
+      total: 2,
+      parentId: 'services',
+    });
+    expect(slotMessage({ el: b, frame: null, copy: false, out: false })).toMatchObject({
+      index: 2,
+    });
+    expect(slotMessage(null)).toEqual({ dgn: 'reorder-slot', index: 0, total: 0 });
+  });
+  test('the canvas tells the shell while the card moves, and when it lets go', async () => {
+    document.body.innerHTML = `<article data-dc-screen="desktop"><div class="dc-artboard-body"><section data-cd-id="services" style="display:flex"><div data-cd-id="apps"></div><div data-cd-id="product"></div><div data-cd-id="brand"></div></section></div></article>`;
+    const q = (id: string) => document.querySelector(`[data-cd-id="${id}"]`) as HTMLElement;
+    const sent: unknown[] = [];
+    const real = window.parent.postMessage;
+    window.parent.postMessage = ((m: unknown) => sent.push(m)) as never;
+    try {
+      await mount(<ReorderSlot />);
+      await act(async () => reorderSlot.begin(q('apps'), q('services')));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40));
+      });
+      expect(sent).toContainEqual({
+        dgn: 'reorder-slot',
+        index: 1,
+        total: 3,
+        parentId: 'services',
+      });
+      // the card settles in the middle: the same slot is not re-sent, the new one is
+      q('services').insertBefore(q('apps'), q('brand'));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40));
+      });
+      expect(sent).toContainEqual({
+        dgn: 'reorder-slot',
+        index: 2,
+        total: 3,
+        parentId: 'services',
+      });
+      await act(async () => {
+        reorderSlot.end();
+      });
+      expect(sent[sent.length - 1]).toEqual({ dgn: 'reorder-slot', index: 0, total: 0 });
+    } finally {
+      window.parent.postMessage = real;
+    }
+  });
+  test('Layers: the numbered slot opens inside the frame’s children at the same place', async () => {
+    const nodes = [
+      {
+        id: 'services',
+        index: 0,
+        label: 'Services',
+        type: 'box',
+        tag: 'section',
+        children: [
+          { id: 'apps', index: 0, label: 'Small apps', type: 'box', tag: 'div' },
+          { id: 'product', index: 0, label: 'Product', type: 'box', tag: 'div' },
+          { id: 'brand', index: 0, label: 'Brand', type: 'box', tag: 'div' },
+        ],
+      },
+    ];
+    // nothing lifted, nothing drawn; an unknown frame draws nothing either
+    expect(withSlot(nodes, null)).toBe(nodes);
+    expect(withSlot(nodes, { index: 2, total: 3, parentId: 'nope' })).toBe(nodes);
+    const withIt = withSlot(nodes, { index: 2, total: 3, parentId: 'services' });
+    expect(withIt[0]?.children?.map((c: { id: string }) => c.id)).toEqual([
+      'apps',
+      '__slot__',
+      'product',
+      'brand',
+    ]);
+    expect(nodes[0]?.children?.length).toBe(3); // the tree itself is not touched
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    await act(async () =>
+      root.render(
+        <div role="tree">
+          {withIt.map((n: { id: string }) => (
+            <LayerRow
+              key={n.id}
+              node={n as never}
+              depth={0}
+              collapsed={new Set()}
+              onToggle={() => {}}
+              onSelect={() => {}}
+              onHover={() => {}}
+            />
+          ))}
+        </div>
+      )
+    );
+    const slot = host.querySelector('[data-testid="layers-slot"]') as HTMLElement;
+    expect(slot?.getAttribute('data-n')).toBe('2');
+    expect(slot?.textContent).toContain('2');
+    // second among the frame's rows: after "Small apps", before "Product"
+    const order = [...host.querySelectorAll('[data-layer-key], [data-testid="layers-slot"]')].map(
+      (e) => e.getAttribute('data-layer-key') ?? 'slot'
+    );
+    expect(order).toEqual(['services:0', 'apps:0', 'slot', 'product:0', 'brand:0']);
+  });
+  test('the store holds the last slot the canvas sent and forgets it at index 0', () => {
+    layersSlot.set({ index: 2, total: 3, parentId: 'services' });
+    expect(layersSlot.get()).toEqual({ index: 2, total: 3, parentId: 'services' });
+    layersSlot.set({ index: 0, total: 0 });
+    expect(layersSlot.get()).toBeNull();
+  });
+});
+
 describe('the drops that are not the v1 write', () => {
   const tree = () => {
     document.body.innerHTML = `
@@ -552,6 +706,53 @@ describe('Place freely: measuring', () => {
         },
       },
     ]);
+  });
+});
+
+describe('the Position row’s pins arrive as run-action object.constrain (S2.11b)', () => {
+  const GEO = { x: 800, y: 64, w: 216, h: 216, parentW: 1080, parentH: 1080 };
+  test('the editing layer answers it, and the registry row is the one it runs', () => {
+    expect((EDITING_ACTIONS as readonly string[]).includes('object.constrain')).toBe(true);
+    expect(isConstrainAction('object.constrain')).toBe(true);
+    expect(isConstrainAction('object.rotate')).toBe(false);
+  });
+  test('Right + Bottom with the measured geometry: ONE object.constrain, one undo record', async () => {
+    const asks: Array<{ op: string; targets: unknown[]; params: unknown }> = [];
+    const recs: unknown[] = [];
+    await runConstrainAction(
+      {
+        targets: [{ artboard: 'post', element: 'datum' }],
+        h: 'right',
+        v: 'bottom',
+        geometry: GEO,
+      },
+      [],
+      { run: async (a) => (asks.push(a as never), OK), record: (r) => recs.push(r) }
+    );
+    expect(asks).toEqual([
+      {
+        op: 'object.constrain',
+        targets: [{ artboard: 'post', element: 'datum' }],
+        params: { h: 'right', v: 'bottom', geometry: GEO },
+      },
+    ]);
+    expect(recs.length).toBe(1);
+  });
+  test('no targets means the selection; a bad pin or an unmeasured object asks nothing and says so', async () => {
+    const asks: unknown[] = [];
+    const said: string[] = [];
+    const deps = {
+      run: async (a: unknown) => (asks.push(a), OK),
+      toast: (m: string) => said.push(m),
+    };
+    const sel = [{ id: 'datum', artboardId: 'post', selector: '[data-cd-id="datum"]' }];
+    await runConstrainAction({ h: 'right', v: 'top', geometry: GEO }, sel, deps);
+    expect(asks.length).toBe(1);
+    await runConstrainAction({ h: 'diagonal', v: 'top', geometry: GEO }, sel, deps);
+    await runConstrainAction({ h: 'right', v: 'top', geometry: { ...GEO, w: 'x' } }, sel, deps);
+    await runConstrainAction({ h: 'right', v: 'top', geometry: GEO }, [], deps);
+    expect(asks.length).toBe(1);
+    expect(said.length).toBe(3);
   });
 });
 
