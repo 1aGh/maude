@@ -13806,5 +13806,117 @@
     "consumers": [],
     "sourceConsumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "empty-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A new canvas with no artboards: \"Your canvas is ready.\" with Ask AI and New artboard, centred above the toolbar. `data-variant` = ready · offline · connect. Absent for Can view / Can comment.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/empty-canvas.jsx",
+      "symbol": "EmptyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-canvas-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Ask AI ⌘/ button of the empty canvas (opens the AI chat; the first press with no Claude account asks to connect, once).",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/empty-canvas.jsx",
+      "symbol": "EmptyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-canvas-door",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"New artboard\" button of the empty canvas: a way in that is not the AI (Phase 4 W7). Runs artboard.new-desktop.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/empty-canvas.jsx",
+      "symbol": "EmptyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-canvas-offline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The offline line of the empty canvas: \"AI is back when this Mac is online.\" (S5.13's words).",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/empty-canvas.jsx",
+      "symbol": "EmptyCanvas"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-connect",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The veil under the one \"Connect your Claude account?\" sheet the empty canvas opens (S5 ConnectSheet).",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/empty-canvas.jsx",
+      "symbol": "EmptyConnect"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-artboard-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hint floating over a selected empty artboard: \"Empty artboard.\" and how to start. `data-artboard` = its id. Leaves on the first layer.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/artboard-hint.jsx",
+      "symbol": "ArtboardHint"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "empty-artboard-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Ask AI to fill <artboard>\" in the hint: opens the AI chat with the words in the field, never sends.",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/artboard-hint.jsx",
+      "symbol": "ArtboardHint"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers tab for an empty artboard: \"No layers on Tablet yet.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/empty/layers-empty.jsx",
+      "symbol": "LayersEmpty"
+    },
+    "region": "empty",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-empty-canvas-ui.test.tsx"],
+    "v2": "new"
   }
 ]

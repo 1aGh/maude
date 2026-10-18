@@ -786,7 +786,7 @@ export default function EmptyStates() {
             <Window tabs={STUDIO_TABS} activeTab={0}>
               <Canvas>
                 <Empty size="canvas" spot="canvas" land className="es-center es-center--panel" title="Your canvas is ready."
-                  action={<AskBtn keys="⌘/">Ask AI</AskBtn>}>
+                  action={<><AskBtn keys="⌘/">Ask AI</AskBtn><span className="btn btn--ghost btn--sm">New artboard</span></>}>
                   Ask AI for a first draft, or start drawing.
                 </Empty>
               </Canvas>

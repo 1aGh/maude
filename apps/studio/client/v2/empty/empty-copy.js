@@ -72,6 +72,9 @@ export const COPY = Object.freeze({
     keys: '⌘/',
   },
 
+  // S11.2 (W7, "no door"): the way in that is not the AI — the canvas gained this button with the row.
+  'es-canvas-ai.door': { action: 'New artboard' },
+
   'es-landing.frame': { title: 'Your canvas is ready.', action: 'Ask AI' },
 
   'es-canvas-three.offline': {
