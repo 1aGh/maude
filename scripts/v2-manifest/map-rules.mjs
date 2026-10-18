@@ -57,6 +57,9 @@ export const HAND = {
   'item:studio/client/hooks/use-palette-and-panels.jsx#usePaletteAndPanels.paletteActions/new-video':
     'D17',
   'item:studio/client/menus/menubar.jsx#Menubar.panels/project-tree': 'D4',
+  // S1.2 — the row's Delete is now the row menu's Move to trash (registry canvas.trash, its 8
+  // reachability rows); the v1 aria-label is gone from the tree.
+  'testid:studio/client/app.jsx#sidebar/tree/aria-label-delete-canvas-name': 'action:canvas.trash',
 };
 
 const r = (file, m, to) => ({ file, ...m, to });
