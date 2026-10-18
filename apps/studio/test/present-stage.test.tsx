@@ -41,7 +41,7 @@ const BOARDS: ArtboardRect[] = [
   { id: 'story', x: 1300, y: 0, w: 1080, h: 1920, kind: 'video' },
   { id: 'home', x: 0, y: 2300, w: 1440, h: 2000, kind: 'web' },
 ];
-const CAM: Camera = { x: 12.345678901234567, y: -0.1 + 0.2, zoom: 0.30000000000000004 };
+const CAM: Camera = { x: 1.2345678901234567e-20, y: -0.1 + 0.2, zoom: 0.30000000000000004 };
 
 const posts: Array<Record<string, unknown>> = [];
 const fakeParent = { postMessage: (m: Record<string, unknown>) => posts.push(m) };
@@ -51,6 +51,7 @@ function asIframe() {
   Object.defineProperty(window, 'parent', { configurable: true, get: () => fakeParent });
 }
 function restoreParent() {
+  if (typeof window === 'undefined') return; // the DOM is already unregistered
   if (realParent) Object.defineProperty(window, 'parent', realParent);
   else Reflect.deleteProperty(window, 'parent');
 }
