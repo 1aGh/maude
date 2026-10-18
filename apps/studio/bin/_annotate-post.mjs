@@ -34,6 +34,49 @@ export function isLoopbackHttpUrl(base) {
   return h === '127.0.0.1' || h === 'localhost' || h === '::1' || h === '[::1]';
 }
 
+const CHAT_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const RUN_ID = /^[A-Za-z0-9_-]{1,64}$/;
+// _runs.mjs LIVE, best first: the run whose turn is going is the one writing.
+const LIVE_ORDER = ['running', 'needs-you', 'starting', 'waiting'];
+
+/**
+ * T-S4.5b (contract S4-S5-ai-annotations §2) — the run this verb's batch belongs to: inside a chat
+ * (`MAUDE_CHAT_ID`, set per chat by the ACP spawn, acp/bridge.ts `chatSpawnEnv`) it is that chat's
+ * own live run on this Mac (`mine`, not queued `behind` another). Pure; null = not inside a run.
+ */
+export function runIdForChat(view, chatId) {
+  if (typeof chatId !== 'string' || !CHAT_ID.test(chatId)) return null;
+  const rows = (Array.isArray(view?.mine) ? view.mine : []).filter(
+    (r) =>
+      r?.chatId === chatId &&
+      LIVE_ORDER.includes(r.state) &&
+      !r.behind &&
+      typeof r.runId === 'string' &&
+      RUN_ID.test(r.runId)
+  );
+  rows.sort((a, b) => LIVE_ORDER.indexOf(a.state) - LIVE_ORDER.indexOf(b.state));
+  return rows[0]?.runId ?? null;
+}
+
+/**
+ * The batch's actionId: `run:<runId>` inside a live chat run, else `ai-annotate-<rand>` (a terminal
+ * Claude, an outside write). Any failure to read the runs is "not inside a run" — the studio's
+ * gate decides what a tag may do, this only names it.
+ */
+export async function defaultActionId(base, env = process.env) {
+  const fallback = `ai-annotate-${Math.random().toString(36).slice(2, 12)}`;
+  const chatId = env.MAUDE_CHAT_ID;
+  if (typeof chatId !== 'string' || !CHAT_ID.test(chatId)) return fallback;
+  try {
+    const res = await fetch(`${base}/_api/ai/runs`, { signal: AbortSignal.timeout(3_000) });
+    if (!res.ok) return fallback;
+    const runId = runIdForChat(await res.json(), chatId);
+    return runId ? `run:${runId}` : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * POST the ops to a live, loopback dev-server. Returns the parsed response, `null` when no server
  * answers or it predates the op route (then the caller writes the file), and throws on any other
@@ -53,6 +96,7 @@ export async function postOps(designRoot, file, ops, actionId) {
   // `url` can't turn the verb into an exfiltration primitive. Anything else
   // silently falls back to the file write (the local intent still succeeds).
   if (!base || !isLoopbackHttpUrl(base)) return null;
+  const id = actionId ?? (await defaultActionId(base));
   let res;
   try {
     res = await fetch(`${base}/_api/annotations/ops`, {
@@ -60,7 +104,7 @@ export async function postOps(designRoot, file, ops, actionId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         file,
-        actionId: actionId ?? `ai-annotate-${Math.random().toString(36).slice(2, 12)}`,
+        actionId: id,
         ops,
       }),
       signal: AbortSignal.timeout(10_000),

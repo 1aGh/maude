@@ -25,7 +25,8 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { hubsConfigPath, normalizeUrl } from './hubs-config.ts';
+import { legacyClaim } from '../access/scope.ts';
+import { hubsConfigPath, normalizeUrl, v1RoleProjection } from './hubs-config.ts';
 
 export interface HubLinkResult {
   status: number;
@@ -41,6 +42,8 @@ interface HubsFile {
       token: string;
       linkedAt: number;
       role?: string;
+      /** V2-1.7 §5.4 — the claim when `role` cannot say it (see `saveHubCredential`). */
+      access?: import('../access/scope.ts').AccessClaim;
       expiresAt?: number;
       /** Local consent — see `HubRecord.codeModulesAllowed` in hubs-config.ts. */
       codeModulesAllowed?: boolean;
@@ -156,7 +159,11 @@ export function saveHubCredential(
   cfg.hubs[normUrl] = {
     token,
     linkedAt: Date.now(),
-    ...(role ? { role } : {}),
+    // S9.9 — `role` is what a 1.x build reads (1.9.x: only `viewer` is read-only), so a
+    // role it would read as writable (`observer`, anything newer) is stored as `viewer`
+    // and the real one rides in `access`, which only a v2 build reads (`accessFor`).
+    ...(role ? { role: v1RoleProjection(role) } : {}),
+    ...(role && v1RoleProjection(role) !== role ? { access: legacyClaim(role) } : {}),
     ...(typeof expiresAt === 'number' && Number.isFinite(expiresAt) ? { expiresAt } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
     ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),

@@ -22,6 +22,7 @@ import { memo, useEffect, useState } from 'react';
 
 import { REPLICA_TYPE } from './annotations/replica.ts';
 import { useLiveViewport } from './canvas-lib.tsx';
+import { PointerPeers } from './present/pointer-dot.tsx';
 import {
   type AnnotationGesture,
   type ForeignAwareness,
@@ -547,6 +548,8 @@ export function CursorsOverlay(): JSX.Element {
       {peers.map((peer) => (
         <Cursor key={peer.clientID} peer={peer} viewport={vp} />
       ))}
+      {/* S3.2b — a presenter's Pointer (L) dot, beside the cursors (present/pointer-dot.tsx). */}
+      <PointerPeers viewport={vp} />
     </div>
   );
 }

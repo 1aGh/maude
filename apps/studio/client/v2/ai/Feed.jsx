@@ -10,7 +10,6 @@ import {
   DEFAULT_TRANSCRIPT_VIEW,
   filterTranscriptParts,
   transcriptForcesExpand,
-  TRANSCRIPT_VIEWS,
 } from '../../panels/transcript-view.js';
 import { alreadySaysUnchanged, CANVAS_UNCHANGED, canvasUnchanged } from './answer-note.js';
 import { Copy, Retry, Spark } from './icons.jsx';
@@ -370,7 +369,7 @@ export function AssistantMessage() {
 // running — so background subagents that outlive the main turn (the ACP adapter
 // settles at the main agent's `result` while they drain, claude-agent-acp #773)
 // keep the panel from looking idle. See RCA issue-acp-subagent-activity-invisible.
-export function StatusRow({ tools = [], transcriptView, onSetTranscriptView }) {
+export function StatusRow({ tools = [] }) {
   const running = useThread((t) => t.isRunning);
   const working = running || tools.length > 0;
   return (
@@ -381,25 +380,7 @@ export function StatusRow({ tools = [], transcriptView, onSetTranscriptView }) {
       {working ? 'Working…' : 'Ready'}
       <span className="chat-statusrow-sep">·</span>
       <span className="chat-statusrow-cc">Claude Code</span>
-      <span className="chat-statusrow-spacer" />
-      {/* Transcript view (Task C4/C5) — moved here (user feedback) instead of
-          crowding the chat switcher row; panel-wide, not per-chat. */}
-      <label className="chat-view-label" title="Transcript view — how much detail replies show">
-        <span className="chat-view-label-tx">View</span>
-        <select
-          className="chat-select"
-          value={transcriptView}
-          aria-label="Transcript view"
-          data-testid="chat-transcript-menu"
-          onChange={(e) => onSetTranscriptView(e.target.value)}
-        >
-          {TRANSCRIPT_VIEWS.map((v) => (
-            <option key={v} value={v}>
-              {v[0].toUpperCase() + v.slice(1)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* S5.12 — the transcript view select ("Show in chat") moved to the panel's Advanced fold. */}
     </div>
   );
 }

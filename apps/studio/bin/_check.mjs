@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { checkFile, formatFindings } from '../check/index.ts';
+import { artboardIdsOfSource, checkFile, formatFindings } from '../check/index.ts';
 
 const argv = process.argv.slice(2);
 const files = [];
@@ -84,7 +84,13 @@ for (const f of files) {
   } catch {
     usage(`cannot read ${f}`);
   }
-  results.push(checkFile(r.rel, text, { against: againstText, tier, strict }));
+  // S3.5 — a sidecar's Present ids are checked against its canvas's artboards.
+  let artboards = null;
+  if (r.rel.endsWith('.meta.json')) {
+    const src = r.abs.replace(/\.meta\.json$/, '.tsx');
+    if (existsSync(src)) artboards = artboardIdsOfSource(src, readFileSync(src, 'utf8'));
+  }
+  results.push(checkFile(r.rel, text, { against: againstText, tier, strict, artboards }));
 }
 
 const bad = results.some((r) => !r.ok);
