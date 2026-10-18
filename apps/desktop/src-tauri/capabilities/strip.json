@@ -8,6 +8,9 @@
     "allow-tab-activate",
     "allow-tab-close",
     "allow-tab-reorder",
+    "allow-tab-menu",
+    "allow-tab-rename",
+    "allow-tab-overview",
     "core:window:allow-start-dragging",
     "core:window:allow-internal-toggle-maximize"
   ]

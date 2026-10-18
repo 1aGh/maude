@@ -19,9 +19,12 @@ mod app_state;
 mod bus;
 mod crash_reporter;
 mod deep_link;
+mod doors;
+mod export_save;
 mod external_link;
 mod home;
 mod keychain;
+mod lifecycle;
 // issue #105 — WebKitGTK's GStreamer media path is the one part of the shell that
 // can kill the renderer before the user sees a single pixel of their canvas.
 #[cfg(target_os = "linux")]
@@ -121,6 +124,7 @@ fn install_signal_handler(handle: tauri::AppHandle) {
                     sidecar::log_shutdown("[maude] termination signal received — killing sidecar");
                     sidecar::kill_server(&handle);
                     home::kill(&handle);
+                    lifecycle::clean_exit(&handle);
                     std::process::exit(0);
                 }
                 Err(e) => {
@@ -228,148 +232,40 @@ async fn pick_directory(
     Ok(picked)
 }
 
-/// Native "Save As…" for an export payload — opens a save dialog seeded with the
-/// export's filename, then streams the finished job's bytes STRAIGHT FROM the
-/// local dev-server to the chosen path over `reqwest`, and returns that path (or
-/// `None` if the user cancelled). This is what makes native-app exports OFFER a
-/// save location: the webview's `<a download>` blob path (app.jsx) is swallowed
-/// opaquely by WKWebView, so the user never learns where the file landed.
-/// RCA: issue-desktop-export-failures (original native-save mechanism).
-///
-/// RCA issue-desktop-print-pdf-save-as-hang-large-payload: this used to accept
-/// the export's `bytes: Vec<u8>` as a plain `invoke()` argument — Tauri's IPC
-/// JSON-serializes command arguments, so a print-ready PDF (hundreds of MB —
-/// `page.pdf()` per artboard re-embeds full-size photos at print DPI with no
-/// cross-page dedup, see `exporters/pdf.ts`) turned the JS-side
-/// `Array.from(new Uint8Array(...))` + that JSON encode into an effectively
-/// unbounded main-thread block. The "Saving…" button kept spinning (a pure-CSS
-/// compositor animation, unaffected by a blocked JS thread) while the whole app
-/// was actually frozen. Fetching the bytes IN Rust and streaming them straight to
-/// disk means the webview never materializes or transmits the payload at all.
+/// S5.10 — "Choose a folder…" in the AI composer's paperclip: the native
+/// folder picker, returning the chosen folder (or `None` on cancel) for the
+/// server's read-only attach consent. Unlike `pick_directory` it does NOT
+/// remember the pick: an attached folder is something the AI may READ once the
+/// person consents, never a folder this tab may open or switch to (V2-3.6 M3's
+/// `PICKED_FOLDER` stays the "Open another folder…" pick only).
 #[tauri::command]
-async fn save_export(
+async fn pick_attach_folder(
     app: tauri::AppHandle,
     webview: tauri::Webview,
-    job_id: String,
-    filename: String,
 ) -> Result<Option<String>, String> {
-    // The CALLING window's project (V2-3.2): with two tabs, an export from tab
-    // B must download from B's server, not from whichever tab is in front.
-    let caller = windows::caller_project(&webview, false)?;
-    windows::caller_in_front(&webview)?; // 1g: no save sheet from a hidden tab
-                                         // The origin comes from the app-owned info file of THAT project's running
-                                         // child (V2-1.1 decision 8), never the in-project `_server.json` (V2-3.6 M1).
-    let info_file = sidecar::shell_info_file(&app, &caller.root);
-    let download_url = export_download_url(info_file.as_deref(), &job_id)?;
-
-    // E2E (debug builds only): a native save dialog can't be DOM-driven, so the
-    // harness injects the destination via MAUDE_E2E_SAVE_PATH. Gated on
-    // `debug_assertions` — never compiled into the release `.app`. Still runs
-    // through the real fetch-and-stream path below (not a shortcut), so the E2E
-    // scenario actually exercises this regression's fix.
+    let _caller = windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+                                         // E2E (debug builds only): the harness names the folder instead of the OS dialog.
     #[cfg(debug_assertions)]
-    if let Ok(p) = std::env::var("MAUDE_E2E_SAVE_PATH") {
+    if let Ok(p) = std::env::var("MAUDE_E2E_PICK_ATTACH_DIR") {
         if !p.is_empty() {
-            stream_download_to_file(&download_url, std::path::Path::new(&p)).await?;
             return Ok(Some(p));
         }
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
-    app.dialog()
-        .file()
-        .set_parent(&webview.window())
-        .set_file_name(&filename)
-        .save_file(move |dest| {
-            let _ = tx.send(dest.and_then(|f| f.into_path().ok()));
-        });
-    let dest = rx.await.map_err(|_| "Save dialog closed unexpectedly.".to_string())?;
-    match dest {
-        Some(path) => {
-            stream_download_to_file(&download_url, &path).await?;
-            Ok(Some(path.to_string_lossy().to_string()))
-        }
-        None => Ok(None), // cancelled — not an error
-    }
+    app.dialog().file().set_parent(&webview.window()).pick_folder(move |folder| {
+        let path = folder
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.to_string_lossy().to_string());
+        let _ = tx.send(path);
+    });
+    rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())
 }
 
-/// The one route `save_export` may fetch (V2-3.6 M1): a fixed path on the
-/// project's own loopback origin, with only the validated id varying.
-const EXPORT_DOWNLOAD_PATH: &str = "/_api/export-jobs/download";
+// `save_export` (+ its download helpers), `reveal_export` and `clipboard_write_png`
+// live in export_save.rs (S8.23).
 
-/// Resolve the `/_api/export-jobs/download` URL for `job_id` against the origin
-/// the app-owned shell info file names (`sidecar::read_shell_origin`, loopback
-/// only — DDR-109). `None` = no running child of ours for that project.
-/// Validates the id looks like the `crypto.randomUUID()` the server actually
-/// generates (`exporters/jobs.ts`) before it's interpolated into a URL —
-/// defense in depth, since this string arrives from the studio client, and a
-/// Rust command has no other gate of its own on what it's handed.
-fn export_download_url(info_file: Option<&std::path::Path>, job_id: &str) -> Result<String, String> {
-    let looks_like_id = !job_id.is_empty()
-        && job_id.len() <= 64
-        && job_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
-    if !looks_like_id {
-        return Err("Invalid export job id.".to_string());
-    }
-    let unreachable = || "Couldn't reach the local Maude server to fetch the export.".to_string();
-    let origin = sidecar::read_shell_origin(info_file.ok_or_else(unreachable)?).ok_or_else(unreachable)?;
-    let url: tauri::Url = format!("{origin}{EXPORT_DOWNLOAD_PATH}?id={job_id}")
-        .parse()
-        .map_err(|_| unreachable())?;
-    // Belt and braces: the assembled URL is loopback and on the one route.
-    if !server_json::is_loopback_url(&url) || url.path() != EXPORT_DOWNLOAD_PATH {
-        return Err(unreachable());
-    }
-    Ok(url.to_string())
-}
-
-/// The export download client: loopback only, so no proxy (an `HTTP_PROXY` in
-/// the login env must never see the request) and no redirects (a 3xx must not
-/// carry the fetch off the project's own server — V2-3.6 M1). No timeout: a
-/// print PDF can take a while to stream.
-fn export_client() -> Result<&'static reqwest::Client, String> {
-    static CLIENT: std::sync::OnceLock<Option<reqwest::Client>> = std::sync::OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            reqwest::Client::builder()
-                .no_proxy()
-                .redirect(reqwest::redirect::Policy::none())
-                .build()
-                .ok()
-        })
-        .as_ref()
-        .ok_or_else(|| "Couldn't start the export download.".to_string())
-}
-
-/// Stream a finished export job's bytes from the dev-server straight to `dest`
-/// in chunks, never materializing the whole payload in memory at once — a
-/// print-ready PDF can be hundreds of MB (see `save_export`'s doc comment).
-async fn stream_download_to_file(url: &str, dest: &std::path::Path) -> Result<(), String> {
-    use futures_util::StreamExt;
-    use tokio::io::AsyncWriteExt;
-
-    let resp = export_client()?
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| format!("Couldn't reach the local Maude server: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(format!("The export isn't ready to download ({}).", resp.status()));
-    }
-    let mut file = tokio::fs::File::create(dest)
-        .await
-        .map_err(|e| format!("Couldn’t write the export: {e}"))?;
-    let mut stream = resp.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("Couldn't download the export: {e}"))?;
-        file
-            .write_all(&chunk)
-            .await
-            .map_err(|e| format!("Couldn’t write the export: {e}"))?;
-    }
-    Ok(())
-}
-
-/// Native "open file" for media upload — the READ counterpart to save_export.
+/// Native "open file" for media upload — the READ counterpart to export_save::save_export.
 /// WKWebView won't present a file panel for an HTML `<input type=file>` (dogfood:
 /// "upload native okno nevyskoci v tauri"), so the AssetPicker routes through
 /// this: opens an image/video open-dialog and returns `{ token, name, size }`
@@ -496,8 +392,22 @@ fn open_local_project(
     if !p.join(".design").is_dir() {
         return Err("That folder isn’t a Maude project yet (no design system). Open it and run “Set up a design system” first.".to_string());
     }
+    // S1.22b: a registered project other than the picked folder must be one of
+    // THIS tab's account (⌘K's rule) and keeps its binding — the switch never
+    // moves the tab onto another account's project, nor adopts the last sign-in.
+    let binding = {
+        let st = app_state::load(&app);
+        windows::in_tab_open_rule(
+            &st,
+            &caller.pid,
+            &st.profile_for(&caller.root),
+            &windows::pid_for_root(&p.to_string_lossy()),
+            windows::picked_covers(&caller.label, &p),
+            windows::is_boot_root(&p),
+        )?
+    };
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
-    app_state::set_last_project(&app, &p);
+    app_state::set_last_project_with(&app, &p, binding);
     // The pick is spent once it opened something (it is registered now).
     windows::PICKED_FOLDER.take(&caller.label);
     sidecar::switch_project(&app, &caller.label, p, open);
@@ -634,7 +544,7 @@ pub fn run() {
             keychain::github_sign_out,
             pick_directory,
             resolve_dev_server_url,
-            save_export,
+            export_save::save_export,
             pick_media_file,
             pick_media_files,
             picked_media::read_picked_media,
@@ -647,6 +557,10 @@ pub fn run() {
             tabs::tab_activate,
             tabs::tab_close,
             tabs::tab_reorder,
+            // S1.22b: the tab menu, Rename… and the tab overview (strip-only).
+            tabs::tab_menu,
+            tabs::tab_rename,
+            tabs::tab_overview,
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
@@ -697,11 +611,25 @@ pub fn run() {
             profiles::profiles_list,
             profiles::profiles_create,
             profiles::profiles_delete,
+            profiles::accounts_list,
+            pick_attach_folder,
+            // S11.16: the native doors + the crash notice.
+            doors::project_reveal_path,
+            doors::project_open_in_editor,
+            doors::diagnostics_reveal_logs,
+            lifecycle::take_crash_notice,
+            // S8.23: Show in Finder for a saved export + the Copy as PNG fallback.
+            export_save::reveal_export,
+            export_save::clipboard_write_png,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .setup(|app| {
             let handle = app.handle().clone();
+            // S1.22b: the menu is NSApp's by now (tauri init_app_menu runs before setup);
+            // hide the ⇧⌘] / ⇧⌘[ items, keeping their keys (menu.rs).
+            #[cfg(target_os = "macos")]
+            menu::hide_hidden_items();
 
             // Crash reporting (Phase 32 / Task 4) — prime the opt-in toggle from
             // prefs.json and install the panic hook FIRST, so a panic anywhere in
@@ -805,6 +733,8 @@ pub fn run() {
             if let Err(e) = home::ensure_home_window(&handle, None) {
                 sidecar::log_line(&format!("[maude] FATAL: could not open the Home tab: {e}"));
             }
+            // S11.16: did the last run quit cleanly? Marks this one either way.
+            let crashed = lifecycle::start(&handle);
             match &plan {
                 BootPlan::Project(root) => {
                     windows::boot_windows(&handle, Some(&root.to_string_lossy()));
@@ -814,6 +744,7 @@ pub fn run() {
                     windows::boot_windows(&handle, reopen.as_deref());
                 }
             }
+            lifecycle::after_boot(&handle, crashed);
 
 
             // 3. SIGTERM/SIGINT → kill sidecar + exit.
@@ -924,6 +855,10 @@ pub fn run() {
             quit::last_chance(app_handle);
             sidecar::kill_server(app_handle);
             home::kill(app_handle);
+            // S11.16: only the final Exit is a clean quit (an ExitRequested can still be held).
+            if matches!(event, RunEvent::Exit) {
+                lifecycle::clean_exit(app_handle);
+            }
         }
         // Dock click with the shell hidden (its close button, V2-3.7): show it
         // again on the tab that was active.
@@ -953,6 +888,11 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
     // S5.14: Maude ▸ Quit ⌘Q is a native item (menu.rs) — ask first while AI is working.
     if id == quit::MENU_QUIT {
         quit::request(app);
+        return;
+    }
+    // S1.22b: a row of the tab menu (right-click a tab; tabs::tab_menu builds it).
+    if let Some((item, label)) = tabs::tab_menu_command(id) {
+        tabs::run_tab_menu(app, item, &label);
         return;
     }
     let Some(route) = menu::route(id) else {
@@ -1021,78 +961,5 @@ mod tests {
         assert_eq!(boot_plan(None, true, None, welcome), BootPlan::Project(p("/welcome")));
     }
 
-    fn scratch(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!(
-            "maude-lib-{tag}-{}-{:?}",
-            std::process::id(),
-            std::time::SystemTime::now()
-        ));
-        std::fs::create_dir_all(d.join(".design")).unwrap();
-        d
-    }
-
-    /// V2-3.6 M1: the download origin is the app-owned info file's, loopback
-    /// only, on the one export route — a planted `_server.json` plays no part.
-    #[test]
-    fn save_export_url_comes_from_the_info_file_and_is_loopback_only() {
-        let project = scratch("export-url");
-        std::fs::write(
-            project.join(".design/_server.json"),
-            r#"{"pid":1,"port":443,"url":"https://evil.example"}"#,
-        )
-        .unwrap();
-        let info = project.join("info.json");
-        std::fs::write(&info, r#"{"url":"http://localhost:4403","port":4403}"#).unwrap();
-        assert_eq!(
-            export_download_url(Some(&info), "0b6c-41f2").unwrap(),
-            "http://localhost:4403/_api/export-jobs/download?id=0b6c-41f2"
-        );
-        // No running child of ours ⇒ no download, whatever `_server.json` says.
-        assert!(export_download_url(None, "0b6c-41f2").is_err());
-        // An info file off loopback is refused too (DDR-109).
-        std::fs::write(&info, r#"{"url":"https://evil.example"}"#).unwrap();
-        assert!(export_download_url(Some(&info), "0b6c-41f2").is_err());
-        // The id cannot reshape the URL.
-        std::fs::write(&info, r#"{"url":"http://localhost:4403"}"#).unwrap();
-        for bad in ["", "a/../b", "x?y", "x#y", "a&id=b", &"a".repeat(65)] {
-            assert!(export_download_url(Some(&info), bad).is_err(), "{bad}");
-        }
-        let _ = std::fs::remove_dir_all(&project);
-    }
-
-    /// Serve one canned HTTP response on a loopback port; returns the port.
-    fn serve_once(response: String) -> u16 {
-        use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = listener.local_addr().unwrap().port();
-        std::thread::spawn(move || {
-            if let Ok((mut s, _)) = listener.accept() {
-                let mut buf = [0u8; 4096];
-                let _ = s.read(&mut buf);
-                let _ = s.write_all(response.as_bytes());
-            }
-        });
-        port
-    }
-
-    /// V2-3.6 M1: a 3xx from the project's server must not carry the fetch
-    /// elsewhere — the redirect target's bytes never reach the chosen file.
-    #[test]
-    fn save_export_download_refuses_a_redirect() {
-        let evil = serve_once(
-            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nevil".to_string(),
-        );
-        let first = serve_once(format!(
-            "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:{evil}/x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-        ));
-        let dir = scratch("export-redirect");
-        let dest = dir.join("out.pdf");
-        let res = tauri::async_runtime::block_on(stream_download_to_file(
-            &format!("http://127.0.0.1:{first}/_api/export-jobs/download?id=a"),
-            &dest,
-        ));
-        assert!(res.is_err(), "a redirect must fail the download, got {res:?}");
-        assert!(std::fs::read(&dest).map(|b| b != b"evil").unwrap_or(true));
-        let _ = std::fs::remove_dir_all(&dir);
-    }
+    // The save_export download tests moved with it to export_save.rs (S8.23).
 }

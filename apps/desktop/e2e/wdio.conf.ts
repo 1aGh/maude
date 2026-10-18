@@ -160,6 +160,12 @@ process.env.MAUDE_E2E_RUN_DIR ??= resolve(
   stamp
 );
 
+// S8.23 (export_save.rs, debug builds only): the native save panel is not DOM, so a
+// save that would ask writes here instead (the spec creates the folder), and Show in
+// Finder stops short of popping Finder over the test window. Lives in the run dir.
+process.env.MAUDE_E2E_SAVE_PATH ??= join(process.env.MAUDE_E2E_RUN_DIR, 'saved', 'native-save.png');
+process.env.MAUDE_E2E_NO_REVEAL ??= '1';
+
 // ── App binary path (per platform; override with MAUDE_E2E_APP) ────────────
 function resolveAppPath(): string {
   // Tauri's sidecar resolver rejects a StartingBinary containing symlinks on

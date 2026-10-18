@@ -693,7 +693,12 @@ pub fn build_shell_state(
             ShellProject {
                 pid: pid.clone(),
                 root: e.root.clone(),
-                name: name_of(&e.root, &e.name),
+                // S1.22b: a tab renamed on this Mac shows that name on Home too.
+                name: e
+                    .display_name
+                    .as_deref()
+                    .map(crate::notify::sanitize_title)
+                    .unwrap_or_else(|| name_of(&e.root, &e.name)),
                 profile: e.profile.clone(),
                 place,
                 focused: label.is_some() && book.focused() == label.as_deref(),

@@ -112,6 +112,24 @@ pub struct StripTab {
     pub dot: Option<Dot>,
     pub resting: bool,
     pub closing: bool,
+    /// S1.22b (11 `pn-tab-b` ①): the project square — the name's first letter and
+    /// a tone hashed from the pid, as Home and ⌘K draw it (`projectSquare`).
+    pub initial: String,
+    pub tone: &'static str,
+    /// S1.22b (`pn-tab-b` ②, GAP-ACCOUNTS-4): the badge of a tab on an account
+    /// other than this Mac's first one (`default`) — never an e-mail.
+    pub account: Option<StripAccount>,
+    /// `mac` | `cloud`: where the tab lives, for the tab list (never a path).
+    pub place: &'static str,
+}
+
+/// The account badge on a tab: its label's initial, one of two tones (the
+/// account card's `toneOf`) and the label for the tooltip.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct StripAccount {
+    pub initial: String,
+    pub tone: &'static str,
+    pub label: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -126,28 +144,102 @@ pub struct TabStripState {
     pub tabs: Vec<StripTab>,
     pub home: StripHome,
     pub active: String,
+    /// S1.22b: the tab overview (Show All Tabs ⇧⌘\, the strip's "N more") is open —
+    /// the strip covers the window (`set_overview`).
+    pub overview: bool,
+    /// S1.22b: the tab menu's Rename… was chosen for this tab — the strip edits its
+    /// name in place. One push only.
+    pub renaming: Option<String>,
+}
+
+/// The project tones, in `client/v2/search/search-projects.js` `PROJECT_TONES` order.
+pub const PROJECT_TONES: [&str; 6] = ["lilac", "yellow", "sky", "green", "coral", "grey"];
+
+/// The first letter of `s`, upper-cased, or `·`.
+fn initial_of(s: &str) -> String {
+    s.trim()
+        .chars()
+        .next()
+        .map(|c| c.to_uppercase().collect())
+        .unwrap_or_else(|| "·".to_string())
+}
+
+/// Pure twin of `projectSquare(pid, name)` (search-projects.js): the same
+/// letter and tone Home and ⌘K give the project.
+pub fn project_square(pid: &str, name: &str) -> (String, &'static str) {
+    let subject = if pid.is_empty() { name } else { pid };
+    let h = subject
+        .encode_utf16()
+        .fold(0u32, |h, c| h.wrapping_mul(31).wrapping_add(c as u32));
+    (initial_of(name), PROJECT_TONES[(h as usize) % PROJECT_TONES.len()])
+}
+
+/// Pure twin of the account card's `toneOf(id)` (account-card-model.js): `a` | `b`.
+pub fn account_tone(id: &str) -> &'static str {
+    let h = id.chars().fold(0i32, |h, c| {
+        let unit = c.encode_utf16(&mut [0u16; 2])[0];
+        h.wrapping_mul(31).wrapping_add(unit as i32)
+    });
+    if (h as i64).abs() % 2 == 0 {
+        "a"
+    } else {
+        "b"
+    }
+}
+
+/// Pure: the badge for a tab bound to profile `id` labelled `label` — none on
+/// this Mac's first account.
+pub fn account_badge(id: &str, label: &str) -> Option<StripAccount> {
+    if id == crate::profiles::DEFAULT_ID {
+        return None;
+    }
+    let label = crate::notify::sanitize_title(label);
+    let label = if label.is_empty() { id.to_string() } else { label };
+    Some(StripAccount {
+        initial: initial_of(&label),
+        tone: account_tone(id),
+        label,
+    })
 }
 
 /// Pure: the strip state of `book`. `name_of(root)` names a project tab (the
 /// result is sanitized again here — whatever the caller passes).
+#[cfg(test)]
 pub fn strip_state(book: &WindowBook, name_of: impl Fn(&str) -> String) -> TabStripState {
+    strip_state_with(book, name_of, |_| None)
+}
+
+/// `strip_state`, with `account_of(root)` giving a project tab's account badge.
+pub fn strip_state_with(
+    book: &WindowBook,
+    name_of: impl Fn(&str) -> String,
+    account_of: impl Fn(&str) -> Option<StripAccount>,
+) -> TabStripState {
     let tabs = book
         .tab_labels()
         .iter()
         .filter_map(|label| {
             let e = book.entry(label)?;
-            let (kind, name) = match &e.role {
-                Role::Project { root, .. } => ("project", name_of(root)),
-                Role::Cell { .. } => ("cell", "Cloud".to_string()),
+            let (kind, name, pid, account, place) = match &e.role {
+                Role::Project { root, pid } => {
+                    ("project", name_of(root), pid.as_str(), account_of(root), "mac")
+                }
+                Role::Cell { .. } => ("cell", "Cloud".to_string(), "", None, "cloud"),
                 Role::Home => return None,
             };
+            let name = crate::notify::sanitize_title(&name);
+            let (initial, tone) = project_square(pid, &name);
             Some(StripTab {
                 label: label.clone(),
                 kind,
-                name: crate::notify::sanitize_title(&name),
                 dot: e.dot,
                 resting: e.resting,
                 closing: e.closing,
+                initial,
+                tone,
+                account,
+                place,
+                name,
             })
         })
         .collect();
@@ -155,6 +247,8 @@ pub fn strip_state(book: &WindowBook, name_of: impl Fn(&str) -> String) -> TabSt
         tabs,
         home: StripHome { label: HOME_LABEL },
         active: book.focused().unwrap_or(HOME_LABEL).to_string(),
+        overview: false,
+        renaming: None,
     }
 }
 
@@ -198,6 +292,50 @@ pub fn child_bounds(w: f64, h: f64) -> (Rect, Rect) {
     (strip, tab)
 }
 
+/// Pure: the strip's bounds while the tab overview is open — the whole window.
+pub fn overview_bounds(w: f64, h: f64) -> Rect {
+    Rect {
+        position: LogicalPosition::new(0.0, 0.0).into(),
+        size: LogicalSize::new(w, h).into(),
+    }
+}
+
+// ── The tab overview (S1.22b: Show All Tabs ⇧⌘\, the strip's "N more") ──────
+//
+// The strip page draws it. A child webview cannot draw past its own bounds,
+// and every tab webview sits ABOVE the strip (added after it), so while the
+// overview is open the strip takes the whole window and the active tab is
+// hidden; choosing a tab is `activate` (which closes it), Esc closes it and
+// shows the active tab again.
+
+static OVERVIEW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn overview_open() -> bool {
+    OVERVIEW.load(Ordering::SeqCst)
+}
+
+/// Open or close the tab overview.
+pub fn set_overview(app: &AppHandle, open: bool) {
+    let was = OVERVIEW.swap(open, Ordering::SeqCst);
+    layout(app);
+    let active = app
+        .try_state::<SidecarState>()
+        .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).focused().map(str::to_string))
+        .unwrap_or_else(|| HOME_LABEL.to_string());
+    if let Some(wv) = app.get_webview(&active) {
+        let _ = if open { wv.hide() } else { wv.show() };
+        if !open && was {
+            let _ = wv.set_focus();
+        }
+    }
+    if open {
+        if let Some(strip) = app.get_webview(STRIP_LABEL) {
+            let _ = strip.set_focus();
+        }
+    }
+    changed(app);
+}
+
 /// The shell's logical inner size.
 fn shell_logical_size<R: Runtime>(shell: &tauri::Window<R>) -> (f64, f64) {
     let scale = shell.scale_factor().unwrap_or(1.0);
@@ -218,6 +356,8 @@ pub fn layout<R: Runtime>(app: &AppHandle<R>) {
     };
     let (w, h) = shell_logical_size(&shell);
     let (strip, tab) = child_bounds(w, h);
+    // S1.22b: while the tab overview is open the strip covers the whole window.
+    let strip = if overview_open() { overview_bounds(w, h) } else { strip };
     for wv in shell.webviews() {
         let r = if wv.label() == STRIP_LABEL { strip } else { tab };
         if let Err(e) = wv.set_bounds(r) {
@@ -322,6 +462,10 @@ pub fn activate(app: &AppHandle, label: &str) -> Result<(), String> {
         return Err(format!("no tab {label}"));
     }
     let target = app.get_webview(label).ok_or_else(|| format!("no tab {label}"))?;
+    // S1.22b: choosing a tab closes the tab overview (the strip shrinks back first).
+    if OVERVIEW.swap(false, Ordering::SeqCst) {
+        layout(app);
+    }
     // The book first (never held across a webview call: those wait on the
     // main thread, which takes the book lock in the navigation guard).
     windows::on_focused(app, label);
@@ -369,7 +513,7 @@ pub fn tab_command_target(book: &WindowBook, cmd: crate::menu::TabCommand) -> Op
     let tabs = book.tab_labels();
     match cmd {
         TabCommand::ShowHome => Some(HOME_LABEL.to_string()),
-        TabCommand::Close => None,
+        TabCommand::Close | TabCommand::Overview => None,
         TabCommand::Select(n) => tabs.get(n.checked_sub(1)?).cloned(),
         TabCommand::Last => tabs.last().cloned(),
         TabCommand::Next | TabCommand::Prev => {
@@ -391,6 +535,16 @@ pub fn tab_command_target(book: &WindowBook, cmd: crate::menu::TabCommand) -> Op
 /// Run a tab-bar menu command (lib.rs `on_menu`): Close Tab is the user close path of the
 /// ACTIVE project tab (nothing on Home); the rest activate their target.
 pub fn run_tab_command(app: &AppHandle, cmd: crate::menu::TabCommand) {
+    // S1.22b: Show All Tabs ⇧⌘\ toggles the tab overview (the shell comes to the front).
+    if cmd == crate::menu::TabCommand::Overview {
+        if let Some(shell) = app.get_window(SHELL_LABEL) {
+            let _ = shell.show();
+            let _ = shell.unminimize();
+            let _ = shell.set_focus();
+        }
+        set_overview(app, !overview_open());
+        return;
+    }
     let Some((focused, target)) = app.try_state::<SidecarState>().map(|s| {
         let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
         (book.focused().map(str::to_string), tab_command_target(&book, cmd))
@@ -503,10 +657,147 @@ pub fn close_tab_by_user(app: &AppHandle, label: &str) -> Result<(), String> {
 static STRIP_CHANNEL: Mutex<Option<Channel<TabStripState>>> = Mutex::new(None);
 static CHANGED_GEN: AtomicU64 = AtomicU64::new(0);
 
+/// S1.22b: the tab the tab menu's Rename… was chosen for, until the next push.
+static RENAMING: Mutex<Option<String>> = Mutex::new(None);
+
 fn current_state(app: &AppHandle) -> Option<TabStripState> {
+    // The registry (bindings, display names) and the profile labels, read
+    // before the book lock (file reads).
+    let st = crate::app_state::load(app);
+    let profiles = crate::profiles::list_all();
+    let label_of = |id: &str| {
+        profiles
+            .iter()
+            .find(|p| p.id == id)
+            .map(|p| p.label.clone())
+            .unwrap_or_default()
+    };
     let state = app.try_state::<SidecarState>()?;
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-    Some(strip_state(&book, windows::project_display_name))
+    let mut s = strip_state_with(&book, windows::project_display_name, |root| {
+        let id = st.profile_for(root);
+        account_badge(&id, &label_of(&id))
+    });
+    s.overview = overview_open();
+    s.renaming = RENAMING
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+        .filter(|l| s.tabs.iter().any(|t| &t.label == l && t.kind == "project"));
+    Some(s)
+}
+
+/// What a row of the tab menu (right-click a tab, 11 `pn-tab-menu`) does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TabMenuItem {
+    /// Rename… — the name this Mac shows for the project (`tab_rename`).
+    Rename,
+    /// Sign in as another account… — the tab's own `account.switch`.
+    SwitchAccount,
+    /// Close tab — the user close path (`close_tab_by_user`).
+    Close,
+}
+
+const TAB_MENU_PREFIX: &str = "tabmenu:";
+
+impl TabMenuItem {
+    fn key(self) -> &'static str {
+        match self {
+            TabMenuItem::Rename => "rename",
+            TabMenuItem::SwitchAccount => "account",
+            TabMenuItem::Close => "close",
+        }
+    }
+
+    /// The row's words — the registry labels of `tab.rename`, `account.switch` and
+    /// `tab.close` (one label on every surface, CONTRACT §3;
+    /// `tab_menu_rows_use_the_registry_labels` pins them).
+    pub fn label(self) -> &'static str {
+        match self {
+            TabMenuItem::Rename => "Rename…",
+            TabMenuItem::SwitchAccount => "Sign in as another account…",
+            TabMenuItem::Close => "Close tab",
+        }
+    }
+
+    /// The registry action the row runs.
+    pub fn action(self) -> &'static str {
+        match self {
+            TabMenuItem::Rename => "tab.rename",
+            TabMenuItem::SwitchAccount => "account.switch",
+            TabMenuItem::Close => "tab.close",
+        }
+    }
+}
+
+/// Pure: the rows of `kind`'s tab menu, with a separator before Close tab
+/// (`None`). "Move to a new window" is not offered: one shell window (V2-3.7 §10).
+/// A cloud tab has no registry entry to rename and no Mac account.
+pub fn tab_menu_rows(kind: &str) -> Vec<Option<TabMenuItem>> {
+    match kind {
+        "project" => vec![
+            Some(TabMenuItem::Rename),
+            Some(TabMenuItem::SwitchAccount),
+            None,
+            Some(TabMenuItem::Close),
+        ],
+        _ => vec![Some(TabMenuItem::Close)],
+    }
+}
+
+/// The native menu-item id of `item` for `label`.
+pub fn tab_menu_id(item: TabMenuItem, label: &str) -> String {
+    format!("{TAB_MENU_PREFIX}{}:{label}", item.key())
+}
+
+/// Pure: the tab-menu row a native menu-item id names (lib.rs `on_menu`).
+pub fn tab_menu_command(id: &str) -> Option<(TabMenuItem, String)> {
+    let rest = id.strip_prefix(TAB_MENU_PREFIX)?;
+    let (key, label) = rest.split_once(':')?;
+    let item = [TabMenuItem::Rename, TabMenuItem::SwitchAccount, TabMenuItem::Close]
+        .into_iter()
+        .find(|i| i.key() == key)?;
+    (!label.is_empty()).then(|| (item, label.to_string()))
+}
+
+/// Run a tab-menu row (lib.rs `on_menu`). The label is re-checked against the
+/// book: a row of a tab that closed meanwhile does nothing.
+pub fn run_tab_menu(app: &AppHandle, item: TabMenuItem, label: &str) {
+    let kind = app.try_state::<SidecarState>().and_then(|s| {
+        let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        book.entry(label).map(|e| match e.role {
+            Role::Project { .. } => "project",
+            Role::Cell { .. } => "cell",
+            Role::Home => "home",
+        })
+    });
+    if !kind.is_some_and(|k| tab_menu_rows(k).contains(&Some(item))) {
+        return;
+    }
+    let result = match item {
+        TabMenuItem::Close => close_tab_by_user(app, label),
+        TabMenuItem::Rename => {
+            *RENAMING.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.to_string());
+            // The name is typed in the strip.
+            if let Some(strip) = app.get_webview(STRIP_LABEL) {
+                let _ = strip.set_focus();
+            }
+            changed(app);
+            Ok(())
+        }
+        // The tab's OWN sign-in (V2-3.8): it comes to the front, then its page runs the
+        // registry action, as the project pill's menu row does.
+        TabMenuItem::SwitchAccount => reveal(app, label).map(|()| {
+            crate::bus::send(
+                label,
+                crate::menu::MENU_ACTION_EVENT,
+                serde_json::json!({ "id": item.action() }),
+            );
+        }),
+    };
+    if let Err(e) = result {
+        crate::sidecar::log_line(&format!("[maude] tab menu {item:?} on {label}: {e}"));
+    }
 }
 
 /// Every tab-list / active / dot / name change: push the state to the strip
@@ -588,6 +879,92 @@ pub fn tab_reorder(
     }
     windows::schedule_session_save(&app);
     changed(&app);
+    Ok(())
+}
+
+/// `tab_menu({label, x?, y?})` — right-click (or the context-menu key on) a tab:
+/// the native tab menu (11 `pn-tab-menu`) at the strip point `x, y` (clamped
+/// into the strip), else at the pointer. A row runs through lib.rs `on_menu`
+/// (`tab_menu_command` → `run_tab_menu`). Not Home (it has no menu).
+#[tauri::command]
+pub async fn tab_menu(
+    app: AppHandle,
+    webview: tauri::Webview,
+    label: String,
+    x: Option<f64>,
+    y: Option<f64>,
+) -> Result<(), String> {
+    caller_strip(&webview)?;
+    let kind = app
+        .try_state::<SidecarState>()
+        .and_then(|s| {
+            let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+            book.entry(&label).and_then(|e| match e.role {
+                Role::Project { .. } => Some("project"),
+                Role::Cell { .. } => Some("cell"),
+                Role::Home => None,
+            })
+        })
+        .ok_or_else(|| format!("no tab {label}"))?;
+    let mut b = tauri::menu::MenuBuilder::new(&app);
+    for row in tab_menu_rows(kind) {
+        b = match row {
+            Some(item) => b.item(
+                &tauri::menu::MenuItemBuilder::with_id(tab_menu_id(item, &label), item.label())
+                    .build(&app)
+                    .map_err(|e| e.to_string())?,
+            ),
+            None => b.separator(),
+        };
+    }
+    let menu = b.build().map_err(|e| e.to_string())?;
+    let shell = app.get_window(SHELL_LABEL).ok_or("no shell")?;
+    match (x, y) {
+        (Some(x), Some(y)) if x.is_finite() && y.is_finite() => {
+            let (w, _) = shell_logical_size(&shell);
+            let at = LogicalPosition::new(x.clamp(0.0, w), y.clamp(0.0, STRIP_H));
+            shell.popup_menu_at(&menu, at)
+        }
+        _ => shell.popup_menu(&menu),
+    }
+    .map_err(|e| e.to_string())
+}
+
+/// `tab_rename({label, name})` — the tab menu's Rename…, committed in the strip.
+/// Changes ONLY the name this Mac shows for the project (the registry's
+/// `displayName`: strip, window title, Home, notifications) — never its folder,
+/// its `.design/config.json` or anything a teammate sees. A blank name goes back
+/// to the project's own name. Project tabs only.
+#[tauri::command]
+pub fn tab_rename(
+    app: AppHandle,
+    webview: tauri::Webview,
+    label: String,
+    name: String,
+) -> Result<(), String> {
+    caller_strip(&webview)?;
+    let pid = app
+        .try_state::<SidecarState>()
+        .and_then(|s| {
+            let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+            book.entry(&label).and_then(|e| match &e.role {
+                Role::Project { pid, .. } => Some(pid.clone()),
+                _ => None,
+            })
+        })
+        .ok_or_else(|| "Only a project tab can be renamed.".to_string())?;
+    crate::app_state::set_display_name(&app, &pid, Some(&name))?;
+    changed(&app);
+    crate::home::state_changed(&app);
+    Ok(())
+}
+
+/// `tab_overview({open})` — the strip's "N more" (open) and the overview's own
+/// Esc / close (closed). Choosing a tab in it is `tab_activate`.
+#[tauri::command]
+pub fn tab_overview(app: AppHandle, webview: tauri::Webview, open: bool) -> Result<(), String> {
+    caller_strip(&webview)?;
+    set_overview(&app, open);
     Ok(())
 }
 
@@ -1330,5 +1707,131 @@ mod tests {
         ] {
             assert!(card.contains(words), "the card lost {words:?}");
         }
+    }
+
+    /// S1.22b: the strip's square and account badge are the SAME ones Home, ⌘K and the
+    /// account card draw (values from the JS twins, `projectSquare` / `toneOf`).
+    #[test]
+    fn the_strip_square_and_badge_match_their_client_twins() {
+        assert_eq!(project_square("l0123456789abcdef", "alligators brand"), ("A".into(), "lilac"));
+        assert_eq!(project_square("l9f86d081884c7d65", "Ž lutý"), ("Ž".into(), "grey"));
+        assert_eq!(project_square("", "Cloud"), ("C".into(), "grey"));
+        assert_eq!(project_square("lffffffffffffffff", "  "), ("·".into(), "coral"));
+        for (id, tone) in [("work", "b"), ("personal", "a"), ("e2e-b", "b"), ("x", "a")] {
+            assert_eq!(account_tone(id), tone, "{id}");
+        }
+        assert_eq!(account_badge("default", "Personal"), None, "the first account wears none");
+        assert_eq!(
+            account_badge("work", "work\u{202e} studio"),
+            Some(StripAccount { initial: "W".into(), tone: "b", label: "work studio".into() })
+        );
+        assert_eq!(account_badge("e2e-b", "").map(|a| a.label), Some("e2e-b".into()));
+    }
+
+    /// S1.22b (V2-3.6/3.7): a strip tab carries its sanitized name, square, state and account
+    /// label — never a root, a pid, an e-mail or any other project text.
+    #[test]
+    fn the_strip_state_carries_no_path_pid_or_email() {
+        let mut b = book_abc();
+        b.focus("p-a", 5);
+        b.set_resting("p-c", true);
+        let s = strip_state_with(
+            &b,
+            |root| root.rsplit('/').next().unwrap().to_string(),
+            |root| (root == B).then(|| account_badge("work", "Work").unwrap()),
+        );
+        assert_eq!(s.tabs[1].account.as_ref().map(|a| a.initial.as_str()), Some("W"));
+        assert!(s.tabs[0].account.is_none());
+        assert_eq!(s.tabs[0].initial, "A");
+        assert_eq!(s.tabs[0].tone, project_square(&windows::pid_for_root(A), "alpha").1);
+        assert!(s.tabs[2].resting);
+        assert!(s.tabs.iter().all(|t| t.place == "mac"));
+        assert!(!s.overview && s.renaming.is_none());
+        let wire = serde_json::to_string(&s).unwrap();
+        for leak in ["/nonexistent", &windows::pid_for_root(A), "@"] {
+            assert!(!wire.contains(leak), "{leak} reached the strip: {wire}");
+        }
+        let keys: Vec<String> = serde_json::to_value(&s.tabs[1])
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(
+            keys,
+            ["account", "closing", "dot", "initial", "kind", "label", "name", "place", "resting", "tone"]
+        );
+    }
+
+    /// S1.22b (11 `pn-tab-menu`): the tab menu's rows, their ids round-trip, and their words
+    /// are the registry's labels.
+    #[test]
+    fn tab_menu_rows_use_the_registry_labels() {
+        assert_eq!(
+            tab_menu_rows("project"),
+            [Some(TabMenuItem::Rename), Some(TabMenuItem::SwitchAccount), None, Some(TabMenuItem::Close)]
+        );
+        assert_eq!(tab_menu_rows("cell"), [Some(TabMenuItem::Close)]);
+        for item in [TabMenuItem::Rename, TabMenuItem::SwitchAccount, TabMenuItem::Close] {
+            let id = tab_menu_id(item, "p-labc");
+            assert_eq!(tab_menu_command(&id), Some((item, "p-labc".to_string())));
+        }
+        for bad in ["tabmenu:rename:", "tabmenu:move:p-a", "next_tab", "tabmenu:close"] {
+            assert_eq!(tab_menu_command(bad), None, "{bad}");
+        }
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("../../../studio/actions.manifest.json")).unwrap();
+        let label_of = |id: &str| {
+            manifest["actions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|a| a["id"] == id)
+                .and_then(|a| a["label"].as_str().map(str::to_string))
+        };
+        for item in [TabMenuItem::Rename, TabMenuItem::SwitchAccount, TabMenuItem::Close] {
+            assert_eq!(label_of(item.action()).as_deref(), Some(item.label()), "{item:?}");
+        }
+        // No "Move to a new window": one shell window (V2-3.7 §10).
+        assert!(!format!("{:?}", tab_menu_rows("project")).contains("Move"));
+    }
+
+    /// S1.22b: Rename… stores one sanitized, capped line on this Mac; blank clears it; the
+    /// registry entry keeps its folder and its own name.
+    #[test]
+    fn rename_stores_a_clean_display_name_and_never_touches_the_folder() {
+        use crate::app_state::{clean_display_name, set_display_name_in, AppState, MAX_DISPLAY_NAME};
+        assert_eq!(clean_display_name("  Work\u{202e}\nsite  "), Some("Work site".into()));
+        assert_eq!(clean_display_name(" \n\t "), None);
+        assert_eq!(clean_display_name(&"x".repeat(200)).unwrap().chars().count(), MAX_DISPLAY_NAME);
+        let mut st = AppState::default();
+        let pid = st.upsert("/s122b/rename/portfolio", 1);
+        set_display_name_in(&mut st, &pid, Some("Portfolio ’26")).unwrap();
+        let e = &st.projects[&pid];
+        assert_eq!(e.display_name.as_deref(), Some("Portfolio ’26"));
+        assert_eq!((e.root.as_str(), e.name.as_str()), ("/s122b/rename/portfolio", "portfolio"));
+        let json = serde_json::to_value(e).unwrap();
+        assert_eq!(json["displayName"], "Portfolio ’26");
+        set_display_name_in(&mut st, &pid, Some("   ")).unwrap();
+        assert_eq!(st.projects[&pid].display_name, None);
+        assert!(serde_json::to_value(&st.projects[&pid]).unwrap().get("displayName").is_none());
+        assert!(set_display_name_in(&mut st, "lnobody", Some("x")).is_err());
+        // The command only writes the registry — no fs write into the project.
+        let src = include_str!("tabs.rs");
+        let body = &src[src.find("pub fn tab_rename(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap()];
+        assert!(body.contains("caller_strip(&webview)?"));
+        assert!(body.contains("app_state::set_display_name(") && !body.contains("std::fs::"));
+    }
+
+    /// S1.22b: while the tab overview is open the strip covers the window.
+    #[test]
+    fn the_overview_takes_the_whole_window() {
+        let r = overview_bounds(1280.0, 800.0);
+        let (strip, _) = child_bounds(1280.0, 800.0);
+        assert_eq!(r.position, strip.position);
+        assert_eq!(r.size, LogicalSize::new(1280.0, 800.0).into());
+        assert_ne!(r.size, strip.size);
     }
 }
