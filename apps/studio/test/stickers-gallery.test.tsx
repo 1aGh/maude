@@ -4,7 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:tes
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
-  if (typeof window === 'undefined') GlobalRegistrator.register();
+  // `document`, not `window`: a `window` stub another file left must not skip the DOM.
+  if (typeof document === 'undefined') GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 afterAll(async () => {

@@ -44,10 +44,25 @@ export function makeSandbox(): Sandbox {
 // below is the actual safety net — but it makes collisions rare in practice.
 let portCounter = 4500 + (process.pid % 4000);
 export function nextPort(): number {
-  // Bump on every call so parallel tests don't collide. Bun.serve will throw
-  // EADDRINUSE if the host happened to bind one — caller retries with nextPort().
-  portCounter += 1;
+  // Bump on every call so parallel tests don't collide, and skip a port something on this machine
+  // already listens on: the range crosses long-lived local services (Syncthing's GUI is 8384, and
+  // ~/git is a Syncthing folder), and no caller retries — a held port timed out bootServer after
+  // 15 s (acl-l21-capture in the V2-5 A3 full suite).
+  for (let tries = 0; tries < 64; tries++) {
+    portCounter += 1;
+    if (portIsFree(portCounter)) return portCounter;
+  }
   return portCounter;
+}
+
+function portIsFree(port: number): boolean {
+  try {
+    const probe = Bun.listen({ hostname: '127.0.0.1', port, socket: { data() {} } });
+    probe.stop(true);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function bootServer(
