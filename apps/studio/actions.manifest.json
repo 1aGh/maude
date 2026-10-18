@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "53a70b1cd12a",
+  "manifestVersion": "c9d1f923b698",
   "actions": [
     {
       "id": "search.open",
@@ -1082,6 +1082,28 @@
       }
     },
     {
+      "id": "present.next",
+      "label": "Next artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard> --mode present"
+      }
+    },
+    {
+      "id": "present.prev",
+      "label": "Previous artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard> --mode present"
+      }
+    },
+    {
       "id": "present.canvas",
       "label": "Present the canvas",
       "kind": "toggle",
@@ -1090,6 +1112,25 @@
       "agent": {
         "path": "cli",
         "verb": "maude design open <canvas> --mode present"
+      }
+    },
+    {
+      "id": "present.order-notes",
+      "label": "Order and notes…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/present-meta",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:design",
+        "how": "present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json"
       }
     },
     {
@@ -1380,6 +1421,18 @@
         "path": "human",
         "because": "view-pref",
         "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.pointer",
+      "label": "Pointer",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "the presenter’s own pointer; an agent has no mouse to show"
       }
     },
     {
@@ -2561,6 +2614,83 @@
         "path": "human",
         "because": "native-window",
         "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
+      }
+    },
+    {
+      "id": "chat.advanced.ask-before",
+      "label": "Ask before",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.model",
+      "label": "Model",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.effort",
+      "label": "Effort",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.fast-mode",
+      "label": "Fast mode",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.show-in-chat",
+      "label": "Show in chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.suggestions",
+      "label": "Suggestions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.advanced.raw-log",
+      "label": "Raw log",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     }
   ],

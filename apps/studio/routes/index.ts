@@ -21,6 +21,7 @@ import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
+import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
@@ -45,6 +46,8 @@ export interface RouteDeps {
   edit: Omit<EditRouteDeps, 'runs'>;
   /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
   projectUndo?: ProjectUndoDeps;
+  /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
+  present: PresentRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -65,5 +68,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createProjectUndoRoutes(
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
+    ...createPresentRoutes(deps.present),
   ];
 }

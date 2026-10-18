@@ -34,6 +34,10 @@ export const METHODS = Object.freeze([
   'laneAt',
   'effectsAfter',
   'liveDocByEntry',
+  // S1.6 — named versions and the shared Trash (S1-trash.md §4).
+  'names',
+  'trash',
+  'trashCleared',
   // V2-1.15 §5.2 — AI runs and leases (each one transaction = one RPC).
   'runsBegin',
   'runsClaim',
@@ -89,6 +93,9 @@ export function openRemoteProjectStore({
     'laneAt',
     'effectsAfter',
     'liveDocByEntry',
+    'names',
+    'trash',
+    'trashCleared',
     // Sweeps lapsed runs as it reads — asking twice changes nothing more.
     'runsList',
   ]);

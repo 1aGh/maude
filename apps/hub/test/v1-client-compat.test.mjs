@@ -25,7 +25,7 @@ import * as Y from 'yjs';
 
 import { accessClaims, signAccessToken, signAccessTokenV2 } from '../src/cloud-identity.mjs';
 import { createHub } from '../src/server.mjs';
-import { closeUsers } from '../src/users.mjs';
+import { closeUsers, createUser } from '../src/users.mjs';
 import { A_VISIBLE, B_ONLY, bootAclHub, call } from './_acl-files-fixture.mjs';
 
 const BASE_PORT = Number.parseInt(process.env.HUB_V1_COMPAT_TEST_PORT ?? '15380', 10);
@@ -358,4 +358,52 @@ describe('S9.4 — the canvas-scoped file plane: a 1.9.1 desktop sees the whole 
       }
     });
   }
+});
+
+// ------------------------------------------------------------------- S9.6
+
+/** The 1.9.1 desktop's self-hosted sign-in: e-mail + password, no access declaration. */
+function v1PasswordLogin(port, email, password) {
+  return fetch(`http://127.0.0.1:${port}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+describe('S9.6 — the access columns: a 1.9.1 desktop sees today’s answers', () => {
+  const PW = 'correct horse battery staple';
+
+  for (const role of ['admin', 'member']) {
+    test(`${role} account: a password sign-in keeps today's shape, and Yjs opens`, async () => {
+      createUser(dataDir, { email: `${role}@self.test`, password: PW, role });
+      const res = await v1PasswordLogin(PORT, `${role}@self.test`, PW);
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.deepEqual(Object.keys(body).sort(), ['expiresAt', 'label', 'scope', 'token', 'user']);
+      assert.deepEqual(body.user, { email: `${role}@self.test`, role });
+      assert.equal(await v1YjsAuth(PORT, body.token), 'synced');
+    });
+  }
+
+  test('a canvas-only account is never a project-wide v1 session (426)', async () => {
+    createUser(dataDir, {
+      email: 'guest@self.test',
+      password: PW,
+      role: 'member',
+      access: { v: 1, role: null, grants: [{ c: 'ui/a.tsx', r: 'member' }] },
+    });
+    const res = await v1PasswordLogin(PORT, 'guest@self.test', PW);
+    assert.equal(res.status, 426);
+    assert.equal((await res.json()).token, undefined);
+  });
+
+  test('/health keeps every field 1.9.1 reads; `access` is additive', async () => {
+    const body = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json();
+    assert.equal(typeof body.ok, 'boolean');
+    assert.equal(typeof body.version, 'string');
+    assert.ok(Array.isArray(body.capabilities));
+    assert.equal(body.capabilities.includes('roles-v2'), false, 'not before the Q13 flip');
+    assert.equal(typeof body.access, 'object');
+  });
 });

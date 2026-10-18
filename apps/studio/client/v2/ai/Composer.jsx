@@ -8,7 +8,6 @@ import {
   useComposerRuntime,
 } from '@assistant-ui/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import CapabilityBar from '../../panels/CapabilityBar.jsx';
 import {
   buildCommandModel,
   filterCommands,
@@ -358,9 +357,6 @@ export function Composer({
   onCtxDismiss,
   above = null,
   picksRef,
-  caps,
-  onSetMode,
-  onSetConfig,
   conn,
   chatId,
   attachmentsRef,
@@ -498,14 +494,9 @@ export function Composer({
               onAttachChange={bumpAttach}
             />
             <div className="chat-toolbar">
-              <CapabilityBar
-                modes={caps.modes}
-                configOptions={caps.parsedOptions}
-                onSetMode={onSetMode}
-                onSetConfig={onSetConfig}
-              />
+              {/* S5.12 — the model / effort / mode pickers and the info button moved to the panel's
+                  Advanced fold (Advanced.jsx); the field keeps only what 03 draws: the text and send. */}
               <span className="chat-toolbar-spacer" />
-              <ChatFootInfo usage={usage} modes={caps.modes} />
               <ComposerPrimitive.Send className="chat-send" aria-label="Send message">
                 <Spark size={14} />
               </ComposerPrimitive.Send>

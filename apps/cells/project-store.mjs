@@ -42,6 +42,10 @@ export const STORE_METHODS = Object.freeze([
   'laneAt',
   'effectsAfter',
   'liveDocByEntry',
+  // S1.6 — named versions and the shared Trash (S1-trash.md §4).
+  'names',
+  'trash',
+  'trashCleared',
   // V2-1.15 §5.2 — AI runs and leases (each one transaction = one RPC).
   'runsBegin',
   'runsClaim',

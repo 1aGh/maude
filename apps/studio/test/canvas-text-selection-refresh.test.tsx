@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, spyOn, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { disposeCanvasToastHost } from '../canvas-notifications.tsx';
 import { CanvasShell } from '../canvas-shell.tsx';
 import { ToolProvider } from '../use-tool-mode.tsx';
 import { UndoStackProvider } from '../use-undo-stack.tsx';
@@ -108,6 +109,9 @@ test('a same-element selection refresh preserves an open text editor and its com
     expect(messages.filter((m) => m.dgn === 'edit-text')).toHaveLength(1);
   } finally {
     await act(async () => root.unmount());
+    // A standalone shell (no parent frame) mounts its own notification host; left mounted, it keeps
+    // its Sonner subscription and renders the next file's toasts into this file's dead DOM.
+    await act(async () => disposeCanvasToastHost());
     post.mockRestore();
     host.remove();
   }

@@ -258,6 +258,23 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'present.canvas': NAV('<canvas> --mode present'),
   'present.from-selection': NAV('<canvas> --mode present'),
   'present.from-start': NAV('<canvas> --mode present'),
+  // S3.2b — an agent steps by opening the canvas in Present at the artboard it wants (`#<artboard>`);
+  // the Pointer is a mouse gesture, human below.
+  'present.next': NAV('<canvas>#<artboard> --mode present'),
+  'present.prev': NAV('<canvas>#<artboard> --mode present'),
+  // S3.5 — the agent writes the same keys the sheet does, in the canvas's .meta.json (V2-1.12 R6);
+  // the studio's own writes go through PATCH /_api/present-meta, which refuses every role below edit.
+  'present.order-notes': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/present-meta', method: 'PATCH' },
+    agent: file(
+      'canvas-meta',
+      'design:design',
+      'present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json'
+    ),
+  },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
@@ -286,6 +303,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),
+  'tool.pointer': {
+    effect: 'none',
+    agent: human('keys', 'the presenter’s own pointer; an agent has no mouse to show'),
+  },
   'tool.stickers': BOARD('Add a sticker element to the canvas’s .annotations.json'),
   // S4.4: a template is a --board spec; the verb is the agent's door to the same expansion
   ...Object.fromEntries(
@@ -432,6 +453,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'chat.archive': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.trash': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.copy-transcript': { effect: 'none', agent: human('ai-chat') },
+  // S5.12: the Advanced fold's rows. A row only takes the person to a setting (the settings themselves are the
+  // chat session's config, per Mac and per chat); an agent sets them through its own session — human `ai-chat`.
+  ...Object.fromEntries(
+    ['ask-before', 'model', 'effort', 'fast-mode', 'show-in-chat', 'suggestions', 'raw-log'].map(
+      (r) => [`chat.advanced.${r}`, { effect: 'none', agent: human('ai-chat') }]
+    )
+  ),
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {
