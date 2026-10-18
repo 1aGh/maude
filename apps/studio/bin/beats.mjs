@@ -23,8 +23,8 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { analyzeBeats, beatGridFrom, downbeatsOf } from '../video/beats.ts';
-import { decodeAudio } from '../video/decode.ts';
-import { DecodeError } from '../video/decode-webaudio.ts';
+import { DecodeError, decodeAudio, findFfmpeg } from '../video/decode.ts';
+import { chromiumDecoder } from '../video/decode-webaudio.ts';
 import {
   BPM_RANGE,
   readBeats,
@@ -172,10 +172,16 @@ export async function run(
   const existing = readExisting(sidecarAbs, sidecarRel);
 
   const decoded = await decodeAudio(abs, {
+    sampleRate: 22_050,
+    maxSeconds: 1800,
     prefer: opts.decode,
+    wavDirect: false, // the sidecar records ffmpeg | chromium
+    // PATH only (no Homebrew dirs): the beats verb's own contract, pinned by beats-verb.test
+    ffmpeg: opts.decode === 'chromium' ? null : findFfmpeg({ extraDirs: [] }),
+    chromium: chromiumDecoder,
     onFallback: (why) => io.err(`beats: ${why}\n`),
   });
-  const analysis = analyzeBeats(decoded.samples, {
+  const analysis = analyzeBeats(decoded.pcm, {
     ...(opts.bpm !== undefined ? { bpm: opts.bpm } : {}),
     ...(opts.bpm !== undefined && existing ? { keepDownbeats: downbeatsOf(existing) } : {}),
   });
@@ -219,7 +225,7 @@ async function main() {
   } catch (err) {
     process.stderr.write(`beats: ${err.message}\n`);
     if (err instanceof DecodeError) {
-      process.exit(err.kind === 'no-runtime' || err.kind === 'no-browser' ? 3 : 4);
+      process.exit(err.code === 'no-decoder' ? 3 : 4);
     }
     if (err instanceof SidecarWriteError) process.exit(1);
     process.exit(err.code === 2 || err.code === 4 ? err.code : 1);

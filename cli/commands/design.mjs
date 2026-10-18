@@ -130,6 +130,10 @@ const BIN_VERBS = new Set([
   // the shared captions.ts reflow. No dev server; whisper.cpp is a SOFT dep with
   // ElevenLabs Scribe / Groq Whisper as the cloud fallback.
   'transcribe',
+  // S7.2 (V2-1.10 §5.7). `transcribe-local` is the LOCAL-ONLY sibling of `transcribe`: words +
+  // speech regions for one project asset → assets/<name>.transcript.json. whisper.cpp only, never a
+  // model download, no --provider (so it is auto tier; the cloud engines stay on `transcribe`).
+  'transcribe-local',
   // feature-ai-media-generation (Task 2.5, DDR-164). `audio-search` is the
   // reuse-before-you-pay verb: search the project's own generated audio + the
   // user's ElevenLabs history before spending credits on a new music/SFX/VO
@@ -421,7 +425,7 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   smoke · canvas-edit · handoff · asset-sweep · visual-sanity · fetch-asset
   draw-build · draw-proof · svg-optimize · to-lottie · read-annotations · annotate
   canvas-rects · ingest-footage · probe-footage · smart-frames
-  generate · transcribe · audio-search
+  generate · transcribe · transcribe-local · audio-search
         Invoke the bundled helper of the same name. maude resolves it from its
         own package root and sets CLAUDE_PLUGIN_ROOT for the child; stdout,
         stderr, and exit code pass straight through (so command-substitution

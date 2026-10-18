@@ -105,6 +105,12 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('import-tokens', 'project'),
   d('ingest-footage', 'project'),
   d('photo-adjust', 'project'),
+  // S7.2 (V2-1.10 §5.7). Local whisper.cpp only: writes assets/<name>.transcript.json inside the
+  // project, never downloads a model, has no --provider (a flag must never raise a tier — the cloud
+  // engines stay behind `transcribe`).
+  d('transcribe-local', 'project', {
+    note: 'local whisper.cpp only; no network, no model download',
+  }),
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),

@@ -8,7 +8,10 @@
 // beats as the ffmpeg path; for 16-bit PCM at the target rate the two are bit-identical.
 //
 // A missing Chromium ends the shim with exit 3 and `_pw-launch`'s one-line install hint; that surfaces
-// here as a `DecodeError` of kind 'no-browser' with the hint as its message.
+// here as a `DecodeError` of code 'no-decoder' with the hint as its message.
+//
+// S7.6: this is the ONE Chromium decode (S7.2's `_decode-chromium.mjs` folded in). `chromiumDecoder` is the
+// `ChromiumDecoder` that `video/decode.ts` takes injected; the error class is decode.ts's.
 
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -17,16 +20,9 @@ import path from 'node:path';
 
 import { exportShimPath, resolveExportRuntime } from '../exporters/_runtime.ts';
 
-export type DecodeErrorKind = 'no-runtime' | 'no-browser' | 'undecodable' | 'failed';
+import { type ChromiumDecoder, DecodeError, MAX_DECODE_SEC } from './decode.ts';
 
-export class DecodeError extends Error {
-  readonly kind: DecodeErrorKind;
-  constructor(kind: DecodeErrorKind, message: string) {
-    super(message);
-    this.name = 'DecodeError';
-    this.kind = kind;
-  }
-}
+export { DecodeError };
 
 export interface WebAudioDecodeOptions {
   /** target sample rate (the browser resamples); default 22 050 */
@@ -52,7 +48,7 @@ export async function decodeWithChromium(
   try {
     runtime = resolveExportRuntime();
   } catch (e) {
-    throw new DecodeError('no-runtime', e instanceof Error ? e.message : String(e));
+    throw new DecodeError('no-decoder', e instanceof Error ? e.message : String(e));
   }
   const shim = exportShimPath(`_${SHIM}`);
   const dir = mkdtempSync(path.join(tmpdir(), 'maude-decode-'));
@@ -75,7 +71,7 @@ export async function decodeWithChromium(
     );
     if (code !== 0) {
       const msg = stderr.trim().split('\n').pop() || `the decoder exited ${code}`;
-      throw new DecodeError(code === 3 ? 'no-browser' : code === 4 ? 'undecodable' : 'failed', msg);
+      throw new DecodeError(code === 3 ? 'no-decoder' : 'failed', msg);
     }
     const bytes = readFileSync(out);
     const aligned = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
@@ -84,6 +80,11 @@ export async function decodeWithChromium(
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+/** The injected Chromium half of `decodeAudio` (`opts.chromium`). */
+export const chromiumDecoder: ChromiumDecoder = (file, sampleRate, o = {}) =>
+  // no cut asked for: decode past the cap so decodeAudio can refuse "too long" instead of silently cutting
+  decodeWithChromium(file, { sampleRate, maxSeconds: o.maxSeconds ?? MAX_DECODE_SEC + 1 });
 
 function run(
   cmd: string,
