@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
+import { modeCell } from '../../../bridge/mode-shows.ts';
 import { notify } from '../../../notifications.tsx';
 import { normalizeOpenPath } from '../../share-link.js';
 import { SYSTEM_TAB } from '../../shell/constants.js';
@@ -35,10 +36,10 @@ export function PreviewChrome({ mode, caps, name, zoom, back, onBack, state = 'i
   );
 }
 
-/** Shell mode as a boolean, from the one store. */
+/** The project pill folded to its mark? From the one store, through the what-shows table (`project-menu` row). */
 export function usePreviewMode() {
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
-  return snap.mode === 'preview';
+  return modeCell('project-menu', snap.mode, snap.present) === 'folded-pill';
 }
 
 /** Keeps the islands mounted for `ms` after `on` goes false, so they can fade out. */

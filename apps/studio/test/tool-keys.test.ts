@@ -179,7 +179,7 @@ describe('escStep (04 md-esc)', () => {
     ['preview', 'sticky', 'rest'],
     ['preview', 'browse', 'back'], // two steps when N C M A E S brought you here
     ['viewing', 'comment', 'rest'],
-    ['viewing', 'move', 'stay'], // "there's no Edit to return to"
+    ['viewing', 'inspect', 'stay'], // "there's no Edit to return to" (S3.11: Viewing rests on inspect)
     ['present', 'browse', 'back'],
   ];
   for (const [mode, tool, want] of rows)
@@ -285,9 +285,9 @@ describe('input-router: governed keys (M3)', () => {
     expect(key('v', p)).toEqual({ kind: 'mode-request', mode: 'edit', tool: 'move', cause: 'key' });
   });
 
-  test("Viewing: H arms the select & inspect `move` (inspect is S3's); N asks — the shell denies", () => {
+  test('Viewing: H arms `inspect` (S3.11: a tool of its own); N asks — the shell denies', () => {
     const v = gov('viewing', COMMENTER);
-    expect(key('h', v)).toEqual({ kind: 'tool', tool: 'move' });
+    expect(key('h', v)).toEqual({ kind: 'tool', tool: 'inspect' });
     expect(key('c', v)).toEqual({ kind: 'tool', tool: 'comment' });
     expect(key('n', v)).toEqual({
       kind: 'mode-request',

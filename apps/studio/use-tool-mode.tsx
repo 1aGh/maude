@@ -118,6 +118,9 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   // the Preview toggle / Esc-in-preview.
   { id: 'browse', label: 'Browse', shortcut: '', cursor: TOOL_CURSORS.browse },
   { id: 'move', label: 'Select', shortcut: 'V', cursor: TOOL_CURSORS.move },
+  // S3.11 — Viewing's resting tool (04 md-inspect): a click inspects, a drag pans. No letter of its own:
+  // Viewing's toolbar key (H) arms it.
+  { id: 'inspect', label: 'Inspect', shortcut: '', cursor: TOOL_CURSORS.inspect },
   { id: 'hand', label: 'Hand', shortcut: 'H', cursor: TOOL_CURSORS.hand },
   { id: 'comment', label: 'Comment', shortcut: 'C', cursor: TOOL_CURSORS.comment },
   { id: 'pen', label: 'Pen', shortcut: 'B', cursor: TOOL_CURSORS.pen },
@@ -150,7 +153,7 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
  * ABSENT from the palette, its letter shortcut dead, and `setTool` refuses it
  * (which also covers the shell's `tool-set` postMessage lane).
  */
-const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand']);
+const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand', 'inspect']);
 
 /** Pure filter — exported for unit tests. */
 export function filterToolsForReadOnly(

@@ -35,8 +35,6 @@ export const SUB_VERBS = {
   comments: { list: NATIVE, reply: NATIVE, resolve: NATIVE, reopen: NATIVE, add: NATIVE },
   // S1.17 (S1-trash.md): `list` reads, `restore` brings one item back, `clear` is the owner's (human tier).
   trash: { list: NATIVE, restore: NATIVE, clear: NATIVE },
-  // S9.7b — the write sub-verbs are prompt tier (verbs.ts `comments …` entries); only `list` is auto.
-  comments: { list: NATIVE, reply: NATIVE, resolve: NATIVE, reopen: NATIVE, add: NATIVE },
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
   runs: { list: NATIVE, stop: NATIVE },

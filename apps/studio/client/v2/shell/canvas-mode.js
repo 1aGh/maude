@@ -275,6 +275,32 @@ export function decideModeRequest(req, { caps, presenting, mode, modalOpen, view
   return presenting ? { kind: 'exit-present', next: set } : set;
 }
 
+/**
+ * S3.12 — esc with the SHELL focused (a switch button, the project pill, a panel — not a text field, not an
+ * open menu/sheet, which close first). The same promise the canvas keeps: one step back, never two, never
+ * out of the project (04 md-esc). The canvas has its own tools/selection; with the shell focused the only
+ * step left is the mode's terminal:
+ *   a past version held   → back to now
+ *   Present               → back to `returnTo`
+ *   Preview               → `baseMode` (Edit, or Viewing for a viewing role)
+ *   Edit / Viewing        → nothing ("there's no Edit to return to")
+ * @returns {{ kind: 'exit-viewing' } | { kind: 'exit-present' } | { kind: 'set', mode } | null}
+ */
+export function shellEscDecision({
+  mode,
+  presenting,
+  viewing,
+  caps,
+  typing = false,
+  overlayOpen = false,
+}) {
+  if (typing || overlayOpen) return null;
+  if (viewing) return { kind: 'exit-viewing' };
+  if (presenting) return { kind: 'exit-present' };
+  if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
+  return null;
+}
+
 /** Q1 — ⌥⌘P (and Menu / ⌘K "Preview"): Preview toggles back to `baseMode`, anything else enters
  *  Preview. The shell-focus key handler selects this; the canvas-focus key asks with `back`. */
 export const previewToggleTarget = (mode, caps) =>

@@ -48,6 +48,8 @@ import {
   toolKeyAction,
   V1_TOOL_IDS,
 } from './bridge/canvas-modes.ts';
+import { escOwnerOpen } from './bridge/esc-ladder.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { isEmbedCanvas, isHistoricalCanvas } from './read-only-mode.ts';
 import { lastMarkerTip } from './toolbars/marker-tip.ts';
 
@@ -93,6 +95,8 @@ export type Tool =
   // untouched. Pressing V flips to `move` (the select tool). See DDR-187.
   | 'browse'
   | 'move'
+  // S3.11 — Viewing's resting tool: a click inspects (outline + size tag, no handles), a drag pans.
+  | 'inspect'
   | 'hand'
   | 'comment'
   | 'pen'
@@ -253,8 +257,10 @@ const V1_TOOLS: ReadonlySet<string> = new Set<string>([
   'line',
   'polygon',
   'slice',
+  // S3.11 — `inspect` is a tool with no v1 bridge
+  'inspect',
 ]);
-/** A v2 slot tool as the v1 `Tool` the canvas arms (Viewing's `inspect` rides `move` until S3). */
+/** A v2 slot tool as the `Tool` the canvas arms (S3.11: `inspect` is one, with no bridge). */
 const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) as Tool | null;
 
 function classifyToolKey(chord: string, mode: CanvasModeV2, input: ClassifyInput): RouterAction {
@@ -367,6 +373,15 @@ export function classify(input: ClassifyInput): RouterAction {
         clientY: input.clientY ?? 0,
       };
     }
+    // S3.11 — Inspect: the halo previews the deepest element a click would inspect.
+    if (input.activeTool === 'inspect') {
+      return {
+        kind: 'hover',
+        deep: true,
+        clientX: input.clientX ?? 0,
+        clientY: input.clientY ?? 0,
+      };
+    }
     // Comment tool: always paint a preview halo on the deepest element under
     // cursor — that's the element the user is about to comment on. Comment
     // pin attachment is to the same element they were hovering.
@@ -424,6 +439,18 @@ export function classify(input: ClassifyInput): RouterAction {
     // the controller's pointerdown listener on the same host claims the drag.
     if (input.activeTool === 'hand') return { kind: 'no-op' };
 
+    // S3.11 — Inspect: a click picks the deepest element and holds exactly one (Shift does not add).
+    // The press is not claimed (see onPointerDown): a drag from here pans the canvas.
+    if (input.activeTool === 'inspect') {
+      return {
+        kind: 'select',
+        mode: 'replace',
+        deep: true,
+        clientX: input.clientX ?? 0,
+        clientY: input.clientY ?? 0,
+      };
+    }
+
     // Browse tool (feature-4 boot default): bare/Shift left-clicks pass
     // through so the mock stays alive (a button press fires, a link follows,
     // an input focuses). Cmd/Ctrl+click is the ESCAPE HATCH (user steer
@@ -474,7 +501,9 @@ export interface RouterCallbacks {
   onDropComment?: (a: Extract<RouterAction, { kind: 'drop-comment' }>) => void;
   onContextMenu?: (a: Extract<RouterAction, { kind: 'context-menu' }>) => void;
   onTool?: (a: Extract<RouterAction, { kind: 'tool' }>) => void;
-  onEscape?: () => void;
+  /** S3.12 — `true` when the press ran a rung (the ladder in bridge/esc-ladder.ts): the mode is not
+   *  asked to step back as well. Anything else (`void` included) is v1's "ran everything". */
+  onEscape?: () => boolean | void;
   /** Phase 20 — Cmd+Z / Ctrl+Z. */
   onUndo?: () => void;
   /** Phase 20 — Cmd+Shift+Z / Ctrl+Y / Cmd+Y. */
@@ -599,7 +628,7 @@ export function isDesignSurface(t: EventTarget | null): boolean {
  * Space-drag and middle-button pan everywhere, ahead of this.
  */
 export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
-  return tool === 'hand' || (tool === 'browse' && !onDesign);
+  return tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign);
 }
 
 /**
@@ -666,7 +695,8 @@ export function linkFollowOf(
   target: EventTarget | null,
   click: { mode: CanvasModeV2 | null | undefined; button: number; mod: boolean; shift?: boolean }
 ): { elementId: string; artboardId: string | null } | null {
-  if (click.mode !== 'preview' || click.button !== 0 || click.mod || click.shift) return null;
+  if (!modeShows(click.mode, 'live-design') || click.button !== 0 || click.mod || click.shift)
+    return null;
   const el = (target as Element | null)?.closest?.('[data-cd-link]');
   const id = el?.getAttribute('data-cd-id');
   if (!el || !id || id.length > 48 || !LINK_ELEMENT_ID_RE.test(id) || /^[0-9a-f]{8}$/.test(id))
@@ -766,11 +796,13 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
         case 'tool':
           callbacks.onTool?.(action);
           break;
-        case 'escape':
-          callbacks.onEscape?.();
-          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep).
-          if (action.back) postModeRequest({ mode: 'back', cause: 'esc' });
+        case 'escape': {
+          const ranRung = callbacks.onEscape?.();
+          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep). S3.12: only when
+          // the press ran no rung — a cleared selection is the step, the mode stays (04 md-esc, one at a time).
+          if (action.back && ranRung !== true) postModeRequest({ mode: 'back', cause: 'esc' });
           break;
+        }
         case 'mode-request':
           postModeRequest(action);
           if (action.panel) postPanelOpen(action.panel);
@@ -845,7 +877,11 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       // click-drag text-selection — it only skips stopImmediatePropagation,
       // which is the one call that would keep the event from ever reaching
       // the bubble-phase listener bound to the very element it targeted.
-      const yields = yieldsToArtboardDrag(action, e.target, e);
+      // S3.11 — the same exemption for Inspect: its select must not keep the viewport controller from
+      // arming a pan on the same press (a click inspects, a drag pans).
+      const yields =
+        yieldsToArtboardDrag(action, e.target, e) ||
+        (action.kind === 'select' && getActiveTool() === 'inspect');
       if (action.kind !== 'no-op') {
         // Suppress native behavior on every event the router claims —
         // button presses don't fire, inputs don't focus, the canvas
@@ -926,7 +962,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       const wouldRouteKind: RouterAction['kind'] | null =
         tool === 'comment'
           ? 'drop-comment'
-          : tool === 'move' && e.button === 0
+          : (tool === 'move' || tool === 'inspect') && e.button === 0
             ? 'select'
             : (isAnnotationTool(tool) || tool === 'browse') && mod && e.button === 0
               ? 'select'
@@ -988,6 +1024,9 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           singleKeys: gov?.singleKeys ?? true,
         })
       );
+      // S3.12 — a context menu / thread popover / picker owns this esc and closes itself: no rung runs,
+      // the mode does not move, the key is not consumed here.
+      if (action.kind === 'escape' && escOwnerOpen(host.ownerDocument ?? document)) return;
       if (
         action.kind === 'tool' ||
         action.kind === 'mode-request' ||

@@ -174,6 +174,7 @@ export const TOOL_CURSORS: Record<Tool, string> = Object.freeze({
   // canvas reads as ALIVE. Never a forced custom glyph.
   browse: 'default',
   move: MOVE,
+  inspect: MOVE, // S3.11 — the arrow: inspect reads, it does not grab
   hand: HAND,
   comment: COMMENT,
   pen: PEN,

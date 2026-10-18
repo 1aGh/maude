@@ -81,7 +81,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'object.enter',
     exec: 'canvas',
-    keys: [{ chord: '↵', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } }],
+    keys: [
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
   },
   {
     id: 'object.select-parent',
@@ -286,6 +292,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         layer: 'selection',
         when: { focus: ['canvas'], selection: ['artboard'] },
         alias: true,
+      },
+    ],
+  },
+  {
+    id: 'inspect.edit',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', mode: ['preview', 'viewing'], selection: ['object'] },
+    keys: [
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['preview', 'viewing'], selection: ['object'] },
       },
     ],
   },

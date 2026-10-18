@@ -248,8 +248,9 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
       (i) => (i as HTMLInputElement).value
     );
     expect(values).toEqual(['1220', '22', '148', '44']);
-    expect(facts?.textContent).toContain('button');
-    expect(facts?.textContent).toContain('cta primary');
+    // S11.8: the tag and the classes are rows of their own (Element › Tag · Classes), not part of the facts
+    expect(q(host, 'adv-tag')?.textContent).toBe('Tagbutton');
+    expect(q(host, 'adv-classes')?.textContent).toBe('Classescta primary');
   });
 
   test('an artboard has its own sections (S2.8); Advanced holds only what has no section yet', async () => {
@@ -271,11 +272,11 @@ describe('› Advanced holds the unchanged v1 raw editor', () => {
     expect(body?.querySelector('[data-tour="css-panel"]')).toBeNull();
   });
 
-  test('tokens it uses are listed once each, with their variable as the hover', async () => {
+  test('tokens bound: the property in plain words, the variable beside it and as the hover (S11.8)', async () => {
     const host = await frame();
     const list = q(host, 'inspector-tokens-used');
     const labels = [...(list?.querySelectorAll('li') ?? [])].map((li) => li.textContent);
-    expect(labels).toEqual(['Space 8', 'Ink', 'Radius round']);
+    expect(labels).toEqual(['Gap--space-8', 'Fill--ink', 'Corners--radius-round']);
     expect(list?.querySelector('li')?.getAttribute('title')).toBe('--space-8');
   });
 });

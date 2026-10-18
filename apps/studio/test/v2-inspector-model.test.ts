@@ -345,6 +345,11 @@ describe('the registry carries the inspector actions (rule 14: each with its AI 
       'element.copy-id',
       'element.set-id',
       'element.clear-link', // S3.10a
+      // S11.8
+      'inspector.copy-code',
+      'inspector.edit-css-as-text',
+      'element.detach',
+      'inspect.copy-code', // S3.11
     ]);
     for (const id of INSPECTOR_ACTION_IDS) {
       const def = ACTIONS_BY_ID.get(id);
@@ -354,6 +359,12 @@ describe('the registry carries the inspector actions (rule 14: each with its AI 
       expect(AGENT_PATHS[id], id).toBeTruthy();
     }
     expect(ACTIONS_BY_ID.get('element.set-id')?.enabled?.minRole).toBe('edit');
+    // S11.8: the code is a download (Can comment and up); the other two write the file
+    expect(ACTIONS_BY_ID.get('inspector.copy-code')?.enabled?.minRole).toBe('comment');
+    expect(ACTIONS_BY_ID.get('inspector.edit-css-as-text')?.enabled?.minRole).toBe('edit');
+    expect(ACTIONS_BY_ID.get('element.detach')?.enabled?.minRole).toBe('edit');
+    // S3.11: the Inspect panel's Copy code is the same download, so the same floor
+    expect(ACTIONS_BY_ID.get('inspect.copy-code')?.enabled?.minRole).toBe('comment');
     expect(ACTIONS_BY_ID.get('inspector.copy-css')?.label).toBe('Copy CSS');
     // writing an id is a project write; an agent does not rename ids (A5 lead: the references
     // live in _comments/ + the board, which agents never write) — the copies write nothing

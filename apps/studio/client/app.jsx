@@ -229,6 +229,7 @@ import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
 import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
 import { undoProjection } from './v2/undo/use-undo-projection.jsx';
+import { ShellInspectPanel } from './v2/inspect/inspect-host.jsx';
 import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-host.jsx';
 import { ViewBarHost } from './v2/history/history-host.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
@@ -2970,6 +2971,8 @@ function ShellTree() {
           {/* S3.9 — Preview's own islands: "Previewing <canvas> · esc to edit" top centre, the zoom readout
               bottom left. Nothing in the other modes. */}
           <ShellPreviewChrome />
+          {/* S3.11 — Inspect: the specs of the element a ⌘-click (Preview) / click (Viewing) points at. */}
+          <ShellInspectPanel />
           {/* S1.14 — "Viewing “…” · 5 Oct, 18:40 · Jonas · esc back to now" while the mode store holds a past version. */}
           <ViewBarHost activePath={activePath} />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a

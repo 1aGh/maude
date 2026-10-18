@@ -12,8 +12,8 @@
 import { useEffect, useRef } from 'react';
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
-import type { ActionId } from './actions/types.ts';
-import { canvasSingleKeys } from './bridge/canvas-mode-store.ts';
+import type { ActionId, SelKind } from './actions/types.ts';
+import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { isEditableTarget } from './input-router.tsx';
 
 export type CanvasKeyHandlers = Readonly<Record<ActionId, (e: KeyboardEvent) => void>>;
@@ -23,6 +23,8 @@ export interface UseCanvasKeysOptions {
   target?: 'window' | 'document';
   /** v1's phase. Default bubble. */
   capture?: boolean;
+  /** S3.11 — what the canvas has selected right now (read per keydown), for a selection-keyed binding. */
+  selection?: () => SelKind;
 }
 
 export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOptions = {}): void {
@@ -30,6 +32,8 @@ export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOp
   handlersRef.current = handlers;
   const ids = Object.keys(handlers).sort().join('|');
   const { target = 'window', capture = false } = opts;
+  const selectionRef = useRef(opts.selection);
+  selectionRef.current = opts.selection;
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const index = canvasKeyIndex(ids.split('|'));
@@ -40,8 +44,11 @@ export function useCanvasKeys(handlers: CanvasKeyHandlers, opts: UseCanvasKeysOp
         index,
         ke,
         isEditableTarget(ke.target),
-        undefined,
-        canvasSingleKeys()
+        // S3.11 — the shell's mode when it governs this canvas (a binding keyed to Preview/Viewing, like
+        // `inspect.edit`, can only match with it); undefined on a free canvas = the v1 context ('edit')
+        canvasModeStore(window).get().mode ?? undefined,
+        canvasSingleKeys(),
+        selectionRef.current?.()
       );
       if (id) handlersRef.current[id]?.(ke);
     };

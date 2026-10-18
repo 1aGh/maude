@@ -166,6 +166,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S11.6 — the structured canvas errors (routes/canvas-source.ts, with /_api/canvas-source)
+  '/_api/canvas-errors': { class: 'read' },
   // S1.12b routes/history.ts — Version history (V2-1.9 §5.11)
   '/_api/project/versions': { class: 'read' },
   '/_api/project/changes': { class: 'read' },

@@ -18,6 +18,7 @@ import { resolveAccess } from '../access/scope.ts';
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-source.ts';
 import { type AnnotationRouteDeps, createAnnotationRoutes } from './annotations.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
@@ -66,6 +67,8 @@ export interface RouteDeps {
   elementLinks: ElementLinksRouteDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S11.6 — `GET /_api/canvas-source` + `GET /_api/canvas-errors` (main origin, `export`) */
+  canvasSource: CanvasSourceRouteDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
   trash?: TrashRouteDeps;
   /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
@@ -103,6 +106,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       convert ? { ...projectUndo, guard: convert.undoGuard } : projectUndo
     ),
     ...createPresentRoutes(deps.present),
+    ...createCanvasSourceRoutes(deps.canvasSource),
     ...createTrashRoutes(
       deps.trash ?? {
         control: () => null,

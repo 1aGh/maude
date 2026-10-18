@@ -12,7 +12,7 @@ import { documentIndex } from './documents.ts';
 import { CANVAS_KEYMAP } from './keymap.gen.ts';
 import { chordFromEvent, type KeyEventLike } from './keys.ts';
 import { type KeyIndex, resolveChord } from './resolve.ts';
-import type { ActionId, KeyedAction, Mode } from './types.ts';
+import type { ActionId, KeyedAction, Mode, SelKind } from './types.ts';
 
 /** The canvas-document bindings of these actions. Build once per owner. */
 export function canvasKeyIndex(ids: Iterable<ActionId>): KeyIndex<KeyedAction> {
@@ -27,13 +27,15 @@ export function resolveCanvasKey(
   typing: boolean,
   mode?: Mode,
   /** The shell's "Single-key shortcuts" switch (bridge `key-prefs`, canvas-mode-store); absent = on. */
-  singleKeys?: boolean
+  singleKeys?: boolean,
+  /** S3.11 — what the canvas has selected, for a binding keyed to it (`inspect.edit`); absent = 'none'. */
+  selection?: SelKind
 ): ActionId | null {
   return (
     resolveChord(
       index,
       chordFromEvent(e),
-      canvasKeyCtx({ typing, readOnly: false, mode, singleKeys })
+      canvasKeyCtx({ typing, readOnly: false, mode, singleKeys, selection })
     )?.action.id ?? null
   );
 }

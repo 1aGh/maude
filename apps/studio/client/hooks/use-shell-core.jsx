@@ -25,12 +25,13 @@ import {
   isModuleCanvasPath,
 } from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
-import { setPresentSource, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
+import { setPresentSource, shellMode, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
 import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
 import { shouldCloseOnDeselect, shouldOpenOnSelect } from '../v2/shell/inspector-follow.js';
+import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
 
@@ -913,9 +914,12 @@ export function useShellCore({}) {
     (sel) => {
       // V2-4.4b — the rule is v2/shell/inspector-follow.js (pref on, not a viewer — Cloud Phase 25 C2,
       // a stable element id, never stealing from an open main panel; the AI chat does not count).
+      // S3.11 — in Preview and Viewing the selection is an INSPECTION: its specs are the floating Inspect
+      // panel (v2/inspect), not the docked Inspector, so the follow rule treats them like a viewer.
+      const reads = modeShows(shellMode.get().mode, 'inspect-panel');
       const open = shouldOpenOnSelect({
         pref: autoOpenInspectorRef.current,
-        viewer: !!viewerMode,
+        viewer: !!viewerMode || reads,
         hasId: !!sel?.id,
         anyMainOpen: anyRightPanelOpenRef.current,
       });

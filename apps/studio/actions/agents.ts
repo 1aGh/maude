@@ -245,6 +245,32 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.trash': TSX(
     'Remove the <DCArtboard id="…"> element (canvas-tsx.md § Remove an artboard), its layout.artboards[] entry in the .meta.json and, in the .annotations.json, the annotations whose parentArtboard is it with what sits in its sections; the canvas keeps at least one artboard'
   ),
+  // S11.8 — Inspector › Advanced, the code half. Copy code is the element's JSX read from the .tsx; Edit CSS as
+  // text is the style props; Detach is `/_api/detach-component` (clone the definition, repoint ONE usage).
+  'inspector.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspector.edit-css-as-text': TSX(
+    'Edit the element’s style={{…}} props in the .tsx, one declaration per property'
+  ),
+  'element.detach': TSX(
+    'Copy the component definition under a new name and point this one instance at the copy; the other places keep the original'
+  ),
+  // S3.11 — the Inspect panel: Copy code is the clipboard (read the JSX from the .tsx instead); Edit ↵ is a view change.
+  'inspect.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspect.edit': NAV('<canvas>@<element> --mode edit'),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),

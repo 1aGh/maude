@@ -12919,7 +12919,7 @@
     "pattern": false,
     "meaning": "› Advanced › Element id: the id field. Enter or leaving it renames the id (and every reference to it); esc puts the old one back; a computed id shows as the placeholder.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "ElementId"
     },
     "region": "inspector",
@@ -12935,7 +12935,7 @@
     "pattern": false,
     "meaning": "The one-line reason an id was not changed (invalid, taken, locked, held by AI). `role=alert`.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "ElementId"
     },
     "region": "inspector",
@@ -12951,7 +12951,7 @@
     "pattern": false,
     "meaning": "› Advanced › Copy id: the element id on the clipboard.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "CopyButton"
     },
     "region": "inspector",
@@ -12967,7 +12967,7 @@
     "pattern": false,
     "meaning": "› Advanced › Copy CSS: the element's declarations (authored, then custom properties) on the clipboard.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "CopyButton"
     },
     "region": "inspector",
@@ -12981,10 +12981,10 @@
     "hook": "inspector-tokens-used",
     "kind": "testid",
     "pattern": false,
-    "meaning": "› Advanced › Tokens it uses: one `li` per design-system token the element's CSS refers to; `title` = the variable.",
+    "meaning": "› Advanced › Tokens bound: one `li` per (property, token) the element's CSS binds — the property in plain words (Fill · Text colour · Corners) and the variable in `code`; `title` = the variable.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced.jsx",
-      "symbol": "TokensUsed"
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "TokensBound"
     },
     "region": "inspector",
     "consumers": [],
@@ -12997,9 +12997,9 @@
     "hook": "inspector-facts",
     "kind": "testid",
     "pattern": false,
-    "meaning": "› Advanced: where it is, how big, its tag and class, the resolved fill / text / radius — what the Inspect tab showed.",
+    "meaning": "› Advanced › Element: where it is, how big, the resolved fill / text / radius — what the Inspect tab showed (tag and classes are their own rows now).",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/advanced.jsx",
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
       "symbol": "InspectFacts"
     },
     "region": "inspector",
@@ -15888,6 +15888,454 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/external-link.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-group-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One group of › Advanced; `<id>` ∈ element, used-in, tokens, css, artboard, in-code. Drawn only when a row is registered for the selection (advanced-rows.js).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "Groups"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Element › Tag: the element's tag.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-classes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Element › Classes: its class list (absent when it has none).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-used-in",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Used in › Edits apply to: `Shared · N places` or `Only this element`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-detach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Used in › Detach: clone the shared component for this instance only (`/_api/detach-component`). Writers only, shared elements only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-css-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS: the element's inline declarations and HTML attributes, read-only rows.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssList"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-edit-css-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › Edit as text: swaps the list for one block of `property: value;` lines. Writers only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-css-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › Edit as text: the textarea.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssAsText"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-css-text-apply",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › Edit as text › Apply: writes only the lines that changed (a line taken away resets that property).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssAsText"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-css-text-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › Edit as text › Cancel.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssAsText"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-css-text-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › Edit as text: the line that is not `property: value`, or a write that did not land.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssAsText"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-add-property",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › + Property: opens the name/value pair. Writers only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssAdd"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-add-attribute",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › CSS › + Attribute: opens the name/value pair. Writers only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CssAdd"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-add-<kind>-form",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The name/value pair opened by + Property / + Attribute; `<kind>` ∈ property, attribute.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "AddPair"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-add-<kind>-apply",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The Add button of that pair; `<kind>` ∈ property, attribute.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "AddPair"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-copy-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy style (registry `edit.copy-properties`). Writers only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "ActionButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-paste-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Paste style (registry `edit.paste-properties`). Writers only.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "ActionButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-copy-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy code: the element's JSX, read from `/_api/canvas-source` and cut by `data-cd-id`. Not drawn for Can view (the server refuses it the source).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CopyCodeButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "adv-copy-code-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Advanced › Copy code: why nothing was copied (what happened · what is safe · one verb).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/advanced-rows-default.jsx",
+      "symbol": "CopyCodeButton"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspect panel (Preview ⌘-click, Viewing click): the specs of one element, right, 300 wide. Read-only — no input anywhere in it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inspected element's name (its layer name, else its text, else its tag).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind chip beside the name (Button · Text · Image · Frame …).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-export-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Export button; `<id>` ∈ png-1x, png-2x, svg, handoff. Each opens the shell's Export sheet for the selection.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-copy-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy code, the primary action: the element's JSX on the clipboard. Absent for Can view (the server refuses source).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-copy-code-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-line reason when Copy code did not copy (refused source, an element not in the file).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-edit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Edit ↵: switch to Edit with this element selected. Drawn only for a role that can edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced › CSS fold of the Inspect panel: the element's authored declarations.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-panel.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": ".dc-cv-inspect-tag",
+    "kind": "selector",
+    "pattern": false,
+    "meaning": "The size tag (\"150 × 48\", world px) under the outline of an inspected element, inside the canvas; `data-on` true/false.",
+    "producer": {
+      "file": "apps/studio/inspect-overlay.tsx",
+      "symbol": "InspectOverlay"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/inspect-overlay.test.tsx"
     ],
     "v2": "new"
   },

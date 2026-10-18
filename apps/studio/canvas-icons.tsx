@@ -507,6 +507,7 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   browse: IconBrowse,
   move: IconMove,
   hand: IconHand,
+  inspect: IconHand, // S3.11 — Viewing's Hand slot (a drag pans)
   comment: IconComment,
   pen: IconPen,
   highlighter: IconHighlighter,

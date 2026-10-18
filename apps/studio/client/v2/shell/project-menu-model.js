@@ -173,6 +173,7 @@ export function menuCtx({
   canvasOpen = false,
   presenting = false,
   linkedHub = false,
+  observer = false,
 } = {}) {
   const facts = new Set();
   if (native) facts.add('native');
@@ -181,7 +182,9 @@ export function menuCtx({
   if (canvasOpen) facts.add('canvasOpen');
   if (presenting) facts.add('presenting');
   return {
-    role: readOnly ? 'comment' : 'owner',
+    // S3.12 — Can view (`observer`) is the registry's `view` rank, not `comment`: a rule-12 predicate with a
+    // `minRole: 'comment'` must hide from it. Callers that know the cloud role pass `observer`.
+    role: readOnly ? (observer ? 'view' : 'comment') : 'owner',
     // A tab served by a hub is the `cloud` shell (V2-4.8a: "Back to Home" is its dashboard link).
     shell: native ? 'desktop' : cloudTab ? 'cloud' : 'browser',
     mode: presenting ? 'present' : 'edit',
