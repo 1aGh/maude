@@ -15,6 +15,7 @@
 // enforces — V2-1.7 §5.7): no action declares `server` yet, so these rows are the server
 // half that the actions will point at. Roles are the registry's (`view` = Can view =
 // wire `observer`, `comment` = viewer, `edit` = member).
+// S1.7b: `trash.clear` (owner) is also a row; test/acl-l18-trash.test.ts consumes the table.
 
 import type { ActionDefAI, Role } from '../actions/types.ts';
 
@@ -57,6 +58,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
   // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
   { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
+  // Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only).
+  { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

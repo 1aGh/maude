@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ff8e46dafe74",
+  "manifestVersion": "e4fb22c46472",
   "actions": [
     {
       "id": "search.open",
@@ -772,6 +772,24 @@
         "path": "human",
         "because": "view-pref",
         "note": "shows the Trash list; the parked files are under <designRoot>/_trash/"
+      }
+    },
+    {
+      "id": "trash.clear",
+      "label": "Clear out the trash…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "owner",
+      "undo": "none",
+      "server": {
+        "route": "/_api/trash/clear",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "clear-trash",
+        "note": "only the project owner, in the Trash view; nothing an agent may do"
       }
     },
     {
