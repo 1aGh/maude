@@ -244,6 +244,29 @@ async function openExportDialog(port: number) {
  * this a refused export (the viewer-role 403 on `/_api/export-assemble`, found
  * exactly this way) reads as a test timeout with no cause attached.
  */
+/**
+ * S8.2 — the Export sheet: PNG/JPG sit in the section, every other format is a row under Other…; Scope is a
+ * radio group (`export-scope-<selection|canvas|folder|project>`) where v1 had a <select> of engine scopes.
+ */
+const V2_SCOPE: Record<string, string> = {
+  artboard: 'selection',
+  selection: 'selection',
+  'canvas-as-separate': 'canvas',
+  'canvas-whole': 'canvas',
+  'project-raw': 'project',
+};
+async function pickFormat(page: PwPage, format: string): Promise<void> {
+  if (format === 'png' || format === 'jpg') {
+    await page.click(`[data-testid="export-format-${format}"]`);
+    return;
+  }
+  await page.click('[data-testid="export-other"]');
+  await page.click(`[data-testid="export-other-menu"] [data-testid="export-format-${format}"]`);
+}
+async function pickScope(page: PwPage, scope: string): Promise<void> {
+  await page.click(`[data-testid="export-scope-${V2_SCOPE[scope] ?? scope}"]`);
+}
+
 async function exportAndDownload(page: PwPage, timeoutMs = 180_000): Promise<PwDownload> {
   const failed = page
     .waitForSelector('[data-testid="export-status"][data-ok="0"]', { timeout: timeoutMs })
@@ -293,8 +316,8 @@ describe('export E2E — browser lane, real dialog, real artifact', () => {
         const { page } = opened;
 
         for (const format of ['png', 'svg'] as const) {
-          await page.click(`[data-testid="export-format-${format}"]`);
-          await page.selectOption('[data-testid="export-scope"]', 'artboard');
+          await pickFormat(page, format);
+          await pickScope(page, 'artboard');
           const download = await exportAndDownload(page, 120_000);
           const file = await download.path();
           const bytes = await Bun.file(file).arrayBuffer();
@@ -320,7 +343,7 @@ describe('export E2E — browser lane, real dialog, real artifact', () => {
         // The DECK: every artboard captured here, composed in-cell. The
         // reported symptom was a silent modal close with nothing to show for
         // it, so assert the artifact AND the finished status.
-        await page.click('[data-testid="export-format-pptx"]');
+        await pickFormat(page, 'pptx');
         const deck = await exportAndDownload(page);
         const deckBytes = new Uint8Array(await Bun.file(await deck.path()).arrayBuffer());
         // PPTX is a zip — PK\x03\x04.
@@ -665,8 +688,8 @@ describe('export E2E — worker lane, real render service, real artifact', () =>
             }
           }
           if (viaDialog) {
-            await page.click(`[data-testid="export-format-${format}"]`);
-            await page.selectOption('[data-testid="export-scope"]', scope);
+            await pickFormat(page, format);
+            await pickScope(page, scope);
             await page.click('[data-testid="export-submit"]');
           } else {
             const r = await fetch(`http://localhost:${studioPort}/_api/export-jobs`, {

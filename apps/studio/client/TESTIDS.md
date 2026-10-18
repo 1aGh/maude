@@ -209,15 +209,35 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `export-format-<id>` | testid (pattern) | A format card in the Export dialog. `<id>` ∈ png, pdf, svg, html, pptx, mp4, gif, canva, zip, shadcn (temporal ones only when the canvas has comps). | `client/app.jsx` · `ExportDialog` | e2e:export-formats, test:export-e2e-lanes | moves — map in Phase 4 |
-| `export-lane-note` | testid | Note in the Export dialog that explains a blocked/degraded export lane. | `client/app.jsx` · `ExportDialog` | — | moves — map in Phase 4 |
-| `export-scope` | testid | The scope selector (canvas / artboard / selection…) in the Export dialog. | `client/app.jsx` · `ExportDialog` | e2e:export-formats, test:export-e2e-lanes | moves — map in Phase 4 |
+| `export-format-<id>` | testid (pattern) | A format card in the Export dialog. `<id>` ∈ png, pdf, svg, html, pptx, mp4, gif, canva, zip, shadcn (temporal ones only when the canvas has comps). | `client/v2/export/other-formats.jsx` · `OtherFormats` | e2e:export-formats, test:export-e2e-lanes | moves — map in Phase 4 |
+| `export-lane-note` | testid | Note in the Export dialog that explains a blocked/degraded export lane. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | — | moves — map in Phase 4 |
+| `export-scope` | testid | The scope selector (canvas / artboard / selection…) in the Export dialog. | `client/v2/export/scope-bar.jsx` · `ScopeBar` | e2e:export-formats, test:export-e2e-lanes | moves — map in Phase 4 |
 | `export-include-annotations` | testid | "Include annotations" checkbox. Emitted by the shell Export dialog AND by the in-canvas export dialog (`DialogShell`, inside the iframe). *Same testid in two documents (shell and canvas iframe).* | `client/app.jsx` · `ExportDialog`<br>`export-dialog.tsx` · `DialogShell` | — | moves — map in Phase 4 |
 | `export-long-comp-notice` | testid | Notice that a long video comp will export slowly. | `client/app.jsx` · `ExportDialog` | — | moves — map in Phase 4 |
 | `export-pdf-text` | testid | PDF "selectable text" option. Emitted by the shell Export dialog AND by the in-canvas export dialog. *Same testid in two documents (shell and canvas iframe).* | `client/app.jsx` · `ExportDialog`<br>`export-dialog.tsx` · `DialogShell` | — | moves — map in Phase 4 |
-| `export-status` | testid | Export status line; `data-ok="1"\|"0"` carries success/failure. | `client/app.jsx` · `ExportDialog` | test:export-e2e-lanes | moves — map in Phase 4 |
-| `export-recent` | testid | The recent-exports list in the Export dialog. | `client/app.jsx` · `ExportDialog` | — | moves — map in Phase 4 |
-| `export-submit` | testid | The Export submit button. | `client/app.jsx` · `ExportDialog` | e2e:export-formats, test:export-e2e-lanes | moves — map in Phase 4 |
+| `export-status` | testid | Export status line; `data-ok="1"\|"0"` carries success/failure. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:export-e2e-lanes | moves — map in Phase 4 |
+| `export-recent` | testid | The recent-exports list in the Export dialog. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | — | moves — map in Phase 4 |
+| `export-submit` | testid | The Export submit button. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | e2e:export-formats, test:export-e2e-lanes | moves — map in Phase 4 |
+| `export-sheet` | testid | The Export sheet (a dialog). `data-mode` export|handoff, `data-scope` the picked scope. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-title` | testid | The sheet’s title; its verb is the button’s. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-sub` | testid | The line under the title (folder, “nothing was selected”). | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-rows` | testid | The rows of the kind’s section; `data-section` image|web. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-summary` | testid | The estimate sentence, built from the server’s numbers. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-cancel` | testid | Cancel in the Export sheet. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-submit-label` | testid | The words inside the verb button, without the ↵ hint. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-handoff-body` | testid | The handoff view’s text (Code… under Other…); S8.10 replaces it. | `client/v2/export/export-sheet.jsx` · `ExportSheet` | test:v2-export-sheet | new |
+| `export-scope-<id>` | testid (pattern) | One scope segment; `<id>` ∈ selection, canvas, folder, project. Carries `data-count`; “—” and disabled when empty. | `client/v2/export/scope-bar.jsx` · `ScopeBar` | test:v2-export-sheet | new |
+| `export-other` | testid | The Other… button. | `client/v2/export/other-formats.jsx` · `OtherFormats` | test:v2-export-sheet | new |
+| `export-other-menu` | testid | The Other… list. | `client/v2/export/other-formats.jsx` · `OtherFormats` | test:v2-export-sheet | new |
+| `export-other-search` | testid | Search inside Other…; finds every row, enabled or not. | `client/v2/export/other-formats.jsx` · `OtherFormats` | test:v2-export-sheet | new |
+| `export-other-none` | testid | The no-match line inside Other…. | `client/v2/export/other-formats.jsx` · `OtherFormats` | test:v2-export-sheet | new |
+| `export-size` | testid | The Size choice (1× · 2×; PNG 1× · PNG 2× · JPG 2× for a web page). | `client/v2/export/sections/image.jsx` · `ImageSection` | test:v2-export-sheet | new |
+| `export-size-<id>` | testid (pattern) | One size: `1x` · `2x`, or `png-1` · `png-2` · `jpg-2` on a web page. | `client/v2/export/sections/image.jsx` · `ImageSection` | test:v2-export-sheet | new |
+| `export-row-<id>` | testid (pattern) | A row of the sheet; `<id>` ∈ format, size, area, annotations. | `client/v2/export/parts.jsx` · `Row` | test:v2-export-sheet | new |
+| `export-format-web-image` | testid | The “Image” segment of a web page’s Format row. | `client/v2/export/sections/web.jsx` · `WebSection` | test:v2-export-sheet | new |
+| `export-code-line` | testid | The “Code for a developer?” line on a web page’s sheet. | `client/v2/export/sections/web.jsx` · `WebSection` | test:v2-export-sheet | new |
+| `export-code-action` | testid | Handoff to production… in that line. | `client/v2/export/sections/web.jsx` · `WebSection` | test:v2-export-sheet | new |
+| `export-share-hint` | testid | The one-time “<people> are in this project…” line with Copy link. | `client/v2/export/share-hint.jsx` · `ShareHint` | test:v2-export-sheet | new |
 | `export-job-<id>` | testid (pattern) | One job row in the background Exports panel (`<id>` = job id). | `client/export-center.jsx` · `ExportPanel` | test:export-center | moves — map in Phase 4 |
 | `export-degraded-note` | testid | Note on an export job that finished in a degraded mode. | `client/export-center.jsx` · `DegradedNote` | test:exporters/degraded-propagation (source text) | moves — map in Phase 4 |
 | `[data-ok] on export-status` | selector | `data-ok="1"\|"0"` on `export-status` = last export succeeded/failed. | `client/app.jsx` · `ExportDialog` | test:export-e2e-lanes | moves — map in Phase 4 |

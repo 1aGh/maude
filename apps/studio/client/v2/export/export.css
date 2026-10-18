@@ -98,7 +98,7 @@
   .ex-seg-b:hover:not(:disabled) {
     color: var(--fg-0);
   }
-  .ex-seg-b[aria-checked='true'] {
+  .ex-seg-b[aria-checked="true"] {
     background: var(--bg-1);
     color: var(--fg-0);
     box-shadow: var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.08));
@@ -266,8 +266,8 @@
     background: var(--bg-3);
     outline: none;
   }
-  .ex-other-row[aria-checked='true'] .ex-other-l::after {
-    content: ' ✓';
+  .ex-other-row[aria-checked="true"] .ex-other-l::after {
+    content: " ✓";
     color: var(--accent-text);
   }
   .ex-other-row[aria-disabled] {

@@ -72,7 +72,9 @@ export function initialState(request = {}, ctx = {}) {
 export const effectiveScale = (state, kind) => state.scale ?? (kind === 'web' ? 2 : 1);
 
 const stripDesignRel = (path, designRel) => {
-  const prefix = `${String(designRel || '.design').replace(/^\.\//, '').replace(/\/+$/, '')}/`;
+  const prefix = `${String(designRel || '.design')
+    .replace(/^\.\//, '')
+    .replace(/\/+$/, '')}/`;
   const p = String(path || '').replace(/^\.\//, '');
   return p.startsWith(prefix) ? p.slice(prefix.length) : p;
 };
@@ -128,7 +130,8 @@ export function buildSpec(state, ctx = {}) {
 export function scopeAvailability(counts, facts = {}) {
   const { canvasOpen = true, hasSelection = true, hasFolder = true } = facts;
   const known = counts && typeof counts === 'object';
-  const has = (id, fallback) => (known ? typeof counts[id] === 'number' && counts[id] > 0 : fallback);
+  const has = (id, fallback) =>
+    known ? typeof counts[id] === 'number' && counts[id] > 0 : fallback;
   return {
     selection: has('selection', canvasOpen && hasSelection),
     canvas: has('canvas', canvasOpen),

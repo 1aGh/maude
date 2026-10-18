@@ -7,7 +7,10 @@ import { StIcon } from '../../shell/icons.jsx';
 /** A labelled row: `Format  [PNG][JPG] Other…`, with an optional quiet note under the value. */
 export function Row({ k, children, note, testid, top = false }) {
   return (
-    <div className={`ex-row${top ? ' ex-row--top' : ''}${note ? ' ex-row--note' : ''}`} data-testid={testid}>
+    <div
+      className={`ex-row${top ? ' ex-row--top' : ''}${note ? ' ex-row--note' : ''}`}
+      data-testid={testid}
+    >
       <span className="ex-row-k">{k}</span>
       <div className="ex-row-v">
         {children}

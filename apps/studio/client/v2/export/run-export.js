@@ -120,10 +120,7 @@ export async function runExport({
       }
     }
     // DDR-231 — the pptx deck: capture every artboard as PNG in THIS browser, compose in-cell.
-    if (
-      legacy.format === 'pptx' &&
-      browserCaptureEligible({ exportLane, format: 'pptx', scope })
-    ) {
+    if (legacy.format === 'pptx' && browserCaptureEligible({ exportLane, format: 'pptx', scope })) {
       try {
         setStatus({ ok: true, msg: 'Capturing artboards…' });
         const deckName =

@@ -44,12 +44,7 @@ export function ShareHint({ names, onCopyLink }) {
   }, [show]);
   if (!show) return null;
   return (
-    <Hint
-      icon="link"
-      action={SHARE_HINT_ACTION}
-      onAction={onCopyLink}
-      testid="export-share-hint"
-    >
+    <Hint icon="link" action={SHARE_HINT_ACTION} onAction={onCopyLink} testid="export-share-hint">
       {shareHint(people)}
     </Hint>
   );

@@ -35,7 +35,11 @@ export function WebSection({ state, setFormat, set, other, onHandoff, annotation
     testid: id === 'pdf' ? 'export-format-pdf' : 'export-format-web-image',
   }));
   if (!image && !pdf)
-    options.push({ id: state.format, label: labelOf(state.format), testid: `export-format-${state.format}` });
+    options.push({
+      id: state.format,
+      label: labelOf(state.format),
+      testid: `export-format-${state.format}`,
+    });
   return (
     <>
       <Row k="Format" testid="export-row-format">
@@ -84,7 +88,12 @@ export function WebSection({ state, setFormat, set, other, onHandoff, annotation
       </Row>
       <div className="ex-code" data-testid="export-code-line">
         <span>{WEB_CODE_LINE}</span>
-        <button type="button" className="ex-code-a" onClick={onHandoff} data-testid="export-code-action">
+        <button
+          type="button"
+          className="ex-code-a"
+          onClick={onHandoff}
+          data-testid="export-code-action"
+        >
           {WEB_CODE_ACTION}
         </button>
         <kbd className="ex-kbd">⇧⌘H</kbd>

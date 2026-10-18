@@ -13,10 +13,7 @@
 //   selectionLabel   the one selected thing's name, for the title
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  defaultScopeForFormat,
-  isScopeValidForFormat,
-} from '../../../exporters/format-scopes.ts';
+import { defaultScopeForFormat, isScopeValidForFormat } from '../../../exporters/format-scopes.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { StIcon } from '../../shell/icons.jsx';
 import { basename, displayName } from '../../shell/util.js';
@@ -103,7 +100,10 @@ export function ExportSheet({
     ]
   );
   const req = useMemo(
-    () => ({ ...(request ?? {}), ...(initialScope && !request?.scope ? { scope: initialScope } : {}) }),
+    () => ({
+      ...(request ?? {}),
+      ...(initialScope && !request?.scope ? { scope: initialScope } : {}),
+    }),
     [request, initialScope]
   );
   const { state, set, setFormat, setScope, spec, est, kind, section } = useExportSpec(req, {
@@ -173,10 +173,7 @@ export function ExportSheet({
           nothingSelected: state.nothingSelected && state.scope === 'canvas',
         });
   const summary = mode === 'export' ? summaryWords(est) : null;
-  const button =
-    mode === 'handoff'
-      ? HANDOFF_BUTTON
-      : primaryLabel({ count, busy });
+  const button = mode === 'handoff' ? HANDOFF_BUTTON : primaryLabel({ count, busy });
 
   // ── submit ───────────────────────────────────────────────────────────────────────────────────
   const submit = () => {
@@ -372,7 +369,11 @@ export function ExportSheet({
 
         <div className="ex-sheet-a">
           {mode === 'handoff' ? (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setMode('export')}>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setMode('export')}
+            >
               Back to export
             </button>
           ) : (
@@ -402,4 +403,3 @@ export function ExportSheet({
     </div>
   );
 }
-

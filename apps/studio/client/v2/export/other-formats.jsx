@@ -31,7 +31,9 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
     return () => document.removeEventListener('mousedown', away);
   }, [open, setOpen]);
 
-  const rows = () => [...(root.current?.querySelectorAll('[role="menuitemradio"]:not([aria-disabled])') ?? [])];
+  const rows = () => [
+    ...(root.current?.querySelectorAll('[role="menuitemradio"]:not([aria-disabled])') ?? []),
+  ];
   const close = () => {
     setOpen(false);
     button.current?.focus();
@@ -72,7 +74,12 @@ export function OtherFormats({ groups, format, onPick, open, setOpen }) {
       </button>
       {open ? (
         // biome-ignore lint/a11y/noStaticElementInteractions: the menu handles ↑ ↓ esc for its rows
-        <div className="ex-other-menu island" role="menu" data-testid="export-other-menu" onKeyDown={onKey}>
+        <div
+          className="ex-other-menu island"
+          role="menu"
+          data-testid="export-other-menu"
+          onKeyDown={onKey}
+        >
           <input
             ref={search}
             type="search"

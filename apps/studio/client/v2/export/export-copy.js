@@ -206,8 +206,7 @@ export const OTHER_GROUPS = [
   },
 ];
 
-export const NEEDS_RENDER_SERVICE =
-  'Needs the render service — not configured on this workspace';
+export const NEEDS_RENDER_SERVICE = 'Needs the render service — not configured on this workspace';
 export const NEEDS_DESKTOP = 'Needs the desktop app';
 
 /**

@@ -549,12 +549,12 @@
     "hook": "export-format-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A format card in the Export dialog. `<id>` ∈ png, pdf, svg, html, pptx, mp4, gif, canva, zip, shadcn (temporal ones only when the canvas has comps).",
+    "meaning": "One row of Other… (and the PNG/JPG segments in the sheet). `<id>` ∈ png, jpg, svg, pdf, print-pdf, pptx, mp4, gif, webm, audio, canva, html, shadcn, zip. A disabled row carries `data-reason`.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/other-formats.jsx",
+      "symbol": "OtherFormats"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": [
       "apps/desktop/e2e/scenarios/export-formats.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
@@ -565,12 +565,12 @@
     "hook": "export-lane-note",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Note in the Export dialog that explains a blocked/degraded export lane.",
+    "meaning": "The note on a workspace with no render service: what still exports in the browser.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": [],
     "v2": "moves"
   },
@@ -578,12 +578,12 @@
     "hook": "export-scope",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The scope selector (canvas / artboard / selection…) in the Export dialog.",
+    "meaning": "The Scope radio group (Selection · This canvas · Folder · Whole project); `data-value` is the picked scope.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/scope-bar.jsx",
+      "symbol": "ScopeBar"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": [
       "apps/desktop/e2e/scenarios/export-formats.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
@@ -594,18 +594,18 @@
     "hook": "export-include-annotations",
     "kind": "testid",
     "pattern": false,
-    "meaning": "\"Include annotations\" checkbox. Emitted by the shell Export dialog AND by the in-canvas export dialog (`DialogShell`, inside the iframe).",
+    "meaning": "\"Include annotations\" checkbox in the Export sheet (also emitted by the web section).",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/sections/image.jsx",
+      "symbol": "ImageSection"
     },
     "alsoProducedBy": [
       {
-        "file": "apps/studio/export-dialog.tsx",
-        "symbol": "DialogShell"
+        "file": "apps/studio/client/v2/export/sections/web.jsx",
+        "symbol": "WebSection"
       }
     ],
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": [],
     "v2": "moves",
     "notes": "Same testid in two documents (shell and canvas iframe)."
@@ -649,10 +649,10 @@
     "pattern": false,
     "meaning": "Export status line; `data-ok=\"1\"|\"0\"` carries success/failure.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
     "v2": "moves"
   },
@@ -660,12 +660,12 @@
     "hook": "export-recent",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The recent-exports list in the Export dialog.",
+    "meaning": "The Recent list at the foot of the sheet (each row has Export again) until S8.4 moves it to the Exports panel.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": [],
     "v2": "moves"
   },
@@ -673,12 +673,12 @@
     "hook": "export-submit",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Export submit button.",
+    "meaning": "The sheet’s verb button (Export · Export 21 artboards); ↵ runs it.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": [
       "apps/desktop/e2e/scenarios/export-formats.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
@@ -6930,10 +6930,10 @@
     "pattern": false,
     "meaning": "`data-ok=\"1\"|\"0\"` on `export-status` = last export succeeded/failed.",
     "producer": {
-      "file": "apps/studio/client/app.jsx",
-      "symbol": "ExportDialog"
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
     },
-    "region": "export dialog",
+    "region": "export sheet",
     "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
     "v2": "moves"
   },
@@ -14177,6 +14177,286 @@
     "region": "other",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/inspect-overlay.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Export sheet (a dialog). `data-mode` export|handoff, `data-scope` the picked scope.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet’s title: the same verb as the button (“Export “Combine-kampan” — 21 artboards”).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-sub",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line under the title (folder, “nothing was selected”).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-rows",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The rows of the kind’s section; `data-section` image|web.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-summary",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The estimate sentence, built from the server’s numbers (“21 files · about 140 MB · …”).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel in the Export sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-submit-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The words inside the verb button (without the ↵ hint).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-handoff-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The handoff view’s text (Code… under Other…); S8.10 replaces it.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/export-sheet.jsx",
+      "symbol": "ExportSheet"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-scope-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One scope segment; `<id>` ∈ selection, canvas, folder, project. Carries `data-count`; “—” and disabled when empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/scope-bar.jsx",
+      "symbol": "ScopeBar"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-other",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Other… button.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/other-formats.jsx",
+      "symbol": "OtherFormats"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-other-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Other… list (formats grouped by what you are making).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/other-formats.jsx",
+      "symbol": "OtherFormats"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-other-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Search inside Other…; finds every row, enabled or not.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/other-formats.jsx",
+      "symbol": "OtherFormats"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-other-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The no-match line inside Other….",
+    "producer": {
+      "file": "apps/studio/client/v2/export/other-formats.jsx",
+      "symbol": "OtherFormats"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-size",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Size choice (1× · 2×; PNG 1× · PNG 2× · JPG 2× for a web page).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/image.jsx",
+      "symbol": "ImageSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-size-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One size: `1x` · `2x` (post) or `png-1` · `png-2` · `jpg-2` (web page).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/image.jsx",
+      "symbol": "ImageSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A row of the sheet; `<id>` ∈ format, size, area, annotations.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/parts.jsx",
+      "symbol": "Row"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-format-web-image",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Image” segment of a web page’s Format row (PNG/JPG by Size).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/web.jsx",
+      "symbol": "WebSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-code-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The “Code for a developer?” line at the foot of a web page’s sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/web.jsx",
+      "symbol": "WebSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-code-action",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Handoff to production… in that line.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/web.jsx",
+      "symbol": "WebSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-share-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-time line “<people> are in this project. A link shows them the latest…” with Copy link.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/share-hint.jsx",
+      "symbol": "ShareHint"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
     "v2": "new"
   }
 ]

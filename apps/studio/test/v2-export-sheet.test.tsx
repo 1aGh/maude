@@ -10,13 +10,13 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 import { estimateWords as cliEstimateWords } from '../../../cli/lib/export-spec.mjs';
 import {
+  estimateWords,
   matchOther,
-  otherFormats,
   OTHER_GROUPS,
+  otherFormats,
   peopleWords,
   primaryLabel,
   sheetTitle,
-  estimateWords,
 } from '../client/v2/export/export-copy.js';
 import {
   browserLaneRequest,
@@ -103,13 +103,22 @@ describe('the sheet model', () => {
     );
     expect(el.selection).toEqual({ elements: ['e1'] });
     // annotations only when asked
-    expect(buildSpec({ ...base, annotations: true, scope: 'canvas', format: 'png', scale: 1 }, ctx).options)
-      .toEqual({ size: { scale: 1 }, annotations: true });
+    expect(
+      buildSpec({ ...base, annotations: true, scope: 'canvas', format: 'png', scale: 1 }, ctx)
+        .options
+    ).toEqual({ size: { scale: 1 }, annotations: true });
   });
 
   test('a web page defaults to 2×, a post to 1×', () => {
     const ctx = { designRel: '.design', activePath: '.design/a.tsx' };
-    const base = { annotations: false, region: null, at: null, scope: 'canvas', format: 'png', scale: null };
+    const base = {
+      annotations: false,
+      region: null,
+      at: null,
+      scope: 'canvas',
+      format: 'png',
+      scale: null,
+    };
     expect(buildSpec(base, { ...ctx, kind: 'web' }).options).toEqual({ size: { scale: 2 } });
     expect(buildSpec(base, { ...ctx, kind: 'digital' }).options).toEqual({ size: { scale: 1 } });
   });
@@ -148,7 +157,10 @@ describe('the sheet model', () => {
     );
     expect(browserLaneRequest({ ...base, scope: 'canvas', format: 'pdf' }, ctx)).toBeNull();
     expect(
-      browserLaneRequest({ ...base, scope: 'selection', format: 'png' }, { ...ctx, exportLane: 'local' })
+      browserLaneRequest(
+        { ...base, scope: 'selection', format: 'png' },
+        { ...ctx, exportLane: 'local' }
+      )
     ).toBeNull();
   });
 });
@@ -191,7 +203,22 @@ describe('the words', () => {
     const groups = otherFormats({ kinds: new Set(['digital']), laneBlocked: () => false });
     const rows = groups.flatMap((g) => g.items);
     const ids = rows.map((r) => r.id);
-    for (const id of ['png', 'jpg', 'svg', 'pdf', 'print-pdf', 'pptx', 'mp4', 'gif', 'webm', 'audio', 'canva', 'html', 'shadcn', 'zip'])
+    for (const id of [
+      'png',
+      'jpg',
+      'svg',
+      'pdf',
+      'print-pdf',
+      'pptx',
+      'mp4',
+      'gif',
+      'webm',
+      'audio',
+      'canva',
+      'html',
+      'shadcn',
+      'zip',
+    ])
       expect(ids).toContain(id);
     const off = rows.filter((r) => r.disabled);
     expect(off.map((r) => r.id).sort()).toEqual(['audio', 'gif', 'mp4', 'print-pdf', 'webm']);
@@ -320,6 +347,8 @@ const click = async (sel: string) => {
     await tick(10);
   });
 };
+const specOptions = () =>
+  (posts()[0].body?.spec?.options ?? {}) as { annotations?: boolean; size?: unknown };
 const posts = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/_api/export-jobs'));
 
 async function mountSheet(props: Record<string, unknown> = {}) {
@@ -425,7 +454,7 @@ describe('the sheet: Social → PNG or JPG, 1× or 2×', () => {
     expect(box.checked).toBe(false);
     await click('[data-testid="export-include-annotations"]');
     await click('[data-testid="export-submit"]');
-    expect((posts()[0].body?.spec?.options as { annotations?: boolean }).annotations).toBe(true);
+    expect(specOptions().annotations).toBe(true);
   });
 
   test('the inspector’s PNG 2× opens with 2× picked', async () => {
@@ -461,7 +490,7 @@ describe('the sheet: Web → full page, or PDF', () => {
     estimate = { ...EST_CANVAS, byKind: { web: { artboards: 3, files: 3, format: 'png' } } };
     await mountSheet();
     await click('[data-testid="export-submit"]');
-    expect((posts()[0].body?.spec?.options as { size: unknown }).size).toEqual({ scale: 2 });
+    expect(specOptions().size).toEqual({ scale: 2 });
   });
 });
 
@@ -592,7 +621,12 @@ describe('the sheet: Share vs Export', () => {
 describe('the v1 testids are re-emitted', () => {
   test('export-scope · export-submit · export-include-annotations · export-format-* all exist', async () => {
     await mountSheet();
-    for (const id of ['export-scope', 'export-submit', 'export-include-annotations', 'export-format-png'])
+    for (const id of [
+      'export-scope',
+      'export-submit',
+      'export-include-annotations',
+      'export-format-png',
+    ])
       expect(has(`[data-testid="${id}"]`)).toBe(true);
   });
 

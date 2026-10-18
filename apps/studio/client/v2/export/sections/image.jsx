@@ -35,7 +35,14 @@ export function ImageSection({ state, setFormat, set, other, annotationsOff = fa
           options={
             raster
               ? formats
-              : [...formats, { id: state.format, label: labelOf(state.format), testid: `export-format-${state.format}` }]
+              : [
+                  ...formats,
+                  {
+                    id: state.format,
+                    label: labelOf(state.format),
+                    testid: `export-format-${state.format}`,
+                  },
+                ]
           }
           value={state.format}
           onPick={setFormat}
