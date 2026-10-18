@@ -54,6 +54,13 @@ const UNDO_KEYS: ActionDefAI = {
   ),
 };
 const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comments list') };
+// S9.7b — the comment TOOL's agent path is the write verb: an agent leaves a comment by posting it
+// (`POST /_api/comments/op`, as the session, AI-written). The action itself only picks a tool
+// (fromCanvas ⇒ effect none); the verb's own tier is shared → prompt (verbs.ts).
+const COMMENT_ADD: ActionDefAI = {
+  effect: 'none',
+  agent: cli('maude design comments add --as-ai'),
+};
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
@@ -228,6 +235,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.assets': { effect: 'none', agent: cli('maude design asset-sweep') },
   'view.layers-panel': PREF('puts Layers in the left panel or in the Inspector'),
   'view.trash': PREF('shows the Trash list; the parked files are under <designRoot>/_trash/'),
+  // S1.7b — clearing out deletes for good what the whole team could still restore: the OWNER
+  // confirms it, never an agent (decision:maude/v2-lead-trash-clear-human-only). The server
+  // refuses every role below owner (test/_role-refusals.ts).
+  'trash.clear': {
+    effect: 'project',
+    minRole: 'owner',
+    undo: 'none',
+    server: { route: '/_api/trash/clear', method: 'POST' },
+    agent: human(
+      'clear-trash',
+      'only the project owner, in the Trash view; nothing an agent may do'
+    ),
+  },
   'view.inspector': PREF('read the element’s JSX for its properties'),
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
@@ -256,6 +276,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json'
     ),
   },
+  // S3.6b — needs a person and a second display; an agent can't open a window on one.
+  'present.presenter-view': {
+    effect: 'none',
+    agent: human('native-window', 'needs a person and a second display'),
+  },
+  // S3.7b — in a cloud-linked project `maude design open <canvas> --mode present` also prints the link.
+  'present.copy-link': { ...NAV('<canvas> --mode present'), minRole: 'edit' },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
@@ -267,7 +294,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.select': PREF('a pointer mode'),
   'tool.hand': PREF('a pointer mode'),
   'tool.hand-hold': PREF('a pointer mode'),
-  'tool.comment': COMMENTS,
+  'tool.comment': COMMENT_ADD,
   'tool.pen': BOARD('Add a pen element to the canvas’s .annotations.json'),
   'tool.highlighter': BOARD('Add a highlighter element to the canvas’s .annotations.json'),
   'tool.shape': BOARD('Add a shape element to the canvas’s .annotations.json'),
@@ -314,7 +341,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),
   'timeline.zoom-fit': PREF(),
-  'timeline.comment-mode': COMMENTS,
+  'timeline.comment-mode': COMMENT_ADD,
   // ── export / share ──
   'export.open': { effect: 'none', agent: cli('maude design export') },
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
@@ -450,6 +477,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       (r) => [`chat.advanced.${r}`, { effect: 'none', agent: human('ai-chat') }]
     )
   ),
+  // S5.5b — undoes accepted actions for everyone on a synced project: the `history undo` verb's
+  // permission card (tier shared).
+  'chat.undo': {
+    effect: 'shared',
+    minRole: 'edit',
+    agent: cli('maude design history undo --chat <id>'),
+  },
+  // S5.10 — attaching is how a PERSON hands the AI a file or a folder; an agent already reads files
+  // itself (and a folder grant is consent only the person can give).
+  'ai.attach-files': { effect: 'project', minRole: 'edit', agent: human('ai-chat') },
+  'ai.attach-folder': { effect: 'none', minRole: 'edit', agent: human('ai-chat') },
+  'ai.attach-assets': { effect: 'none', minRole: 'edit', agent: human('ai-chat') },
+  'ai.attach-screenshot': { effect: 'project', minRole: 'edit', agent: human('ai-chat') },
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {

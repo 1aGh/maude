@@ -15,6 +15,8 @@ import { presentStep, shellMode } from '../shell/use-canvas-mode-lane.js';
 import { CanvasPill } from './canvas-pill.jsx';
 import { labelOf } from './present-controls-model.js';
 import { PresentControls } from './present-controls.jsx';
+import { PresenterViewButton } from './presenter-button.jsx';
+import { presenterAvailable, presenterOn, usePresenterDisplays } from './presenter-store.js';
 import { usePresentZoomValue } from './present-zoom-store.js';
 
 export function ShellPresentChrome() {
@@ -24,6 +26,7 @@ export function ShellPresentChrome() {
   } = useShellStore();
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
   const zoom = usePresentZoomValue();
+  const pv = usePresenterDisplays();
 
   const indexSnapshot = useCanvasIndex({ stamp: activePath });
   const boards = useMemo(
@@ -34,6 +37,9 @@ export function ShellPresentChrome() {
 
   if (snap.mode !== 'present') return null;
   if (snap.present?.kind === 'canvas') return <CanvasPill zoom={zoom} onLeave={exitPresent} />;
+  // S3.6b: with presenter view up, the Mac shows its own screen (presenter-host.jsx) with its own Previous /
+  // Next / End — these controls would only sit on top of it.
+  if (presenterOn(pv)) return null;
   return (
     <PresentControls
       position={snap.position}
@@ -42,9 +48,9 @@ export function ShellPresentChrome() {
       onLeave={exitPresent}
       // The two slots other slices fill (present-controls.jsx lists them):
       //   transport      — S3.3: <PresentTransport /> (media pause · time · sound)
-      //   presenterView  — S3.6b: <PresenterViewButton /> (desktop, two displays)
+      //   presenterView  — S3.6b: <PresenterViewButton /> (desktop, another display; else no slot at all)
       transport={null}
-      presenterView={null}
+      presenterView={presenterAvailable(pv) ? <PresenterViewButton /> : null}
     />
   );
 }

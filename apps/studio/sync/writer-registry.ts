@@ -81,6 +81,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-array-src': { ...LANE_SOURCE, rows: 'V06' },
   '/_api/clip-edit': { ...LANE_SOURCE, rows: 'V07–V10' },
   // --- shared meta, annotations, comments (S19, S23, S24)
+  // S9.7b — the comment door: one comments/ops.ts op as the session.
+  '/_api/comments/op': {
+    class: 'lane',
+    rows: 'S24',
+    via: 'api.commentOp → publishComments (onCommentsChanged, doc first) → comments lane',
+    test: 'test/comments-op-route.test.ts',
+  },
   '/_api/canvas-meta': {
     class: 'lane',
     rows: 'S19',
@@ -101,6 +108,27 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     rows: 'S23',
     via: 'onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
     test: 'test/sync-accepted-projection.test.ts',
+  },
+  // S4.7 — sticky ↔ comment: ONE action carrying the board and the thread list of one canvas
+  // (contract S4-S9-votes-comments §3.2), so one undo restores both.
+  '/_api/annotations/to-comment': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, annotations + comments lane.replace with the read bases',
+    test: 'test/annotations-convert.test.ts',
+  },
+  '/_api/comments/to-sticky': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'proposeLanes → one action, comments + annotations lane.replace with the read bases',
+    test: 'test/annotations-convert.test.ts',
+  },
+  // No op log (a legacy link): the conversion's in-memory undo token puts both files back.
+  '/_api/annotations/convert-undo': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'legacy only — both files written back through the comments/annotations hooks',
+    test: 'test/annotations-convert.test.ts',
   },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
@@ -130,6 +158,20 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S1.7 routes/trash.ts — the shared Trash over the one op log (S1-trash.md)
+  '/_api/trash': { class: 'read' },
+  '/_api/trash/restore': {
+    class: 'structural',
+    via: 'trash.restore { entry } — the canvas comes back with the same entry, in place or at "<name> 2"',
+    test: 'test/trash-derive.test.ts',
+  },
+  '/_api/trash/clear': {
+    class: 'structural',
+    via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
+    test: 'test/acl-l18-trash.test.ts',
+  },
+  // S1.18 — a stable canvas link's entry → path (history/links.ts)
+  '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',
@@ -237,6 +279,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/acp/chats/restore': { class: 'local' },
   '/_api/acp/chats/search': { class: 'local' },
   '/_api/acp/chats/trash': { class: 'local' },
+  // S5.10 routes/chat-attach.ts: a photo / footage / sound attachment lands in Assets (the same
+  // writer as /_api/asset); a PDF and every folder grant are this Mac's (`_chat/`, `_state/`)
+  '/_api/ai/attach/file': { class: 'file-plane', rows: 'S27' },
+  '/_api/ai/attach/folder': { class: 'local' },
+  '/_api/ai/attach/folder/detach': { class: 'local' },
+  '/_api/ai/attach/folder/revoke': { class: 'local' },
+  '/_api/ai/attach/folders': { class: 'local' },
+  '/_api/ai/attach/folder/list': { class: 'local' },
   '/_api/acp/focus': { class: 'local' },
   '/_api/acp/running': { class: 'local' },
   '/_api/acp/status': { class: 'local' },
@@ -251,6 +301,13 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ai/runs/:id/stop': { class: 'local' },
   '/_api/ai/runs/:id/cancel': { class: 'local' },
   '/_api/ai/runs/:id/keep-going': { class: 'local' },
+  // S5.11b — Run on a copy writes the canvas source as the WAITING run's tool write: claimed for
+  // that run's stage before it lands, so it is published with the run's own action (one version).
+  '/_api/ai/runs/:id/copy': {
+    class: 'lane',
+    via: "copy write claimed for the waiting run's stage (claimAiWrite) → watcher import → staged into that run's action",
+    test: 'test/ai-run-copy.test.ts',
+  },
   '/_api/claude/install': { class: 'local' },
   '/_api/claude/install-status': { class: 'local' },
   '/_api/claude/signin': { class: 'local' },

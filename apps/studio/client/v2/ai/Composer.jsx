@@ -25,6 +25,9 @@ import {
   nextChipIndex,
   uploadChatImage,
 } from './paste-chips.jsx';
+import { AttachChips } from './AChip.jsx';
+import { AttachMenu } from './AttachMenu.jsx';
+import { Consent } from './Consent.jsx';
 import { ScopeChip } from './ScopeChip.jsx';
 
 export function prettyCanvas(path) {
@@ -255,7 +258,7 @@ function CommandPopover({ items, activeIndex, onPick, onHover }) {
 // but ONLY when that token is a command that exists (the badge gate). The mirror
 // MUST match the textarea's box model exactly (see .chat-input / .chat-input-mirror
 // in 6-acp-chat.css) or the pill drifts off the text.
-function HighlightedInput({ existsSet, attachmentsRef, onAttachChange }) {
+function HighlightedInput({ existsSet, attachmentsRef, onAttachChange, attach }) {
   const text = useComposer((c) => c.text);
   const mirrorRef = useRef(null);
   const match = matchLeadingCommand(text);
@@ -296,6 +299,12 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange }) {
       const { map, pending } = attachmentsRef.current;
 
       const img = clipboardImageFile(cd);
+      // S5.10 — ⌘V a screenshot = a photo chip, the same door as a drop (it lands in Assets too).
+      if (img && attach) {
+        e.preventDefault();
+        attach.addFiles([img]);
+        return;
+      }
       if (img) {
         e.preventDefault();
         const chip = `[image-${nextChipIndex(ta.value, 'image')}]`;
@@ -324,7 +333,7 @@ function HighlightedInput({ existsSet, attachmentsRef, onAttachChange }) {
       insertChipAtCaret(ta, chip);
       onAttachChange?.();
     },
-    [attachmentsRef, onAttachChange]
+    [attachmentsRef, onAttachChange, attach]
   );
 
   return (
@@ -360,6 +369,7 @@ export function Composer({
   conn,
   chatId,
   attachmentsRef,
+  attach = null,
   usage,
   showRateLimitBanner,
   onDismissRateLimitBanner,
@@ -476,6 +486,10 @@ export function Composer({
             onRemove={onCtxDismiss}
           />
         ) : null}
+        {/* S5.10 — a folder from disk asks once, above the prompt. */}
+        {attach?.consent ? (
+          <Consent consent={attach.consent} onAllow={attach.allowFolder} onNotNow={attach.notNow} />
+        ) : null}
         {/* One box: textarea on top, a bottom toolbar (model · effort · send).
             The anchor is relative so the command popover can float above it. */}
         <div className="chat-cmd-anchor" onKeyDownCapture={onKeyDownCapture}>
@@ -488,14 +502,19 @@ export function Composer({
             />
           ) : null}
           <ComposerPrimitive.Root className="chat-box">
+            {/* S5.10 — what you attach sits inside the prompt, on top. */}
+            <AttachChips attach={attach} />
             <HighlightedInput
               existsSet={existsSet}
               attachmentsRef={attachmentsRef}
               onAttachChange={bumpAttach}
+              attach={attach}
             />
             <div className="chat-toolbar">
               {/* S5.12 — the model / effort / mode pickers and the info button moved to the panel's
-                  Advanced fold (Advanced.jsx); the field keeps only what 03 draws: the text and send. */}
+                  Advanced fold (Advanced.jsx); the field keeps only what 03 draws: the text and send
+                  (+ S5.10's paperclip). */}
+              {attach ? <AttachMenu attach={attach} /> : null}
               <span className="chat-toolbar-spacer" />
               <ComposerPrimitive.Send className="chat-send" aria-label="Send message">
                 <Spark size={14} />

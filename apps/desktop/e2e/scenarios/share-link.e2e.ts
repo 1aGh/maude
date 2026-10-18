@@ -8,6 +8,9 @@ import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
 
 const tid = (id: string) => `[data-testid="${id}"]`;
+/** S1.18 — the row menu's Copy link: `maude://open/<project>?c=<kernel entry>`. */
+const STABLE_LINK = /^maude:\/\/open\/project\?c=[A-Za-z0-9_-]{8,128}$/;
+let stableLink = '';
 /** The shell delivers the link to THIS window (parked + `maude://deep-link`),
  *  exactly as it delivers one routed here. Pages can no longer `emit` events
  *  (V2-3.6 M5), so the debug-only `e2e_deliver_deep_link` does the delivery. */
@@ -75,18 +78,49 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     }
     await (await $(tid('tree-row-menu-ui-export'))).click();
     await (await $(tid('canvas-menu-copy-link'))).click();
+    // S1.18: the row's link names the canvas's kernel entry, never its path — it survives a move or rename.
     await browser.waitUntil(
       async () => {
         const copied =
           process.platform === 'darwin'
             ? execFileSync('/usr/bin/pbpaste', { encoding: 'utf8' })
             : await browser.execute(() => navigator.clipboard.readText());
-        return copied === 'maude://open/project?open=ui/Export.tsx';
+        if (!STABLE_LINK.test(copied)) return false;
+        stableLink = copied;
+        return true;
       },
-      { timeout: 5000, timeoutMsg: 'Copy link did not write the row’s app link to the clipboard' }
+      {
+        timeout: 5000,
+        timeoutMsg: 'Copy link did not write the row’s stable link to the clipboard',
+      }
     );
     await active('.design/ui/Smoke.tsx');
     await capture('copy link of another row');
+  });
+
+  it('S1.18: a stable link opens its canvas at the artboard and says where it came from', async () => {
+    expect(stableLink).toMatch(STABLE_LINK);
+    // The shell rebuilds a canvas link before a window sees it: the `#<artboard>` anchor rides as `a=`
+    // (deep_link.rs `parse_link`). The debug delivery hands the window that rebuilt form directly.
+    await arrive(`${stableLink}&a=export-a4`);
+    await active('.design/ui/Export.tsx');
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(() => document.body.innerText)).includes(
+          'Opened from a link — Export · export-a4.'
+        ),
+      { timeout: 10_000, timeoutMsg: 'no "Opened from a link" toast' }
+    );
+    await capture('stable link with artboard anchor');
+    // An entry this project never had: the calm "isn't in <project> any more", and nothing moves.
+    await arrive('maude://open/project?c=n_neverwashere0');
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(() => document.body.innerText)).includes("This canvas isn't in"),
+      { timeout: 10_000, timeoutMsg: 'no "isn’t in … any more" toast' }
+    );
+    await active('.design/ui/Export.tsx');
+    await capture('stable link to a canvas that is gone');
   });
 
   it('opens a same-project file directly and parks a foreign-project link', async () => {

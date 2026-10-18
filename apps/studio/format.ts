@@ -229,7 +229,10 @@ export function formatRefusalResponse(gate: FormatGate): Response {
  * comments (§9 Q3 — v2 anchors may grow and 1.x re-clamps them: look only),
  * PLUS the one route that leaves the gate: `POST /_api/project/migrate`.
  */
-export const FORMAT_GATE_REFUSED_WRITES: ReadonlySet<string> = new Set(['/_comments']);
+export const FORMAT_GATE_REFUSED_WRITES: ReadonlySet<string> = new Set([
+  '/_comments',
+  '/_api/comments/op', // S9.7b — the comment door is a comment write too
+]);
 export const FORMAT_GATE_REFUSED_PATTERNS: readonly RegExp[] = [
   /^\/_api\/comments\/[A-Za-z0-9_-]+\/reply$/,
 ];

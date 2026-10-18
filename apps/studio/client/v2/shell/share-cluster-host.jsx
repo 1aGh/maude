@@ -30,6 +30,11 @@ import { useAccount } from './use-account.js';
 import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
 import { isNativeApp } from '../../github.js';
+import {
+  chosenDisplay,
+  presenterAvailable,
+  usePresenterDisplays,
+} from '../present/presenter-store.js';
 
 const subscribeOnline = (fn) => {
   window.addEventListener('online', fn);
@@ -146,6 +151,12 @@ export function ShellShareCluster() {
     () => indexMeta(indexSnapshot, cfg?.designRel).get(activePath)?.boards ?? null,
     [indexSnapshot, cfg?.designRel, activePath]
   );
+  // S3.6b — Present ⌄ › "Presenter view on another display ✓ (<name>)": a row only where the desktop app
+  // reports another display (the same read keeps the list current).
+  const pv = usePresenterDisplays();
+  const presenterView = presenterAvailable(pv)
+    ? { name: chosenDisplay(pv)?.name ?? '', on: pv.wanted }
+    : null;
   const fromLabel = useMemo(
     () => presentFromLabel({ selected, inView: canvasActiveArtboard, boards }),
     [selected, canvasActiveArtboard, boards]
@@ -234,6 +245,8 @@ export function ShellShareCluster() {
             kind === 'order-notes' ? menuRunner.run('present.order-notes') : lane.present(kind)
           }
           presentFromLabel={fromLabel}
+          presenterView={presenterView}
+          onPresenterView={() => menuRunner.run('present.presenter-view')}
           canPresent={canvasOpen}
         />
       }
