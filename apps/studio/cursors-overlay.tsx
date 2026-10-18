@@ -436,7 +436,8 @@ interface PeerSelectionProps {
 
 export const PeerSelection = memo(
   function PeerSelection({ peer }: PeerSelectionProps): JSX.Element | null {
-    if (!peer.selection) return null;
+    // S2.18 — a peer holding an object gets its hold ring + name tag instead (editing/hold-rings.tsx)
+    if (!peer.selection || peer.holding) return null;
     const { cssPath, bounds } = peer.selection;
 
     let rect: { x: number; y: number; w: number; h: number } | null = bounds ?? null;
@@ -475,7 +476,8 @@ export const PeerSelection = memo(
     sameViewport(a.viewport, b.viewport) &&
     a.tick === b.tick &&
     sameLabel(a.peer, b.peer) &&
-    sameSelection(a.peer.selection, b.peer.selection)
+    sameSelection(a.peer.selection, b.peer.selection) &&
+    !a.peer.holding === !b.peer.holding
 );
 
 /**

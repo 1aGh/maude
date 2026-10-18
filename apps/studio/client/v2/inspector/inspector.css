@@ -223,4 +223,53 @@
     color: var(--fg-2);
     padding: 0 var(--space-2);
   }
+
+  /* ── S2.18 view mode (ed-edge-tereza, ed-edge-ai): someone else holds the selection ── */
+  .ed-insp-fields {
+    display: contents;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .ed-insp--view .insp-sec {
+    opacity: 0.86;
+  }
+  .ed-insp-line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    background: var(--bg-3);
+  }
+  .ed-insp-line--ai {
+    color: var(--spark-text);
+    background: var(--spark-muted);
+  }
+  .ed-insp-line-t {
+    flex: 1;
+    min-width: 0;
+  }
+  .ed-insp-line-act {
+    flex: none;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    font: inherit;
+    font-weight: var(--w-semibold);
+    color: var(--accent-text);
+    background: transparent;
+    cursor: pointer;
+  }
+  .ed-insp-line-act:hover {
+    background: var(--accent-soft);
+  }
+  .ed-insp-line-act:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
 }

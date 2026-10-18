@@ -13,6 +13,7 @@ import { isEditableTarget } from '../input-router.tsx';
 import { isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
+import { HoldRings } from './hold-rings.tsx';
 import { LockBadge } from './lock-badge.tsx';
 import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
@@ -85,6 +86,8 @@ export function EditingLayer() {
       {/* S2.6 — a locked object says so; the arrows say where they put things */}
       <LockBadge readOnly={isReadOnlyCanvas()} />
       <NudgeReadout readOnly={isReadOnlyCanvas()} />
+      {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
+      <HoldRings />
     </>
   );
 }

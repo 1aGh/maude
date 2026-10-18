@@ -9,7 +9,7 @@
 // The frame owns no write. A section body gets `ctx` (the panel's edit channels) and writes through the
 // existing /_api/edit-* routes; the frame only lays them out, names them and folds the raw layer away.
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
@@ -19,6 +19,7 @@ import { kindChipOf, resolveKind } from './kinds/index.js';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { SECTIONS } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
+import { HoldLine, useHoldView, viewModeOf } from './view-mode.jsx';
 
 function Section({ def, entries, ctx, el, selection, kindId }) {
   const adder = def.adder ? entries.find((e) => typeof e.add === 'function') : null;
@@ -86,6 +87,9 @@ export function InspectorFrame({
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
   const el = Array.isArray(selected) ? selected[0] : selected;
   const adv = useAdvancedOpen(hasAnySlot());
+  // S2.18 — someone else holds the selection: view mode (view-mode.jsx)
+  const rootRef = useRef(null);
+  const hold = viewModeOf(useHoldView({ canvasOrigin: cfg?.canvasOrigin, rootRef }));
   const el1 = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
   // the three registry actions (⌘K) run on what this frame shows; with several objects they say so
   useEffect(() => {
@@ -136,7 +140,12 @@ export function InspectorFrame({
   };
 
   return (
-    <div className="insp" data-testid="inspector-frame" data-kind={kind.id}>
+    <div
+      ref={rootRef}
+      className={hold.view ? 'insp ed-insp--view' : 'insp'}
+      data-testid="inspector-frame"
+      data-kind={kind.id}
+    >
       {/* S2.1 — the canvas's own crumbs (clickable, + esc); the layer-tree path for an old bundle */}
       {Array.isArray(el.crumbs) && !Array.isArray(selected) ? (
         <InspectorCrumbs crumbs={el.crumbs} onPick={onSelectCrumb} />
@@ -156,33 +165,37 @@ export function InspectorFrame({
           Uses {ds}
         </p>
       ) : null}
-      {SECTIONS.map((def) => {
-        const entries = slotsFor(def.id, kind.id, selected);
-        if (!entries.length) return null;
-        return (
-          <Section
-            key={def.id}
-            def={def}
-            entries={entries}
-            ctx={ctx}
-            el={el}
-            selection={selected}
-            kindId={kind.id}
-          />
-        );
-      })}
-      <InspectorAdvanced
-        selected={selected}
-        el={el}
-        layersTree={layersTree}
-        cfg={cfg}
-        canvasFile={canvasFile}
-        open={adv.open}
-        onToggle={adv.toggle}
-        onRenameElementId={onRenameElementId}
-        edit={edit}
-        artboard={artboard}
-      />
+      <HoldLine line={hold.line} />
+      {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
+      <fieldset className="ed-insp-fields" disabled={hold.view}>
+        {SECTIONS.map((def) => {
+          const entries = slotsFor(def.id, kind.id, selected);
+          if (!entries.length) return null;
+          return (
+            <Section
+              key={def.id}
+              def={def}
+              entries={entries}
+              ctx={ctx}
+              el={el}
+              selection={selected}
+              kindId={kind.id}
+            />
+          );
+        })}
+        <InspectorAdvanced
+          selected={selected}
+          el={el}
+          layersTree={layersTree}
+          cfg={cfg}
+          canvasFile={canvasFile}
+          open={adv.open}
+          onToggle={adv.toggle}
+          onRenameElementId={onRenameElementId}
+          edit={edit}
+          artboard={artboard}
+        />
+      </fieldset>
     </div>
   );
 }
