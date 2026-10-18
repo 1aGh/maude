@@ -28,6 +28,8 @@ export const SUB_VERBS = {
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
   runs: { list: NATIVE, stop: NATIVE },
+  // S7.6c (V2-1.10 §5.7): a video's captions — `list` reads, `add` / `export` write in the project.
+  captions: { add: NATIVE, list: NATIVE, export: NATIVE },
 };
 
 const STEP_FLAGS = {

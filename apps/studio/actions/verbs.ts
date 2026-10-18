@@ -111,6 +111,16 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('transcribe-local', 'project', {
     note: 'local whisper.cpp only; no network, no model download',
   }),
+  // S7.3 / S7.6c (V2-1.10 §5.7). `beats` writes assets/<name>.beats.json (`--dry-run` prints only);
+  // the video tools are each one edit op through the running studio (its refusals apply), and
+  // `captions add` transcribes with transcribe-local only — never a cloud engine.
+  d('beats', 'project', { note: 'local analysis; --dry-run writes nothing' }),
+  d('captions list', 'none'),
+  d('captions add', 'project', { note: 'transcribe-local only (no cloud), then one edit op' }),
+  d('captions export', 'project', { note: 'stdout, or --out confined to the project' }),
+  d('captions', 'project', { note: 'add / list / export; an unknown sub-verb is a usage error' }),
+  d('cut-words', 'project'),
+  d('cut-to-beat', 'project'),
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),

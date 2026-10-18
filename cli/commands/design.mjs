@@ -134,6 +134,15 @@ const BIN_VERBS = new Set([
   // speech regions for one project asset → assets/<name>.transcript.json. whisper.cpp only, never a
   // model download, no --provider (so it is auto tier; the cloud engines stay on `transcribe`).
   'transcribe-local',
+  // S7.3 (V2-1.10 §5.7). `beats` — tempo, beats and bars of one project music asset →
+  // assets/<name>.beats.json (`--dry-run` prints only). Local, no network.
+  'beats',
+  // S7.6c (V2-1.10 §5.7). The Timeline's video tools for an agent, each ONE edit op through the
+  // running studio (`POST /_api/edit-op`, the same bytes and refusals as the UI): `captions add|list|
+  // export`, `cut-words` (edit by transcript) and `cut-to-beat`.
+  'captions',
+  'cut-words',
+  'cut-to-beat',
   // feature-ai-media-generation (Task 2.5, DDR-164). `audio-search` is the
   // reuse-before-you-pay verb: search the project's own generated audio + the
   // user's ElevenLabs history before spending credits on a new music/SFX/VO
@@ -417,6 +426,10 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Recent exports; export one again as the Export sheet does (file lands in the project).
   runs list [--canvas <canvas>] [--json] · runs stop <run>
         The AI runs on this project and the artboards each is changing; stop one of yours.
+  captions add|list|export <canvas>#<artboard> · cut-words <canvas>#<artboard> --clip <id> --words w12-w15
+  cut-to-beat <canvas>#<artboard> [--every 1|2|4] · beats <assets/x.mp3> [--bpm N] [--dry-run]
+        A video's captions, edit by transcript, Cut to the beat (one undoable edit each, in the
+        open studio), and the beat grid of a music asset.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 
