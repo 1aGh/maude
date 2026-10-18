@@ -74,6 +74,8 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     label: 'Move to cloud…',
     kind: 'command',
     exec: 'shell',
-    visible: { shell: ['desktop'], notFacts: ['linkedHub'] },
+    // A6b-2 lead patch: S9.20 (the Share sheet's Move-to-cloud row) is not built yet, so no shell
+    // shows this action; S9.20 restores `shell: ['desktop']` when it mounts the row.
+    visible: { shell: [], notFacts: ['linkedHub'] },
   },
 ];
