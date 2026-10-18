@@ -161,6 +161,21 @@ describe('deriveTrash (pure)', () => {
     expect(items.map((i) => i.id)).toContain('artboard:a3/Back');
   });
 
+  test('each item says whether it is mine and who trashed it — a name, never an e-mail', () => {
+    const l = listing();
+    l.canvases[0].actor = 'jonas.novak@studio.test';
+    l.you = 'jonas.novak@studio.test';
+    for (const a of l.artboards) a.actor = 'local:m_trash';
+    const items = deriveTrash(l, { readSource: () => null });
+    const canvas = items.find((i) => i.id === 'canvas:n_b');
+    expect(canvas).toMatchObject({ mine: true, who: 'Jonas Novak' });
+    for (const i of items.filter((x) => x.kind === 'artboard'))
+      expect(i).toMatchObject({ mine: false, who: null });
+    expect(JSON.stringify(items.map(({ mine, who }) => ({ mine, who })))).not.toContain('@');
+    const anon = deriveTrash({ ...l, you: null }, { readSource: () => null });
+    expect(anon.find((i) => i.id === 'canvas:n_b')?.mine).toBe(false);
+  });
+
   test('a malformed id from a home is never served', () => {
     const l = listing();
     l.canvases.push({ ...l.canvases[0], id: 'canvas:../x', entry: '../x' } as never);
