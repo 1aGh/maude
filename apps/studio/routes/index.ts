@@ -17,6 +17,7 @@
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
@@ -32,6 +33,8 @@ export interface RouteDeps {
   pins: PinsRouteDeps;
   /** S5.3 — `/_api/ai/runs*` + the v1 `/_api/ai` routes, on THE run registry */
   ai: AiRouteDeps;
+  /** S5.7 — the chat store: search, trash, the resume session id */
+  chat: ChatRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -46,5 +49,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createShellRoutes({ ...deps.shell, runs: deps.agent.runs }),
     ...createPinsRoutes(deps.pins),
     ...createAiRoutes(deps.ai),
+    ...createChatRoutes(deps.chat),
   ];
 }

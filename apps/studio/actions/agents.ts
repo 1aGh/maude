@@ -297,4 +297,22 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'tab.select-last': { effect: 'none', agent: human('native-window') },
   'app.check-updates': { effect: 'none', agent: human('native-window') },
+  // ── AI chat (S5.7) ──
+  // The chat is Claude Code on this Mac; an agent is already the AI, so these rows are the
+  // person's way to drive the conversation list. `_chat/` is per-Mac runtime state (DDR-115),
+  // never versioned and never synced, hence effect 'none'.
+  'chat.new': { effect: 'none', agent: human('ai-chat') },
+  'chat.rename': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
+  'chat.archive': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
+  'chat.trash': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
+  'chat.copy-transcript': { effect: 'none', agent: human('ai-chat') },
+  // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
+  // runs in a shell and resumes a session with `claude --resume` itself.
+  'chat.open-in-terminal': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell'
+    ),
+  },
 };

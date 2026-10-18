@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "8e6d5e8f37c2",
+  "manifestVersion": "559df47ed2cc",
   "actions": [
     {
       "id": "search.open",
@@ -1971,6 +1971,76 @@
       "agent": {
         "path": "human",
         "because": "native-window"
+      }
+    },
+    {
+      "id": "chat.new",
+      "label": "New chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
+    },
+    {
+      "id": "chat.archive",
+      "label": "Archive",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
+    },
+    {
+      "id": "chat.trash",
+      "label": "Move to trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
+    },
+    {
+      "id": "chat.copy-transcript",
+      "label": "Copy transcript",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "chat.open-in-terminal",
+      "label": "Open in terminal",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell"
       }
     }
   ],

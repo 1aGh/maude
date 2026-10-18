@@ -5,6 +5,7 @@ import { AI_RUN_ACTIONS } from './defs/ai-runs.ts';
 import { ANNOTATION_ACTIONS } from './defs/annotation.ts';
 import { APP_ACTIONS } from './defs/app.ts';
 import { CANVAS_ACTIONS } from './defs/canvas.ts';
+import { CHAT_ACTIONS } from './defs/chat.ts';
 import { DIAGNOSTICS_ACTIONS } from './defs/diagnostics.ts';
 import { EDIT_ACTIONS } from './defs/edit.ts';
 import { EXPORT_ACTIONS } from './defs/export.ts';
@@ -30,6 +31,7 @@ export const ACTIONS: readonly ActionDef[] = Object.freeze([
   ...DIAGNOSTICS_ACTIONS,
   ...ANNOTATION_ACTIONS,
   ...NATIVE_ACTIONS,
+  ...CHAT_ACTIONS,
 ]);
 
 export const ACTIONS_BY_ID: ReadonlyMap<ActionId, ActionDef> = new Map(

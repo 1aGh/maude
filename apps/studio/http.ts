@@ -28,6 +28,7 @@ import { activitySnapshot, runningChats } from './acp/running.ts';
 import {
   chatTranscriptSeq,
   deleteChat,
+  groupChatsByCanvas,
   listChats,
   readChatMessages,
   writeChatMeta,
@@ -1629,6 +1630,12 @@ export function createHttp(
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
     pins: { designRoot: ctx.paths.designRoot },
+    // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
+    chat: {
+      designRoot: ctx.paths.designRoot,
+      outbox: outbox.store,
+      isRunning: (id) => runningChats().includes(id),
+    },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
@@ -2017,10 +2024,19 @@ export function createHttp(
 
     // Phase 31 — repo-level chat list + history (for the chat switcher +
     // hydration). MAIN-ORIGIN ONLY. Read-only; ids are sanitized before disk.
-    '/_api/acp/chats': () =>
-      Response.json(listChats(ctx.paths.designRoot), {
-        headers: { 'Cache-Control': 'no-store' },
-      }),
+    // S5.7: `?trashed=1` is the trash's own list (S1's Trash panel provider); `?group=canvas`
+    // answers `{ groups: [{ canvas, chats }] }` instead of the flat array. No query = the
+    // flat, newest-first array every existing consumer reads.
+    '/_api/acp/chats': (req: Request) => {
+      const q = new URL(req.url).searchParams;
+      const chats = listChats(ctx.paths.designRoot, { trashed: q.get('trashed') === '1' });
+      return Response.json(
+        q.get('group') === 'canvas' ? { groups: groupChatsByCanvas(chats) } : chats,
+        {
+          headers: { 'Cache-Control': 'no-store' },
+        }
+      );
+    },
     '/_api/acp/chat': async (req: Request) => {
       const id = (new URL(req.url).searchParams.get('id') ?? '')
         .replace(/[^a-z0-9_-]/gi, '')
