@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
+import { nameRequest, restoreRequest } from '../history/surface-requests.ts';
 import {
   call,
   canvasRepoRel,
@@ -217,16 +218,14 @@ async function restore(words) {
   if (c.exit) return c.exit;
   const repoRel = canvasArg(c.root, canvas);
   const scoped = lastGood || artboard !== undefined || element !== undefined;
-  // The whole canvas keeps the v1 body; S1.13's scoped restores name the version as `at`.
-  const json = scoped
-    ? {
-        path: repoRel,
-        at: lastGood ? '@last-good' : `r${m[1]}`,
-        ...(artboard !== undefined ? { artboard } : {}),
-        ...(element !== undefined ? { element } : {}),
-      }
-    : { path: repoRel, revision: Number(m[1]) };
-  const r = await call(c.studio, '/_api/project/restore', { method: 'POST', json });
+  // The request is the one the history panel makes (history/surface-requests.ts).
+  const req = restoreRequest({
+    path: repoRel,
+    at: lastGood ? '@last-good' : `r${m[1]}`,
+    ...(artboard !== undefined ? { artboard } : {}),
+    ...(element !== undefined ? { element } : {}),
+  });
+  const r = await call(c.studio, req.route, { method: req.method, json: req.body });
   if (r?.status === 409 && r.body?.line) {
     // "Can't restore only Hero — restore the whole canvas instead." / "Restore the artboard instead."
     process.stderr.write(`maude design history: ${clean(r.body.line)}\n`);
@@ -290,10 +289,12 @@ async function name(words) {
   const c = await connect('history', flags['--root']);
   if (c.exit) return c.exit;
   const repoRel = canvasArg(c.root, canvas);
-  const r = await call(c.studio, '/_api/project/name', {
-    method: 'POST',
-    json: { path: repoRel, at: m ? `r${m[1]}` : 'now', name: clear ? null : label },
+  const req = nameRequest({
+    path: repoRel,
+    at: m ? `r${m[1]}` : 'now',
+    name: clear ? null : label,
   });
+  const r = await call(c.studio, req.route, { method: req.method, json: req.body });
   if (r?.status === 409 && r.body?.reason === 'hub-too-old') {
     process.stderr.write(
       `maude design history: ${clean(r.body.line ?? 'the team server needs to be updated')}\n`
