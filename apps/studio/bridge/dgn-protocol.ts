@@ -185,6 +185,9 @@ export interface CanvasToShell {
   };
   'viewport-zoom': { zoom: number };
   'present-position': { index: number; total: number; artboardId: Id };
+  // S3.3 — the clip on the presented artboard (video-comp): the shell's transport mirrors it. `t` and
+  // `duration` are seconds, 0..86400.
+  'present-media': { playing: boolean; t: number; duration: number; muted: boolean };
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -283,6 +286,8 @@ export interface ShellToCanvas {
   };
   'occluded-insets': { seq: number; insets: Insets };
   'present-step': { to: number | 'next' | 'prev' };
+  // S3.3 — the shell's transport (and presenter view: `mute` on the Mac's canvas) drives the clip.
+  'present-media-cmd': { op: 'play' | 'pause' | 'mute' | 'unmute' };
   // V2-4 gate (WCAG 2.1.4) — the per-Mac "Single-key shortcuts" switch: `false` → the canvas resolves no
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
@@ -322,6 +327,9 @@ const isPlain = (v: unknown): v is Record<string, unknown> =>
 const str: V = (v) => (typeof v === 'string' && v.length <= MAX_STR ? v : BAD);
 const num: V = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : BAD);
 const bool: V = (v) => (typeof v === 'boolean' ? v : BAD);
+/** S3.3 — a time in seconds: finite, 0..86400 (a day), else the whole message is junk. */
+const seconds: V = (v) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 86400 ? v : BAD;
 const lit =
   (...xs: readonly unknown[]): V =>
   (v) =>
@@ -790,6 +798,14 @@ const c2s: C2S = {
     owner: 'v2/shell/use-canvas-mode-lane (S3.1)',
     parse: p({ index: num, total: num, artboardId: str }),
   },
+  // S3.3 — live: the Present stage's media engine (present/present-media.ts) echoes the clip;
+  // the shell lane (use-canvas-mode-lane) keeps it for the transport.
+  'present-media': {
+    gate: 'active',
+    status: 'live',
+    owner: 'present/present-media (S3.3)',
+    parse: p({ playing: bool, t: seconds, duration: seconds, muted: bool }),
+  },
 };
 
 const s2c: S2C = {
@@ -1089,6 +1105,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (S3.1)',
     parse: p({ to: (v) => (v === 'next' || v === 'prev' ? v : num(v)) }),
+  },
+  // S3.3 — live: the shell transport's buttons; the Present stage's media engine applies it.
+  'present-media-cmd': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'present/present-media (S3.3)',
+    parse: p({ op: lit('play', 'pause', 'mute', 'unmute') }),
   },
   'key-prefs': {
     gate: 'parent',
