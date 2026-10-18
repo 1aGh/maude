@@ -10,6 +10,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import { canvasFrameCfg, canvasUrl } from '../client/canvas-url.js';
 import { dsFrameState, framePair, useDsFrames } from '../client/v2/ds/use-ds-frames.js';
+import { createMenuHandlers } from '../client/v2/shell/menu-runner.js';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -85,8 +86,9 @@ type Props = {
   presentMode?: boolean;
   canvasActiveArtboard?: unknown;
 };
+let lastFrames: ReturnType<typeof useDsFrames> | null = null;
 function Harness(p: Props) {
-  useDsFrames({
+  lastFrames = useDsFrames({
     cfg: p.cfg,
     iframesRef: { current: p.frames },
     activePath: p.activePath,
@@ -221,5 +223,35 @@ describe('the follower swap: a head that moved lands at the next look, never und
     await rerender({ cfg: cfgOf(R2) });
     await act(async () => setVisible());
     expect(swaps(win)).toHaveLength(0);
+  });
+});
+
+describe('ds.set-theme-preview → the active canvas, once, in its own origin', () => {
+  test('the runner hands the mode to the shell; the shell posts it to the ACTIVE frame only', async () => {
+    const cfg = cfgOf(R2);
+    const a = frameFor(cfg, PRICING);
+    const b = frameFor(cfg, LANDING);
+    const frames = new Map<string, any>([
+      [PRICING, a.frame],
+      [LANDING, b.frame],
+    ]);
+    await mount({ cfg, frames, activePath: PRICING });
+    const asked: unknown[] = [];
+    const handlers = createMenuHandlers({
+      onDsThemePreview: (mode: unknown) => {
+        asked.push(mode);
+        lastFrames?.postThemePreview(mode);
+      },
+    });
+    handlers['ds.set-theme-preview']?.({ mode: 'dark' });
+    expect(asked).toEqual(['dark']);
+    expect(a.win.sent.filter(([m]) => m.type === 'maude:ds-theme-preview')).toEqual([
+      [{ type: 'maude:ds-theme-preview', mode: 'dark' }, ORIGIN],
+    ]);
+    expect(b.win.sent).toHaveLength(0);
+    // a mode that is not Light or Dark posts nothing
+    handlers['ds.set-theme-preview']?.({ mode: 'sepia' });
+    handlers['ds.set-theme-preview']?.(undefined);
+    expect(a.win.sent.filter(([m]) => m.type === 'maude:ds-theme-preview')).toHaveLength(1);
   });
 });

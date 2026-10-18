@@ -10,7 +10,7 @@
 // The frame is untrusted (DDR-054): `acceptFromCanvas` checks the origin, the gate (`active`) and cleans the
 // payload before anything here sees it. Nothing here names a path the frame supplied.
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
 import { canvasDsRender, canvasDsSystem } from '../../canvas-url.js';
 import { createFollowerSwap } from './follower-swap.js';
@@ -130,5 +130,23 @@ export function useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasAc
     wasPresenting.current = presentMode === true;
   }, [presentMode, swap]);
 
-  return { pins, swap };
+  /** `ds.set-theme-preview` (S10.6): the Design system canvas previews its Light or its Dark. A preview only —
+   *  the canvas keeps it in memory, nothing is written; only the shell that framed it may ask. */
+  const postThemePreview = useCallback(
+    (mode) => {
+      if (mode !== 'light' && mode !== 'dark') return;
+      const frame = activePath ? iframesRef.current.get(activePath) : null;
+      try {
+        frame?.contentWindow?.postMessage(
+          { type: 'maude:ds-theme-preview', mode },
+          cfg?.canvasOrigin || window.location.origin
+        );
+      } catch {
+        /* detached */
+      }
+    },
+    [activePath, cfg?.canvasOrigin, iframesRef]
+  );
+
+  return { pins, swap, postThemePreview };
 }

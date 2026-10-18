@@ -255,6 +255,8 @@ export function createMenuHandlers(d) {
       foldStore.openAll();
       d.toast?.('All Advanced sections are open.');
     },
+    // S10.6 — Light | Dark on the Design system canvas: a preview of the active canvas only, nothing written.
+    'ds.set-theme-preview': (p) => d.onDsThemePreview?.(p?.mode),
     'view.advanced-close-all': () => {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
