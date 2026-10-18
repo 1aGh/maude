@@ -6083,7 +6083,7 @@ export function stampIds(
 // gesture stamps the element first (a gesture is a studio write, §4.3) and returns its stable id.
 
 /** The element `id` (+ `occurrence`) addresses, stamped if it has no authored id yet. */
-function ensureStamped(
+export function ensureStamped(
   canvasAbsPath: string,
   source: string,
   id: string,

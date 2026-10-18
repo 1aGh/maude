@@ -10316,14 +10316,143 @@
     "hook": "inspector-crumbs",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The path above the name — artboard › parents › element. Absent for an artboard or a selection the layer tree has not got.",
+    "meaning": "The path above the name — artboard › frames › object (the canvas's own crumbs, S2.1; the layer-tree path for an old canvas bundle). Absent for an artboard.",
     "producer": {
-      "file": "apps/studio/client/v2/inspector/frame.jsx",
-      "symbol": "Crumbs"
+      "file": "apps/studio/client/v2/inspector/crumbs.jsx",
+      "symbol": "InspectorCrumbs"
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-inspector-render.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/edit-op-crumbs.test.tsx",
+      "apps/studio/test/v2-inspector-render.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-crumb-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One rung of the inspector crumbs, 0 = the artboard. Every rung above the selection is a button that selects that level.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/crumbs.jsx",
+      "symbol": "InspectorCrumbs"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-op-crumbs.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspector-crumbs-esc",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The esc key cap after the crumbs: esc steps out one level (object.step-out). Only for an object selection.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/crumbs.jsx",
+      "symbol": "InspectorCrumbs"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-op-crumbs.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-parent-outline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed outline on the frame a single selected object sits in (where you are inside).",
+    "producer": {
+      "file": "apps/studio/editing/selection.tsx",
+      "symbol": "EditingSelection"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-name-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the name tag over a single selected object, \"Brand systems · 400 × 232\" (world px).",
+    "producer": {
+      "file": "apps/studio/editing/selection.tsx",
+      "symbol": "EditingSelection"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-lock-badge",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the lock badge with the name of a locked object the pointer is on (\"Logo\"). Shared lock — everyone sees it.",
+    "producer": {
+      "file": "apps/studio/editing/lock-badge.tsx",
+      "symbol": "LockBadge"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-object-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-lock-tip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line beside the pointer on a locked object, \"Logo is locked · ⇧⌘L unlocks\".",
+    "producer": {
+      "file": "apps/studio/editing/lock-badge.tsx",
+      "symbol": "LockBadge"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-nudge-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the position tag beside the selection while the arrows nudge (\"Y 434\" for ↑↓, \"X 120\" for ←→, world px); fades after a moment.",
+    "producer": {
+      "file": "apps/studio/editing/nudge.tsx",
+      "symbol": "NudgeReadout"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-nudge-gaps",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ⌥-held distance guides from the selection to the edges of the frame it sits in.",
+    "producer": {
+      "file": "apps/studio/editing/nudge.tsx",
+      "symbol": "NudgeReadout"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-gap-<side>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one distance chip of the ⌥ guides; `<side>` is top, right, bottom or left (world px).",
+    "producer": {
+      "file": "apps/studio/editing/nudge.tsx",
+      "symbol": "NudgeReadout"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
     "v2": "new"
   },
   {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { StIcon } from '../shell/icons.jsx';
+import { LayerRowTools } from '../v2/inspector/layers-row-tools.jsx';
 
 // ---------- Inspector panel (display-only) ----------
 //
@@ -122,7 +123,9 @@ export function LayerRow({
   // instantiated component. `root` = the component's own frame root (◆).
   const inst = !isSynthetic && componentMap ? componentMap[node.id] : null;
   // feature-4 T7b — locked layers can't be selected/dragged on the canvas.
-  const isLocked = !isSynthetic && !!lockedKeys?.has(key);
+  // S2.6 — lock is shared (`data-cd-locked`, the tree's `locked`); `lockedKeys` carries the old
+  // per-user locks until V2-2.14 migrates them.
+  const isLocked = !isSynthetic && (!!node.locked || !!lockedKeys?.has(key));
   // feature-4 T7c — inline rename (dblclick the label).
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
@@ -274,35 +277,14 @@ export function LayerRow({
           </span>
         )}
         <span className="st-layer-type">{inst ? inst.component : node.type}</span>
-        {onToggleLock && !isSynthetic ? (
-          <button
-            type="button"
-            className="st-layer-lock"
-            aria-label={isLocked ? `Unlock ${node.label}` : `Lock ${node.label}`}
-            aria-pressed={isLocked}
-            title={isLocked ? 'Unlock' : 'Lock'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleLock(key);
-            }}
-          >
-            <StIcon name={isLocked ? 'lock' : 'unlock'} size={12} />
-          </button>
-        ) : null}
-        {onToggleVisibility && !isSynthetic ? (
-          <button
-            type="button"
-            className="st-layer-eye"
-            aria-label={isHidden ? `Show ${node.label}` : `Hide ${node.label}`}
-            aria-pressed={isHidden}
-            title={isHidden ? 'Show' : 'Hide'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleVisibility(node);
-            }}
-          >
-            <StIcon name={isHidden ? 'eye-off' : 'eye'} size={13} />
-          </button>
+        {!isSynthetic ? (
+          <LayerRowTools
+            node={node}
+            isLocked={isLocked}
+            isHidden={isHidden}
+            onToggleLock={onToggleLock}
+            onToggleVisibility={onToggleVisibility}
+          />
         ) : null}
       </div>
       {hasKids && !isCollapsed
