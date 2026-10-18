@@ -15,6 +15,6 @@ maude design runtime-health \
   || { echo "✗ runtime bundles defective even after restart — abort /design:edit (see stderr)"; exit 1; }
 ```
 
-`server-up.sh` detects a running server (PID + `curl /_health`), restarts on stale, polls 10 s, stdout = port. Diagnostics on stderr (`✓ server alive pid=… port=…` / `→ starting dev server …`).
+`server-up.sh` detects a running server (PID + the server's `/_health` answer), restarts on stale, polls 10 s, stdout = port. Diagnostics on stderr (`✓ server alive pid=… port=…` / `→ starting dev server …`).
 
 `runtime-health.sh` verifies that for every `/_canvas-runtime/<slug>.js` the server returns bytes close to the on-disk pre-built bundle (ratio ≥ 0.5). Lower ratio → defective dynamic Bun.build → auto-restart + a single re-probe; if that doesn't help, `/design:edit` aborts and recommends `lsof -i :$PORT` + manual restart.

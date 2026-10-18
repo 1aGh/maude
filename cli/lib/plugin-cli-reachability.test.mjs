@@ -20,7 +20,8 @@
 
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
 test('no plugin runs `node cli/lib/*.mjs` without an on-PATH maude fallback', () => {
@@ -96,4 +97,56 @@ test('the V2-2.4b verbs are reachable as `maude design <verb>` and answer --help
     });
     assert.match(out, new RegExp(`maude design ${verb}`), `${verb} --help prints its usage`);
   }
+});
+
+// S12.9: a plugin never `curl`s a studio route that has a verb or a hook behind it. The v1
+// /design:edit step 4.5 did (`/_api/ai/start|heartbeat|end`): in v2 the hooks open and close the
+// run and the run folder line names it, so a second, hand-made bracket would fork the run
+// registry (two runs for one edit). A `curl` at a route with no verb (footage, export-jobs) stays
+// legal until its own verb lands; `curl-local` is the loopback-only wrapper, not a raw curl.
+const ROUTES_WITH_A_VERB = [
+  ['/_api/ai/start', 'the hooks, which open the run'],
+  ['/_api/ai/heartbeat', 'the hooks, which renew the run'],
+  ['/_api/ai/end', 'the hooks, which close the run'],
+  ['/_api/ai/runs', '`maude design runs`'],
+  ['/_api/comments', '`maude design comments`'],
+  ['/_api/trash', '`maude design trash`'],
+  ['/_api/project/history', '`maude design history`'],
+  ['/_api/project/undo', '`maude design history undo`'],
+  ['/_api/ui/open', '`maude design open`'],
+  ['/_api/annotations/ops', '`maude design annotate`'],
+  ['/_api/generate', '`maude design generate`'],
+  ['/_api/photo-edit', '`maude design photo-adjust`'],
+];
+
+function markdownUnder(dir, out = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      if (e.name !== 'node_modules') markdownUnder(p, out);
+    } else if (e.name.endsWith('.md')) out.push(p);
+  }
+  return out;
+}
+
+test('no plugin markdown curls a studio route that has a verb (S12.9)', () => {
+  const hits = [];
+  for (const file of markdownUnder('plugins')) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      if (!/\bcurl\b(?!-local)/.test(line)) return;
+      // a continued command: the route may sit on the next two lines
+      const cmd = lines.slice(i, i + 3).join('\n');
+      for (const [route, via] of ROUTES_WITH_A_VERB) {
+        const at = cmd.indexOf(route);
+        if (at !== -1 && !/[A-Za-z0-9_-]/.test(cmd.charAt(at + route.length)))
+          hits.push(`${file}:${i + 1} curls ${route}; use ${via}`);
+      }
+    });
+  }
+  assert.deepEqual(
+    hits,
+    [],
+    `A plugin must reach these through their verb or hook, not a raw curl:\n  ${hits.join('\n  ')}`
+  );
 });
