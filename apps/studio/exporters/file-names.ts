@@ -115,8 +115,12 @@ export function safeExt(ext: string): string {
  * Dedupe names within one job: the second `Hero.png` is `Hero (2).png`. Stateful: one
  * instance per job. Case-insensitive, NFC.
  */
-export function createNameDeduper(): (stem: string, ext: string) => string {
-  const seen = new Set<string>();
+export function createNameDeduper(
+  taken: Iterable<string> = []
+): (stem: string, ext: string) => string {
+  // `taken`: names an earlier run of the same job already wrote (S8.4 retry), so a re-run
+  // item never lands on top of one.
+  const seen = new Set<string>([...taken].map((n) => n.toLowerCase()));
   return (stem, ext) => {
     const e = safeExt(ext);
     const base = sanitizeStem(stem);

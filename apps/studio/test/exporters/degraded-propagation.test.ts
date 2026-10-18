@@ -112,14 +112,18 @@ describe('degraded propagation chain (source-shape — the browser half runs man
   });
 
   test('the panel and the toast both surface it', () => {
-    const src = read('client/export-center.jsx');
-    expect(src).toContain('DegradedNote');
-    expect(src).toContain('export-degraded-note');
+    // S8.4 moved the surfaces out of export-center.jsx: the row (job-row.jsx), the toast
+    // (done-toast.jsx) and the words (exports-model.js).
+    const row = read('client/v2/export/job-row.jsx');
+    const toast = read('client/v2/export/done-toast.jsx');
+    const words = read('client/v2/export/exports-model.js');
+    expect(row).toContain('DegradedNote');
+    expect(row).toContain('export-degraded-note');
     // The pill must not read "Ready" on a muted file.
-    expect(src).toContain('Ready · no audio');
+    expect(words).toContain('Ready · no audio');
     // Both surfaces, because the toast is what the user sees without opening
     // the panel, and the panel is what they revisit afterwards.
-    const noteUses = src.match(/<DegradedNote/g) ?? [];
-    expect(noteUses.length).toBeGreaterThanOrEqual(2);
+    expect(row.match(/<DegradedNote/g) ?? []).not.toHaveLength(0);
+    expect(toast.match(/<DegradedNote/g) ?? []).not.toHaveLength(0);
   });
 });

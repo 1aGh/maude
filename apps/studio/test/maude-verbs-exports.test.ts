@@ -1,4 +1,4 @@
-// V2-2.4b — `maude design exports list` and `exports again <id>` (contract V2-1.11 §5.3, S8).
+// V2-2.4b — `maude design exports list`, `exports again <id>` and (S8.4) `exports retry <id>` (contract V2-1.11 §5.3, S8).
 // `again` re-submits a history entry through the same jobs path the Export sheet's "Export
 // again" row uses (POST /_api/export-jobs, replayExportJob), waits for the job and writes the
 // file inside the project. The UI ↔ verb payload parity is test/exports-again-parity.test.tsx.
@@ -118,7 +118,9 @@ describe('maude design exports again', () => {
   test('usage: unknown sub-verb or flag → 2, no request', async () => {
     studio = fakeStudio(handler());
     for (const args of [
-      ['retry', 'x'],
+      ['restart', 'x'],
+      ['retry'],
+      ['retry', 'job-a', '--cloud'],
       ['again'],
       ['again', 'job-a', '--cloud'],
       ['list', 'x'],
@@ -129,5 +131,65 @@ describe('maude design exports again', () => {
     }
     expect(studio.seen).toEqual([]);
     expect((await studio.run('exports', ['--help'])).code).toBe(0);
+  });
+});
+
+describe('maude design exports retry (S8.4)', () => {
+  const GROUP = {
+    id: 'job-g',
+    format: 'png',
+    scope: 'canvas-as-separate',
+    filename: 'Club.zip',
+    at: '2026-10-10T10:03:00.000Z',
+    status: 'done',
+  };
+  function retryHandler(status: number, body: unknown = { jobId: 'job-g', items: ['u2'] }) {
+    let polls = 0;
+    return (s: Seen) => {
+      if (s.path === '/_api/export-history') return json({ history: [GROUP] });
+      if (s.path === '/_api/export-jobs/retry') return json(body, status);
+      if (s.path === '/_api/export-jobs') {
+        polls++;
+        return json({
+          jobs: [
+            {
+              id: 'job-g',
+              status: polls < 2 ? 'running' : 'done',
+              items: [
+                { id: 'u1', name: 'Board 1', status: 'ok' },
+                { id: 'u2', name: 'Recap', status: 'ok' },
+              ],
+            },
+          ],
+        });
+      }
+    };
+  }
+
+  test('posts {id, items} to the retry route, waits, and says how many made it', async () => {
+    studio = fakeStudio(retryHandler(202));
+    const r = await studio.run('exports', ['retry', 'job-g', '--item', 'u2']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('Exported 2 of 2');
+    const sent = posts(studio.seen).filter((p) => p.path === '/_api/export-jobs/retry');
+    expect(sent.map((p) => p.body)).toEqual([{ id: 'job-g', items: ['u2'] }]);
+    // it never submits a fresh export
+    expect(posts(studio.seen).some((p) => p.path === '/_api/export-jobs')).toBe(false);
+  });
+
+  test('--no-wait only starts it; by index works too', async () => {
+    studio = fakeStudio(retryHandler(202));
+    const r = await studio.run('exports', ['retry', '0', '--no-wait', '--json']);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({ jobId: 'job-g', items: ['u2'] });
+  });
+
+  test('a refusal exits 1 with the reason', async () => {
+    studio = fakeStudio(retryHandler(409, { error: 'nothing-to-retry' }));
+    const r = await studio.run('exports', ['retry', 'job-g']);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain('nothing-to-retry');
+    const miss = await studio.run('exports', ['retry', 'nope']);
+    expect(miss.code).toBe(1);
   });
 });

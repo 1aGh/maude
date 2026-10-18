@@ -147,4 +147,60 @@ describe('export jobs are scoped to the requesting member (V2-2.8 S5)', () => {
       await killProc(proc);
     }
   }, 60_000);
+
+  // S8.4 — Retry is the export class AND the owner's: a member can retry only a job they exported;
+  // anyone else's id (or one that never existed) gets the same 404 the download route gives.
+  test('POST /_api/export-jobs/retry is scoped to the member who exported', async () => {
+    const { root } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port, WORKSPACE_ENV);
+    try {
+      const base = `http://localhost:${port}`;
+      const retry = (session: string, id: string) =>
+        fetch(`${base}/_api/export-jobs/retry`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...as(session) },
+          body: JSON.stringify({ id }),
+        });
+      // A v2 spec is a group job (one item per engine unit).
+      const start = await fetch(`${base}/_api/export-jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...as(ALICE) },
+        body: JSON.stringify({ v: 2, spec: { v: 2, scope: 'project', format: 'zip' } }),
+      });
+      expect(start.status).toBe(202);
+      const { jobId } = (await start.json()) as { jobId: string };
+      const deadline = Date.now() + 15_000;
+      let done = false;
+      while (Date.now() < deadline && !done) {
+        done = (await jobsOf(base, ALICE)).some((j) => j.id === jobId && j.status === 'done');
+        if (!done) await Bun.sleep(25);
+      }
+      expect(done).toBe(true);
+
+      // Alice owns it: nothing failed, so there is nothing to run again (409, with the reason).
+      const mine = await retry(ALICE, jobId);
+      expect(mine.status).toBe(409);
+      expect(await mine.json()).toEqual({ error: 'nothing-to-retry' });
+
+      // Bob: the same answer an id that never existed gets — the job is not his to learn about.
+      const hidden = await retry(BOB, jobId);
+      const ghost = await retry(BOB, crypto.randomUUID());
+      expect(hidden.status).toBe(404);
+      expect({ status: hidden.status, body: await hidden.text() }).toEqual({
+        status: ghost.status,
+        body: await ghost.text(),
+      });
+
+      // The body must be {id, items?} (Can view's refusal is the role-refusal row, _role-refusals.ts).
+      const bad = await fetch(`${base}/_api/export-jobs/retry`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...as(ALICE) },
+        body: JSON.stringify({ id: jobId, extra: 1 }),
+      });
+      expect(bad.status).toBe(400);
+    } finally {
+      await killProc(proc);
+    }
+  }, 60_000);
 });

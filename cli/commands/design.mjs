@@ -178,7 +178,8 @@ const BIN_VERBS = new Set([
   // and resolving (S9) will be their own prompt-tier sub-verbs.
   'comments',
   // V2-2.4b (§5.3, S8). `exports list` / `exports again <id>` — the Exports panel; `again` goes
-  // through the same jobs path as the sheet's "Export again" row (exporters/replay.ts).
+  // through the same jobs path as the sheet's "Export again" row (exporters/replay.ts). S8.4:
+  // `exports retry <id>` is the panel's "Retry <name>" (POST /_api/export-jobs/retry).
   'exports',
   // S5.4 (V2-1.15 §5.10). `runs list` — the AI runs on this project and the artboards each holds,
   // so a terminal Claude plans around busy ones; `runs stop <run>` stops one of YOUR runs.
@@ -419,8 +420,9 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Restore a canvas / undo an action or a whole AI chat, each as ONE new version. Asks first.
   comments list [<canvas>] [--open | --all] [--mine] [--json]
         This project's comment threads. Read-only.
-  exports list · exports again <id|index> [--out <file|folder/>] [--no-wait]
-        Recent exports; export one again as the Export sheet does (file lands in the project).
+  exports list · exports again <id|index> [--out <file|folder/>] [--no-wait] · exports retry <id|index> [--item <id,…>]
+        Recent exports; export one again as the Export sheet does (file lands in the project); retry
+        runs only the items of one export that did not make it.
   runs list [--canvas <canvas>] [--json] · runs stop <run>
         The AI runs on this project and the artboards each is changing; stop one of yours.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start

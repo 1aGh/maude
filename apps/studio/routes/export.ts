@@ -16,12 +16,16 @@
 //     `not-in-scope`, so ungranted ≡ missing) and holds `export` on;
 //   - the expansion runs over the canvases the session sees, never the raw tree.
 // Captures still render on the capture origin (canvasShellUrl → the main origin's 307).
+//
+// `POST /_api/export-jobs/retry {id, items?}` (S8.4, §5.6) runs only the failed (or waiting) items
+// of one group job again. It is the export class, and session-scoped: a job that is not yours
+// answers exactly like an id that never existed (the download route's 404, V2-1.16 U1).
 
 import { ACP_REFUSAL, notInScopeResponse } from '../access/request.ts';
 import type { Access } from '../access/scope.ts';
 import { estimateSpec } from '../exporters/estimate.ts';
 import { isFormat } from '../exporters/index.ts';
-import type { ExportHistoryEntry } from '../exporters/jobs.ts';
+import type { ExportHistoryEntry, RetryResult } from '../exporters/jobs.ts';
 import {
   resolveSpecV2,
   type SkipReason,
@@ -30,9 +34,11 @@ import {
 } from '../exporters/scope.ts';
 import type { GroupPlan } from '../exporters/spec-run.ts';
 import { type ExportSpecV2, PROJECT_CLASS_SCOPES, validateSpecV2 } from '../exporters/spec-v2.ts';
+import { sessionFromRequest } from '../session-scope.ts';
 import type { RouteSpec } from './table.ts';
 
 const MAX_BODY = 64 * 1024;
+const MAX_RETRY_ITEMS = 256;
 const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -51,6 +57,8 @@ export interface ExportRouteDeps {
   history(): readonly ExportHistoryEntry[];
   /** where `lane: 'auto'` renders (workspace-mode.ts `resolveRenderLane`) */
   renderLane(): 'local' | 'remote' | 'none';
+  /** S8.4 — run a group job's failed items again; `session` = who asks (the job queue's owner check) */
+  retry(id: string, items: readonly string[] | undefined, session: string): Promise<RetryResult>;
 }
 
 /** The role refusal — the same shape the local gate answers a read-only write with. */
@@ -150,6 +158,28 @@ export function planExportV2(
   };
 }
 
+/** The retry body: `{id, items?}`, nothing else. */
+function parseRetryBody(text: string): { id: string; items?: string[] } | null {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const b = body as Record<string, unknown>;
+  if (Object.keys(b).some((k) => k !== 'id' && k !== 'items')) return null;
+  if (typeof b.id !== 'string' || !b.id || b.id.length > 64) return null;
+  if (b.items === undefined) return { id: b.id };
+  if (
+    !Array.isArray(b.items) ||
+    b.items.length > MAX_RETRY_ITEMS ||
+    b.items.some((x) => typeof x !== 'string' || !x || x.length > 128)
+  )
+    return null;
+  return { id: b.id, items: b.items as string[] };
+}
+
 export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
   return [
     {
@@ -188,6 +218,29 @@ export function createExportRoutes(deps: ExportRouteDeps): RouteSpec[] {
             renderLane: deps.renderLane(),
           })
         );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/_api/export-jobs/retry',
+      origin: 'main',
+      // the export class (access/request.ts EXPORT_WRITES): Can comment and up, never Can view
+      readOnly: 'allowed',
+      handle: async (req) => {
+        const a = deps.access(req);
+        if (!a.can('export', null) && a.grants.length === 0) return capabilityRefusal();
+        if (Number(req.headers.get('content-length')) > MAX_BODY)
+          return json(413, { error: 'too-large' });
+        const text = await req.text();
+        if (text.length > MAX_BODY) return json(413, { error: 'too-large' });
+        const body = parseRetryBody(text);
+        if (!body)
+          return json(400, { error: 'bad-retry', message: 'body must be {id, items?: string[]}' });
+        const r = await deps.retry(body.id, body.items, sessionFromRequest(req));
+        if (r.ok) return json(202, { jobId: body.id, items: r.items }) as Response;
+        // not yours ≡ never existed: the same answer the download route gives
+        if (r.reason === 'missing') return new Response('Not found', { status: 404 });
+        return json(409, { error: r.reason });
       },
     },
   ];

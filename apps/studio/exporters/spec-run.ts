@@ -126,20 +126,32 @@ async function splitResult(
   return out;
 }
 
+export interface GroupFile {
+  name: string;
+  bytes: Uint8Array;
+}
+
+export interface GroupCollected {
+  files: GroupFile[];
+  degraded?: ExportDegradation;
+}
+
 /**
- * Run the plan. `onItem` fires on every item status change (the job emits it). Returns the
- * job's one result: a single named file, or one zip of every named file.
+ * Run the plan's units, one after the other. `onItem` fires on every item status change (the job
+ * emits it). A unit that throws marks only its item `failed`. `taken` = file names an earlier
+ * run of this job already wrote (S8.4 retry), so a re-run never repeats a name.
  */
-export async function runGroup(
+export async function collectGroup(
   plan: GroupPlan,
   items: ExportJobItem[],
   render: RenderUnit,
   onItem: () => void,
-  signal?: AbortSignal
-): Promise<ExportResult> {
+  signal?: AbortSignal,
+  taken: Iterable<string> = []
+): Promise<GroupCollected> {
   const template = plan.spec.options?.nameTemplate ?? DEFAULT_NAME_TEMPLATE;
-  const dedupe = createNameDeduper();
-  const files: Array<{ name: string; bytes: Uint8Array }> = [];
+  const dedupe = createNameDeduper(taken);
+  const files: GroupFile[] = [];
   const reasons = new Set<string>();
   const merged: Omit<ExportDegradation, 'reason'> = {};
   for (let i = 0; i < plan.units.length; i++) {
@@ -151,6 +163,7 @@ export async function runGroup(
       continue;
     }
     item.status = 'running';
+    delete item.reason;
     onItem();
     try {
       const res = await render({ format: unit.format, scope: unit.scope, options: unit.options });
@@ -179,15 +192,20 @@ export async function runGroup(
     }
     onItem();
   }
-  const okCount = items.filter((x) => x.status === 'ok').length;
-  if (plan.units.length && okCount === 0) {
-    throw new Error(items.find((x) => x.reason)?.reason ?? 'export failed');
-  }
-  const deg: { degraded?: ExportDegradation } = reasons.size
-    ? { degraded: { ...merged, reason: [...reasons].join(' ') } }
-    : {};
+  return {
+    files,
+    ...(reasons.size ? { degraded: { ...merged, reason: [...reasons].join(' ') } } : {}),
+  };
+}
+
+/** The named files as the job's one result: that file, or one zip of them. */
+export async function packGroup(
+  plan: GroupPlan,
+  { files, degraded }: GroupCollected
+): Promise<ExportResult> {
+  const deg: { degraded?: ExportDegradation } = degraded ? { degraded } : {};
   if (files.length === 1) {
-    const f = files[0] as { name: string; bytes: Uint8Array };
+    const f = files[0] as GroupFile;
     return {
       filename: f.name,
       contentType: MIME[extOf(f.name)] ?? 'application/octet-stream',
@@ -206,4 +224,23 @@ export async function runGroup(
     body,
     ...deg,
   };
+}
+
+/**
+ * Run the plan. Returns the job's one result: a single named file, or one zip of every named
+ * file. Throws only when no item made it.
+ */
+export async function runGroup(
+  plan: GroupPlan,
+  items: ExportJobItem[],
+  render: RenderUnit,
+  onItem: () => void,
+  signal?: AbortSignal
+): Promise<ExportResult> {
+  const got = await collectGroup(plan, items, render, onItem, signal);
+  const okCount = items.filter((x) => x.status === 'ok').length;
+  if (plan.units.length && okCount === 0) {
+    throw new Error(items.find((x) => x.reason)?.reason ?? 'export failed');
+  }
+  return packGroup(plan, got);
 }

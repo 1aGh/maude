@@ -1,0 +1,159 @@
+/* client/v2/export/exports-panel.css — S8.4: the Exports panel + job rows (09 Export `ex-panel` / `ex-job`,
+ * lifted). An island under the Share cluster, in the shell's own material; tokens only — no hex, no raw
+ * durations. Row actions appear on hover or focus and stay put on a row that needs one (Retry). */
+
+@layer shell {
+  .island.ex-panel {
+    position: fixed;
+    top: 68px;
+    right: var(--space-4, 16px);
+    z-index: 55;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: min(400px, calc(100vw - var(--space-5, 24px)));
+    max-height: calc(100vh - 92px);
+    background: var(--island-bg-strong, var(--bg-1));
+    animation: ex-panel-in var(--dur-panel, 220ms) var(--ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+  @keyframes ex-panel-in {
+    from {
+      opacity: 0;
+      translate: 0 -4px;
+    }
+  }
+  .ex-panel-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-left: var(--space-1);
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .ex-panel-hd > span {
+    flex: 1;
+  }
+  .ex-panel-hd > svg {
+    color: var(--fg-1);
+  }
+  .ex-panel-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+  .island-title.ex-panel-t {
+    margin: var(--space-2) var(--space-1) 0;
+  }
+  .ex-panel-foot {
+    margin: 0;
+    padding: var(--space-2) var(--space-1) 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+
+  .ex-job {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+    border-radius: var(--radius-md);
+  }
+  .ex-job:hover,
+  .ex-job:focus-within {
+    background: var(--bg-3);
+  }
+  .ex-job:focus {
+    outline: none;
+    background: var(--bg-3);
+    box-shadow: 0 0 0 1.5px var(--accent);
+  }
+  .ex-job-main {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+  }
+  .ex-job--warn .ex-job-m {
+    color: var(--status-warn-text);
+  }
+  .btn.ex-retry {
+    flex: none;
+    white-space: nowrap;
+  }
+  .ex-job-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ex-job-n {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .ex-job-m {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ex-job-m > svg {
+    flex: none;
+  }
+  .ex-job-w {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    white-space: nowrap;
+  }
+  .ex-job-w--done > svg {
+    color: var(--status-success-text);
+  }
+  .ex-job-w--warn,
+  .ex-job-w--fail {
+    color: var(--status-warn-text);
+  }
+  .ex-job-w--fail {
+    color: var(--status-error-text);
+  }
+  .ex-job-w--queued {
+    color: var(--fg-2);
+  }
+  .ex-job-acts {
+    display: flex;
+    flex: none;
+    opacity: 0;
+    transition: opacity var(--dur-fast, 120ms) var(--ease-out, ease-out);
+  }
+  .ex-job:hover .ex-job-acts,
+  .ex-job:focus-within .ex-job-acts,
+  .ex-job--warn .ex-job-acts {
+    opacity: 1;
+  }
+  .ex-job .st-export-progress {
+    margin: 0;
+  }
+  .ex-job .st-export-item__error {
+    margin: 0 var(--space-1);
+  }
+  .ex-job .st-export-degraded {
+    margin: 0 var(--space-1);
+  }
+}
