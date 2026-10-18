@@ -53,6 +53,8 @@ const TERMINAL = new Set([
   'path-conflict',
   // A newer grant took the artboard; these bytes can never pass again.
   'lease-fenced',
+  // V2-1.16 U1 (S9.5): final — a v2 client never renews on it.
+  'not-in-scope',
 ]);
 
 const HTTP = {
@@ -70,6 +72,7 @@ const HTTP = {
   'undo-conflict': 409,
   'path-conflict': 409,
   'lease-fenced': 409,
+  'not-in-scope': 403,
   retryable: 503,
 };
 
@@ -884,6 +887,12 @@ export function createKernel({
           .filter((d) => typeof d === 'string')
       ),
     ]);
+    // V2-1.16 L4 (S9.5): a canvas-only session's ops, judged before any runs.
+    const inScope = auth.inScope ?? null;
+    const outOfScope = await inScope?.before(p.action.operations, async (d) =>
+      typeof d === 'string' ? ((await work.load(d))?.path ?? null) : null
+    );
+    if (outOfScope) throw new Reject(outOfScope.code, outOfScope.detail);
     const merged = [];
     let undo = null;
     for (const op of p.action.operations) {
@@ -921,6 +930,11 @@ export function createKernel({
       }
       if (r) merged.push(r);
     }
+
+    const touched = inScope?.after(
+      [...work.changed.keys()].map((d) => work.docs.get(d)?.path ?? null)
+    );
+    if (touched) throw new Reject(touched.code, touched.detail);
 
     const actionId = `a_${newId()}`;
     const docsRows = [];

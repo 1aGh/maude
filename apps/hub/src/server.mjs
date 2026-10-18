@@ -60,6 +60,15 @@ import { SQLite } from '@hocuspocus/extension-sqlite';
 import { Server } from '@hocuspocus/server';
 import { legacyClaim } from '../../studio/access/scope.ts';
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
+import {
+  DOC_REFUSAL_REASON,
+  docContextFields,
+  docDoor,
+  peerAccess,
+  stripSummon,
+} from './access-docs.mjs';
+import { createPokeVisibility } from './access-files.mjs';
+import { claimForMatch } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -180,6 +189,7 @@ import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
+import { COMMENTS_PATH } from './routes-v2/comments.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
 import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
@@ -324,7 +334,7 @@ const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // (`/auth/logout` + `/auth/browser/signout` → session, `/api/export` → export),
 // and `access-gate.mjs` asks the one matrix (S9.3). The handler-less
 // `/api/studio/comments` string went with it; the comment door is
-// `POST /api/comments` (S9.7), whose row will say `comment`.
+// `POST /api/comments` (S9.7), whose row says `comment` (routes-v2/comments.mjs).
 
 /**
  * The HTTP write doors a writer of the wrong FILE FORMAT is refused at
@@ -337,7 +347,7 @@ const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  */
 export function formatGatedWritePath(path, prefixes) {
   if (path === prefixes.projectConfig) return true;
-  if (path === '/api/studio/comments') return true;
+  if (path === COMMENTS_PATH) return true;
   return (
     path.startsWith(prefixes.fileDoor) ||
     path.startsWith(prefixes.uploads) ||
@@ -819,6 +829,8 @@ export function createHub(config = {}) {
         actor: m.owner || m.label,
         readOnly: !!m.readOnly,
         scope: m.scope ?? '*',
+        // V2-1.16 L4 (S9.5): the claim, so the routes can scope a canvas-only session.
+        access: peerAccess(m).access,
         admin: !m.readOnly && (m.role === 'owner' || m.role === 'admin' || (!m.role && !m.owner)),
         // THE PROJECT OWNER, strictly (V2-1.12 §5.5 — the format flip): an
         // owner/admin-role token over the WHOLE project, or the operator's env
@@ -856,6 +868,43 @@ export function createHub(config = {}) {
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
+
+  // S9.7 — what the comment door (`routes-v2/comments.mjs`) needs from this hub.
+  const commentsDeps = {
+    designRel: process.env.MAUDE_DESIGN_REL || '.design',
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    personKey: secret || dataDir,
+    accepted: () => accepted,
+    matchesScope,
+    async docExists(name) {
+      if (accepted?.acceptedMode()) {
+        const { docs = [] } = (await accepted.kernel.bootstrap()) ?? {};
+        return docs.some((d) => d.doc === name && !d.retired);
+      }
+      return (
+        listCanvases(sqlitePath, peers).some((d) => d.name === name) && !isTombstoned(dataDir, name)
+      );
+    },
+    async withDoc(name, context, fn) {
+      const conn = await server.hocuspocus.openDirectConnection(name, context);
+      try {
+        await conn.transact(fn);
+      } finally {
+        await conn.disconnect();
+      }
+    },
+    async formatRefusal(request) {
+      if (!accepted) return null;
+      if (!accepted.isReady()) await accepted.refreshOnce().catch(() => {});
+      const fmt = accepted.projectFormat();
+      if (declaredFormatFromRequest(request) === fmt) return null;
+      return { error: FORMAT_REFUSAL, reason: 'format', formatVersion: fmt };
+    },
+    *connections() {
+      for (const document of server.hocuspocus?.documents?.values?.() ?? [])
+        yield* document.getConnections?.() ?? [];
+    },
+  };
 
   const server = new Server({
     port,
@@ -934,6 +983,9 @@ export function createHub(config = {}) {
         // Viewer (`match.readOnly`) tokens are admitted here too, deliberately:
         // knowing the journal moved tells you nothing you could not learn by
         // asking, and the ask is scope-filtered.
+        // The access claim (V2-1.7 §5.3) — carried on every context so the
+        // ctl poke (S9.4, L3), the fence and the awareness hook can read it.
+        const peer = peerAccess(match);
         if (isFilesCtlDoc(documentName)) {
           if (connectionConfig) connectionConfig.readOnly = true;
           return {
@@ -944,13 +996,23 @@ export function createHub(config = {}) {
               readOnly: true,
               ctl: true,
               format,
+              // The CLAIM (serializable), not the resolved Access: the ctl
+              // poke (S9.4 access-files) resolves it per connection.
+              access: claimForMatch(match),
             },
           };
         }
         // DDR-053 §3: scope binding gates Chain B (token leak → full hub).
         if (!matchesScope(match.scope, documentName)) {
-          throw authError('token not authorized for this documentName');
+          throw authError(DOC_REFUSAL_REASON);
         }
+        // V2-1.16 L2 (S9.5) — AFTER the machine scope: a canvas-only session
+        // opens its granted canvases' documents only, and nobody below
+        // `export` opens one at all (the document IS the canvas's source —
+        // Can view's browser cookie is refused here, A19). The SAME reason as
+        // out of scope, so invisible answers exactly as missing (U1).
+        const door = docDoor(peer, documentName);
+        if (!door.ok) throw authError(DOC_REFUSAL_REASON);
         // DDR-102 — valid-token ceiling: generous (default 600/min per label),
         // sized so multi-peer boot bursts of large projects (auth fires once
         // per DOCUMENT even on a multiplexed socket) never starve sync. The
@@ -971,7 +1033,8 @@ export function createHub(config = {}) {
         // messages, so a viewer whose client is patched, scripted, or simply
         // out of date still cannot mutate the document. Hiding the buttons is
         // the last layer, never the only one.
-        if (connectionConfig && match.readOnly) connectionConfig.readOnly = true;
+        // Per connection, per document (L2): `!can('edit', canvas)`.
+        if (connectionConfig && door.readOnly) connectionConfig.readOnly = true;
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
@@ -985,8 +1048,9 @@ export function createHub(config = {}) {
             source: match.source,
             dev: !!match.dev,
             scope: match.scope ?? '*',
-            readOnly: !!match.readOnly,
+            readOnly: door.readOnly,
             format,
+            ...docContextFields(match, door),
             // The address the token was minted for. Carried so the server-side
             // workspace agent can attribute a commit to the PERSON rather than
             // to their machine's token label — `git blame` on a design should
@@ -1166,6 +1230,7 @@ export function createHub(config = {}) {
           canvasHost: Boolean(studioProxy && isCanvasHost(request)),
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
+          deps: { comments: commentsDeps },
         })
       ) {
         bailFromOnRequest();
@@ -1492,12 +1557,12 @@ export function createHub(config = {}) {
           matchesScope,
           deleteDocument: (name) => {
             deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
-            documentEvents.changed();
+            documentEvents.changed({ documentName: name });
           },
           reviveDocument: (name) => {
             try {
               clearTombstone(dataDir, name);
-              documentEvents.changed();
+              documentEvents.changed({ documentName: name });
             } catch {
               /* an unwritable store degrades to today's behaviour */
             }
@@ -2035,6 +2100,9 @@ export function createHub(config = {}) {
       // V2-1.15 §5.3 (A10) — a person's `holding` is stamped with the bearer's
       // identity, and dropped from a read-only connection.
       sanitizeHoldingAwareness({ context, connection, states });
+      // V2-1.7 §5.5 / L11 (S9.5): Bring everyone here needs `summon` on this
+      // document — the field is stripped from any connection lacking it.
+      stripSummon({ states, context });
     },
 
     // A content change tells the cell's DO, so a parked desktop's
@@ -2086,8 +2154,15 @@ export function createHub(config = {}) {
   // says so loudly if it can find neither; passing the wrong one used to be a
   // silent no-op, because "no document" is also what an unattached project
   // legitimately looks like. See `documentMap` in files-ctl.mjs.
-  const filesPoke = createFilesPoke({ instance: server });
-  const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
+  // V2-1.16 L3 (S9.4): a canvas-only ctl connection is told only what it sees.
+  const pokeVisibility = createPokeVisibility({ designRoot: journalDesignRoot, journal });
+  const filesPoke = createFilesPoke({ instance: server, visibility: pokeVisibility });
+  const documentsPoke = createFilesPoke({
+    instance: server,
+    documentsOnly: true,
+    coalesceMs: 50,
+    visibility: pokeVisibility,
+  });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
   // Keeps an idle peer's sockets — control AND canvas — from recycling every
   // ~33 s (and re-running discovery each time). See `createSocketKeepalive`.
@@ -2237,7 +2312,13 @@ export function createHub(config = {}) {
         /* the revived document is recreated either way */
       }
     },
-    onAccepted: () => documentEvents.changed(),
+    // Each accepted document named, so the poke can be scoped (L3); a
+    // structure-only action (dirs) names none and reaches project sessions.
+    onAccepted: ({ changes } = {}) => {
+      const names = (changes ?? []).map((ch) => ch?.doc).filter((d) => typeof d === 'string');
+      if (names.length === 0) documentEvents.changed();
+      for (const documentName of names) documentEvents.changed({ documentName });
+    },
     // Baseline import (T30): the storage listing, the project's deletions,
     // and — in workspace mode — the checkout as the path/folder authority.
     listDocuments: () => listCanvases(sqlitePath, peers),

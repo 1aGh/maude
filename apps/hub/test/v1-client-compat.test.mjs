@@ -257,6 +257,37 @@ describe('S9.3 — the capability gate: a 1.9.1 desktop sees today’s answers',
   }
 });
 
+// ------------------------------------------------------------------- S9.5
+
+/** The 1.9.1 desktop's document listing and history reads. */
+const v1Get = (port, peerToken, path) =>
+  fetch(`http://127.0.0.1:${port}${path}`, { headers: { authorization: `Bearer ${peerToken}` } });
+
+describe('S9.5 — the document doors: a 1.9.1 desktop sees today’s answers', () => {
+  for (const role of ['owner', 'member', 'viewer']) {
+    test(`${role}: every namespaced document opens; listing, history and bootstrap answer`, async () => {
+      const { token } = await (await v1Login(PORT, v1ProjectToken(role))).json();
+      for (const name of [
+        'ws/alligators/main/ui-home',
+        'ws/alligators/main/ui-other',
+        'flat-doc',
+      ]) {
+        assert.equal(await v1YjsAuth(PORT, token, name), 'synced', `${role} ${name}`);
+      }
+      const docs = await v1Get(PORT, token, '/api/documents');
+      assert.equal(docs.status, 200);
+      assert.deepEqual(Object.keys(await docs.json()).sort(), ['count', 'documents', 'tombstones']);
+      const history = await v1Get(PORT, token, '/api/history');
+      assert.equal(history.status, 200, `${role} reads the project-wide log`);
+      const boot = await v1Get(PORT, token, '/api/projects/current/v1/bootstrap');
+      assert.equal(boot.status, 200, `${role} bootstrap`);
+      const body = await boot.json();
+      assert.equal(Array.isArray(body.docs), true);
+      assert.equal(body.you.readOnly, role === 'viewer');
+    });
+  }
+});
+
 // ------------------------------------------------------------------- S9.4
 
 /** The 1.9.1 desktop's file-plane reads and probes (manifest, bytes, presence). */
@@ -327,4 +358,56 @@ describe('S9.4 — the canvas-scoped file plane: a 1.9.1 desktop sees the whole 
       }
     });
   }
+});
+
+// ------------------------------------------------------------------- S9.7
+
+/**
+ * The 1.9.1 desktop's comment path, FROZEN: it pushes a comment straight into
+ * the canvas doc's Y `comments` array on its own connection and leaves. It
+ * never calls `POST /api/comments` (that door is v2's, additive).
+ */
+function v1YjsSession(port, peerToken, name, onSynced) {
+  return new Promise((resolve, reject) => {
+    const doc = new Y.Doc();
+    const timer = setTimeout(() => {
+      provider.destroy();
+      reject(new Error('no sync within 3s'));
+    }, 3000);
+    const provider = new HocuspocusProvider({
+      url: `ws://127.0.0.1:${port}`,
+      name,
+      token: peerToken,
+      document: doc,
+      onSynced: () => {
+        clearTimeout(timer);
+        const out = onSynced(doc);
+        setTimeout(() => {
+          provider.destroy();
+          resolve(out);
+        }, 300);
+      },
+    });
+  });
+}
+
+describe('S9.7 — the comment path: a 1.9.1 desktop sees today’s answers', () => {
+  test('owner / member comments land on the Y lane as today; a viewer’s is dropped as today', async () => {
+    const tokens = {};
+    for (const role of ['owner', 'member', 'viewer']) {
+      tokens[role] = (await (await v1Login(PORT, v1ProjectToken(role))).json()).token;
+    }
+    const name = 'ws/alligators/main/ui-home';
+    for (const role of ['owner', 'member', 'viewer']) {
+      await v1YjsSession(PORT, tokens[role], name, (doc) =>
+        doc
+          .getArray('comments')
+          .push([{ id: `c_v1${role}`, file: '.design/ui/home.tsx', text: role, status: 'open' }])
+      );
+    }
+    const list = await v1YjsSession(PORT, tokens.owner, name, (doc) =>
+      doc.getArray('comments').toArray()
+    );
+    assert.deepEqual(list.map((c) => c.id).sort(), ['c_v1member', 'c_v1owner']);
+  });
 });
