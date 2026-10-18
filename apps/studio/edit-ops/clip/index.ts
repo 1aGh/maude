@@ -32,8 +32,14 @@ import {
   type GradeParams,
 } from '../../clip-ops.ts';
 import type { EditOp, ResolvedEditOp } from '../types.ts';
+import { applyCaptions, captionsPatch } from './captions.ts';
 import { applyCutSourceRange } from './cut-source-range.ts';
 import { applyCutToBeat } from './cut-to-beat.ts';
+import { applyDuck, duckPatch } from './duck.ts';
+import { applyFormatAdd, applyFormatUnlink } from './formats.ts';
+import { applyPlace, placePatch } from './place.ts';
+import { applyReframe, reframePatch } from './reframe.ts';
+import { applyTakeSwap } from './take-swap.ts';
 
 export interface ClipTarget {
   /** designRoot-relative canvas (the appliers use it for messages + the parser's file name) */
@@ -280,6 +286,125 @@ export const VIDEO_OPS: readonly EditOp[] = [
         sourceSeconds(p.sources)
       );
       return { source: r.source, detail: { moved: r.moved, kept: r.kept } };
+    },
+  },
+  // S7.6c — the comp vocabulary (V2-1.10 §5.3 + S7 Q4/Q5). Each is one write, so one undo step.
+  {
+    // Re-frame: focus keyframes in source time, zoom, fit, per-format focus (07 ve-reframe)
+    id: 'video.reframe',
+    scope: 'artboard',
+    apply(source, req) {
+      const t = clipTarget(req);
+      const r = applyReframe(
+        t.file,
+        source,
+        t.artboard,
+        t.stableId,
+        t.hash,
+        reframePatch(t.file, req.params, t.stableId)
+      );
+      return { source: r.source, detail: { reframed: r.reframed } };
+    },
+  },
+  {
+    // Fill · Fit · Blur behind (07 ve-fit-fill): the `fit` of the clip's <Reframe>
+    id: 'video.fit',
+    scope: 'artboard',
+    apply(source, req) {
+      const t = clipTarget(req);
+      if (req.params.fit === undefined) bad(t.file, 'Fit is fill, fit or blur.');
+      const r = applyReframe(t.file, source, t.artboard, t.stableId, t.hash, {
+        fit: reframePatch(t.file, { fit: req.params.fit }, t.stableId).fit ?? null,
+      });
+      return { source: r.source, detail: { reframed: r.reframed } };
+    },
+  },
+  {
+    // Lower under speech (07 ve-music): <Duck> around one music <Audio>, or `off: true`
+    id: 'video.music.duck',
+    scope: 'artboard',
+    apply(source, req) {
+      const t = clipTarget(req);
+      const r = applyDuck(
+        t.file,
+        source,
+        t.artboard,
+        t.stableId,
+        t.hash,
+        duckPatch(t.file, req.params, t.stableId)
+      );
+      return { source: r.source, detail: { ducked: r.ducked } };
+    },
+  },
+  {
+    // Captions from speech (07 ve-captions): the comp's one <Captions>, inserted or restyled
+    id: 'video.captions.add',
+    scope: 'artboard',
+    apply(source, req) {
+      const r = applyCaptions(
+        req.file,
+        source,
+        artboardOf(req),
+        captionsPatch(req.file, req.params)
+      );
+      return { source: r.source, detail: { inserted: r.inserted } };
+    },
+  },
+  {
+    // A title's position, shared or per format (S7 Q5, 07 ve-formats)
+    id: 'video.place',
+    scope: 'artboard',
+    apply(source, req) {
+      const t = clipTarget(req);
+      const r = applyPlace(
+        t.file,
+        source,
+        t.artboard,
+        t.stableId,
+        t.hash,
+        placePatch(t.file, req.params, t.stableId)
+      );
+      return { source: r.source, detail: { placed: r.placed } };
+    },
+  },
+  {
+    // + Add a format: a linked copy of the video artboard, same comp (S7 Q4)
+    id: 'video.format.add',
+    scope: 'artboard',
+    apply(source, req) {
+      const r = applyFormatAdd(req.file, source, artboardOf(req), req.params);
+      return { source: r.source, detail: { artboard: r.artboard, aspect: r.aspect } };
+    },
+  },
+  {
+    // Make an unlinked copy: this artboard gets its own fork of the comp
+    id: 'video.format.unlink',
+    scope: 'artboard',
+    apply(source, req) {
+      const r = applyFormatUnlink(req.file, source, artboardOf(req), req.params);
+      return { source: r.source, detail: { comp: r.comp } };
+    },
+  },
+  {
+    // Other takes (07 ve-ai-adjust): same source, new in-point, same length
+    id: 'video.take.swap',
+    scope: 'artboard',
+    apply(source, req) {
+      const t = clipTarget(req);
+      const p = req.params;
+      const len = p.sourceSeconds === undefined ? undefined : Number(p.sourceSeconds);
+      if (len !== undefined && !(Number.isFinite(len) && len > 0))
+        bad(t.file, 'The source’s length is not readable.');
+      const r = applyTakeSwap(
+        t.file,
+        source,
+        t.artboard,
+        t.stableId,
+        t.hash,
+        finite(t.file, p.srcStart, 'srcStart'),
+        len
+      );
+      return { source: r.source, detail: { trimBefore: r.trimBefore } };
     },
   },
 ];
