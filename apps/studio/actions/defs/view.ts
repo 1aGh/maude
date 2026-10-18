@@ -116,6 +116,7 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // CONTRACT §1–§2: ⌥⌘H. v1's ⇧⌘G (the Changes panel) died with the V2-4 gate (rule 13 — ⇧⌘G is
     // Remove frame in Edit and Ungroup annotations in Preview); its row is in help.ts MOVED_KEYS.
     keys: [kb('⌥⌘H', 'global', { inText: true })],
+    help: { group: 'finding', order: 30 },
     legacy: { menu: 'Changes' },
   },
   {
