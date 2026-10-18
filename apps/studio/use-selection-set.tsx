@@ -72,6 +72,8 @@ export interface Selection {
    * client size (what a constraint is measured against). Absent for a non-HTML element.
    */
   geometry?: { x: number; y: number; w: number; h: number; parentW: number; parentH: number };
+  /** S2.12 — the style a text object wears, what that style computes to, what the object overrides. */
+  textInfo?: import('./edit-ops/text-style.ts').TextInfo;
   html?: string;
   /** Comment drops only — the annotation the click landed on, and the click's
    *  world point (comment-anchor.ts). */

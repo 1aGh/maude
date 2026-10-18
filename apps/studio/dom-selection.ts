@@ -10,6 +10,8 @@
  *             lite comment mount.
  */
 
+import type { TextInfo } from './edit-ops/text-style.ts';
+import { probeTextInfo } from './editing/type-role.ts';
 import type { HoverTarget } from './input-router.tsx';
 import type { Selection } from './use-selection-set.tsx';
 
@@ -572,7 +574,17 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
       return m ? { photoKind: 'artboard-img' as const, photoAsset: m[0] } : {};
     })(),
     ...styleMapsFor(el),
+    // S2.12 — the style a text object wears and what it overrides, measured in the canvas
+    ...textInfoFor(el),
   };
+}
+
+/** `textInfo` for an element that holds text or wears a style; nothing for a box. */
+function textInfoFor(el: Element | null): { textInfo?: TextInfo } {
+  if (!el || el.children.length > 0) return {};
+  if (!(el.textContent ?? '').trim() && !el.getAttribute('class')) return {};
+  const info = probeTextInfo(el);
+  return info ? { textInfo: info } : {};
 }
 
 /**

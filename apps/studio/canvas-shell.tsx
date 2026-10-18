@@ -82,11 +82,12 @@ import {
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
 import { EditingLayer } from './editing/index.tsx';
-// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
-import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
+// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
+import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
+import { commitTextInPlace, textOpDeps } from './editing/text-actions.ts';
 import { forwardUndoKey } from './editing/undo-mode.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import { ExportDialogProvider } from './export-dialog.tsx';
@@ -3203,40 +3204,57 @@ function CanvasRouter({
       } catch {
         /* querySelectorAll/CSS.escape unavailable — occurrence stays 0 */
       }
-      try {
-        window.parent.postMessage(
-          { dgn: 'edit-text', id: cdId, file, text, occurrence, before: original.trim() },
-          '*'
+      // S2.12 — the copy goes as ONE edit-op (`text.set`: one write, one undo step, Czech ties when the
+      // text is Czech). A studio that has no `text.set` (an older build) takes the legacy post below.
+      const original0 = original;
+      const legacy = (): void => {
+        try {
+          window.parent.postMessage(
+            { dgn: 'edit-text', id: cdId, file, text, occurrence, before: original0.trim() },
+            '*'
+          );
+        } catch {
+          /* detached / cross-origin */
+        }
+        // Stash the optimistic edit so a shell rejection can revert it (DDR-150 P1).
+        lastTextCommit = { el: elx, original: original0 };
+        // Record onto the in-canvas undo stack so Cmd+Z reverts the rewrite. The
+        // edit already posted above (record, don't re-run do()). before/after are
+        // the trimmed bodies the edit-text endpoint persists.
+        //
+        // ONLY the record is gated on `file`. An earlier version of this guard
+        // sat above the `postMessage` and returned out of the whole function —
+        // which silently dropped THE EDIT ITSELF, not just an unusable undo
+        // entry. `deriveFile` returning undefined must not cost the user their
+        // typing; it costs them only a Cmd+Z step they could not have applied
+        // anyway (a record with no canvas is one undo can never target).
+        if (!file) return;
+        undoStackRef.current.record(
+          buildEditSourceRecord({
+            op: 'text',
+            canvas: file,
+            id: cdId,
+            key: '',
+            before: original0.trim(),
+            after: text,
+            // Carry the occurrence so undo/redo can re-target a `{variable}` edit
+            // (the .map()/component-prop resolution needs it — canvas-edit.ts).
+            occurrence,
+          })
         );
-      } catch {
-        /* detached / cross-origin */
-      }
-      // Stash the optimistic edit so a shell rejection can revert it (DDR-150 P1).
-      lastTextCommit = { el: elx, original };
-      // Record onto the in-canvas undo stack so Cmd+Z reverts the rewrite. The
-      // edit already posted above (record, don't re-run do()). before/after are
-      // the trimmed bodies the edit-text endpoint persists.
-      //
-      // ONLY the record is gated on `file`. An earlier version of this guard
-      // sat above the `postMessage` and returned out of the whole function —
-      // which silently dropped THE EDIT ITSELF, not just an unusable undo
-      // entry. `deriveFile` returning undefined must not cost the user their
-      // typing; it costs them only a Cmd+Z step they could not have applied
-      // anyway (a record with no canvas is one undo can never target).
-      if (!file) return;
-      undoStackRef.current.record(
-        buildEditSourceRecord({
-          op: 'text',
-          canvas: file,
-          id: cdId,
-          key: '',
-          before: original.trim(),
-          after: text,
-          // Carry the occurrence so undo/redo can re-target a `{variable}` edit
-          // (the .map()/component-prop resolution needs it — canvas-edit.ts).
-          occurrence,
-        })
-      );
+      };
+      void commitTextInPlace(
+        { el: elx, text, before: original0.trim() },
+        {
+          ...textOpDeps.current,
+          record: (rec) => undoStackRef.current.record(rec),
+          revert: () => {
+            elx.textContent = original0;
+          },
+        }
+      ).then((handled) => {
+        if (!handled) legacy();
+      });
     }
     // Enter contenteditable edit mode on a leaf-text `stamped` element, caret
     // placed at (clientX, clientY) rather than a full select-all (that used to

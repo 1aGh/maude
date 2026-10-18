@@ -253,6 +253,25 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'layout.convert-to-absolute': TSX(
     'Give each child position: "absolute" with left/top/width/height as rendered, and a static parent position: "relative" with its own width/height fixed if it would collapse; the children then no longer take part in the layout'
   ),
+  // S2.12 — text in place, styles and the Czech ties
+  'text.set': TSX(
+    'Replace the element’s text child with the new copy (escape { } < > &). In a Czech element (lang="cs" on it or an ancestor) set the copy as Czech sets it: a no-break space (U+00A0) after every one-letter word (v k s z o u i a …) and „quotes“ — never inside a URL or `code`. Over HTTP: POST /_api/edit-op {file, op: "text.set", targets: [{artboard, element}], params: {text, before?, lang?}}'
+  ),
+  'text.set-language': TSX(
+    'Set lang="<tag>" on the element (cs, en, sk, de, pl). For cs also set the copy as Czech sets it: U+00A0 after every one-letter word, „quotes“; other languages leave the copy alone. Over HTTP: POST /_api/edit-op {file, op: "text.set-language", targets, params: {lang}}'
+  ),
+  'text.set-case': TSX(
+    'AA is style.textTransform "uppercase"; As typed removes it (write "none" when the element’s style sets a case). Over HTTP: POST /_api/edit-op {op: "text.set-case", params: {case: "upper"|"typed", explicit?}}'
+  ),
+  'text.use-style': TSX(
+    'Give the element the style’s class from system/<ds>/components.json typeRoles (heading → t-heading), replacing any other t-* class, and take out its inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle so the style shows. Over HTTP: POST /_api/edit-op {op: "text.use-style", params: {role: "t-heading"}}'
+  ),
+  'text.reset-style': TSX(
+    'Delete the inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle from the element’s style so its t-* class shows (params.props names fewer). Over HTTP: POST /_api/edit-op {op: "text.reset-style", params: {props?}}'
+  ),
+  'text.detach-style': TSX(
+    'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "28px", …}}}'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
