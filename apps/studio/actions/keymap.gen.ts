@@ -20,7 +20,6 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'canvas.reload',
     exec: 'shell',
-    visible: { minRole: 'comment' },
     fromCanvas: true,
     keys: [{ chord: '⌘R', layer: 'global', inText: true }],
   },

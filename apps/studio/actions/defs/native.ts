@@ -72,7 +72,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'home',
     exec: 'native',
-    visible: { shell: ['desktop', 'cloud'], minRole: 'comment' },
+    visible: { shell: ['desktop', 'cloud'] }, // every role (decision v2-A6c-can-view-menu-minrole)
   },
   // ── V2-3.9: the own tab bar's tab commands (contract V2-3.7 §5). Native: the shell owns the
   // tab list, so lib.rs runs them; no web binding fires them (AppKit takes the accelerator). ──

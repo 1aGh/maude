@@ -36,8 +36,7 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'reload',
     exec: 'shell',
-    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
-    visible: { minRole: 'comment' },
+    // Decision v2-A6c-can-view-menu-minrole: an app-level row — every role keeps it.
     fromCanvas: true,
     keys: [kb('⌘R', 'global', { inText: true })],
     legacy: { palette: 'Reload active canvas', menu: 'Reload canvas', sheet: 'Reload canvas' },

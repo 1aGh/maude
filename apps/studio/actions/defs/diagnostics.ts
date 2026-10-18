@@ -6,14 +6,12 @@
 
 import type { ActionDef, ActionId } from '../types.ts';
 
-// A6c (S3.12, 04 Modes note 23): Diagnostics is not a Can view row — a viewer's menu lists only what
-// they may do (View, Help, Version history, Sign in).
+// Decision v2-A6c-can-view-menu-minrole: Diagnostics is an app-level row — every role keeps it.
 const row = (id: ActionId, label: string): ActionDef => ({
   id,
   label,
   kind: 'command',
   exec: 'shell',
-  visible: { minRole: 'comment' },
 });
 
 export const DIAGNOSTICS_ACTIONS: ActionDef[] = [

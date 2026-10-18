@@ -103,18 +103,32 @@ describe('buildProjectMenu', () => {
 
   // A6c (S3.12, 04 Modes note 23): a viewer's menu lists only what someone who can view may do —
   // the rest isn't listed, not greyed — by the registry's `visible.minRole`, never a hand filter.
-  // Two named departures from the canvas: Export… stays hidden (Gate 0 A19 / S8.9: Can view has no
-  // export at all), and Undo / Redo stay greyed (V2-4 gate: ⌘Z answers with the denial line).
-  test('Can view: Edit (Undo, Redo greyed), View, Help, Version history, Sign in — nothing else', () => {
+  // Named departures: Export… stays hidden (Gate 0 A19 / S8.9: Can view has no export at all), Undo /
+  // Redo stay greyed (V2-4 gate: ⌘Z answers with the denial line), and the APP-level rows stay for
+  // every role (decision v2-A6c-can-view-menu-minrole: Canvas 04's Can view list governs project rows).
+  test('Can view: project rows are gone, the app-level rows stay, Undo / Redo are greyed', () => {
     for (const ctx of [
       menuCtx({ native: true, readOnly: true, observer: true, linkedHub: true, canvasOpen: true }),
       menuCtx({ cloudTab: true, readOnly: true, observer: true, canvasOpen: true }),
     ]) {
       const model = buildProjectMenu(ctx);
-      const top = model.map((n) => (n.type === 'sub' ? `[${n.label}]` : n.id));
-      expect(top).toEqual(['[File]', '[Edit]', '[View]', '[Help]', 'history.open']);
+      const ids = modelIds(model);
+      // Back to Home, Settings, reload (⌘R) and Diagnostics belong to the app, not to the project.
+      for (const id of ['nav.home', 'settings.open', 'canvas.reload', 'diag.sync', 'diag.logs'])
+        expect(ids, id).toContain(id);
+      for (const id of [
+        'project.new',
+        'project.open',
+        'project.pull-copy',
+        'project.share-github',
+        'canvas.close',
+        'export.open',
+        'edit.copy',
+      ])
+        expect(ids, id).not.toContain(id);
+      expect(ids).toContain('account.switch');
+      expect(ids).toContain('history.open');
       const sub = (label) => model.find((n) => n.type === 'sub' && n.label === label).children;
-      expect(modelIds(sub('File'))).toEqual(['account.switch']);
       expect(sub('Edit').map((n) => [n.id, n.disabled])).toEqual([
         ['edit.undo', true],
         ['edit.redo', true],

@@ -11,8 +11,8 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'sliders',
     exec: 'shell',
-    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
-    visible: { minRole: 'comment' },
+    // Decision v2-A6c-can-view-menu-minrole: an app-level row — every role keeps it (Canvas 04's Can view
+    // list governs project rows only).
     // v1: shell only (never forwarded). V2-4.9: a read-only session opens Settings too — General only.
     keys: [kb('⌘,', 'global', { inText: true, when: { focus: SHELL_FOCI } })],
     legacy: { palette: 'Settings…', menu: 'Settings…' },
