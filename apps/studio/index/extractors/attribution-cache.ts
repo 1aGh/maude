@@ -30,7 +30,8 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
-import type { Change } from '../../history/describe';
+import type { Change, Lanes } from '../../history/describe';
+import { type DescribeVersionOptions, describeVersion } from '../../history/describe-version';
 import { projectDir } from '../snapshot.ts';
 
 export const ATTRIBUTION_FORMAT = 'maude.attribution-cache';
@@ -203,4 +204,22 @@ export function createAttributionCache(opts: AttributionCacheOptions): Attributi
       return drop.length;
     },
   };
+}
+
+/**
+ * The words of one action on one canvas, from the cache or computed once from the store's before/after
+ * lanes (`describeVersion`). Consecutive rows may share a parse by passing the same `Lanes` objects.
+ */
+export function attributionFor(
+  cache: AttributionCache,
+  actionId: string,
+  canvas: string,
+  before: Lanes,
+  after: Lanes,
+  opts: DescribeVersionOptions = {}
+): AttributionEntry {
+  return cache.getOrCompute(actionId, canvas, () => {
+    const r = describeVersion(canvas, before, after, opts);
+    return { changes: r.changes, detail: r.detail, ms: r.ms };
+  });
 }

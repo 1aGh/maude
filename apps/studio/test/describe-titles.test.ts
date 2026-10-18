@@ -3,12 +3,20 @@
 // "we", counts with the real noun, times as "6 Oct, 14:05".
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Change } from '../history/describe';
 import { collapseChanges, rowTitle, wordsTitle } from '../history/titles';
-import { createAttributionCache } from '../index/extractors/attribution-cache';
+import { attributionFor, createAttributionCache } from '../index/extractors/attribution-cache';
 
 const ch = (
   kind: Change['kind'],
@@ -319,5 +327,49 @@ describe('attribution cache — one entry per (actionId, canvas)', () => {
     expect(c.get('act_3', 'ui/pricing.tsx')?.changes).toEqual([]);
     c.forget('act_3');
     expect(createAttributionCache({ dir }).get('act_3', 'ui/home.tsx')).toBeUndefined();
+  });
+
+  test('attributionFor reads the store lanes once per action and canvas', () => {
+    const dir = tmp();
+    const c = createAttributionCache({ dir });
+    const tsx = (pad: number) =>
+      `export default function C() { return <DesignCanvas><DCArtboard id="a" label="A" width={1} height={1}><div style={{ padding: ${pad} }} /></DCArtboard></DesignCanvas>; }`;
+    let reads = 0;
+    const after = {
+      get tsx() {
+        reads++;
+        return tsx(32);
+      },
+    };
+    const first = attributionFor(c, 'act_9', 'ui/a.tsx', { tsx: tsx(24) }, after);
+    expect(first.changes.map((x) => x.words)).toEqual(['Frame: Padding 24 → 32 px']);
+    const reads1 = reads;
+    expect(reads1).toBeGreaterThan(0);
+    const again = attributionFor(c, 'act_9', 'ui/a.tsx', { tsx: tsx(24) }, after);
+    expect(again).toBe(first);
+    expect(reads).toBe(reads1);
+    // a fresh instance (a restart) answers from disk without touching the lanes either
+    const restarted = attributionFor(
+      createAttributionCache({ dir }),
+      'act_9',
+      'ui/a.tsx',
+      { tsx: '' },
+      after
+    );
+    expect(restarted.changes).toEqual(first.changes);
+    expect(reads).toBe(reads1);
+  });
+
+  test('prune keeps the newest files', () => {
+    const dir = tmp();
+    const c = createAttributionCache({ dir });
+    for (let i = 0; i < 5; i++) c.set(`act_p${i}`, 'ui/home.tsx', { changes, detail: {}, ms: 1 });
+    readdirSync(dir).forEach((f, i) => {
+      const t = new Date(2026, 0, 1 + i);
+      utimesSync(join(dir, f), t, t);
+    });
+    expect(c.prune(2)).toBe(3);
+    expect(readdirSync(dir)).toHaveLength(2);
+    expect(c.prune(2)).toBe(0);
   });
 });

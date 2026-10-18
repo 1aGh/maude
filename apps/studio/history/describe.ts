@@ -130,9 +130,9 @@ export interface LaneContext {
   canvas: string;
   before: Lanes;
   after: Lanes;
-  /** null = the TSX did not parse. */
-  modelBefore: TsxModel | null;
-  modelAfter: TsxModel | null;
+  /** null = the TSX did not parse. Parsed on first read, and shared when both sides carry the same TSX. */
+  readonly modelBefore: TsxModel | null;
+  readonly modelAfter: TsxModel | null;
   opts: DescribeOptions;
 }
 
