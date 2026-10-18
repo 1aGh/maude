@@ -4,15 +4,15 @@ import { enterCanvasFrame, exitToTop } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
-import { canvasRow } from '../helpers/tree';
+import { expandTree } from '../helpers/tree';
 
 /**
  * Phase 29 / E4 — the native COLD-START onboarding, driven through the real wizard DOM.
  * Proves a person who installs Maude reaches the studio with ZERO terminal:
  *   1. first launch → the OnboardingWizard renders (not the canvas browser)
  *   2. Door A · Continue with GitHub → device-code modal → signed-in GitHub door
- *   3. Door B · Open a folder → "Set up Maude here" → the studio opens on a real,
- *      SEEDED starter canvas (scaffold-design.ts) instead of an empty list.
+ *   3. Door B · Open a folder → "Set up Maude here" → the studio opens on the empty
+ *      project card (S6.2); ↵ in its prompt makes the first canvas from the sentence.
  *
  * Only runs under wdio.onboarding.conf.ts, which drops MAUDE_PROJECT_ROOT (→ first-run)
  * and sets the two debug-only stub envs. Under any other config it self-skips.
@@ -74,7 +74,7 @@ describe('native-onboarding (native-desktop)', () => {
     await capture('03-signed-in-github-door');
   });
 
-  it('3 · Door B · open a folder → set up Maude → studio opens on a seeded canvas', async () => {
+  it('3 · Door B · open a folder → set up Maude → the empty project asks for its first canvas', async () => {
     await ensureWelcome();
     await (await $(tid('ob-door-local'))).click();
     // "Choose a project folder" → the stubbed picker returns an EMPTY temp dir → the
@@ -85,30 +85,46 @@ describe('native-onboarding (native-desktop)', () => {
     await capture('04-folder-not-a-maude-project');
 
     await setup.click();
-    // scaffoldDesign writes .design/ + the seeded Welcome canvas → open_local_project
-    // switches the sidecar → the webview reloads onto the real project. That respawn is
-    // WebDriver-flaky (git-switch-repos learning), so wait generously.
+    // scaffoldDesign writes .design/ → open_local_project switches the sidecar → the webview
+    // reloads onto the real project. That respawn is WebDriver-flaky (git-switch-repos
+    // learning), so wait generously.
     await browser.pause(8_000);
     await waitForSidecar();
 
-    // The wizard is gone (app_is_first_run is now false) and the studio shows the SEEDED
-    // canvas — proof the empty-studio gap is closed.
-    const welcomeRow = await canvasRow('canvas-row-ui-welcome');
-    await welcomeRow.waitForDisplayed({ timeout: 120_000 });
-    await capture('05-studio-with-seeded-welcome-canvas');
+    // S6.2 — the wizard is gone (app_is_first_run is now false) and a project with no
+    // canvases shows the 05 es-project-new card, not a seeded canvas (S6.15 retires the
+    // seed): "<Project> has no canvases yet.", the prompt, "Start with an empty canvas ⌘N".
+    // No toolbar: there is nothing to draw on.
+    const card = await $(tid('empty-project'));
+    await card.waitForDisplayed({ timeout: 120_000 });
+    await expect(await $(tid('empty-project-blank'))).toBeDisplayed();
+    await capture('05-empty-project-card');
 
-    // Open it + assert the seeded artboard rendered. Soft: the canvas builds for a few
-    // seconds after first open (an immediate snapshot can lag) — the hard proof is the
-    // seeded row above; this confirms it actually renders.
-    await welcomeRow.click();
+    // ↵ in the prompt makes the first canvas from the sentence (S6.3 takes the sentence on to
+    // draft it). The create call names the canvas from the words, opens it, and the card goes.
+    const prompt = await $(tid('empty-project-prompt'));
+    await prompt.setValue('A one-page portfolio with six projects, calm and light');
+    await browser.keys('Enter');
+    await card.waitForDisplayed({ timeout: 30_000, reverse: true });
+    // The server names it from the sentence (C4), so the row is found by prefix, not by name.
+    await browser.waitUntil(
+      async () => {
+        await expandTree();
+        return await (await $('[data-testid^="canvas-row-"]')).isExisting();
+      },
+      { timeout: 60_000, interval: 500, timeoutMsg: 'the first canvas never appeared in the list' }
+    );
+    await capture('06-first-canvas-from-the-sentence');
+
+    // Soft: the canvas builds for a few seconds after first open. The hard proof is the row
+    // above; this confirms the canvas frame is up.
     try {
       await enterCanvasFrame(30_000);
-      await (await $(tid('welcome-artboard-content'))).waitForDisplayed({ timeout: 30_000 });
       await exitToTop();
-      await capture('06-seeded-canvas-rendered');
+      await capture('07-first-canvas-rendered');
     } catch {
       await exitToTop().catch(() => undefined);
-      await capture('06-seeded-canvas-open-state');
+      await capture('07-first-canvas-open-state');
     }
   });
 });

@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { PANEL_NONE_FOOT, PanelNoCanvases } from '../create/empty-project.jsx';
 import { pathTestIdSlug } from '../../shell/util.js';
 import {
   CANVASES_OP_EVENT,
@@ -446,6 +447,7 @@ export function CanvasesPanel({
         dynamic: listed.some((r) => r.dynamic),
       }
     : null;
+  const emptyProject = !searching && tree.total === 0; // S6.2: "No canvases yet." through the kit
   const foot = panelFootLine({
     total: tree.total,
     shown,
@@ -492,7 +494,7 @@ export function CanvasesPanel({
             {nothingCalled(search)}
           </p>
         ) : null}
-        {!searching && tree.total === 0 ? <p className="cv-none">Empty.</p> : null}
+        {emptyProject ? <PanelNoCanvases readOnly={readOnly} fetchImpl={fetchImpl} /> : null}
       </div>
       {children}
       <p
@@ -501,7 +503,7 @@ export function CanvasesPanel({
         data-slot={foot.source}
         data-tone={foot.tone || undefined}
       >
-        {foot.text}
+        {emptyProject && foot.source === 'default' ? PANEL_NONE_FOOT : foot.text}
       </p>
       {sortMenu ? (
         <div

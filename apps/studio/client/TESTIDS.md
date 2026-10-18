@@ -1130,6 +1130,12 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
 | `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
 | `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+| `empty-project` | testid | The card for a project with no canvases: "<Project> has no canvases yet." with the prompt and the plain way out. No toolbar. Replaces "No canvas open" in the viewport; for Can view it is the situation only. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `empty-project-prompt` | testid | The one-line prompt on that card. Enter creates a canvas from the sentence (the create call carries fromPrompt). Absent for Can view. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `empty-project-send` | testid | The send button of that prompt; the same door as Enter. Does nothing while the box is empty. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `empty-project-blank` | testid | "Start with an empty canvas" (Cmd+N): a blank canvas, named by the server. Absent for Can view. | `client/v2/create/empty-project.jsx` · `EmptyProject` | test:v2-empty-project | new |
+| `canvases-none` | testid | The Canvases panel's line for a project with no canvases: "No canvases yet." (the kit's block). | `client/v2/create/empty-project.jsx` · `PanelNoCanvases` | test:v2-empty-project | new |
+| `canvases-none-new` | testid | The "New canvas" row under that line: a blank canvas. Absent for Can view. | `client/v2/create/empty-project.jsx` · `PanelNoCanvases` | test:v2-empty-project | new |
 
 ## What's New spotlights
 
