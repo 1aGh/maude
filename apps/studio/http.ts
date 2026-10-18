@@ -84,6 +84,7 @@ import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
+import { createReferenceLanes } from './edit-ops/references.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
@@ -1760,6 +1761,16 @@ export function createHttp(
       snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
       actionFor: (repoRel, after) =>
         ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
+      // S2.2b — `element.set-id` moves comment pins + board hosts through api.ts's write paths
+      references: createReferenceLanes({
+        designRel: ctx.paths.designRel,
+        loadComments: (f) => api.loadCommentsForFile(f),
+        rewriteComments: (f, fn) =>
+          api.rewriteComments(f, fn as Parameters<Api['rewriteComments']>[1]),
+        readBoard: (f) => api.readBoard(f),
+        applyBoardOps: (f, ops) => api.applyAnnotationOps(f, ops),
+        acceptedMode: () => !!ctx.syncControl?.current?.()?.acceptedMode?.(),
+      }),
     },
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source

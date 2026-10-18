@@ -2,8 +2,11 @@
 //
 // One request to the dispatch route S2.1 owns (`POST /_api/edit-op`, S2-slices §3a): the writer renames
 // `data-cd-id` AND every durable reference to it in the same action (V2-1.4 §5.5), refused when the new
-// id is taken or invalid, locked, or held by AI. This file only asks and says the answer in words; until
-// the route exists the answer is a plain "not available yet" (the field stays honest, nothing is faked).
+// id is taken or invalid, locked, or held by AI. This file only asks and says the answer in words. S2.2b
+// landed the writer; an older studio (no `element.set-id` in its op table) still answers 404, and the
+// field then says "not available yet" (honest, nothing faked). `invalid` has several reasons (taken,
+// grammar, a detached reference holds the id, references that can't move in one step), so the
+// server's own line is shown for it.
 
 const SAID = {
   'held-by-ai': 'Not renamed. This belongs to AI until it’s done; Stop is in the AI chat.',
@@ -12,10 +15,13 @@ const SAID = {
   forbidden: 'Not renamed. You can look here; ask to edit.',
   invalid: 'Not renamed. That id does not fit; pick another.',
 };
+/** Codes whose server line is more precise than the fixed one above. */
+const SERVER_SAYS = new Set(['invalid']);
 
 /**
  * @param {{ from: string, to: string, index?: number, artboardId?: string, canvas: string }} req
- * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
+ * @returns {Promise<{ ok: true, writeId?: string, actionId?: string | null,
+ *   moved?: { comments: number, board: number } } | { ok: false, message: string }>}
  */
 export async function renameElementId(req, fetchImpl = globalThis.fetch) {
   let res;
@@ -48,6 +54,17 @@ export async function renameElementId(req, fetchImpl = globalThis.fetch) {
   } catch {
     /* an unreadable answer is a failure below */
   }
-  if (body?.ok) return { ok: true };
-  return { ok: false, message: SAID[body?.code] ?? body?.message ?? 'Not renamed; try again.' };
+  if (body?.ok) {
+    const out = { ok: true, actionId: body.actionId ?? null };
+    if (typeof body.writeId === 'string') out.writeId = body.writeId;
+    if (body.moved) out.moved = body.moved;
+    return out;
+  }
+  const code = body?.code;
+  const message =
+    (SERVER_SAYS.has(code) && typeof body?.message === 'string' && body.message) ||
+    SAID[code] ||
+    body?.message ||
+    'Not renamed; try again.';
+  return { ok: false, message };
 }
