@@ -19,6 +19,8 @@
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { globalCdOccurrence, resolveSelectionEl } from './dom-selection.ts';
 import { isElementDragActive } from './drag-state.ts';
+import { layoutOpsDeps } from './editing/reorder-slot.tsx';
+import { framesWithGap, runSetGap } from './editing/set-gap.ts';
 import { gapValue, rulerWindow, spaceStops, tokenRuler } from './editing/token-ruler.tsx';
 import {
   computeGapDrag,
@@ -266,34 +268,17 @@ export function SpacingHandlesOverlay(): ReactNode {
     }
   }, []);
 
-  /** ⌥ — every gap that was the size of the held one, in the frames inside this one, becomes the new value. */
-  const commitSameGaps = useCallback((d: SpacingDrag, value: number) => {
-    const same = Array.from(d.el.querySelectorAll<HTMLElement>('[data-cd-id]')).filter((node) => {
-      const cs = getComputedStyle(node);
-      return (
-        (cs.display === 'flex' || cs.display === 'inline-flex') &&
-        Math.abs(computedPx(cs, 'gap') - d.startValue) < 0.5
-      );
-    });
-    for (const node of same) {
-      const id = node.getAttribute('data-cd-id');
-      if (!id) continue;
-      const before = node.style.getPropertyValue('gap') || null;
-      node.style.setProperty('gap', `${value}px`);
-      try {
-        window.parent.postMessage(
-          {
-            dgn: 'resize-request',
-            id,
-            patch: { gap: `${value}px` },
-            before: { gap: before },
-            idIndex: globalCdOccurrence(document, id, node),
-          },
-          '*'
-        );
-      } catch {
-        /* detached / cross-origin teardown */
-      }
+  /**
+   * ⌥ — every gap that was the size of the held one, in this frame and the frames inside it, becomes
+   * the new value: ONE `layout.set-gap` edit-op (one write, one undo step; S2.11c). A refusal puts the
+   * held frame's preview back.
+   */
+  const commitEveryGap = useCallback(async (d: SpacingDrag, value: number) => {
+    const frames = [d.el, ...framesWithGap(d.el, d.startValue)];
+    const result = await runSetGap(frames, value, layoutOpsDeps.current);
+    if (result && !result.ok) {
+      if (d.before == null) d.el.style.removeProperty(d.prop);
+      else d.el.style.setProperty(d.prop, d.before);
     }
   }, []);
 
@@ -411,8 +396,9 @@ export function SpacingHandlesOverlay(): ReactNode {
       const after = `${next}px`;
       const changed = entries.some((entry) => after !== (entry.before ?? `${d.startValue}px`));
       if (!changed) return; // no-op guard
-      commit(d, entries, next);
-      if (d.kind === 'gap' && e.altKey) commitSameGaps(d, next);
+      // ⌥ on a gap: one multi-frame op carries the held frame too (no second write for it)
+      if (d.kind === 'gap' && e.altKey) void commitEveryGap(d, next);
+      else commit(d, entries, next);
     };
 
     // Restore the pre-drag inline value(s) if the shell reports the write
@@ -444,7 +430,7 @@ export function SpacingHandlesOverlay(): ReactNode {
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('message', onFail);
     };
-  }, [one, commit, commitSameGaps]);
+  }, [one, commit, commitEveryGap]);
 
   return <div ref={containerRef} aria-hidden="true" />;
 }

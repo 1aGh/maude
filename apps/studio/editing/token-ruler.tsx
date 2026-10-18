@@ -65,6 +65,21 @@ export function spaceStops(doc: Document = document): number[] {
   return stopsFromValues(spaceNames(doc).map((n) => cs.getPropertyValue(n)));
 }
 
+/**
+ * The `--space-*` name whose value is `px` in this canvas's system, or null (⌘ any number, or a
+ * system without that stop). A gap that lands on a stop is written as the token, not the number.
+ * Several names with one value: the first by name, so the answer does not move between runs.
+ */
+export function spaceTokenFor(px: number, doc: Document = document): string | null {
+  const cs = doc.defaultView?.getComputedStyle(doc.documentElement);
+  if (!cs) return null;
+  for (const name of spaceNames(doc).sort()) {
+    const n = pxOf(cs.getPropertyValue(name));
+    if (n !== null && Math.abs(n - px) < 0.005) return name;
+  }
+  return null;
+}
+
 /** Five stops around the one nearest `current` (fewer when the scale is short). */
 export function rulerWindow(stops: readonly number[], current: number, size = 5): number[] {
   if (stops.length <= size) return [...stops];

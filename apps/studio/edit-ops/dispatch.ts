@@ -22,6 +22,7 @@ import { objectPlaceFreely } from './place-freely.ts';
 import { reorderOps } from './reorder.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
+import { layoutSetGap } from './set-gap.ts';
 import {
   EDIT_OP_STATUS,
   type EditOp,
@@ -58,6 +59,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectPlaceFreely,
   objectConstrain,
   ...reorderOps,
+  // S2.11c — ⌥ "every gap at once": one gap value over several auto layouts, one write
+  layoutSetGap,
 ];
 
 export interface AiHoldHit {
