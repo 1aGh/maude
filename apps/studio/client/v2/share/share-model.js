@@ -85,9 +85,14 @@ export function sheetView({ posture, me, target, project, scope } = {}) {
     title: `Share ${target?.label || project || 'this project'}`,
     inviteRoles: grantable,
     defaultInviteRole: grantable.includes('member') ? 'member' : (grantable[0] ?? 'member'),
-    /** Role-menu rows for a person (Make owner only on the whole project; never for a pending row). */
+    /** Role-menu rows for a person (never a pending row). */
     menuRoles: grantable,
-    makeOwner: current === 'project',
+    /**
+     * Make owner is hidden until an ownership-transfer route exists (decision v2-lead-make-owner-hidden):
+     * both authorities refuse it (owner-immutable; transfer is its own step), so the item would always
+     * fail. The menu code, its testid and its words stay; turn this back on with the route.
+     */
+    makeOwner: false,
     showLinkRow: access.links,
     showRequests: access.requests,
   };

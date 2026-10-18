@@ -208,7 +208,8 @@ describe('Q13 — the sheet draws only what the hub reports', () => {
     await click(q('share-person-role-u_t'));
     expect(q('share-role-observer')).toBeNull();
     expect(q('share-role-viewer')).not.toBeNull();
-    expect(q('share-role-make-owner')).not.toBeNull();
+    // Make owner is hidden until an ownership-transfer route exists (v2-lead-make-owner-hidden).
+    expect(q('share-role-make-owner')).toBeNull();
   });
 
   test('after it: the scope segment (This canvas first), Can view and the link row', async () => {
@@ -220,8 +221,6 @@ describe('Q13 — the sheet draws only what the hub reports', () => {
     expect(calls.filter((c) => c[0] === 'people')).toEqual([['people', 'ui/Combine-kampan.tsx']]);
     await click(q('share-person-role-u_t'));
     expect(q('share-role-observer')?.textContent).toContain('Look only');
-    // Make owner is a whole-project change; on This canvas the menu does not offer it.
-    expect(q('share-role-make-owner')).toBeNull();
     expect(q('share-role-remove')?.textContent).toBe('Remove from Combine-kampan');
     await click(q('share-scope-project'));
     expect(calls.filter((c) => c[0] === 'people').at(-1)).toEqual(['people', null]);
@@ -326,13 +325,13 @@ describe('people', () => {
         Promise.resolve({
           ok: false,
           status: 422,
-          body: { error: 'Making someone the owner is its own step.', reason: 'owner-immutable' },
+          body: { error: 'Only the owner can change that.', reason: 'forbidden' },
         }),
     });
     await click(q('share-person-role-u_j'));
-    await click(q('share-role-make-owner'));
-    expect(calls.find((c) => c[0] === 'setRole')).toEqual(['setRole', 'u_j', 'owner', null]);
-    expect(q('share-error')?.textContent).toBe('Making someone the owner is its own step.');
+    await click(q('share-role-viewer'));
+    expect(calls.find((c) => c[0] === 'setRole')).toEqual(['setRole', 'u_j', 'viewer', null]);
+    expect(q('share-error')?.textContent).toBe('Only the owner can change that.');
   });
 
   test('Remove asks first, then removes from the scope', async () => {
