@@ -81,6 +81,55 @@ pub struct LinkAddress {
     /// It carries a `?code=` (a connect link, V2-3.5): routed by the app's
     /// own hub binding only (N-M4).
     pub connect: bool,
+    /// S1.18 — a stable canvas link's kernel entry (`?c=`), validated. Such a
+    /// link names no path and travels to the window as `url` only (the client
+    /// resolves the entry against its own server): `canvas` and `artboard`
+    /// stay None, so no `shell://navigate` aims it at whatever canvas is open.
+    pub entry: Option<String>,
+}
+
+/// The kernel's entry grammar (kernel.mjs `TX_ID`).
+fn valid_entry(e: &str) -> bool {
+    (8..=128).contains(&e.len())
+        && e.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+/// A comment id (S9.7 comments/ops.ts `ID_RE`).
+fn valid_comment(m: &str) -> bool {
+    (1..=64).contains(&m.len()) && m.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+
+/// Strict `%XX` decoding of a URL fragment; None on a malformed escape or
+/// bytes that are not UTF-8.
+fn percent_decode(s: &str) -> Option<String> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let (hi, lo) = (*b.get(i + 1)?, *b.get(i + 2)?);
+            if !hi.is_ascii_hexdigit() || !lo.is_ascii_hexdigit() {
+                return None;
+            }
+            out.push(u8::from_str_radix(std::str::from_utf8(&[hi, lo]).ok()?, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// S1.18 — the `#<artboardId>` anchor of a canvas link: decoded once, then the
+/// kernel's artboard grammar (kernel.mjs `ARTBOARD_ID`: 1–128 characters, no
+/// `/`, no control characters). An anchor that fails is dropped — the canvas
+/// still opens, framed as it was.
+pub fn link_anchor(fragment: Option<&str>) -> Option<String> {
+    let a = percent_decode(fragment.filter(|f| !f.is_empty())?)?;
+    let n = a.chars().count();
+    ((1..=128).contains(&n) && !a.chars().any(|c| c == '/' || c.is_control())).then_some(a)
 }
 
 /// Parse `maude://open/<project>[/]?<query>[#<artboard>]`. `None` = a link
@@ -99,16 +148,62 @@ pub fn parse_link(url: &str) -> Option<LinkAddress> {
     }
     let mut canvas = None;
     let mut connect = false;
+    let mut entry: Option<String> = None;
+    let mut comment: Option<String> = None;
+    let mut other = false;
     for (k, v) in parsed.query_pairs() {
-        if k == "code" {
-            connect = true;
-        }
-        if k == "open" {
-            if canvas.is_some() {
-                return None;
+        match k.as_ref() {
+            "code" => connect = true,
+            "open" => {
+                if canvas.is_some() {
+                    return None;
+                }
+                canvas = Some(crate::project_resolve::validate_open_param(&v)?);
             }
-            canvas = Some(crate::project_resolve::validate_open_param(&v)?);
+            "c" => {
+                if entry.is_some() || !valid_entry(&v) {
+                    return None;
+                }
+                entry = Some(v.into_owned());
+            }
+            "m" => {
+                // Twice is as bad as an unknown key (only a canvas link reads it).
+                other |= comment.is_some();
+                comment = Some(v.into_owned());
+            }
+            _ => other = true,
         }
+    }
+    // S1.18 — a canvas link carries ids only: its entry, an optional comment
+    // id, the `#<artboard>` anchor. Nothing else rides along (no path, no
+    // code, no key the client might read), and the window gets a link this
+    // module rebuilt from the validated parts, never the bytes that arrived.
+    if let Some(entry) = entry {
+        if canvas.is_some() || connect || other {
+            return None;
+        }
+        if comment.as_deref().is_some_and(|m| !valid_comment(m)) {
+            return None;
+        }
+        let mut out = tauri::Url::parse(&format!("maude://open/{project}")).ok()?;
+        {
+            let mut q = out.query_pairs_mut();
+            q.append_pair("c", &entry);
+            if let Some(a) = link_anchor(parsed.fragment()) {
+                q.append_pair("a", &a);
+            }
+            if let Some(m) = &comment {
+                q.append_pair("m", m);
+            }
+        }
+        return Some(LinkAddress {
+            project: project.to_string(),
+            canvas: None,
+            artboard: None,
+            url: out.to_string(),
+            connect: false,
+            entry: Some(entry),
+        });
     }
     let artboard = parsed
         .fragment()
@@ -129,6 +224,7 @@ pub fn parse_link(url: &str) -> Option<LinkAddress> {
         artboard,
         url,
         connect,
+        entry: None,
     })
 }
 
@@ -405,7 +501,11 @@ mod tests {
 
     #[test]
     fn deep_link_a_known_project_routes_to_its_window_with_canvas_and_artboard() {
-        let r = plan_route("maude://open/alligators?open=ui/Hero.tsx#cover", resolver, |_| None);
+        let r = plan_route(
+            "maude://open/alligators?open=ui/Hero.tsx#cover",
+            resolver,
+            |_| None,
+        );
         let LinkRoute::Project { root, address } = &r else {
             panic!("expected a project route, got {r:?}")
         };
@@ -469,5 +569,104 @@ mod tests {
             Some("maude://open/alligators?open=ui/A.tsx")
         );
         assert_eq!(parked.take("p-abc"), None, "one-shot");
+    }
+
+    fn entry_route(url: &str) -> LinkAddress {
+        match plan_route(url, resolver, |_| None) {
+            LinkRoute::Project { address, .. } => address,
+            r => panic!("{url} → {r:?}"),
+        }
+    }
+
+    /// S1.18: a canvas link names ids only. The window gets a link rebuilt
+    /// from the validated entry / anchor / comment; no canvas path, and no
+    /// artboard for `shell://navigate` to aim at whatever canvas is open.
+    #[test]
+    fn deep_link_anchor_an_entry_link_carries_ids_only() {
+        let a = entry_route("maude://open/alligators?c=n_abc12345#pozvanka-story");
+        assert_eq!(a.entry.as_deref(), Some("n_abc12345"));
+        assert_eq!((a.canvas.as_deref(), a.artboard.as_deref()), (None, None));
+        assert!(!a.connect);
+        assert_eq!(
+            a.url,
+            "maude://open/alligators?c=n_abc12345&a=pozvanka-story"
+        );
+        // The comment id rides along; no anchor → no `a`.
+        let a = entry_route("maude://open/alligators/?c=n_abc12345&m=c_7Ab#story");
+        assert_eq!(
+            a.url,
+            "maude://open/alligators?c=n_abc12345&a=story&m=c_7Ab"
+        );
+        let a = entry_route("maude://open/alligators?c=n_abc12345");
+        assert_eq!(a.url, "maude://open/alligators?c=n_abc12345");
+    }
+
+    #[test]
+    fn deep_link_anchor_is_decoded_once_then_held_to_the_artboard_grammar() {
+        // Encoded once on the way in, re-encoded by us on the way out.
+        let a = entry_route("maude://open/alligators?c=n_abc12345#story%20A");
+        assert_eq!(a.url, "maude://open/alligators?c=n_abc12345&a=story+A");
+        let a = entry_route("maude://open/alligators?c=n_abc12345#p%C5%99%C3%ADb%C4%9Bh");
+        assert_eq!(
+            link_anchor(Some("p%C5%99%C3%ADb%C4%9Bh")).as_deref(),
+            Some("příběh")
+        );
+        assert!(a.url.ends_with("&a=p%C5%99%C3%ADb%C4%9Bh"), "{}", a.url);
+        // `%2525` decodes ONCE to `%25`, never to `%`.
+        assert_eq!(link_anchor(Some("x%2525")).as_deref(), Some("x%25"));
+        // A bad anchor is dropped; the canvas still opens.
+        let long = "a".repeat(129);
+        for bad in [
+            "a/b",
+            "a%2Fb",
+            "%00x",
+            "x%0A",
+            "%ZZ",
+            "%+1x",
+            "%C3",
+            "",
+            long.as_str(),
+        ] {
+            assert_eq!(link_anchor(Some(bad)), None, "{bad}");
+            let a = entry_route(&format!("maude://open/alligators?c=n_abc12345#{bad}"));
+            assert_eq!(a.url, "maude://open/alligators?c=n_abc12345", "{bad}");
+        }
+        assert_eq!(
+            link_anchor(Some(&"a".repeat(128))).map(|a| a.len()),
+            Some(128)
+        );
+    }
+
+    #[test]
+    fn deep_link_anchor_a_malformed_entry_link_goes_home() {
+        for url in [
+            "maude://open/alligators?c=short",
+            "maude://open/alligators?c=../../etc/x",
+            "maude://open/alligators?c=n_has%20space0",
+            &format!("maude://open/alligators?c={}", "a".repeat(129)),
+            "maude://open/alligators?c=n_abc12345&c=n_abc67890",
+            // ids only: no path, no code, no URL, no key the client might read
+            "maude://open/alligators?c=n_abc12345&open=ui/A.tsx",
+            "maude://open/alligators?c=n_abc12345&code=mhc_aa",
+            "maude://open/alligators?c=n_abc12345&a=story",
+            "maude://open/alligators?c=n_abc12345&next=https://evil.example",
+            "maude://open/alligators?c=n_abc12345&m=a-b",
+            "maude://open/alligators?c=n_abc12345&m=",
+            "maude://open/alligators?c=n_abc12345&m=a&m=b",
+            "maude://open/Alligators?c=n_abc12345",
+            // a known entry for a project this Mac does not know
+            "maude://open/not-on-this-machine?c=n_abc12345",
+        ] {
+            let r = plan_route(url, resolver, resolver);
+            assert!(matches!(r, LinkRoute::Home { .. }), "{url} → {r:?}");
+            assert_eq!(deliver_label(&r, |_| panic!("must not open")), HOME_LABEL);
+        }
+        // `m` outside a canvas link stays what it was: ignored.
+        let r = plan_route(
+            "maude://open/alligators?open=ui/A.tsx&m=a&m=b",
+            resolver,
+            |_| None,
+        );
+        assert!(matches!(r, LinkRoute::Project { .. }), "{r:?}");
     }
 }

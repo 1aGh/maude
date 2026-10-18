@@ -156,6 +156,7 @@ import { uploadAsset } from '../asset-upload.ts';
 import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
+import { QuitDialog } from './v2/ai/QuitDialog.jsx';
 import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
 import {
   collectDirPaths,
@@ -236,11 +237,15 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
-import { noteAiRuns } from './v2/ai/runs-store.js';
+import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
+import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
+import { OPEN_ASSETS_EVENT } from './v2/ai/AttachMenu.jsx';
+import { TRASH_CHANGED_EVENT } from './v2/left-panel/use-trash.js';
 import { isFollowLocation } from './v2/present/follow-location.js';
 import FollowView from './v2/present/follow-view.jsx';
 import { OrderNotesMount } from './v2/present/order-notes-mount.jsx';
 import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
+import { PresenterViewHost } from './v2/present/presenter-host.jsx';
 import {
   CSS_ALIGN_SELF,
   CSS_ASPECT_RATIO,
@@ -279,7 +284,6 @@ import { GridTracksEditor } from './inspector/grid-tracks-editor.jsx';
 import { CssKnobs, afterRecordableWrites, trackRecordableWrite } from './inspector/css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow, moveLayerNode } from './inspector/layers.jsx';
 import { InspectComputed } from './inspector/inspect-computed.jsx';
-import { ArtboardKnobs, resolveArtboardIdFromSelection } from './inspector/artboard-knobs.jsx';
 import { InspectorPanel, PHOTO_ASSET_RE } from './inspector/inspector-panel.jsx';
 import { usePaletteAndPanels } from './hooks/use-palette-and-panels.jsx';
 import { useActionKeys } from './hooks/use-action-keys.jsx';
@@ -812,7 +816,15 @@ function ShellState({ children }) {
             if (isNativeApp()) openRightPanel('assistant');
           } else if (m.type === 'ai:runs') {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
+            // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.
             noteAiRuns(m.seq);
+          } else if (m.type === 'project:action') {
+            // S5.11 (V2-1.15 §5.8) — a settled "Done" ring on every artboard the action touched
+            // (S5.5b payload `artboards: Record<canvas, string[]>`).
+            getRunsStore().markDone(Object.values(m.action?.artboards ?? {}).flat());
+          } else if (m.type === 'trash:changed') {
+            // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
+            window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
           } else if (m.type === 'ui-open') {
             // V2-2.4b (contract V2-1.11 §5.3) — `maude design open <canvas>[#ab][@el]`: open the
             // tab, then run the same registry actions the UI runs (zoom / select / present).
@@ -1546,6 +1558,7 @@ function ShellProjectPill() {
       inspectorOpen,
       minimapVisible,
       openPanelExclusive,
+      openRightPanel,
       postToActiveCanvas,
       presentMode,
       printGuidesVisible,
@@ -1707,6 +1720,18 @@ function ShellProjectPill() {
     });
     return () => menuRunner.unbind(handlers);
   }, [handlers, native]);
+  // S5.13 — a "Needs you" / "Done" toast's Open lands in the AI chat (ChatPanel picks the chat itself).
+  // S5.10 — the paperclip's From Assets opens the Assets panel, the same as View › Assets.
+  useEffect(() => {
+    const onOpenAi = () => openRightPanel('assistant');
+    const onAttachAssets = () => menuRunner.run('view.assets');
+    window.addEventListener(OPEN_AI_EVENT, onOpenAi);
+    window.addEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
+    return () => {
+      window.removeEventListener(OPEN_AI_EVENT, onOpenAi);
+      window.removeEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
+    };
+  }, [openRightPanel]);
 
   const isCloudTab = !!cfg?.cloud;
   const ctx = useMemo(
@@ -2996,6 +3021,8 @@ function ShellTree() {
       {/* S3.2b — the only chrome Present shows: the controls (Artboards) or the pill (the canvas). It replaces
           the v1 `st-present-exit` button; the pill keeps that class. */}
       {presentMode && <ShellPresentChrome />}
+      {/* S3.6b — Presenter view on the Mac (only when the person turned it on and another display exists). */}
+      {presentMode && <PresenterViewHost />}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
@@ -3173,6 +3200,8 @@ function ShellTree() {
         activeCanvas={activePath}
         onClose={() => setReportBugOpen(false)}
       />
+      {/* S5.14: the shell's "Quit while AI is working?" (quit://ask) — desktop only. */}
+      <QuitDialog />
       <WhatsNewPanel wn={whatsNew} onStartTour={startTour} />
       <ExportPanel center={exportCenter} />
       <ReadinessDialog open={readinessOpen} onClose={() => setReadinessOpen(false)} />

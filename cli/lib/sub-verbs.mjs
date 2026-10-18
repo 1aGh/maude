@@ -23,7 +23,8 @@ export const SUB_VERBS = {
   },
   // V2-2.4b (contract V2-1.11 §5.3). Each sub-verb has its own tier entry.
   history: { list: NATIVE, show: NATIVE, diff: NATIVE, restore: NATIVE, undo: NATIVE },
-  comments: { list: NATIVE },
+  // S9.7b — the write sub-verbs are prompt tier (verbs.ts `comments …` entries); only `list` is auto.
+  comments: { list: NATIVE, reply: NATIVE, resolve: NATIVE, reopen: NATIVE, add: NATIVE },
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
   runs: { list: NATIVE, stop: NATIVE },

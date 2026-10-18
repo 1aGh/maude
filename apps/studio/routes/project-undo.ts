@@ -111,6 +111,13 @@ export interface ProjectUndoDeps {
   designRel: string;
   /** ctx.bus.emit — `project:action` (V2-1.5 §5.3). */
   emit?: (event: string, payload: unknown) => void;
+  /**
+   * Asked before the runtime: a Response refuses the undo. S4.7 registers the
+   * conversion guard here — a sticky turned into a thread someone else has
+   * replied to since is refused `has-replies`, so the kernel never restores the
+   * sticky while keeping the thread (contract S4-S9-votes-comments §3.2).
+   */
+  guard?: (target: UndoTarget, req: Request) => Promise<Response | null>;
 }
 
 /** V2-1.5 §5.3 bus payload, from a history row (+ the attribution when known). */
@@ -149,6 +156,57 @@ export async function announceAction(
     .catch(() => null)) as AcceptedHistoryRow[] | null | undefined;
   const row = rows?.find((r) => r.actionId === actionId);
   if (row) deps.emit('project:action', projectActionEvent(row, artboards));
+}
+
+/** What a run's stage end answers (the hub runtime and the local home alike). */
+type StageEnd = {
+  status: 'accepted' | 'rejected' | 'discarded';
+  code?: string;
+  actionId?: string;
+  touched?: Record<string, string[]>;
+} | null;
+
+interface StageRuntime extends ProjectUndoRuntime {
+  endAiAction?(
+    key: string,
+    outcome: 'done' | 'failed' | 'stopped',
+    o?: { fence?: RunFenceLike }
+  ): Promise<StageEnd>;
+}
+
+type RunFenceLike = {
+  runId: string;
+  leases: Array<{ entry: string; artboard: string; token: number }>;
+};
+
+/**
+ * S5.5b — the run registry's `stage` hooks (ai/runs.ts `RegistryOptions.stage`): THE one place a
+ * registry run's stage ends. The registry decides the outcome — a turn that ended publishes, Stop
+ * / Quit publishes partial (`stopped`), an error or a lost lease holds — and the stage is named by
+ * the run's id, which every caller began it with (`beginAiAction(key, label, { runId })`). A
+ * published run is announced on the bus as `project:action` with the artboards it touched.
+ */
+export function runStageHooks(deps: {
+  control: () => StageRuntime | null | undefined;
+  emit?: (event: string, payload: unknown) => void;
+}) {
+  return {
+    async publish(
+      rec: { runId: string },
+      o: { partial: boolean; fence: RunFenceLike }
+    ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | undefined> {
+      const r = await deps
+        .control()
+        ?.endAiAction?.(rec.runId, o.partial ? 'stopped' : 'done', { fence: o.fence });
+      if (!r || r.status === 'discarded') return undefined;
+      if (r.status === 'accepted' && r.actionId)
+        await announceAction(deps, r.actionId, r.touched ?? {}).catch(() => {});
+      return { status: r.status, ...(r.code ? { code: r.code } : {}) };
+    },
+    async hold(rec: { runId: string }): Promise<void> {
+      await deps.control()?.endAiAction?.(rec.runId, 'failed');
+    },
+  };
 }
 
 function designRelOf(repoRel: string, designRel: string): string {
@@ -213,6 +271,8 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
             : 'actionId' in parsed.target
               ? 'keys'
               : 'panel';
+        const refused = await deps.guard?.(parsed.target, req);
+        if (refused) return refused;
         const runtime = deps.control();
         const r = runtime?.acceptedUndo
           ? await runtime.acceptedUndo(parsed.target, parsed.redo, { via })

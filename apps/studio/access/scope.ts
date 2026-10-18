@@ -178,6 +178,31 @@ export function writes(
   return false;
 }
 
+/** `assets/<sha8>.<ext>` — the content-addressed asset name (V2-1.16 L20). */
+const CONTENT_ADDRESSED_ASSET = /^assets\/([0-9a-f]{8})\.[A-Za-z0-9]{1,16}$/;
+
+/**
+ * Is `rel` a NEW top-level asset that a canvas-only session must content-address
+ * (V2-5 sweep-fix, lead decision)? `writes()` lets such a session create a new
+ * `assets/` file; a chosen name would make its refusal (the name is already held
+ * by a canvas it cannot see) differ from a free name's success — an existence
+ * oracle. So the create must be named by its own bytes.
+ */
+export const isAssetCreate = (rel: string, o: { exists: boolean }): boolean =>
+  !o.exists && /^assets\/[^/]+$/.test(rel);
+
+/**
+ * `rel` is `assets/<sha8>.<ext>` whose `<sha8>` opens `sha256` (lowercase hex of
+ * the bytes). `sha256` null checks the name's shape only — the door's check
+ * before a body is read; the bytes are checked again once hashed.
+ */
+export function contentAddressedAsset(rel: string, sha256: string | null): boolean {
+  const m = CONTENT_ADDRESSED_ASSET.exec(rel);
+  if (!m) return false;
+  if (sha256 === null) return true;
+  return typeof sha256 === 'string' && sha256.toLowerCase().startsWith(m[1] as string);
+}
+
 /** `assets/<sha8>.photo.json` → `assets/<sha8>`: everything before the file name's first dot. */
 export const assetStem = (rel: string): string => {
   const slash = rel.lastIndexOf('/');

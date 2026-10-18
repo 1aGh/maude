@@ -56,6 +56,17 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     skill: 'design:design#_guide-17',
   },
   {
+    // S9.7b (V2-1.11 §5.2 row `comments`): read path only — writes go through the `comments` verb.
+    format: 'comments',
+    files: '<designRoot>/_comments/<slug>.json (runtime, synced by the hub)',
+    schema: 'schema/comments.v2.schema.json',
+    id: 'https://maude.sh/schema/comments/v2',
+    source: 'hand',
+    check: 'none — the agent never writes it: `maude design comments …` → POST /_api/comments/op',
+    skill: 'design:design#_guide-05',
+    runtime: true,
+  },
+  {
     format: 'edl',
     files: '<designRoot>/**/*.edl.json',
     schema: 'schema/edl.v1.schema.json',

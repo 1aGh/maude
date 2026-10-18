@@ -4777,11 +4777,7 @@ export function applyDuplicateArtboard(
   }
   const patchedClone = cs.toString();
 
-  const targetIndent = lineStartInfo(source, elStart).indent;
-  const insertText = `\n${targetIndent}${patchedClone}`;
-  const s = new MagicString(source);
-  s.appendLeft(elEnd, insertText);
-  const out = s.toString();
+  const out = spliceBesideArtboard(source, elStart, elEnd, patchedClone);
   const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
   if (check.errors && check.errors.length > 0) {
     throw new CanvasEditError(
@@ -4790,6 +4786,140 @@ export function applyDuplicateArtboard(
     );
   }
   return { source: out, artboardId: newId };
+}
+
+/**
+ * The one "beside the source" placement every artboard copy uses ("Duplicate at width…", Run on a
+ * copy): the clone is spliced as the original's NEXT sibling in source order, at its indent — the
+ * next default-grid cell (DDR-027, see applyDuplicateArtboard).
+ */
+function spliceBesideArtboard(
+  source: string,
+  elStart: number,
+  elEnd: number,
+  cloneText: string
+): string {
+  const targetIndent = lineStartInfo(source, elStart).indent;
+  const s = new MagicString(source);
+  s.appendLeft(elEnd, `\n${targetIndent}${cloneText}`);
+  return s.toString();
+}
+
+/**
+ * S5.11b — Run on a copy (V2-1.15 §5.7): duplicate `<DCArtboard id={artboardId}>` FROM `accepted`
+ * (the project's accepted source — never a busy run's staged bytes, which sit on disk until that
+ * run publishes) into `source` (the disk), beside the original (`spliceBesideArtboard`). The copy
+ * gets `copy.id` + `copy.label`; every `data-cd-id` / `data-cd-locked` inside it is dropped and
+ * each DOM element that carried an id gets a fresh readable one (V2-1.4 §4.3: a copy always gets
+ * new ids and starts unlocked). An artboard `copy.id` already in `source` is this ask's earlier
+ * copy: answered as is (`existed`), so a retry never makes two.
+ */
+export function applyCopyArtboard(
+  canvasAbsPath: string,
+  source: string,
+  accepted: string,
+  artboardId: string,
+  copy: { id: string; label?: string }
+): { source: string; artboardId: string; existed: boolean } {
+  const fail = (m: string) => new CanvasEditError(m, { canvas: canvasAbsPath, id: artboardId });
+  const disk = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (disk.errors && disk.errors.length > 0)
+    throw fail(`oxc-parser failed on ${canvasAbsPath}: ${disk.errors[0]?.message ?? 'unknown'}`);
+  const onDisk = collectJsxByTag(disk.program, 'DCArtboard');
+  const idOf = (a: AnyNode) => getStringAttr(a.openingElement, 'id');
+  if (onDisk.some((a) => idOf(a) === copy.id))
+    return { source, artboardId: copy.id, existed: true };
+  const here = onDisk.find((a) => idOf(a) === artboardId);
+  if (!here) throw fail(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`);
+
+  const acc = parseSync(canvasAbsPath, accepted, { sourceType: 'module' });
+  if (acc.errors && acc.errors.length > 0)
+    throw fail(`the accepted ${canvasAbsPath} does not parse`);
+  const target = collectJsxByTag(acc.program, 'DCArtboard').find((a) => idOf(a) === artboardId);
+  if (!target) throw fail(`<DCArtboard id="${artboardId}"> is not in the accepted version yet`);
+  const walkAcc = walkIdElements(accepted, canvasAbsPath);
+  if (!walkAcc.ok) throw fail(walkAcc.error);
+  const elStart = target.start as number;
+  const elEnd = target.end as number;
+  const idAttr = findAttribute(target.openingElement, 'id');
+  if (!idAttr || typeof idAttr.start !== 'number' || typeof idAttr.end !== 'number')
+    throw fail(`<DCArtboard id="${artboardId}"> has no readable id attribute`);
+
+  // one MagicString over the ACCEPTED text: drop ids + locks, rename the artboard, then slice
+  const ms = new MagicString(accepted);
+  const inside = walkAcc.elements.filter((e) => e.start >= elStart && e.end <= elEnd);
+  for (const e of inside) {
+    for (const a of [e.idAttr, e.lockAttr]) {
+      if (!a) continue;
+      const sp = attrRemovalSpan(accepted, a);
+      ms.remove(sp.start, sp.end);
+    }
+  }
+  ms.overwrite(idAttr.start, idAttr.end, `id="${escapeAttr(copy.id)}"`);
+  const label =
+    copy.label ?? `${getStringAttr(target.openingElement, 'label') ?? artboardId} · copy`;
+  const labelAttr = findAttribute(target.openingElement, 'label');
+  if (labelAttr && typeof labelAttr.start === 'number' && typeof labelAttr.end === 'number')
+    ms.overwrite(labelAttr.start, labelAttr.end, `label="${escapeAttr(label)}"`);
+  else ms.appendLeft(idAttr.end, ` label="${escapeAttr(label)}"`);
+  const cloneText = ms.slice(elStart, elEnd);
+
+  let out = spliceBesideArtboard(source, here.start as number, here.end as number, cloneText);
+  // fresh ids where the original carried one: the copy's elements, pre-order, pair with the
+  // original's (the clone is the same tree minus attributes)
+  const walkOut = walkIdElements(out, canvasAbsPath);
+  if (walkOut.ok) {
+    const was = inside.filter((e) => e.artboard === artboardId);
+    const now = walkOut.elements.filter((e) => e.artboard === copy.id);
+    if (was.length === now.length) {
+      const used = usedIds(walkOut.elements);
+      for (const e of inside) if (e.id) used.add(e.id); // never hand the original's id out again
+      const stamps: Array<{ nameEnd: number; id: ElementId }> = [];
+      was.forEach((w, i) => {
+        const n = now[i] as (typeof now)[number];
+        if (w.id !== null && /^[a-z]/.test(n.tag))
+          stamps.push({ nameEnd: n.nameEnd, id: generateElementId(seedOf(n), used) });
+      });
+      out = insertIds(out, stamps);
+    }
+  }
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0)
+    throw fail(
+      `run-on-copy produced invalid source (${check.errors[0]?.message ?? 'parse error'})`
+    );
+  return { source: out, artboardId: copy.id, existed: false };
+}
+
+/**
+ * Run on a copy on disk (atomic write + cross-process lock). `accepted` defaults to the disk (a
+ * canvas no run has staged). `beforeWrite` sees the new bytes before they land — the caller
+ * claims them for the run's stage there, so the watcher never files them under the busy run.
+ */
+export async function copyArtboard(
+  canvasAbsPath: string,
+  artboardId: string,
+  copy: { id: string; label?: string },
+  o: { accepted?: string | null; beforeWrite?: (next: string) => void } = {}
+): Promise<{ source: string; artboardId: string; existed: boolean }> {
+  return withLock(canvasAbsPath, async () => {
+    const file = Bun.file(canvasAbsPath);
+    if (!(await file.exists())) {
+      throw new CanvasEditError(`Canvas not found: ${canvasAbsPath}`, {
+        canvas: canvasAbsPath,
+        id: artboardId,
+      });
+    }
+    const source = await file.text();
+    const next = applyCopyArtboard(canvasAbsPath, source, o.accepted ?? source, artboardId, copy);
+    if (next.existed || next.source === source) return next;
+    o.beforeWrite?.(next.source);
+    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
+    await Bun.write(tmp, next.source);
+    const { rename } = await import('node:fs/promises');
+    await rename(tmp, canvasAbsPath);
+    return next;
+  });
 }
 
 /** Duplicate an artboard on disk (atomic write + cross-process lock). */
