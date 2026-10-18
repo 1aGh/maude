@@ -62,6 +62,8 @@ const NONE = [
   '/_api/figma/status',
   '/_api/figma/connect',
   '/_api/github/identity',
+  // A6b-3 — S9.19: the linked hub’s posture (is it linked, reachable, which roles exist); no canvas in it
+  '/_api/share/posture',
   '/_api/git/fetch',
 ];
 
@@ -100,6 +102,14 @@ const FILTERED = [
   // presence of a canvas it sees (routes/asset-state.ts refuses a canvas-only session everything else)
   '/_api/export-estimate',
   '/_api/export-jobs/retry',
+  // A6b-3 — S9.19 who has access (the hub narrows it to the session), S9.24 the conflicts THIS Mac lost, S10.3 a system is seen only through its DS canvas (routes/ds.ts: every other system answers like one that does not exist)
+  '/_api/share/me',
+  '/_api/share/people',
+  '/_api/sync/conflicts',
+  '/_api/ds/state',
+  '/_api/ds/revision',
+  '/_api/ds/revisions',
+  '/_api/ds/usage',
   '/_api/asset-state',
 ];
 
@@ -120,6 +130,11 @@ const CANVAS = [
   '/_api/project/object-history',
   '/_api/canvas-errors',
   '/_api/trash/restore',
+  // A6b-3 — S7.4 a comp’s words (`canvas`), S10.3 a canvas update / leave, S2.16 the Component picker (`file`), S9.24 a conflict pick (`slug`)
+  '/_api/comp-media',
+  '/_api/ds/canvas',
+  '/_api/ds/components',
+  '/_api/sync/conflicts/resolve',
   // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
   // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).
   '/_api/present-meta',
@@ -198,6 +213,19 @@ const CANVAS = [
 
 const PROJECT = [
   // A6b-2 — S6.0b: uploads the whole folder to the person's own cloud account (window-only, the owner's act)
+  // A6b-3 — S10.3 design-system writes (Can edit on the whole project; clear is the owner’s), S9.19 who has access is the owner’s
+  '/_api/ds/publish',
+  '/_api/ds/pending',
+  '/_api/ds/outside',
+  '/_api/ds/pick',
+  '/_api/ds/trash',
+  '/_api/ds/restore',
+  '/_api/ds/clear',
+  '/_api/share/invites',
+  '/_api/share/invites/:id/resend',
+  '/_api/share/invites/:id/revoke',
+  '/_api/share/people/:id',
+  '/_api/share/people/:id/remove',
   '/_api/cloud/move',
   // A6a — S1.7b Clear out (owner); S5.10 AI attachments + folder consent (the AI chat is project-level, like /_api/acp/chat)
   '/_api/trash/clear',

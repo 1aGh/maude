@@ -449,6 +449,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onMetaChanged hook → meta lane.replace with the replaced file as base (api writeCanvasMetaText, the layout lane writer)',
     test: 'test/present-meta-route.test.ts',
   },
+  '/_api/ds/components': { class: 'read' }, // S2.16 routes/edit.ts: what the Component picker lists (minRole edit)
   '/_api/comp-media': { class: 'read' }, // S7.4 routes/video.ts: the comp's words / speech / beats, derived from the cut
   // S9.19 — routes/share.ts: the desktop's door to the linked hub's /api/access/*. Who has access
   // lives on the hub (users / invites / grants), never in the project's files: no lane carries it.

@@ -452,6 +452,8 @@ function paramPair(path: string, name: string, cell: GateCell): Pair {
   // No outbox entry exists in a fresh cell; both sides name an absent id.
   if (name === 'id' && path.startsWith('/_api/outbox/'))
     return { b: 'ob_missing_b', m: 'ob_missing_m' };
+  // S9.19 — a hub user / invitation id: the share routes judge the SESSION first, so any id will do
+  if (name === 'id' && path.startsWith('/_api/share/')) return { b: 'u_probe_b', m: 'u_probe_m' };
   if (name === 'key') return { b: B_SLUG, m: M_SLUG };
   if (name === 'asset')
     return { b: B_ASSET.slice('assets/'.length), m: M_ASSET.slice('assets/'.length) };

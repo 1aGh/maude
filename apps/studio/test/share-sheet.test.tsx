@@ -329,8 +329,8 @@ describe('people', () => {
         }),
     });
     await click(q('share-person-role-u_j'));
-    await click(q('share-role-viewer'));
-    expect(calls.find((c) => c[0] === 'setRole')).toEqual(['setRole', 'u_j', 'viewer', null]);
+    await click(q('share-role-member'));
+    expect(calls.find((c) => c[0] === 'setRole')).toEqual(['setRole', 'u_j', 'member', null]);
     expect(q('share-error')?.textContent).toBe('Only the owner can change that.');
   });
 

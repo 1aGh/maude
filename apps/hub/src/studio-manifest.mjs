@@ -275,6 +275,9 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/trash': { safe: 'read', unsafe: null },
   '/_api/trash/restore': { safe: null, unsafe: 'trash' },
   '/_api/trash/clear': { safe: null, unsafe: 'delete' },
+  // S2.16 — routes/edit.ts: what the Component picker lists. A read of the system, but it exists to ADD to a
+  // canvas, so the studio refuses everything below Can edit (a hidden row is never the only gate).
+  '/_api/ds/components': { safe: 'edit', unsafe: null },
   // S10.3 — a converted design system's reviews (apps/studio/routes/ds.ts). The studio judges
   // each session's vouched claim itself (Q15): pending needs edit on the DS canvas, the other
   // writes edit on the whole project, clearing a token out of the trash the owner (`delete`).

@@ -151,12 +151,15 @@ describe('ds-pins-want → ds-pins, into the frame that asked', () => {
     // a canvas that is not the active one cannot ask (the dgn table's `active` gate)
     say(other.win, { dgn: 'ds-pins-want', revs: ['head'] });
     expect(other.win.sent.filter(([m]) => m.dgn === 'ds-pins')).toHaveLength(0);
+    // a name that is not `head` or a revision id drops the WHOLE message at the gate (the dgn table)
     say(win, { dgn: 'ds-pins-want', revs: ['head', R1, 'ftp://evil', '../x'] });
+    expect(win.sent.filter(([m]) => m.dgn === 'ds-pins')).toHaveLength(0);
+    say(win, { dgn: 'ds-pins-want', revs: ['head', R1] });
     const reply = win.sent.find(([m]) => m.dgn === 'ds-pins');
     expect(reply?.[1]).toBe(ORIGIN);
     expect(reply?.[0]).toEqual({
       dgn: 'ds-pins',
-      // R1 is what the canvas itself renders → no sheet of its own; head (R2) is listed; junk never is
+      // R1 is what the canvas itself renders → no sheet of its own; head (R2) is listed
       revs: { head: sib(R2) },
       rootClass: 'app',
     });
@@ -206,15 +209,22 @@ describe('the follower swap: a head that moved lands at the next look, never und
     expect(swaps(win)).toHaveLength(1);
   });
 
-  test('Present holds the swap until it ends', async () => {
+  test('Present holds the swap (a window coming back to view does nothing) until it ends', async () => {
     const { win, rerender } = await loadedPricing(true);
     await rerender({ cfg: cfgOf(R3), presentMode: true });
     await act(async () => setVisible());
-    await rerender({ cfg: cfgOf(R3), presentMode: true, canvasActiveArtboard: 'next' });
     expect(swaps(win)).toHaveLength(0); // the audience sees no canvas change under them
-    await rerender({ cfg: cfgOf(R3), presentMode: false, canvasActiveArtboard: 'next' });
+    await rerender({ cfg: cfgOf(R3), presentMode: false });
     expect(swaps(win)).toHaveLength(1);
     expect(swaps(win)[0]?.[0]).toEqual({ dgn: 'ds-css', ...sib(R3) });
+  });
+
+  test('…but the presenter moving on to the next artboard is the one look that lands it under Present', async () => {
+    const { win, rerender } = await loadedPricing(true);
+    await rerender({ cfg: cfgOf(R3), presentMode: true });
+    expect(swaps(win)).toHaveLength(0);
+    await rerender({ cfg: cfgOf(R3), presentMode: true, canvasActiveArtboard: 'next' });
+    expect(swaps(win)).toHaveLength(1);
   });
 
   test('a head that moves back to what the frame shows swaps nothing', async () => {

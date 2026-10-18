@@ -175,8 +175,13 @@ export function canvasDsSystem(p, cfg, opts) {
  * that is (re)created is built with the live values.
  */
 export function canvasFrameCfg(cfg) {
-  return { ...cfg, canvasToken: undefined, systemHeads: undefined, dsRevGaps: undefined };
+  // WHICH head is left out, THAT there is one is not (a system gaining or losing its head is a different frame)
+  const heads = {};
+  for (const [k, v] of Object.entries(cfg?.systemHeads ?? {}))
+    heads[k] = typeof v === 'string' && v ? HEAD_PLACEHOLDER : v;
+  return { ...cfg, canvasToken: undefined, systemHeads: heads, dsRevGaps: undefined };
 }
+const HEAD_PLACEHOLDER = 'f'.repeat(64);
 
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);

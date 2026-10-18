@@ -57,9 +57,15 @@ function sandbox(source = SRC) {
 
 type Lease = { canvas: string; artboard: string };
 function routes(designRoot: string, root: string, leases: Lease[] = [], state = 'running') {
+  // `holderOf` is the one lease lookup the dispatcher uses (v2-lead-artboard-hold-one-check): a run holds
+  // what it leased once it is running; a waiting run holds nothing yet.
   const runs = {
     canvasKey: (rel: string) => `path:.design/${rel}`,
-    live: () => [{ state, objects: [], scope: null, leases }],
+    live: () => [{ runId: 'r1', state, objects: [], scope: null, leases }],
+    holderOf: (k: { canvas: string; artboard: string }) =>
+      state !== 'waiting' && leases.some((l) => l.canvas === k.canvas && l.artboard === k.artboard)
+        ? { runId: 'r1' }
+        : null,
     view: () => ({ others: [] }),
   } as never;
   const specs = createEditRoutes({
