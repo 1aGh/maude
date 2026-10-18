@@ -3165,6 +3165,7 @@ function ShellTree() {
           initialScope={exportDialog.scope}
           request={exportDialog}
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+          projectName={cfg?.name || ''}
           {...exportSelectionV2(selected, activePath)}
           activePath={activePath}
           hasComps={activeComps.length > 0}
