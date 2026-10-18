@@ -3480,6 +3480,8 @@
     "testid:studio/editing/place-freely.tsx#canvas/edit-pin-chip-edge": "v2 code (added after the freeze)",
     "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guide-edge": "v2 code (added after the freeze)",
     "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guides": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-ghost.tsx#canvas/edit-place-ghost": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-ghost.tsx#canvas/edit-place-guide": "v2 code (added after the freeze)",
     "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot": "v2 code (added after the freeze)",
     "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot-layer": "v2 code (added after the freeze)",
     "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot-n": "v2 code (added after the freeze)",

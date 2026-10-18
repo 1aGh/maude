@@ -310,6 +310,16 @@ export interface ShellToCanvas {
   // S4.4: a Templates-panel pick (`id` is an annotations/templates.ts id); the canvas expands the same
   // spec `annotate --board <id>` does and, with `follow`, the ghost trails the pointer until a click (S4.13)
   'insert-template': { id: string; follow?: boolean };
+  // S2.16: a Component-picker pick (⇧I). `component` is a `@maude/ds` export name (validated here, and
+  // again by the `component.insert` writer); `mode` 'ghost' = the pick follows the pointer until a click,
+  // 'selection' = ↵ puts it in the selected frame. Accepted only from the shell (`gate: 'parent'`).
+  'place-component': {
+    component: string;
+    label?: string;
+    variant?: string;
+    glyph?: string;
+    mode: 'ghost' | 'selection';
+  };
   // S1.3: the Canvases panel's artboard jump list — ease (glide) or cut the camera to an artboard and
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
   // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
@@ -493,6 +503,8 @@ const shortStr =
   (max: number): V =>
   (v) =>
     typeof v === 'string' && v.length <= max ? v : BAD;
+const dsName: V = (v) => (typeof v === 'string' && /^[A-Z][A-Za-z0-9]{0,63}$/.test(v) ? v : BAD);
+const dsSlug: V = (v) => (typeof v === 'string' && /^[a-z][a-z0-9-]{0,40}$/.test(v) ? v : BAD);
 const count: V = (v) =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 9999 ? v : BAD;
 const shape =
@@ -1183,6 +1195,18 @@ const s2c: S2C = {
     orphan: 'no-handler',
     owner: 'annotations-layer',
     parse: p({ id: str, follow: opt(bool) }),
+  },
+  'place-component': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/place-ghost',
+    parse: p({
+      component: dsName,
+      label: opt(shortStr(64)),
+      variant: opt(dsSlug),
+      glyph: opt(dsSlug),
+      mode: lit('ghost', 'selection'),
+    }),
   },
   'insert-annotation-media': {
     gate: 'parent',

@@ -380,7 +380,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Text", "Image", "Component"],
             "preview": [
               "Hand",
               "Sticky",
@@ -719,7 +719,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Text", "Image", "Component"],
             "preview": [
               "Hand",
               "Sticky",
@@ -1061,7 +1061,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Text", "Image", "Component"],
             "preview": [
               "Hand",
               "Sticky",
@@ -1322,7 +1322,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Text", "Image", "Component"],
             "preview": [
               "Hand",
               "Sticky",

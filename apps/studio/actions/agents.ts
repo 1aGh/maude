@@ -276,6 +276,12 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'text.reset-style': TSX(
     'Delete the inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle from the element’s style so its t-* class shows (params.props names fewer). Over HTTP: POST /_api/edit-op {op: "text.reset-style", params: {props?}}'
   ),
+  'component.insert': TSX(
+    'Add the component to the artboard (or the frame) as a linked instance: put its name in the file’s `import { … } from "@maude/ds"` once and write `<Button variant="primary">…</Button>` as the last child, with a data-cd-id. On a canvas whose meta has dsRev (left out of the system’s current revision) add data-ds-rev="head" to it. Names and variants: GET /_api/ds/components or system/<ds>/components.json. Over HTTP: POST /_api/edit-op {op: "component.insert", targets: [frame?], params: {component, variant?, text?, artboard?, at?: {x: number|"centre", y}}}'
+  ),
+  'tool.components': TSX(
+    'Place a component from the design system: see component.insert (write `<Name>` with `import { Name } from "@maude/ds"`)'
+  ),
   'text.detach-style': TSX(
     'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "var(--type-xl)", …}}} — the values as the design system wrote them (tokens), not px'
   ),

@@ -214,7 +214,7 @@ describe('canvas document', () => {
       ['P', inCanvas, null], // S2's Pen
       ['T', inCanvas, 'tool.el-text'],
       ['I', inCanvas, 'tool.image'],
-      ['⇧I', inCanvas, null], // S2's Component
+      ['⇧I', inCanvas, 'tool.components'], // S2.16's Component picker
       ['C', inCanvas, 'tool.comment'],
       ['C', viewer, 'tool.comment'], // the shell decides (the denial line)
       ['N', inCanvas, 'tool.sticky'],

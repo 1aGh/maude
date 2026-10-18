@@ -1789,6 +1789,8 @@ export function createHttp(
       snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
       actionFor: (repoRel, after) =>
         ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
+      // S2.16 — GET /_api/ds/components is minRole edit: the route asks the session's access
+      access: (req) => accessOf(req),
     },
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source

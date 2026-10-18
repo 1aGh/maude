@@ -151,6 +151,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'frame', // today's insert Div
       'el-text', // today's insert Text
       'image', // today's insert Image
+      'components', // S2.16's panel-only slot: the shell's Component picker
     ]);
   });
 
@@ -162,6 +163,7 @@ describe('visibleSlots / role, pending and read-only', () => {
       'frame',
       'el-text',
       'image',
+      'components',
     ]);
   });
 
@@ -214,7 +216,7 @@ describe('pending slots / no dead buttons', () => {
   test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
     const pend = pendingSlots();
     expect(pend.map((p) => p.slot.tool).sort()).toEqual(
-      ['component', 'crop', 'el-pen', 'el-shape', 'ellipse', 'line', 'polygon', 'slice'].sort()
+      ['crop', 'el-pen', 'el-shape', 'ellipse', 'line', 'polygon', 'slice'].sort()
     );
     for (const p of pend) {
       expect(p.slot.pending).toBe('S2');
@@ -439,7 +441,7 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     mountBar();
     expect(q('toolbar-edit')?.getAttribute('role')).toBe('toolbar');
     expect(q('toolbar-edit')?.classList.contains('dc-tool-palette')).toBe(true); // chrome selectors keep matching
-    expect(slotIds()).toEqual(['move', 'hand', 'frame', 'el-text', 'image']);
+    expect(slotIds()).toEqual(['move', 'hand', 'frame', 'el-text', 'image', 'components']);
     for (const dead of ['el-shape', 'el-pen', 'component', 'more', 'line', 'ellipse'])
       expect(q(`toolbar-slot-${dead}`)).toBeNull();
     expect(document.querySelector('[aria-label^="Export"]')).toBeNull();
