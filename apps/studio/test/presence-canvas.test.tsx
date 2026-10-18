@@ -14,7 +14,9 @@ afterAll(() => {
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { Cursor } from '../cursors-overlay.tsx';
 import {
+  canSummonWith,
   type PresenceDeps,
   PresenceOverlay,
   runPresenceAction,
@@ -327,6 +329,15 @@ describe('Bring everyone here (co-bring / co-spotlight)', () => {
   });
 });
 
+describe('who may Bring everyone here', () => {
+  test('only a canvas holding edit rights; a viewer, a commenter and an unseeded canvas may not', () => {
+    expect(canSummonWith({ edit: true })).toBe(true);
+    expect(canSummonWith({ edit: false })).toBe(false);
+    expect(canSummonWith(null)).toBe(false);
+    expect(canSummonWith(undefined)).toBe(false);
+  });
+});
+
 describe('the shell’s lane', () => {
   test('unknown ids are not presence’s; a missing clientID follows no one', () => {
     const v = {
@@ -340,5 +351,22 @@ describe('the shell’s lane', () => {
     };
     expect(runPresenceAction(v as never, 'edit.undo', undefined)).toBe(false);
     expect(runPresenceAction(v as never, 'presence.follow', { clientID: 'seven' })).toBe(true);
+  });
+});
+
+describe('an idle cursor (Q9, co-twelve): grey, small, an initial', () => {
+  test('active shows the name in the person’s colour; idle shows the initial in grey', async () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    const vp = { x: 0, y: 0, zoom: 1 };
+    const active = peer(7, 'Tereza K', { cursor: { x: 10, y: 20 }, color: 'oklch(0.78 0.10 230)' });
+    await act(async () => root?.render(<Cursor peer={active} viewport={vp} />));
+    expect(host.querySelector('.dc-cursor-label')?.textContent).toBe('Tereza K');
+    expect(host.querySelector('.dc-cursor')?.getAttribute('data-idle')).toBeNull();
+    const idle = { ...active, idleSince: T0 - IDLE_MS };
+    await act(async () => root?.render(<Cursor peer={idle} viewport={vp} />));
+    expect(host.querySelector('.dc-cursor-label')?.textContent).toBe('T');
+    expect(host.querySelector('.dc-cursor')?.getAttribute('data-idle')).toBe('true');
   });
 });

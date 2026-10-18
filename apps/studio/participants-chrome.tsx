@@ -21,6 +21,7 @@ import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { PEER_NAME_MAX, PEERS_MAX } from './bridge/dgn-protocol.ts';
 import { useArtboardsContext, useViewportControllerContext } from './canvas-lib.tsx';
 import {
+  canSummonWith,
   type PresenceDeps,
   PresenceOverlay,
   runPresenceAction,
@@ -351,7 +352,6 @@ export function peersPayload(
   idleSince?: number;
   surface?: 'browser';
   inComments?: boolean;
-  summoning?: boolean;
 }> {
   return list.slice(0, PEERS_MAX).map((p) => {
     const out: ReturnType<typeof peersPayload>[number] = {
@@ -364,7 +364,6 @@ export function peersPayload(
     if (p.idleSince) out.idleSince = p.idleSince;
     if (p.surface === 'browser') out.surface = 'browser';
     if (p.inComments) out.inComments = true;
-    if (p.summon) out.summoning = true;
     return out;
   });
 }
@@ -421,7 +420,7 @@ export function ParticipantsChrome(): JSX.Element | null {
           y: (host.clientHeight / 2 - vp.y) / vp.zoom,
         };
       },
-      canSummon: () => canvasModeStore(window).get().caps?.edit === true,
+      canSummon: () => canSummonWith(canvasModeStore(window).get().caps),
       reducedMotion: () =>
         typeof window.matchMedia === 'function' &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches,

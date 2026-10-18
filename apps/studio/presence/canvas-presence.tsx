@@ -43,6 +43,11 @@ export const PRESENCE_RUN_IDS = {
   context: ['presence.context'],
 } as const;
 
+/** May I Bring everyone here? Only with edit rights (CONTRACT §6 [C33]); the server strips `summon` too. */
+export function canSummonWith(caps: { edit?: boolean } | null | undefined): boolean {
+  return caps?.edit === true;
+}
+
 /** Nobody followed me for this long after a Bring: the ask ends itself (Stop is still there before). */
 export const SPOTLIGHT_EMPTY_MS = 6000;
 /** Idle is judged on this cadence. */
