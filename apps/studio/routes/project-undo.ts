@@ -3,6 +3,10 @@
 //   GET  /_api/project/undo-stack?canvas=<repoRel>[&since=<ms>]  → { ok, entries, redo }
 //   POST /_api/project/undo  { actionId } | { actionIds } | { chatId }  (+ redo?, via?)
 //                            → { ok, actionId, undoes, skipped? } · 409 undo-conflict
+//   POST /_api/project/undo  { pendingTx, canvas }  (S2.20c — your edit waiting behind an AI run)
+//                            → { ok, pending: true, pendingTx: <the inverse> } · 409 not-pending
+//
+// The stack folds your edits waiting behind a run in at their gesture time (`actionId: null`).
 //
 // MAIN ORIGIN ONLY (never `origin: 'canvas'`): history names people, and undo is
 // a write the untrusted canvas must not be able to make (DDR-054/088). Both
@@ -18,6 +22,15 @@
 // An old hub refuses `actionIds` as `invalid`: "Undo this chat" is then
 // disabled with one line, never replayed as a sequence of single undos
 // (V2-1.5 Q2 — a half-applied chat undo is worse than none).
+//
+// Undo hooks (S10.2, S10 Q1): a feature whose gesture also moved state OFF the
+// kernel lanes (a design-system publish moves `revisions/head.json` on Plane B)
+// registers `registerUndoHook(kind, fn)`. After an ACCEPTED, delivered undo or
+// redo the hooks run in registration order with the ids it undid (a redo names
+// the undo it re-applies) and may add `skipped` rows. A refused undo
+// (`forbidden`, `undo-conflict`, …) or a queued one runs none: the off-lane half
+// never moves without its kernel half. A hook that throws is logged, never fails
+// the answer — the kernel half already happened.
 
 import { fold, initialState, view } from '../client/v2/undo/projection.js';
 import type { AcceptedHistoryRow } from '../sync/index.ts';
@@ -39,6 +52,48 @@ type UndoAnswer = {
   skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
 };
 
+type UndoSkip = { doc?: string; lane?: string; reason: string; conflictWith?: string };
+
+export interface UndoHookEvent {
+  redo: boolean;
+  /** the new undo / redo action */
+  actionId: string;
+  /** what it undid; a redo names the undo it re-applies */
+  undoes: string[];
+  skipped: UndoSkip[];
+}
+
+export type UndoHook = (
+  e: UndoHookEvent
+) => void | { skipped?: UndoSkip[] } | Promise<void | { skipped?: UndoSkip[] }>;
+
+const undoHooks = new Map<string, UndoHook>();
+
+/** Register (or replace) the hook named `kind`. Returns the unregister. */
+export function registerUndoHook(kind: string, fn: UndoHook): () => void {
+  undoHooks.set(kind, fn);
+  return () => {
+    if (undoHooks.get(kind) === fn) undoHooks.delete(kind);
+  };
+}
+
+/** Run every hook for an accepted undo / redo; returns the rows they add to `skipped`. */
+export async function runUndoHooks(
+  e: UndoHookEvent,
+  log: Pick<Console, 'error'> = console
+): Promise<UndoSkip[]> {
+  const extra: UndoSkip[] = [];
+  for (const [kind, fn] of [...undoHooks]) {
+    try {
+      const r = await fn(e);
+      if (r && Array.isArray(r.skipped)) extra.push(...r.skipped);
+    } catch (err) {
+      log.error(`[project-undo] the ${kind} undo hook failed:`, err);
+    }
+  }
+  return extra;
+}
+
 export interface ProjectUndoRuntime {
   acceptedHistory?(q: {
     limit?: number;
@@ -51,6 +106,57 @@ export interface ProjectUndoRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<UndoAnswer | null>;
+  /** S2.20c — your edits of this canvas waiting behind an AI run (hub link only). */
+  pendingEdits?(
+    repoRel: string
+  ): Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }> | null;
+  /**
+   * S5.15 (U22) — can this home undo several actions as ONE (`actionIds`)? The local home always
+   * can; a hub link asks its bootstrap (`capabilities.undoTargets`); null = not known yet.
+   */
+  chatUndoReady?(): boolean | null;
+  /** S2.20c — ⌘Z on one of them: its inverse waits behind the same run. */
+  undoPendingEdit?(
+    repoRel: string,
+    transactionId: string
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; transactionId?: string } | null>;
+}
+
+const TX_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+type PendingEvent =
+  | { type: 'pending'; entry: { pendingTx: string; label: string; madeAt: number } }
+  | { type: 'pending-undo'; pendingTx: string; of: string; madeAt: number };
+
+/**
+ * S2.20c — the history events (oldest first) with the waiting edits folded in at their gesture
+ * time: a waiting edit happened before an action that landed after it, and its place decides
+ * whether that action clears it from redo (the reducer orders entries by `madeAt` too).
+ */
+export function withPendingEvents(
+  actions: Array<{ type: 'action'; action: AcceptedHistoryRow }>,
+  waiting: Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }>
+): Array<{ type: 'action'; action: AcceptedHistoryRow } | PendingEvent> {
+  const pending: PendingEvent[] = waiting
+    .filter((w) => w && typeof w.transactionId === 'string' && Number.isFinite(w.madeAt))
+    .map((w) =>
+      w.undoes
+        ? { type: 'pending-undo', pendingTx: w.transactionId, of: w.undoes, madeAt: w.madeAt }
+        : {
+            type: 'pending',
+            entry: { pendingTx: w.transactionId, label: w.label, madeAt: w.madeAt },
+          }
+    );
+  const at = (e: PendingEvent) => (e.type === 'pending' ? e.entry.madeAt : e.madeAt);
+  const out: Array<{ type: 'action'; action: AcceptedHistoryRow } | PendingEvent> = [];
+  let i = 0;
+  for (const ev of actions) {
+    const t = ev.action.madeAt ?? ev.action.committedAt;
+    while (i < pending.length && at(pending[i]) < t) out.push(pending[i++]);
+    out.push(ev);
+  }
+  while (i < pending.length) out.push(pending[i++]);
+  return out;
 }
 
 export interface ProjectUndoDeps {
@@ -158,6 +264,16 @@ export function runStageHooks(deps: {
   };
 }
 
+/** S5.15 (U22) — what the shell shows for "Undo this chat" before anyone clicks. */
+export function chatUndoState(
+  runtime: Pick<ProjectUndoRuntime, 'chatUndoReady'> | null | undefined
+): { ok: true } | { ok: false; line: string } | null {
+  const ready = runtime?.chatUndoReady?.();
+  if (ready === true) return { ok: true };
+  if (ready === false) return { ok: false, line: NEEDS_HUB_UPDATE };
+  return null;
+}
+
 function designRelOf(repoRel: string, designRel: string): string {
   const p = repoRel.replace(/\\/g, '/').replace(/^\/+/, '');
   const prefix = `${designRel.replace(/^\/+|\/+$/g, '')}/`;
@@ -185,14 +301,20 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         if (rows === undefined) return json(200, { ok: false, reason: 'unreachable' });
         if (rows === null) return json(200, { ok: false, reason: 'legacy' });
         const canvas = designRelOf(repoRel, deps.designRel);
+        // S2.20c — your edits waiting behind an AI run are entries too (`actionId: null`).
+        const waiting = runtime.pendingEdits?.(repoRel) ?? [];
         // The SAME reducer the shell runs (client/v2/undo/projection.js), over history oldest first.
         const state = fold(
           initialState({ canvas, openedAt: Number.isFinite(since) && since > 0 ? since : 0 }),
-          [...(rows as AcceptedHistoryRow[])]
-            .sort((a, b) => a.revision - b.revision)
-            .map((action) => ({ type: 'action', action }))
+          withPendingEvents(
+            [...(rows as AcceptedHistoryRow[])]
+              .sort((a, b) => a.revision - b.revision)
+              .map((action) => ({ type: 'action' as const, action })),
+            waiting
+          )
         );
-        return json(200, { ok: true, ...view(state) });
+        const chatUndo = chatUndoState(runtime);
+        return json(200, { ok: true, ...view(state), ...(chatUndo ? { chatUndo } : {}) });
       },
     },
     {
@@ -211,6 +333,29 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         } catch {
           return new Response('body must be JSON', { status: 400 });
         }
+        const pendingTx = (body as { pendingTx?: unknown } | null)?.pendingTx;
+        if (pendingTx !== undefined) {
+          // S2.20c — ⌘Z on your edit waiting behind an AI run: its inverse waits behind the same
+          // run (`{ pendingTx, canvas }`); the run's staged writes are never touched.
+          const canvas = (body as { canvas?: unknown }).canvas;
+          if (typeof pendingTx !== 'string' || !TX_ID.test(pendingTx))
+            return new Response('bad pendingTx', { status: 400 });
+          if (
+            typeof canvas !== 'string' ||
+            !canvas ||
+            canvas.length > 1024 ||
+            canvas.includes('\0')
+          )
+            return new Response('pendingTx takes canvas=<repoRel>', { status: 400 });
+          const runtime = deps.control();
+          const r = runtime?.undoPendingEdit
+            ? await runtime.undoPendingEdit(canvas, pendingTx)
+            : null;
+          if (!r) return json(200, { ok: false, reason: 'legacy' });
+          if (r.status !== 'accepted')
+            return json(409, { ok: false, reason: r.code ?? 'refused', code: r.code });
+          return json(200, { ok: true, pending: true, pendingTx: r.transactionId ?? null });
+        }
         const parsed = parseUndoTarget(body);
         if (!parsed.ok) return new Response(parsed.reason, { status: 400 });
         const viaRaw = (body as { via?: unknown }).via;
@@ -223,6 +368,11 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         const refused = await deps.guard?.(parsed.target, req);
         if (refused) return refused;
         const runtime = deps.control();
+        const multi0 = !('actionId' in parsed.target);
+        if (multi0 && runtime?.chatUndoReady?.() === false) {
+          // U22 — the probe already says this team server cannot: refused before the kernel.
+          return json(409, { ok: false, reason: 'needs-hub-update', line: NEEDS_HUB_UPDATE });
+        }
         const r = runtime?.acceptedUndo
           ? await runtime.acceptedUndo(parsed.target, parsed.redo, { via })
           : null;
@@ -232,12 +382,33 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
           // A hub older than S5.1a: no `actionIds`. Disabled, with the line.
           return json(409, { ok: false, reason: 'needs-hub-update', line: NEEDS_HUB_UPDATE });
         }
+        let skipped = r.skipped;
         if (r.status === 'accepted' && r.actionId && !r.queued) {
+          // a single-target answer keeps its v1 shape (no `undoes`): the target is what it undid
+          const t = parsed.target;
+          const undoes =
+            r.undoes !== undefined
+              ? Array.isArray(r.undoes)
+                ? r.undoes
+                : [r.undoes]
+              : 'actionId' in t
+                ? [t.actionId]
+                : 'actionIds' in t
+                  ? t.actionIds
+                  : [];
+          const extra = await runUndoHooks({
+            redo: parsed.redo,
+            actionId: r.actionId,
+            undoes,
+            skipped: r.skipped ?? [],
+          });
+          if (extra.length) skipped = [...(r.skipped ?? []), ...extra];
           void announceAction(deps, r.actionId).catch(() => {});
         }
         return json(r.status === 'accepted' ? 200 : 409, {
           ok: r.status === 'accepted',
           ...r,
+          ...(skipped ? { skipped } : {}),
         });
       },
     },

@@ -322,6 +322,20 @@ describe('down — the hub has something we do not', () => {
     expect(ledger.cursor()).toBe(hub.head());
   });
 
+  // S10.3b — the DS outside watcher names a delivered file's change "peer", not "unknown".
+  test('a landed file is reported once, after it is on disk; a refused one never', async () => {
+    const hub = fakeHub({ 'system/ds/brand.css': 'real', 'system/ds/x.css': 'x' });
+    hub.rows.set('system/ds/x.css', {
+      ...hub.rows.get('system/ds/x.css')!,
+      body: 'TAMPERED',
+    });
+    const seen: Array<[string, string]> = [];
+    await plane(hub, {
+      onDelivered: (rel: string) => seen.push([rel, read(rel)]),
+    }).reconcile();
+    expect(seen).toEqual([['system/ds/brand.css', 'real']]);
+  });
+
   // F3 S14 (2026-09-23): the journal reader's own path regex refused a space,
   // so `ui/Studio Docs.registry.json` — accepted from its author and
   // journalled — was dropped by every other peer with no row and no refusal.

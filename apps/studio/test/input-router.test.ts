@@ -7,7 +7,9 @@ import {
   classify,
   crossedDragThreshold,
   DRAG_THRESHOLD_PX,
+  dragPansCanvas,
   isArtboardDragChrome,
+  isDesignSurface,
   isEditableTarget,
   isOverlayTarget,
   type Tool,
@@ -287,8 +289,8 @@ describe('input-router / keydown — the toolbar letters, ungoverned', () => {
     expect(key('B', { shiftKey: true }).kind).toBe('no-op');
   });
 
-  test("R in Edit's posture → no-op (the design Shape is S2's); in Preview's → annotation shape", () => {
-    expect(key('r').kind).toBe('no-op');
+  test("R in Edit's posture → the design Shape tool (S2.13); in Preview's → annotation shape", () => {
+    expect(key('r')).toEqual({ kind: 'tool', tool: 'el-shape' });
     expect(key('r', preview)).toEqual({ kind: 'tool', tool: 'shape' });
   });
 
@@ -305,8 +307,8 @@ describe('input-router / keydown — the toolbar letters, ungoverned', () => {
     expect(key('i')).toEqual({ kind: 'insert', insert: 'image' });
   });
 
-  test("T: Edit's posture adds a text element; Preview's arms annotation Text", () => {
-    expect(key('t')).toEqual({ kind: 'insert', insert: 'text' });
+  test("T: Edit's posture arms click-to-type (el-text, S2.12); Preview's arms annotation Text", () => {
+    expect(key('t')).toEqual({ kind: 'tool', tool: 'el-text' });
     expect(key('t', preview)).toEqual({ kind: 'tool', tool: 'text' });
   });
 
@@ -735,5 +737,34 @@ describe('input-router / keydown — undo + redo (Phase 20)', () => {
     expect(classify(base({ type: 'keydown', key: 'y', metaKey: true, shiftKey: true })).kind).toBe(
       'no-op'
     );
+  });
+});
+
+// S3.9 (V2-1.2 Q3) — Preview's Hand rests on `browse`: a click uses the design, a drag on empty canvas (or
+// outside an artboard's design surface) pans, a drag on the design goes to the design, Space-drag pans
+// everywhere. The viewport controller asks this per pointerdown.
+describe('input-router / dragPansCanvas — Preview Hand (Q3)', () => {
+  test('hand pans anywhere', () => {
+    expect(dragPansCanvas('hand', true)).toBe(true);
+    expect(dragPansCanvas('hand', false)).toBe(true);
+  });
+  test('browse pans on empty canvas and outside the design surface, never on the design', () => {
+    expect(dragPansCanvas('browse', false)).toBe(true);
+    expect(dragPansCanvas('browse', true)).toBe(false);
+  });
+  test('every other tool leaves the drag to its own handler', () => {
+    for (const t of ['move', 'comment', 'pen', 'shape', 'sticky', 'text', 'eraser'] as Tool[]) {
+      expect(dragPansCanvas(t, false)).toBe(false);
+      expect(dragPansCanvas(t, true)).toBe(false);
+    }
+  });
+  test('isDesignSurface: inside an artboard body, not its label strip or the bare canvas', () => {
+    const el = (hit: boolean) => ({
+      closest: (sel: string) => (hit && sel === '.dc-artboard-body' ? {} : null),
+    });
+    expect(isDesignSurface(el(true) as unknown as EventTarget)).toBe(true);
+    expect(isDesignSurface(el(false) as unknown as EventTarget)).toBe(false);
+    expect(isDesignSurface(null)).toBe(false);
+    expect(isDesignSurface({} as EventTarget)).toBe(false);
   });
 });

@@ -20,7 +20,6 @@ import { holds, isEnabled, isVisible } from '../../../actions/resolve.ts';
  *  what the registry has, so these rows appear the day their action lands (and the test goes red
  *  until they are taken off this list). */
 export const PENDING_MENU_IDS = Object.freeze({
-  'edit.undo-history': 'S2 (undo history)',
   // S10.0 (client/v2/contracts/S10-ds-review-entry.md): not menu rows — the entries into the DS review
   // that S2.12 / S2.17 hide their rows behind until S10 registers them.
   'ds.review-update': 'S10 (S10.8 review update)',
@@ -174,15 +173,21 @@ export function menuCtx({
   canvasOpen = false,
   presenting = false,
   linkedHub = false,
+  observer = false,
+  // S3.8 — the network is up (`navigator.onLine`). Default true: a caller that never asks keeps today's rows.
+  online = true,
 } = {}) {
   const facts = new Set();
   if (native) facts.add('native');
   // S3.7b — a desktop project linked to a cloud hub (Copy presentation link is enabled there).
   if (linkedHub) facts.add('linkedHub');
+  if (online) facts.add('online');
   if (canvasOpen) facts.add('canvasOpen');
   if (presenting) facts.add('presenting');
   return {
-    role: readOnly ? 'comment' : 'owner',
+    // S3.12 — Can view (`observer`) is the registry's `view` rank, not `comment`: a rule-12 predicate with a
+    // `minRole: 'comment'` must hide from it. Callers that know the cloud role pass `observer`.
+    role: readOnly ? (observer ? 'view' : 'comment') : 'owner',
     // A tab served by a hub is the `cloud` shell (V2-4.8a: "Back to Home" is its dashboard link).
     shell: native ? 'desktop' : cloudTab ? 'cloud' : 'browser',
     mode: presenting ? 'present' : 'edit',

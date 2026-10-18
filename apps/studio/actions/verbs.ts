@@ -60,6 +60,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('visual-sanity', 'none'),
   d('perf', 'none'),
   d('canvas-rects', 'none'),
+  // S11.6 — read-only: the canvases that can't be drawn (file:line:column) and a canvas's source / one
+  // artboard's lines. Both ask the studio, which refuses Can view (Export on the canvas).
+  d('canvas-errors', 'none'),
+  d('canvas-source', 'none'),
   d('read-annotations', 'none'),
   d('svg-optimize', 'none'),
   d('asset-sweep', 'none'),
@@ -71,6 +75,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('serve', 'none'),
   d('status', 'none'),
   d('index', 'none'),
+  // S8.11. `assets` lists the project's assets with where each is used; `--not-used` is empty until
+  // older versions have been checked. Read-only.
+  d('assets', 'none'),
   d('help', 'none'),
   d('check', 'none', { note: 'validates bytes; writes nothing' }),
   d('hook', 'project', {
@@ -85,6 +92,11 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history list', 'none'),
   d('history show', 'none'),
   d('history diff', 'none'),
+  d('history object', 'none'), // S1.16: one object's versions — a read
+  // S1.17 (S1-trash.md). `trash list` reads; `trash restore` brings one item back (V2-1.11 §5.3: project
+  // → auto); `trash clear` deletes for good and is the OWNER's, at a terminal — human tier, never the AI
+  // chat (decision:maude/v2-lead-trash-clear-human-only); the studio refuses non-owners whatever is sent.
+  d('trash list', 'none'),
   // `comments list` reads threads. Replying / resolving / adding as the AI are S9's sub-verbs and
   // fall to `comments` below (shared → prompt).
   d('comments list', 'none'),
@@ -96,15 +108,35 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   // plans around them; `runs stop` stops one of YOUR live runs on this Mac (a member's is refused).
   d('runs list', 'none'),
   d('runs stop', 'project', { note: 'stops one of your own live runs on this Mac' }),
+  // S11.11 (Menu › Diagnostics). `logs` prints this Mac's log lines (redacted at the store, again in
+  // the verb; inside the untrusted block); `sync status` reads the one-word Sync status. Resync is
+  // below: it sends files to the cloud copy, so it prompts.
+  d('logs', 'none'),
+  d('sync status', 'none'),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
   d('handoff', 'project'),
   d('import-asset', 'project'),
-  d('import-brand', 'project'),
   d('import-tokens', 'project'),
   d('ingest-footage', 'project'),
   d('photo-adjust', 'project'),
+  // S7.2 (V2-1.10 §5.7). Local whisper.cpp only: writes assets/<name>.transcript.json inside the
+  // project, never downloads a model, has no --provider (a flag must never raise a tier — the cloud
+  // engines stay behind `transcribe`).
+  d('transcribe-local', 'project', {
+    note: 'local whisper.cpp only; no network, no model download',
+  }),
+  // S7.3 / S7.6c (V2-1.10 §5.7). `beats` writes assets/<name>.beats.json (`--dry-run` prints only);
+  // the video tools are each one edit op through the running studio (its refusals apply), and
+  // `captions add` transcribes with transcribe-local only — never a cloud engine.
+  d('beats', 'project', { note: 'local analysis; --dry-run writes nothing' }),
+  d('captions list', 'none'),
+  d('captions add', 'project', { note: 'transcribe-local only (no cloud), then one edit op' }),
+  d('captions export', 'project', { note: 'stdout, or --out confined to the project' }),
+  d('captions', 'project', { note: 'add / list / export; an unknown sub-verb is a usage error' }),
+  d('cut-words', 'project'),
+  d('cut-to-beat', 'project'),
   d('export', 'project', {
     hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),
@@ -119,6 +151,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('ensure-browser', 'external', { note: 'download' }),
   d('transcribe', 'external', { note: 'engine may be a paid cloud fallback' }),
   d('import-figma', 'external', { note: 'network; --explode' }),
+  d('import-brand', 'external', { note: 'network with --url (S8.18): reads a website' }),
   d('photo-bg-remove', 'external', { note: 'first-use ~40 MB model-weight fetch (§5.3 †)' }),
   d('init', 'destructive', { note: '--force overwrites (§5.3 †)' }),
   // ds-upgrade: the read-only steps are their own sub-verbs, so a prefix rule can name them; the
@@ -133,12 +166,41 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history restore', 'destructive', {
     note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
   }),
+  d('trash restore', 'project', {
+    note: 'brings one canvas or artboard back for everyone; a taken name gets a new one',
+  }),
+  d('trash clear', 'human', {
+    note: 'deletes for good what the team could still restore — the owner’s, with a question first',
+  }),
+  d('trash', 'shared', { note: 'any other trash sub-verb prompts until it gets its own entry' }),
   d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
+  d('history name', 'shared', {
+    note: 'names a version everyone in the project sees (V2-1.9 §5.4)',
+  }),
   d('exports', 'external', {
     note: 'a sub-verb not tiered above (a cloud render lane, a retry) prompts until it gets its own entry',
   }),
+  d('sync resync', 'shared', {
+    note: 'compares every file with the cloud copy and sends what is newer here (nothing is overwritten)',
+  }),
+  d('sync', 'shared', {
+    note: 'a sub-verb not tiered above prompts until it gets its own entry',
+  }),
   d('runs', 'shared', {
     note: 'a sub-verb not tiered above prompts until it gets its own entry',
+  }),
+  // S10.3 (V2-1.6 §5.12, S10 §2.4) — the design-system verbs. `status`, `usage` and
+  // `revisions list` read (the helper refuses any other word after them); every other sub-verb
+  // changes the system for everyone and prompts. Clearing a token out of the trash is the owner's
+  // — the studio refuses anyone else (rule 12). A future `revisions` write (prune) gets its own
+  // sub-verb, never a flag on `revisions`.
+  d('ds status', 'none'),
+  d('ds usage', 'none'),
+  d('ds revisions', 'none', {
+    note: 'only `revisions list <ds>`; the helper refuses any other form',
+  }),
+  d('ds', 'shared', {
+    note: 'publish / pending / keep / undo / pick / canvas / trash / restore / clear change the system for everyone',
   }),
   // S9.7b — one `POST /_api/comments/op` each, as the session, marked AI-written (C3: no mentions).
   d('comments reply', 'shared', { note: 'posts a reply where others see it' }),

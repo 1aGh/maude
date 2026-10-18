@@ -30,3 +30,19 @@ export function replayExportJob(entry: {
   const options = { ...((entry?.options ?? {}) as Record<string, unknown>) };
   return { format, scope, options };
 }
+
+/**
+ * S8.1 — the body a history row re-submits: a row that ran an ExportSpec v2 replays THAT spec
+ * (`{v:2, spec}`, exactly what was stored), every older row the v1 job above, unchanged.
+ */
+export function replayExportBody(entry: {
+  format?: unknown;
+  scope?: unknown;
+  options?: unknown;
+  spec?: unknown;
+}): ReplayJob | { v: 2; spec: unknown } {
+  const spec = entry?.spec;
+  if (spec && typeof spec === 'object' && (spec as { v?: unknown }).v === 2)
+    return { v: 2, spec: JSON.parse(JSON.stringify(spec)) };
+  return replayExportJob(entry);
+}

@@ -3,10 +3,10 @@
 // (apps/studio/test/slash-commands.test.ts).
 //
 // Two sources feed the model:
-//   • STATIC_COMMANDS — a curated bootstrap list (below) so autocomplete is
-//     instant before any `claude` session exists. Hand-sourced from the design
-//     plugin command frontmatter (`name` + `description`); plugin markdown is NOT
-//     shipped to the client, so the list is baked in here. (The `/flow:*` family
+//   • STATIC_COMMANDS — a bootstrap list (slash-commands.gen.js) so autocomplete is
+//     instant before any `claude` session exists. Generated from the design
+//     plugin command frontmatter (`name` + `description` + `argument-hint`); plugin
+//     markdown is NOT shipped to the client, so the list is baked in. (The `/flow:*` family
 //     is intentionally omitted for now — 2026-07-03 — the chat ships design-only;
 //     a user who installs flow themselves still gets it via the live catalogue.)
 //   • live ACP `available_commands_update` — the drift-proof authority for which
@@ -14,48 +14,11 @@
 //     commands). Once present it wins for the "exists" set (badge gate).
 
 /**
- * Curated bootstrap set. `name` is Claude Code's canonical slash form
- * (`<plugin>:<verb>`). Keep descriptions short — the popover truncates.
+ * Bootstrap set. GENERATED (scripts/gen-plugin-surfaces.mjs, S12.2) from the design plugin's
+ * `commands/*.md` frontmatter, so a new command reaches autocomplete without an edit here.
+ * `name` is Claude Code's canonical slash form (`<plugin>:<verb>`).
  */
-export const STATIC_COMMANDS = [
-  // ── design (the panel's primary surface) ──
-  {
-    name: 'design:edit',
-    description: 'Iterate on the active canvas in place',
-    argHint: '"<feedback>"',
-  },
-  {
-    name: 'design:new',
-    description: 'Scaffold a new multi-artboard canvas',
-    argHint: 'Name "<brief>"',
-  },
-  {
-    name: 'design:setup-ds',
-    description: 'Create a new design system',
-    argHint: '<name> ["<brief>"]',
-  },
-  {
-    name: 'design:critic',
-    description: 'Run the critic panel on the active canvas',
-    argHint: '[--agent <name>]',
-  },
-  {
-    name: 'design:draw',
-    description: 'Draw a production-grade SVG via the geometry engine',
-    argHint: '"<what to draw>"',
-  },
-  { name: 'design:screenshot', description: 'Capture a screenshot of the active canvas' },
-  { name: 'design:browse', description: 'Open the local design browser' },
-  { name: 'design:export', description: 'Export the active canvas (PNG / PDF / SVG / …)' },
-  { name: 'design:rollback', description: 'Revert the last edit snapshot', argHint: '[--steps N]' },
-  { name: 'design:handoff', description: 'Emit a shadcn registry-item sidecar' },
-  { name: 'design:smoke', description: 'Batch-screenshot every canvas + preview specimen' },
-  { name: 'design:setup-docs', description: 'Refresh the design root README + INDEX' },
-  { name: 'design:to-lottie', description: 'Productionize an animation to a .lottie from code' },
-  { name: 'design:to-rn', description: 'Generate a react-native-svg + Reanimated component' },
-  { name: 'design:init', description: 'One-time project env init for the design plugin' },
-  { name: 'design:help', description: 'List all design commands' },
-];
+export { STATIC_COMMANDS } from './slash-commands.gen.js';
 
 /**
  * Fold a raw command name to a match key. Strips a leading `/`, lowercases, trims.

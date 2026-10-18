@@ -25,13 +25,15 @@ import {
   isModuleCanvasPath,
 } from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
-import { setPresentSource, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
+import { setPresentSource, shellMode, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
 import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
 import { shouldCloseOnDeselect, shouldOpenOnSelect } from '../v2/shell/inspector-follow.js';
+import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
+import { registerExportOpener } from '../v2/export/use-export-spec.js';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
 
 export function useShellCore({}) {
@@ -497,6 +499,10 @@ export function useShellCore({}) {
           formatVersion: data.formatVersion ?? 1,
           formatGate: data.formatGate ?? null,
           readOnlyReason: data.readOnlyReason ?? null,
+          // S9.22b — the server says this session may comment (Can comment and up) even when it is
+          // read-only; canvasUrl() then adds `cm=1` beside `ro=1`, and the Comments panel keeps
+          // Resolve / Reopen. Absent (an older server) = no.
+          canComment: data.canComment === true,
           // V2-3.4 — the account profile this tab's server runs as ({ id, label? }); the
           // profile chip (V2-3.x) reads it. Older servers send none ⇒ the default profile.
           profile: data.profile ?? { id: 'default' },
@@ -627,6 +633,8 @@ export function useShellCore({}) {
   // The palette (T4) drives them; the dialog (T5) + panel (T6) consume them.
   const [shareDialog, setShareDialog] = useState(null);
   const [exportDialog, setExportDialog] = useState(null); // null | { mode: 'export'|'handoff', scope? }
+  // S8.2 — `openExport(spec)` (client/v2/export/use-export-spec.js) mounts the sheet through this state.
+  useEffect(() => registerExportOpener(setExportDialog), []);
   // feature-ai-media-generation (DDR-16x) — BYOK provider-key Settings modal +
   // the AI generate action.
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -909,9 +917,12 @@ export function useShellCore({}) {
     (sel) => {
       // V2-4.4b — the rule is v2/shell/inspector-follow.js (pref on, not a viewer — Cloud Phase 25 C2,
       // a stable element id, never stealing from an open main panel; the AI chat does not count).
+      // S3.11 — in Preview and Viewing the selection is an INSPECTION: its specs are the floating Inspect
+      // panel (v2/inspect), not the docked Inspector, so the follow rule treats them like a viewer.
+      const reads = modeShows(shellMode.get().mode, 'inspect-panel');
       const open = shouldOpenOnSelect({
         pref: autoOpenInspectorRef.current,
-        viewer: !!viewerMode,
+        viewer: !!viewerMode || reads,
         hasId: !!sel?.id,
         anyMainOpen: anyRightPanelOpenRef.current,
       });

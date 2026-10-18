@@ -1,0 +1,280 @@
+// S1.17 — surface = substrate for the version history and the Trash: the UI path and the verb
+// path of every history / Trash registry action hit the SAME route with the SAME body.
+//
+// The one source is history/surface-requests.ts. This test (1) runs each verb against a recording
+// studio and compares the request it sent with the builder's, (2) checks every named route is a
+// real, registered route with that method, (3) pins the registry: a history.* / trash.* action is
+// either in the table below or in the short, ratcheting list of actions that make no request of
+// their own, and (4) fails a client/v2 file that names one of these write routes without going
+// through the builders — the history panel (S1.14/S1.15) and Trash view (S1.8) will be held to it.
+
+import { afterEach, describe, expect, test } from 'bun:test';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+import {
+  nameRequest,
+  objectHistoryRequest,
+  restoreRequest,
+  SURFACE_WRITE_ROUTES,
+  type SurfaceRequest,
+  trashClearRequest,
+  trashListRequest,
+  trashRestoreRequest,
+} from '../history/surface-requests.ts';
+import { fakeStudio, json, type Seen } from './_fake-studio.ts';
+
+const STUDIO = join(import.meta.dir, '..');
+const manifest = JSON.parse(readFileSync(join(STUDIO, 'actions.manifest.json'), 'utf8')) as {
+  actions: { id: string; agent?: { path: string; verb?: string } }[];
+};
+
+const CANVAS = '.design/ui/home.tsx';
+
+/** registry action → the verb call that is its agent path, and the request the UI makes. */
+const SURFACE: Record<string, { verb: string; args: string[]; request: SurfaceRequest }> = {
+  'history.restore': {
+    verb: 'history',
+    args: ['restore', 'ui/home.tsx', 'r11'],
+    request: restoreRequest({ path: CANVAS, at: 'r11' }),
+  },
+  'history.restore-artboard': {
+    verb: 'history',
+    args: ['restore', 'ui/home.tsx', 'r11', '--artboard', 'hero'],
+    request: restoreRequest({ path: CANVAS, at: 'r11', artboard: 'hero' }),
+  },
+  'history.restore-object': {
+    verb: 'history',
+    args: ['restore', 'ui/home.tsx', 'r11', '--element', 'hero/cta'],
+    request: restoreRequest({ path: CANVAS, at: 'r11', element: 'hero/cta' }),
+  },
+  'history.go-back': {
+    verb: 'history',
+    args: ['restore', 'ui/home.tsx', '@last-good'],
+    request: restoreRequest({ path: CANVAS, at: '@last-good' }),
+  },
+  'history.name': {
+    verb: 'history',
+    args: ['name', 'ui/home.tsx', 'r11', 'Hero pass'],
+    request: nameRequest({ path: CANVAS, at: 'r11', name: 'Hero pass' }),
+  },
+  // S1.16 — a read: the panel's "Version history · this object" and the verb ask the same question.
+  'history.object': {
+    verb: 'history',
+    args: ['object', 'ui/home.tsx', 'hero/cta'],
+    request: objectHistoryRequest({ path: CANVAS, object: 'hero/cta' }),
+  },
+  'view.trash': {
+    verb: 'trash',
+    args: ['list'],
+    request: trashListRequest(),
+  },
+  'trash.restore': {
+    verb: 'trash',
+    args: ['restore', 'canvas:e1'],
+    request: trashRestoreRequest('canvas:e1'),
+  },
+  'trash.clear': {
+    verb: 'trash',
+    args: ['clear', '--yes'],
+    request: trashClearRequest(),
+  },
+};
+
+/**
+ * history.* / trash.* actions that make no request of their own, with why. Only ever shrinks:
+ * the panel's reads (S1.14) are read projections the verbs reach through their own GET routes.
+ */
+const NO_OWN_REQUEST: Record<string, string> = {
+  'history.open': 'opens the panel; the read verb is `history list`',
+  'history.filter': 'the person’s own panel filter (human view-pref)',
+  'history.view-version': 'a read: `history show` — GET, no body',
+  'history.compare': 'a read: `history diff` — GET, no body',
+  'history.compare-pictures':
+    'looking at two renders (human view-pref); the words are `history diff`',
+};
+
+/**
+ * S11.10 — history.* actions that call a route of their own, already registered and pinned elsewhere: the git
+ * buttons of Version history › Advanced (`/_api/git/*`, refused below edit by access-role-matrix) and a row's
+ * Undo (`/_api/project/undo`, whose verb is `history undo --action`). Not in `SURFACE`: they build no request in
+ * history/surface-requests.ts. test/v2-git-model.test.ts holds each button to its registry action and route.
+ */
+const OWN_ROUTES: Record<string, string> = {
+  'history.branch-switch': '/_api/git/checkout',
+  'history.new-branch': '/_api/git/branch',
+  'history.fetch': '/_api/git/fetch',
+  'history.publish': '/_api/git/push',
+  'history.save-with-note': '/_api/git/commit',
+  'history.open-pr': '/_api/git/fold',
+  'history.discard-file': '/_api/git/discard',
+  'history.continue-draft': '/_api/git/checkout',
+  'history.undo-action': '/_api/project/undo',
+};
+
+let studio: ReturnType<typeof fakeStudio> | null = null;
+afterEach(() => {
+  studio?.stop();
+  studio = null;
+});
+
+const everything = (s: Seen) => {
+  if (s.path === '/_api/trash') return json({ ok: true, items: [], canClear: true, seq: 1 });
+  if (s.path.startsWith('/_api/trash/') || s.path.startsWith('/_api/project/'))
+    return json({ ok: true, status: 'accepted', path: 'ui/home.tsx', cleared: [] });
+};
+
+describe('history object (S1.16)', () => {
+  test('prints the rows in the panel’s words, marks matched and kept-aside rows', async () => {
+    studio = fakeStudio((s) =>
+      s.path === '/_api/project/object-history'
+        ? json({
+            ok: true,
+            key: 's1',
+            header: 'this sticky',
+            rows: [
+              {
+                ref: 'r4',
+                sub: 'Jonas · 18:40',
+                what: 'changed',
+                title: 'Sticky: “a” → “b”',
+                value: '“b”',
+              },
+              { ref: 'r2', sub: 'Tereza · 18:00', what: 'changed', title: 'Text', matched: true },
+              {
+                ref: 'r2',
+                sub: 'You · 18:00',
+                what: 'changed',
+                title: 'Your version, not kept',
+                aside: true,
+              },
+            ],
+          })
+        : undefined
+    );
+    const r = await studio.run('history', ['object', 'ui/home.tsx', 's1']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('Version history · this sticky');
+    expect(r.stdout).toContain('r4  Jonas · 18:40  changed  Sticky: “a” → “b”  “b”');
+    expect(r.stdout).toContain('(found by matching)');
+    expect(r.stdout).toContain('(not kept)');
+    expect(studio.seen.at(-1)?.query).toEqual({ path: '.design/ui/home.tsx', object: 's1' });
+  });
+
+  test('a bad object is a usage error and nothing is asked; an object without versions exits 1', async () => {
+    studio = fakeStudio((s) =>
+      s.path === '/_api/project/object-history'
+        ? json({ ok: false, reason: 'not-found' }, 404)
+        : undefined
+    );
+    const bad = await studio.run('history', ['object', 'ui/home.tsx', 'a/b/c']);
+    expect(bad.code).toBe(2);
+    expect(studio.seen.length).toBe(0);
+    const none = await studio.run('history', ['object', 'ui/home.tsx', 'hero/cta']);
+    expect(none.code).toBe(1);
+    expect(none.stderr).toContain('no versions of hero/cta');
+  });
+});
+
+describe('surface = substrate: history + Trash (S1.17)', () => {
+  for (const [id, row] of Object.entries(SURFACE)) {
+    test(`${id}: the verb makes the request the UI makes`, async () => {
+      studio = fakeStudio(everything);
+      const r = await studio.run(row.verb, row.args);
+      expect({ id, code: r.code, stderr: r.stderr }).toEqual({ id, code: 0, stderr: '' });
+      // the request that matters: the last one (restore-by-path reads the list first)
+      const sent = studio.seen.at(-1);
+      expect({
+        method: sent?.method,
+        route: sent?.path,
+        body: sent?.method === 'GET' ? undefined : sent?.body,
+        query: sent?.method === 'GET' && row.request.query ? sent.query : undefined,
+      }).toEqual({
+        method: row.request.method,
+        route: row.request.route,
+        body: row.request.body,
+        query: row.request.query,
+      });
+    });
+  }
+
+  test('every route a builder names is registered with that method (routes/*.ts)', () => {
+    const src = readdirSync(join(STUDIO, 'routes'))
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => readFileSync(join(STUDIO, 'routes', f), 'utf8'))
+      .join('\n');
+    const missing = Object.entries(SURFACE)
+      .filter(([, { request }]) => {
+        const re = new RegExp(
+          `method: '${request.method}',\\s*path: '${request.route.replace(/\//g, '\\/')}'`
+        );
+        return !re.test(src);
+      })
+      .map(([id]) => id);
+    expect(missing).toEqual([]);
+  });
+
+  test('registry: every history.* / trash.* action is covered or named as having no request', () => {
+    const ids = manifest.actions
+      .map((a) => a.id)
+      .filter((id) => id.startsWith('history.') || id.startsWith('trash.') || id === 'view.trash');
+    const uncovered = ids.filter(
+      (id) => !(id in SURFACE) && !(id in NO_OWN_REQUEST) && !(id in OWN_ROUTES)
+    );
+    expect(uncovered).toEqual([]);
+    expect(Object.keys(OWN_ROUTES).filter((id) => !ids.includes(id))).toEqual([]);
+    // ratchet: the exemptions name real actions (a removed action leaves the list too)
+    const stale = Object.keys(NO_OWN_REQUEST).filter((id) => !ids.includes(id));
+    expect(stale).toEqual([]);
+    expect(Object.keys(NO_OWN_REQUEST).length).toBeLessThanOrEqual(5);
+  });
+
+  test('an own-route action names, in the registry, the route its button calls', () => {
+    const wrong = Object.entries(OWN_ROUTES)
+      .filter(([id, route]) => {
+        const a = manifest.actions.find((x) => x.id === id) as { server?: { route: string } };
+        return a?.server?.route !== route;
+      })
+      .map(([id]) => id);
+    expect(wrong).toEqual([]);
+  });
+
+  test('a covered action’s agent path is the verb the test runs', () => {
+    const wrong: string[] = [];
+    for (const [id, row] of Object.entries(SURFACE)) {
+      const a = manifest.actions.find((x) => x.id === id);
+      const want = `maude design ${row.verb}`;
+      // trash.clear is human-only in the registry (decision:maude/v2-lead-trash-clear-human-only):
+      // its verb is the owner's own terminal path, not an agent's.
+      if (id === 'trash.clear') {
+        if (a?.agent?.path !== 'human') wrong.push(id);
+        continue;
+      }
+      if (a?.agent?.path !== 'cli' || !a.agent.verb?.startsWith(want)) wrong.push(id);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  test('client/v2 reaches the write routes only through the builders', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) {
+          if (name === 'contracts' || name === 'node_modules') continue;
+          walk(p);
+          continue;
+        }
+        if (!/\.(jsx?|tsx?)$/.test(name) || /\.test\./.test(name)) continue;
+        const text = readFileSync(p, 'utf8');
+        if (
+          SURFACE_WRITE_ROUTES.some((r) => text.includes(r)) &&
+          !text.includes('surface-requests')
+        )
+          offenders.push(p.slice(STUDIO.length + 1));
+      }
+    };
+    walk(join(STUDIO, 'client', 'v2'));
+    expect(offenders).toEqual([]);
+  });
+});

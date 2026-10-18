@@ -8,10 +8,27 @@
 // loopback hub is never a public link). The CLI twin is `presentationLinkFor` in
 // cli/lib/design-open.mjs (`maude design open <canvas> --mode present`); a test holds them equal.
 //
-// The URL is deterministic, so offline it still copies, and says viewers follow once you're back.
+// Offline it WAITS (S3.8, 04 md-edge-offline note 25: "Copy presentation link waits for a connection"):
+// nothing is copied and the row says why. A link handed out while the hub cannot be reached would point at a
+// presentation nobody can follow yet; S3-present-session §5's earlier "offline it still copies" gave way to the
+// drawn canvas, which outranks it.
 
 /** Shown greyed in ⌘K outside a cloud-linked project (V2-4.9 decision 2 pattern). */
 export const COPY_PRESENTATION_LINK_NOTE = 'in a cloud project';
+
+/** …and while the network is off (S3.8). */
+export const COPY_PRESENTATION_LINK_WAITS = 'waits for a connection';
+
+/**
+ * Can the row run now, and if not, why (the reason is the row's note). A project with no cloud link is the
+ * more basic answer, so it outranks offline.
+ */
+export function copyAvailability({ webLink, online = true }) {
+  if (typeof webLink !== 'string' || !webLink)
+    return { enabled: false, reason: COPY_PRESENTATION_LINK_NOTE };
+  if (online === false) return { enabled: false, reason: COPY_PRESENTATION_LINK_WAITS };
+  return { enabled: true };
+}
 
 /** The presentation link for a design-root-relative canvas, or null. Pure. */
 export function presentationLinkFor(rel, webLink) {
@@ -30,12 +47,14 @@ export function presentationLinkFor(rel, webLink) {
 }
 
 /**
- * Copy it, and say so. `{ rel, webLink, online, writeText, notify }` → true when copied.
+ * Copy it, and say so. `{ rel, webLink, online, writeText, notify }` → true when copied. Offline: nothing
+ * is copied (see the header) and the toast names the wait.
  */
 export async function copyPresentationLink({ rel, webLink, online, writeText, notify }) {
   const link = presentationLinkFor(rel, webLink);
-  if (!link) {
-    notify({ title: `Copy presentation link — ${COPY_PRESENTATION_LINK_NOTE}`, kind: 'error' });
+  const avail = copyAvailability({ webLink: link ? webLink : null, online });
+  if (!avail.enabled) {
+    notify({ title: `Copy presentation link — ${avail.reason}`, kind: 'error' });
     return false;
   }
   try {
@@ -44,9 +63,6 @@ export async function copyPresentationLink({ rel, webLink, online, writeText, no
     notify({ title: 'Could not copy the presentation link', kind: 'error' });
     return false;
   }
-  notify({
-    title: online ? 'Presentation link copied' : "Copied — viewers follow once you're back online.",
-    kind: 'success',
-  });
+  notify({ title: 'Presentation link copied', kind: 'success' });
   return true;
 }

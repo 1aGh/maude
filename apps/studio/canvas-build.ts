@@ -27,7 +27,8 @@ import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
 import { transpileCanvasSource } from './canvas-pipeline.ts';
-import { dsResolver, importsDs } from './ds/ds-resolver.ts';
+import { CanvasBuildError, errorAt, fromBuildLogs, scrubPaths } from './canvas-source/errors.ts';
+import { dsResolver, usesDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
 import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
@@ -390,7 +391,7 @@ export async function buildCanvasModule(
       // specifier to map to the dev-server-bundled lib, not get marked external.
       canvasLibResolver(),
       // `@maude/ds` — per canvas: the system's override or the defaults, and the system registered
-      ...(options.designRoot && importsDs(source)
+      ...(options.designRoot && usesDs(source)
         ? [dsResolver(options.designRoot, canvasAbsPath)]
         : []),
       {
@@ -424,6 +425,11 @@ export async function buildCanvasModule(
   });
 
   if (!built.success) {
+    const errorCtx = {
+      designRoot: options.restrictImportsTo ?? options.designRoot ?? path.dirname(canvasAbsPath),
+      canvasAbs: canvasAbsPath,
+      source,
+    };
     // A DENIED IMPORT IS THE MESSAGE. Bun collapses a plugin throw into a bare
     // "Bundle failed" log, so the allowlist records its own reasons and they
     // win here — the person who wrote the canvas has to be able to act on it,
@@ -433,12 +439,24 @@ export async function buildCanvasModule(
       // record that imports were refused without ever seeing the specifier —
       // that string is tenant-authored content (Cloud Phase 26 Stage 4). The
       // reasons still go to the person who wrote the canvas, unchanged.
-      const err = new Error(denials.map((d) => d.reason).join('\n'));
-      (err as Error & { rejectedImports?: number }).rejectedImports = denials.length;
-      throw err;
+      // S11.6 — typed (`CanvasBuildError.errors`: file / line / column / lineText from the
+      // logs' positions); the message is unchanged.
+      const reason = denials[0]?.reason ?? '';
+      const [first, ...rest] = fromBuildLogs(built.logs, errorCtx);
+      throw new CanvasBuildError(
+        denials.map((d) => d.reason).join('\n'),
+        [
+          { ...(first ?? errorAt(errorCtx)), message: scrubPaths(reason, errorCtx.designRoot) },
+          ...rest,
+        ],
+        denials.length
+      );
     }
     const msg = built.logs.map((l) => l.message).join('\n');
-    throw new Error(`Bun.build failed on ${canvasAbsPath}:\n${msg}`);
+    throw new CanvasBuildError(
+      `Bun.build failed on ${canvasAbsPath}:\n${msg}`,
+      fromBuildLogs(built.logs, errorCtx)
+    );
   }
   const entry = built.outputs.find((o) => o.kind === 'entry-point');
   if (!entry) {

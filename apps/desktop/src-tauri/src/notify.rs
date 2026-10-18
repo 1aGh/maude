@@ -326,8 +326,11 @@ pub struct NotifyPollState {
     /// cache, so `shell_state` never waits on a probe. Running instances only:
     /// a root that left the pool is pruned on the next tick.
     ai: Mutex<HashMap<String, crate::sidecar::AiCounts>>,
-    /// The Dock badge (S5.14): Σ needsYou over the running projects.
+    /// The Dock badge (S5.14): Σ needsYou over the running projects (+ S9.17:
+    /// Σ unread mentioned threads).
     badge: Mutex<Badge>,
+    /// S9.17: the mention notices' own budget — never the AI's (`mention_ping`).
+    mentions: Mutex<MentionBook>,
 }
 
 /// The Dock badge (S5.14, V2-1.15 §5.8 "Needs you"): the sum of every running
@@ -339,9 +342,30 @@ pub struct NotifyPollState {
 #[derive(Debug, Default)]
 pub struct Badge {
     needs: std::collections::BTreeMap<String, u32>,
+    /// S9.17: per project, the threads with an unread mention of the person — the
+    /// number the project's own page derives (S9.22 `unreadThreadCount`, the Share
+    /// cluster's Comments count). Joins the same set: it stays until read.
+    mentions: std::collections::BTreeMap<String, u32>,
 }
 
 impl Badge {
+    /// `root`'s page now counts `n` unread mentioned threads. True when the sum changed.
+    pub fn set_mentions(&mut self, root: &str, n: u32) -> bool {
+        let before = self.count();
+        let n = n.min(MAX_NEEDS_PER_PROJECT);
+        if n == 0 {
+            self.mentions.remove(root);
+        } else {
+            self.mentions.insert(root.to_string(), n);
+        }
+        before != self.count()
+    }
+
+    /// Forget `root`'s mentions (its tab closed: no page is counting them).
+    pub fn clear_mentions(&mut self, root: &str) -> bool {
+        self.mentions.remove(root).is_some_and(|n| n > 0)
+    }
+
     /// `root`'s server now reports `n` runs needing the person. True when the
     /// sum changed.
     pub fn set(&mut self, root: &str, n: u32) -> bool {
@@ -359,11 +383,212 @@ impl Badge {
     pub fn retain_running(&mut self, running: &[String]) -> bool {
         let before = self.count();
         self.needs.retain(|r, _| running.iter().any(|x| x == r));
+        self.mentions.retain(|r, _| running.iter().any(|x| x == r));
         before != self.count()
     }
 
     pub fn count(&self) -> usize {
-        self.needs.values().map(|n| *n as usize).sum()
+        self.needs
+            .values()
+            .chain(self.mentions.values())
+            .map(|n| *n as usize)
+            .sum()
+    }
+}
+
+// ── Mention notices (S9.17) ──────────────────────────────────────────────────
+//
+// A project page derives "who mentioned me, unread" from its own comments
+// (S9.22 mention-model.js) and reports it here: the count joins the Dock badge,
+// and a FRESH mention in a project that is not the tab in front posts one OS
+// notification whose click opens that thread in that project's tab (the V2-3.5
+// routing). The words are fixed: "<first name> mentioned you on <where>" over the
+// project's directory name — never the message, never an e-mail (Decision D: a
+// comment and its author's name are project content, so both are cut down to a
+// first word / a short place name and anything address-like is dropped).
+
+/// A mention notice's first name, at most.
+const MAX_MENTION_NAME: usize = 40;
+/// A mention notice's place ("A4 · plakát"), at most.
+const MAX_MENTION_WHERE: usize = 60;
+/// A mention key (`cm-mention:<thread>:<message>`, ui-prefs' 128 cap).
+const MAX_MENTION_KEY: usize = 128;
+
+/// Does `s` look like an address — an e-mail or a link?
+fn address_like(s: &str) -> bool {
+    s.contains('@') || s.contains("://") || s.to_ascii_lowercase().contains("www.")
+}
+
+/// The name a mention notice may show: the author's first word, one line,
+/// capped; "Someone" for nothing or anything address-like.
+pub fn mention_from_words(from: &str) -> String {
+    let one = sanitize_title(from);
+    let first: String = one
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .chars()
+        .take(MAX_MENTION_NAME)
+        .collect();
+    if first.is_empty() || address_like(&first) {
+        "Someone".to_string()
+    } else {
+        first
+    }
+}
+
+/// The place a mention notice may show, or none: one line, capped, never an
+/// address.
+pub fn mention_where_words(place: &str) -> Option<String> {
+    let one = sanitize_title(place);
+    let one = one.trim();
+    if one.is_empty() || address_like(one) {
+        return None;
+    }
+    let mut out: String = one.chars().take(MAX_MENTION_WHERE).collect();
+    if one.chars().count() > MAX_MENTION_WHERE {
+        out.push('…');
+    }
+    Some(out)
+}
+
+/// The notice's `(title, body)`: "Jonas mentioned you on A4 · plakát" over the
+/// project's name.
+pub fn mention_text(from: &str, place: Option<&str>, project: &str) -> (String, String) {
+    let who = mention_from_words(from);
+    let title = match place.and_then(mention_where_words) {
+        Some(w) => format!("{who} mentioned you on {w}"),
+        None => format!("{who} mentioned you"),
+    };
+    (title, project.to_string())
+}
+
+/// A mention key as the page names it: short, printable, no spaces.
+pub fn valid_mention_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.len() <= MAX_MENTION_KEY
+        && key.chars().all(|c| c.is_ascii_graphic())
+}
+
+/// The mention notices' bookkeeping — its own cooldown and per-session cap per
+/// project, apart from the AI's, so neither can mute the other.
+#[derive(Debug, Default)]
+pub struct MentionBook {
+    /// root → the newest mention key it reported (one notice per mention).
+    last_key: HashMap<String, String>,
+    /// root → when a notice last fired for it.
+    last_at: HashMap<String, Instant>,
+    /// root → notices fired this app session.
+    sent: HashMap<String, u32>,
+}
+
+impl MentionBook {
+    /// Pure: does `root`'s fresh mention `key` earn an OS notice now? Never the
+    /// same key twice, never for the tab in front (its page shows the toast; the
+    /// key is still remembered), at most one per `NOTIFY_COOLDOWN_MS` and
+    /// `MAX_NOTIFICATIONS_PER_PROJECT_SESSION` per session for that project.
+    pub fn should_ping(&mut self, root: &str, key: &str, focused: bool, now: Instant) -> bool {
+        if self.last_key.get(root).map(String::as_str) == Some(key) {
+            return false;
+        }
+        self.last_key.insert(root.to_string(), key.to_string());
+        if focused {
+            return false;
+        }
+        if self
+            .last_at
+            .get(root)
+            .is_some_and(|prev| now.duration_since(*prev) < Duration::from_millis(NOTIFY_COOLDOWN_MS))
+        {
+            return false;
+        }
+        let sent = self.sent.entry(root.to_string()).or_insert(0);
+        if *sent >= MAX_NOTIFICATIONS_PER_PROJECT_SESSION {
+            return false;
+        }
+        *sent += 1;
+        self.last_at.insert(root.to_string(), now);
+        true
+    }
+}
+
+/// The newest fresh mention a page reports (mention-model.js `unreadMentions`
+/// entry, shaped by native-mention-notice.js). Every field is project content.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct MentionLatest {
+    pub key: String,
+    pub from: String,
+    #[serde(default, rename = "where")]
+    pub place: Option<String>,
+    /// The canvas the thread is on (designRoot-relative) — routing only.
+    pub canvas: String,
+    pub thread: String,
+}
+
+/// Pure: where a click on `latest`'s notice goes — the thread on its canvas,
+/// validated as a deep link's target is (`validate_target`).
+pub fn mention_target(latest: &MentionLatest) -> Result<crate::windows::OpenTarget, String> {
+    crate::windows::validate_target(crate::windows::OpenTarget {
+        canvas: Some(latest.canvas.clone()),
+        artboard: None,
+        thread: Some(latest.thread.clone()),
+    })
+}
+
+/// `mention_notice({count, latest?})` — a project tab reports its unread
+/// mentions (S9.17). Project tabs only, on their own origin; the project is
+/// the caller's, never an argument. `count` joins the Dock badge; `latest`, a
+/// mention that just arrived, posts one notice when this tab is not in front.
+#[tauri::command]
+pub fn mention_notice(
+    app: AppHandle,
+    webview: tauri::Webview,
+    count: u32,
+    latest: Option<MentionLatest>,
+) -> Result<(), String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    let state = app
+        .try_state::<NotifyPollState>()
+        .ok_or_else(|| "Maude is still starting.".to_string())?;
+    let changed = state
+        .badge
+        .lock()
+        .expect("notify mutex poisoned")
+        .set_mentions(&caller.root, count);
+    if changed {
+        apply_badge(&app);
+    }
+    let Some(latest) = latest else {
+        return Ok(());
+    };
+    if !valid_mention_key(&latest.key) {
+        return Err("That mention can't be shown.".to_string());
+    }
+    let target = mention_target(&latest)?;
+    let focused = app.try_state::<SidecarState>().is_some_and(|s| {
+        s.windows.lock().unwrap_or_else(|e| e.into_inner()).focused() == Some(caller.label.as_str())
+    });
+    let ping = state
+        .mentions
+        .lock()
+        .expect("notify mutex poisoned")
+        .should_ping(&caller.root, &latest.key, focused, Instant::now());
+    if ping {
+        let (title, body) = mention_text(
+            &latest.from,
+            latest.place.as_deref(),
+            &project_display_name(&caller.root),
+        );
+        send_routed(&app, &title, &body, &caller.root, Some(target));
+    }
+    Ok(())
+}
+
+/// A project tab closed: its page no longer counts its mentions.
+pub fn project_closed(app: &AppHandle, root: &str) {
+    let Some(state) = app.try_state::<NotifyPollState>() else { return };
+    if state.badge.lock().expect("notify mutex poisoned").clear_mentions(root) {
+        apply_badge(app);
     }
 }
 
@@ -404,15 +629,32 @@ pub fn click_action(book: &crate::windows::WindowBook, root: &str) -> ClickActio
 /// A click on the notification for `root` — the OS callback (macOS) and the
 /// debug-only `e2e_notification_click` both land here.
 pub fn on_click(app: &AppHandle, root: &str) {
+    on_click_to(app, root, None);
+}
+
+/// `on_click`, then (S9.17, a mention) `target` — the thread on its canvas —
+/// in THAT project's tab: told `shell://navigate` when it is open, parked for
+/// its first navigate when the click opens it.
+pub fn on_click_to(app: &AppHandle, root: &str, target: Option<crate::windows::OpenTarget>) {
     let Some(state) = app.try_state::<SidecarState>() else { return };
     let action = click_action(&state.windows.lock().unwrap_or_else(|e| e.into_inner()), root);
     if let ClickAction::Focus(label) = action {
         if app.get_webview(&label).is_some() && crate::tabs::reveal(app, &label).is_ok() {
+            if let Some(t) = target {
+                crate::bus::send(&label, "shell://navigate", t);
+            }
             return;
         }
     }
-    if let Err(e) = crate::windows::open_window_for_root(app, root, None, None) {
-        crate::sidecar::log_line(&format!("[maude] notify: could not open {root}: {e}"));
+    let canvas = target.as_ref().and_then(|t| t.canvas.clone());
+    match crate::windows::open_window_for_root(app, root, None, canvas.as_deref()) {
+        Ok(opened) => {
+            crate::windows::park_navigate_for_new(&opened, target.as_ref());
+            if let (crate::windows::Opened::Existing(label), Some(t)) = (&opened, target) {
+                crate::bus::send(label, "shell://navigate", t);
+            }
+        }
+        Err(e) => crate::sidecar::log_line(&format!("[maude] notify: could not open {root}: {e}")),
     }
 }
 
@@ -552,6 +794,17 @@ static CLICK_WAITERS: std::sync::atomic::AtomicUsize = std::sync::atomic::Atomic
 /// response on a thread of its own (NSUserNotificationCenter answers on the
 /// main run loop, which Tauri pumps). Elsewhere: the plain path, no routing.
 fn send_for_project(app: &AppHandle, title: &str, body: &str, root: &str) {
+    send_routed(app, title, body, root, None);
+}
+
+/// `send_for_project`, whose click also opens `target` (S9.17).
+fn send_routed(
+    app: &AppHandle,
+    title: &str,
+    body: &str,
+    root: &str,
+    target: Option<crate::windows::OpenTarget>,
+) {
     #[cfg(target_os = "macos")]
     {
         if CLICK_WAITERS.fetch_add(1, Ordering::SeqCst) < MAX_CLICK_WAITERS {
@@ -559,6 +812,7 @@ fn send_for_project(app: &AppHandle, title: &str, body: &str, root: &str) {
             let identifier = app.config().identifier.clone();
             let app2 = app.clone();
             let root2 = root.to_string();
+            let target2 = target.clone();
             let spawned = std::thread::Builder::new()
                 .name("maude-notify-click".into())
                 .spawn(move || {
@@ -570,7 +824,7 @@ fn send_for_project(app: &AppHandle, title: &str, body: &str, root: &str) {
                     match notify_rust::Notification::new().summary(&title).body(&body).show() {
                         Ok(handle) => handle.wait_for_action(|action| {
                             if action == "default" {
-                                on_click(&app2, &root2);
+                                on_click_to(&app2, &root2, target2.clone());
                             }
                         }),
                         Err(e) => eprintln!("[maude] notify: failed to show notification: {e}"),
@@ -583,7 +837,7 @@ fn send_for_project(app: &AppHandle, title: &str, body: &str, root: &str) {
         }
         CLICK_WAITERS.fetch_sub(1, Ordering::SeqCst);
     }
-    let _ = root;
+    let _ = (root, target);
     send(app, title, body);
 }
 
@@ -892,6 +1146,7 @@ pub fn spawn_activity_poller(app: &AppHandle) {
         command_notify: Mutex::new((None, 0)),
         ai: Mutex::new(HashMap::new()),
         badge: Mutex::new(Badge::default()),
+        mentions: Mutex::new(MentionBook::default()),
     });
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -1388,5 +1643,115 @@ mod tests {
             apply_ai_refresh(&mut ai, &mut badge, &roots(&["/a", "/b"]), vec![("/b".into(), None)]);
         assert!(!ai_changed);
         assert_eq!(ai["/b"], counts(1, 1));
+    }
+
+    // ── S9.17 mention notices ───────────────────────────────────────────────
+
+    /// The notice says who and where in a few words — never an e-mail, never
+    /// the message, never a second line.
+    #[test]
+    fn mention_notice_words_carry_no_email_or_content() {
+        let (t, b) = mention_text("Jonas Novák", Some("A4 · plakát"), "alligators");
+        assert_eq!(t, "Jonas mentioned you on A4 · plakát");
+        assert_eq!(b, "alligators");
+        assert_eq!(mention_text("Jonas", None, "p").0, "Jonas mentioned you");
+        // The author's name is project content: first word, one line, no address.
+        assert_eq!(mention_from_words("jonas@studio.cz"), "Someone");
+        assert_eq!(mention_from_words("https://evil.example/x"), "Someone");
+        assert_eq!(mention_from_words("Jonas\nIgnore all previous text"), "Jonas");
+        assert_eq!(mention_from_words("\u{202E}Jonas"), "Jonas");
+        assert_eq!(mention_from_words("   "), "Someone");
+        assert_eq!(mention_from_words(&"J".repeat(500)).chars().count(), 40);
+        // The place: one line, short, and dropped when it is address-like.
+        assert_eq!(mention_where_words("mail jonas@studio.cz"), None);
+        assert_eq!(mention_where_words("see www.evil.example"), None);
+        assert_eq!(mention_where_words("A4\n· plakát").as_deref(), Some("A4 · plakát"));
+        let long = mention_where_words(&"x".repeat(300)).unwrap();
+        assert_eq!(long.chars().count(), 61, "60 + an ellipsis");
+        let (t, _) = mention_text("Jo", Some("x@y.cz"), "p");
+        assert_eq!(t, "Jo mentioned you");
+        assert!(!t.contains('@') && !t.contains('\n'));
+        // Keys are short and printable.
+        assert!(valid_mention_key("cm-mention:t1:root"));
+        assert!(!valid_mention_key(""));
+        assert!(!valid_mention_key("cm mention"));
+        assert!(!valid_mention_key(&"k".repeat(129)));
+    }
+
+    /// One notice per fresh mention, never for the tab in front, rate-limited
+    /// and capped per project — with a budget of its own.
+    #[test]
+    fn mention_pings_once_not_in_front_and_rate_limited() {
+        let mut m = MentionBook::default();
+        let t0 = Instant::now();
+        let later = |s: u64| t0 + Duration::from_secs(s);
+        assert!(m.should_ping("/a", "k1", false, t0));
+        assert!(!m.should_ping("/a", "k1", false, later(60)), "the same mention twice");
+        assert!(!m.should_ping("/a", "k2", false, later(5)), "inside the cooldown");
+        assert!(m.should_ping("/b", "k1", false, later(5)), "another project: its own clock");
+        assert!(!m.should_ping("/a", "k3", true, later(60)), "the tab in front shows its toast");
+        assert!(!m.should_ping("/a", "k3", false, later(61)), "…and that mention is spent");
+        assert!(m.should_ping("/a", "k4", false, later(62)));
+        // The per-session cap.
+        let mut m = MentionBook::default();
+        let fired = (0..40)
+            .filter(|i| m.should_ping("/a", &format!("k{i}"), false, later(31 * i)))
+            .count();
+        assert_eq!(fired as u32, MAX_NOTIFICATIONS_PER_PROJECT_SESSION);
+    }
+
+    /// The unread mentions join the Dock badge set beside needsYou, stay until
+    /// read, and leave with their project.
+    #[test]
+    fn mention_counts_join_the_dock_badge_set() {
+        let mut badge = Badge::default();
+        assert!(badge.set("/a", 2));
+        assert!(badge.set_mentions("/a", 1));
+        assert!(badge.set_mentions("/b", 3));
+        assert_eq!(badge.count(), 6);
+        assert!(!badge.set_mentions("/b", 3), "a level, not an event");
+        assert!(badge.set_mentions("/b", 0));
+        assert_eq!(badge.count(), 3);
+        assert!(badge.set_mentions("/c", 10_000));
+        assert_eq!(badge.count(), 3 + MAX_NEEDS_PER_PROJECT as usize);
+        assert!(badge.retain_running(&["/a".to_string()]));
+        assert_eq!(badge.count(), 3);
+        assert!(badge.clear_mentions("/a"));
+        assert_eq!(badge.count(), 2, "needsYou stays");
+        assert!(!badge.clear_mentions("/a"));
+    }
+
+    /// A click opens the thread on its canvas — validated as a deep link's target.
+    #[test]
+    fn mention_target_is_a_thread_on_a_canvas() {
+        let latest = |canvas: &str, thread: &str| MentionLatest {
+            key: "cm-mention:t:root".into(),
+            from: "Jonas".into(),
+            place: None,
+            canvas: canvas.into(),
+            thread: thread.into(),
+        };
+        let t = mention_target(&latest(".design/ui/A.tsx", "c-1")).unwrap();
+        assert_eq!(t.canvas.as_deref(), Some("ui/A.tsx"));
+        assert_eq!(t.thread.as_deref(), Some("c-1"));
+        assert!(mention_target(&latest("../etc/passwd", "c-1")).is_err());
+        assert!(mention_target(&latest("ui/A.tsx", "")).is_err());
+        let wire: MentionLatest = serde_json::from_value(serde_json::json!({
+            "key": "k", "from": "Jo", "where": "A4", "canvas": "ui/A.tsx", "thread": "c-1"
+        }))
+        .unwrap();
+        assert_eq!(wire.place.as_deref(), Some("A4"));
+    }
+
+    /// `mention_notice` takes the project from its caller, never an argument.
+    #[test]
+    fn mention_notice_answers_for_its_own_project_only() {
+        let src = include_str!("notify.rs");
+        let i = src.find("pub fn mention_notice(").unwrap();
+        let sig = &src[i..i + src[i..].find('{').unwrap()];
+        assert!(!sig.contains("root") && !sig.contains("label"), "{sig}");
+        let body = &src[i..i + src[i..].find("\n}").unwrap()];
+        assert!(body.contains("caller_project(&webview, false)?"));
+        assert!(body.find("caller_project(").unwrap() < body.find("set_mentions(").unwrap());
     }
 }

@@ -21,7 +21,10 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
-import { presentFrom, presentStep } from '../v2/shell/use-canvas-mode-lane.js';
+import { runCopyPng } from '../v2/export/copy-png.js';
+import { createBlankCanvas } from '../v2/create/new-canvas.js';
+import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
+import { presentFrom, presentStep, shellStepBack } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
 import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
@@ -82,7 +85,11 @@ function undoRedo(d, e, redo) {
     return;
   }
   e.preventDefault();
-  d.postToActiveCanvas(runActionMessage(redo ? 'edit.redo' : 'edit.undo'));
+  // S2.20 — the ⌘Z projection over the op log first; the canvas stack only off it (V2-1.2 feed).
+  const canvas = d.activePath && d.activePath !== SYSTEM_TAB ? d.activePath : null;
+  void runUndoKey(canvas, redo, () =>
+    d.postToActiveCanvas(runActionMessage(redo ? 'edit.redo' : 'edit.undo'))
+  );
 }
 
 const focusSearch = () => {
@@ -107,7 +114,13 @@ export const SHELL_KEY_HANDLERS = {
       return;
     }
     if (shortcutsTyping(ctx)) return;
-    if (d.focusedCommentId) d.setFocusedCommentId(null);
+    if (d.focusedCommentId) {
+      d.setFocusedCommentId(null);
+      return; // one step per press (04 md-esc): the pin first, the mode on the next
+    }
+    // S3.12 — the mode's own step back, with the shell focused (Preview → Edit, a held past version →
+    // now). The canvas keeps its tools/selection rungs; this is what is left once they are not in play.
+    if (shellStepBack({ canEdit: !d.viewerMode }) === 'set') e.preventDefault();
   },
   'search.open': (d, { event: e }) => {
     e.preventDefault();
@@ -149,6 +162,11 @@ export const SHELL_KEY_HANDLERS = {
   'export.open': (d, { event: e }) => {
     e.preventDefault();
     d.setExportDialog({ mode: 'export' });
+  },
+  // S8.8 — ⇧⌘C: the selection as a PNG on the clipboard (the shell binds what it has selected; no sheet)
+  'export.copy-png': (_d, { event: e }) => {
+    e.preventDefault();
+    runCopyPng().then((r) => shellToast(r.message, r.ok));
   },
   'handoff.open': (d, { event: e }) => {
     e.preventDefault();
@@ -207,11 +225,11 @@ export const SHELL_KEY_HANDLERS = {
     if (d.activePath === SYSTEM_TAB) d.closeTab(SYSTEM_TAB);
     else d.openSystem();
   },
-  // N — open the new-brief-board composer (the browser reserves ⌘N and never delivers it).
+  // ⌘N — a blank canvas, named by the server (S6.1, C4), opened at once. (The brief board is
+  // `canvas.new-brief`, from the menu and ⌘K.)
   'canvas.new': (d, { event: e }) => {
     e.preventDefault();
-    d.openPanelExclusive('tree');
-    setTimeout(() => document.querySelector('[aria-label="New blank brief board"]')?.click(), 60);
+    createBlankCanvas({ toast: shellToast });
   },
   // ? — keyboard-shortcuts cheat sheet (DS shortcuts overlay)
   'help.shortcuts': (d, { event: e }) => {
@@ -246,17 +264,7 @@ export const SHELL_KEY_HANDLERS = {
     const one = Array.isArray(sel) ? (sel.length === 1 ? sel[0] : null) : sel;
     if (one?.artboardId && !one.id) d.deleteArtboardShell(one.artboardId);
   },
-  // ── timeline transport ──
-  'timeline.undo': (d, { event: e }) => {
-    // Only when the shell (not the canvas iframe) has focus + the timeline is active, so the
-    // canvas's own annotation undo is untouched.
-    e.preventDefault();
-    d.tlKeyRef.current.undoRedo('undo');
-  },
-  'timeline.redo': (d, { event: e }) => {
-    e.preventDefault();
-    d.tlKeyRef.current.undoRedo('redo');
-  },
+  // ── timeline transport ── (S7.6: ⌘Z / ⇧⌘Z here are `edit.undo` / `edit.redo`, the one stack)
   // Task 16 — ⌘B splits the selection at the playhead; with nothing selected, the clip under the
   // playhead (iMovie behavior).
   'timeline.split': (d, { event: e }) => {

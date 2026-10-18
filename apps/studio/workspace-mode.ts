@@ -106,12 +106,16 @@ export const FORBIDDEN_ROUTE_PREFIXES: ReadonlyArray<{
     // `/_api/export-warmup` (DDR-231 T7): proxies GET /_health to the render
     // service so the container wakes while the member picks export options —
     // no job body, no evaluation, no secret in the response.
+    // `/_api/export-estimate` (S8.1): numbers from the project index for an
+    // ExportSpec v2 — it reads index rows and the history ledger, renders nothing.
     except: [
       '/_api/export-jobs',
       '/_api/export-jobs/download',
+      '/_api/export-jobs/retry',
       '/_api/export-history',
       '/_api/export-assemble',
       '/_api/export-warmup',
+      '/_api/export-estimate',
     ],
   },
   {

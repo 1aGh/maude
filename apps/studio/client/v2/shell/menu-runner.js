@@ -14,13 +14,29 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../create/new-canvas.js';
 import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
+import { requestViewCode, runErrorOp } from '../code/code-bus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
+import { runFillAsk } from '../empty/fill-ask.js';
+import { runCopyPng } from '../export/copy-png.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
-import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
+import { copyText } from '../left-panel/canvas-file-menu.js';
+import { createSettingsHandlers } from '../settings/settings-handlers.js';
+import {
+  dispatchCanvasOp,
+  requestCanvasesOp,
+  requestFocusSelector,
+  requestTrash,
+} from '../left-panel/left-panel-bus.js';
+import { toggleViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import { presenterAvailable, presenterStore } from '../present/presenter-store.js';
+import { undoHistoryOpen } from '../undo/undo-history.jsx';
+import { runUndoKey } from '../undo/use-undo-projection.jsx';
+import { runPreviewBack } from '../preview/preview-back.js';
+import { nativeDoors } from './native-doors.js';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -40,6 +56,9 @@ export const NATIVE_COMMANDS = {
   'nav.home': 'new_home_tab',
   'home.open': 'new_home_tab',
   'project.open': 'open_project_folder',
+  // S11.11 — Diagnostics › Logs › Show in Finder; the command is S11.16's (doors.rs), confined to the
+  // app's log folder. Until it lands the invoke fails quietly and the sheet hides the button.
+  'diag.logs-show-in-finder': 'diagnostics_reveal_logs',
 };
 
 /** Fired on `window` for a menu action whose owner is a mounted component with its own state (the
@@ -47,6 +66,18 @@ export const NATIVE_COMMANDS = {
 export const MENU_ACTION_EVENT = 'maude:menu-action';
 
 const noop = () => {};
+
+/** S11.9 — run a native path door on the open canvas; its refusal (Rust's words, or "browser") becomes a toast. */
+async function runDoor(d, id) {
+  if (!d.activePath) return;
+  const res = await nativeDoors().run(id, d.activePath);
+  if (res?.ok) return;
+  d.toast(
+    res?.reason === 'browser'
+      ? 'Open this project in the Mac app to work with its files.'
+      : res?.error || 'Couldn’t do that.'
+  );
+}
 
 /**
  * @param d the shell's closures (see ShellProjectPill in app.jsx):
@@ -63,10 +94,11 @@ const noop = () => {};
 export function createMenuHandlers(d) {
   const h = {
     // ── File ──
+    // S6.1: a blank canvas, named by the server (C4), opened at once. The tree composer is the brief board's.
     'canvas.new': () => {
-      d.openPanelExclusive('tree');
-      setTimeout(() => document.querySelector('[aria-label="New blank brief board"]')?.click(), 60);
+      createBlankCanvas({ toast: d.toast });
     },
+    'canvas.new-brief': () => openBriefBoardComposer(d),
     // IdentityBar owns the create dialog's state; it hears this the way it hears the native menu.
     'project.new': () => {
       if (!d.native) {
@@ -127,14 +159,69 @@ export function createMenuHandlers(d) {
     'canvas.move': () => {
       if (d.activePath) d.onPickMoveDestination();
     },
+    // S11.9 — the row menu's Advanced group on the OPEN canvas. The two native doors take the project-relative
+    // path of the open canvas (the tab's path; Rust refuses anything else); a browser tab has no door and says so.
+    'canvas.reveal-in-finder': () => runDoor(d, 'canvas.reveal-in-finder'),
+    'canvas.open-in-editor': () => runDoor(d, 'canvas.open-in-editor'),
+    'canvas.copy-file-path': async () => {
+      if (!d.activePath) return;
+      d.toast(
+        (await copyText(d.activePath)) ? 'File path copied.' : 'Couldn’t copy the file path.'
+      );
+    },
+    // the same in-place rename as Rename: the canvas's name IS its file name
+    'canvas.rename-file': () => {
+      if (!d.activePath) return;
+      panelLayout.show();
+      d.openPanelExclusive('tree');
+      requestCanvasesOp({ op: 'rename', path: d.activePath });
+    },
+    // S11.9 — the two switches of the left panel's Advanced folds (this person's own view)
+    'canvases.show-file-names': () => {
+      toggleViewPref(VIEW_PREF_KEYS.fileNames);
+    },
+    'layers.show-tags': () => {
+      toggleViewPref(VIEW_PREF_KEYS.tags);
+    },
+    'layers.select-by-selector': () => {
+      panelLayout.show();
+      d.openPanelExclusive('layers');
+      foldStore.set('left.layers', true);
+      requestFocusSelector();
+    },
+    // S11.7 — the code view opens in the Viewport (read-only; the server refuses Can view the source).
+    // The three card actions act on the broken-canvas card that is showing, and on nothing otherwise.
+    'canvas.view-code': () => {
+      if (d.activePath) requestViewCode({ canvas: d.activePath });
+    },
+    'canvas.copy-error': () => {
+      runErrorOp('copy');
+    },
+    'canvas.ask-ai-fix': () => {
+      runErrorOp('ask-ai');
+    },
+    'canvas.last-good': () => {
+      runErrorOp('last-good');
+    },
     'import.figma': () => d.onImportFigma(),
     'import.brand': () => d.onImportBrand(),
     'video.assemble': () => d.onAssembleVideo(),
     'export.open': () => d.setExportDialog({ mode: 'export' }),
+    // S8.8 — Copy as PNG (⇧⌘C): the selection rendered by the export, on the clipboard
+    'export.copy-png': () => runCopyPng().then((r) => d.toast?.(r.message)),
     'handoff.open': () => d.setExportDialog({ mode: 'handoff' }),
     'canvas.close': () => d.onCloseCanvas(),
     'account.switch': () => d.onSwitchAccount(),
-    // ── Edit ── (undo / redo / select / properties ride the canvas lane; artboards the shell's)
+    // ── Edit ── (select / properties ride the canvas lane; artboards the shell's)
+    // S2.20 — Undo / Redo run the ⌘Z projection over the op log; a project not on it falls back to
+    // the canvas stack (the run-action lane, V2-1.2 feed). Undo history… opens the popover.
+    'edit.undo': () =>
+      runUndoKey(d.activePath, false, () => d.postToActiveCanvas(runActionMessage('edit.undo'))),
+    'edit.redo': () =>
+      runUndoKey(d.activePath, true, () => d.postToActiveCanvas(runActionMessage('edit.redo'))),
+    'edit.undo-history': () => {
+      if (d.activePath) undoHistoryOpen.open();
+    },
     'edit.cut': () => d.onCutPaste('cut'),
     'edit.copy': () => d.onCutPaste('copy'),
     'edit.paste': () => d.onCutPaste('paste'),
@@ -142,6 +229,13 @@ export function createMenuHandlers(d) {
     'view.panels': () => panelLayout.toggleHidden(),
     'view.pin-panels': () => panelLayout.togglePinned(),
     'view.comments': () => d.toggleRightPanel('comments'),
+    // S9.22b — the Comments panel on a filter, and a thread (`{ file?, id }`; none = the oldest unread
+    // mention's thread, else just the panel). The shell's own useCommentsShell runners.
+    'comments.filter-open': () => d.onCommentsFilter('open'),
+    'comments.filter-mine': () => d.onCommentsFilter('mine'),
+    'comments.filter-resolved': () => d.onCommentsFilter('resolved'),
+    'comments.filter-all': () => d.onCommentsFilter('all'),
+    'comments.open-thread': (params) => d.onOpenCommentThread(params?.file, params?.id),
     'view.exports': () => d.onToggleExports(),
     // V2-4.4a — Assets is the left panel's third tab; Layers as a panel is the switch that puts Layers there
     // (or in the Inspector); Trash is the Canvases panel's last row (⌘K, no menu row).
@@ -161,6 +255,8 @@ export function createMenuHandlers(d) {
       foldStore.openAll();
       d.toast?.('All Advanced sections are open.');
     },
+    // S10.6 — Light | Dark on the Design system canvas: a preview of the active canvas only, nothing written.
+    'ds.set-theme-preview': (p) => d.onDsThemePreview?.(p?.mode),
     'view.advanced-close-all': () => {
       foldStore.closeAll();
       d.toast?.('All Advanced sections are closed.');
@@ -184,6 +280,8 @@ export function createMenuHandlers(d) {
     'present.from-selection': () => presentFrom('selection'),
     'present.from-start': () => presentFrom('start'),
     'present.canvas': () => togglePresentCanvas(),
+    // S3.10a — back out of a followed link: the PreviewBar's "‹ Homepage" and ⌘K run the same function.
+    'preview.back': () => runPreviewBack(),
     // S3.5 — the Order and notes… sheet on the active canvas (the shell mounts it; the server refuses
     // every role below edit on PATCH /_api/present-meta).
     'present.order-notes': () => d.setOrderNotesOpen(true),
@@ -219,15 +317,30 @@ export function createMenuHandlers(d) {
       }
       d.toggleRightPanel('assistant');
     },
+    // S11.2 — the empty-artboard hint's Ask AI, from ⌘K: the chat opens with "Fill <board> starting from …" in
+    // its field (never sent). The empty host knows which board; unbound it does nothing.
+    'ai.ask-fill-artboard': () => {
+      if (!d.native) {
+        d.toast('AI chat is in the Maude desktop app.');
+        return;
+      }
+      runFillAsk();
+    },
     // ── the AI chat panel's Advanced rows (S5.12) ──
     ...createAdvancedHandlers(d),
     // ── top level ──
     'history.open': () => d.toggleRightPanel('changes'),
     'share.open': () => d.onShare(),
+    // S9.19 — the owner's rows live in the Share sheet: each opens it on Invite
+    'share.invite': () => d.onShare(),
+    'share.set-role': () => d.onShare(),
+    'share.remove': () => d.onShare(),
+    'share.resend': () => d.onShare(),
     'settings.open': () => d.setSettingsOpen(true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──
     ...createDiagnosticsHandlers(d),
+    ...createSettingsHandlers(d), // S11.13 — Settings › Advanced: the four settings.* ids
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);
@@ -280,12 +393,13 @@ export const menuRunner = (() => {
       if (def?.exec === 'canvas') return true;
       return def?.exec === 'native' && !!NATIVE_COMMANDS[id] && invoke !== null;
     },
-    /** @returns true when something ran */
-    run(id) {
+    /** @returns true when something ran. `params` reach a shell handler that takes them
+     *  (`comments.open-thread` `{ file?, id }`); every other handler ignores them. */
+    run(id, params) {
       if (!handlers) return false;
       const fn = handlers[id];
       if (fn) {
-        fn();
+        fn(params);
         return true;
       }
       const def = ACTIONS_BY_ID.get(id);

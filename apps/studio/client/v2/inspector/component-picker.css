@@ -1,0 +1,132 @@
+/* client/v2/inspector/component-picker.css — S2.16: the Component picker (⇧I; canvas 14 `ed-comp-pick`).
+ *
+ * Rides on the `.st-scrim` / `.st-dialog.st-sticker-picker` shell the tool panels share (an open modal
+ * dialog is what the mode lane's M4 check reads; tool-panels.css pins it to the toolbar) and restyles only
+ * what is inside: a 300 px menu with a search field, the system line, grouped rows and variant chips.
+ * Tokens only; weights stop at 600; the open/close motion is the shell's. */
+
+@layer shell {
+  .st-sticker-picker.cp {
+    width: 300px;
+    max-width: calc(100vw - 2 * var(--space-2));
+    padding: var(--space-1);
+    gap: 0;
+    border-radius: var(--radius-lg);
+  }
+  .cp-find {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    color: var(--fg-2);
+  }
+  .cp-find-in {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .cp-find-in::placeholder {
+    color: var(--fg-2);
+  }
+  .cp-find:focus-within {
+    color: var(--fg-0);
+  }
+  .cp-sys {
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cp-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .cp-group {
+    display: block;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .cp-note {
+    margin: 0;
+    padding: var(--space-2);
+    font-size: var(--type-sm);
+    color: var(--fg-2);
+  }
+  .cp-row {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .cp-row[data-on],
+  .cp-row:hover {
+    background: var(--bg-3);
+  }
+  .cp-row:focus-visible,
+  .cp-chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .cp-ic {
+    display: inline-flex;
+    color: var(--fg-2);
+  }
+  .cp-lab {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .cp-n {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .cp-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2) var(--space-2) calc(var(--space-2) + 14px + var(--space-2));
+  }
+  .cp-chip {
+    appearance: none;
+    padding: 2px var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .cp-chip[aria-current='true'] {
+    background: var(--accent-muted);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+    color: var(--fg-0);
+  }
+  .cp-sep {
+    height: 1px;
+    margin: var(--space-1) var(--space-2);
+    background: var(--border-default);
+  }
+}

@@ -14,7 +14,15 @@ export const ID_CHECK_SOURCE: 'stub' | 'element-ids' = 'element-ids';
 
 export function checkIdsAdapter(
   source: string,
-  opts: { against?: string; path?: string }
+  opts: {
+    against?: string;
+    path?: string;
+    canvasArtboards?: (canvas: string) => readonly string[] | null;
+  }
 ): CheckIdsResult {
-  return checkIds(source, { against: opts.against, path: opts.path });
+  return checkIds(source, {
+    against: opts.against,
+    path: opts.path,
+    canvasArtboards: opts.canvasArtboards,
+  });
 }

@@ -21,6 +21,8 @@ fn main() {
                 "github_open_verification",
                 "open_github_url",
                 "open_cloud_url",
+                // S3.10b (external_link.rs): a canvas link to a website, after the shell's confirmation.
+                "open_link_external",
                 "github_is_signed_in",
                 "github_sign_out",
                 // V2-3.8 (profiles.rs): a Maude Cloud sign-in keeps its project's profile.
@@ -40,7 +42,10 @@ fn main() {
                 "prefs_set_crash_reporting",
                 "prefs_get_claude_auto_setup",
                 "prefs_set_claude_auto_setup",
+                // S8.23 (export_save.rs): Save to, Show in Finder for a saved export, Copy as PNG.
                 "save_export",
+                "reveal_export",
+                "clipboard_write_png",
                 "pick_media_file",
                 "pick_media_files",
                 "read_picked_media",
@@ -48,20 +53,38 @@ fn main() {
                 "list_crash_logs",
                 "read_crash_log",
                 "take_pending_deep_link",
+                // S6.7 (profiles.rs, deep_link.rs): Home's own Maude Cloud sign-in
+                // and the invite link parked for Home (Home-only, HOME_PERMISSIONS).
+                "home_cloud_sign_in_prepare",
+                "home_cloud_sign_in_open",
+                "home_cloud_signed_in",
+                "take_pending_invite",
                 "managed_project_open",
                 "managed_projects_list",
                 "resolve_project_for_link",
                 "profiles_list",
                 "profiles_create",
                 "profiles_delete",
+                // S1.22b (profiles.rs): the account card's list — own account named, others counted.
+                "accounts_list",
+                // S5.10 (lib.rs): the AI composer's folder picker (never remembered as an open pick).
+                "pick_attach_folder",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
+                // S9.17 (windows.rs): a `409 browser-door` opens the cell as a `c-*` tab.
+                "open_cell_tab",
+                // S9.17 (notify.rs): a project tab's unread mentions → Dock badge + notice.
+                "mention_notice",
                 // V2-3.7 the tab strip (tabs.rs; granted to `strip` only,
                 // capabilities/strip.json).
                 "tabs_state",
                 "tab_activate",
                 "tab_close",
                 "tab_reorder",
+                // S1.22b: the tab menu (native, right-click), Rename…, the tab overview.
+                "tab_menu",
+                "tab_rename",
+                "tab_overview",
                 // V2-3.3 Home window (home.rs, lib.rs). The Home-only ones are
                 // granted by the RUNTIME `home` capability (home::HOME_PERMISSIONS).
                 "shell_state",
@@ -103,6 +126,8 @@ fn main() {
                 // V2-3.6 M5: e2e delivers a deep link through the shell (pages
                 // can no longer emit events).
                 "e2e_deliver_deep_link",
+                // S6.7: run a link through the real routing (debug only).
+                "e2e_route_deep_link",
                 // V2-3.6 L1: the "Opened from a link" toast of a NEW tab.
                 "take_link_opened",
                 // Finding 1d (bus.rs): every shell → page message goes through

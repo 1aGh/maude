@@ -16,6 +16,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { trashClearRequest, trashRestoreRequest } from '../../../history/surface-requests.ts';
+
 /** The app shell relays the bus's `trash:changed { seq }` as this window event. */
 export const TRASH_CHANGED_EVENT = 'maude:trash-changed';
 
@@ -140,13 +142,17 @@ async function postJson(url, body, fetchImpl) {
   }
 }
 
-/** POST /_api/trash/restore { id } → { status, body }. */
-export const restoreItem = (id, fetchImpl = fetch) =>
-  postJson('/_api/trash/restore', { id }, fetchImpl);
+/** `trash.restore` { id } → { status, body } (the one request shape: history/surface-requests.ts). */
+export const restoreItem = (id, fetchImpl = fetch) => {
+  const q = trashRestoreRequest(id);
+  return postJson(q.route, q.body, fetchImpl);
+};
 
-/** POST /_api/trash/clear { items? } → { status, body }. Absent `items` = everything in the Trash. */
-export const clearOut = (items, fetchImpl = fetch) =>
-  postJson('/_api/trash/clear', items ? { items } : {}, fetchImpl);
+/** `trash.clear` { items? } → { status, body }. Absent `items` = everything in the Trash. */
+export const clearOut = (items, fetchImpl = fetch) => {
+  const q = trashClearRequest(items || undefined);
+  return postJson(q.route, q.body, fetchImpl);
+};
 
 /** The per-Mac list's own writes (restore / prune), unchanged: POST /_api/sync/trash. */
 export async function postTrash(body, fetchImpl = fetch) {

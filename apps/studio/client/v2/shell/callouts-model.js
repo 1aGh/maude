@@ -112,6 +112,29 @@ export function syncCallout(status) {
   return null;
 }
 
+/**
+ * S6.13b — a canvas made offline whose name another device took first is now saved under the next free
+ * name; the sync status carries one `canvas-renamed-<slug>` notice for each. They read as ONE info
+ * callout (the sentence itself for one canvas, a count for several); × closes it, and a new rename
+ * has a new key so it shows again.
+ */
+export function renamedCallout(status) {
+  const notices = (status?.notices ?? []).filter(
+    (n) => typeof n?.id === 'string' && n.id.startsWith('canvas-renamed-')
+  );
+  if (!notices.length) return null;
+  return {
+    key: `renamed:${notices.map((n) => n.id).join(',')}`,
+    kind: 'canvas-renamed',
+    tone: 'info',
+    icon: 'cloud',
+    title:
+      notices.length === 1
+        ? notices[0].text
+        : `${plural(notices.length, 'canvas was', 'canvases were')} also made on another device — each now has a new name.`,
+  };
+}
+
 /** The staged-update strip → a callout with the one action the strip had. `update` is `{ version? }`. */
 export function updateCallout(update) {
   if (!update) return null;
@@ -211,6 +234,7 @@ export function calloutStack({
 } = {}) {
   return [
     syncCallout(syncStatus),
+    renamedCallout(syncStatus),
     repoCallout(gitLifecycle),
     updateCallout(updateReady),
     roleCallout(cloudCfg, roleSeen),

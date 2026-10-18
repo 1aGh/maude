@@ -3,9 +3,9 @@
 //
 //   On hover   `data-hover="<preset>"` from the closed vocabulary (edit-ops/hover-rules.ts, S2-hover-format.md). Written
 //              through the existing /_api/edit-attr lane; one undo entry. It is design, so it is outside `data-cd-*`.
-//   On click   `data-cd-link` (S3-links-format.md). The row READS the link and says what it does. Writing it is S3's:
-//              `element.set-link` through S2.1's /_api/edit-op, which this build does not have yet — until it lands
-//              the select is disabled and the section says so (LINK_WRITES_READY).
+//   On click   `data-cd-link` (S3-links-format.md). The row reads the link and says what it does; "None" clears it
+//              (`element.clear-link` through S2.1's /_api/edit-op, ./link-write.js). Choosing a new place to go from
+//              here is not built yet: Claude or the file sets it; the chip and Preview play it.
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -16,12 +16,13 @@ import {
   hoverWrite,
 } from '../../../../edit-ops/hover-rules.ts';
 import { trackRecordableWrite } from '../../../inspector/css-knobs.jsx';
+import { writeLink } from '../link-write.js';
 import { registerSlot } from '../slots.js';
 import { elementKey, requestAdd, useAddRequest } from './add-requests.js';
 import { Quiet, Row } from './row.jsx';
 
-/** S2.1's /_api/edit-op (`element.set-link`) exists. The lead flips this with the writer wired in the same patch. */
-export const LINK_WRITES_READY = false;
+/** `element.set-link` / `element.clear-link` are in the op table (S3.10a): the row can clear a link. */
+export const LINK_WRITES_READY = true;
 
 export const LINK_ATTR = 'data-cd-link';
 
@@ -113,12 +114,25 @@ export function InteractionBody({ el, ctx }) {
     [editable, preset, file, el?.id, ctx]
   );
 
+  // "None": drop the link — one edit-op write, one undo step; the id stays
+  const clearClick = useCallback(async () => {
+    if (!editable || !file || !el?.artboardId) return;
+    await writeLink({
+      canvas: file,
+      artboardId: el.artboardId,
+      id: el.id,
+      index: el.index,
+      target: null,
+    });
+  }, [editable, file, el?.artboardId, el?.id, el?.index]);
+
   // the "+": a trigger — the first lift, when nothing is set yet
   useAddRequest('interaction', el, () => {
     if (!preset) set(HOVER_PRESETS[0]);
   });
 
   const click = clickWords(el?.attrs?.[LINK_ATTR]);
+  const canClear = LINK_WRITES_READY && editable && click.kind !== 'none';
   const options = [
     { value: 'none', label: hoverLabel(null) },
     ...HOVER_PRESETS.map((p) => ({ value: p, label: hoverLabel(p) })),
@@ -134,10 +148,13 @@ export function InteractionBody({ el, ctx }) {
           aria-label="On click"
           data-testid="insp-ctl-click"
           value="current"
-          disabled={!LINK_WRITES_READY || !editable}
-          onChange={() => {}}
+          disabled={!canClear}
+          onChange={(e) => {
+            if (e.target.value === 'none') clearClick();
+          }}
         >
           <option value="current">{click.label}</option>
+          {canClear ? <option value="none">None</option> : null}
         </select>
       </Row>
       <Row k="On hover" name="hover">

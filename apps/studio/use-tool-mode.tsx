@@ -118,6 +118,9 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   // the Preview toggle / Esc-in-preview.
   { id: 'browse', label: 'Browse', shortcut: '', cursor: TOOL_CURSORS.browse },
   { id: 'move', label: 'Select', shortcut: 'V', cursor: TOOL_CURSORS.move },
+  // S3.11 — Viewing's resting tool (04 md-inspect): a click inspects, a drag pans. No letter of its own:
+  // Viewing's toolbar key (H) arms it.
+  { id: 'inspect', label: 'Inspect', shortcut: '', cursor: TOOL_CURSORS.inspect },
   { id: 'hand', label: 'Hand', shortcut: 'H', cursor: TOOL_CURSORS.hand },
   { id: 'comment', label: 'Comment', shortcut: 'C', cursor: TOOL_CURSORS.comment },
   { id: 'pen', label: 'Pen', shortcut: 'B', cursor: TOOL_CURSORS.pen },
@@ -131,6 +134,15 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   { id: 'section', label: 'Section', shortcut: '⇧S', cursor: TOOL_CURSORS.shape },
   { id: 'arrow', label: 'Arrow', shortcut: 'A', cursor: TOOL_CURSORS.arrow },
   { id: 'text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS.text },
+  // S2.12b — Edit's Text: click to type (a click on text types in place, else adds a text element).
+  { id: 'el-text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS['el-text'] },
+  // S2.13 — Edit's drag tools (editing/draw-tools.tsx): Frame, Shape, and More's Line · Ellipse · Polygon · Export area.
+  { id: 'frame', label: 'Frame', shortcut: 'F', cursor: TOOL_CURSORS.frame },
+  { id: 'el-shape', label: 'Shape', shortcut: 'R', cursor: TOOL_CURSORS['el-shape'] },
+  { id: 'ellipse', label: 'Ellipse', shortcut: '', cursor: TOOL_CURSORS.ellipse },
+  { id: 'line', label: 'Line', shortcut: '', cursor: TOOL_CURSORS.line },
+  { id: 'polygon', label: 'Polygon', shortcut: '', cursor: TOOL_CURSORS.polygon },
+  { id: 'slice', label: 'Export area', shortcut: '', cursor: TOOL_CURSORS.slice },
   { id: 'eraser', label: 'Eraser', shortcut: 'E', cursor: TOOL_CURSORS.eraser },
 ]);
 
@@ -141,7 +153,7 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
  * ABSENT from the palette, its letter shortcut dead, and `setTool` refuses it
  * (which also covers the shell's `tool-set` postMessage lane).
  */
-const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand']);
+const READ_ONLY_TOOL_IDS: ReadonlySet<Tool> = new Set<Tool>(['browse', 'move', 'hand', 'inspect']);
 
 /** Pure filter — exported for unit tests. */
 export function filterToolsForReadOnly(

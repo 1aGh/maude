@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { useViewing } from '../v2/history/history-host.jsx';
 import { rovingTabKey } from '../v2/shell/modal-focus.js';
 import { StIcon } from './icons.jsx';
 
@@ -124,6 +125,7 @@ export function DockSlot({
 }) {
   const tabs = open && hasPanelTabs(ids);
   const shown = open || aiShown;
+  const viewing = !!useViewing();
   return (
     <div
       className={
@@ -160,6 +162,8 @@ export function DockSlot({
           data-testid={`dock-ai-${side}`}
           data-occludes={floating && aiShown && !hidden ? side : undefined}
           hidden={!aiShown}
+          // S1.14 — looking at a past version is read-only: no AI runs against it (inert = no focus, no clicks)
+          inert={viewing}
         >
           {ai}
         </div>

@@ -166,17 +166,30 @@ describe('export-formats (native-desktop)', () => {
       }
       const before = await existingJobIds();
       await openExportDialog();
-      await (await $(`[data-testid="export-format-${format.id}"]`)).click();
+      // S8.2 — the one Export sheet: PNG/JPG sit in the section, every other format is a row under
+      // Other…; Scope is a radio group (export-scope-<selection|canvas|folder|project>).
+      if (format.id === 'png' || format.id === 'jpg') {
+        await (await $(`[data-testid="export-format-${format.id}"]`)).click();
+      } else {
+        await (await $('[data-testid="export-other"]')).click();
+        await (
+          await $(`[data-testid="export-other-menu"] [data-testid="export-format-${format.id}"]`)
+        ).click();
+      }
       const wantScope = format.scope ?? 'artboard';
+      const v2Scope: Record<string, string> = {
+        artboard: 'selection',
+        selection: 'selection',
+        'canvas-as-separate': 'canvas',
+        'canvas-whole': 'canvas',
+        'project-raw': 'project',
+      };
       await browser.execute((want: string) => {
-        const sel = document.querySelector(
-          '[data-testid="export-scope"]'
-        ) as HTMLSelectElement | null;
-        if (sel && Array.from(sel.options).some((o) => o.value === want)) {
-          sel.value = want;
-          sel.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }, wantScope);
+        const seg = document.querySelector(
+          `[data-testid="export-scope-${want}"]`
+        ) as HTMLButtonElement | null;
+        if (seg && !seg.disabled) seg.click();
+      }, v2Scope[wantScope] ?? wantScope);
       await capture(`export-dialog-${format.id}`);
       await (await $('[data-testid="export-submit"]')).click();
 
@@ -218,4 +231,37 @@ describe('export-formats (native-desktop)', () => {
       await capture(`export-done-${format.id}`);
     });
   }
+
+  // S8.3 — many at once: Whole project sorts itself by kind, and Advanced prints the same export as a
+  // command. Nothing is exported here (a whole project is slow) — the sheet is read, then cancelled.
+  it('Whole project groups by kind, and Advanced replays the export as a command', async function () {
+    this.timeout(120_000);
+    if (open !== 'export') {
+      await openCanvas('export');
+      open = 'export';
+    }
+    await openExportDialog();
+    await browser.execute(() => {
+      const seg = document.querySelector(
+        '[data-testid="export-scope-project"]'
+      ) as HTMLButtonElement | null;
+      if (seg && !seg.disabled) seg.click();
+    });
+    const groups = await $('[data-testid="export-groups"]');
+    await groups.waitForDisplayed({ timeout: 30_000 });
+    expect(await (await $('[data-testid="export-rows"]')).getAttribute('data-section')).toBe(
+      'batch'
+    );
+    await capture('export-batch-project');
+    // Advanced is one quiet row until it is opened; then the command is the exact export
+    await (await $('[data-testid="export-advanced-toggle"]')).click();
+    const cli = await $('[data-testid="export-adv-cmd-cli"]');
+    await cli.waitForDisplayed({ timeout: 10_000 });
+    expect(await cli.getText()).toMatch(/^maude design export png --scope project/);
+    expect(await (await $('[data-testid="export-adv-cmd-claude"]')).getText()).toMatch(
+      /^\/design:export png --scope project/
+    );
+    await capture('export-batch-advanced');
+    await (await $('[data-testid="export-cancel"]')).click();
+  });
 });

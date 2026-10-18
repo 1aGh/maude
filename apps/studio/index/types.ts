@@ -88,3 +88,46 @@ export interface SearchResult {
   /** every row is a close (typo-tolerant) match — the UI says "Showing close matches for …" */
   closeOnly: boolean;
 }
+
+// ── assets (S8.11; contract V2-1.17 §5.3/§5.5, S8-slices) ───────────────────────────────────────
+
+export type AssetKind = 'image' | 'video' | 'audio' | 'font' | 'document';
+
+/** One file in `<designRoot>/assets/`. Sidecars (`.photo.json`, `.gen.json`, …) are not rows. */
+export interface AssetRow {
+  /** designRoot-relative: 'assets/a1b2c3d4.png' */
+  rel: string;
+  kind: AssetKind;
+  size: number;
+  mtimeMs: number;
+  /** full sha256 of the bytes; arrives lazily (a background pass), absent until then */
+  sha256?: string;
+  /** canvases whose source, sidecars or relative-import closure reference the file */
+  usedIn: string[];
+  usedBy: number;
+  /** referenced by something that is not a canvas (design system, config, a module no canvas
+   *  imports): used, but there is no canvas to name */
+  usedElsewhere: boolean;
+  /** a retained older version of a canvas references it; 'checking' while the history scan runs
+   *  and nothing has been found yet */
+  olderVersions: boolean | 'checking';
+  /** today's AI take that nobody placed yet (`assets/<sha8>.gen.json`) — exempt from Not used */
+  recentTake: boolean;
+  /** the "Not used" verdict: `true` only when every source of use has been ruled out */
+  notUsed: boolean | 'checking';
+  /** thumbnail key (`assetKey('card', sha256)`), once the bytes are hashed; thumbnailable kinds only */
+  tile?: string;
+}
+
+/** What a canvas-only session may see (V2-1.16 L9): only these canvases count. */
+export interface AssetView {
+  canvases: ReadonlySet<string>;
+}
+
+export type HistoryScanState = 'idle' | 'checking' | 'ready';
+
+export interface AssetsAnswer {
+  seq: number;
+  history: HistoryScanState;
+  assets: AssetRow[];
+}

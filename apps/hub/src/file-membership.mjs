@@ -67,6 +67,8 @@ const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
 // sidecars (DDR-115) the T32 scale run found never reaching a peer.
 // + V2-1.10's per-clip word timings and beat grid (`assets/<sha8>.transcript.json`,
 // `.beats.json`): new sidecars because R8 freezes `.footage.json` / `.edl.json`.
+// + S8's generation provenance (`assets/<sha8>.gen.json`, `maude.gen` v1). The
+// per-use photo edit (`assets/<img8>.<edit8>.photo.json`) already rides `.photo.json`.
 const COMPANION_SIDECAR_SUFFIXES = [
   '.photo.json',
   '.audio.json',
@@ -75,6 +77,7 @@ const COMPANION_SIDECAR_SUFFIXES = [
   '.edl.json',
   '.transcript.json',
   '.beats.json',
+  '.gen.json',
 ];
 
 /** A DIRECTORY segment must start alphanumeric — keeps `_*` runtime

@@ -196,6 +196,20 @@ export function readHandoff(abs, { role, root } = {}) {
 
 // ── critics (V2-1.18 §5.5, S12): today's JSON verdict ↔ HandoffOut.findings[] ────────────────
 
+/**
+ * Verdict fields the auto-fix loop's stop rules read besides the counts (S12.5): the aspiration
+ * axis (signature-moment-critic), the opt-out audit and draw-critic's HARD floor. They ride `result.verdict` as they are.
+ */
+const LOOP_VERDICT_FIELDS = [
+  'aspiration_score',
+  'specificity',
+  'opt_out_applied',
+  'ds_blockers_downgraded',
+  'hard_pass', // draw-critic (S12.6): /design:draw reads the HARD floor apart from `passed`
+];
+const loopFields = (v) =>
+  Object.fromEntries(LOOP_VERDICT_FIELDS.filter((k) => v[k] !== undefined).map((k) => [k, v[k]]));
+
 /** A critic's `{agent, blockers, warnings, top_blockers[], passed, …}` verdict as a HandoffOut. */
 export function criticVerdictToHandoff(verdict, { agent, runId, n } = {}) {
   const v = isRec(verdict) ? verdict : {};
@@ -230,7 +244,13 @@ export function criticVerdictToHandoff(verdict, { agent, runId, n } = {}) {
     findings,
     open_questions: [],
     result: {
-      verdict: { blockers, warnings, passed, ...(v.iter !== undefined ? { iter: v.iter } : {}) },
+      verdict: {
+        blockers,
+        warnings,
+        passed,
+        ...(v.iter !== undefined ? { iter: v.iter } : {}),
+        ...loopFields(v),
+      },
     },
   };
 }
@@ -259,6 +279,7 @@ export function handoffToCriticVerdict(out) {
     blockers: Number.isInteger(meta.blockers) ? meta.blockers : top.length,
     warnings: Number.isInteger(meta.warnings) ? meta.warnings : 0,
     top_blockers: top,
+    ...loopFields(meta),
     passed: typeof meta.passed === 'boolean' ? meta.passed : top.length === 0,
   };
 }

@@ -12,18 +12,35 @@
 // Nothing here writes a Y.Doc. The documents change when the hub publishes the
 // accepted revision, through the same providers that deliver a peer's edit.
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import type { TrashListing } from '../history/trash.ts';
 import { type ActionStageOptions, createActionStage, type StageSummary } from './action-stage.ts';
-import type { AcceptedLaneLink, LaneProposal, ProposalOutcome } from './projection.ts';
+import { recordConflicts, recordFromResult } from './conflict-record.ts';
+import type {
+  AcceptedLaneLink,
+  HeldObjectConflict,
+  LaneProposal,
+  ProposalOutcome,
+} from './projection.ts';
 import {
   type Bootstrap,
   createTransactionClient,
   type Operation,
   type ProposalResult,
+  type Reservation,
   type TransactionClient,
+  type TransactionClientOptions,
   TransactionError,
   type TransactionStats,
 } from './transaction-client.ts';
@@ -53,9 +70,24 @@ export interface AcceptedLinkOptions {
   attribute?: ActionStageOptions['attribute'];
   /** Every bootstrap the project answered (its manifest and its own config). */
   onBootstrap?: (b: Bootstrap) => void;
+  /** S6.13b — a refused create whose name a peer took (see the transaction client). */
+  onCreateConflict?: TransactionClientOptions['onCreateConflict'];
+  /** S6.13b — test seam, passed to the transaction client. */
+  fault?: (point: string) => void;
 }
 
 export type StructuralOutcome = ProposalOutcome & { queued?: boolean };
+
+/**
+ * S6.13 (V2-1.14 fix 5.12d) — the create window's note on disk:
+ * `_state/outbox/<createdAt>-<tx>.creates.ndjson`, line 1 the reservation,
+ * then one `doc.create` per line, appended BEFORE the create is answered.
+ * Sealed into `<createdAt>-<tx>.json` (the same place in the chain) when the
+ * window closes. Not a `.json` name, so the transaction client never reads it
+ * as a proposal; `outbox/content.ts` counts it for the O4 watermark.
+ */
+export const CREATE_NOTE_RE = /^(\d+)-(tx_[A-Za-z0-9]+)\.creates\.ndjson$/;
+const TX_RE = /^tx_[A-Za-z0-9]+$/;
 
 const LANE_LABEL: Record<LaneProposal['lane'], string> = {
   html: 'Edit canvas',
@@ -64,6 +96,33 @@ const LANE_LABEL: Record<LaneProposal['lane'], string> = {
   annotations: 'Edit annotations',
   comments: 'Edit comments',
 };
+
+/**
+ * S9.24 — the elements the kernel held at the head's version (`merged[].conflicts`), shape-checked:
+ * the answer is the hub's, and only a well-formed record may reach the card.
+ */
+export function heldObjects(r: ProposalResult): { objectConflicts?: HeldObjectConflict[] } {
+  const out: HeldObjectConflict[] = [];
+  const isRec = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === 'object' && !Array.isArray(v);
+  for (const m of Array.isArray(r.merged) ? r.merged : []) {
+    const list = (m as { conflicts?: unknown }).conflicts;
+    if (!Array.isArray(list)) continue;
+    for (const c of list.slice(0, 200)) {
+      if (!isRec(c) || typeof c.id !== 'string' || typeof c.type !== 'string') continue;
+      out.push({
+        id: c.id,
+        type: c.type,
+        fields: Array.isArray(c.fields)
+          ? c.fields.filter((f): f is string => typeof f === 'string')
+          : [],
+        mine: isRec(c.mine) ? c.mine : null,
+        theirs: isRec(c.theirs) ? c.theirs : null,
+      });
+    }
+  }
+  return out.length ? { objectConflicts: out } : {};
+}
 
 export function createAcceptedLink(opts: AcceptedLinkOptions) {
   const log = opts.log ?? console;
@@ -79,9 +138,75 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       log,
       onPending: opts.onPending,
       onStats: opts.onStats,
-      onResult: opts.onResult,
+      // S9.24 — every final answer, a replay after a restart included (nobody awaits that one):
+      // held object conflicts go to _state/conflicts/ so the card survives (sync/conflict-record.ts).
+      onResult: (result, action) => {
+        recordFromResult(opts.designRoot, result);
+        opts.onResult?.(result, action);
+      },
       retryMs: opts.retryMs,
+      ...(opts.onCreateConflict ? { onCreateConflict: opts.onCreateConflict } : {}),
+      ...(opts.fault ? { fault: opts.fault } : {}),
     });
+
+  const outboxDir = path.join(opts.designRoot, '_state', 'outbox');
+  // The durable window needs a client that can hold a place in the chain
+  // (an injected test client may not).
+  const durable = typeof client.reserve === 'function' && typeof client.persist === 'function';
+  const createLabel = (n: number) => (n === 1 ? 'Create canvas' : `Add ${n} canvases`);
+
+  /**
+   * A previous process's create window, recovered at boot: a note whose seal
+   * exists is that same change (dropped); otherwise its creates are written
+   * as the proposal the window would have sealed — same transaction, same
+   * place, same link — and the drain delivers it with the rest. A torn last
+   * line is a create that was never acknowledged.
+   */
+  function recoverCreateNotes(): void {
+    if (!durable) return;
+    let names: string[] = [];
+    try {
+      names = readdirSync(outboxDir).filter((n) => CREATE_NOTE_RE.test(n));
+    } catch {
+      return;
+    }
+    for (const name of names.sort()) {
+      const file = path.join(outboxDir, name);
+      try {
+        const [head, ...rest] = readFileSync(file, 'utf8').split('\n');
+        const r = JSON.parse(head ?? '') as Partial<Reservation> & { v?: number };
+        const ops: Operation[] = [];
+        for (const line of rest) {
+          try {
+            const op = JSON.parse(line) as Operation;
+            if (op && op.op === 'doc.create') ops.push(op);
+          } catch {
+            /* the torn tail of a crash */
+          }
+        }
+        const valid =
+          r.v === 1 &&
+          typeof r.transactionId === 'string' &&
+          TX_RE.test(r.transactionId) &&
+          typeof r.createdAt === 'number' &&
+          typeof r.link === 'string' &&
+          (r.projectId === null || typeof r.projectId === 'string');
+        if (valid && ops.length && !existsSync(client.entryFile(r as Reservation))) {
+          client.persist(
+            { kind: 'canvas.create', label: createLabel(ops.length), operations: ops },
+            r as Reservation
+          );
+        }
+        rmSync(file, { force: true });
+      } catch (err) {
+        // Kept: the next boot tries again. Never deleted unread.
+        log.warn(
+          `[sync/tx] a queued canvas create could not be recovered yet: ${(err as Error).message}`
+        );
+      }
+    }
+  }
+  recoverCreateNotes();
 
   // Every proposal this link sends goes out AFTER the creates queued before it
   // (a lane edit of a canvas being added must never overtake its doc.create on
@@ -191,7 +316,46 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     ...(r.code ? { code: r.code } : {}),
     ...(typeof r.head === 'string' ? { head: r.head } : {}),
     ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+    ...heldObjects(r),
   });
+
+  /** S2.20c — a waiting edit's transaction id → its final outcome (its inverse lands after it). */
+  const waitingOutcome = new Map<string, Promise<ProposalOutcome>>();
+
+  /**
+   * Put a person's edit in the stage's waiting list (V2-1.5 §5.4 "pending"): it goes out when no
+   * run holds what it depends on — `go` sends it — or is answered `discarded` with its run.
+   */
+  function waitBehind(
+    p: LaneProposal,
+    slug: string,
+    label: string,
+    madeAt: number,
+    dependsOn: string[],
+    go: () => Promise<ProposalOutcome>
+  ): Promise<ProposalOutcome> {
+    const answer = new Promise<ProposalOutcome>((resolve, reject) => {
+      stage.wait({
+        dependsOn,
+        send: () => void go().then(resolve, reject),
+        drop: resolve,
+        edit: {
+          transactionId: p.transactionId,
+          slug,
+          lane: p.lane,
+          label,
+          madeAt,
+          content: p.content,
+          baseContent: p.baseContent,
+          ...(p.undoes ? { undoes: p.undoes } : {}),
+        },
+      });
+    });
+    waitingOutcome.set(p.transactionId, answer);
+    const forget = () => waitingOutcome.delete(p.transactionId);
+    answer.then(forget, forget);
+    return answer;
+  }
 
   function laneLink(slug: string): AcceptedLaneLink {
     return {
@@ -201,12 +365,13 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         const doc = opts.docNameFor(slug);
         if (stage.captures(slug, p.stageable === true, p.content))
           return stage.capture(slug, doc, p);
-        const send = (dependsOn: string[] | undefined) =>
+        const send = (dependsOn: string[] | undefined, madeAt?: number) =>
           propose({
             kind: 'edit',
             label: LANE_LABEL[p.lane],
             transactionId: p.transactionId,
             dependsOn,
+            ...(madeAt ? { origin: { madeAt } } : {}),
             operations: [
               {
                 op: 'lane.replace',
@@ -215,20 +380,54 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
                 content: p.content,
                 baseContent: p.baseContent,
                 ...(p.writeId ? { writeId: p.writeId } : {}),
+                // S9.24 — an element both sides changed is held, never char-merged into a third
+                // text nobody wrote (sync/object-conflict.ts). A v1 hub ignores the field.
+                ...(p.lane === 'annotations' ? { objects: 'hold' } : {}),
               },
             ],
-          }).then(outcome);
+          }).then((r) => {
+            const o = outcome(r);
+            // S9.24 — the answer's own producer of the card (the onResult one covers a replay).
+            if (o.status === 'accepted' && o.objectConflicts)
+              recordConflicts(opts.designRoot, slug, o.objectConflicts, {
+                ...(o.actionId ? { actionId: o.actionId } : {}),
+              });
+            return o;
+          });
+        if (p.undoes) {
+          // S2.20c — ⌘Z on a waiting edit: its inverse waits behind the same run, right after it
+          // (decision v2-lead-pending-inverse-via-stage), and lands as THAT edit's undo once the
+          // edit has an action — so history reads "Undo" of it and ⇧⌘Z can take the undo back.
+          const target = waitingOutcome.get(p.undoes);
+          if (!target || !stage.holdsDependency([p.undoes]))
+            return Promise.resolve({ status: 'rejected', code: 'not-pending' });
+          const madeAt = Date.now();
+          const undo = async (): Promise<ProposalOutcome> => {
+            const o = await target;
+            // The edit never landed (refused, discarded with its run): nothing to take back —
+            // the accepted version returns to disk.
+            if (o.status !== 'accepted' || !o.actionId)
+              return { status: 'rejected', code: 'discarded' };
+            const r = await propose({
+              kind: 'undo',
+              label: 'Undo',
+              transactionId: p.transactionId,
+              origin: { madeAt },
+              operations: [{ op: 'history.undo', actionId: o.actionId }],
+            });
+            return outcome(r);
+          };
+          return waitBehind(p, slug, 'Undo', madeAt, [...(p.dependsOn ?? []), p.undoes], undo);
+        }
         if (stage.holdsDependency(p.dependsOn)) {
           // Authored on top of an agent's unpublished bytes: it waits behind
           // the stage, and goes out right after the group (or is discarded
-          // with it).
-          return new Promise<ProposalOutcome>((resolve, reject) => {
-            stage.wait({
-              dependsOn: p.dependsOn ?? [],
-              send: (d) => void send(d).then(resolve, reject),
-              drop: resolve,
-            });
-          });
+          // with it). It is the person's edit, made NOW: `origin.madeAt` keeps
+          // its place in their ⌘Z stack when it lands behind the run (V2-1.5 U2).
+          const madeAt = Date.now();
+          return waitBehind(p, slug, LANE_LABEL[p.lane], madeAt, p.dependsOn ?? [], () =>
+            send(stage.mapDeps(p.dependsOn), madeAt)
+          );
         }
         return send(stage.mapDeps(p.dependsOn));
       },
@@ -256,22 +455,46 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   let createBatch: PendingCreate[] = [];
   let createBatchBytes = 0;
   let createTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The open window's place in the chain and its note (S6.13). */
+  let createNote: { r: Reservation; file: string } | null = null;
   /** doc → the gate a batched create of it holds until settled or re-queued. */
   const createsInFlight = new Map<string, Promise<void>>();
-  const proposeCreates = (ops: Operation[]) =>
+  const proposeCreates = (ops: Operation[], reservation?: Reservation) =>
     client
       .propose({
         kind: 'canvas.create',
-        label: ops.length === 1 ? 'Create canvas' : `Add ${ops.length} canvases`,
+        label: createLabel(ops.length),
         operations: ops,
+        ...(reservation ? { reservation } : {}),
       })
       .then(outcome);
+  /** Note one create on disk before it is answered (fix 5.12d). */
+  function noteCreate(op: Operation): void {
+    if (!durable) return;
+    try {
+      let head = '';
+      if (!createNote) {
+        const r = client.reserve();
+        createNote = {
+          r,
+          file: path.join(outboxDir, `${r.createdAt}-${r.transactionId}.creates.ndjson`),
+        };
+        mkdirSync(outboxDir, { recursive: true });
+        head = `${JSON.stringify({ v: 1, ...r })}\n`;
+      }
+      appendFileSync(createNote.file, `${head}${JSON.stringify(op)}\n`);
+    } catch (err) {
+      log.warn(`[sync/tx] could not note a canvas create on disk: ${(err as Error).message}`);
+    }
+  }
   function flushCreates(): void {
     if (createTimer) clearTimeout(createTimer);
     createTimer = null;
     const batch = createBatch;
+    const note = createNote;
     createBatch = [];
     createBatchBytes = 0;
+    createNote = null;
     if (!batch.length) return;
     const docs = batch.map((c) => c.op.doc).filter((d): d is string => typeof d === 'string');
     let settled: () => void = () => {};
@@ -288,7 +511,14 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       for (const c of batch)
         c.resolve({ status: 'rejected', code: (err as TransactionError)?.code ?? 'failed' });
     };
-    void proposeCreates(batch.map((c) => c.op)).then((o) => {
+    // Sealed into the reserved place (written synchronously by `propose`);
+    // the note goes only once the proposal is on disk.
+    const sealed = proposeCreates(
+      batch.map((c) => c.op),
+      note?.r
+    );
+    if (note && existsSync(client.entryFile(note.r))) rmSync(note.file, { force: true });
+    void sealed.then((o) => {
       if (o.status === 'accepted' || batch.length === 1) {
         release();
         for (const c of batch) c.resolve(o);
@@ -308,6 +538,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       (createBatch.length >= CREATE_BATCH_MAX || createBatchBytes + bytes > CREATE_BATCH_BYTES)
     )
       flushCreates();
+    noteCreate(op);
     return new Promise((resolve) => {
       createBatch.push({ op, bytes, resolve });
       createBatchBytes += bytes;
@@ -319,9 +550,12 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     label: string,
     kind: string,
     operations: Operation[],
-    waitMs: number
+    waitMs: number,
+    origin?: { trashed?: Array<{ artboard: string; label?: string }> }
   ): Promise<StructuralOutcome> {
-    const answer = propose({ kind, label, operations }).then(outcome);
+    const answer = propose({ kind, label, operations, ...(origin ? { origin } : {}) }).then(
+      outcome
+    );
     if (!Number.isFinite(waitMs)) return answer;
     return Promise.race([
       answer,
@@ -329,6 +563,45 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         setTimeout(() => resolve({ status: 'accepted', queued: true }), waitMs)
       ),
     ]);
+  }
+
+  /**
+   * S10.3b — lanes of SEVERAL canvases as ONE action (a design-system publish: the followers'
+   * metas, the DS canvas's `dsPending`, the TSX `data-ds-rev` strips). One proposal on the
+   * durable content lane (V2-1.14: the outbox holds it until the hub answers), so the hub
+   * commits it as one attributed action and one ⌘Z takes every lane back together. Answered
+   * when the hub answers — never reported as queued: the caller writes its off-lane half
+   * (`head.json`) only after an acceptance that carries the action id.
+   */
+  function docsEdit(
+    edits: Array<{
+      slug: string;
+      lane: LaneProposal['lane'];
+      content: string;
+      baseContent: string;
+    }>,
+    action: {
+      kind: string;
+      label: string;
+      writeId?: string;
+      /** S2.10b — an artboard-trash action names what it removed (S1-trash.md §2) */
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
+  ): Promise<StructuralOutcome> {
+    return structural(
+      action.label,
+      action.kind,
+      edits.map((e) => ({
+        op: 'lane.replace',
+        doc: opts.docNameFor(e.slug),
+        lane: e.lane,
+        content: e.content,
+        baseContent: e.baseContent,
+        ...(action.writeId ? { writeId: action.writeId } : {}),
+      })),
+      Number.POSITIVE_INFINITY,
+      action.origin?.trashed?.length ? { trashed: action.origin.trashed } : undefined
+    );
   }
 
   return {
@@ -420,23 +693,20 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     lanesEdit(
       slug: string,
       lanes: Array<{ lane: LaneProposal['lane']; content: string; baseContent: string }>,
-      action: { kind: string; label: string; writeId?: string }
+      action: {
+        kind: string;
+        label: string;
+        writeId?: string;
+        /** S2.10b — an artboard-trash action names what it removed (S1-trash.md §2) */
+        origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+      }
     ): Promise<StructuralOutcome> {
-      const doc = opts.docNameFor(slug);
-      return structural(
-        action.label,
-        action.kind,
-        lanes.map((l) => ({
-          op: 'lane.replace',
-          doc,
-          lane: l.lane,
-          content: l.content,
-          baseContent: l.baseContent,
-          ...(action.writeId ? { writeId: action.writeId } : {}),
-        })),
-        Number.POSITIVE_INFINITY
+      return docsEdit(
+        lanes.map((l) => ({ slug, ...l })),
+        action
       );
     },
+    docsEdit,
     /** Logical history, newest first (optionally one entry's). */
     history(q: {
       limit?: number;
@@ -468,6 +738,81 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         label,
         'history.restore',
         [{ op: 'history.restore', revision, docs: slugs.map((s) => opts.docNameFor(s)) }],
+        8_000
+      );
+    },
+    /**
+     * S1.13 — one artboard / one object / a kept-aside version back (V2-1.9 §5.8): the lanes the
+     * studio computed, as ONE `restore` action; each carries the head it read as `baseContent`, so
+     * the hub merges three-way onto whatever landed since (a conflict → `base-conflict`).
+     */
+    restoreLanes(
+      slug: string,
+      lanes: { lane: LaneProposal['lane']; content: string; baseContent: string }[],
+      label: string
+    ): Promise<StructuralOutcome> {
+      const doc = opts.docNameFor(slug);
+      return structural(
+        label,
+        'restore',
+        lanes.map((l) => ({
+          op: 'lane.replace',
+          doc,
+          lane: l.lane,
+          content: l.content,
+          baseContent: l.baseContent,
+        })),
+        8_000
+      );
+    },
+    /** S1.13 — the body a `history.aside` at exactly `revision` kept for `lane` (null: none). */
+    async asideAt(slug: string, lane: LaneProposal['lane'], revision: number) {
+      const doc = opts.docNameFor(slug);
+      const r = (await client.read('revisions', { after: revision - 1, limit: 1 })) as {
+        revisions?: {
+          revision: number;
+          effects?: { doc: string; lane: string; op: string; afterHash: string | null }[];
+        }[];
+      };
+      const row = r.revisions?.[0];
+      const e =
+        row?.revision === revision
+          ? row.effects?.find(
+              (x) => x.lane === '@aside' && x.doc === doc && x.op === `aside.${lane}`
+            )
+          : undefined;
+      if (!e?.afterHash || !/^[0-9a-f]{64}$/.test(e.afterHash)) return null;
+      const b = (await client.read(`blobs/${e.afterHash}`, {})) as { body?: string };
+      return typeof b.body === 'string' ? b.body : null;
+    },
+    /** S1.12b — name a version (`history.name`, S1-trash.md §3); `null` clears the name. */
+    name(slug: string, revision: number, name: string | null): Promise<StructuralOutcome> {
+      return structural(
+        name ?? 'Name cleared',
+        'name',
+        [{ op: 'history.name', doc: opts.docNameFor(slug), revision, name }],
+        8_000
+      );
+    },
+    /** S1.12b — keep a version nobody kept (`history.aside`): a body, no head moves. */
+    aside(
+      slug: string,
+      lane: 'html' | 'css' | 'meta' | 'annotations',
+      content: string,
+      label?: string
+    ): Promise<StructuralOutcome> {
+      return structural(
+        label ?? 'Version not kept',
+        'aside',
+        [
+          {
+            op: 'history.aside',
+            doc: opts.docNameFor(slug),
+            lane,
+            content,
+            ...(label ? { label } : {}),
+          },
+        ],
         8_000
       );
     },
@@ -563,6 +908,8 @@ export interface HistoryAction {
   label: string | null;
   committedAt: number;
   undoes: string | string[] | null;
+  /** The proposal's transaction id (store-core `actions.tx`). */
+  tx?: string;
   /** The stored envelope origin (V2-1.5 §5.1 keys among them). */
   origin?: Record<string, unknown> | null;
   effects: {
@@ -573,6 +920,8 @@ export interface HistoryAction {
     op: string;
     beforePath: string | null;
     afterPath: string | null;
+    /** The lane body's hash after the effect (an `@aside` effect: the kept-aside body). */
+    afterHash?: string | null;
   }[];
 }
 

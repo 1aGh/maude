@@ -474,7 +474,7 @@ describe('canvas: governed by set-mode (M1–M3)', () => {
       const base = canvasModeStore(window).get().modeSeq + 1;
       setMode(base, 'edit');
       expect(echoes().at(-1)).toMatchObject({ seq: base, mode: 'viewing', cause: 'clamp' });
-      expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']); // v1's read-only select & inspect
+      expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'inspect']); // S3.11: Viewing rests on its own tool
     } finally {
       (window as unknown as { happyDOM?: { setURL?: (u: string) => void } }).happyDOM?.setURL?.(
         'http://localhost/'
@@ -617,14 +617,14 @@ describe('canvas: the toolbar keys, governed (V2-4.5b)', () => {
     ]);
   });
 
-  test('set-mode naming a tool this canvas cannot arm (S2’s Frame) lands on the mode’s rest', () => {
+  test('set-mode naming a tool this canvas cannot arm (S2’s Pen — Frame is armed since S2.13) lands on the mode’s rest', () => {
     mount(
       <ToolProvider governed>
         <CapB />
       </ToolProvider>
     );
     setMode(canvasModeStore(window).get().modeSeq + 1, 'preview');
-    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'frame' });
+    setMode(canvasModeStore(window).get().modeSeq + 1, 'edit', { tool: 'el-pen' });
     expect([ctxB?.mode, ctxB?.tool]).toEqual(['edit', 'move']);
   });
 

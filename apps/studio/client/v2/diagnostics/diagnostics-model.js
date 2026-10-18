@@ -125,23 +125,95 @@ export function parseLine(raw) {
   return m ? { level: m[1], text: m[2] } : { level: 'log', text: String(raw) };
 }
 
+/** `[sync] hub replied 429` shown under the Sync source: the source column already says it. */
+function shownText(text, source) {
+  return text.replace(new RegExp(`^\\[${source}(?::[a-z0-9-]+)?\\]\\s*`, 'i'), '');
+}
+
 /**
- * The visible lines: one source or all (merged in source order, each source keeps its own order),
- * narrowed by a case-insensitive substring. Newest last, like a tail.
+ * The visible lines: one source or all (merged by time when the server stamped them — S11.11 — else
+ * in source order, each source keeping its own), narrowed by a case-insensitive substring. Newest
+ * last, like a tail. `text` keeps the `[prefix]` (a query matches it); `shown` is what the row draws.
  * @param sources `diagnostics().sources`
  */
 export function logLines(sources, { filter = 'all', query = '' } = {}) {
   const q = query.trim().toLowerCase();
   const names = filter === 'all' ? LOG_SOURCES : LOG_SOURCES.filter((s) => s === filter);
   const out = [];
+  let seq = 0;
   for (const source of names) {
-    for (const raw of sources?.[source]?.recent ?? []) {
+    const recent = sources?.[source]?.recent ?? [];
+    const stamps = sources?.[source]?.recentAt ?? [];
+    recent.forEach((raw, i) => {
       const { level, text } = parseLine(raw);
-      if (q && !text.toLowerCase().includes(q) && !source.includes(q)) continue;
-      out.push({ source, level, text });
-    }
+      if (q && !text.toLowerCase().includes(q) && !source.includes(q)) return;
+      const at = Number.isFinite(stamps[i]) ? stamps[i] : null;
+      out.push({ source, level, text, shown: shownText(text, source), at, seq: seq++ });
+    });
   }
-  return out;
+  out.sort((a, b) => (a.at ?? 0) - (b.at ?? 0) || a.seq - b.seq);
+  return out.map(({ seq: _seq, ...line }) => line);
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+/** `14:05:12` in this Mac's clock, or '' for a line the server did not stamp. */
+export function clock(at) {
+  if (!Number.isFinite(at)) return '';
+  const d = new Date(at);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+/** "Copy all": the lines as they read in the sheet — `14:05:12  sync  pushed a.tsx`, one per row. */
+export function logsText(lines) {
+  return lines
+    .map((l) => `${l.at != null ? `${clock(l.at)}  ` : ''}${l.source}  ${l.shown ?? l.text}`)
+    .join('\n');
+}
+
+// ── AI setup ──────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 06 ad-logs "AI setup answers in four rows" — over `GET /_api/preflight`'s items, not the whole
+ * list component: Claude Code installed · Found at · Signed in · Plugins ready. Each is
+ * `{ id, label, state: 'ok' | 'missing' | 'unknown', value, hint? }`. Empty until the probe answered.
+ * `hint` is the origin of the binary (DDR-166 D3: a PATH-hijacked `claude` must not be invisible).
+ */
+export function aiRows(report) {
+  const items = Array.isArray(report?.items) ? report.items : [];
+  if (items.length === 0) return [];
+  const claude = items.find((i) => i.id === 'claude');
+  const plugins = items.find((i) => i.id === 'plugins');
+  const found = !!claude?.resolvedPath;
+  const stateOf = (item) =>
+    !item
+      ? 'unknown'
+      : item.status === 'present'
+        ? 'ok'
+        : item.status === 'unknown'
+          ? 'unknown'
+          : 'missing';
+  return [
+    {
+      id: 'installed',
+      label: 'Claude Code installed',
+      state: found ? 'ok' : stateOf(claude),
+      value: '',
+    },
+    {
+      id: 'found',
+      label: 'Found at',
+      state: found ? 'ok' : 'missing',
+      value: found ? tilde(claude.resolvedPath) : '',
+      hint: found ? (claude.resolvedViaMaude ? 'Installed by Maude' : 'Found on your PATH') : '',
+    },
+    { id: 'signed-in', label: 'Signed in', state: stateOf(claude), value: '' },
+    { id: 'plugins', label: 'Plugins ready', state: stateOf(plugins), value: '' },
+  ];
+}
+
+/** The probe's items that are not satisfied — they keep their full row (fix, Set up, Sign in). */
+export function aiNeedsWork(report) {
+  return (Array.isArray(report?.items) ? report.items : []).filter((i) => i.status !== 'present');
 }
 
 /** The Server card's mode stamp (was the menu bar's IDLE · CANVAS · SYSTEM). */

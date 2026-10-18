@@ -4,10 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { trackRecordableWrite } from './css-knobs.jsx';
 import { LAYER_VOID_TAGS, LayerRow } from './layers.jsx';
 import { Kbd, StIcon } from '../shell/icons.jsx';
+import { shellToast } from '../shell/util.js';
 import { PhotoKnobs } from '../photo-knobs.jsx';
 import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
+import { useEmptyArtboard } from '../v2/empty/empty-hint-store.js';
+import { LayersEmpty } from '../v2/empty/layers-empty.jsx';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
+import { LayersAdvanced } from '../v2/left-panel/layers-advanced.jsx';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
@@ -78,12 +83,14 @@ export function InspectorPanel({
   cfg,
   onOptimistic,
   onRecordEdit,
+  onRunAction,
   onReplaceMedia,
   onResizeArtboard,
   onSetArtboardHug,
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
+  onSetArtboardTheme,
   onDuplicateArtboard,
   onUndoRedo,
   editScope,
@@ -110,6 +117,8 @@ export function InspectorPanel({
   // V2-4.8b — the open canvas's artboard count (was the status bar's "N artboards"), shown in the
   // standalone Layers panel's header; undefined elsewhere.
   artboardCount,
+  // S11.9 — Layers › Advanced › Select by selector: posts `select-by-selector {selector}` to the open canvas.
+  onSelectBySelector,
   // S2.2 — the element-id rename (registry `element.set-id`); defaults to the dispatch route's client.
   onRenameElementId = renameElementId,
 }) {
@@ -117,6 +126,8 @@ export function InspectorPanel({
   // 'layers' so a spotlight step lands on a real row) but falls back to local
   // state for normal use. A user click both updates local state and notifies the
   // parent, so the two stay in lockstep whichever owns it.
+  // S11.2 — the artboard the canvas says is empty (Layers says so in the kit's words)
+  const emptyBoard = useEmptyArtboard();
   const [tabState, setTabState] = useState('inspect');
   const tab = layersOnly ? 'layers' : (tabProp ?? tabState);
   const setTab = (t) => {
@@ -297,6 +308,8 @@ export function InspectorPanel({
   // release. Same-origin shell, so it's all local (no dgn bus).
   const layerDragRef = useRef(null);
   const layerTreeRef = useRef(null);
+  // S2.11b — the slot a lifted card would land in, drawn in the tree too
+  const layersSlot = useLayersSlot();
   const startLayerDrag = (e, node, key) => {
     if (!handleReorder || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
       return;
@@ -613,6 +626,11 @@ export function InspectorPanel({
               }
             />
           </div>
+        ) : effTab === 'layers' &&
+          emptyBoard &&
+          layersTree?.artboardId === emptyBoard.artboardId &&
+          !layersTree?.nodes?.length ? (
+          <LayersEmpty artboard={emptyBoard.label} />
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (
           <div className="st-rp-empty">
             {/* <p> wrapper — st-rp-empty is a flex column, bare text nodes +
@@ -648,7 +666,7 @@ export function InspectorPanel({
                   ref={layerTreeRef}
                   onKeyDown={onTreeKeyDown}
                 >
-                  {layersTree.nodes.map((n, ni) => (
+                  {withSlot(layersTree.nodes, layersSlot).map((n, ni) => (
                     <LayerRow
                       key={`${n.id}:${n.index}`}
                       node={n}
@@ -714,15 +732,28 @@ export function InspectorPanel({
             canvasFile={canvasFile}
             onOptimistic={onOptimistic}
             onRecordEdit={onRecordEdit}
+            onRunAction={onRunAction}
             onReplaceMedia={onReplaceMedia}
             onUndoRedo={onUndoRedo}
-            onRenameElementId={onRenameElementId}
+            onRenameElementId={async (req) => {
+              const r = await onRenameElementId(req);
+              // S2.2b — a legacy link / unlinked project undoes through the edit-op revert
+              // (`revert {writeId}` restores the source AND the moved references); an op-log
+              // project's ⌘Z binds to the action instead.
+              if (r?.ok && r.writeId && r.actionId == null)
+                onRecordEdit?.({ op: 'edit-op', writeId: r.writeId, label: 'Rename id' });
+              return r;
+            }}
             onResizeArtboard={onResizeArtboard}
             onSetArtboardHug={onSetArtboardHug}
             onSetArtboardStyle={onSetArtboardStyle}
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
+            onSetArtboardTheme={onSetArtboardTheme}
             onDuplicateArtboard={onDuplicateArtboard}
+            // S11.8 — › Advanced › Used in: "Shared · 4 places" + Detach
+            editScope={editScope}
+            onDetachInstance={onDetachInstance}
             // S2.1 — a crumb selects that level (ref null = the artboard) through the Layers path
             onSelectCrumb={(ref) =>
               onSelectLayer?.({ id: ref?.element, index: ref?.occurrence ?? 0 })
@@ -730,6 +761,16 @@ export function InspectorPanel({
           />
         )}
       </div>
+      {/* S11.9 — the standalone Layers panel's Advanced: tags and ids, counts, select by selector, element id */}
+      {layersOnly ? (
+        <LayersAdvanced
+          tree={layersTree}
+          artboardCount={artboardCount}
+          elementId={el?.id ?? null}
+          onSelectBySelector={onSelectBySelector}
+          toast={shellToast}
+        />
+      ) : null}
     </aside>
   );
 }

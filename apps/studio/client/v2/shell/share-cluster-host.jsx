@@ -17,7 +17,10 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
+import { usePresenceHost } from '../presence/use-presence-host.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
+import { askToEdit } from './ask-to-edit.js';
+import { setExportPeople } from '../export/use-export-spec.js';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
@@ -95,6 +98,8 @@ export function ShellShareCluster() {
     },
     keyboardShortcuts: { totalOpen },
     paletteAndPanels: { rightActive },
+    // S9.22b — the unread @mention count (useCommentsShell); a shell without it keeps the open count
+    comments,
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
@@ -134,14 +139,22 @@ export function ShellShareCluster() {
     role: cfg?.cloud?.role,
   });
   const faces = useMemo(
-    () => facesOf({ you: gitUser, agentActive, peers: lane.peers }),
+    () => facesOf({ you: gitUser, agentActive, peers: lane.peers, max: 40 }),
     [gitUser, agentActive, lane.peers]
   );
+  // S8.2 — the Export sheet's one-time "Copy link" line needs to know who else is here (names only).
+  useEffect(() => setExportPeople(lane.peers.map((p) => p?.name)), [lane.peers]);
   const ex = useMemo(() => exportsRing(exportCenter?.jobs), [exportCenter?.jobs]);
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const ctx = useMemo(
-    () => menuCtx({ native: isNativeApp(), readOnly: !!viewerMode, canvasOpen }),
-    [viewerMode, canvasOpen]
+    () =>
+      menuCtx({
+        native: isNativeApp(),
+        readOnly: !!viewerMode,
+        observer: cfg?.cloud?.role === 'observer',
+        canvasOpen,
+      }),
+    [viewerMode, canvasOpen, cfg?.cloud?.role]
   );
 
   // S3.2a — the first Present row names the artboard a click would start from: the labels come from the
@@ -191,6 +204,14 @@ export function ShellShareCluster() {
         : null,
     [chip, projectName, cfg?.profile, acct.email, acct.accounts]
   );
+  // S9.23 — the faces' menu and people list: where people are, Follow / Go to / Bring everyone here.
+  const presence = usePresenceHost({
+    lane,
+    boards,
+    activePath,
+    canSummon: !viewerMode && lane.caps.edit,
+    commentsOpen: !!commentsPanelOpen,
+  });
 
   const retry = useCallback(async () => {
     try {
@@ -217,9 +238,11 @@ export function ShellShareCluster() {
       }
       faces={faces}
       onFollow={lane.follow}
+      presence={presence}
       status={shown}
       access={access}
-      commentsCount={Number(totalOpen) || 0}
+      commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}
+      commentsCountKind={comments ? 'unread' : 'open'}
       commentsOpen={!!commentsPanelOpen}
       exports={ex}
       exportsOpen={!!exportCenter?.panelOpen}
@@ -230,11 +253,12 @@ export function ShellShareCluster() {
       onStatusAction={(id) => {
         if (id === 'retry') retry();
       }}
-      // Nobody receives an "Ask to edit" yet — the request path is S9's (outbox kind
-      // `share.ask-to-edit`, no sender registered). Until then it says what to do, as the menubar does.
-      onAskToEdit={() => shellToast('Ask a project owner for edit access.')}
+      // S3.12 — Viewing's one way out. The flow is S9.21's (outbox kind `share.ask-to-edit`): the button runs
+      // that registry action the day it exists; until then it says what to do, as the menubar does.
+      onAskToEdit={() => askToEdit((id) => menuRunner.run(id), shellToast)}
       docked={pinned && !panelsHidden && !!rightActive}
       mode={lane.mode}
+      present={lane.presentSpec}
       modeSlot={
         <ModeSwitch
           mode={lane.mode}

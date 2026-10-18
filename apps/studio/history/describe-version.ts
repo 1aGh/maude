@@ -1,7 +1,7 @@
 // `describeVersion` — everything a version row needs from one canvas's before/after (S1.10): the TSX lane,
 // the CSS / meta / annotations lanes, then the collapse ("Reworked …", V2-1.9 §5.5.3).
 //
-//   describeVersion(canvas, before, after, opts?) → { changes, detail, ms }
+//   describeVersion(canvas, before, after, opts?) → { changes, detail, labels, ms }
 //
 // Scope policy (decided here, tested in `describe-lanes.test.ts`): a canvas-only session's words never name
 // another canvas because NO lane reads or names one — each reads one canvas's own files and says only that
@@ -35,6 +35,8 @@ export interface VersionWords {
   changes: Change[];
   /** The original lines of each collapsed artboard. */
   detail: Record<string, Change[]>;
+  /** Every artboard key either side holds → its name in words (Compare's headers, S1.15). */
+  labels: Record<string, string>;
   ms: number;
 }
 
@@ -55,8 +57,13 @@ export function describeVersion(
     ...rest,
     lanes: [capture, cssLane(css), metaLane, annotationsLane, ...lanes],
   });
-  if (!collapse || !seen) return { changes: r.changes, detail: {}, ms: performance.now() - t0 };
+  if (!seen) return { changes: r.changes, detail: {}, labels: {}, ms: performance.now() - t0 };
   const ctx = seen as LaneContext;
+  const labels: Record<string, string> = {};
+  for (const m of [ctx.modelBefore, ctx.modelAfter])
+    for (const a of m?.artboards ?? [])
+      labels[a.key] = artboardLabel(m as NonNullable<typeof m>, a.key);
+  if (!collapse) return { changes: r.changes, detail: {}, labels, ms: performance.now() - t0 };
   const c = collapseChanges(r.changes, {
     labelOf: (key) => {
       for (const m of [ctx.modelAfter, ctx.modelBefore])
@@ -73,5 +80,10 @@ export function describeVersion(
       return n;
     },
   });
-  return { changes: c.changes, detail: Object.fromEntries(c.detail), ms: performance.now() - t0 };
+  return {
+    changes: c.changes,
+    detail: Object.fromEntries(c.detail),
+    labels,
+    ms: performance.now() - t0,
+  };
 }

@@ -6,11 +6,13 @@
 //
 // Undo on a legacy link (contract §5): `recordEditOp` pushes ONE DDR-050 record per write whose
 // undo is `revert {writeId}` and whose redo reverts that revert. Op-log projects undo through S5
-// instead (S2.20 retires this record there); no positional id is ever stored.
+// instead: there `editOpRecord` answers null (S2.20b — the iframe keeps no stack in op-log mode,
+// editing/undo-mode.ts); no positional id is ever stored.
 
 import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import type { EditOpRequest, EditOpResult } from '../edit-ops/types.ts';
 import { type CommandRecord, type EditCommand, registerCommand } from '../undo-stack.ts';
+import { isOpLogUndo } from './undo-mode.ts';
 
 export const EDIT_OP_TIMEOUT_MS = 15_000;
 export type EditOpAsk = Omit<EditOpRequest, 'file'>;
@@ -114,9 +116,34 @@ export function createEditOpCommand(
   };
 }
 
-/** The record an applied edit-op pushes with `record()` (it already landed; never re-run). */
-export function editOpRecord(writeId: string, label: string): CommandRecord<EditOpPayload> {
+/**
+ * The record an applied edit-op pushes with `record()` (it already landed; never re-run). Null on the
+ * op log: the write is a kernel action there, and ⌘Z is the shell's projection.
+ */
+export function editOpRecord(
+  writeId: string,
+  label: string,
+  win: Window | undefined = globalThis.window
+): CommandRecord<EditOpPayload> | null {
+  if (isOpLogUndo(win)) return null;
   return { kind: EDIT_OP_KIND, label, payload: { writeId } };
+}
+
+/** `edit-ops/revert.ts` WRITE_ID_RE (kept local: that module pulls the merge engine into the canvas). */
+export const SHELL_WRITE_ID_RE = /^w_[0-9a-f]{16}$/;
+
+/**
+ * S7.6 — a shell-side edit-op (a Timeline clip verb: the shell calls `/_api/edit-op` itself) posts
+ * `record-edit { op: 'edit-op', writeId, label }` so the write lands on THIS stack, the one ⌘Z log
+ * (decision `maude/v2-S7-timeline-undo-is-project-undo`). Null for anything else.
+ */
+export function editOpRecordFromShell(payload: unknown): CommandRecord<EditOpPayload> | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const p = payload as { op?: unknown; writeId?: unknown; label?: unknown };
+  if (p.op !== EDIT_OP_KIND || typeof p.writeId !== 'string') return null;
+  if (!SHELL_WRITE_ID_RE.test(p.writeId)) return null;
+  const label = typeof p.label === 'string' && p.label ? p.label.slice(0, 80) : 'edit';
+  return editOpRecord(p.writeId, label);
 }
 
 registerCommand<EditOpPayload>(EDIT_OP_KIND, (record) =>

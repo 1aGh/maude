@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
-import { copyShareLink } from '../share-dialog.jsx';
+import { copyShareLink } from '../v2/share/link-dialog.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { copyPresentationLink } from '../v2/present/copy-link.js';
+import { bindCopyPng, runCopyPng } from '../v2/export/copy-png.js';
 import { menuRunner } from '../v2/shell/menu-runner.js';
 import { panelAvailable as panelAvailableIn } from '../v2/shell/panel-availability.js';
 import { keyHint, menuCtx, menuPaletteRows } from '../v2/shell/project-menu-model.js';
@@ -19,6 +20,7 @@ import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName, openCount, shellToast } from '../shell/util.js';
 import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
+import { createBlankCanvas, openBriefBoardComposer } from '../v2/create/new-canvas.js';
 import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
 import {
   goneWords,
@@ -30,12 +32,18 @@ import {
   takeOpenLinks,
 } from '../v2/canvases/open-link.js';
 import { Sidebar } from '../tree/tree.jsx';
+import { annotationLayersFor } from '../v2/annotations/annotation-list.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
-import GitPanel from '../panels/GitPanel.jsx';
+import { VersionHistoryHost } from '../v2/history/history-host.jsx';
+import { setHistoryOpener } from '../v2/history/object-filter.js';
 import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
+import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
+import { commentPanelActions } from '../v2/comments/comment-client.js';
+import { useBoardLabels } from '../v2/ai/RunList.jsx';
+import { artboardLabel as artboardLabelOf } from '../v2/ai/runs-model.js';
 
 export function usePaletteAndPanels({
   activeArtboards,
@@ -71,7 +79,6 @@ export function usePaletteAndPanels({
   cfg,
   cellManaged,
   cloudManaged,
-  savingIsManaged,
   viewerMode,
   commentsByFile,
   focusedCommentId,
@@ -163,7 +170,20 @@ export function usePaletteAndPanels({
   reopenComment,
   deleteComment,
   jumpToComment,
+  // S9.22b / S4.17 — the viewer's display name (comment "Mine", annotation "You"); optional
+  gitUser = null,
 }) {
+  // S9.22b — the Comments panel's actions for whoever holds `comment` (comment-client.js).
+  const commentActions = commentPanelActions({
+    viewerMode,
+    canComment: cfg?.canComment === true,
+    ws: { resolve: resolveComment, reopen: reopenComment, remove: deleteComment },
+    notify: (msg) => shellToast(msg),
+  });
+  const meName = typeof gitUser === 'string' && gitUser.trim() ? gitUser.trim() : null;
+  // S4.17 / S9.22 — artboard names from the project index (an id until the index lists it).
+  const boardLabels = useBoardLabels(cfg?.designRel, activePath);
+  const labelOfArtboard = (file, abId) => artboardLabelOf(boardLabels, file, abId);
   // ⌘K palette actions — shell-doable only (in-canvas export lives in the iframe).
   // T4 (Plan C) — grouped command set per `.design/ui/Studio.tsx` AB-D.
   // `group` drives the section headers; the list stays a flat array so keyboard
@@ -249,7 +269,13 @@ export function usePaletteAndPanels({
         for (const msg of plan.messages) setTimeout(() => postToActiveCanvas(msg), delay);
       return;
     }
-    if (op === 'copy-link') copyCanvasLink(path);
+    // S11.7 — the broken-canvas card's "Ask AI to fix it": open the AI chat panel and PRE-FILL its composer
+    // (`label` carries the text). It never sends: that is the person's press.
+    if (op === 'ask-ai-fix') {
+      openPanelExclusive('assistant');
+      sendToAskAI(label ?? '');
+    } else if (op === 'open') openTab(path);
+    else if (op === 'copy-link') copyCanvasLink(path);
     else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
   };
   useEffect(() => {
@@ -258,17 +284,24 @@ export function usePaletteAndPanels({
     return () => window.removeEventListener(CANVAS_OP_EVENT, on);
   }, []);
 
+  // S8.8 — ⇧⌘C, the menu row and ⌘K "Copy as PNG" are one function, run on what the shell has selected.
+  const copyPngRef = useRef(null);
+  copyPngRef.current = {
+    selected,
+    canvasFile: activePath && activePath !== SYSTEM_TAB ? activePath : null,
+    designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+  };
+  useEffect(() => bindCopyPng(() => copyPngRef.current), []);
+
   const paletteActions = useMemo(() => {
     const run = {
       'canvas.new': () => {
-        openPanelExclusive('tree');
-        setTimeout(
-          () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-          60
-        );
+        createBlankCanvas({ toast: shellToast });
       },
+      'canvas.new-brief': () => openBriefBoardComposer({ openPanelExclusive }),
       'canvas.new-video': () => createVideo(),
       'export.open': () => setExportDialog({ mode: 'export' }),
+      'export.copy-png': () => runCopyPng().then((r) => shellToast(r.message, r.ok)),
       'share.copy-link': () => {
         const links = shareLinksFor(sharePath);
         const link = links.web ?? links.app ?? links.local;
@@ -428,6 +461,8 @@ export function usePaletteAndPanels({
   // id. `project.new` is IdentityBar's (its dialog state lives there).
   const paletteRef = useRef(paletteActions);
   paletteRef.current = paletteActions;
+  // S1.16 - openHistory({ element }) (S2's object menu, S4's sticky menu) shows the Version history panel.
+  useEffect(() => setHistoryOpener(() => setChangesOpen(true)), [setChangesOpen]);
   const viewerRef = useRef(viewerMode);
   viewerRef.current = viewerMode;
   useEffect(() => {
@@ -554,14 +589,11 @@ export function usePaletteAndPanels({
           resizing={resizingFor('tree')}
           dirtyByPath={dirtyByPath}
           project={project}
-          gitBranch={gitStatus?.branch}
-          remoteSync={remoteSync}
-          onGetLatest={gitGetLatest}
           canvasKinds={cfg?.canvasKinds}
           syncStatus={syncStatus}
           onLinkedHub={setCloudLinkedHub}
           onLocalProject={setLocalProjectName}
-          savingIsManaged={savingIsManaged}
+          role={viewerMode ? (cfg?.cloud?.role === 'observer' ? 'view' : 'comment') : undefined}
         />
       );
     // V2-4.4a — the left panel's third tab. Lists today's asset library (the Choose-media dialog's list).
@@ -572,60 +604,64 @@ export function usePaletteAndPanels({
           readOnly={viewerMode}
         />
       );
+    // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).
+    // S11.10 — its Advanced fold holds the git in plain words (v2/history/git-advanced.jsx), which retired the
+    // Changes / History panel: every prop that panel took rides in `git` below, unchanged in meaning.
     if (id === 'changes')
       return (
-        <GitPanel
-          status={gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus}
-          project={project}
-          readOnly={!isNativeApp() || viewerMode}
-          // A cloud cell commits every edit server-side as it lands, so the
-          // working-tree half of this panel describes work that is already
-          // saved. `cfg.cloud` is present exactly when the hub runs the
-          // workspace agent that owns this project's history, which is the
-          // same condition.
-          //
-          // PRESENTATION, NOT A CONTROL — nothing may come to depend on this.
-          // `/_api/git/commit` and `/_api/git/discard` are classified `edit` in
-          // the cell's route manifest and stay reachable by any member with a
-          // session; withdrawing the buttons removes an offer that would
-          // mislead, it does not remove a capability. The real gates are
-          // server-side (`projectReadOnly`, the manifest's role matrix), and
-          // they are unchanged by this flag.
-          historyOnly={cellManaged}
-          // DDR-218 (fix 8) — the DESKTOP half of the same withdrawal: a repo
-          // linked+credentialed to Maude Cloud is cloud-managed (the cell
-          // commits every edit as it lands), so the local Changes surface is
-          // the second save mechanism the sync RCA's user was confused by.
-          // Live: CloudBar lifts every link change (resolve/attach/detach)
-          // into `cloudLinkedHub`. Same presentation-not-a-control rule as
-          // `historyOnly` above; Disconnect restores the panel in place.
-          cloudManaged={cloudManaged}
+        <VersionHistoryHost
+          path={activeCanvasFile}
+          canvasLabel={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
+          canEdit={!viewerMode}
+          role={viewerMode ? 'view' : 'edit'}
+          refreshKey={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
           resizing={resizingFor('changes')}
           onClose={() => setChangesOpen(false)}
-          onCommit={gitCommit}
-          onDiscard={gitDiscard}
-          onPublish={gitPublish}
-          onGetLatest={gitGetLatest}
-          // WHICH HISTORY, decided at the ONE place the posture is named — not
-          // inside the panel, which would be a second derivation of the rule
-          // `cloud-managed-save-surfaces.test.ts` exists to keep singular.
-          loadLog={async (path) => {
-            // The project's accepted history when it has one; Git otherwise.
-            const accepted = await loadAcceptedLog(path);
-            setProjectHistoryOn(accepted !== 'legacy');
-            if (accepted !== 'legacy') return accepted;
-            return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
-          }}
-          historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}
-          historyRefresh={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
-          onRestoreVersion={(revision) =>
-            restoreProjectVersion(activePath, revision).then((r) => !!r.ok)
+          // S1.15 — Version history › Advanced › Compare pictures: today's picture DiffView
+          onComparePictures={({ file, beforeSha }) =>
+            setDiffTarget({ file, beforeSha, conflict: false })
           }
-          // Not through a cell's door: every browser editor proposes under the
-          // studio's one credential there, so "your own action" is not
-          // knowable and the hub refuses the route (studio-manifest.mjs).
-          onUndoAction={
-            cellManaged
+          git={{
+            status: gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus,
+            project,
+            // Web studio: awareness only — the developer commits and pushes from their terminal (DDR-119).
+            native: isNativeApp(),
+            // A cloud cell commits every edit server-side as it lands, so the working-tree half describes work
+            // that is already saved. `cfg.cloud` is present exactly when the hub runs the workspace agent that
+            // owns this project's history, which is the same condition.
+            //
+            // PRESENTATION, NOT A CONTROL — nothing may come to depend on this. `/_api/git/commit` and
+            // `/_api/git/discard` are classified `edit` in the cell's route manifest and stay reachable by any
+            // member with a session; withdrawing the buttons removes an offer that would mislead, it does not
+            // remove a capability. The real gates are server-side (`projectReadOnly`, the manifest's role
+            // matrix), and they are unchanged by this flag.
+            historyOnly: cellManaged,
+            cellManaged,
+            // DDR-218 (fix 8) — the DESKTOP half of the same withdrawal: a repo linked+credentialed to Maude
+            // Cloud is cloud-managed (the cell commits every edit as it lands). Same presentation-not-a-control
+            // rule; Disconnect restores the panel live.
+            cloudManaged,
+            onCommit: gitCommit,
+            onDiscard: gitDiscard,
+            onPublish: gitPublish,
+            onGetLatest: gitGetLatest,
+            liveBranch: gitStatus?.branch,
+            // WHICH HISTORY, decided at the ONE place the posture is named — not inside the fold, which would be
+            // a second derivation of the rule `cloud-managed-save-surfaces.test.ts` exists to keep singular.
+            loadLog: async (path) => {
+              // The project's accepted history when it has one; Git otherwise.
+              const accepted = await loadAcceptedLog(path);
+              setProjectHistoryOn(accepted !== 'legacy');
+              if (accepted !== 'legacy') return accepted;
+              return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
+            },
+            historySource: projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local',
+            historyRefresh: `${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`,
+            onRestoreVersion: (revision) =>
+              restoreProjectVersion(activePath, revision).then((r) => !!r.ok),
+            // Not through a cell's door: every browser editor proposes under the studio's one credential there,
+            // so "your own action" is not knowable and the hub refuses the route (studio-manifest.mjs).
+            onUndoAction: cellManaged
               ? undefined
               : async (actionId) => {
                   const r = await fetch('/_api/project/undo', {
@@ -635,20 +671,17 @@ export function usePaletteAndPanels({
                   }).catch(() => null);
                   const j = r ? await r.json().catch(() => null) : null;
                   return !!j?.ok;
-                }
-          }
-          // What the cloud half of the header names. The cell reports its own
-          // project and branch with the log; the hub host is the fallback,
-          // because a header that names the LOCAL folder while listing the
-          // CLOUD's commits is the confusion this feature exists to end.
-          cloudHistory={cloudHistory}
-          onOpenCanvas={(p) => openTab(p)}
-          onOpenDiff={(file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false })}
-          activeCanvas={activeCanvasFile}
-          onPreviewVersion={(sha) =>
-            setDiffTarget({ file: activePath, beforeSha: sha, conflict: false })
-          }
-          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+                },
+            // What the cloud half of the header names. The cell reports its own project and branch with the log;
+            // the hub host is the fallback, because a header that names the LOCAL folder while listing the CLOUD's
+            // commits is the confusion this feature exists to end.
+            cloudHistory,
+            onOpenCanvas: (p) => openTab(p),
+            onOpenDiff: (file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false }),
+            onPreviewVersion: (sha) =>
+              setDiffTarget({ file: activePath, beforeSha: sha, conflict: false }),
+            designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+          }}
         />
       );
     if (id === 'sync')
@@ -663,13 +696,24 @@ export function usePaletteAndPanels({
         />
       );
     if (id === 'inspector' || id === 'layers')
-      return (
+      return annotationLayersFor(
+        id,
+        {
+          file: activePath,
+          post: postToActiveCanvas,
+          // S4.17 — "You" resolves to the signed-in person; a row names its artboard, not its id
+          me: meName ? { name: meName } : null,
+          artboardLabel: (abId) => labelOfArtboard(activePath, abId),
+        },
         <InspectorPanel
           // Cloud Phase 27 E4 — the parity spec asserts these two panels exist
           // in BOTH shells, so each needs a name a spec can ask for.
           testId={id === 'layers' ? 'layers-panel' : 'inspector-panel'}
           layersOnly={id === 'layers'}
           artboardCount={id === 'layers' ? activeArtboards : undefined}
+          onSelectBySelector={(selector) =>
+            postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })
+          }
           hideLayersTab={layersMode === 'separate'}
           selected={selected}
           cfg={cfg}
@@ -678,22 +722,37 @@ export function usePaletteAndPanels({
           onClose={() => (id === 'layers' ? setLayersOpen(false) : setInspectorOpen(false))}
           onOptimistic={applyOptimisticStyle}
           onRecordEdit={recordSourceEdit}
+          // S2.11b — the Position row's pins ask the canvas for one `object.constrain` (run-action)
+          onRunAction={postToActiveCanvas}
           onReplaceMedia={onReplaceMedia}
           onResizeArtboard={resizeArtboardShell}
           onSetArtboardHug={setArtboardHugShell}
           onSetArtboardStyle={setArtboardStyleShell}
           onSetArtboardKind={setArtboardKindShell}
           onSetArtboardPrint={setArtboardPrintShell}
+          // S2.8 — Inspector › Advanced › Theme: the canvas pins (or frees) that artboard's theme; the pin is
+          // session state in the canvas, the same one the artboard menu's Theme submenu sets
+          onSetArtboardTheme={(artboardId, mode) =>
+            postToActiveCanvas({
+              dgn: 'run-action',
+              v: 1,
+              id: 'artboard.set-theme',
+              params: { artboard: artboardId, mode },
+            })
+          }
           onDuplicateArtboard={duplicateArtboardShell}
           editScope={editScope}
           onUndoRedo={(dir) =>
             // V2-2.4 retired the canvas's `undo`/`redo` lanes for run-action; the inspector
             // knobs' ⌘Z rides the same lane (it reached no handler after step 6 — V2-2.10).
-            postToActiveCanvas({
-              dgn: 'run-action',
-              v: 1,
-              id: dir === 'redo' ? 'edit.redo' : 'edit.undo',
-            })
+            // S2.20 — the ⌘Z projection first; the canvas stack only off the op log.
+            void runUndoKey(activePath, dir === 'redo', () =>
+              postToActiveCanvas({
+                dgn: 'run-action',
+                v: 1,
+                id: dir === 'redo' ? 'edit.redo' : 'edit.undo',
+              })
+            )
           }
           photoSel={photoSel}
           photoRev={photoRev}
@@ -750,11 +809,11 @@ export function usePaletteAndPanels({
           activePath={activePath}
           focusedId={focusedCommentId}
           onJump={jumpToComment}
-          // Cloud Phase 25 C2 — a viewer READS threads; the mutating actions
-          // are absent until C3 lands comments on the cell's allowlist.
-          onResolve={viewerMode ? undefined : resolveComment}
-          onReopen={viewerMode ? undefined : reopenComment}
-          onDelete={viewerMode ? undefined : deleteComment}
+          // Cloud Phase 25 C2 — a Can view session READS threads. S9.22b — a Can comment one
+          // (read-only, `/_config.canComment`) resolves / reopens / deletes its own through the op door.
+          {...commentActions}
+          me={meName}
+          artboardLabel={labelOfArtboard}
           resizing={resizingFor('comments')}
         />
       );

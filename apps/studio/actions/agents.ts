@@ -54,6 +54,20 @@ const UNDO_KEYS: ActionDefAI = {
   ),
 };
 const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comments list') };
+const RESTORE = (verb: string): ActionDefAI => ({
+  effect: 'destructive',
+  minRole: 'edit',
+  undo: 'step',
+  server: { route: '/_api/project/restore', method: 'POST' },
+  agent: cli(verb),
+});
+// S11.10 — Version history › Advanced's git buttons: the person's working tree or remote (human 'git').
+const GIT = (route: string, git: string, write = true): ActionDefAI => ({
+  effect: 'shared',
+  ...(write ? { minRole: 'edit' as const } : {}),
+  server: { route, method: 'POST' },
+  agent: human('git', `an agent runs git itself in the project folder: ${git}`),
+});
 // S9.7b — the comment TOOL's agent path is the write verb: an agent leaves a comment by posting it
 // (`POST /_api/comments/op`, as the session, AI-written). The action itself only picks a tool
 // (fromCanvas ⇒ effect none); the verb's own tier is shared → prompt (verbs.ts).
@@ -62,16 +76,31 @@ const COMMENT_ADD: ActionDefAI = {
   agent: cli('maude design comments add --as-ai'),
 };
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
+// S7.6c — a video tool whose UI write is one edit op: one undo step, refused below Can edit.
+const VIDEO_OP = (agent: AgentPath): ActionDefAI => ({
+  effect: 'project',
+  minRole: 'edit',
+  undo: 'step',
+  server: { route: '/_api/edit-op', method: 'POST' },
+  agent,
+});
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── diagnostics (V2-4.7b) ──
-  'diag.sync': { effect: 'none', agent: cli('maude design status') },
+  'diag.sync': { effect: 'none', agent: cli('maude design sync status') },
   'diag.server': { effect: 'none', agent: cli('maude design status') },
   'diag.ai': { effect: 'none', agent: cli('maude doctor') },
   'diag.ai-recheck': { effect: 'none', agent: cli('maude doctor') },
-  'diag.logs': {
+  // S11.11 — `maude design logs` prints the same redacted lines the sheet shows (the files sit in
+  // ~/.maude/logs); copying and revealing the folder are the person's clipboard and Finder.
+  'diag.logs': { effect: 'none', agent: cli('maude design logs') },
+  'diag.copy-logs': { effect: 'none', agent: cli('maude design logs') },
+  'diag.logs-show-in-finder': {
     effect: 'none',
-    agent: human('view-pref', 'opens the log sheet; the files sit in ~/.maude/logs'),
+    agent: human(
+      'native-window',
+      'reveals ~/.maude/logs in Finder; the agent reads `maude design logs`'
+    ),
   },
   'diag.address': {
     effect: 'none',
@@ -85,9 +114,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: human('view-pref', 'copies the project path the agent already works in'),
   },
+  // S11.11 — `maude design sync resync` waits for the trace and prints the result sentence (a
+  // shared effect: it prompts). The route refuses a read-only session and a cloud member.
   'sync.resync': {
     effect: 'shared',
-    agent: human('hub-link', 'restarts the sync link; read its state with `maude design status`'),
+    agent: cli('maude design sync resync'),
+    minRole: 'edit',
+    server: { route: '/_api/sync/resync', method: 'POST' },
   },
   'sync.download-all': {
     effect: 'none',
@@ -100,12 +133,41 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'canvases.refresh': { effect: 'none', agent: cli('maude design index') },
   // ── canvas ──
   'canvas.new': TSX('Write a new .tsx under the design root with a DCArtboard per screen'),
+  'canvas.new-brief': TSX(
+    'Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root'
+  ),
   'canvas.duplicate': TSX('Copy the .tsx and its .meta.json under a new name in the same folder'),
   'canvas.rename': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.move': TSX('Move the .tsx and its .meta.json to another folder under the design root'),
+  // S11.7 — the code view and the broken-canvas card. The agent reads the same two routes through verbs
+  // (S11.6): `canvas-source` is the code (or one artboard's lines), `canvas-errors` the structured errors.
+  'canvas.view-code': { effect: 'none', agent: cli('maude design canvas-source') },
+  'canvas.copy-error': { effect: 'none', agent: cli('maude design canvas-errors') },
+  // "Ask AI to fix it" only PRE-FILLS the composer; the agent's own way to the same place is to read the
+  // structured error (file, line, column) and edit the .tsx — so the path is the read verb, not a human gate.
+  'canvas.ask-ai-fix': { effect: 'none', agent: cli('maude design canvas-errors') },
+  'canvas.last-good': RESTORE('maude design history restore <canvas> @last-good'),
   // S1.2 — the row menu's other rows. The link is the canvas's address (`maude design open <canvas>` moves
   // the person's view to it). Trash: until S1.17's `maude design trash`, an agent parks the files the way
   // `DELETE /_api/canvas` does, and the Trash lists them from the manifest.
+  // S11.9 — the row menu's Advanced group. The two native doors open Finder / the editor on the PERSON's Mac:
+  // an agent already holds the file (the project path is in `maude design index`), so they are the person's.
+  'canvas.reveal-in-finder': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens Finder on the person’s Mac; an agent already holds the file'
+    ),
+  },
+  'canvas.open-in-editor': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'opens the person’s editor on the file; an agent edits the .tsx itself'
+    ),
+  },
+  'canvas.copy-file-path': { effect: 'none', agent: cli('maude design index') },
+  'canvas.rename-file': TSX('Rename the .tsx and its .meta.json together'),
   'canvas.copy-link': {
     effect: 'none',
     agent: human('view-pref', 'copies to the clipboard; an agent shares the canvas path instead'),
@@ -131,7 +193,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'the order the Canvases panel lists in; `maude design index` lists them all'
   ),
   'import.figma': { effect: 'external', agent: cli('maude design import-figma') },
-  'import.brand': { effect: 'project', agent: cli('maude design import-brand') },
+  // S8.18 — a website read is third-party network (the fetch-asset gate); a logo alone writes assets/logos/
+  'import.brand': { effect: 'external', agent: cli('maude design import-brand') },
   'view.advanced-open-all': PREF('opens every panel’s Advanced fold; a UI preference'),
   'view.advanced-close-all': PREF('folds every panel’s Advanced section; a UI preference'),
   'canvas.reload': PREF('reloads the user’s view; the studio reloads on every file change'),
@@ -141,6 +204,104 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'project',
     agent: file('edl', 'design:footage-director', 'Write the <slug>.edl.json cut, then the comp'),
   },
+  // ── video tools (S7.6c, V2-1.10 §5.7): the UI's writes are edit ops (`POST /_api/edit-op`, minRole
+  // edit — the server refuses below it); an agent runs the verb that ends in the same op, or writes
+  // the same literal props itself.
+  'video.captions.add': VIDEO_OP(cli('maude design captions add')),
+  'video.captions.style': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set words / position / font / highlight / maxChars on the comp’s one <Captions>'
+    )
+  ),
+  'video.captions.fix-word': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word)'
+    )
+  ),
+  'video.captions.export': {
+    effect: 'project',
+    minRole: 'comment',
+    agent: cli('maude design captions export'),
+  },
+  'video.transcript.cut': VIDEO_OP(cli('maude design cut-words')),
+  'video.transcript.find-speech': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: cli('maude design transcribe-local'),
+  },
+  'video.music.beats': { effect: 'project', minRole: 'edit', agent: cli('maude design beats') },
+  'video.music.duck': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off'
+    )
+  ),
+  'video.cut-to-beat': VIDEO_OP(cli('maude design cut-to-beat')),
+  'video.snap': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'artboardMeta.<id>.snap: "beat" | "off" in the canvas .meta.json'
+    ),
+  },
+  'video.reframe': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)'
+    )
+  ),
+  'video.poster.set': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: file(
+      'canvas-meta',
+      'design:video-comp',
+      'artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json'
+    ),
+  },
+  'video.format.add': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)'
+    )
+  ),
+  'video.format.unlink': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Copy the comp under a new name and point this artboard’s <VideoComp component> at it'
+    )
+  ),
+  'video.take.swap': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set the clip media’s trimBefore (output frames) to the other take; keep durationInFrames'
+    )
+  ),
+  'video.fit': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Set fit="fit" | "blur" on the clip’s <Reframe> (fill is the default)'
+    )
+  ),
+  'video.place': VIDEO_OP(
+    file(
+      'canvas-tsx',
+      'design:video-comp',
+      'Wrap the title’s content in <Place at={[x, y]} formats={{ "16:9": [x, y] }}> (centre anchor, fractions of the output frame)'
+    )
+  ),
   'artboard.new-desktop': TSX('Add a DCArtboard sized 1440×1024'),
   'artboard.new-laptop': TSX('Add a DCArtboard sized 1280×800'),
   'artboard.new-tablet': TSX('Add a DCArtboard sized 834×1194'),
@@ -150,6 +311,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── edit / select / object ──
   'edit.undo': UNDO_KEYS,
   'edit.redo': UNDO_KEYS,
+  'edit.undo-history': {
+    effect: 'none',
+    agent: human(
+      'keys',
+      'the person’s own undo stack, shown; an agent reads history with `maude design history list`'
+    ),
+  },
   'edit.cut': PREF('the clipboard is the user’s; remove the content from the source instead'),
   'edit.paste': PREF('the clipboard is the user’s; write the content into the source instead'),
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),
@@ -167,9 +335,93 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: file('canvas-tsx', 'design:design', 'Read the element’s data-cd-id in the .tsx'),
   },
-  'element.set-id': TSX(
-    'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
+  // S8.19c — one edit-op; an agent edits the same string literals by hand.
+  'asset.relink': TSX(
+    'Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./'
   ),
+  // S2.8 — an artboard's size is its JSX width/height (+ the bare `fixed` prop); its place is the meta layout.
+  'artboard.resize': TSX(
+    'Set the DCArtboard’s width and height props (64–8192); add the bare `fixed` prop to make the height exact. Its position is layout.artboards[] in the .meta.json, not a prop'
+  ),
+  'artboard.add-width': TSX(
+    'Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json'
+  ),
+  // S2.9 — Tidy up: positions only, the layout lane of the .meta.json.
+  'artboard.tidy': TSX(
+    'Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards'
+  ),
+  // S2.10 — the artboard menu. A copy is a splice of the DCArtboard's JSX; its place is layout.artboards[].
+  'artboard.duplicate': TSX(
+    'Copy the DCArtboard’s JSX right after it with a new id (desktop → desktop-2), a new label (Desktop → Desktop 2) and no data-cd-id or data-cd-locked inside; put it at the source’s right edge + the row’s gap in layout.artboards[] of the .meta.json — see canvas-tsx.md § Duplicate an artboard'
+  ),
+  'artboard.duplicate-at-width': TSX(
+    'Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard'
+  ),
+  'artboard.rename': TSX('Set the DCArtboard’s label prop (up to 80 characters; accents are kept)'),
+  'artboard.reset-position': TSX(
+    'Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot'
+  ),
+  'artboard.ask-ai': { effect: 'none', agent: human('ai-chat') },
+  // A5 lead (S2.2b): an agent does not rename ids — the references live in lanes it never writes
+  // (_comments/, the board's hosts); `maude design check` reports the old id as id-lost.
+  'element.set-id': {
+    effect: 'project',
+    agent: human(
+      'keys',
+      'ask the person to use Element id; an agent never rewrites the comments file'
+    ),
+  },
+  // S3.10a — `data-cd-link` is the one data-cd-* an agent may write (S3-links-format §8; checked by link-format ·
+  // link-no-id · link-dangling). The studio writes it through POST /_api/edit-op (edit-ops/{set,clear}-link.ts).
+  'element.set-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Add data-cd-link="#<artboard>" | "<canvas>.tsx#<artboard>" | "https://…" to the element, next to its data-cd-id (add an id if it has none)'
+    ),
+  },
+  'element.clear-link': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/edit-op', method: 'POST' },
+    agent: file('canvas-tsx', 'design:design', 'Remove the element’s data-cd-link attribute'),
+  },
+  'preview.back': NAV('<canvas> --mode preview'), // an agent opens the canvas it wants
+  // S2.10c — the same result by hand: the board's JSX, its layout entry and its annotations go together.
+  'artboard.trash': TSX(
+    'Remove the <DCArtboard id="…"> element (canvas-tsx.md § Remove an artboard), its layout.artboards[] entry in the .meta.json and, in the .annotations.json, the annotations whose parentArtboard is it with what sits in its sections; the canvas keeps at least one artboard'
+  ),
+  // S11.8 — Inspector › Advanced, the code half. Copy code is the element's JSX read from the .tsx; Edit CSS as
+  // text is the style props; Detach is `/_api/detach-component` (clone the definition, repoint ONE usage).
+  'inspector.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspector.edit-css-as-text': TSX(
+    'Edit the element’s style={{…}} props in the .tsx, one declaration per property'
+  ),
+  'element.detach': TSX(
+    'Copy the component definition under a new name and point this one instance at the copy; the other places keep the original'
+  ),
+  // S3.11 — the Inspect panel: Copy code is the clipboard (read the JSX from the .tsx instead); Edit ↵ is a view change.
+  'inspect.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspect.edit': NAV('<canvas>@<element> --mode edit'),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),
@@ -201,19 +453,172 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'object.select-matching': PREF(
     'a selection in the person’s window; an agent greps the canvas for the same className and style'
   ),
+  // S2.7 — the align bar and the rotate handle. Objects: set left / top on the element's inline style
+  // (the same result by hand); artboards: set x / y in the canvas's .meta.json layout.
+  'align.left': TSX(
+    'Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards'
+  ),
+  'align.hcentre': TSX(
+    'Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json'
+  ),
+  'align.right': TSX(
+    'Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json'
+  ),
+  'align.top': TSX(
+    'Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards'
+  ),
+  'align.vmiddle': TSX(
+    'Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json'
+  ),
+  'align.bottom': TSX(
+    'Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json'
+  ),
+  'distribute.h': TSX(
+    'Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json'
+  ),
+  'distribute.v': TSX(
+    'Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json'
+  ),
+  'object.rotate': TSX(
+    'Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions'
+  ),
+  // S2.11 — layout. Place freely / constraints are inline CSS on the element; reordering is moving the
+  // element's JSX among its siblings (their order IS the layout order).
+  'object.place-freely': TSX(
+    'Give the element style position: "absolute" with left, top, width and height (px) as it sits now; if its parent is static, give the parent position: "relative"'
+  ),
+  'object.reorder-earlier': TSX(
+    'Move the element’s JSX one place earlier among its siblings (in an auto layout the order in the code is the order on the canvas)'
+  ),
+  'object.reorder-later': TSX(
+    'Move the element’s JSX one place later among its siblings (in an auto layout the order in the code is the order on the canvas)'
+  ),
+  'object.reorder-to': TSX(
+    'Move the element’s JSX before, after or inside another element; for a copy, duplicate it first (a copy keeps no data-cd-id)'
+  ),
+  'object.constrain': TSX(
+    'On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages'
+  ),
+  'layout.set-gap': TSX(
+    'Set style.gap on each frame to the same value: var(--space-N) when the system names that stop, else px; one edit for all the frames. Over HTTP: POST /_api/edit-op {file, op: "layout.set-gap", targets: [{artboard, element}…], params: {gap: {token: "--space-N"} | {px: n}}} — one write, one undo step, a locked or non-layout target refuses the whole request'
+  ),
+  'layout.convert-to-absolute': TSX(
+    'Give each child position: "absolute" with left/top/width/height as rendered, and a static parent position: "relative" with its own width/height fixed if it would collapse; the children then no longer take part in the layout'
+  ),
+  // S2.12 — text in place, styles and the Czech ties
+  'text.set': TSX(
+    'Replace the element’s text child with the new copy (escape { } < > &). In a Czech element (lang="cs" on it or an ancestor) set the copy as Czech sets it: a no-break space (U+00A0) after every one-letter word (v k s z o u i a …) and „quotes“ — never inside a URL or `code`. Over HTTP: POST /_api/edit-op {file, op: "text.set", targets: [{artboard, element}], params: {text, before?, lang?}}'
+  ),
+  'text.set-language': TSX(
+    'Set lang="<tag>" on the element (cs, en, sk, de, pl). For cs also set the copy as Czech sets it: U+00A0 after every one-letter word, „quotes“; other languages leave the copy alone. Over HTTP: POST /_api/edit-op {file, op: "text.set-language", targets, params: {lang}}'
+  ),
+  'text.set-case': TSX(
+    'AA is style.textTransform "uppercase"; As typed removes it (write "none" when the element’s style sets a case). Over HTTP: POST /_api/edit-op {op: "text.set-case", params: {case: "upper"|"typed", explicit?}}'
+  ),
+  'text.use-style': TSX(
+    'Give the element the style’s class from system/<ds>/components.json typeRoles (heading → t-heading), replacing any other t-* class, and take out its inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle so the style shows. Over HTTP: POST /_api/edit-op {op: "text.use-style", params: {role: "t-heading"}}'
+  ),
+  'text.reset-style': TSX(
+    'Delete the inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle from the element’s style so its t-* class shows (params.props names fewer). Over HTTP: POST /_api/edit-op {op: "text.reset-style", params: {props?}}'
+  ),
+  'component.insert': TSX(
+    'Add the component to the artboard (or the frame) as a linked instance: put its name in the file’s `import { … } from "@maude/ds"` once and write `<Button variant="primary">…</Button>` as the last child, with a data-cd-id. On a canvas whose meta has dsRev (left out of the system’s current revision) add data-ds-rev="head" to it. Names and variants: GET /_api/ds/components or system/<ds>/components.json. Over HTTP: POST /_api/edit-op {op: "component.insert", targets: [frame?], params: {component, variant?, text?, artboard?, at?: {x: number|"centre", y}}}'
+  ),
+  'tool.components': TSX(
+    'Place a component from the design system: see component.insert (write `<Name>` with `import { Name } from "@maude/ds"`)'
+  ),
+  'text.detach-style': TSX(
+    'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "var(--type-xl)", …}}} — the values as the design system wrote them (tokens), not px'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
   'view.hidden-files': PREF(),
-  'view.design-system': PREF('read system/<ds>/ for the design system itself'),
+  // S11.9 — the left panel's Advanced switches: what this person SEES (kept on this Mac), and a selection
+  // in their window. An agent addresses elements by id in the .tsx (`maude design canvas-rects`).
+  'canvases.show-file-names': PREF('a second line under each canvas, in the person’s own view'),
+  'layers.show-tags': PREF('tag and id after each layer’s name, in the person’s own view'),
+  'layers.select-by-selector': PREF(
+    'a selection in the person’s window; an agent finds elements with `maude design canvas-rects`'
+  ),
+  'view.design-system': { effect: 'none', agent: cli('maude design open --panel design-system') },
   'view.comments': COMMENTS,
+  // S9.22 — the panel's filters are the verb's flags; an agent reads the same list the person sees.
+  'comments.filter-open': { effect: 'none', agent: cli('maude design comments list --open') },
+  'comments.filter-mine': { effect: 'none', agent: cli('maude design comments list --mine') },
+  'comments.filter-resolved': {
+    effect: 'none',
+    agent: cli('maude design comments list --resolved'),
+  },
+  'comments.filter-all': { effect: 'none', agent: cli('maude design comments list --all') },
+  'comments.open-thread': { effect: 'none', agent: cli('maude design comments list') },
   'history.open': { effect: 'none', agent: cli('maude design history list') },
+  // S1.12b (V2-1.9 §5.11). Filtering is the person's own panel (human view-pref, as the contract
+  // has it); an agent reads one version with `history show` (§5.11's `open --at` is not built),
+  // Compare's words with `history diff`, and names with `history name` (shared — it prompts).
+  'history.filter': PREF(
+    'All · Named · Made by AI · People; the rows themselves: maude design history list'
+  ),
+  'history.view-version': { effect: 'none', agent: cli('maude design history show') },
+  'history.compare': { effect: 'none', agent: cli('maude design history diff') },
+  // S1.16 (V2-1.9 §5.9): one object's versions — the sticky / object menu's "Version history".
+  'history.object': {
+    effect: 'none',
+    agent: cli('maude design history object <canvas> <artboard>/<id>'),
+  },
+  // S1.15: the picture compare (DiffView, before / after as ?sha= panes) is for looking — an agent reads the
+  // same two versions as words with `history diff`.
+  'history.compare-pictures': PREF('the same two versions as words: maude design history diff'),
+  'history.name': {
+    effect: 'shared',
+    minRole: 'edit',
+    agent: cli('maude design history name <canvas> <ref> "<name>"'),
+  },
+  // S1.13 (V2-1.9 §5.8 / §5.11): every restore is a new version over Now — destructive (it prompts),
+  // one undo step, refused below edit by POST /_api/project/restore.
+  'history.restore': RESTORE('maude design history restore <canvas> <ref>'),
+  'history.restore-artboard': RESTORE(
+    'maude design history restore <canvas> <ref> --artboard <id>'
+  ),
+  'history.restore-object': RESTORE(
+    'maude design history restore <canvas> <ref> --element <artboard>/<id>'
+  ),
+  'history.go-back': RESTORE('maude design history restore <canvas> @last-good'),
+  // S11.10 — the git half of Version history › Advanced. Each is the person's working tree or remote: an agent
+  // runs git itself in the project folder, so these are human 'git' (decision:maude/v2-S11.10-git-actions-human).
+  // `server` pins the route the button calls; the server refuses Can comment / Can view on every write.
+  'history.branch-switch': GIT('/_api/git/checkout', 'git switch <branch>'),
+  'history.new-branch': GIT('/_api/git/branch', 'git switch -c <branch>'),
+  // a fetch moves remote refs only: the role matrix allows it for a viewer, so the fold hides it by role alone
+  'history.fetch': GIT('/_api/git/fetch', 'git fetch', false),
+  'history.publish': GIT('/_api/git/push', 'git push'),
+  'history.save-with-note': GIT('/_api/git/commit', 'git commit -m "<note>"'),
+  'history.open-pr': GIT('/_api/git/fold', 'gh pr create (or git merge locally)'),
+  'history.discard-file': GIT('/_api/git/discard', 'git restore <file>'),
+  'history.continue-draft': GIT('/_api/git/checkout', 'git switch <draft>'),
+  // V2-1.5 §5.3: undo one accepted action by id, as a new version; a teammate's later edits are kept.
+  'history.undo-action': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/project/undo', method: 'POST' },
+    agent: cli('maude design history undo --action <id>'),
+  },
   'view.exports': { effect: 'none', agent: cli('maude design exports list') },
   // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).
   // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.
   'view.assets': { effect: 'none', agent: cli('maude design asset-sweep') },
-  'view.layers-panel': PREF('puts Layers in the left panel or in the Inspector'),
-  'view.trash': PREF('shows the Trash list; the parked files are under <designRoot>/_trash/'),
+  'view.layers-panel': { effect: 'none', agent: cli('maude design open --panel layers-panel') },
+  // S1.17 — the Trash list is `trash list` (GET /_api/trash, the route the Trash view reads); restoring
+  // one item is `trash restore <id>` (POST /_api/trash/restore, the Restore button's route and body).
+  'view.trash': { effect: 'none', agent: cli('maude design trash list') },
+  'trash.restore': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/trash/restore', method: 'POST' },
+    agent: cli('maude design trash restore <id>'),
+  },
   // S1.7b — clearing out deletes for good what the whole team could still restore: the OWNER
   // confirms it, never an agent (decision:maude/v2-lead-trash-clear-human-only). The server
   // refuses every role below owner (test/_role-refusals.ts).
@@ -227,10 +632,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'only the project owner, in the Trash view; nothing an agent may do'
     ),
   },
-  'view.inspector': PREF('read the element’s JSX for its properties'),
+  'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
-  'view.layers': PREF('read the canvas source for its structure'),
+  'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
   'view.zoom-controls': PREF(),
@@ -263,6 +668,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // S3.7b — in a cloud-linked project `maude design open <canvas> --mode present` also prints the link.
   'present.copy-link': { ...NAV('<canvas> --mode present'), minRole: 'edit' },
   'settings.theme': PREF(),
+  // S11.13 — Settings › Advanced: this Mac's own preferences (prefs.json), not project state.
+  'settings.reset-panel-layout': PREF('puts the panels back where they started; a UI preference'),
+  'settings.reset-all': PREF(
+    'puts this Mac’s Maude preferences back to a fresh Mac’s; keys and sign-ins stay'
+  ),
+  'settings.use-own-plugin-copy': PREF(
+    'prefs.json ownPluginCopy: the AI chat loads your own plugin copy'
+  ),
+  'settings.experimental-teams': PREF(
+    'prefs.json experimentalTeams: agent teams at the next AI session'
+  ),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
   'view.zoom-fit': PREF(),
@@ -284,9 +700,34 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.eraser': BOARD('Remove the elements from the canvas’s .annotations.json'),
   'tool.browse': PREF('a pointer mode'),
   'tool.rect': BOARD('Add a rect shape element to the canvas’s .annotations.json'),
-  'tool.ellipse': BOARD('Add an ellipse shape element to the canvas’s .annotations.json'),
+  // S2.13 — Edit's Ellipse (More) draws a design shape in the TSX; Preview's Shape (`tool.shape`) stays the board's.
+  'tool.ellipse': TSX(
+    'Add a <div data-shape="ellipse"> with position: "absolute", left / top / width / height in px, borderRadius: "50%" and background: "var(--accent)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
   // V2-4.5b — the toolbar slots derived from MODE_TOOLS (defs/tool.ts)
-  'tool.frame': TSX('Add a frame (a <div>) to the artboard in the canvas .tsx'),
+  'tool.frame': TSX(
+    'Add a frame (a <div> with position: "absolute", left / top / width / height in px, background: "var(--bg-1)") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind="digital" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.el-shape': TSX(
+    'Add a <div data-shape="rectangle"> with position: "absolute", left / top / width / height in px and background: "var(--accent)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.line': TSX(
+    'Add a <div data-shape="line"> with position: "absolute", left / top at the first point, width = the length, height: 0, borderTop: "2px solid var(--fg-0)", transform: rotate(<deg>) and transformOrigin: "0 0" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.polygon': TSX(
+    'Add a <div data-shape="polygon"> with position: "absolute", left / top / width / height in px, background: "var(--accent)" and clipPath: "polygon(…%)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  // Export area writes nothing to the file; an agent exports a region with the export verb.
+  'tool.slice': { effect: 'none', agent: cli('maude design export') },
+  'object.insert-shape': TSX(
+    'Add a <div> (data-shape="rectangle|ellipse|line|polygon" for a shape) as the last child of the frame or artboard, position: "absolute" with left / top / width / height in px; give a static parent position: "relative" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'artboard.draw': TSX(
+    'Add <DCArtboard id="artboard-N" label="Artboard N" kind="digital" width={w} height={h} fixed> and its x / y in layout.artboards[] of the .meta.json — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'object.set-corner-radius': TSX(
+    'Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius'
+  ),
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),
@@ -314,27 +755,95 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.to-end': PREF('playback'),
   'timeline.prev-keyframe': PREF('playback'),
   'timeline.next-keyframe': PREF('playback'),
-  'timeline.undo': UNDO_KEYS,
-  'timeline.redo': UNDO_KEYS,
   'timeline.split': TSX('Split the clip into two sequences at the frame', 'design:video-comp'),
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),
   'timeline.zoom-fit': PREF(),
   'timeline.comment-mode': COMMENT_ADD,
   // ── export / share ──
-  'export.open': { effect: 'none', agent: cli('maude design export') },
+  // S8.1c — the sheet's params are the CLI's flags: {scope, format, canvas, folder, region, at} ↔
+  // `<format> --scope --canvas --folder --region x,y,w,h --at <sha>` (ExportSpec v2, S8-export-spec §5.7).
+  'export.open': {
+    effect: 'none',
+    agent: cli(
+      'maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]'
+    ),
+  },
+  // S8.8 — the clipboard is the person's; an agent exports the same PNG to a file (`export png`) and reads it.
+  'export.copy-png': {
+    effect: 'none',
+    agent: cli('maude design export png'),
+  },
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
-  'export.canvas-dialog': { effect: 'none', agent: cli('maude design export') },
   'export.rerun-last': {
     effect: 'project',
     agent: cli('maude design exports again <id>'),
   },
+  // S8.4 — Retry <name>: only the items of one export that did not make it. The terminal path is the
+  // panel's own route, and a job that is not yours is a missing one (V2-1.16 U1).
+  'export.retry': {
+    effect: 'project',
+    minRole: 'comment',
+    server: { route: '/_api/export-jobs/retry', method: 'POST' },
+    agent: cli('maude design exports retry <id> [--item <id,…>]'),
+  },
   'share.open': { effect: 'shared', agent: human('links') },
   'share.copy-link': { effect: 'none', agent: human('links') },
+  // S6.0c: uploads the whole project to the person's billed cloud account — the window only; the
+  // studio refuses a POST without its Sec-Fetch-Site and the design hook denies one (human-only).
+  'share.move-to-cloud': {
+    effect: 'external',
+    agent: human('billing', 'moves the project to the person’s billed Maude Cloud account'),
+  },
+  // S9.19 — owner-only, decided by the hub; routes/share.ts refuses a session without `invite` first.
+  'share.invite': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/invites', method: 'POST' },
+    agent: human('invite'),
+  },
+  'share.set-role': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/people/:id', method: 'PATCH' },
+    agent: human('roles'),
+  },
+  'share.remove': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/people/:id/remove', method: 'POST' },
+    agent: human('roles'),
+  },
+  'share.resend': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/invites/:id/resend', method: 'POST' },
+    agent: human('invite'),
+  },
+  // ── presence (S9.23) ──
+  // Where people are is awareness, not a file: an agent reads the room through the studio, never writes
+  // it. Go to is the view move `maude design open` already does; Bring everyone here is a person's
+  // gesture to other people (the `summon` capability), so it is human.
+  'presence.follow': {
+    effect: 'none',
+    agent: human('summon', 'a person watching another person’s camera'),
+  },
+  'presence.go-to': NAV('<canvas>#<artboard>'),
+  'presence.bring-everyone': {
+    effect: 'none',
+    minRole: 'edit',
+    agent: human(
+      'summon',
+      'moves other people’s cameras; the hub strips `summon` without the capability'
+    ),
+  },
+  'presence.stop': { effect: 'none', agent: human('summon', 'ends a Follow or the spotlight') },
   // ── app / help / ai ──
-  'settings.open': PREF('settings are the user’s'),
+  'settings.open': { effect: 'none', agent: cli('maude design open --panel settings') },
   'ai.chat': { effect: 'none', agent: human('summon') },
-  'help.shortcuts': HELP,
+  // S11.2: opens the chat with words in the field; the agent writes the artboard itself, no verb needed
+  'ai.ask-fill-artboard': { effect: 'none', agent: human('summon') },
+  'help.shortcuts': { effect: 'none', agent: cli('maude design open --panel shortcuts') },
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
   'ai.draw-mark': { effect: 'external', agent: cli('maude design draw-build') },
@@ -343,6 +852,37 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // going / cancel are human by Q5. Run on a copy is a file edit — the `artboard-busy` deny names
   // it. No `server` field yet: rule 7 wants a per-role refusal row a role suite runs (S9's
   // access-local-gate); the routes are routes/ai.ts. ──
+  // S9.24 — a conflict pick. The record is this Mac's `_state/conflicts/<slug>.json` (the held element,
+  // `mine` = this Mac's version, `theirs` = the head's); the pick is an ordinary board edit an agent
+  // makes in the board file, then drops the entry. The route refuses every role below edit.
+  ...Object.fromEntries(
+    (
+      [
+        [
+          'keep-mine',
+          'replace the element (same id) in <slug>.annotations.json with the record’s `mine`',
+        ],
+        ['keep-theirs', 'leave <slug>.annotations.json as it is'],
+        [
+          'keep-both',
+          'add the record’s `mine` to <slug>.annotations.json under a NEW id, to the right of the element',
+        ],
+      ] as const
+    ).map(([k, how]) => [
+      `sync.conflict.${k}`,
+      {
+        effect: 'project',
+        minRole: 'edit',
+        undo: 'step',
+        server: { route: '/_api/sync/conflicts/resolve', method: 'POST' },
+        agent: file(
+          'annotations',
+          'design:whiteboard',
+          `${how}; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json`
+        ),
+      } satisfies ActionDefAI,
+    ])
+  ),
   'ai.runs.list': {
     effect: 'none',
     minRole: 'edit',
@@ -372,7 +912,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: human('ai-chat'),
   },
-  'help.whats-new': HELP,
+  'help.whats-new': { effect: 'none', agent: cli('maude design open --panel whats-new') },
   'help.tour': HELP,
   'help.intro': HELP,
   'help.sharing': HELP,
@@ -430,6 +970,15 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ])
   ),
   'tab.select-last': { effect: 'none', agent: human('native-window') },
+  // S1.22b: the strip's tab overview and the tab menu's Rename… (a machine-local display name).
+  'tab.overview': { effect: 'none', agent: human('native-window') },
+  'tab.rename': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'the name this Mac shows for a tab; the project files never change'
+    ),
+  },
   'app.check-updates': { effect: 'none', agent: human('native-window') },
   // ── AI chat (S5.7) ──
   // The chat is Claude Code on this Mac; an agent is already the AI, so these rows are the
@@ -468,5 +1017,86 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'native-window',
       'opens the person’s Terminal; an agent runs `claude --resume <session>` in its own shell'
     ),
+  },
+  // ── design system (S10.2 engine, V2-1.6 §5.11). The verbs are S10.3's `maude design ds …`
+  // (S10 §2.4); the routes are routes/ds.ts (S10.3), whose Q15 gates test/_role-refusals.ts
+  // rows hold (S10.3b). ──
+  'ds.publish': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/publish', method: 'POST' },
+    agent: cli('maude design ds publish <ds> [--leave-out <canvas>…]'),
+  },
+  'ds.cancel-pending': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/pending', method: 'POST' },
+    agent: cli('maude design ds pending <ds> --cancel'),
+  },
+  'ds.keep-outside': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/ds/outside', method: 'POST' },
+    agent: cli('maude design ds keep <ds>'),
+  },
+  'ds.undo-outside': {
+    effect: 'destructive',
+    minRole: 'edit',
+    undo: 'none',
+    server: { route: '/_api/ds/outside', method: 'POST' },
+    agent: cli('maude design ds undo <ds>'),
+  },
+  'ds.pick': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/pick', method: 'POST' },
+    agent: cli('maude design ds pick <ds> <css> --use canvas|file'),
+  },
+  'ds.canvas-update': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/canvas', method: 'POST' },
+    agent: cli('maude design ds canvas update <canvas>'),
+  },
+  'ds.canvas-leave': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/canvas', method: 'POST' },
+    agent: cli('maude design ds canvas leave <canvas>'),
+  },
+  'ds.trash-token': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/trash', method: 'POST' },
+    agent: cli('maude design ds trash <ds> <css> --replacement <css>'),
+  },
+  'ds.restore-token': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/ds/restore', method: 'POST' },
+    agent: cli('maude design ds restore <ds> <css>'),
+  },
+  'ds.clear-token': {
+    effect: 'destructive',
+    minRole: 'owner',
+    undo: 'version',
+    server: { route: '/_api/ds/clear', method: 'POST' },
+    agent: cli('maude design ds clear <ds> <css>'),
+  },
+  // S10.6 — the Design system canvas: opening it is navigation (`maude design open` moves the
+  // person's view). Light | Dark is the canvas's own viewing preference and writes nothing; an
+  // agent sees the other mode by capturing the canvas URL with `&dsMode=dark`.
+  'ds.open': NAV('<ds.path>/design-system.tsx'),
+  'ds.set-theme-preview': {
+    effect: 'none',
+    agent: cli('maude design screenshot --url "<canvas-url>&dsMode=dark" --full --out <png>'),
   },
 };

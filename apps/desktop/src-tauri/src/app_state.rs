@@ -92,6 +92,88 @@ pub struct ProjectEntry {
     /// not inherited. See `ProjectEntry::is_bound`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bound: bool,
+    /// S1.22b — the name the person gave this project's tab ON THIS MAC (the tab
+    /// menu's Rename…). Wins over `.design/config.json`'s name and the folder's
+    /// name in the strip, the window title, Home and notifications; never written
+    /// into the project (its folder, its config, its git) — machine-local like the
+    /// binding. Absent = the project's own name. A 1.x build ignores the key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    /// S8.23 — the folder "Save to" remembers for this project's exports ON THIS
+    /// MAC (export_save.rs): chosen once through the native save panel, never
+    /// written into the project. Absent = not chosen yet. A 1.x build ignores it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export_folder: Option<String>,
+}
+
+/// S1.22b — the most a tab's display name may be (characters, after `sanitize_title`).
+pub const MAX_DISPLAY_NAME: usize = 80;
+
+/// Pure: what Rename… stores for `raw` — one sanitized line, trimmed, capped;
+/// `None` (back to the project's own name) when nothing is left.
+pub fn clean_display_name(raw: &str) -> Option<String> {
+    let one = crate::notify::sanitize_title(raw);
+    let t: String = one.trim().chars().take(MAX_DISPLAY_NAME).collect();
+    let t = t.trim().to_string();
+    (!t.is_empty()).then_some(t)
+}
+
+/// The renamed projects (`pid → displayName`) as of the last load or save, so
+/// `windows::project_display_name` can answer from a root without a file read.
+static DISPLAY_NAMES: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
+
+fn cache_display_names(st: &AppState) {
+    let names = st
+        .projects
+        .iter()
+        .filter_map(|(pid, e)| e.display_name.clone().map(|n| (pid.clone(), n)))
+        .collect();
+    *DISPLAY_NAMES.lock().unwrap_or_else(|e| e.into_inner()) = names;
+}
+
+/// The name the person gave `pid`'s tab on this Mac, if any.
+pub fn display_name_of(pid: &str) -> Option<String> {
+    DISPLAY_NAMES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(pid)
+        .cloned()
+}
+
+/// Rename… (`tabs::tab_rename`): store `name` as `pid`'s display name on this
+/// Mac (`None`/blank clears it). Err for a pid that is not in the registry.
+pub fn set_display_name(app: &tauri::AppHandle, pid: &str, name: Option<&str>) -> Result<(), String> {
+    update(app, |st, _| set_display_name_in(st, pid, name))
+}
+
+/// Pure half of `set_display_name`.
+pub fn set_display_name_in(st: &mut AppState, pid: &str, name: Option<&str>) -> Result<(), String> {
+    let e = st
+        .projects
+        .get_mut(pid)
+        .ok_or_else(|| "That project isn't in your list.".to_string())?;
+    e.display_name = name.and_then(clean_display_name);
+    Ok(())
+}
+
+/// S8.23 — the folder `pid`'s exports were last saved into on this Mac.
+pub fn export_folder_of(app: &tauri::AppHandle, pid: &str) -> Option<String> {
+    load(app).projects.get(pid).and_then(|e| e.export_folder.clone())
+}
+
+/// S8.23 — remember `dir` as the folder `pid`'s exports go to on this Mac.
+pub fn set_export_folder(app: &tauri::AppHandle, pid: &str, dir: &Path) -> Result<(), String> {
+    update(app, |st, _| set_export_folder_in(st, pid, dir))
+}
+
+/// Pure half of `set_export_folder`. Err for a pid that is not in the registry.
+pub fn set_export_folder_in(st: &mut AppState, pid: &str, dir: &Path) -> Result<(), String> {
+    let e = st
+        .projects
+        .get_mut(pid)
+        .ok_or_else(|| "That project isn't in your list.".to_string())?;
+    e.export_folder = Some(dir.to_string_lossy().into_owned());
+    Ok(())
 }
 
 impl ProjectEntry {
@@ -208,6 +290,8 @@ impl AppState {
                 last_opened_at: 0,
                 managed: None,
                 bound: false,
+                display_name: None,
+                export_folder: None,
             });
         e.root = root.to_string();
         if e.name.is_empty() {
@@ -465,11 +549,13 @@ fn legacy_marker(app: &tauri::AppHandle) -> Option<PathBuf> {
 
 /// Read persisted state (v2; v1 and the legacy marker migrate transparently).
 pub fn load(app: &tauri::AppHandle) -> AppState {
-    load_from(
+    let st = load_from(
         state_path(app).as_deref(),
         legacy_marker(app).as_deref(),
         now_ms(),
-    )
+    );
+    cache_display_names(&st);
+    st
 }
 
 /// Load → mutate → save, under the in-process lock.
@@ -485,6 +571,7 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
     if let Some(p) = state_path(app) {
         save_to(&p, &mut st);
     }
+    cache_display_names(&st);
     out
 }
 
@@ -572,6 +659,15 @@ pub fn settle_sign_in_app(
     update(app, |st, now| {
         settle_sign_in(st, &registry, root, kind, account, prior_credential, store, now)
     })
+}
+
+/// S6.7: a Home sign-in (no calling project) records `lastSignInProfile` only —
+/// a never-bound project adopts it on its first open; nothing is bound here.
+pub fn set_last_sign_in_profile(app: &tauri::AppHandle, id: &str) {
+    if profiles::validate_id(id).is_err() {
+        return;
+    }
+    update(app, |st, _| st.last_sign_in_profile = Some(id.to_string()));
 }
 
 /// Remember the port the Home server bound (contract §5.5 `homePort`), so the
@@ -697,10 +793,16 @@ pub fn is_first_run(app: &tauri::AppHandle) -> bool {
 /// Remember `path` as the last project: registry upsert, MRU head, one-tab session
 /// (and, via `save_to`, the v1 keys).
 pub fn set_last_project(app: &tauri::AppHandle, path: &Path) {
+    set_last_project_with(app, path, Binding::Adopt);
+}
+
+/// `set_last_project`, choosing whether an unbound entry may adopt
+/// `lastSignInProfile` (S15-A1; `open_local_project` keeps a registered one's).
+pub fn set_last_project_with(app: &tauri::AppHandle, path: &Path, binding: Binding) {
     let s = path.to_string_lossy().to_string();
     update(app, |st, now| {
         forget_missing_recent(st);
-        let pid = st.open(&s, now);
+        let pid = st.open_with(&s, now, binding);
         st.session = Some(one_tab_session(&pid, now));
     });
     // A project was opened this run — lets MAUDE_FORCE_ONBOARDING dismiss the wizard.

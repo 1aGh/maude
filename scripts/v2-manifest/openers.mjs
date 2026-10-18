@@ -687,11 +687,19 @@ export const OPENERS = [
   { id: 'palette', steps: [{ palette: true }] },
   { id: 'shortcuts', steps: [{ key: 'Shift+Slash' }] },
   { id: 'export', steps: [{ key: 'Shift+Meta+E' }] },
-  { id: 'share', steps: [{ click: tid('share-cluster-share') }] },
+  // S9.19 — the Share sheet: the web / app / this-Mac links live under its › Advanced · Other ways in
+  {
+    id: 'share',
+    steps: [{ click: tid('share-cluster-share') }, { ensureOpen: tid('share-other-ways-toggle') }],
+  },
   // Share… from the menu: a viewer has no Share button in the cluster, but the menu row is there
   {
     id: 'share-menu',
-    steps: [{ click: tid('project-pill') }, { click: tid('project-menu-row-share.open') }],
+    steps: [
+      { click: tid('project-pill') },
+      { click: tid('project-menu-row-share.open') },
+      { ensureOpen: tid('share-other-ways-toggle') },
+    ],
   },
   { id: 'comments', steps: [{ click: tid('share-cluster-comments') }] },
   { id: 'ai-chat', steps: [{ key: 'Meta+Slash' }] },
@@ -703,7 +711,7 @@ export const OPENERS = [
     steps: [
       { key: 'Alt+Meta+H' },
       { wait: 600 },
-      { click: '.gp-tabs [role="tab"]:nth-child(2)', optional: true },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
       { wait: 1200 },
     ],
   },
@@ -713,7 +721,7 @@ export const OPENERS = [
     steps: [
       { key: 'Alt+Meta+H' },
       { wait: 600 },
-      { click: '.gp-tabs [role="tab"]:nth-child(2)', optional: true },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
       { wait: 1200 },
       { click: tid('project-history-preview-3'), optional: true },
       { wait: 2500 },
@@ -725,32 +733,75 @@ export const OPENERS = [
     steps: [
       { key: 'Alt+Meta+H' },
       { wait: 600 },
-      { click: '.gp-tabs [role="tab"]:nth-child(2)', optional: true },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
       { wait: 1200 },
     ],
   },
   {
     id: 'history-clean',
     state: 'git-clean-behind',
-    steps: [{ key: 'Alt+Meta+H' }, { wait: 1500 }],
+    steps: [
+      { key: 'Alt+Meta+H' },
+      { wait: 800 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
+    ],
   },
-  { id: 'history-dirty', state: 'git-dirty', steps: [{ key: 'Alt+Meta+H' }, { wait: 1500 }] },
-  // Version history on a repo with changes: the unsaved list, then the saved versions (a short sha each)
+  {
+    id: 'history-dirty',
+    state: 'git-dirty',
+    steps: [
+      { key: 'Alt+Meta+H' },
+      { wait: 800 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
+    ],
+  },
+  // Version history › Advanced on a repo with changes: the unsaved list, then the versions (a short sha each)
   {
     id: 'history-saved',
     state: 'git-dirty',
-    steps: [{ key: 'Alt+Meta+H' }, { click: '.gp-tabs [role="tab"]:nth-child(2)' }],
+    steps: [
+      { key: 'Alt+Meta+H' },
+      { wait: 800 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
+    ],
   },
-  // the draft switcher at the foot of Canvases (desktop): its menu, then a draft checked out
+  // S11.10 — the git buttons' dialogs, one opener each (the fold, then the button)
   {
-    id: 'switcher',
+    id: 'history-save-dialog',
     state: 'git-dirty',
-    steps: [{ click: tid('repo-switcher-trigger'), optional: true }],
+    steps: [
+      { key: 'Alt+Meta+H' },
+      { wait: 800 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
+      { click: tid('vh-git-save'), optional: true },
+    ],
   },
   {
-    id: 'switcher-draft',
+    id: 'history-branch-dialog',
+    state: 'git-dirty',
+    steps: [
+      { key: 'Alt+Meta+H' },
+      { wait: 800 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
+      { click: tid('switcher-new-branch'), optional: true },
+    ],
+  },
+  // a branch checked out (Advanced offers "Add to main")
+  {
+    id: 'history-add-dialog',
     state: 'git-on-draft',
-    steps: [{ click: tid('repo-switcher-trigger'), optional: true }],
+    steps: [
+      { key: 'Alt+Meta+H' },
+      { wait: 800 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
+      { click: tid('switcher-merge'), optional: true },
+    ],
   },
   // Canvases > Advanced with hidden files on: sidecars, the runtime group, supporting-file previews
   {
@@ -990,6 +1041,8 @@ export const OPENERS = [
     steps: [
       { key: 'Alt+Meta+H' },
       { wait: 1200 },
+      { click: tid('fold-history-toggle'), unless: tid('git-panel'), optional: true },
+      { wait: 700 },
       { click: tid('git-compare'), optional: true },
       { wait: 2500 },
     ],
@@ -1300,6 +1353,8 @@ export const OPENERS = [
 const LOCAL = ['desktop', 'browser'];
 const WHERE = [
   [/^(acp-|deeplink-|team-|settings-cloud-signin-link)/, ['desktop']],
+  // the git buttons are the desktop app's (a browser tab reads the fold, it does not press it)
+  [/^history-(save|branch|add)-dialog$/, ['desktop']],
   [
     /^(dialog-figma-import-run|dialog-figma-import-bad|settings-figma-test|settings-figma-refused)$/,
     LOCAL,

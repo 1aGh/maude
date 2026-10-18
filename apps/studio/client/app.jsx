@@ -56,7 +56,6 @@ import { FileTree, FileTreeItem } from './file-tree.jsx';
 import { useTreeDrag } from './use-tree-drag.js';
 import ChatPanel from './panels/ChatPanel.jsx';
 import DiffView from './panels/DiffView.jsx';
-import GitPanel from './panels/GitPanel.jsx';
 import SyncConsentDialog from './panels/SyncConsentDialog.jsx';
 import SyncPanel from './panels/SyncPanel.jsx';
 import CloudBar from './panels/CloudBar.jsx';
@@ -65,7 +64,7 @@ import { isEmbedLocation } from './embed.js';
 import { HomeApp } from './home/home-app.jsx';
 import { bootShellMode } from './home/shell-mode.js';
 import EmbedView from './embed-view.jsx';
-import { ShareDialog, copyShareLink } from './share-dialog.jsx';
+import { ShareSheet } from './v2/share/share-sheet.jsx';
 import IdentityBar from './panels/IdentityBar.jsx';
 import OnboardingWizard from './panels/OnboardingWizard.jsx';
 import { ReadinessDialog } from './panels/ReadinessList.jsx';
@@ -83,10 +82,11 @@ import {
 } from './panels/timeline-comp-target.js';
 import { durationFramesForDrop, probeMediaDuration } from './panels/timeline-media-cache.js';
 import GenerateDialog from './generate-dialog.jsx';
-import RepoBranchSwitcher from './panels/RepoBranchSwitcher.jsx';
+import { migrateAtBoot } from './v2/settings/prefs-migrate.js';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';
+import ComponentPicker from './v2/inspector/component-picker.jsx';
 import { getPaletteEnv } from './v2/search/search-env.js';
 import {
   AlignPad,
@@ -140,6 +140,7 @@ import {
   cloudSignInPrepare,
   invoke,
   isNativeApp,
+  onMenuAction,
   onUpdateReady,
   pickedMediaSource,
   pickMediaFile,
@@ -219,6 +220,7 @@ import {
 } from './shell/dock.jsx';
 import { CommandPalette } from './dialogs/command-palette.jsx';
 import { AssetPicker } from './dialogs/asset-picker.jsx';
+import { useLastFinishedAt } from './v2/export/last-finished.js';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
 import { CornerIcons } from './v2/shell/corner-icons.jsx';
@@ -227,16 +229,28 @@ import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
+import { EmptyHost } from './v2/empty/empty-host.jsx';
+import { useOnline } from './v2/empty/use-empty-canvas.js';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
+import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
+import { undoProjection } from './v2/undo/use-undo-projection.jsx';
+import { ShellInspectPanel } from './v2/inspect/inspect-host.jsx';
+import { ShellPreviewChrome, usePreviewMode } from './v2/preview/preview-chrome-host.jsx';
+import { ViewBarHost } from './v2/history/history-host.jsx';
+import { SyncStatesHost } from './v2/sync-states/conflict-card.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
+import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
+import { useRelinkSheet } from './v2/assets/missing-frame.jsx';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
+import { ShellMentionCallouts, useCommentsShell } from './v2/comments/use-comments-shell.jsx';
+import { noteMadeByAi } from './v2/ai/made-by-ai.js';
 import { getRunsStore, noteAiRuns } from './v2/ai/runs-store.js';
 import { OPEN_AI_EVENT } from './v2/ai/needs-you-toast.js';
 import { OPEN_ASSETS_EVENT } from './v2/ai/AttachMenu.jsx';
@@ -288,13 +302,14 @@ import { InspectorPanel, PHOTO_ASSET_RE } from './inspector/inspector-panel.jsx'
 import { usePaletteAndPanels } from './hooks/use-palette-and-panels.jsx';
 import { useActionKeys } from './hooks/use-action-keys.jsx';
 import { useCanvasBridge } from './hooks/use-canvas-bridge.jsx';
+import { postDsThemePreview, useDsFrames } from './v2/ds/use-ds-frames.js';
 import { useTabs } from './hooks/use-tabs.jsx';
 import { useGitActions } from './hooks/use-git-actions.jsx';
 import { useWebSocket } from './hooks/use-web-socket.jsx';
 import { useProjectData } from './hooks/use-project-data.jsx';
 import { usePhotoAndTimeline } from './hooks/use-photo-and-timeline.jsx';
 import { useShellCore } from './hooks/use-shell-core.jsx';
-import { exportSelectionFor, isOwnSelectEcho } from './selection-scope.js';
+import { exportSelectionFor, exportSelectionV2, isOwnSelectEcho } from './selection-scope.js';
 import { ShellStoreContext, useShellStore } from './stores/shell-store.jsx';
 
 // ---------- App ----------
@@ -814,14 +829,19 @@ function ShellState({ children }) {
             // surface the native ACP chat sidepanel. Native-only (the panel
             // doesn't exist on the web surface).
             if (isNativeApp()) openRightPanel('assistant');
+          } else if (m.type === 'thumb-ready' && typeof m.key === 'string') {
+            // S1.14 — a picture landed: Version history looks again for the rows still drawing theirs.
+            window.dispatchEvent(new CustomEvent('maude:thumb-ready', { detail: { key: m.key } }));
           } else if (m.type === 'ai:runs') {
             // S5.11 (V2-1.15 §5.4) — the run registry moved: the shell's run store re-reads it.
             // S5.13's needs-you store hears the same window event (`maude:ai-runs`): one dispatch.
             noteAiRuns(m.seq);
-          } else if (m.type === 'project:action') {
-            // S5.11 (V2-1.15 §5.8) — a settled "Done" ring on every artboard the action touched
-            // (S5.5b payload `artboards: Record<canvas, string[]>`).
-            getRunsStore().markDone(Object.values(m.action?.artboards ?? {}).flat());
+          } else if (m.type === 'project:action' && m.action) {
+            // S2.20 — an accepted action: the ⌘Z projection of every open canvas it touched.
+            // S5.15 — "Made by AI" (derived: an ai action marks its artboards, the next person's
+            // change clears them); it replaces S5.11's 6 s Done ring, which lit every action's.
+            undoProjection.onAction(m.action);
+            noteMadeByAi(m.action);
           } else if (m.type === 'trash:changed') {
             // S1.7b — the shared Trash moved: the Trash view re-reads `GET /_api/trash`.
             window.dispatchEvent(new CustomEvent(TRASH_CHANGED_EVENT, { detail: m.payload }));
@@ -1004,6 +1024,7 @@ function ShellState({ children }) {
   });
   uiOpenRef.current = {
     openTab,
+    runAction: (id) => menuRunner.run(id),
     frameFor: (f) => iframesRef.current.get(f),
     setPresent: (on) => {
       setPresentMode(on);
@@ -1103,7 +1124,11 @@ function ShellState({ children }) {
     broadcastChrome,
     wsSend,
     reloadActive,
+    gitUser,
   });
+  // S10.4 — a design system's revision per canvas frame: element pins answered into the frame that asked,
+  // and the follower swap (a head that moved is applied at the NEXT LOOK; Present holds it).
+  useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasActiveArtboard });
 
   // Jump from right-sidebar list to a comment: open file tab if needed, focus pin.
   // The iframe may be freshly mounted; the loaded handler also re-sends focus if focusedCommentId matches.
@@ -1307,9 +1332,20 @@ function ShellState({ children }) {
     reopenComment,
     deleteComment,
     jumpToComment,
+    gitUser,
+  });
+  // S9.22b — unread mentions (Share cluster count + toast), the comments.* runners, timeline flags.
+  const comments = useCommentsShell({
+    commentsByFile,
+    me: gitUser,
+    activePath,
+    jumpToComment,
+    setCommentsFilter,
+    openRightPanel,
   });
   // V2-2.3: everything the render tree reads, grouped by the module seam it comes from.
   const shellStore = {
+    comments,
     shellCore: {
       activeArtboards,
       activeComps,
@@ -1551,11 +1587,13 @@ function ShellProjectPill() {
       annotationsVisible,
       autoOpenInspector,
       cfg,
+      cloudLinkedHub,
       changesOpen,
       commentsPanelOpen,
       exportCenter,
       groups,
       inspectorOpen,
+      iframesRef,
       minimapVisible,
       openPanelExclusive,
       openRightPanel,
@@ -1608,9 +1646,11 @@ function ShellProjectPill() {
     },
     canvasBridge: { onInsertArtboard },
     paletteAndPanels: { leftActive },
+    comments,
   } = useShellStore();
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   const native = isNativeApp();
+  const online = useOnline();
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const [movePicker, setMovePicker] = useState(null);
   const pillRef = useRef(null);
@@ -1640,6 +1680,9 @@ function ShellProjectPill() {
     onCloseCanvas: () => activePath && closeTab(activePath),
     onAssembleVideo: assembleVideo,
     onToggleShowHidden: () => setShowHidden((v) => !v),
+    // S9.22b — comments.filter-* / comments.open-thread (v2/comments/use-comments-shell.jsx)
+    onCommentsFilter: (f) => comments?.showFilter(f),
+    onOpenCommentThread: (file, id) => comments?.openThread(file, id),
     // V2-4.4a: View › Advanced › Layers as a panel — the Settings › Layout switch, from the menu.
     onToggleLayersMode: () => {
       const next = layersMode === 'separate' ? 'in-inspector' : 'separate';
@@ -1697,6 +1740,13 @@ function ShellProjectPill() {
       );
     },
     onCutPaste: (kind) => cutCopyPaste(kind, openerRef.current, { postToActiveCanvas }),
+    // S10.6 — `ds.set-theme-preview`: the Design system canvas shows its Light or its Dark (preview only).
+    onDsThemePreview: (mode) =>
+      postDsThemePreview(
+        activePath ? iframesRef.current.get(activePath) : null,
+        mode,
+        cfg?.canvasOrigin || window.location.origin
+      ),
     // V2-4.8a: a cloud tab's "Back to Home" — the v1 menubar's "← Dashboard" link, same tab.
     onOpenDashboard: () => {
       const url = cfg?.cloud?.dashboardUrl;
@@ -1732,6 +1782,18 @@ function ShellProjectPill() {
       window.removeEventListener(OPEN_ASSETS_EVENT, onAttachAssets);
     };
   }, [openRightPanel]);
+  // S1.22c: the native tab menu's "Sign in as another account…" arrives as `menu://action
+  // {id:'account.switch'}` (tabs.rs TabMenuItem::SwitchAccount); it is not a palette row, so the
+  // palette's menu://action listener never runs it — the menu handler does.
+  useEffect(() => {
+    if (!native) return undefined;
+    const p = onMenuAction((id) => {
+      if (id === 'account.switch') handlers['account.switch']?.();
+    });
+    return () => {
+      p?.then?.((fn) => fn?.());
+    };
+  }, [handlers, native]);
 
   const isCloudTab = !!cfg?.cloud;
   const ctx = useMemo(
@@ -1740,10 +1802,23 @@ function ShellProjectPill() {
         native,
         cloudTab: isCloudTab,
         readOnly: viewerMode,
+        observer: cfg?.cloud?.role === 'observer',
         canvasOpen,
         presenting: presentMode,
+        // S3.8 — Copy presentation link reads both: a cloud-linked desktop, and the network up.
+        linkedHub: !!cloudLinkedHub?.url,
+        online,
       }),
-    [native, isCloudTab, viewerMode, canvasOpen, presentMode]
+    [
+      native,
+      isCloudTab,
+      viewerMode,
+      cfg?.cloud?.role,
+      canvasOpen,
+      presentMode,
+      cloudLinkedHub?.url,
+      online,
+    ]
   );
   // V2-4.8a: the megaphone's unseen dot, as a word on the Help row; and no "Back to Home" in a hub that
   // serves one project (no dashboard to go back to — the v1 link was absent there too).
@@ -1811,6 +1886,7 @@ function ShellProjectPill() {
       presentMode,
     ]
   );
+  const previewing = usePreviewMode();
   const destinations = useMemo(() => moveDestinations(groups), [groups]);
   const dir = activePath ? activePath.slice(0, activePath.lastIndexOf('/')) : '';
 
@@ -1824,6 +1900,8 @@ function ShellProjectPill() {
         state={state}
         run={(id) => menuRunner.run(id)}
         docked={pinned && !panelsHidden && !!leftActive}
+        // S3.9 — Preview folds the pill to its mark (04 md-preview).
+        folded={previewing}
         onOpen={(el) => {
           openerRef.current = el;
           diag.onMenuOpen();
@@ -2774,6 +2852,7 @@ function ShellTree() {
       startTour,
       syncStatus,
       tabs,
+      wsConnected,
       theme,
       timelineOpen,
       togglePanel,
@@ -2794,7 +2873,7 @@ function ShellTree() {
       loadDiffLog,
       restoreProjectVersion,
     },
-    tabs: { shareLinksFor, shareShell },
+    tabs: { openSystem, shareLinksFor, shareShell },
     canvasBridge: {
       assetPickerReq,
       insertGeneratedImage,
@@ -2825,6 +2904,12 @@ function ShellTree() {
   // V2-4.1 — panel layout (⌘\ hide, View › Advanced pin) and the insets the islands cause.
   const { hidden: panelsHidden, pinned } = usePanelLayout();
   useHydratePanelLayout();
+  // S8.9 — the Export sheet's "From 14:05" while AI is working: the open canvas's last landed change
+  const exportLastFinishedAt = useLastFinishedAt({
+    open: !!exportDialog,
+    activePath,
+    designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+  });
   const floating = !pinned;
   // Opening a panel while the panels are hidden brings them all back (the open panel must be seen).
   // V2-4.4b — the AI chat is its own island: its opening un-hides the panels like any other panel's does.
@@ -2850,6 +2935,8 @@ function ShellTree() {
   // `tool-panel-open`, active canvas only.
   // S4.4 — the Templates panel the Section tool's "Templates" slot opens (same gate as Stickers).
   const [templatesReq, setTemplatesReq] = useState(null);
+  // S2.16 — the Component picker (⇧I): same gate, same anchoring as Stickers.
+  const [componentsReq, setComponentsReq] = useState(null);
   useToolPanels({
     activePath,
     iframesRef,
@@ -2857,10 +2944,22 @@ function ShellTree() {
     canEdit: !viewerMode,
     openStickers: setStickerPickerReq,
     openTemplates: setTemplatesReq,
+    openComponents: setComponentsReq,
     openAssets: () => {
       panelLayout.show();
       openPanelExclusive('assets');
     },
+  });
+  // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
+  // (dgn `asset-state`); a Missing frame's Relink… (and the Inspector's box) opens the relink sheet (S8.19c).
+  const relink = useRelinkSheet({ canEdit: !viewerMode });
+  useAssetStateLane({
+    onRelink: relink.onRelink,
+    syncStatus,
+    wsConnected,
+    canvasOrigin: () => cfg?.canvasOrigin || window.location.origin,
+    activeWindow: () =>
+      activePath ? (iframesRef.current.get(activePath)?.contentWindow ?? null) : null,
   });
   // The AI chat island's body. Always mounted (the island is `hidden`, not removed), so its stream survives
   // a Hide (DDR-123).
@@ -2896,6 +2995,7 @@ function ShellTree() {
           callouts now, ONE stack. A child of `.maude`, not of `.st-body`: Presentation mode must not hide a
           fail-closed sync warning (DDR-102, phase-28 audit F-1). */}
       <ShellCallouts />
+      <ShellMentionCallouts />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that
           only appears if you happen to open the Sync panel is not consent.
           Skipped during first-run onboarding so two flows don't stack. */}
@@ -2923,6 +3023,19 @@ function ShellTree() {
           <DiagnosticsHost toast={shellToast} />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
+          {/* S2.20 — Menu › Edit › Undo history… (the ⌘Z projection's popover). */}
+          <ShellUndoHistory />
+          {/* S3.9 — Preview's own islands: "Previewing <canvas> · esc to edit" top centre, the zoom readout
+              bottom left. Nothing in the other modes. */}
+          <ShellPreviewChrome />
+          {/* S3.11 — Inspect: the specs of the element a ⌘-click (Preview) / click (Viewing) points at. */}
+          <ShellInspectPanel />
+          {/* S1.14 — "Viewing “…” · 5 Oct, 18:40 · Jonas · esc back to now" while the mode store holds a past version. */}
+          <ViewBarHost activePath={activePath} />
+          {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
+          <EmptyHost />
+          {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}
+          <SyncStatesHost />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
               tab strip in the panel's OWN header; the AI chat, when docked here, is a separate island under it
               (always mounted, so its stream survives — DDR-123). Folded, the corner icon below is the way back. */}
@@ -3078,19 +3191,27 @@ function ShellTree() {
           </div>
         </div>
       )}
+      {relink.sheet}
       {shareDialog && (
-        <ShareDialog
+        <ShareSheet
           target={shareDialog}
           links={shareLinksFor(shareDialog.path)}
           shell={shareShell}
+          project={cfg?.cloud?.projectName || project}
           onClose={() => setShareDialog(null)}
-          Icon={StIcon}
         />
       )}
       {exportDialog && (
         <ExportDialog
           mode={exportDialog.mode}
           initialScope={exportDialog.scope}
+          request={exportDialog}
+          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+          projectName={cfg?.name || ''}
+          // S8.9 — Can comment gets the sheet with one line on top; the server is the lock
+          access={{ canEdit: !viewerMode, role: cfg?.cloud?.role }}
+          lastFinishedAt={exportLastFinishedAt}
+          {...exportSelectionV2(selected, activePath)}
           activePath={activePath}
           hasComps={activeComps.length > 0}
           comps={activeComps}
@@ -3134,6 +3255,16 @@ function ShellTree() {
           canAsk={getPaletteEnv().canAskAI()}
           onClose={() => setTemplatesReq(null)}
           anchor={templatesReq.anchor ?? null}
+        />
+      )}
+      {componentsReq && (
+        <ComponentPicker
+          canvas={componentsReq.canvas}
+          canEdit={!viewerMode}
+          anchor={componentsReq.anchor ?? null}
+          onPlace={(msg) => postToActiveCanvas(msg)}
+          onOpenDesignSystem={openSystem}
+          onClose={() => setComponentsReq(null)}
         />
       )}
       {diffTarget && (
@@ -3246,4 +3377,12 @@ const root = createRoot(document.getElementById('root'));
 // S3.7a — a follow link (`?present=follow`, or any `audience` URL) is the follower page: never the editor.
 if (isFollowLocation(location)) root.render(<FollowView />);
 else if (isEmbedLocation(location)) root.render(<EmbedView />);
-else bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />));
+else {
+  // S11.13 (Gate 0 D20) — the 1.x preferences move to their v2 homes once per origin, before the
+  // first v2 home is read (a second boot is a no-op without a request). Bounded: a slow server
+  // never holds the first paint, and a failure leaves the 1.x keys where they are.
+  const migrated = migrateAtBoot().catch(() => {});
+  Promise.race([migrated, new Promise((r) => setTimeout(r, 1500))]).then(() =>
+    bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />))
+  );
+}

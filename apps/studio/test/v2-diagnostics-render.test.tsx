@@ -27,7 +27,9 @@ import { buildProjectMenu, menuCtx, modelIds } from '../client/v2/shell/project-
 import { ProjectPill } from '../client/v2/shell/project-pill.jsx';
 
 const desktop = menuCtx({ native: true, canvasOpen: true });
-const DIAG_IDS = DIAG_ACTIONS.map((d) => d.id);
+// The two Logs-sheet buttons are registered (⌘K reaches them) but have no menu row (06 ad-diag lists none).
+const SHEET_ONLY = ['diag.copy-logs', 'diag.logs-show-in-finder'];
+const DIAG_IDS = DIAG_ACTIONS.map((d) => d.id).filter((id) => !SHEET_ONLY.includes(id));
 let root: Root | null = null;
 let host: HTMLElement | null = null;
 const realFetch = globalThis.fetch;
@@ -199,6 +201,12 @@ describe('the Diagnostics submenu', () => {
       expect(rendered, id).toContain(id);
       expect(can.has(id), id).toBe(true);
     }
+    // S11.11: the sheet's two buttons are runnable too (a shell handler; a native command) — and in
+    // no menu row, so they cannot be a dead one
+    for (const id of SHEET_ONLY) {
+      expect(can.has(id), id).toBe(true);
+      expect(rendered, id).not.toContain(id);
+    }
   });
 });
 
@@ -208,10 +216,22 @@ const SOURCES = {
   retentionDays: 7,
   logDir: '~/.maude/logs',
   sources: {
-    sync: { status: {}, recent: ['[log] [sync] pushed a.tsx', '[warn] [sync] hub replied 429'] },
-    server: { status: {}, recent: ['[log] canvas built · Pricing'] },
-    ai: { status: {}, recent: [] },
-    export: { status: {}, recent: ['[error] [remote] png FAILED 500'] },
+    sync: {
+      status: {},
+      recent: ['[log] [sync] pushed a.tsx', '[warn] [sync] hub replied 429'],
+      recentAt: [Date.UTC(2026, 9, 18, 14, 5, 12), Date.UTC(2026, 9, 18, 14, 6, 31)],
+    },
+    server: {
+      status: {},
+      recent: ['[log] canvas built · Pricing'],
+      recentAt: [Date.UTC(2026, 9, 18, 14, 5, 40)],
+    },
+    ai: { status: {}, recent: [], recentAt: [] },
+    export: {
+      status: {},
+      recent: ['[error] [remote] png FAILED 500'],
+      recentAt: [Date.UTC(2026, 9, 18, 14, 7, 0)],
+    },
   },
 };
 const REPORT = {
@@ -225,6 +245,7 @@ const REPORT = {
       detail: 'v2.1.240',
       resolvedPath: '~/.local/bin/claude',
     },
+    { id: 'plugins', label: 'Plugins', status: 'present', required: true, detail: 'bundled' },
   ],
 };
 
@@ -240,7 +261,8 @@ function sheetProps(over: Record<string, unknown> = {}) {
     data: SOURCES,
     error: '',
     onRefresh: () => calls.push('refresh'),
-    onCopyReport: () => calls.push('copy-report'),
+    onCopyLogs: (lines: unknown[]) => calls.push(`copy-logs:${lines.length}`),
+    onReveal: () => calls.push('reveal'),
     onCopy: (_t: string, label: string) => calls.push(`copy:${label}`),
     info: { address: 'localhost:4402', pid: 41207, version: '2.0.0', folder: '/Users/me/p' },
     wsConnected: true,
@@ -293,8 +315,32 @@ describe('the Diagnostics sheet', () => {
     await click('diag-logs-filter-all');
     await click('diag-logs-copy-all');
     await click('diag-logs-refresh');
-    expect(calls).toEqual(['copy-report', 'refresh']);
+    // Copy all hands over the lines as shown (4 of them), not the report
+    expect(calls).toEqual(['copy-logs:4', 'refresh']);
     expect(document.body.textContent).toContain('Kept 7 days on this Mac');
+  });
+
+  test('Logs: a time, the source and the message per line, merged by time; the foot names the 200 lines', async () => {
+    await mountSheet();
+    const rows = Array.from(q('diag-logs-lines')?.querySelectorAll('li') ?? []);
+    const cells = rows.map((r) => Array.from(r.children).map((c) => c.textContent));
+    // oldest first across the four sources; the [sync] tag is the source column's, not the message's
+    expect(cells.map((c) => c[1])).toEqual(['sync', 'server', 'sync', 'export']);
+    expect(cells[0]?.[2]).toBe('pushed a.tsx');
+    expect(cells[0]?.[0]).toMatch(/^\d\d:\d\d:\d\d$/);
+    expect(document.body.textContent).toContain(
+      'Help › Report a bug can attach the last 200 lines.'
+    );
+  });
+
+  test('Logs: Show in Finder is there only when the shell can do it', async () => {
+    const calls = await mountSheet();
+    await click('diag-logs-show-in-finder');
+    expect(calls).toEqual(['reveal']);
+    act(() => root?.unmount());
+    host?.remove();
+    await mountSheet({ onReveal: null });
+    expect(q('diag-logs-show-in-finder')).toBeNull();
   });
 
   test('Logs: an unreadable ring says so instead of showing nothing', async () => {
@@ -339,12 +385,58 @@ describe('the Diagnostics sheet', () => {
     expect(q('diag-repo-changed')).toBeNull();
   });
 
-  test('AI setup: the readiness list whole — rows, the claude binary path, Check again', async () => {
+  test('AI setup: four answers, the claude binary path and where it came from, Check again', async () => {
     const calls = await mountSheet({ view: 'ai' });
+    const rows = Array.from(q('diag-ai-rows')?.querySelectorAll('li') ?? []);
+    expect(rows.map((r) => r.getAttribute('data-testid'))).toEqual([
+      'diag-ai-row-installed',
+      'diag-ai-row-found',
+      'diag-ai-row-signed-in',
+      'diag-ai-row-plugins',
+    ]);
+    expect(rows.every((r) => r.getAttribute('data-state') === 'ok')).toBe(true);
+    expect(q('diag-ai-row-found')?.textContent).toContain('~/.local/bin/claude');
+    expect(q('diag-ai-row-found')?.textContent).toContain('Found on your PATH');
+    // nothing is wrong, so no full probe rows — the whole probe is one quiet fold away
+    expect(q('diag-ai-needs')).toBeNull();
+    expect(q('rdy-row-claude')).toBeNull();
+    await click('diag-ai-all-toggle');
     expect(q('rdy-row-claude')).toBeTruthy();
-    expect(document.body.textContent).toContain('~/.local/bin/claude');
+    await click('diag-ai-all-toggle'); // the fold is remembered per Mac: leave it as found
     await click('diag-ai-recheck');
     expect(calls).toEqual(['recheck']);
+  });
+
+  test('AI setup: what is not satisfied keeps its whole row (fix, Set up, the command)', async () => {
+    await mountSheet({
+      view: 'ai',
+      ai: {
+        report: {
+          ready: false,
+          items: [
+            {
+              id: 'claude',
+              label: 'Claude Code',
+              status: 'missing',
+              required: true,
+              detail: 'Not found on PATH.',
+              action: 'install',
+              installCommand: 'curl -fsSL https://claude.ai/install.sh | bash',
+            },
+            { id: 'plugins', label: 'Plugins', status: 'present', required: true, detail: 'ok' },
+          ],
+        },
+        loading: false,
+        recheck: () => {},
+      },
+    });
+    expect(q('diag-ai-row-installed')?.getAttribute('data-state')).toBe('missing');
+    expect(q('diag-ai-row-found')?.getAttribute('data-state')).toBe('missing');
+    expect(q('diag-ai-row-plugins')?.getAttribute('data-state')).toBe('ok');
+    expect(q('diag-ai-needs')).toBeTruthy();
+    expect(q('rdy-row-claude')).toBeTruthy();
+    expect(q('acp-setup-install')).toBeTruthy();
+    expect(q('rdy-row-plugins')).toBeNull(); // the satisfied one stays out of the way
   });
 
   test('Sync: today’s Sync panel, whole, with Get latest and the hints', async () => {
@@ -363,6 +455,44 @@ describe('the Diagnostics sheet', () => {
     await click('diag-sync-hints-toggle');
     expect(q('diag-sync-hints')?.textContent).toContain('maude design status');
     expect(q('diag-sync-hints')?.textContent).toContain('/design:rollback');
+  });
+
+  test('Sync: the Resync card — the bar and "Resyncing… 1 204 of 1 318", then the result and the log pointer', async () => {
+    const running = {
+      state: 'running',
+      done: 1204,
+      total: 1318,
+      summary: { checked: 0, sent: 0, fetched: 0, conflicts: 0 },
+    };
+    await mountSheet({
+      view: 'sync',
+      sync: { ...sheetProps().props.sync, resync: running },
+    });
+    expect(q('diag-resync')?.getAttribute('data-state')).toBe('running');
+    expect(q('diag-resync-progress')?.textContent).toBe('Resyncing… 1 204 of 1 318');
+    expect(document.querySelector('[role=progressbar]')?.getAttribute('aria-valuenow')).toBe('91');
+    act(() => root?.unmount());
+    host?.remove();
+    await mountSheet({
+      view: 'sync',
+      sync: {
+        ...sheetProps().props.sync,
+        resync: {
+          state: 'done',
+          done: 1318,
+          total: 1318,
+          summary: { checked: 1318, sent: 3, fetched: 0, conflicts: 0 },
+        },
+      },
+    });
+    expect(q('diag-resync-result')?.textContent).toBe(
+      'Resync done — 3 files sent, nothing else differed.'
+    );
+    expect(q('diag-resync')?.textContent).toContain('1 318 checked');
+    act(() => root?.unmount());
+    host?.remove();
+    await mountSheet({ view: 'sync' });
+    expect(q('diag-resync')).toBeNull(); // quiet until a resync has run
   });
 
   test('Sync: an unlinked project says there is nothing to sync', async () => {

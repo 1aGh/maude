@@ -22,12 +22,29 @@ export const SUB_VERBS = {
     validate: { step: '--validate', plan: true },
   },
   // V2-2.4b (contract V2-1.11 §5.3). Each sub-verb has its own tier entry.
-  history: { list: NATIVE, show: NATIVE, diff: NATIVE, restore: NATIVE, undo: NATIVE },
+  history: {
+    list: NATIVE,
+    show: NATIVE,
+    diff: NATIVE,
+    object: NATIVE, // S1.16
+    restore: NATIVE,
+    undo: NATIVE,
+    name: NATIVE,
+  },
   // S9.7b — the write sub-verbs are prompt tier (verbs.ts `comments …` entries); only `list` is auto.
   comments: { list: NATIVE, reply: NATIVE, resolve: NATIVE, reopen: NATIVE, add: NATIVE },
+  // S1.17 (S1-trash.md): `list` reads, `restore` brings one item back, `clear` is the owner's (human tier).
+  trash: { list: NATIVE, restore: NATIVE, clear: NATIVE },
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
   runs: { list: NATIVE, stop: NATIVE },
+  // S11.11: `status` reads; `resync` re-compares every file with the cloud copy (shared → prompt).
+  sync: { status: NATIVE, resync: NATIVE },
+  // S7.6c (V2-1.10 §5.7): a video's captions — `list` reads, `add` / `export` write in the project.
+  captions: { add: NATIVE, list: NATIVE, export: NATIVE },
+  // S10.3 (S10 §2.4): the design-system reads; the helper (ds/ds-verb.ts) refuses a write flag
+  // after them. Every other `ds` sub-verb falls to the `ds` entry and prompts.
+  ds: { status: NATIVE, usage: NATIVE, revisions: NATIVE },
 };
 
 const STEP_FLAGS = {

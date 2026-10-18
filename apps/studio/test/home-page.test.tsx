@@ -112,6 +112,8 @@ const listeners: Record<string, (e: { payload: unknown }) => void> = new Proxy(
 // per-test shell answers (cmd → value or fn(args)); consulted before the defaults
 let shellAnswers: Record<string, unknown> = {};
 let shellOverride: typeof SHELL | null = null;
+// per-test fetch answers (pathname → [status, body]); consulted before `answer`
+let fetchAnswers: Record<string, [number, unknown]> = {};
 let windowListeners: Record<string, (e: { payload: unknown }) => void> = {};
 let originalFetch: typeof fetch;
 
@@ -180,8 +182,9 @@ function installFetch() {
       headers,
       body: init.body ? JSON.parse(String(init.body)) : null,
     });
-    return new Response(JSON.stringify(answer(url)), {
-      status: 200,
+    const over = fetchAnswers[new URL(url, 'http://localhost:4479').pathname];
+    return new Response(JSON.stringify(over ? over[1] : answer(url)), {
+      status: over ? over[0] : 200,
       headers: { 'Content-Type': 'application/json' },
     });
   }) as typeof fetch;
@@ -263,6 +266,7 @@ beforeEach(() => {
   (window as unknown as Record<string, unknown>).__maudeShellBus = undefined;
   windowListeners = {};
   shellAnswers = {};
+  fetchAnswers = {};
   shellOverride = null;
   installFetch();
 });
@@ -531,6 +535,118 @@ describe('Home reads maude:// links', () => {
     expect($('home-link-dialog')).toBeNull();
   });
 
+  // S9.17b — a Can view project's `409 browser-door`: Home relays the validated door to
+  // `open_cell_tab` with the profile it prepared for; no managed copy, no project tab.
+  const DOOR = 'https://alligators.cloud.maude.sh/c/ui/Poster.tsx';
+  const browserDoor = (url: string): [number, unknown] => [
+    409,
+    { ok: false, status: 409, reason: 'browser-door', url, error: 'x' },
+  ];
+  const signedInCloud = (role: string) => {
+    fetchAnswers['/_home/cloud'] = [
+      200,
+      {
+        ok: true,
+        profile: 'default',
+        signedIn: true,
+        projects: [
+          { id: 'alligators', name: 'Alligators', role, url: 'https://alligators.cloud.maude.sh' },
+        ],
+        shared: [],
+      },
+    ];
+  };
+
+  test('connect link answered with a browser door → open_cell_tab({url, profile})', async () => {
+    shellAnswers.take_pending_deep_link = CONNECT;
+    fetchAnswers['/_home/cloud/prepare'] = browserDoor(DOOR);
+    mount();
+    await flush();
+    act(() => $('home-link-open')?.click());
+    await flush();
+    const cmds = invokes.map((i) => i.cmd);
+    expect(cmds).not.toContain('managed_project_open');
+    expect(cmds).not.toContain('open_project');
+    expect(invokes.filter((i) => i.cmd === 'open_cell_tab').map((i) => i.args)).toEqual([
+      { url: DOOR, profile: 'default' },
+    ]);
+  });
+
+  test('a Can view cloud row prepares, and its browser door opens a cell tab for its profile', async () => {
+    signedInCloud('observer');
+    fetchAnswers['/_home/cloud/prepare'] = browserDoor(DOOR);
+    mount();
+    await flush();
+    act(() => $('home-cloud-open-alligators')?.click());
+    await flush();
+    expect(calls.find((c) => c.url === '/_home/cloud/prepare')?.body).toMatchObject({
+      profile: 'default',
+      projectId: 'alligators',
+    });
+    expect(invokes.filter((i) => i.cmd === 'open_cell_tab').map((i) => i.args)).toEqual([
+      { url: DOOR, profile: 'default' },
+    ]);
+    expect(invokes.map((i) => i.cmd)).not.toContain('open_cloud_url');
+  });
+
+  test('a hostile browser door never reaches invoke', async () => {
+    signedInCloud('observer');
+    for (const bad of [
+      'https://evil.example/',
+      'https://canvas-x.cloud.maude.sh/',
+      'https://alligators.cloud.maude.sh/?next=https://evil.example',
+      'https://u@alligators.cloud.maude.sh/',
+      'javascript:alert(1)',
+    ]) {
+      fetchAnswers['/_home/cloud/prepare'] = browserDoor(bad);
+      invokes = [];
+      mount();
+      await flush();
+      act(() => $('home-cloud-open-alligators')?.click());
+      await flush();
+      const cmds = invokes.map((i) => i.cmd);
+      expect({
+        bad,
+        cell: cmds.includes('open_cell_tab'),
+        web: cmds.includes('open_cloud_url'),
+      }).toEqual({
+        bad,
+        cell: false,
+        web: false,
+      });
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+
+  test('a Can view row on a cloud with no browser door still opens in the browser', async () => {
+    signedInCloud('observer');
+    fetchAnswers['/_home/cloud/prepare'] = [502, { ok: false, status: 502, error: 'x' }];
+    mount();
+    await flush();
+    act(() => $('home-cloud-open-alligators')?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'open_cloud_url').map((i) => i.args)).toEqual([
+      { url: 'https://alligators.cloud.maude.sh' },
+    ]);
+    expect(invokes.map((i) => i.cmd)).not.toContain('open_cell_tab');
+  });
+
+  test('no cell tabs on this Mac → open_cloud_url with the origin only', async () => {
+    signedInCloud('observer');
+    fetchAnswers['/_home/cloud/prepare'] = browserDoor(DOOR);
+    shellAnswers.open_cell_tab = () => {
+      throw 'Open this project in your browser.';
+    };
+    mount();
+    await flush();
+    act(() => $('home-cloud-open-alligators')?.click());
+    await flush();
+    expect(invokes.filter((i) => i.cmd === 'open_cloud_url').map((i) => i.args)).toEqual([
+      { url: 'https://alligators.cloud.maude.sh' },
+    ]);
+  });
+
   test('Home hears the shell only on its own shell_subscribe channel, never a Tauri event', async () => {
     const w = window as unknown as { __TAURI__: Record<string, unknown> };
     w.__TAURI__.webviewWindow = {
@@ -657,7 +773,7 @@ describe('home-api', () => {
           'shellInvoke',
           'shellListen',
         ].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|takePendingDeepLink)$/.test(
+        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|openCellDoor|takePendingDeepLink)$/.test(
           name
         )
     );

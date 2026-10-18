@@ -198,22 +198,125 @@
   }
   .insp-toks {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--space-1);
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .insp-tok {
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-    background: var(--bg-3);
-    font-size: var(--type-xs);
-    color: var(--fg-1);
-  }
   .insp-facts {
     display: flex;
     flex-direction: column;
+  }
+
+  /* ── › Advanced groups (S11.8, 06 · ad-inspector): a small title, then label / value rows ── */
+  .insp-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .insp-group--in-code {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .insp-sub {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .insp-sub-a {
+    font-weight: normal;
+  }
+  .insp-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .insp-link:hover,
+  .insp-link[aria-pressed="true"] {
+    text-decoration: underline;
+  }
+  .insp-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .insp-arow {
+    display: grid;
+    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--type-xs);
+  }
+  .insp-ak {
+    color: var(--fg-2);
+  }
+  .insp-av {
+    min-width: 0;
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .insp-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+  .insp-csslist {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .insp-css {
+    display: grid;
+    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .insp-css-k {
+    color: var(--fg-2);
+  }
+  .insp-css-v {
+    color: var(--fg-0);
+    overflow-wrap: anywhere;
+  }
+  .insp-css--attr .insp-css-v {
+    font-style: italic;
+  }
+  .insp-csstext {
+    width: 100%;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .insp-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: var(--space-1);
+  }
+  .insp-pair .insp-err {
+    grid-column: 1 / -1;
+  }
+  .insp-err--wide {
+    flex: 1 1 100%;
+  }
+  .insp-adv-acts--end {
+    justify-content: flex-end;
   }
 
   /* the island's title (a lone Inspector has no tab strip to carry it) */
@@ -222,5 +325,86 @@
     font-weight: var(--w-semibold);
     color: var(--fg-2);
     padding: 0 var(--space-2);
+  }
+
+  /* ── S2.18 view mode (ed-edge-tereza, ed-edge-ai): someone else holds the selection ── */
+  .ed-insp-fields {
+    display: contents;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .ed-insp--view .insp-sec {
+    opacity: 0.86;
+  }
+  .ed-insp-line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    background: var(--bg-3);
+  }
+  .ed-insp-line--ai {
+    color: var(--spark-text);
+    background: var(--spark-muted);
+  }
+  .ed-insp-line-t {
+    flex: 1;
+    min-width: 0;
+  }
+  .ed-insp-line-act {
+    flex: none;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    font: inherit;
+    font-weight: var(--w-semibold);
+    color: var(--accent-text);
+    background: transparent;
+    cursor: pointer;
+  }
+  .ed-insp-line-act:hover {
+    background: var(--accent-soft);
+  }
+  .ed-insp-line-act:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* S2.11b — the numbered slot a lifted card would land in (Layers draws what the canvas draws).
+     Reduced motion collapses the fade to 1 ms: the place still shows, it just does not animate. */
+  .st-layer-slot {
+    border: 1px dashed var(--accent);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
+    pointer-events: none;
+    animation: st-layer-slot-in var(--dur-panel) var(--ease-out);
+  }
+  .st-layer-slot-n {
+    min-width: var(--space-4);
+    padding: 0 var(--space-1);
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    text-align: center;
+  }
+  @keyframes st-layer-slot-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .st-layer-slot {
+      animation-duration: 1ms;
+    }
   }
 }

@@ -316,4 +316,95 @@
     top: 44%;
     height: 44%;
   }
+
+  /* ─── S11.5: every artboard moved to the trash — the card over the empty canvas ─── */
+  .es-alltrashed {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-2);
+    pointer-events: none; /* only the card takes the pointer; the outlines and the canvas stay reachable */
+  }
+  .es-alltrashed .es-trashcard {
+    pointer-events: auto;
+    width: min(460px, 100%);
+    margin-bottom: 12%;
+    padding: var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  .es-alltrashed .es-fine {
+    color: var(--fg-1);
+  }
+
+  /* ─── S11.4 (A6c): a canvas that is not on this Mac — the card where the frame would be ─── */
+  .viewport > .st-not-local {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--u-bg-0);
+  }
+
+  /* ─── S11.2: the empty canvas, the empty-artboard hint, Layers' empty line, the connect veil ─── */
+  /* The canvas is the whole window body: the block centres on it, above the toolbar. Only its buttons take
+     the pointer, so panning and drawing pass straight through the words. */
+  .es-host {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .es-ec {
+    position: absolute;
+    left: 50%;
+    top: 45%;
+    translate: -50% -50%;
+    width: 520px;
+    max-width: calc(100% - var(--space-8));
+  }
+  .es-ec .es-acts,
+  .es-ec .es-acts > * {
+    pointer-events: auto;
+  }
+  .es-off-line {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+    color: var(--status-warn-text);
+    font-weight: var(--w-medium);
+  }
+  /* The hint floats over the empty artboard as chrome (so it follows the app theme). */
+  .es-abhint {
+    position: fixed;
+    z-index: 6;
+    padding: var(--space-4) var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--island-bg);
+    box-shadow:
+      var(--island-shadow),
+      inset 0 0 0 0.5px var(--island-edge);
+  }
+  .es-abhint .es-next {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+  }
+  .es-e--inpanel {
+    padding: var(--space-6) var(--space-3);
+  }
+  .es-conn-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    background: var(--scrim);
+  }
 }

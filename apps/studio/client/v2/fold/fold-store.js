@@ -13,11 +13,23 @@
 /** The panels that carry an Advanced fold. "Open / Close all" and "Reset" act on these plus any other id seen. */
 export const FOLD_PANELS = Object.freeze([
   'left.canvases',
+  'left.layers', // S11.9 — Layers › Advanced; the left panel's fold follows the active tab
   'settings',
   'diagnostics',
   'help',
   'inspector',
   'ai.chat',
+  // S11.13 — the rest of 06's "Advanced, inside each panel". Owners register by id: a panel's fold keeps
+  // working under any id (the store takes any valid one); listing it here makes ⌘K "Open all" and
+  // Settings › Advanced › Reset cover it before it has ever been opened on this Mac.
+  'history',
+  'code',
+  'connections',
+  'ai',
+  'share',
+  'timeline',
+  'export',
+  'ds',
 ]);
 
 /**
@@ -94,6 +106,10 @@ export function createFoldStore({ persist = () => {} } = {}) {
     /** Settings › Advanced › Reset: every fold back to how a fresh Mac shows it. */
     reset() {
       return write(Object.fromEntries(known().map((id) => [id, defaultOf(id)])));
+    },
+    /** Every fold this Mac knows: the panels that carry one, then any id remembered since. */
+    ids() {
+      return known();
     },
     /** Which folds are open right now. */
     openIds() {

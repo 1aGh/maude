@@ -19,6 +19,7 @@ import {
   getRecentSearches,
   inShell,
   managedProjectOpen,
+  openCellDoor,
   openCloudUrl,
   openProject,
   openProjectFolder,
@@ -34,6 +35,7 @@ import {
   thumbObjectUrl,
 } from './home-api.js';
 import { parseMaudeLink } from '../share-link.js';
+import { browserDoorOf } from '../v2/cloud/browser-door.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
   buildHomeModel,
@@ -348,7 +350,15 @@ export function HomeApp() {
 
   // A project not on this Mac yet, once prepared: its own copy → a tab (`managed_project_open`
   // resolves the copy's folder, `open_project` opens it). Cloud rows and connect links share it.
-  const openPrepared = useCallback(async (prep, name) => {
+  // A Can view account gets no copy (S9.17b): the prepare's browser door opens the cell as a
+  // `c-*` tab of the profile it was prepared for.
+  const openPrepared = useCallback(async (prep, name, profile) => {
+    const door = browserDoorOf(prep.json);
+    if (door) {
+      const r = await openCellDoor(door.url, profile);
+      if (!r.ok) setNotice(r.error);
+      return;
+    }
     if (!prep.ok || !prep.json?.ok) {
       setNotice(prep.json?.error || `${name} could not be opened. Try again in a moment.`);
       return;
@@ -360,11 +370,13 @@ export function HomeApp() {
   const openCloud = useCallback(
     async (row) => {
       try {
-        if (row.role === 'observer') {
+        const prep = await prepareCloud(row.profile, row.url, row.projectId);
+        // A cloud that answers Can view with no browser door (before S9.2): the browser, as before.
+        if (row.role === 'observer' && !prep.json?.ok && prep.json?.reason !== 'browser-door') {
           if (row.url) await openCloudUrl(row.url);
           return;
         }
-        await openPrepared(await prepareCloud(row.profile, row.url, row.projectId), row.name);
+        await openPrepared(prep, row.name, row.profile);
       } catch (e) {
         fail(e);
       }
@@ -392,8 +404,9 @@ export function HomeApp() {
     if (link?.kind !== 'connect') return;
     setLinkBusy(true);
     try {
-      const prep = await prepareCloudLink(linkProfile(data.shell, data.clouds, link.project), link);
-      await openPrepared(prep, link.project);
+      const profile = linkProfile(data.shell, data.clouds, link.project);
+      const prep = await prepareCloudLink(profile, link);
+      await openPrepared(prep, link.project, profile);
     } catch (e) {
       fail(e);
     } finally {

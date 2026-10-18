@@ -12,8 +12,9 @@
 //   · the iframe's real ExportDialogProvider (happy-dom + React): once it has loaded a history
 //     entry, ⇧⌘E on the document submits no export job and opens nothing.
 
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
+import { describe, expect, test } from 'bun:test';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { bindingInDocument } from '../actions/documents.ts';
 import { ACTIONS, ACTIONS_BY_ID } from '../actions/index.ts';
@@ -46,131 +47,19 @@ describe('registry: ⇧⌘E has one owner', () => {
     expect(a?.keys ?? []).toEqual([]);
   });
 
-  // V2-4.5b (D3, rule 13) — rewritten deliberately: the toolbars replaced the palette, and ⌘E died
-  // with it. The action stays (ids are append-only); it has no key.
-  test('⌘E (the in-canvas export dialog) is unbound since V2-4.5b', () => {
-    const a = ACTIONS_BY_ID.get('export.canvas-dialog');
-    expect(a?.exec).toBe('canvas');
-    expect((a?.keys ?? []).map((b) => b.chord)).toEqual([]);
+  // V2-4.5b (D3, rule 13) unbound ⌘E; S8.2 retired the iframe dialog it opened, and its action with it.
+  test('export.canvas-dialog is retired: no action, no ⌘E binding anywhere', () => {
+    expect(ACTIONS_BY_ID.get('export.canvas-dialog')).toBeUndefined();
+    expect(ACTIONS.filter((a) => (a.keys ?? []).some((b) => b.chord === '⌘E'))).toEqual([]);
   });
 });
 
-// ── the iframe's export dialog ────────────────────────────────────────────────────────────────
-beforeAll(() => {
-  GlobalRegistrator.register();
-  (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-});
-afterAll(() => {
-  GlobalRegistrator.unregister();
-});
-
-import { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-
-const ENTRY = {
-  format: 'png',
-  scope: 'artboard',
-  options: { scale: 2 },
-  filename: 'home.png',
-  at: '2026-10-10T10:00:00.000Z',
-};
-
-interface Call {
-  method: string;
-  url: string;
-  body?: unknown;
-}
-let calls: Call[] = [];
-const realFetch = globalThis.fetch;
-function stubFetch() {
-  calls = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input);
-    const method = (init?.method ?? 'GET').toUpperCase();
-    calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
-    const json = (v: unknown) =>
-      new Response(JSON.stringify(v), { headers: { 'content-type': 'application/json' } });
-    if (url.endsWith('/_api/export-history')) return json({ history: [ENTRY] });
-    if (url.endsWith('/_api/export-jobs')) return json({ ok: true, id: 'job-1' });
-    return new Response('{}', { status: 404 });
-  }) as typeof fetch;
-}
-
-let root: Root | null = null;
-let host: HTMLElement | null = null;
-afterEach(() => {
-  act(() => root?.unmount());
-  host?.remove();
-  root = null;
-  globalThis.fetch = realFetch;
-});
-
-const tick = () => new Promise((r) => setTimeout(r, 20));
-
-async function mountDialog() {
-  const { ExportDialogProvider, useExportDialog } = await import('../export-dialog.tsx');
-  let handle: ReturnType<typeof useExportDialog> = null;
-  function Probe() {
-    handle = useExportDialog();
-    return null;
-  }
-  host = document.createElement('div');
-  document.body.append(host);
-  root = createRoot(host);
-  await act(async () => {
-    root?.render(
-      <ExportDialogProvider>
-        <Probe />
-      </ExportDialogProvider>
-    );
-  });
-  return () => handle;
-}
-
-function press(init: KeyboardEventInit) {
-  document.body.dispatchEvent(
-    new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
-  );
-}
-
-describe('the iframe export dialog on ⇧⌘E', () => {
-  test('submits no export job and opens nothing, even with a history entry already loaded', async () => {
-    stubFetch();
-    const handle = await mountDialog();
-    // Load a history entry the way a real session does: the dialog is opened once (⌘E / toolbar),
-    // then closed — v1's rerunLast() re-submitted history[0] from that state.
-    await act(async () => {
-      handle()?.open();
-      await tick();
-    });
-    await act(async () => {
-      handle()?.close();
-      await tick();
-    });
-    expect(calls.some((c) => c.url.endsWith('/_api/export-history'))).toBe(true);
-    calls.length = 0;
-
-    await act(async () => {
-      press({ key: 'E', code: 'KeyE', metaKey: true, shiftKey: true });
-      await tick();
-    });
-
-    expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
-    // nor does the press fetch anything on the iframe's behalf (v1 re-read the history first)
-    expect(calls).toEqual([]);
-    const dlg = document.querySelector('dialog.dc-export-dialog') as HTMLDialogElement | null;
-    expect(dlg?.hasAttribute('open') ?? false).toBe(false);
-  });
-
-  // V2-4.5b (D3) — rewritten deliberately: ⌘E is unbound; ⇧⌘E is the one export sheet.
-  test('⌘E opens nothing in the canvas any more (D3: ⌘E is unbound)', async () => {
-    stubFetch();
-    await mountDialog();
-    await act(async () => {
-      press({ key: 'e', code: 'KeyE', metaKey: true });
-      await tick();
-    });
-    expect(calls.some((c) => c.url.endsWith('/_api/export-history'))).toBe(false);
-    expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
+describe('the iframe has no export dialog of its own (S8.2)', () => {
+  test('canvas-shell mounts no ExportDialogProvider and apps/studio/export-dialog.tsx is gone', () => {
+    expect(existsSync(join(import.meta.dir, '..', 'export-dialog.tsx'))).toBe(false);
+    const shell = readFileSync(join(import.meta.dir, '..', 'canvas-shell.tsx'), 'utf8');
+    expect(shell).not.toContain('ExportDialogProvider');
+    // its context-menu entries still reach the shell's one sheet, by posting `open-export` themselves
+    expect(shell).toContain("dgn: 'open-export'");
   });
 });

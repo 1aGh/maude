@@ -26,7 +26,11 @@ function findNode(nodes, id, index, trail = []) {
 
 /** The name above the rows: the layer's name, else the element's own text, else its tag. */
 export function titleOf(selection, layersTree) {
-  if (Array.isArray(selection) && selection.length > 1) return `${selection.length} objects`;
+  if (Array.isArray(selection) && selection.length > 1) {
+    // S2.9 — "4 artboards" when every one is a board
+    const boards = selection.every((el) => isArtboardSelection(el));
+    return `${selection.length} ${boards ? 'artboards' : 'objects'}`;
+  }
   const el = singleOf(selection);
   if (!el) return '';
   if (isArtboardSelection(el)) return el.artboardId || el.attrs?.['data-dc-screen'] || 'Artboard';
@@ -59,7 +63,7 @@ export function takenIds(layersTree, ownId) {
   return out;
 }
 
-const humanToken = (name) => {
+export const humanToken = (name) => {
   const words = name.replace(/^--/, '').replace(/-/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 };

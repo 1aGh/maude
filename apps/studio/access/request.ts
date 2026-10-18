@@ -25,6 +25,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Closure, ProjectReader } from './closure.ts';
+// S9.12 — the revert-guard seam (a call-time read, so the import cycle with filters.ts is inert).
+import { aclCheckOn } from './filters.ts';
 import type { Capability, ProjectRole } from './roles.ts';
 import { FLOOR_ROLE, can as roleCan } from './roles.ts';
 import { type Access, type AccessClaim, legacyClaim, resolveAccess, writes } from './scope.ts';
@@ -78,6 +80,13 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
   '/_api/export-assemble',
 ]);
 
+/**
+ * S8.4 — table routes (routes/export.ts) of the export class: Retry re-runs a finished export's failed
+ * items. The spec declares `readOnly: 'allowed'` itself (so the path is not in READ_ONLY_ALLOWED_WRITES
+ * twice); this set says WHICH capability that is: `export`, never the table's default `session`.
+ */
+export const EXPORT_TABLE_WRITES: ReadonlySet<string> = new Set(['/_api/export-jobs/retry']);
+
 /** Stickies, marker, arrows, stickers, sections (V2-1.7 §5.2 `annotate`). */
 export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
   '/_api/annotations',
@@ -89,7 +98,12 @@ export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
 ]);
 
 /** Clearing out the trash is the owner's (§5.5 `delete`); the per-Mac `_trash/` prune is not this. */
-export const DELETE_WRITES: ReadonlySet<string> = new Set(['/_api/trash/clear']);
+export const DELETE_WRITES: ReadonlySet<string> = new Set([
+  '/_api/trash/clear',
+  // S10.3b — a design-system token's clear-out (routes/ds.ts `clear`, owner — Q15); the hub's
+  // studio manifest already classes it `delete`.
+  '/_api/ds/clear',
+]);
 
 export interface SessionAllowlist {
   exact: ReadonlySet<string>;
@@ -103,7 +117,7 @@ export interface SessionAllowlist {
 export function writeCapability(pathname: string, tableSession?: SessionAllowlist): Capability {
   // D2 — the AI chat drives file edits: no write under it is ever anything but `edit` (C30).
   if (pathname.startsWith('/_api/acp/')) return 'edit';
-  if (EXPORT_WRITES.has(pathname)) return 'export';
+  if (EXPORT_WRITES.has(pathname) || EXPORT_TABLE_WRITES.has(pathname)) return 'export';
   if (
     COMMENT_WRITES.has(pathname) ||
     COMMENT_TABLE_WRITES.has(pathname) ||
@@ -166,6 +180,19 @@ export function accessFromProxy(headers: Headers): Access {
   const role = headers.get('x-maude-role') || (readOnly ? 'viewer' : 'member');
   const legacy = legacyClaim(role);
   return resolveAccess(readOnly ? { ...legacy, role: capAtViewer(legacy.role) } : legacy);
+}
+
+/**
+ * S9.15c — does the proxy's readonly projection close EVERY lane of this session's
+ * sockets? `0` (may edit) and `1` (read-only by role: the comment lane stays open,
+ * Can comment) do not. `plan` (the project is paused — the proxy's socket lanes,
+ * lead decision `v2-lead-paused-comments-refused`) does, and so does any value this
+ * studio does not know, or none: the stricter reading. Socket lanes only — the HTTP
+ * writes of a paused project never reach the studio (the proxy answers 402 plan).
+ */
+export function lanesClosedFromProxy(headers: Headers): boolean {
+  const projection = headers.get('x-maude-readonly');
+  return projection !== '0' && projection !== '1';
 }
 
 /** A local, unlinked project: the person at this Mac owns it (§5.4). */
@@ -321,7 +348,7 @@ function seesTarget(g: GateInput, rel: string): boolean {
  * and their closure. Any method: reading B is refused exactly like writing it.
  */
 export async function canvasScopeRefusal(req: Request, g: GateInput): Promise<Response | null> {
-  if (!g.access.canvasOnly) return null;
+  if (!g.access.canvasOnly || !aclCheckOn('canvasScopeRefusal')) return null;
   const target = await gateTarget(req, g);
   if (target === undefined) return null;
   if (target === null || !seesTarget(g, target)) return notInScopeResponse();

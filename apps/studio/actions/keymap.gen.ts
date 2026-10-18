@@ -41,6 +41,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'select.all',
     exec: 'canvas',
+    visible: { minRole: 'comment' },
     keys: [
       { chord: '⌘A', layer: 'selection', when: { focus: ['canvas'] } },
       { chord: '⇧⌘A', layer: 'selection', when: { focus: ['canvas'] }, alias: true },
@@ -54,6 +55,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'edit.copy-properties',
     exec: 'canvas',
+    visible: { minRole: 'comment' },
     keys: [
       { chord: '⌥⌘C', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {
@@ -67,6 +69,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'edit.paste-properties',
     exec: 'canvas',
+    visible: { minRole: 'comment' },
     enabled: { minRole: 'edit' },
     keys: [
       { chord: '⌥⌘V', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
@@ -81,7 +84,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'object.enter',
     exec: 'canvas',
-    keys: [{ chord: '↵', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } }],
+    keys: [
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
   },
   {
     id: 'object.select-parent',
@@ -100,26 +109,18 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'object.remove',
     exec: 'canvas',
     keys: [
-      {
-        chord: '⌫',
-        layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
-      },
+      { chord: '⌫', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {
         chord: '⇧⌫',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: { focus: ['canvas'], selection: ['object'] },
         alias: true,
       },
-      {
-        chord: '⌦',
-        layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
-      },
+      { chord: '⌦', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } },
       {
         chord: '⇧⌦',
         layer: 'selection',
-        when: { focus: ['canvas'], selection: ['object', 'artboard'] },
+        when: { focus: ['canvas'], selection: ['object'] },
         alias: true,
       },
     ],
@@ -261,6 +262,51 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         chord: '⇧⌘L',
         layer: 'selection',
         when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'artboard.duplicate',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['artboard'] },
+    keys: [
+      {
+        chord: '⌘D',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['artboard'] },
+      },
+    ],
+  },
+  {
+    id: 'artboard.trash',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['artboard'] },
+    keys: [
+      { chord: '⌫', layer: 'selection', when: { focus: ['canvas'], selection: ['artboard'] } },
+      {
+        chord: '⇧⌫',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['artboard'] },
+        alias: true,
+      },
+      { chord: '⌦', layer: 'selection', when: { focus: ['canvas'], selection: ['artboard'] } },
+      {
+        chord: '⇧⌦',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['artboard'] },
+        alias: true,
+      },
+    ],
+  },
+  {
+    id: 'inspect.edit',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', mode: ['preview', 'viewing'], selection: ['object'] },
+    keys: [
+      {
+        chord: '↵',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['preview', 'viewing'], selection: ['object'] },
       },
     ],
   },
@@ -465,6 +511,11 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
+    id: 'tool.el-shape',
+    exec: 'canvas',
+    keys: [{ chord: 'R', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
+  },
+  {
     id: 'tool.el-text',
     exec: 'canvas',
     keys: [{ chord: 'T', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['edit'] } }],
@@ -475,6 +526,17 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [
       {
         chord: 'I',
+        layer: 'tools',
+        when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
+      },
+    ],
+  },
+  {
+    id: 'tool.components',
+    exec: 'canvas',
+    keys: [
+      {
+        chord: '⇧I',
         layer: 'tools',
         when: { focus: ['canvas', 'chrome'], mode: ['edit', 'preview', 'viewing'] },
       },
@@ -662,12 +724,30 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'export.open',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     fromCanvas: true,
     keys: [{ chord: '⇧⌘E', layer: 'global', inText: true }],
   },
   {
+    id: 'export.copy-png',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    fromCanvas: true,
+    keys: [
+      {
+        chord: '⇧⌘C',
+        layer: 'selection',
+        inText: false,
+        when: { selection: ['artboard', 'object', 'video-artboard', 'generated-image'] },
+      },
+    ],
+  },
+  {
     id: 'handoff.open',
     exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { minRole: 'edit' },
     fromCanvas: true,
     keys: [{ chord: '⇧⌘H', layer: 'global', inText: true }],
   },
@@ -840,11 +920,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'project.new',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     keys: [{ chord: '⇧⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'project.open',
     exec: 'native',
+    visible: { minRole: 'comment' },
     keys: [{ chord: '⌘O', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
@@ -860,12 +942,23 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   {
     id: 'tab.next',
     exec: 'native',
-    keys: [{ chord: '⌃tab', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [
+      { chord: '⌃tab', layer: 'global', inText: true, when: { shell: ['desktop'] } },
+      { chord: '⇧⌘]', layer: 'global', inText: true, alias: true, when: { shell: ['desktop'] } },
+    ],
   },
   {
     id: 'tab.prev',
     exec: 'native',
-    keys: [{ chord: '⌃⇧tab', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    keys: [
+      { chord: '⌃⇧tab', layer: 'global', inText: true, when: { shell: ['desktop'] } },
+      { chord: '⇧⌘[', layer: 'global', inText: true, alias: true, when: { shell: ['desktop'] } },
+    ],
+  },
+  {
+    id: 'tab.overview',
+    exec: 'native',
+    keys: [{ chord: '⇧⌘\\', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'tab.select-1',

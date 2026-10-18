@@ -133,11 +133,35 @@
             "minimum": 0
           },
           "snap": { "enum": ["beat", "off"] },
+          "exports": {
+            "description": "The artboard's own export sizes (S8.8, Inspector › Export): PNG/JPG at a scale, or SVG. Absent = the kind's default. Element presets are not stored.",
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "required": ["format"],
+              "additionalProperties": false,
+              "properties": {
+                "format": { "enum": ["png", "jpg", "svg"] },
+                "scale": { "type": "number", "minimum": 0.25, "maximum": 4 }
+              }
+            }
+          },
           "maxFrames": {
             "description": "C22 \"Allow longer\": this artboard's length cap, up to the exporter ceiling.",
             "type": "integer",
             "minimum": 1,
             "maximum": 18000
+          },
+          "madeFrom": {
+            "description": "Change-kind provenance (S7, kinds/meta.ts): the artboard this copy was made from and that artboard's label at the time.",
+            "type": "object",
+            "required": ["artboard", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "artboard": { "$ref": "#/$defs/artboardId" },
+              "label": { "type": "string", "maxLength": 200 }
+            }
           },
           "madeBy": {
             "description": "Made-by-AI attribution (V2-1.5), stamped by the studio after an AI edit.",

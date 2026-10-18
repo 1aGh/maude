@@ -25,6 +25,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
+import { browserDoorOf } from '../client/v2/cloud/browser-door.js';
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
 import { boundCloudToken, cloudConfigPath } from './config-path.ts';
@@ -40,6 +41,33 @@ import { boundCloudToken, cloudConfigPath } from './config-path.ts';
  */
 export function cloudUrl(): string {
   return (process.env.MAUDE_CLOUD_URL ?? 'https://cloud.maude.sh').replace(/\/+$/, '');
+}
+
+/**
+ * S9.17b: a managed open declares the access-claim version it understands (V2-1.7 §5.4) at every
+ * mint door it calls — `/projects/open`, `/auth/handoff/exchange`, the cell's `/auth/login` — so a
+ * Can view account is answered `409 browser-door` (a cell tab) rather than `426`. The folder attach
+ * lanes (`attach`, `attachCode`) do not declare: an account that may only look has no folder to sync.
+ */
+const ACCESS_DECLARED = { 'x-maude-access': '2' } as const;
+
+/**
+ * A mint door's `409 {reason:'browser-door', url}` → the page's answer, with the door's own
+ * `error` words beside it for a page that predates the door. The `url` is untrusted: only a cell
+ * front door of `project` passes (browser-door.js `cellDoorUrl`, the Rust `cell_door` shape);
+ * anything else is null and the caller answers as it always has.
+ */
+function browserDoorResult(
+  status: number,
+  body: unknown,
+  project: string | null | undefined,
+  error: string
+): CloudEndpointResult | null {
+  if (status !== 409) return null;
+  const door = browserDoorOf(body, project ?? null);
+  return door
+    ? { status: 409, json: { ok: false, reason: 'browser-door', url: door.url, error } }
+    : null;
 }
 
 export interface CloudEndpointResult {
@@ -336,14 +364,18 @@ export function createCloudEndpoints(ctx: Ctx) {
       }
       const opened = await cloudFetch('/projects/open', {
         method: 'POST',
-        headers: { authorization: `Bearer ${file.token}`, 'content-type': 'application/json' },
+        headers: {
+          authorization: `Bearer ${file.token}`,
+          'content-type': 'application/json',
+          ...ACCESS_DECLARED,
+        },
         body: JSON.stringify({ project: projectId }),
       });
+      const notOpened = 'The project could not be opened with this account.';
+      const door = browserDoorResult(opened.status, opened.body, projectId, notOpened);
+      if (door) return door;
       if (opened.status !== 200 || !opened.body?.token || !opened.body.url) {
-        return {
-          status: 502,
-          json: { ok: false, error: 'The project could not be opened with this account.' },
-        };
+        return { status: 502, json: { ok: false, error: notOpened } };
       }
       return exchangeAtCell({
         workspaceUrl: opened.body.url,
@@ -360,18 +392,17 @@ export function createCloudEndpoints(ctx: Ctx) {
       }
       const exchanged = await cloudFetch('/auth/handoff/exchange', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...ACCESS_DECLARED },
         body: JSON.stringify({ code }),
       });
+      const expired =
+        'That link expired — it works once, for two minutes. Press “Open in Maude” on the project page again.';
+      // The door must name the project the person confirmed (when the link claimed one) — the
+      // same agreement the token path checks below.
+      const door = browserDoorResult(exchanged.status, exchanged.body, claimedProject, expired);
+      if (door) return door;
       if (exchanged.status !== 200 || !exchanged.body?.token || !exchanged.body.url) {
-        return {
-          status: 410,
-          json: {
-            ok: false,
-            error:
-              'That link expired — it works once, for two minutes. Press “Open in Maude” on the project page again.',
-          },
-        };
+        return { status: 410, json: { ok: false, error: expired } };
       }
       if (claimedProject && exchanged.body.project && claimedProject !== exchanged.body.project) {
         return {
@@ -760,39 +791,45 @@ export function createCloudEndpoints(ctx: Ctx) {
     role?: string;
     project?: string;
   }): Promise<CloudEndpointResult> {
-    const r = await exchangeCredential(workspaceUrl, projectToken);
-    if (!r) {
-      return {
-        status: 502,
-        json: {
-          ok: false,
-          error: 'The workspace did not accept the sign-in. Try again in a minute.',
-        },
-      };
+    const r = await exchangeCredential(workspaceUrl, projectToken, project);
+    const refused = 'The workspace did not accept the sign-in. Try again in a minute.';
+    if (r && 'reason' in r) {
+      return { status: 409, json: { ok: false, reason: r.reason, url: r.url, error: refused } };
     }
+    if (!r) return { status: 502, json: { ok: false, error: refused } };
     return {
       status: 200,
       json: { ok: true, url: r.url, role: r.role ?? role ?? null, project: project ?? null },
     };
   }
 
+  /**
+   * The cell's `/auth/login`, declared (S9.17b): a hub credential, or — for an account the cell
+   * sends to its browser door — `{reason:'browser-door', url}` with a validated front door of
+   * `project` (no credential exists to store). null = refused; the caller says so.
+   */
   async function exchangeCredential(
     workspaceUrl: string,
-    projectToken: string
-  ): Promise<{ url: string; role?: string } | null> {
+    projectToken: string,
+    project?: string | null
+  ): Promise<{ url: string; role?: string } | { reason: 'browser-door'; url: string } | null> {
     let hubToken: string | null = null;
     let hubTokenExpiresAt: number | undefined;
     let vouchedRole: string | undefined;
     try {
       const res = await fetch(`${workspaceUrl}/auth/login`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...ACCESS_DECLARED },
         body: JSON.stringify({ token: projectToken }),
       });
       const body = (await res.json().catch(() => ({}))) as CloudBody & {
         expiresAt?: unknown;
         user?: { role?: unknown };
       };
+      if (res.status === 409) {
+        const door = browserDoorOf(body, project ?? null);
+        if (door) return { reason: 'browser-door', url: door.url };
+      }
       if (res.ok && body?.token) {
         hubToken = body.token;
         if (typeof body.expiresAt === 'number' && Number.isFinite(body.expiresAt))

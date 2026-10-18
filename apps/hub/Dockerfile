@@ -93,6 +93,9 @@ COPY apps/studio/sync/limits.ts /build/apps/studio/sync/limits.ts
 # with the studio's own three-way merge (diff is a hub dependency, bundled), and
 # sanitizes annotation SVG with the studio's sanitizer — never a hub-side copy.
 COPY apps/studio/sync/source-merge.ts /build/apps/studio/sync/source-merge.ts
+# S9.24 — the object-level conflict rule the annotations lane holds a same-sticky
+# race with (`objects: 'hold'`), shared with the studio's local kernel.
+COPY apps/studio/sync/object-conflict.ts /build/apps/studio/sync/object-conflict.ts
 # The repeated-module guard the accepted-revisions import collapses doubled
 # canvases with (the Alligators seed race, 2026-09-15).
 COPY apps/studio/sync/repeated-module.ts /build/apps/studio/sync/repeated-module.ts

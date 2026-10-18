@@ -47,6 +47,10 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/export-jobs', refused: ['view'] },
   { method: 'POST', route: '/_api/export-history', refused: ['view'] },
   { method: 'POST', route: '/_api/export-assemble', refused: ['view'] },
+  // S8.1 — the estimate is the export class too (numbers about an export)
+  { method: 'POST', route: '/_api/export-estimate', refused: ['view'] },
+  // S8.4 — Retry is the export class too
+  { method: 'POST', route: '/_api/export-jobs/retry', refused: ['view'] },
   // annotate — stickies, marker, arrows (D5: Can comment may not annotate)
   { method: 'POST', route: '/_api/annotations/ops', refused: ['view', 'comment'] },
   { method: 'PUT', route: '/_api/annotations', refused: ['view', 'comment'] },
@@ -61,9 +65,83 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S7.6c — the video tools' edit ops (`video.*` server: POST /_api/edit-op): a clip op from a
+  // Can comment session is the gate's 403, whatever the Timeline shows.
+  {
+    method: 'POST',
+    route: '/_api/edit-op',
+    refused: ['view', 'comment'],
+    body: {
+      file: '.design/ui/a.tsx',
+      op: 'video.reframe',
+      targets: [],
+      params: { artboard: 'reel', stableId: 'name:one', zoom: 2 },
+    },
+  },
+  // S9.24 — `sync.conflict.keep-*`: a conflict pick is a board edit (test/sync-conflicts-route.test.ts).
+  {
+    method: 'POST',
+    route: '/_api/sync/conflicts/resolve',
+    refused: ['view', 'comment'],
+    body: { slug: 'ui-a', id: 's1', choice: 'mine' },
+  },
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
+  // S3.10a — `element.set-link` / `element.clear-link`: one dispatch route for every structural edit (test/edit-op-route.test.ts;
+  // the viewer's 403 through a booted studio is a row of test/access-role-matrix.test.ts).
+  { method: 'POST', route: '/_api/edit-op', refused: ['view', 'comment'] },
+  // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
+  { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
+  // S1.17 — trash.restore: the Trash row's Restore (an edit; test/acl-l18-trash.test.ts consumes it).
+  {
+    method: 'POST',
+    route: '/_api/trash/restore',
+    refused: ['view', 'comment'],
+    body: { id: 'canvas:n_a' },
+  },
+  // S11.10 — Version history › Advanced's git buttons (history.branch-switch · continue-draft · new-branch · publish ·
+  // save-with-note · open-pr · discard-file) and a row's Undo (history.undo-action). The fold is hidden below edit;
+  // these rows are the server half (test/access-role-matrix.test.ts pins the same routes).
+  { method: 'POST', route: '/_api/git/checkout', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/branch', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/push', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/commit', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/fold', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/discard', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/project/undo', refused: ['view', 'comment'] },
+  // history.fetch moves remote refs only: the role matrix allows it for a viewer, so the fold hides it and
+  // the server refuses no one (no `minRole` on the action, so no role is below it).
+  { method: 'POST', route: '/_api/git/fetch', refused: [] },
+  // S11.6 — the code view: source text is a download (Can view refused; test/canvas-source-route.test.ts).
+  { method: 'GET', route: '/_api/canvas-source', refused: ['view'] },
+  { method: 'GET', route: '/_api/canvas-errors', refused: ['view'] },
+  // S11.11 — `sync.resync`: Resync now re-compares every file with the cloud copy and sends what is newer
+  // here, so it is an edit (routes/sync.ts is `readOnly: 'refused'`; the cloud cell refuses it outright).
+  { method: 'POST', route: '/_api/sync/resync', refused: ['view', 'comment'] },
+  // S9.19 — who has access is the owner's (`invite`, V2-1.7 §5.5): routes/share.ts refuses every
+  // session without it before the linked hub hears anything (test/share-route.test.ts).
+  { method: 'POST', route: '/_api/share/invites', refused: ['view', 'comment', 'edit'] },
+  {
+    method: 'PATCH',
+    route: '/_api/share/people/:id',
+    refused: ['view', 'comment', 'edit'],
+    body: { role: 'viewer' },
+  },
+  { method: 'POST', route: '/_api/share/people/:id/remove', refused: ['view', 'comment', 'edit'] },
+  { method: 'POST', route: '/_api/share/invites/:id/resend', refused: ['view', 'comment', 'edit'] },
+  // S10.3b — the design-system writes (routes/ds.ts, Q15): every one is a project edit; a token's
+  // clear-out is the owner's (`writeCapability` classes /_api/ds/clear `delete`).
+  ...[
+    '/_api/ds/publish',
+    '/_api/ds/pending',
+    '/_api/ds/outside',
+    '/_api/ds/pick',
+    '/_api/ds/canvas',
+    '/_api/ds/trash',
+    '/_api/ds/restore',
+  ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
+  { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

@@ -38,11 +38,17 @@ import { serveClientAsset, serveFile, serveIndexHtml } from '../static-lane.ts';
 import { thumbNotFound, thumbResponse } from '../thumbs/routes.ts';
 import { checkJpeg } from '../thumbs/validate.ts';
 import { isLoopbackHost } from '../ws.ts';
+import { createHomeAi, type HomeAi } from './ai.ts';
+import { createHomeCli, type HomeCli } from './cli.ts';
 import type { HomeCloud } from './cloud.ts';
 import { createLocalProject } from './create-local.ts';
+import { createHomeHub, type HomeHub } from './hub.ts';
 import { readHomeIndex, resolveProject, searchHome, thumbSource } from './index-reader.ts';
+import { createHomeInvite, type HomeInvite } from './invite.ts';
 import { isPid } from './pid.ts';
+import { createHomeSignIn, type HomeAnswer, type HomeSignIn } from './signin.ts';
 import { isCanvasKey, setPin } from './user-state.ts';
+import { createHomeWhatsNew, type HomeWhatsNew } from './whats-new.ts';
 
 export const HOME_HEADER = 'x-maude-home';
 export const MAX_BODY_BYTES = 64 * 1024;
@@ -64,6 +70,18 @@ export interface HomeDeps {
   /** base dir for create-local (default ~/Maude) */
   projectsDir: string;
   cloud: HomeCloud;
+  /** S6.5 — the device-flow sign-in (one per Home process; default: a fresh one per table) */
+  signin?: HomeSignIn;
+  /** S6.5 — the invite peek/accept proxy */
+  invite?: HomeInvite;
+  /** S6.6 — "Connect to your own hub": Test connection + prepare */
+  hub?: HomeHub;
+  /** S6.6 — Claude readiness + the existing install / sign-in module */
+  ai?: HomeAi;
+  /** S6.6 / Q13 — Install the maude command (default: ~/.local/bin + the bundled maude) */
+  cli?: HomeCli;
+  /** S6.6 / Q11 — the feed + the one seen mark per Mac (ui-prefs) */
+  whatsNew?: HomeWhatsNew;
 }
 
 const NO_STORE = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
@@ -194,8 +212,46 @@ interface HomeRoute {
   handle(req: Request, url: URL): Response | Promise<Response>;
 }
 
+/** A JSON-bodied POST row whose handler answers `{status, body}` (S6.5). */
+function post(
+  path: string,
+  kind: Kind,
+  run: (body: unknown) => HomeAnswer | Promise<HomeAnswer>
+): HomeRoute {
+  return {
+    method: 'POST',
+    path,
+    kind,
+    handle: async (req) => {
+      const b = await readBody(req);
+      if (!b.ok) return b.res;
+      const r = await run(b.value);
+      return json(r.status, r.body);
+    },
+  };
+}
+
+/** A GET row whose handler answers `{status, body}` (S6.6). */
+function get(path: string, run: () => HomeAnswer | Promise<HomeAnswer>): HomeRoute {
+  return {
+    method: 'GET',
+    path,
+    kind: 'home',
+    handle: async () => {
+      const r = await run();
+      return json(r.status, r.body);
+    },
+  };
+}
+
 /** Exported for the route-guard test: every row of V2-1.1 §5.3 but the static lane. */
 export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
+  const signin = deps.signin ?? createHomeSignIn();
+  const invite = deps.invite ?? createHomeInvite();
+  const hub = deps.hub ?? createHomeHub();
+  const ai = deps.ai ?? createHomeAi();
+  const cli = deps.cli ?? createHomeCli();
+  const whatsNew = deps.whatsNew ?? createHomeWhatsNew();
   return [
     {
       method: 'GET',
@@ -341,6 +397,24 @@ export function homeRouteTable(deps: HomeDeps): HomeRoute[] {
         return json(r.ok ? 200 : r.status, r);
       },
     },
+    // S6.5 — sign-in (contract S6-S9 §5.1) and the invite proxy (§5.3): page routes behind the
+    // page secret; the profile they may write is named by Rust alone (the internal row below)
+    post('/_home/cloud/signin/start', 'home', (b) => signin.start(b)),
+    post('/_home/cloud/signin/poll', 'home', (b) => signin.poll(b)),
+    post('/_home/cloud/signin/cancel', 'home', (b) => signin.cancel(b)),
+    post('/_home/invite/peek', 'home', (b) => invite.peek(b)),
+    post('/_home/invite/accept', 'home', (b) => invite.accept(b)),
+    post('/_home/internal/signin/profile', 'internal', (b) => signin.register(b)),
+    // S6.6 — page routes behind the page secret. The hub password rides one POST body to
+    // `prepare` and is handed straight to the hub (home/hub.ts); nothing here stores or logs it.
+    post('/_home/hub/test', 'home', (b) => hub.test(b)),
+    post('/_home/hub/prepare', 'home', (b) => hub.prepare(b)),
+    get('/_home/ai/status', () => ai.status()),
+    post('/_home/ai/connect', 'home', (b) => ai.connect(b)),
+    get('/_home/cli/status', () => cli.status()),
+    post('/_home/cli/install', 'home', (b) => cli.install(b)),
+    get('/_home/whats-new', () => whatsNew.get()),
+    post('/_home/whats-new', 'home', (b) => whatsNew.post(b)),
     {
       method: 'GET',
       path: '/_home/internal/search',

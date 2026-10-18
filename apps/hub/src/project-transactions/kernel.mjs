@@ -439,6 +439,8 @@ export function createKernel({
           : op.base;
     let next = checked.content;
     let merged = false;
+    /** S9.24 — elements held at the head's version (`objects: 'hold'`). */
+    let conflicts = null;
     if (base !== headHash) {
       let baseContent;
       try {
@@ -452,7 +454,9 @@ export function createKernel({
         });
       }
       const current = await work.laneContent(st, op.lane);
-      const m = mergeLane(op.lane, baseContent, checked.content, current);
+      const m = mergeLane(op.lane, baseContent, checked.content, current, {
+        holdObjects: op.objects === 'hold',
+      });
       if (!m.ok) throw new Reject('base-conflict', { doc: op.doc, lane: op.lane, head: headHash });
       const recheck = checkLane(op.lane, m.content, { path: st.path ?? `${slugOf(op.doc)}.tsx` });
       if (!recheck.ok)
@@ -464,10 +468,35 @@ export function createKernel({
         });
       next = recheck.content;
       merged = true;
+      if (m.conflicts?.length) {
+        // S9.24 — the held elements: the proposal's own board is kept aside in THIS action (the
+        // loser's body is never lost, even if nobody ever opens the card), and the answer names
+        // them so the proposer's Mac shows the card. No head moves for the aside (V2-1.9 §4.9).
+        const asideHash = laneHash(checked.content);
+        work.blobs.set(asideHash, checked.content);
+        work.effects.push({
+          effect: `e_${newId()}`,
+          doc: st.doc,
+          entry: st.entry,
+          lane: '@aside',
+          op: `aside.${op.lane}`,
+          beforeHash: headHash === EMPTY_HASH ? null : headHash,
+          afterHash: asideHash,
+        });
+        conflicts = m.conflicts.map((c) => ({
+          id: c.id,
+          type: c.type,
+          fields: c.fields,
+          mine: c.mine,
+          theirs: c.theirs,
+        }));
+      }
     }
     work.setLane(st, op.lane, next, { writeId: op.writeId });
-    if (st.doc !== op.doc) return { doc: op.doc, lane: op.lane, merged, followedTo: st.doc };
-    return merged ? { doc: op.doc, lane: op.lane, merged: true } : null;
+    const held = conflicts ? { conflicts } : {};
+    if (st.doc !== op.doc)
+      return { doc: op.doc, lane: op.lane, merged, followedTo: st.doc, ...held };
+    return merged ? { doc: op.doc, lane: op.lane, merged: true, ...held } : null;
   }
 
   /** The live document a moved one continues as (same entry), or null. */

@@ -7,8 +7,9 @@
 // Two inputs the page has and one it may have:
 //   profile   `/_config.profile` — which account THIS tab runs as (always known on the desktop)
 //   email     `/_api/cloud/status` — the signed-in address of that profile (absent when signed out)
-//   accounts  OPTIONAL — every account on this Mac with its project names, `[{ id, label, email,
-//             projects: string[] }]`. A project page cannot read the shell's profile registry (the page
+//   accounts  OPTIONAL — every account on this Mac, `[{ id, label, email, projects }]`: `projects` is
+//             the project names for the caller's own account and a count (a number) for every other
+//             one (S1.22b `accounts_list`, option B). A project page cannot read the shell's profile registry (the page
 //             capability deliberately omits it), so this arrives only from a shell command that returns
 //             it for the caller (patch request S1.22a-1). Without it the card still says everything that
 //             is known and leaves out the lines that would need it — never an invented list.
@@ -69,7 +70,9 @@ export function accountCard({ project, profile, email, accounts = null }) {
   const label = labelOf(profile) || id;
   const list = Array.isArray(accounts) ? accounts : null;
   const mine = list?.find((a) => a?.id === id) ?? null;
-  const here = (mine?.projects ?? []).filter((n) => typeof n === 'string');
+  const here = (Array.isArray(mine?.projects) ? mine.projects : []).filter(
+    (n) => typeof n === 'string'
+  );
   const who = email || label;
   const effect = 'Signs out every project on it';
   const named = projectsPhrase(here);
@@ -89,8 +92,10 @@ export function accountCard({ project, profile, email, accounts = null }) {
           initial: initialOf(l),
           tone: toneOf(a.id),
           title: a.email ? `${l} · ${a.email}` : l,
-          sub:
-            projectsPhrase(a.projects) || plural((a.projects ?? []).length, 'project', 'projects'),
+          // S1.22b `accounts_list` (option B): another account carries a COUNT, not names.
+          sub: Array.isArray(a.projects)
+            ? projectsPhrase(a.projects) || plural(a.projects.length, 'project', 'projects')
+            : plural(Number(a.projects) || 0, 'project', 'projects'),
         };
       }),
     // The registry's own label — one label on every surface (CONTRACT §3).

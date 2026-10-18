@@ -1,5 +1,5 @@
 // bash-guard.mjs — the design plugin's Bash rules (contract V2-1.11 §5.4 pre-bash / post-bash,
-// narrowed by V2-1.18 §9 Q5). A best-effort POSIX-shell reader, then four deny codes:
+// narrowed by V2-1.18 §9 Q5). A best-effort POSIX-shell reader, then five deny codes:
 //
 //   use-trash     rm / unlink / rmdir / git rm / find -delete of a versioned .design/** file
 //   use-verb      mv / git mv of a versioned .design/** file
@@ -10,6 +10,9 @@
 //
 // Command names are the PARSED words, basename'd and case-folded (`nameOf`): `r''m`, `r\m`, `RM`
 // (APFS) all run rm. Every command is parsed — a text pre-filter can't see those names.
+//
+//   human-only    a write (POST, a body) to a studio route a person starts in the Maude window —
+//                 `/_api/cloud/move` (S6.0c) — by curl, curl-local or a script; a GET passes
 //
 //   out-of-project  a `maude` command's output redirected (> >> &> 2> >| or a `tee` it feeds) to a
 //                 path outside the repo root and the OS temp dir (§9 Q3) — `outOfProject` below
@@ -445,7 +448,77 @@ const MESSAGES = {
     `out-of-project: this \`maude\` command's output would be written to ${path}, outside the project. Write inside the project or the temp dir (or drop the redirection and read the output).`,
   'not-a-writer': (rel) =>
     `not-a-writer: files in .design/ (${rel}) are written with Edit/Write or a \`maude design\` verb, so every change is checked. Edit the file instead.`,
+  'human-only': (what) =>
+    `human-only: ${what} is the person's act in the Maude window (it uploads the project to their billed cloud account). Tell them to use ${what} in the Share sheet; reading its progress with a GET is fine.`,
 };
+
+// ── human-only studio routes (S6.0c) ─────────────────────────────────────────────────────────
+// A write to one of these is the person's act in the Maude window: the studio refuses it without
+// the window's own `Sec-Fetch-Site: same-origin` (routes/cloud-move.ts), so this rule only names
+// why before the command runs. Matched on the PARSED word text (quotes removed, `$VAR` dropped),
+// so `cl""oud/move` and `127.0.0.1:$PORT/_api/cloud/move` are seen. A GET (status) passes, and so
+// does any command that names the route without a write sign (`rg cloud/move`). RESIDUAL: a script
+// that builds the path from pieces is not seen — the server's gate is the boundary, not this.
+const HUMAN_ONLY_ROUTES = [{ re: /\/_api\/cloud\/move(?![\w-])/i, what: 'Move to cloud' }];
+const READ_METHODS = new Set(['GET', 'HEAD']);
+/** A write sign in a script / non-curl client's words (wget --post-data, fetch {method:'POST'}). */
+const SCRIPT_REQUEST_WRITE = /\bpost\b|--post|\bmethod\b|\bdata\s*=|--data|--body/i;
+
+/** curl's words: does this request carry a body or a non-read method? Unknown → a write. */
+function curlWrites(args) {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i].text ?? '';
+    const next = () => (args[i + 1]?.text ?? '').toUpperCase();
+    if (/^--(?:data|json|form|upload-file|post)/.test(t)) return true;
+    const long = /^--request(?:=(.*))?$/.exec(t);
+    if (long) {
+      const m = (long[1] ?? next()).toUpperCase();
+      if (!READ_METHODS.has(m)) return true;
+      continue;
+    }
+    if (/^-[A-Za-z]/.test(t) && !t.startsWith('--')) {
+      const flags = t.slice(1);
+      const x = flags.indexOf('X');
+      const before = x === -1 ? flags : flags.slice(0, x);
+      if (/[dFT]/.test(before)) return true;
+      if (x !== -1) {
+        const m = (flags.slice(x + 1) || next()).toUpperCase();
+        if (!READ_METHODS.has(m)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** `maude design curl-local`'s own small vocabulary (bin/_curl-local.mjs): --method / --data. */
+function curlLocalWrites(args) {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i].text ?? '';
+    if (t === '--data') return true;
+    if (t === '--method' && !READ_METHODS.has((args[i + 1]?.text ?? '').toUpperCase())) return true;
+  }
+  return false;
+}
+
+function humanOnlyRoute(cmds) {
+  for (const cmd of cmds) {
+    const texts = cmd.words.map((w) => w.text ?? '');
+    const route = HUMAN_ONLY_ROUTES.find((r) => texts.some((t) => r.re.test(t)));
+    if (!route) continue;
+    const mw = maudeWords(cmd);
+    const e = effective(cmd.words);
+    let writes;
+    if (mw) {
+      const local = mw[0]?.text === 'design' && mw[1]?.text === 'curl-local';
+      writes = local
+        ? curlLocalWrites(mw.slice(2))
+        : texts.some((t) => SCRIPT_REQUEST_WRITE.test(t));
+    } else if (e?.name === 'curl') writes = curlWrites(e.args);
+    else writes = texts.some((t) => SCRIPT_REQUEST_WRITE.test(t));
+    if (writes) return { code: 'human-only', reason: MESSAGES['human-only'](route.what) };
+  }
+  return null;
+}
 
 /**
  * The design-root view of one word: { rel, runtime } when it names a path inside the design root,
@@ -558,6 +631,8 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
   // for a judged word, so the cost is the parse (the budget test in bash-guard.test.mjs).
   const cmds = parseBash(command);
   if (!cmds) return null;
+  const human = humanOnlyRoute(cmds);
+  if (human) return human;
   const out = root ? outOfProject(cmds, { cwd, root }) : null;
   if (out) return out;
   let designReal = null;

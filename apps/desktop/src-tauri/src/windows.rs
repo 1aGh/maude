@@ -89,14 +89,16 @@ pub const CLOSE_GRACE: Duration = Duration::from_secs(10);
 /// server's boot self-heal (bun install + build), up to ~90 s.
 pub const SERVER_WAIT_MS: u64 = 120_000;
 
-/// What a window is for. `Home` and `Cell` are reserved here so the book has
-/// one shape; V2-3.3 opens `home`, and `c-*` cell tabs come later.
+/// What a window is for: Home (V2-3.3), a project on this Mac (`p-<pid>`), or a
+/// cell tab (`c-<16 hex>`, S9.17) — a cloud project shown straight from its cell
+/// over https, for an account whose access gets no local copy (a `409 browser-door`
+/// answer, V2-1.7 §5.4). A cell tab is pinned to ONE cell origin and belongs to ONE
+/// account profile; it is in no capability (no IPC).
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)] // Cell: first constructed with the cell tabs
 pub enum Role {
     Home,
     Project { pid: String, root: String },
-    Cell { url: String },
+    Cell { origin: String, profile: String },
 }
 
 #[derive(Clone, Debug)]
@@ -458,6 +460,8 @@ impl WindowBook {
         let tabs = self
             .tabs
             .iter()
+            // S9.17: a cell tab is opened by a door answer, never restored.
+            .filter(|l| !is_cell_label(l))
             .map(|l| crate::app_state::SessionTab {
                 label: l.clone(),
                 pid: self.project_of(l).map(|(pid, _)| pid),
@@ -625,6 +629,10 @@ pub fn open_in_as(
 /// (`notify::sanitize_title`, contract §5.2 "Title" — one line, no bidi
 /// controls) — AppKit draws it.
 pub fn project_display_name(root: &str) -> String {
+    // S1.22b: the name the person gave the tab on this Mac wins (Rename…).
+    if let Some(n) = crate::app_state::display_name_of(&pid_for_root(root)) {
+        return crate::notify::sanitize_title(&n);
+    }
     let from_config = std::fs::read(Path::new(root).join(".design").join("config.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
@@ -775,9 +783,10 @@ pub fn navigation_allowed(
         NavRole::Home => false,
         NavRole::Project if loopbackish(&target) => canvas == Some(o.as_str()),
         NavRole::Project => target.scheme() == "https",
-        NavRole::Cell => {
-            target.scheme() == "https" && !loopbackish(&target) && crate::oauth::in_cloud_zone(&o)
-        }
+        // S9.17: the pinned cell origin matched above; besides it only the cell's
+        // canvas origin (the iframe) and the control plane (the cell's browser
+        // sign-in hands off there and back) — never another tenant's host.
+        NavRole::Cell => !loopbackish(&target) && cell_extra_origin(&o),
         NavRole::Audience => false,
     }
 }
@@ -799,10 +808,319 @@ pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) 
     }
     let o = url.origin().ascii_serialization();
     origin == Some(o.as_str())
-        || (role == NavRole::Cell
-            && url.scheme() == "https"
-            && !loopbackish(url)
-            && crate::oauth::in_cloud_zone(&o))
+        || (role == NavRole::Cell && !loopbackish(url) && cell_control_plane(&o))
+}
+
+// ── Cell tabs (S9.17) ────────────────────────────────────────────────────────
+//
+// A `409 {reason:'browser-door', url}` from a mint door (access/scope.ts
+// `peerTokenDoor`) means: this account may look, but gets no peer token and so
+// no local copy. The app opens the cell itself in a `c-*` tab. The URL arrives
+// from a page (Home or a project tab relaying the door's answer), so Rust takes
+// nothing from it but a validated cell front door: https, port-less, one label
+// under the compiled-in cloud zone, `/` or `/c/<canvas>`, no query, no fragment,
+// rebuilt from its parts. The profile is the caller's own (`managed_profile`:
+// a project tab only ever its own account; Home names an existing one), and the
+// tab's cookies live in a data store of THAT profile — another account's tabs
+// never see them, and a tab of one account is never reused for another.
+
+/// The cloud zone's host, compiled in on purpose (oauth.rs `DEFAULT_CLOUD_HOST`,
+/// whose arm-2 rationale applies: a poisoned `MAUDE_CLOUD_URL` must not widen
+/// which hosts a cell tab may show). `cell_door` also requires `in_cloud_zone`.
+pub const CELL_ZONE: &str = "cloud.maude.sh";
+
+/// The one canvas origin every cell's canvas iframe is served from
+/// (apps/cells/worker.mjs: `canvas.cloud.maude.sh/<id>/…`).
+fn cell_canvas_origin() -> String {
+    format!("https://canvas.{CELL_ZONE}")
+}
+
+/// The configured control plane, exactly (scheme + host + port), https only —
+/// where a cell's browser sign-in hands off and comes back from.
+fn cell_control_plane(origin: &str) -> bool {
+    let base = crate::oauth::cloud_base();
+    base.scheme() == "https" && base.origin().ascii_serialization() == origin
+}
+
+/// A cell tab's origins besides its own pinned one.
+fn cell_extra_origin(origin: &str) -> bool {
+    origin == cell_canvas_origin() || cell_control_plane(origin)
+}
+
+/// What a validated browser door names.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CellDoor {
+    /// `https://<project>.cloud.maude.sh` — what the tab is pinned to.
+    pub origin: String,
+    /// The cell project id (the host's first label) — the tab's name.
+    pub project: String,
+    /// The URL the tab navigates to, rebuilt from the validated parts.
+    pub url: String,
+}
+
+/// Percent-decode one path segment to UTF-8; `None` on a bad escape or bytes.
+fn percent_decode(seg: &str) -> Option<String> {
+    let b = seg.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = std::str::from_utf8(b.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// A cell's project id: a DNS label of `[a-z0-9-]`, and never one of the zone's
+/// own non-cell hosts (`canvas`, `view-*` share views, `canvas-*`).
+fn cell_project_id(label: &str) -> bool {
+    let shape = !label.is_empty()
+        && label.len() <= 63
+        && label.split('-').all(|p| {
+            !p.is_empty() && p.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        });
+    shape && label != "canvas" && !label.starts_with("view-") && !label.starts_with("canvas-")
+}
+
+/// Pure: validate a browser door's `url` (above). The error is the one sentence
+/// the page may show.
+pub fn cell_door(url: &str) -> Result<CellDoor, String> {
+    let refuse = || "That isn't a Maude Cloud project address.".to_string();
+    if url.len() > 2048
+        || url.contains(|c: char| c.is_whitespace() || c.is_control() || matches!(c, '\\' | '@'))
+    {
+        return Err(refuse());
+    }
+    let u = tauri::Url::parse(url).map_err(|_| refuse())?;
+    if u.scheme() != "https"
+        || u.port().is_some()
+        || !u.username().is_empty()
+        || u.password().is_some()
+        || u.query().is_some()
+        || u.fragment().is_some()
+    {
+        return Err(refuse());
+    }
+    let host = u.host_str().ok_or_else(refuse)?;
+    let project = host
+        .strip_suffix(CELL_ZONE)
+        .and_then(|h| h.strip_suffix('.'))
+        .filter(|p| cell_project_id(p))
+        .ok_or_else(refuse)?
+        .to_string();
+    let origin = format!("https://{project}.{CELL_ZONE}");
+    if u.origin().ascii_serialization() != origin || !crate::oauth::in_cloud_zone(&origin) {
+        return Err(refuse());
+    }
+    let mut out = tauri::Url::parse(&origin).map_err(|_| refuse())?;
+    let path = u.path();
+    if !matches!(path, "" | "/") {
+        let rest = path.strip_prefix("/c/").ok_or_else(refuse)?;
+        let segs: Vec<String> = rest
+            .split('/')
+            .map(percent_decode)
+            .collect::<Option<_>>()
+            .ok_or_else(refuse)?;
+        if segs.iter().any(|s| s.contains(['/', '\\'])) {
+            return Err(refuse());
+        }
+        let canvas =
+            crate::project_resolve::validate_open_param(&segs.join("/")).ok_or_else(refuse)?;
+        out.path_segments_mut()
+            .map_err(|_| refuse())?
+            .clear()
+            .push("c")
+            .extend(canvas.split('/'));
+    }
+    Ok(CellDoor {
+        origin,
+        project,
+        url: out.to_string(),
+    })
+}
+
+/// Is `label` a cell tab's (`c-<16 hex>`)?
+pub fn is_cell_label(label: &str) -> bool {
+    label.strip_prefix("c-").is_some_and(|h| {
+        h.len() == 16 && h.bytes().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'))
+    })
+}
+
+/// The label of `profile`'s cell tab for `origin`: one tab per (account, cell).
+pub fn cell_label(profile: &str, origin: &str) -> String {
+    let h = sha256_hex(format!("maude-cell:{profile}\n{origin}").as_bytes());
+    format!("c-{}", &h[..16])
+}
+
+/// The WebKit data store a cell tab of `profile` keeps its cookies in: one per
+/// account profile (the cell's session cookie), never shared with a project tab
+/// (those are per label) or with another account.
+pub fn data_store_id_for_cell_profile(profile: &str) -> [u8; 16] {
+    let digest = Sha256::digest(format!("maude-cell-profile:{profile}").as_bytes());
+    let mut out = [0u8; 16];
+    out.copy_from_slice(&digest[..16]);
+    out
+}
+
+/// Open `profile`'s tab for `door` once: an existing tab of the SAME account
+/// and cell comes to the front; otherwise a new tab, pinned to the cell's
+/// origin, after `caller`. The book entry (with the pinned origin) is written
+/// before the webview is built, so its first navigation finds it.
+pub fn open_cell_in(
+    host: &impl WindowHost,
+    book: &Mutex<WindowBook>,
+    door: &CellDoor,
+    profile: &str,
+    caller: Option<&str>,
+    tick: u64,
+) -> Result<Opened, String> {
+    let label = cell_label(profile, &door.origin);
+    let role = Role::Cell {
+        origin: door.origin.clone(),
+        profile: profile.to_string(),
+    };
+    {
+        let mut b = book.lock().unwrap_or_else(|e| e.into_inner());
+        match b.entry(&label).map(|e| e.role.clone()) {
+            Some(r) if r == role && host.exists(&label) => {
+                drop(b);
+                host.reveal(&label, &door.project);
+                return Ok(Opened::Existing(label));
+            }
+            // A label is one (account, cell): anything else under it is refused.
+            Some(r) if r != role => {
+                return Err("That tab belongs to another account.".to_string())
+            }
+            Some(_) => {
+                b.remove(&label);
+            }
+            None => {}
+        }
+        b.insert_after(&label, role, tick, caller);
+        b.set_origin(&label, &door.origin);
+    }
+    let spec = WindowSpec {
+        label: label.clone(),
+        title: door.project.clone(),
+        caller: caller.map(str::to_string),
+        background: false,
+    };
+    if let Err(e) = host.create(&spec) {
+        book.lock().unwrap_or_else(|e| e.into_inner()).remove(&label);
+        return Err(e);
+    }
+    Ok(Opened::New(label))
+}
+
+impl WindowBook {
+    /// `(origin, profile)` of a cell tab.
+    pub fn cell_of(&self, label: &str) -> Option<(String, String)> {
+        match &self.entries.get(label)?.role {
+            Role::Cell { origin, profile } => Some((origin.clone(), profile.clone())),
+            _ => None,
+        }
+    }
+}
+
+/// Send cell tab `label` to `url` (a `cell_door` URL) — only while the tab is
+/// still pinned to that URL's origin.
+pub fn navigate_cell(app: &AppHandle, label: &str, url: &str) {
+    let Ok(parsed) = url.parse::<tauri::Url>() else {
+        return;
+    };
+    let pinned = app.try_state::<SidecarState>().and_then(|s| {
+        s.windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .cell_of(label)
+            .map(|(origin, _)| origin)
+    });
+    if pinned.as_deref() != Some(parsed.origin().ascii_serialization().as_str()) {
+        return;
+    }
+    if let Some(wv) = app.get_webview(label) {
+        if let Err(e) = wv.navigate(parsed) {
+            crate::sidecar::log_line(&format!("[maude] {label}: navigate failed: {e}"));
+        }
+    }
+}
+
+/// The refusal when this Mac cannot keep an account's cookies apart.
+pub const CELL_TABS_UNSUPPORTED: &str = "Open this project in your browser.";
+
+/// Can this machine give every account's cell tabs their own data store?
+fn cell_tabs_supported() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        supports_data_store()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
+/// What `open_cell_tab` answers.
+#[derive(Clone, Debug, Serialize)]
+pub struct OpenedCell {
+    pub label: String,
+    /// `new` | `existing`.
+    pub opened: &'static str,
+}
+
+/// `open_cell_tab({url, profile?})` — a `409 browser-door` answer opens the cell
+/// as a tab (S9.17). Home or the project tab in front; the URL is only a cell
+/// front door (`cell_door`), the account the caller's own (`managed_profile`).
+/// Open once per (account, cell); the tab navigates to the door. No file-plane
+/// copy, no registry entry, no IPC in the tab. `async`: building a webview from a
+/// sync command deadlocks on Windows.
+#[tauri::command]
+pub async fn open_cell_tab(
+    app: AppHandle,
+    webview: tauri::Webview,
+    url: String,
+    profile: Option<String>,
+) -> Result<OpenedCell, String> {
+    let who = caller_any(&webview, false)?;
+    // 1g / S15-A3: a background tab may not switch tabs, and one switch at a time.
+    let _front = claim_front(&webview)?;
+    let door = cell_door(&url)?;
+    // The account's cookies need a store of their own (macOS ≥ 14). Without one a
+    // cell tab would share them with every other account: the page falls back to
+    // the system browser (`open_cloud_url`) instead.
+    if !cell_tabs_supported() {
+        return Err(CELL_TABS_UNSUPPORTED.to_string());
+    }
+    let profile = crate::managed::managed_profile(
+        &who,
+        profile.as_deref(),
+        |root| crate::app_state::profile_for(&app, root),
+        |p| p == crate::profiles::DEFAULT_ID || crate::profiles::exists(p),
+    )?;
+    let state = app.state::<SidecarState>();
+    let tick = state.tick.fetch_add(1, Ordering::SeqCst);
+    let opened = open_cell_in(
+        &TauriHost { app: &app },
+        &state.windows,
+        &door,
+        &profile,
+        Some(webview.label()),
+        tick,
+    )?;
+    navigate_cell(&app, opened.label(), &door.url);
+    crate::home::state_changed(&app);
+    Ok(OpenedCell {
+        label: opened.label().to_string(),
+        opened: match opened {
+            Opened::New(_) => "new",
+            Opened::Existing(_) => "existing",
+        },
+    })
 }
 
 /// `navigation_allowed` / `top_level_allowed` against the live book. A label
@@ -903,6 +1221,14 @@ impl WindowHost for TauriHost<'_> {
         let (nav_app, nav_label) = (self.app.clone(), spec.label.clone());
         let (load_app, load_label) = (self.app.clone(), spec.label.clone());
         let label = spec.label.clone();
+        // S9.17: a cell tab keeps its cookies in its ACCOUNT's store, not its label's.
+        let cell_profile = self.app.try_state::<SidecarState>().and_then(|s| {
+            s.windows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .cell_of(&label)
+                .map(|(_, profile)| profile)
+        });
         crate::tabs::add_tab(self.app, &spec.label, move |builder| {
             #[allow(unused_mut)]
             let mut builder = builder
@@ -929,8 +1255,13 @@ impl WindowHost for TauriHost<'_> {
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny);
             #[cfg(target_os = "macos")]
             if supports_data_store() {
-                builder = builder.data_store_identifier(data_store_id_for_label(&label));
+                builder = builder.data_store_identifier(match &cell_profile {
+                    Some(profile) => data_store_id_for_cell_profile(profile),
+                    None => data_store_id_for_label(&label),
+                });
             }
+            #[cfg(not(target_os = "macos"))]
+            let _ = &cell_profile;
             builder
         })?;
         if spec.background {
@@ -1302,6 +1633,8 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
     crate::profiles::forget_prepared(label);
     crate::home::state_changed(app);
     let Some(root) = root else { return };
+    // S9.17: no page counts this project's unread mentions any more.
+    crate::notify::project_closed(app, &root);
     crate::sidecar::log_line(&format!(
         "[maude] {label} closed — {root}'s server stops in {}s unless it is reopened",
         CLOSE_GRACE.as_secs()
@@ -1753,13 +2086,22 @@ pub fn claim_front<R: Runtime>(webview: &tauri::Webview<R>) -> Result<FrontClaim
     })
 }
 
-/// `target` of `open_project`: a canvas (designRoot-relative) and an artboard.
+/// `target` of `open_project`: a canvas (designRoot-relative), an artboard and
+/// (S6.7, an invite's "her comment is on the poster") a comment thread.
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, Serialize)]
 pub struct OpenTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub canvas: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artboard: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread: Option<String>,
+}
+
+/// A comment thread id as the cloud stores it on an invite
+/// (`/^[A-Za-z0-9_-]{1,64}$/`, contract S6-S9 §5.3).
+pub fn valid_thread_id(t: &str) -> bool {
+    (1..=64).contains(&t.len()) && t.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
 /// Validate a page-supplied target: the canvas through the same check as a
@@ -1780,7 +2122,17 @@ pub fn validate_target(t: OpenTarget) -> Result<OpenTarget, String> {
             }
         })
         .transpose()?;
-    Ok(OpenTarget { canvas, artboard })
+    // A thread only together with its canvas (contract S6-S9 §5.3 `bad-thread`).
+    if let Some(th) = &t.thread {
+        if canvas.is_none() || !valid_thread_id(th) {
+            return Err(bad());
+        }
+    }
+    Ok(OpenTarget {
+        canvas,
+        artboard,
+        thread: t.thread,
+    })
 }
 
 // ── One-shot values parked per window label (V2-3 patches) ──────────────────
@@ -1826,12 +2178,12 @@ pub struct TabsRestored {
 static TABS_RESTORED: Parked<TabsRestored> = Parked::new();
 static PENDING_NAVIGATE: Parked<OpenTarget> = Parked::new();
 
-/// Park `target` for a NEW window when it names an artboard — the canvas
-/// alone already rides in the first navigate's `?open=`; the artboard has no
-/// place there.
+/// Park `target` for a NEW window when it names an artboard or a thread — the
+/// canvas alone already rides in the first navigate's `?open=`; the artboard
+/// and the thread have no place there (§5.8 item 8: ids parked, not in a URL).
 pub fn park_navigate_for_new(opened: &Opened, target: Option<&OpenTarget>) {
     if let (Opened::New(label), Some(t)) = (opened, target) {
-        if t.artboard.is_some() {
+        if t.artboard.is_some() || t.thread.is_some() {
             PENDING_NAVIGATE.park(label, t.clone());
         }
     }
@@ -1891,17 +2243,64 @@ pub fn local_project_allowed(app: &AppHandle, label: &str, path: &Path) -> bool 
     ok
 }
 
+/// Whether `path` is the folder the last picker shown to `label` returned (or a
+/// direct child of it) — PEEKS, like `local_project_allowed`.
+pub fn picked_covers(label: &str, path: &Path) -> bool {
+    let picked = PICKED_FOLDER.take(label);
+    let ok = picked.is_some() && local_path_allowed(false, picked.as_deref(), path);
+    if let Some(p) = picked {
+        PICKED_FOLDER.park(label, p);
+    }
+    ok
+}
+
+/// S1.22b (S1.19 follow-up) — THE rule for `open_local_project`, a project tab
+/// switching itself in place to `target_pid`: the folder the person just
+/// picked may be opened and adopts `lastSignInProfile` as any picked folder
+/// does (S15-A1 `Adopt`); the caller's own project and the launch folder keep
+/// their binding; any other registered project must be one `index_scope`
+/// gives the caller — its own account (`home::tab_may_open`, the ⌘K and
+/// `open_project({pid})` rule) — and keeps ITS binding (`Keep`). So a page can
+/// neither move its tab onto another account's project nor re-bind one.
+pub fn in_tab_open_rule(
+    st: &crate::app_state::AppState,
+    caller_pid: &str,
+    caller_profile: &str,
+    target_pid: &str,
+    picked: bool,
+    boot_root: bool,
+) -> Result<crate::app_state::Binding, String> {
+    use crate::app_state::Binding;
+    if picked {
+        return Ok(Binding::Adopt);
+    }
+    if target_pid == caller_pid || boot_root {
+        return Ok(Binding::Keep);
+    }
+    crate::home::tab_may_open(st, caller_pid, caller_profile, target_pid).map(|_| Binding::Keep)
+}
+
+/// The `MAUDE_PROJECT_ROOT` launch folder is `path` (this process's own env).
+pub fn is_boot_root(path: &Path) -> bool {
+    std::env::var("MAUDE_PROJECT_ROOT")
+        .ok()
+        .filter(|r| !r.is_empty())
+        .is_some_and(|r| same_dir(Path::new(&r), path))
+}
+
 /// Everything parked for `label` dies with the window — a later window that
 /// reuses the label must not inherit it — and with an in-tab switch, so the
 /// project the label shows next cannot take what was parked for the last one
 /// (N-M5: the deep link too, `?code=` and all).
 pub fn drop_parked_for(label: &str) {
     crate::home::take_intent(label);
+    crate::deep_link::PENDING_INVITES.take(label);
     TABS_RESTORED.take(label);
     PENDING_NAVIGATE.take(label);
     crate::deep_link::LINK_OPENED.take(label);
     crate::deep_link::PENDING_LINKS.take(label);
     PICKED_FOLDER.take(label);
+    crate::lifecycle::drop_for(label);
 }
 
 /// `take_tabs_restored()` — the restore count parked for THIS window, once.
@@ -1967,6 +2366,23 @@ pub fn intent_for(
     }
 }
 
+/// What is parked once the window is known (S6.7): `moveToCloud` survives only
+/// on a NEW tab opened by folder — the create-local path, a project Home just
+/// made. On a pid open, or a tab that was already open, it is dropped (the rest
+/// of the intent stays): a registered project is moved only by the person, from
+/// its own window (S9.20 "Move to cloud…").
+pub fn intent_for_opened(
+    intent: crate::home::OpenIntent,
+    by_root: bool,
+    opened: &Opened,
+) -> crate::home::OpenIntent {
+    let fresh = by_root && matches!(opened, Opened::New(_));
+    crate::home::OpenIntent {
+        move_to_cloud: intent.move_to_cloud && fresh,
+        ..intent
+    }
+}
+
 /// `open_project({pid} | {root}, target?, intent?)` — open a project as a new
 /// tab after the calling window, or focus its tab if it is already open (open
 /// once, §5.2). From Home, the Home tab closes once the project tab is key
@@ -2008,7 +2424,7 @@ pub async fn open_project(
     let label = opened.label().to_string();
     park_navigate_for_new(&opened, target.as_ref());
     if let Some(intent) = intent {
-        crate::home::park_intent(&label, intent);
+        crate::home::park_intent(&label, intent_for_opened(intent, root.is_some(), &opened));
     }
     if let (Opened::Existing(_), Some(t)) = (&opened, &target) {
         crate::bus::send(&label, "shell://navigate", t.clone());
@@ -2283,12 +2699,62 @@ mod tests {
         st
     }
 
+    /// S6.7: `moveToCloud` rides only to a NEW tab Home opened by folder (the
+    /// project it just created); never to a pid open or an already-open tab.
+    #[test]
+    fn intent_move_to_cloud_reaches_only_a_project_home_just_made() {
+        let i = crate::home::OpenIntent {
+            kind: "create-canvas".into(),
+            prompt: "a poster".into(),
+            move_to_cloud: true,
+            ..Default::default()
+        };
+        let new = Opened::New("p-new".into());
+        let old = Opened::Existing("p-old".into());
+        assert!(intent_for_opened(i.clone(), true, &new).move_to_cloud);
+        assert!(!intent_for_opened(i.clone(), false, &new).move_to_cloud, "a pid open");
+        assert!(!intent_for_opened(i.clone(), true, &old).move_to_cloud, "an open tab");
+        let kept = intent_for_opened(i.clone(), true, &old);
+        assert_eq!((kept.kind.as_str(), kept.prompt.as_str()), ("create-canvas", "a poster"));
+        // Still Home-only (W1), whatever the flag.
+        let project = Caller::Project(CallerProject {
+            label: "p-lself".into(),
+            pid: "lself".into(),
+            root: A.into(),
+        });
+        assert!(intent_for(&project, Some(i)).is_err());
+    }
+
+    /// S6.7: `target.thread` — an id, only with its canvas; a NEW window gets it
+    /// parked (never in `?open=`), an open one in `shell://navigate`.
+    #[test]
+    fn open_target_thread_is_an_id_with_its_canvas() {
+        let t = |canvas: Option<&str>, thread: &str| OpenTarget {
+            canvas: canvas.map(str::to_string),
+            artboard: None,
+            thread: Some(thread.to_string()),
+        };
+        let ok = validate_target(t(Some("ui/Poster.tsx"), "th_01-ab")).unwrap();
+        assert_eq!(ok.thread.as_deref(), Some("th_01-ab"));
+        assert!(validate_target(t(None, "th_01")).is_err(), "a thread without its canvas");
+        for bad in ["", "a b", "../x", "x?y=1", "é", &"a".repeat(65), "a@b.cz"] {
+            assert!(validate_target(t(Some("ui/Poster.tsx"), bad)).is_err(), "{bad:?}");
+        }
+        park_navigate_for_new(&Opened::New("p-thread".into()), Some(&ok));
+        assert_eq!(PENDING_NAVIGATE.take("p-thread"), Some(ok.clone()));
+        // The wire shape is additive: no `thread` key unless there is one.
+        let plain: OpenTarget = serde_json::from_str(r#"{"canvas":"ui/a.tsx"}"#).unwrap();
+        assert_eq!(serde_json::to_string(&plain).unwrap(), r#"{"canvas":"ui/a.tsx"}"#);
+        assert!(serde_json::to_string(&ok).unwrap().contains(r#""thread":"th_01-ab""#));
+    }
+
     #[test]
     fn w1_an_intent_is_accepted_from_home_only() {
         let intent = crate::home::OpenIntent {
             kind: "create-canvas".into(),
             prompt: "make a landing page".into(),
             project_hint: None,
+            move_to_cloud: false,
         };
         let project = Caller::Project(CallerProject {
             label: "p-lself".into(),
@@ -2304,6 +2770,7 @@ mod tests {
             kind: "create-canvas".into(),
             prompt: "  ".into(),
             project_hint: None,
+            move_to_cloud: false,
         };
         assert!(intent_for(&Caller::Home, Some(empty)).is_err());
     }
@@ -2344,9 +2811,9 @@ mod tests {
         assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), Some("/x")).is_err());
         assert!(resolve_open_root(&Caller::Home, &st, None, None).is_err());
         // A target canvas goes through the deep-link path check.
-        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None }).is_err());
+        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None, thread: None }).is_err());
         assert_eq!(
-            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()) })
+            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()), thread: None })
                 .unwrap()
                 .canvas
                 .as_deref(),
@@ -2657,36 +3124,147 @@ mod tests {
             .filter(|p| p.extension().is_some_and(|x| x == "rs"))
             .map(|p| std::fs::read_to_string(p).unwrap())
             .collect();
-        let checks = [
-            "caller_project(",
-            "caller_any(",
-            "caller_home(",
-            "check_home(",
-            "resolve_profile(",
-            "session_for(", // home_session: label + exact Home origin, pure
-            "caller_strip(", // V2-3.7 strip commands: label `strip` + app-local strip.html
-        ];
         let mut unchecked = Vec::new();
         for p in granted.iter().filter(|p| p.starts_with("allow-")) {
             let cmd = p.trim_start_matches("allow-").replace('-', "_");
-            let body = sources.iter().find_map(|s| {
-                [format!("pub fn {cmd}("), format!("pub async fn {cmd}("), format!("\nfn {cmd}("), format!("async fn {cmd}(")]
-                    .iter()
-                    .find_map(|sig| s.find(sig.as_str()).map(|i| &s[i..]))
-                    .map(|rest| {
-                        // The command's own body: up to the next command.
-                        let end = rest[1..].find("#[tauri::command").map_or(rest.len(), |e| e + 1);
-                        rest[..end].to_string()
-                    })
-            });
+            let body = sources.iter().find_map(|s| command_body(s, &cmd));
             let Some(body) = body else {
                 panic!("{p}: no `fn {cmd}` found under src/");
             };
-            if !checks.iter().any(|c| body.contains(c)) {
+            if !CALLER_CHECKS.iter().any(|c| body.contains(c)) {
                 unchecked.push(cmd);
             }
         }
-        assert!(unchecked.is_empty(), "granted commands with no Rust caller check: {unchecked:?}");
+        assert!(
+            unchecked.is_empty(),
+            "granted commands with no Rust caller check: {unchecked:?}"
+        );
+    }
+
+    /// The calls that count as a Rust caller check (see the test above).
+    const CALLER_CHECKS: [&str; 7] = [
+        "caller_project(",
+        "caller_any(",
+        "caller_home(",
+        "check_home(",
+        "resolve_profile(",
+        "session_for(",  // home_session: label + exact Home origin, pure
+        "caller_strip(", // V2-3.7 strip commands: label `strip` + app-local strip.html
+    ];
+
+    /// The source of command `cmd` in `src`: from its signature to the end of
+    /// its own item.
+    fn command_body<'a>(src: &'a str, cmd: &str) -> Option<&'a str> {
+        let rest = [
+            format!("pub fn {cmd}("),
+            format!("pub async fn {cmd}("),
+            format!("\nfn {cmd}("),
+            format!("async fn {cmd}("),
+        ]
+        .iter()
+        .find_map(|sig| src.find(sig.as_str()).map(|i| &src[i..]))?;
+        // The command's own body ends at the first of: its closing brace (a
+        // top-level `}` — commands are free functions, rustfmt'd), the test
+        // module, the next command. Ending early can only turn the ratchet red;
+        // ending late lets later text vouch for this command.
+        let end = ["\n}", "#[cfg(test)]", "#[tauri::command"]
+            .iter()
+            .filter_map(|m| rest[1..].find(m).map(|e| e + 1))
+            .min()
+            .map_or(rest.len(), |e| e);
+        Some(&rest[..end])
+    }
+
+    /// The ratchet reads a command's OWN body. It must not read on into a test
+    /// module (where a test that quotes a check call would vouch for a command
+    /// with none) or into the next item (a helper that checks for itself).
+    #[test]
+    fn command_body_stops_at_the_end_of_the_command() {
+        let checked = |src: &str| {
+            let body = command_body(src, "do_thing").expect("the fixture has the command");
+            CALLER_CHECKS.iter().any(|c| body.contains(c))
+        };
+        // The last command in its file, followed by its tests.
+        let last_then_tests = concat!(
+            "#[tauri::command]\npub async fn do_thing(url: String) -> Result<(), String> {\n",
+            "    launch(&url)\n}\n\n",
+            "#[cfg(test)]\nmod tests {\n    #[test]\n    fn pin() {\n",
+            "        assert!(SRC.contains(\"caller_",
+            "project(&webview, false)?\"));\n    }\n}\n",
+        );
+        assert!(
+            !checked(last_then_tests),
+            "the test module vouched for an unchecked command"
+        );
+        // Followed by an ordinary helper that does its own check.
+        let then_helper = concat!(
+            "#[tauri::command]\npub fn do_thing(webview: tauri::Webview) -> Result<(), String> {\n",
+            "    Ok(())\n}\n\n",
+            "fn other(webview: &tauri::Webview) -> Result<(), String> {\n",
+            "    caller_",
+            "project(webview, false)?;\n    Ok(())\n}\n",
+        );
+        assert!(
+            !checked(then_helper),
+            "the next item vouched for an unchecked command"
+        );
+        // A command that does check still passes, nested braces and all.
+        let real = concat!(
+            "#[tauri::command]\npub async fn do_thing(webview: tauri::Webview) -> Result<(), String> {\n",
+            "    if true {\n        let x = { 1 };\n    }\n",
+            "    crate::windows::caller_", "project(&webview, false)?;\n    Ok(())\n}\n",
+            "#[cfg(test)]\nmod tests {}\n",
+        );
+        assert!(checked(real));
+    }
+
+    /// S1.22b (S1.19 follow-up): `open_local_project` switches a tab in place only
+    /// to a project of its own account (or the folder the person picked), and
+    /// never re-binds a registered one to the last sign-in.
+    #[test]
+    fn open_local_project_keeps_the_tabs_account_and_the_targets_binding() {
+        use crate::app_state::{AppState, Binding};
+        let mut st = AppState::default();
+        let a = st.upsert("/s122b/a", 1);
+        let same = st.upsert("/s122b/same", 1);
+        let other = st.upsert("/s122b/other", 1);
+        st.projects.get_mut(&other).unwrap().profile = "work".into();
+        st.last_sign_in_profile = Some("work".into());
+        // Another account's project: refused with the ⌘K answer, picked or not registered alike.
+        assert_eq!(
+            in_tab_open_rule(&st, &a, "default", &other, false, false),
+            Err(crate::home::NOT_THIS_TABS.to_string())
+        );
+        assert!(in_tab_open_rule(&st, &a, "default", "nobody", false, false).is_err());
+        // Same account: allowed, and the target keeps its binding (no adopt of `work`).
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &same, false, false), Ok(Binding::Keep));
+        st.open_with("/s122b/same", 2, Binding::Keep);
+        assert_eq!(st.profile_for("/s122b/same"), "default");
+        // Itself and the launch folder keep theirs; a picked folder adopts as before.
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &a, false, false), Ok(Binding::Keep));
+        assert_eq!(in_tab_open_rule(&st, &a, "default", "boot", false, true), Ok(Binding::Keep));
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &other, true, false), Ok(Binding::Adopt));
+        // The command takes the rule and the binding, not the Adopt-only `set_last_project`.
+        let src = include_str!("lib.rs");
+        let body = &src[src.find("fn open_local_project(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap_or(body.len())];
+        assert!(body.contains("windows::in_tab_open_rule("), "open_local_project skips the rule");
+        assert!(body.contains("set_last_project_with(&app, &p, binding)"));
+        assert!(!body.contains("app_state::set_last_project(&app"));
+    }
+
+    /// S5.10: the attach picker is a project tab's, from the tab in front, and
+    /// never remembers its folder as one the tab may open (V2-3.6 M3).
+    #[test]
+    fn pick_attach_folder_is_caller_checked_and_never_remembers_the_pick() {
+        let src = include_str!("lib.rs");
+        let body = &src[src.find("async fn pick_attach_folder(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap()];
+        assert!(body.contains("windows::caller_project(&webview, false)?"));
+        assert!(body.contains("windows::caller_in_front(&webview)?"));
+        assert!(!body.contains("remember_pick") && !body.contains("PICKED_FOLDER"));
+        let env = body.find("MAUDE_E2E_PICK_ATTACH_DIR").unwrap();
+        assert!(body[..env].contains("#[cfg(debug_assertions)]"));
     }
 
     /// V2-3.6 M3: a project page switches its tab only to a registered
@@ -2875,7 +3453,9 @@ mod tests {
         };
         for (file, sig) in [
             ("lib.rs", "async fn pick_directory("),
-            ("lib.rs", "async fn save_export("),
+            ("export_save.rs", "pub async fn save_export("),
+            ("export_save.rs", "pub async fn reveal_export("),
+            ("export_save.rs", "pub fn clipboard_write_png("),
             ("lib.rs", "async fn pick_media_file("),
             ("lib.rs", "async fn pick_media_files("),
             ("home.rs", "pub async fn new_home_tab("),
@@ -3236,6 +3816,7 @@ mod tests {
         let full = OpenTarget {
             canvas: Some("ui/a.tsx".into()),
             artboard: Some("hero".into()),
+            thread: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-new".into()), Some(&full));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-other"), None);
@@ -3248,6 +3829,7 @@ mod tests {
         let canvas_only = OpenTarget {
             canvas: Some("ui/a.tsx".into()),
             artboard: None,
+            thread: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-canvas".into()), Some(&canvas_only));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-canvas"), None);
@@ -3297,11 +3879,15 @@ mod tests {
         assert!(!navigation_allowed(Home, &u("http://127.0.0.1:4501/"), h, None));
         assert!(!navigation_allowed(Home, &u("https://www.youtube.com/"), h, None));
         assert!(!navigation_allowed(Home, &u("data:text/html,x"), h, None));
-        // A cell tab (one rule, built later): https in the cloud zone.
-        assert!(navigation_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None, None));
-        assert!(top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None));
-        assert!(!navigation_allowed(Cell, &u("https://evil.example/"), None, None));
-        assert!(!navigation_allowed(Cell, &u("http://localhost:4399/"), None, None));
+        // A cell tab (S9.17): pinned to ITS cell — not every host in the zone.
+        let c = Some("https://acme.cloud.maude.sh");
+        assert!(navigation_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), c, None));
+        assert!(top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), c));
+        assert!(!navigation_allowed(Cell, &u("https://evil.example/"), c, None));
+        assert!(!navigation_allowed(Cell, &u("http://localhost:4399/"), c, None));
+        assert!(!navigation_allowed(Cell, &u("https://other.cloud.maude.sh/"), c, None));
+        assert!(!top_level_allowed(Cell, &u("https://other.cloud.maude.sh/"), c));
+        assert!(!top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None));
     }
 
     /// N-M3 (audit 2): a dead server's port vouches for nothing — the window's
@@ -3339,6 +3925,7 @@ mod tests {
         let t = OpenTarget {
             canvas: None,
             artboard: Some("hero".into()),
+            thread: None,
         };
         TABS_RESTORED.park("p-gone", TabsRestored { count: 2 });
         PENDING_NAVIGATE.park("p-gone", t.clone());
@@ -3348,6 +3935,7 @@ mod tests {
                 kind: "create-canvas".into(),
                 prompt: "x".into(),
                 project_hint: None,
+                move_to_cloud: false,
             },
         );
         // N-M5: a connect link (its `?code=`) parked for the window too.
@@ -3367,5 +3955,176 @@ mod tests {
         // Another window's values are untouched.
         assert_eq!(TABS_RESTORED.take("p-stays"), Some(TabsRestored { count: 2 }));
         assert_eq!(PENDING_NAVIGATE.take("p-stays"), Some(t));
+    }
+
+    // ── S9.17 cell tabs ─────────────────────────────────────────────────────
+
+    /// The browser door's URL comes from a page: only a cell's own front door
+    /// (or one canvas on it) passes, rebuilt from its parts.
+    #[test]
+    fn cell_door_takes_only_a_cell_front_door() {
+        let ok = cell_door("https://alligators.cloud.maude.sh").unwrap();
+        assert_eq!(ok.origin, "https://alligators.cloud.maude.sh");
+        assert_eq!(ok.project, "alligators");
+        assert_eq!(ok.url, "https://alligators.cloud.maude.sh/");
+        let canvas = cell_door("https://alligators.cloud.maude.sh/c/ui/A%20B.tsx").unwrap();
+        assert_eq!(canvas.url, "https://alligators.cloud.maude.sh/c/ui/A%20B.tsx");
+        assert_eq!(canvas.origin, ok.origin);
+        for bad in [
+            "http://alligators.cloud.maude.sh/",          // not https
+            "https://alligators.cloud.maude.sh:8443/",    // a port
+            "https://evil.example/",                      // outside the zone
+            "https://evilcloud.maude.sh/",                // a suffix, not a subdomain
+            "https://cloud.maude.sh.attacker.com/",       // the zone as a prefix
+            "https://cloud.maude.sh/",                    // the control plane is no cell
+            "https://canvas.cloud.maude.sh/alligators/x", // the shared canvas origin
+            "https://view-alligators.cloud.maude.sh/",    // a share view
+            "https://canvas-x.cloud.maude.sh/",
+            "https://a.b.cloud.maude.sh/",                // two labels
+            "https://Alli_gators.cloud.maude.sh/",
+            "https://u:p@alligators.cloud.maude.sh/",     // userinfo
+            "https://alligators.cloud.maude.sh/?next=https://evil.example",
+            "https://alligators.cloud.maude.sh/#x",
+            "https://alligators.cloud.maude.sh/admin",    // not the door
+            "https://alligators.cloud.maude.sh/c/",
+            "https://alligators.cloud.maude.sh/c/../secret",
+            "https://alligators.cloud.maude.sh/c/ui%2F..%2Fsecret",
+            "https://alligators.cloud.maude.sh/c/ui%5Cx.tsx",
+            "https://alligators.cloud.maude.sh/c/ui/%ZZ",
+            "https://alligators.cloud.maude.sh/\\evil",
+            "https://alligators.cloud.maude.sh/ c",
+            "javascript:alert(1)",
+            "https://127.0.0.1/",
+            "https://localhost/",
+            "",
+        ] {
+            assert!(cell_door(bad).is_err(), "{bad} passed as a browser door");
+        }
+    }
+
+    fn door(project: &str) -> CellDoor {
+        cell_door(&format!("https://{project}.cloud.maude.sh/")).unwrap()
+    }
+
+    /// One tab per (account, cell): the same account's second door focuses its
+    /// tab; another account gets a tab — and a cookie store — of its own.
+    #[test]
+    fn cell_tabs_are_one_per_account_and_cell() {
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        let d = door("alligators");
+        let first = open_cell_in(&host, &book, &d, "default", Some("home"), 1).unwrap();
+        let label = first.label().to_string();
+        assert!(is_cell_label(&label), "{label}");
+        assert_eq!(first, Opened::New(label.clone()));
+        {
+            let b = book.lock().unwrap();
+            assert_eq!(
+                b.cell_of(&label),
+                Some((d.origin.clone(), "default".to_string()))
+            );
+            // Pinned before its first navigation: the guard knows its origin.
+            let (role, origin, _) = b.nav_view(&label).unwrap();
+            assert_eq!(role, NavRole::Cell);
+            assert_eq!(origin.as_deref(), Some(d.origin.as_str()));
+            assert!(b.tab_labels().contains(&label));
+        }
+        let again = open_cell_in(&host, &book, &d, "default", Some("home"), 2).unwrap();
+        assert_eq!(again, Opened::Existing(label.clone()));
+        assert_eq!(host.created.borrow().len(), 1);
+        assert_eq!(host.revealed.borrow().as_slice(), &[(label.clone(), "alligators".to_string())]);
+        // Another account: never that tab.
+        let other = open_cell_in(&host, &book, &d, "work", Some("home"), 3).unwrap();
+        assert!(matches!(&other, Opened::New(l) if *l != label && is_cell_label(l)));
+        assert_ne!(
+            data_store_id_for_cell_profile("default"),
+            data_store_id_for_cell_profile("work")
+        );
+        assert_ne!(data_store_id_for_cell_profile("default"), data_store_id_for_label(&label));
+        // Another cell of the same account: its own tab.
+        let gators2 = open_cell_in(&host, &book, &door("crocs"), "default", None, 4).unwrap();
+        assert!(matches!(gators2, Opened::New(l) if l != label));
+        // A failed build leaves nothing behind.
+        let failing = MockHost { fail_create: true, ..Default::default() };
+        assert!(open_cell_in(&failing, &book, &door("geckos"), "default", None, 5).is_err());
+        let geckos = cell_label("default", &door("geckos").origin);
+        assert!(book.lock().unwrap().entry(&geckos).is_none());
+    }
+
+    /// A label is one (account, cell): an entry of another account under it is
+    /// refused, never shown to this account.
+    #[test]
+    fn a_cell_tab_of_another_account_is_refused() {
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        let d = door("alligators");
+        let label = cell_label("default", &d.origin);
+        book.lock().unwrap().insert(
+            &label,
+            Role::Cell {
+                origin: d.origin.clone(),
+                profile: "work".into(),
+            },
+            1,
+        );
+        host.live.borrow_mut().push(label.clone());
+        let r = open_cell_in(&host, &book, &d, "default", None, 2);
+        assert_eq!(r, Err("That tab belongs to another account.".to_string()));
+        assert!(host.revealed.borrow().is_empty());
+        // And a project tab may only ever open cells for its own account.
+        let caller = Caller::Project(CallerProject {
+            label: "p-a".into(),
+            pid: "la".into(),
+            root: "/r/a".into(),
+        });
+        let rule = |req: Option<&str>| {
+            crate::managed::managed_profile(&caller, req, |_| "default".to_string(), |_| true)
+        };
+        assert!(rule(Some("work")).is_err());
+        assert_eq!(rule(None).as_deref(), Ok("default"));
+    }
+
+    /// A cell tab has no IPC and is never restored.
+    #[test]
+    fn cell_tabs_hold_no_capability_and_no_session_slot() {
+        for cap in [
+            include_str!("../capabilities/default.json"),
+            include_str!("../capabilities/strip.json"),
+            include_str!("../capabilities/home-splash.json"),
+        ] {
+            let v: serde_json::Value = serde_json::from_str(cap).unwrap();
+            for key in ["webviews", "windows"] {
+                for w in v[key].as_array().into_iter().flatten() {
+                    let w = w.as_str().unwrap_or_default();
+                    assert!(!w.starts_with("c-") && w != "*", "a capability names {w}");
+                }
+            }
+        }
+        let mut b = WindowBook::default();
+        let d = door("alligators");
+        let label = cell_label("default", &d.origin);
+        b.insert(
+            &label,
+            Role::Cell {
+                origin: d.origin,
+                profile: "default".into(),
+            },
+            1,
+        );
+        b.insert("p-a", Role::Project { pid: "la".into(), root: "/r/a".into() }, 2);
+        let (tabs, _) = b.session_tabs();
+        assert_eq!(tabs.iter().map(|t| t.label.as_str()).collect::<Vec<_>>(), ["p-a"]);
+    }
+
+    /// `open_cell_tab` checks its caller, the front tab and the account before
+    /// it builds anything (the ratchet covers the first; this pins the order).
+    #[test]
+    fn open_cell_tab_checks_caller_front_and_account_first() {
+        let src = include_str!("windows.rs");
+        let body = command_body(src, "open_cell_tab").expect("open_cell_tab exists");
+        let at = |s: &str| body.find(s).unwrap_or_else(|| panic!("{s} missing"));
+        assert!(at("caller_any(&webview, false)?") < at("claim_front(&webview)?"));
+        assert!(at("claim_front(&webview)?") < at("cell_door(&url)?"));
+        assert!(at("managed_profile(") < at("open_cell_in("));
     }
 }

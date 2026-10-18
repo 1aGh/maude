@@ -23,6 +23,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { acceptFromCanvas, postToCanvas } from '../../../bridge/dgn-protocol.ts';
+import { foldsPanels } from '../../../bridge/mode-shows.ts';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { presenterOn, presentRunStore, usePresenterState } from '../present/presenter-store.js';
 import { presentZoomStore } from '../present/present-zoom-store.js';
@@ -33,13 +34,22 @@ import {
   createShellMode,
   decideModeRequest,
   effectiveMode,
+  heldMode,
   presentingOf,
   presentSpecFor,
   sameCaps,
+  shellEscDecision,
 } from './canvas-mode.js';
 import { SEED_LADDER_MS } from './occlusion-insets.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
+
+/**
+ * Do the Canvases / AI chat panels fold to their icons? Where the what-shows table says so — and only for a mode
+ * someone CHOSE (nonce > 0): a view-only link's boot Preview keeps the panels, so the Canvases list is there to
+ * open a canvas from.
+ */
+export const wantsFold = (mode, snap) => foldsPanels(mode, snap.present) && snap.nonce > 0;
 
 /** The window's one mode store (mode is per project window, Q6). */
 export const shellMode = createShellMode();
@@ -63,6 +73,31 @@ export function togglePresentCanvas() {
   else presentFrom('canvas');
 }
 
+/**
+ * S3.12 — esc pressed with the shell focused: take the mode's one step back (`shellEscDecision`). `typing` is a
+ * text field, `overlayOpen` any menu / sheet / popover that closes itself first. Returns what it did, or null.
+ */
+export function shellStepBack({ canEdit, typing = false } = {}) {
+  const snap = shellMode.get();
+  const overlayOpen =
+    modalOpenNow() ||
+    (typeof document !== 'undefined' &&
+      !!document.querySelector('[role="menu"], [data-esc-owner], .st-overlay'));
+  const d = shellEscDecision({
+    mode: snap.mode,
+    presenting: presentingOf(snap),
+    viewing: !!snap.viewing,
+    caps: capsFor({ canEdit: !!canEdit }),
+    typing,
+    overlayOpen,
+  });
+  if (!d) return null;
+  if (d.kind === 'exit-viewing') shellMode.leaveViewing();
+  else if (d.kind === 'exit-present') shellMode.back();
+  else shellMode.select(d.mode);
+  return d.kind;
+}
+
 /** The shell's DDR-117 setter, derived: `on` (or `(v) => on`) enters Present · Canvas / leaves. */
 export function setPresenting(next) {
   const cur = presentingOf(shellMode.get());
@@ -83,10 +118,16 @@ export function usePresentMode() {
 // S3.2b — the shell's own controls (and the keys the shell hears) step the presenting canvas through the
 // lane the mounted hook owns; there is one lane per window, so one registered stepper.
 let presentStepper = null;
+let presentMediaCommander = null;
 
 /** Step Present · Artboards: 'next' · 'prev' · an index. Nothing outside Present. */
 export function presentStep(to) {
   if (presentingOf(shellMode.get())) presentStepper?.(to);
+}
+
+/** S3.3 — the transport's buttons: 'play' · 'pause' · 'mute' · 'unmute' to the clip on the presented artboard. */
+export function presentMediaCmd(op) {
+  if (presentingOf(shellMode.get())) presentMediaCommander?.(op);
 }
 
 const modalOpenNow = () =>
@@ -103,6 +144,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
   const mode = effectiveMode(snap.mode, caps);
   const presenting = presentingOf(snap);
+  // S1.14 — a past version held by the store (Version history's Viewing): the canvases are told Viewing with
+  // no capabilities (`sent`), whatever the role; `mode` / `caps` below stay what the person is in.
+  const sent = heldMode(snap, mode, caps);
   const [peers, setPeers] = useState([]);
 
   // S3.6b — presenter view on: a role that cannot edit still publishes its Present position, so the audience
@@ -110,7 +154,17 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   const presenterView = presenterOn(usePresenterState());
 
   const live = useRef({});
-  live.current = { activePath, cfg, caps, presenting, mode, present: snap.present, presenterView };
+  live.current = {
+    activePath,
+    cfg,
+    caps,
+    presenting,
+    mode,
+    present: snap.present,
+    viewing: snap.viewing,
+    sent,
+    presenterView,
+  };
 
   const activeWin = () => {
     const p = live.current.activePath;
@@ -129,8 +183,10 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeWin reads live refs
   useEffect(() => {
     presentStepper = (to) => lane.step(activeWin(), to);
+    presentMediaCommander = (op) => lane.media(activeWin(), op);
     return () => {
       presentStepper = null;
+      presentMediaCommander = null;
     };
   }, [lane]);
 
@@ -162,23 +218,41 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       foldedForRef.current = foldKey;
       // Only a mode someone CHOSE folds (nonce > 0): a view-only link's boot Preview keeps today's
       // panels, so the Canvases list is there to open a canvas from.
-      const want = mode === 'preview' && snap.nonce > 0;
+      const want = wantsFold(mode, snap);
       if (panelLayout.get().folded !== want) {
         panelLayout.setFolded(want);
         return;
       }
     }
-    const key = `${mode}|${caps.edit}|${caps.annotate}|${caps.comment}|${snap.nonce}|${presenterView}`;
+    const key = `${sent.mode}|${sent.caps.edit}|${sent.caps.annotate}|${sent.caps.comment}|${snap.nonce}|${snap.viewing ? 'v' : ''}|${presenterView}`;
     if (sentRef.current === key) return;
     sentRef.current = key;
-    lane.broadcast({ mode, caps, tool: snap.tool, present: snap.present, presenterView });
-  }, [mode, caps, snap.nonce, snap.tool, snap.present, presenterView, lane, folded]);
+    lane.broadcast({
+      mode: sent.mode,
+      caps: sent.caps,
+      tool: snap.tool,
+      present: snap.present,
+      presenterView,
+    });
+  }, [
+    mode,
+    caps,
+    sent.mode,
+    sent.caps,
+    snap.viewing,
+    snap.nonce,
+    snap.tool,
+    snap.present,
+    presenterView,
+    lane,
+    folded,
+  ]);
 
   // A newly active canvas is seeded (it may have missed a change while in the background; it re-posts
   // its peers on the seed). The old canvas's faces leave with it.
   const seedOf = () => ({
-    mode: live.current.mode,
-    caps: live.current.caps,
+    mode: live.current.sent.mode,
+    caps: live.current.sent.caps,
     present: live.current.present,
     presenterView: live.current.presenterView,
   });
@@ -225,6 +299,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         // S3.6b — the artboards with their world rects, in canvas order: the presenter view's order map
         // (the canvas is the only place the live layout exists). Active canvas only, like the position.
         presentRunStore.set({ file: L.activePath, artboards: m.artboards });
+      } else if (m.dgn === 'present-media') {
+        // The clip on the presented artboard (S3.3): the transport mirrors it. Active canvas only.
+        shellMode.media(m);
       } else if (m.dgn === 'viewport-zoom') {
         // Present the canvas: the pill shows the canvas's zoom (present/present-zoom.ts posts it).
         if (L.presenting) presentZoomStore.set(m.zoom);
@@ -239,10 +316,15 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
           presenting: L.presenting,
           mode: L.mode,
           modalOpen: modalOpenNow(),
+          viewing: L.viewing,
         });
         if (!d) return;
         if (d.kind === 'deny') {
           if (d.reason === 'role') shellToast(ROLE_DENIAL);
+          return;
+        }
+        if (d.kind === 'exit-viewing') {
+          shellMode.leaveViewing();
           return;
         }
         if (d.kind === 'present') shellMode.present(d.present);
@@ -263,12 +345,20 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   return {
     mode,
     caps,
+    /** The Present spec while presenting (Artboards · Canvas), else null. */
+    presentSpec: snap.present,
     peers,
-    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`peer.follow`). */
+    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`presence.follow`). */
     follow(clientID) {
       const win = activeWin();
       if (!win || typeof clientID !== 'number') return;
-      postToCanvas(win, 'run-action', { v: 1, id: 'peer.follow', params: { clientID } }, '*');
+      postToCanvas(win, 'run-action', { v: 1, id: 'presence.follow', params: { clientID } }, '*');
+    },
+    /** S9.23 — a `presence.*` action (face menu, ⌘K) for the active canvas, over the `run-action` lane. */
+    presence(id, params) {
+      const win = activeWin();
+      if (!win || typeof id !== 'string' || !id.startsWith('presence.')) return;
+      postToCanvas(win, 'run-action', { v: 1, id, ...(params ? { params } : {}) }, '*');
     },
     /** The switch: a click on Present starts from the selected artboard (04 md-present-menu). */
     select(m) {

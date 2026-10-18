@@ -43,12 +43,20 @@ import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '.
 import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
-import { acceptedColdStart } from './accepted-cold-start.ts';
-import { type AcceptedLink, createAcceptedLink } from './accepted-link.ts';
+import { rekeyUserState } from '../home/user-state.ts';
+import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
+import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
+import {
+  askHubPresence,
+  createHeldReporter,
+  reportHeld,
+  uploadingFromRows,
+} from './asset-state.ts';
 import { atomicWrite } from './atomic-write.ts';
+import { resolveCanvasBodyRel } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
 import {
   canvasPathFromDoc,
@@ -64,6 +72,7 @@ import {
   createConnectionMonitor,
   type ProviderStatus,
 } from './connection-state.ts';
+import { createCollisionRenamer, createRenamedText } from './create-collision.ts';
 import { createCtlProvider } from './ctl-provider.ts';
 import { createRescanScheduler, diffCanvasSet, type RescanScheduler } from './discovery.ts';
 import { createDocNameResolver } from './doc-name.ts';
@@ -82,10 +91,12 @@ import {
   withFormatParam,
 } from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
+import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
 import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
+import type { RestoreOptions } from './local-kernel.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
@@ -119,6 +130,7 @@ import {
 } from './remote-docs.ts';
 import { createRevisionBarrier } from './revision-barrier.ts';
 import { computeSeedProgress } from './seed-progress.ts';
+import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
@@ -546,6 +558,18 @@ export interface SyncRuntime {
   agentFor(slug: string): CanvasSyncAgent | undefined;
   /** Current offline/sync status payload (Task 8), or null when unlinked. */
   status(): import('./status.ts').SyncStatusPayload | null;
+  /** S11.4 — what the availability read model folds (listed ∖ on disk); a read, never a fetch. */
+  availability?(): import('./availability.ts').AvailabilitySource;
+  /**
+   * S8.19 — ask the linked hub "who holds these" (contract S8-S9-asset-presence §5.4). Null in a
+   * cell (a cell IS the hub: there is no peer hub to ask) and once stopped.
+   */
+  assetPresenceAsker?(): import('./asset-state.ts').AssetPresenceAsker | null;
+  /**
+   * S8.19 — this Mac's own pending pushes (the file plane's `local-only` / `pushing` rows, or the
+   * legacy sweep's file on the wire): what reads as `uploading`. Null when nothing is known.
+   */
+  assetUploading?(): ReadonlyMap<string, { progress?: number }> | null;
   /**
    * Stop the asset sweep child, if one is running. `false` means there was
    * nothing to cancel — the caller reports that, rather than pretending.
@@ -584,9 +608,33 @@ export interface SyncRuntime {
    */
   proposeLanes?(
     slug: string,
-    lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
-    opts: { kind: string; label: string; writeId?: string }
+    lanes: Array<{
+      /** S2.10b — `html`: an edit-op's source with its layout lane (one action) */
+      lane: 'comments' | 'annotations' | 'meta' | 'html';
+      text: string;
+      baseText: string;
+    }>,
+    opts: {
+      kind: string;
+      label: string;
+      writeId?: string;
+      /** S2.10b — an artboard-trash action's `origin.trashed` (S1-trash.md §2) */
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
+  /**
+   * S10.3b — the linked-hub twin of the local kernel's `proposeFiles` (S10.2): several canvas
+   * files (design-root-relative `rel`: a body, its `.meta.json` or its board) as ONE action.
+   * Each file's lane value is proposed against what this Mac and the accepted replica agreed on;
+   * a file already holding the value adds nothing (none left → accepted, no action). Nothing is
+   * written here: on acceptance the hub publishes and the projections write the files, which
+   * this waits for, so the answer means "on disk". `null` when the project is not in accepted
+   * mode — the DS engine then refuses `ds-kernel-unavailable`.
+   */
+  proposeFiles?(
+    files: { rel: string; text: string }[],
+    action: { kind: string; label: string | null }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
   /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
    * when the project is not in that mode; otherwise the (possibly queued)
@@ -625,15 +673,66 @@ export interface SyncRuntime {
     /** Only this person's actions. */
     mine?: boolean;
   }): Promise<AcceptedHistoryRow[] | null>;
-  /** A canvas source (repo-relative path) as it stood at a revision. */
-  acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+  /**
+   * A canvas lane (repo-relative TSX path) as it stood at a revision — its source (`html`, the
+   * default), its same-name CSS or its meta (S1.11, V2-1.9 §5.6). null = no such lane then.
+   */
+  acceptedVersion?(
+    repoRel: string,
+    revision: number,
+    lane?: 'html' | 'css' | 'meta' | 'annotations',
+    /** S1.13 — the body a `history.aside` at exactly `revision` kept for that lane. */
+    o?: { aside?: boolean }
+  ): Promise<string | null>;
   /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
   acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
-  /** Restore a canvas to a revision as a NEW action. */
+  /**
+   * S1.12b — name a version of a canvas (`history.name`, V2-1.9 §5.4): the kernel snaps
+   * `revision` to the newest one at or before it that changed the canvas; `null` clears.
+   */
+  acceptedName?(
+    repoRel: string,
+    revision: number,
+    name: string | null
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
+  /** S1.12b — keep a version nobody kept (`history.aside`, no head moves). */
+  acceptedAside?(
+    repoRel: string,
+    lane: 'html' | 'css' | 'meta' | 'annotations',
+    content: string,
+    label?: string
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
+  acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
+  /**
+   * Restore a canvas to a revision as a NEW action. S1.13: `o.lanes` — one artboard / object /
+   * kept-aside version, the studio's lanes as ONE `restore` action (local-kernel.ts RestoreOptions).
+   */
   acceptedRestore?(
     repoRel: string,
-    revision: number
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+    revision: number,
+    o?: RestoreOptions
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
+  /**
+   * S5.15 (U22) — does the home undo several actions as ONE? The hub's bootstrap says so with
+   * `capabilities.undoTargets` (S5.1a); an older hub lacks it. null = no bootstrap read yet.
+   */
+  chatUndoReady?(): boolean | null;
   /**
    * Personal undo/redo of this actor's accepted actions (T28). S5.5: one id,
    * several (`actionIds` — "as if they never happened", ONE action), or a
@@ -688,6 +787,24 @@ export interface SyncRuntime {
   /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
   acceptedCanvas?(repoRel: string): string | null;
   /**
+   * S2.20c (V2-1.5 §5.4) — this person's edits to canvas `repoRel` waiting behind an AI run, oldest
+   * first (an inverse ⌘Z queued names the edit it `undoes`). Null when no hub answers.
+   */
+  pendingEdits?(repoRel: string): Array<{
+    transactionId: string;
+    label: string;
+    madeAt: number;
+    undoes?: string;
+  }> | null;
+  /**
+   * S2.20c — ⌘Z on a waiting edit: the disk loses it now, and its inverse waits behind the same
+   * run, landing as that edit's undo right after it. Never touches the run's staged writes.
+   */
+  undoPendingEdit?(
+    repoRel: string,
+    transactionId: string
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; transactionId?: string } | null>;
+  /**
    * T19 — make the whole project available offline now: file-plane passes
    * back to back (no pacing floor) until nothing is left to pull, or a pass
    * stops making progress. Resolves with what came down and what could not.
@@ -738,11 +855,17 @@ export interface AcceptedHistoryRow {
   undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** S1.12b — per canvas, the lanes the action touched there (additive). */
+  lanes?: Record<string, string[]>;
+  /** S1.12b — a `name` action's target revision and name (`origin.named`; null clears). */
+  named?: RowNamed;
   /** V2-1.5 §5.1 — the AI run / chat that made it, the person's clock, a stopped run. */
   runId?: string;
   chatId?: string;
   madeAt?: number;
   partial?: true;
+  /** S2.20c — the proposal's transaction id: a pending ⌘Z entry finds the action it became. */
+  transactionId?: string;
 }
 
 export { originFields } from './undo-target.ts';
@@ -752,6 +875,8 @@ export interface CreateSyncRuntimeOptions {
   transactionFetch?: typeof fetch;
   /** Base backoff between re-sends of an unanswered proposal (tests). */
   transactionRetryMs?: number;
+  /** S6.13b crash test — called at named points inside an offline-create rename. */
+  createRenameFault?: (point: string) => void;
   /** Override the HocuspocusProvider factory (test injection). */
   providerFactory?: ProviderFactory;
   /** Force-enable/disable adopt mode (overrides cfg.linkedHub.adopt). */
@@ -1156,6 +1281,19 @@ export function createSyncRuntime(
   // two-doc agent path has no proposal lane and stays legacy.
   /** Resolves once a previous run's outbox is drained: doc → own accepted html. */
   let outboxDrained: Promise<Map<string, string>> = Promise.resolve(new Map());
+  /** S6.13 — documents whose `doc.create` that drain had accepted: made BY
+   *  THIS MAC in a previous run, so they join as a create, not a reconcile. */
+  const drainedCreates = new Set<string>();
+  // S6.13b — a create the project refused because a peer took the name while
+  // this Mac was away: this Mac's canvas moves to the next free name.
+  /** Documents this Mac's canvas moved away from: an answer to their create is not ours. */
+  const renamedAway = new Set<string>();
+  /** The renamed creates: new document → the source the project holds once accepted. */
+  const renamedCreates = new Map<string, Promise<string | null>>();
+  /** Slugs whose file moved away; kept attached until the peer's canvas lands there. */
+  const vacated = new Set<string>();
+  let collisionRenamer: ReturnType<typeof createCollisionRenamer> | null = null;
+  const noticesBeforeStore: Array<{ id: string; severity: 'info'; text: string }> = [];
   const acceptedLink: AcceptedLink | null = useSharedDoc
     ? createAcceptedLink({
         hubUrl: linkedHub.url,
@@ -1168,6 +1306,9 @@ export function createSyncRuntime(
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
+        onCreateConflict: (ops, result, tx) =>
+          collisionRenamer?.onCreateConflict(ops, result, tx) ?? Promise.resolve(null),
+        ...(opts.createRenameFault ? { fault: opts.createRenameFault } : {}),
         // S5.5 — a run's `touched` artboards, by AST reference closure (V2-1.5 §5.7)
         attribute: (slug, before, after) => {
           const html = descriptors.get(slug)?.html;
@@ -1192,6 +1333,64 @@ export function createSyncRuntime(
           // synced, until a restart. Knowing the mode, hand it back now.
           if (b.mode === 'transactions') for (const p of projections.values()) p.retryDeferred();
         },
+      })
+    : null;
+  /** S6.13b — an answer to a create of a document this Mac's canvas moved away from is not ours. */
+  const notOursIfRenamed =
+    (docName: string) =>
+    (o: StructuralOutcome): StructuralOutcome =>
+      renamedAway.has(docName) ? { status: 'rejected', code: 'renamed' } : o;
+  collisionRenamer = acceptedLink
+    ? createCollisionRenamer({
+        paths: ctx.paths,
+        docNameFor: (slug) => docNameFor(slug),
+        liveDocs: async () => {
+          await acceptedLink.refresh();
+          const docs = acceptedLink.manifest?.docs;
+          return docs ? docs.filter((d) => !d.retired) : null;
+        },
+        onRenaming: (c) => {
+          renamedAway.add(c.fromDoc);
+          // The old canvas stays attached: the peer's canvas lands at its path.
+          if (projections.has(c.fromSlug) || providers.has(c.fromSlug)) vacated.add(c.fromSlug);
+          projections.get(c.fromSlug)?.vacate();
+          let settle: (html: string | null) => void = () => {};
+          renamedCreates.set(
+            c.toDoc,
+            new Promise<string | null>((r) => {
+              settle = r;
+            })
+          );
+          return (result) => settle(result.status === 'accepted' ? c.html : null);
+        },
+        onRenamed: (c, tell) => {
+          try {
+            rekeyUserState(ctx.paths.designRoot, [[c.fromRel, c.toRel]]);
+          } catch {
+            /* a lost pin is not worth failing the rename */
+          }
+          // Open tabs and the selection follow it (server.ts retargets every
+          // member's state on a move); the rescan adopts the new file.
+          ctx.bus.emit('canvas-list-update', {
+            action: 'moved',
+            rel: c.toRel,
+            slug: c.toSlug,
+            fromRel: c.fromRel,
+            fromSlug: c.fromSlug,
+          });
+          if (tell) {
+            const name = (rel: string) => path.posix.basename(rel).replace(/\.tsx$/i, '');
+            const notice = {
+              id: `canvas-renamed-${c.toSlug}`,
+              severity: 'info' as const,
+              text: createRenamedText(name(c.fromRel), name(c.toRel)),
+            };
+            // A boot replay can land before the status store exists: kept until it does.
+            if (statusStore) statusStore.notice?.(notice);
+            else noticesBeforeStore.push(notice);
+          }
+        },
+        ...(opts.createRenameFault ? { fault: opts.createRenameFault } : {}),
       })
     : null;
   const trashWatch = acceptedLink
@@ -1601,6 +1800,12 @@ export function createSyncRuntime(
    */
   let filePlane: import('./file-plane.ts').FilePlane | null = null;
   let fileLedger: import('./file-ledger.ts').FileLedger | null = null;
+  /**
+   * S8.19 — tells the hub "this Mac holds these" after a plane pass: the journal file plane never
+   * probes, so without it no hub would ever learn a holder (decision v2-S8.19-plane-feeds-presence).
+   * Built with the plane; never in a cell (a cell IS the hub).
+   */
+  let heldReporter: ReturnType<typeof createHeldReporter> | null = null;
   /** Cumulative files sent up this boot — the doručenka's push half. */
   let filePushed = 0;
   /** Debounce for a plane pass triggered by a local write. */
@@ -1692,6 +1897,9 @@ export function createSyncRuntime(
         const r = await lane.reconcile();
         lastPlaneResult = r;
         planeResultSink?.(r);
+        // S8.19 — the held set rides AFTER the pass (the plane now has a picture of the disk);
+        // single-flight, floored, never throws, and never awaited by the pass's waiters.
+        if (!cellPairing) void heldReporter?.afterPass();
       } catch (err) {
         console.error('[sync/files] pass failed:', err);
       } finally {
@@ -1897,6 +2105,8 @@ export function createSyncRuntime(
    * on every peer. Consulted by the adopt guard in `migrateSeed`.
    */
   let hubDocIndex: ReadonlyMap<string, number> = new Map<string, number>();
+  /** S11.4 — the last listing of this boot, null until the hub has answered once. */
+  let lastListingDocs: readonly HubDocRow[] | null = null;
 
   /**
    * Slugs whose refusal has already asked for a rescan. Once per slug per
@@ -1970,6 +2180,9 @@ export function createSyncRuntime(
   const noteHubListing = (docs: readonly HubDocRow[] | null): void => {
     if (docs === null) return;
     hubDocIndex = indexHubDocs(docs);
+    // S11.4 — the same listing, kept for the availability read model (sync/availability.ts).
+    // Same rule as the index above: a failed listing never clears it.
+    lastListingDocs = docs.filter((d) => typeof d?.name === 'string' && d.name);
   };
 
   /**
@@ -2555,9 +2768,14 @@ export function createSyncRuntime(
         // What each canvas's disk was last saved as, when that save was one of
         // these: the base its cold start judges the disk against.
         const own = new Map<string, string>();
+        const drainFrom = Date.now();
         outboxDrained = acceptedLink.client
           .drainOutbox((result, operations) => {
             for (const o of operations) {
+              if (o.op === 'doc.create' && typeof o.doc === 'string') {
+                if (result.status === 'accepted') drainedCreates.add(o.doc);
+                else drainedCreates.delete(o.doc);
+              }
               const html =
                 o.op === 'lane.replace' && o.lane === 'html'
                   ? o.content
@@ -2572,6 +2790,8 @@ export function createSyncRuntime(
           .then((results) => {
             if (results.length)
               console.log(`[sync/tx] resent ${results.length} unanswered change(s).`);
+            // S6.13b — every rename a previous run left has replayed by now.
+            collisionRenamer?.sweep(drainFrom);
             return own;
           })
           .catch(() => own);
@@ -2834,6 +3054,7 @@ export function createSyncRuntime(
         },
         broadcast: (payload) => ctx.bus.emit('sync:status', payload),
       });
+    for (const n of noticesBeforeStore.splice(0)) statusStore.notice?.(n);
     const store = statusStore;
     // An unfinished AI action restored from the last session (T16).
     const restoredStage = acceptedLink?.stage.summary();
@@ -3339,6 +3560,50 @@ export function createSyncRuntime(
       }
     };
 
+    /**
+     * S6.13 — a canvas made here that the project does not list yet is
+     * proposed AT ONCE, before its document's handshake: offline that
+     * handshake waits for the network, and ⌘N must still be a content-lane
+     * write (V2-1.14 §8 "S6") — durable, ordered, and the watermark a prompt
+     * queued behind it waits for. Its cold start then reuses this answer
+     * instead of creating the canvas a second time.
+     */
+    const earlyCreates = new Map<string, { html: string; answer: Promise<StructuralOutcome> }>();
+    const proposeEarlyCreate = (canvas: CanvasDescriptor): void => {
+      if (!acceptedOn() || !acceptedLink || pulledSlugs.has(canvas.slug) || !canvas.html) return;
+      if (earlyCreates.has(canvas.slug)) return;
+      const docName = docNameFor(canvas.slug);
+      if (acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired)) return;
+      if (renamedCreates.has(docName)) return;
+      let html: string;
+      try {
+        html = readFileSync(canvas.html, 'utf8');
+      } catch {
+        return;
+      }
+      const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
+      const lanes = localCreateLanes(
+        {
+          html: canvas.html,
+          comments: canvas.comments,
+          annotations: canvas.annotations,
+          meta: canvas.meta,
+          css: canvas.css,
+        },
+        html
+      );
+      const answer = acceptedLink
+        .createDoc(canvas.slug, rel, lanes)
+        .then(notOursIfRenamed(docName))
+        .catch(
+          (err): StructuralOutcome => ({
+            status: 'rejected',
+            code: (err as { code?: string })?.code ?? 'failed',
+          })
+        );
+      earlyCreates.set(canvas.slug, { html, answer });
+    };
+
     /** Post-handshake reconcile — shared by first connect and re-probe. */
     const handleSynced = async (
       canvas: CanvasDescriptor,
@@ -3409,18 +3674,45 @@ export function createSyncRuntime(
       const agent = agents.get(canvas.slug);
       if (projection && acceptedOn() && acceptedLink) {
         const docName = docNameFor(canvas.slug);
-        let inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
-        if (!inProject) {
+        // S6.13 — the create this run already proposed (offline ⌘N) is THE
+        // create: wait for its answer.
+        const early = earlyCreates.get(canvas.slug);
+        earlyCreates.delete(canvas.slug);
+        const earlyAnswer = early ? await early.answer : null;
+        // A save a previous run left unanswered is answered first: a disk
+        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
+        // against the older base, the save conflicted with itself). Awaited
+        // BEFORE asking whether the canvas is in the project: a create that
+        // previous run left (S6.13) has made it a member by now.
+        const drained = await outboxDrained;
+        const ownAccepted = drained.get(docName) ?? null;
+        // S6.13b — a canvas this Mac renamed because its name was taken joins
+        // as that renamed create did.
+        const renamed = renamedCreates.get(docName);
+        const renamedHtml = renamed ? await renamed : null;
+        renamedCreates.delete(docName);
+        // A canvas THIS MAC created (now, or in the run the drain finished)
+        // joins exactly as its own create did — never reconciled against a
+        // replica that may not hold that publication yet, and never created
+        // a second time. What the project holds is what the create carried
+        // (or the newest save of it the drain had accepted).
+        const createdHere =
+          early && earlyAnswer?.status === 'accepted'
+            ? early.html
+            : drainedCreates.has(docName)
+              ? ownAccepted
+              : renamedHtml;
+        drainedCreates.delete(docName);
+        let inProject =
+          createdHere === null &&
+          acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
+        if (createdHere === null && !inProject) {
           // A canvas adopted after boot: ask again before creating anything.
           await acceptedLink.refresh();
           inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
         }
         const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
-        // A save a previous run left unanswered is answered first: a disk
-        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
-        // against the older base, the save conflicted with itself).
-        const ownAccepted = (await outboxDrained).get(docName) ?? null;
-        await acceptedColdStart({
+        const coldStart: Parameters<typeof acceptedColdStart>[0] = {
           slug: canvas.slug,
           doc: provider.document,
           paths: canvasPaths,
@@ -3432,8 +3724,19 @@ export function createSyncRuntime(
           commentLedger: commentLedgerFor(ctx.paths.designRoot),
           ownAccepted,
           wasAccepted: (content) => acceptedLink.client.holdsValue(content),
-          createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
-        });
+          createDoc:
+            createdHere !== null
+              ? async () => ({ status: 'accepted' as const, html: createdHere })
+              : (lanes) =>
+                  acceptedLink.createDoc(canvas.slug, rel, lanes).then(notOursIfRenamed(docName)),
+        };
+        let joined = await acceptedColdStart(coldStart);
+        if (joined.kind === 'create-refused' && joined.code === 'renamed') {
+          // S6.13b — this Mac's canvas moved to a free name while its create
+          // waited; what stays at this path is the peer's canvas.
+          joined = await acceptedColdStart({ ...coldStart, inProject: true });
+        }
+        renamedAway.delete(docName);
         projection.reconcile();
       } else if (projection) {
         // Phase E (DDR-064 Task 9) — one-time authoritative seed BEFORE
@@ -4351,10 +4654,16 @@ export function createSyncRuntime(
           // the canvas ("source sync blocked (local-edit)" on a fresh copy).
           if (body && existsSync(body) && bySlug.has(slug)) pulledSlugs.delete(slug);
         }
+        // S6.13b — the same race guard for a path this Mac's canvas just moved
+        // away from: the peer's canvas is written there after its cold start.
+        for (const slug of [...vacated]) {
+          const body = descriptors.get(slug)?.html;
+          if (body && existsSync(body) && bySlug.has(slug)) vacated.delete(slug);
+        }
         const { added, removed } = diffCanvasSet(
           [...agents.keys(), ...projections.keys()],
           bySlug.keys(),
-          pulledSlugs
+          [...pulledSlugs, ...vacated]
         );
         if (added.length === 0 && removed.length === 0) return;
         if (removed.length > 0) {
@@ -4367,9 +4676,20 @@ export function createSyncRuntime(
           markUntrusted();
         }
         const incoming = added.map((slug) => bySlug.get(slug)).filter((c) => !!c);
+        // S6.13 — only a project that does not answer gets its creates now;
+        // one that answers creates them on the handshake, as it always has.
+        const offline =
+          incoming.length > 0 && acceptedOn() && acceptedLink
+            ? (await Promise.race([
+                acceptedLink.refresh(),
+                new Promise<undefined>((r) => setTimeout(r, EARLY_CREATE_PROBE_MS)),
+              ])) == null
+            : false;
         for (const canvas of incoming) {
           if (agents.has(canvas.slug) || projections.has(canvas.slug)) continue;
           if (providers.has(canvas.slug)) continue;
+          // Before the attach: offline, its handshake waits for the network.
+          if (offline) proposeEarlyCreate(canvas);
           await attachCanvas(canvas, false);
         }
         if (incoming.length > 0) {
@@ -5262,6 +5582,8 @@ export function createSyncRuntime(
                 renewalsSinceProgress = 0;
                 lastFileProgressAt = Date.now();
               },
+              // S10.3b — a delivered file is a PEER's change (the DS outside watcher's `peer`).
+              onDelivered: (rel) => ctx.bus.emit('file-plane:delivered', { rel }),
               ledger: fileLedger,
               canvasGroups: ctx.cfg.canvasGroups,
               allowCodeModules,
@@ -5283,6 +5605,13 @@ export function createSyncRuntime(
               // a conflict copy nobody can attribute is a conflict copy nobody
               // resolves.
               label: hostname().slice(0, 32),
+            });
+            // S8.19 — the plane's held report (`/_asset-probe` held + sweep.final). This block
+            // is already `!cellPairing`; the token is read per send (silent renewal).
+            heldReporter = createHeldReporter({
+              designRoot: ctx.paths.designRoot,
+              canvasGroups: ctx.cfg.canvasGroups,
+              send: (rels) => reportHeld({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
             });
             console.log(
               '[sync/files] journal file plane active — one lane, both directions, per-file delivery state in the Sync panel.'
@@ -5356,6 +5685,7 @@ export function createSyncRuntime(
     fileLedger?.stop();
     fileLedger = null;
     filePlane = null;
+    heldReporter = null;
     // The control channel is a doorbell into this runtime; it goes with it.
     // Reported on the way out so the poke-miss question is answerable from a
     // session's log rather than from a hunch (DDR-226 §10).
@@ -5506,6 +5836,17 @@ export function createSyncRuntime(
     return next;
   }
 
+  /**
+   * S1.12b — does the linked hub take this op? It lists its ops in
+   * `bootstrap.capabilities.operations` (S1-trash.md §3); an older hub's list
+   * lacks the S1.6 ones. No list at all: unknown, so the kernel decides.
+   */
+  function hubOffers(op: string): boolean {
+    const ops = (acceptedLink?.manifest as { capabilities?: { operations?: unknown } } | null)
+      ?.capabilities?.operations;
+    return !Array.isArray(ops) || ops.includes(op);
+  }
+
   return {
     start,
     stop,
@@ -5536,6 +5877,36 @@ export function createSyncRuntime(
     size: () => agents.size + projections.size,
     agentFor: (slug) => agents.get(slug),
     status: () => statusStore?.get() ?? null,
+    // S11.4 — a READ of state the pull lane already holds; never fetches, never schedules a pull.
+    availability: () => ({
+      listing: lastListingDocs,
+      gone: new Set([...tombstoned, ...retiredDocs, ...refusedPulls.keys()]),
+      docNameFor: (slug: string) => docNameFor(slug),
+      relFor: (docName: string, slug: string) =>
+        resolveCanvasBodyRel({
+          path: manifestPathFor(docName, slug),
+          slug,
+          designRel: ctx.paths.designRel,
+          canvasGroups: ctx.cfg.canvasGroups,
+        }),
+      state: statusStore?.get()?.state ?? null,
+    }),
+    // S8.19 — presence (§5.4) through the same transport every hub call uses; a cell has no peer
+    // hub, and a stopped runtime asks nothing (the service then reads "Not here yet").
+    assetPresenceAsker: () => {
+      if (cellPairing || stopped) return null;
+      return {
+        ask: (rels) => askHubPresence({ fetchImpl: hubFetch, base: linkedHub.url, token, rels }),
+      };
+    },
+    assetUploading: () => {
+      if (cellPairing) return null;
+      const out = fileLedger ? uploadingFromRows(fileLedger.rows()) : new Map();
+      // The legacy sweep (a journal-less hub): the one file on the wire right now.
+      const active = legacyPushRunning ? statusStore?.get()?.assets?.active : null;
+      if (active) out.set(active, {});
+      return out;
+    },
     cancelAssetSweep: () => {
       if (!legacyPushRunning) return false;
       legacyPushCancel = true;
@@ -5559,7 +5930,7 @@ export function createSyncRuntime(
       if (!acceptedOn() || !acceptedLink) return null;
       if (!projections.has(slug)) return null;
       const out: Array<{
-        lane: 'comments' | 'annotations' | 'meta';
+        lane: 'comments' | 'annotations' | 'meta' | 'html';
         content: string;
         baseContent: string;
       }> = [];
@@ -5574,6 +5945,56 @@ export function createSyncRuntime(
         ...(r.code ? { code: r.code } : {}),
         ...(r.actionId ? { actionId: r.actionId } : {}),
       }));
+    },
+    proposeFiles: async (files, action) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const link = acceptedLink;
+      const edits: Array<{
+        slug: string;
+        lane: 'html' | 'meta' | 'annotations';
+        content: string;
+        baseContent: string;
+      }> = [];
+      const seen = new Set<string>();
+      for (const f of files) {
+        const clean = String(f?.rel ?? '')
+          .replace(/\\/g, '/')
+          .replace(/^\/+/, '');
+        if (!clean || clean.split('/').some((s) => s === '..') || typeof f.text !== 'string')
+          return { status: 'rejected', code: 'invalid' };
+        const abs = path.join(ctx.paths.designRoot, clean);
+        let hit: { slug: string; lane: 'html' | 'meta' | 'annotations' } | null = null;
+        for (const [slug, d] of descriptors) {
+          if (d.html === abs) hit = { slug, lane: 'html' };
+          else if (d.meta === abs) hit = { slug, lane: 'meta' };
+          else if (d.annotations === abs) hit = { slug, lane: 'annotations' };
+          if (hit) break;
+        }
+        const projection = hit ? projections.get(hit.slug) : undefined;
+        if (!hit || !projection) return { status: 'rejected', code: 'unknown-canvas' };
+        const key = `${hit.slug}\0${hit.lane}`;
+        if (seen.has(key)) return { status: 'rejected', code: 'invalid' };
+        seen.add(key);
+        const content = laneValueFromFile(hit.lane, f.text);
+        if (content === null) return { status: 'rejected', code: 'invalid' };
+        const baseContent = projection.agreedLane(hit.lane);
+        if (content === baseContent) continue;
+        edits.push({ ...hit, content, baseContent });
+      }
+      if (!edits.length) return { status: 'accepted' };
+      const r = await link.docsEdit(edits, {
+        kind: action.kind,
+        label: action.label ?? 'Edit canvases',
+      });
+      if (r.status === 'accepted')
+        await Promise.all(
+          edits.map((e) => projections.get(e.slug)?.settleLane(e.lane, e.content) ?? true)
+        );
+      return {
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+      };
     },
     proposeFolder,
     acceptedMode: acceptedOn,
@@ -5616,11 +6037,13 @@ export function createSyncRuntime(
         ...(q.mine && you ? { actor: you } : {}),
       });
       return history.map((a) => {
-        const canvases = new Set<string>();
-        for (const e of a.effects) {
-          const p = e.afterPath ?? (e.doc ? pathOf.get(e.doc) : null) ?? e.beforePath;
-          if (p && /\.(tsx|html)$/i.test(p)) canvases.add(p);
-        }
+        // S1.12b — per-canvas lanes (comments-only actions are not versions) + `origin.named`.
+        const { canvases, lanes } = canvasLanes(
+          a.effects,
+          (d) => pathOf.get(d),
+          (p) => /\.(tsx|html)$/i.test(p)
+        );
+        const named = namedField(a.kind, a.origin);
         return {
           revision: a.revision,
           actionId: a.actionId,
@@ -5630,10 +6053,27 @@ export function createSyncRuntime(
           label: a.label,
           committedAt: a.committedAt,
           undoes: a.undoes,
-          canvases: [...canvases].sort(),
+          canvases,
+          lanes,
+          ...(named ? { named } : {}),
           ...originFields(a.origin),
+          ...(typeof a.tx === 'string' ? { transactionId: a.tx } : {}),
         };
       });
+    },
+    acceptedName: async (repoRel, revision, name) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
+      if (!hubOffers('history.name')) return { status: 'rejected', code: 'hub-too-old' };
+      return acceptedLink.name(slug, revision, name);
+    },
+    acceptedAside: async (repoRel, lane, content, label) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
+      if (!hubOffers('history.aside')) return { status: 'rejected', code: 'hub-too-old' };
+      return acceptedLink.aside(slug, lane, content, label);
     },
     // S1.18 — a stable link's entry → path, over a FRESH manifest (a canvas moved since the last
     // bootstrap must resolve to where it is now). No cleared set here: history/links.ts reads a
@@ -5644,19 +6084,34 @@ export function createSyncRuntime(
       if (!manifest) return null;
       return manifest.docs.map((d) => ({ entry: d.entry, path: d.path, retired: !!d.retired }));
     },
-    acceptedVersion: async (repoRel, revision) => {
+    acceptedVersion: async (repoRel, revision, lane = 'html', o) => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
       if (!slug) return null;
-      const r = await acceptedLink.laneAt(slug, 'html', revision);
+      if (o?.aside) return acceptedLink.asideAt(slug, lane, revision);
+      const r = await acceptedLink.laneAt(slug, lane, revision);
       return r.body || null;
     },
-    acceptedRestore: async (repoRel, revision) => {
+    acceptedRestore: async (repoRel, revision, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
       if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
       const name = path.basename(repoRel).replace(/\.(tsx|html)$/i, '');
-      return acceptedLink.restore([slug], revision, `Restore ${name} to version ${revision}`);
+      if (o?.lanes) {
+        if (!o.lanes.length) return { status: 'rejected', code: 'invalid' };
+        return acceptedLink.restoreLanes(slug, o.lanes, o.label ?? `Restore ${name}`);
+      }
+      return acceptedLink.restore(
+        [slug],
+        revision,
+        o?.label ?? `Restore ${name} to version ${revision}`
+      );
+    },
+    chatUndoReady: () => {
+      if (!acceptedOn() || !acceptedLink?.manifest) return null;
+      const n = (acceptedLink.manifest as { capabilities?: { undoTargets?: unknown } })
+        ?.capabilities?.undoTargets;
+      return typeof n === 'number' && n > 1;
     },
     acceptedUndo: async (raw, redo = false, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
@@ -5794,6 +6249,50 @@ export function createSyncRuntime(
       const slug = slugForRepoRel(repoRel);
       return slug && acceptedLink ? acceptedLink.stage.accepted(slug, 'html') : null;
     },
+    pendingEdits: (repoRel) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return [];
+      return acceptedLink.stage.waiting(slug).map((e) => ({
+        transactionId: e.transactionId,
+        label: e.label,
+        madeAt: e.madeAt,
+        ...(e.undoes ? { undoes: e.undoes } : {}),
+      }));
+    },
+    undoPendingEdit: async (repoRel, transactionId) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const stage = acceptedLink.stage;
+      const slug = slugForRepoRel(repoRel);
+      const edit = stage.waitingEdit(transactionId);
+      // Gone out already (the run ended meanwhile): the caller undoes the action it became.
+      if (!slug || !edit || edit.slug !== slug || edit.undoes)
+        return { status: 'rejected', code: 'not-pending' };
+      if (stage.waiting(slug).some((w) => w.undoes === transactionId))
+        return { status: 'rejected', code: 'already-undone' };
+      // A layout move / board stroke waiting behind a run has no inverse here yet (html only).
+      if (edit.lane !== 'html') return { status: 'rejected', code: 'unsupported' };
+      const projection = projections.get(slug);
+      const html = descriptors.get(slug)?.html;
+      if (!projection || !html) return { status: 'rejected', code: 'not-pending' };
+      let disk: string;
+      try {
+        disk = readFileSync(html, 'utf8');
+      } catch {
+        return { status: 'rejected', code: 'not-pending' };
+      }
+      // The disk without THIS edit: the run's later writes and the person's later edits stay.
+      const inverse = mergeSource(edit.content, edit.baseContent, disk);
+      if (!inverse.ok) return { status: 'rejected', code: 'undo-conflict' };
+      const answer = projection.proposeInverse(inverse.merged, transactionId);
+      if (!answer) return null;
+      const queued = stage.waiting(slug).find((w) => w.undoes === transactionId);
+      if (!queued) {
+        const o = await answer;
+        return { status: o.status, ...(o.code ? { code: o.code } : {}) };
+      }
+      return { status: 'accepted', transactionId: queued.transactionId };
+    },
     resolveAiAction: async (choice, runId) => {
       if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;
       if (choice === 'discard') {
@@ -5837,6 +6336,9 @@ export function createSyncRuntime(
  */
 /** Coalesce a burst of asset writes (dragging six images on) into one sweep. */
 const ASSET_SWEEP_DEBOUNCE_MS = 1500;
+/** S6.13 — how long a new canvas waits for the project to answer before its
+ *  create is proposed straight into the outbox (offline ⌘N). */
+const EARLY_CREATE_PROBE_MS = 1500;
 
 export const DEFAULT_MAX_PINNED_ROOMS = 500;
 

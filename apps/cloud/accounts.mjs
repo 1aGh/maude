@@ -215,7 +215,39 @@ export async function createSession(db, accountId, { now = Date.now() } = {}) {
     .prepare('INSERT INTO sessions (id, account_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
     .bind(await sha256Hex(token), accountId, now, now + SESSION_TTL_MS)
     .run();
+  // Every sign-in door ends here, so this is "the first sign-in" (A3).
+  await startTrial(db, accountId, { now });
   return { token, expiresAt: now + SESSION_TTL_MS };
+}
+
+// --------------------------------------------------------------------- trial
+
+/**
+ * Start the account's A3 trial if it has not started (Maude v2 S9.15).
+ *
+ * COALESCE: the FIRST sign-in is the start, a later one never moves it. Best
+ * effort — a D1 that has not met its v19 migration yet must not fail a sign-in.
+ */
+export async function startTrial(db, accountId, { now = Date.now() } = {}) {
+  try {
+    await db
+      .prepare('UPDATE accounts SET trial_started_at = COALESCE(trial_started_at, ?) WHERE id = ?')
+      .bind(now, accountId)
+      .run();
+  } catch {
+    /* pre-v19 D1: the trial starts at the next sign-in */
+  }
+}
+
+/**
+ * The key a trial claim is stored under: the normalized address, hashed and
+ * domain-separated. A claim outlives its account row (that is its point), and
+ * a hash is all it needs to keep.
+ */
+export async function trialEmailKey(email) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) throw new Error('trialEmailKey: not an address');
+  return sha256Hex(`maude-trial:${normalized}`);
 }
 
 export async function sessionAccount(db, token, { now = Date.now() } = {}) {

@@ -18,6 +18,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { notInScopeResponse, runWithAccess } from '../access/request.ts';
+import { resolveAccess } from '../access/scope.ts';
 import { countFiles, createGrantStore, listFolder, resolveFolder } from '../ai/attach-grants.ts';
 import type { SaveAssetResult } from '../api.ts';
 import { createChatAttachRoutes, displayName, pdfPageCount } from '../routes/chat-attach.ts';
@@ -342,6 +344,32 @@ describe('routes/chat-attach — main origin only, server-chosen paths', () => {
     // Revoked → gone.
     await post(specs, '/_api/ai/attach/folder/revoke', { root: photos });
     expect((await list('c1', photos)).status).toBe(403);
+  });
+
+  // A6c — the reads are `project` class (test/_acl-route-classes.ts): the AI chat is the
+  // project's. A canvas-only session gets the not-in-scope answer every other canvas-only
+  // refusal gives — the same bytes whether or not any folder is granted (no oracle).
+  test('a canvas-only session reads neither the granted folders nor a listing', async () => {
+    const dr = join(tmp, 'rt3');
+    mkdirSync(dr);
+    const specs = routes(dr);
+    await post(specs, '/_api/ai/attach/folder', { path: photos, chatId: 'c1', consent: true });
+    const canvasOnly = resolveAccess({
+      v: 1,
+      role: null,
+      grants: [{ c: 'ui/a.tsx', r: 'member' }],
+    });
+    const answer = async (path: string) => {
+      const res = await runWithAccess(canvasOnly, () => call(specs, 'GET', path));
+      return `${res.status} ${await res.text()}`;
+    };
+    const refused = `403 ${await notInScopeResponse().text()}`;
+    expect(await answer('/_api/ai/attach/folders')).toBe(refused);
+    expect(
+      await answer(`/_api/ai/attach/folder/list?chatId=c1&root=${encodeURIComponent(photos)}`)
+    ).toBe(refused);
+    // The owner still reads both.
+    expect((await call(specs, 'GET', '/_api/ai/attach/folders')).status).toBe(200);
   });
 });
 

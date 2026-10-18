@@ -2,7 +2,8 @@
 //
 // Everything the Trash view says comes from here so a test can pin it: the header count ("3 canvases · 1
 // artboard"), the Today / Earlier groups, a row's name and sub ("artboard of Combine-kampan · Jonas, 14:05"),
-// what each answer of /_api/trash/restore and /_api/trash/clear is called, and the clear-out confirm. Words
+// what each answer of the restore / clear-out writes is called (history/surface-requests.ts builds both
+// requests), and the clear-out confirm. Words
 // follow CONTRACT §3 (canvas, artboard — "moved to the trash", "Kept until you clear it out"), §4 (what
 // happened · what is safe · one verb; counts write the real noun for 1 and for many; times are 24-hour).
 //
@@ -141,7 +142,7 @@ export function clearOutDialog(items, project) {
 const quoted = (s) => `“${s}”`;
 
 /**
- * What a restore answer is called. `res` is `{ status, body }` from POST /_api/trash/restore. Returns
+ * What a restore answer is called. `res` is `{ status, body }` from the restore write (`trashRestoreRequest`). Returns
  * `{ ok, tone, line }`; a refusal is a quiet line, never an alarm (CONTRACT §4: what happened · what is
  * safe · one verb). `not-yet` (an artboard, until Version history) is the one expected refusal.
  */
@@ -207,7 +208,7 @@ export function restoreOutcome(item, res) {
   return { ok: false, tone: 'warn', line: 'That did not complete. Nothing was changed.' };
 }
 
-/** What a clear-out answer is called. `res` is `{ status, body }` from POST /_api/trash/clear. */
+/** What a clear-out answer is called. `res` is `{ status, body }` from the clear-out write (`trashClearRequest`). */
 export function clearOutcome(res) {
   const { status, body } = res;
   const b = body || {};

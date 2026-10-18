@@ -174,6 +174,7 @@ export const TOOL_CURSORS: Record<Tool, string> = Object.freeze({
   // canvas reads as ALIVE. Never a forced custom glyph.
   browse: 'default',
   move: MOVE,
+  inspect: MOVE, // S3.11 — the arrow: inspect reads, it does not grab
   hand: HAND,
   comment: COMMENT,
   pen: PEN,
@@ -188,6 +189,14 @@ export const TOOL_CURSORS: Record<Tool, string> = Object.freeze({
   sticky: STICKY,
   arrow: CROSSHAIR,
   text: TEXT,
+  // S2.12b — Edit's click-to-type Text wears the same I-beam.
+  'el-text': TEXT,
+  // S2.13 — the drag tools of Edit draw from a crosshair
+  frame: CROSSHAIR,
+  'el-shape': CROSSHAIR,
+  line: CROSSHAIR,
+  polygon: CROSSHAIR,
+  slice: CROSSHAIR,
   eraser: ERASER,
 });
 

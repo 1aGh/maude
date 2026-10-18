@@ -4,7 +4,7 @@
 import type { ServerWebSocket, WebSocketHandler } from 'bun';
 
 import type { WsVisibility } from './access/filters.ts';
-import type { Access } from './access/scope.ts';
+import { type Access, accessWiderThan } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
@@ -45,6 +45,9 @@ export type WsData =
       /** S9.11 (V2-1.16 L12) — WHAT this socket may hear: the upgrade request's access,
        *  stamped by server.ts. Absent = the identity (a hand-built test socket). */
       access?: Access;
+      /** S9.15c — no comment write either (a paused project): `comments-add` is refused
+       *  with the patch/delete pair. Stamped by server.ts from the proxy's projection. */
+      lanesClosed?: boolean;
     }
   | {
       id: string;
@@ -67,6 +70,8 @@ export type WsData =
       access?: Access;
       /** S3.7c — a presentation follower's socket: receive-only in the room (collab/room.ts). */
       follow?: boolean;
+      /** S9.15c — read-only with no writable lane, comments included (collab/room.ts). */
+      lanesClosed?: boolean;
     }
   | {
       // T2 (9.1-A) — HMR-only socket for the segregated canvas origin. Receives
@@ -174,7 +179,15 @@ export interface Ws {
   clientCount(): number;
   /** V2-2.4b — the shells `maude design open` can reach (see `ui-open` below). */
   shellCount(): number;
+  /**
+   * S9.12b (V2-1.16 U6) — close every inspector / collab / canvas-HMR socket whose stamped
+   * access is wider than `current` (the clients reconnect at the new access). Returns how many.
+   */
+  closeWiderThan(current: Access): number;
 }
+
+/** The close a socket gets when the access it was opened under is no longer the session's. */
+export const ACCESS_CHANGED_CLOSE = Object.freeze({ code: 4403, reason: 'access-changed' });
 
 export function createWs(
   ctx: Context,
@@ -190,6 +203,8 @@ export function createWs(
   scope?: WsVisibility
 ): Ws {
   const clients = new Set<ServerWebSocket<WsData>>();
+  // S9.12b (U6) — every socket that carries a stamped access, whichever set it joins below.
+  const stamped = new Set<ServerWebSocket<WsData>>();
 
   /**
    * S9.11 — `frame` as THIS socket may receive it (`msg` is its JSON): the same string for
@@ -410,11 +425,14 @@ export function createWs(
   ): RoomConn {
     const access = ws.data.kind === 'collab' ? ws.data.access : undefined;
     const follow = ws.data.kind === 'collab' && ws.data.follow === true;
+    const lanesClosed = ws.data.kind === 'collab' && ws.data.lanesClosed === true;
     const conn: RoomConn = {
       id: ws.data.id,
       realm,
-      readOnly,
+      // S9.15c — a lanes-closed conn is read-only too (presence strip, gated path).
+      readOnly: readOnly || lanesClosed,
       ...(follow ? { follow: true } : {}),
+      ...(lanesClosed ? { lanesClosed: true } : {}),
       // S9.11 (V2-1.7 §5.5) — `summon` only from a socket whose access holds it on this canvas
       ...(access
         ? { summon: access.can('summon', scope?.canvasOfSlug(access, slug) ?? null) }
@@ -434,6 +452,7 @@ export function createWs(
 
   const handler: WebSocketHandler<WsData> = {
     async open(ws) {
+      if (ws.data.kind !== 'acp') stamped.add(ws);
       if (ws.data.kind === 'collab') {
         const room = collab.registry.get(ws.data.slug);
         const conn = bindCollab(
@@ -468,6 +487,7 @@ export function createWs(
       if (out !== null) send(ws, out);
     },
     async close(ws) {
+      stamped.delete(ws);
       if (ws.data.kind === 'acp') {
         acp.onClose(ws);
         return;
@@ -533,6 +553,19 @@ export function createWs(
         // `comments-add` is deliberately NOT here: comment is the one write a
         // viewer holds (role matrix, `viewer.comment === true`). Patch and
         // delete are not — they change or remove somebody else's note.
+        //
+        // S9.15c — a paused project (`lanesClosed`) holds no comment write at all,
+        // `comments-add` included (its HTTP comment writes answer 402 plan at the proxy).
+        const COMMENT_FRAMES = new Set(['comments-add', 'comments-patch', 'comments-delete']);
+        const lanesClosedSocket = ws.data.kind === 'inspector' && ws.data.lanesClosed === true;
+        if (lanesClosedSocket && COMMENT_FRAMES.has(msg.type)) {
+          send(ws, {
+            type: 'refused',
+            reason: 'plan',
+            message: 'Editing is paused for this project — that change was not applied.',
+          });
+          return;
+        }
         const readOnlySocket = ws.data.kind === 'inspector' && ws.data.readOnly === true;
         const MUTATES_OTHERS = new Set(['comments-patch', 'comments-delete']);
         if (readOnlySocket && MUTATES_OTHERS.has(msg.type)) {
@@ -585,5 +618,20 @@ export function createWs(
     broadcast,
     clientCount: () => clients.size,
     shellCount: () => [...clients].filter(isOpenTarget).length,
+    closeWiderThan(current: Access): number {
+      let n = 0;
+      for (const ws of [...stamped]) {
+        const was = ws.data.kind === 'acp' ? undefined : ws.data.access;
+        if (!was || !accessWiderThan(was, current)) continue;
+        stamped.delete(ws);
+        try {
+          ws.close(ACCESS_CHANGED_CLOSE.code, ACCESS_CHANGED_CLOSE.reason);
+        } catch {
+          /* already closing */
+        }
+        n += 1;
+      }
+      return n;
+    },
   };
 }

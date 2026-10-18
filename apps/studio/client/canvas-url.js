@@ -65,6 +65,124 @@ export function urlOf(p) {
   return '/' + p.split('/').map(encodeURIComponent).join('/');
 }
 
+// ---------------------------------------------------------------------------------------------------
+// S10.4 — which design-system revision a canvas renders (V2-1.6 §5.8)
+//
+// The server puts `dsConverted` (system → bool), `systemHeads` (system → head id | null),
+// `canvasDsRevs` (canvas → the revision it was left on) and `dsRevGaps` (revision id → the peer we
+// wait for | null; the revision is referenced here but not on this disk) on the index payload. A
+// converted system's followers load `revisions/<head>.{tokens,components}.css`, a left-out canvas the
+// ones of its `dsRev`; the Design system canvas and the specimens keep the working files. A missing
+// revision falls back dsRev → head → working files and says who it waits for.
+// ---------------------------------------------------------------------------------------------------
+const REV_ID = /^[0-9a-f]{64}$/;
+
+function dsLookup(map, p, rel, designRel) {
+  if (!map || typeof map !== 'object') return undefined;
+  if (Object.hasOwn(map, p)) return map[p];
+  const full = `${designRel}/${rel}`;
+  return Object.hasOwn(map, full) ? map[full] : undefined;
+}
+
+function dsRenderFor(p, rel, uiDs, cfg, opts) {
+  let ds = uiDs;
+  let pinned = null;
+  let preview = false;
+  const pv = typeof opts?.dsPreview === 'string' ? opts.dsPreview : '';
+  if (pv) {
+    const at = pv.indexOf('@');
+    const name = at < 0 ? pv : pv.slice(0, at);
+    const id = at < 0 ? null : pv.slice(at + 1);
+    const entry = cfg?.designSystems?.find((d) => d.name === name);
+    // An unknown system or a malformed id is ignored: the override never invents a path.
+    if (entry && (id === null || REV_ID.test(id))) {
+      ds = entry;
+      pinned = id;
+      preview = true;
+    }
+  }
+  if (!ds?.path || !ds.name) return null;
+  // The Design system canvas renders the working files (plus its pending overlay): path-owned.
+  if (!preview && rel === `${ds.path}/design-system.tsx`) return null;
+  const working = () => ({
+    tokens: ds.tokensCssRel || `${ds.path}/colors_and_type.css`,
+    components: `${ds.path}/preview/_components.css`,
+  });
+  if (cfg?.dsConverted?.[ds.name] !== true) {
+    // Previewing an unconverted system: its working files. Otherwise: today's path, untouched.
+    return preview ? { rev: null, ...working(), waiting: null } : null;
+  }
+  const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  const head = cfg?.systemHeads?.[ds.name];
+  const own = preview ? pinned : dsLookup(cfg?.canvasDsRevs, p, rel, designRel);
+  const chain = [];
+  for (const r of [own, head])
+    if (typeof r === 'string' && REV_ID.test(r) && !chain.includes(r)) chain.push(r);
+  const gaps = cfg?.dsRevGaps && typeof cfg.dsRevGaps === 'object' ? cfg.dsRevGaps : {};
+  const rev = chain.find((r) => !Object.hasOwn(gaps, r)) ?? null;
+  const first = chain[0];
+  const waiting =
+    first && rev !== first
+      ? { rev: first, peer: typeof gaps[first] === 'string' ? gaps[first] : null }
+      : null;
+  if (!rev) {
+    // Nothing usable yet: the working files (a preview still points at the previewed system's).
+    return preview
+      ? { rev: null, ...working(), waiting }
+      : { rev: null, tokens: null, components: null, waiting };
+  }
+  return {
+    rev,
+    tokens: `${ds.path}/revisions/${rev}.tokens.css`,
+    components: `${ds.path}/revisions/${rev}.components.css`,
+    waiting,
+  };
+}
+
+/**
+ * What `canvasUrl` decided about the design-system revision, for the chrome that has to say so:
+ * `{ rev, tokens, components, waiting }` (`waiting` = `{ rev, peer }` while the revision this canvas
+ * wants has not reached this Mac, else null), or `null` when the canvas is on today's path (an
+ * unconverted system, a specimen, the Design system canvas).
+ */
+export function canvasDsRender(p, cfg, opts) {
+  if (!p.endsWith('.tsx')) return null;
+  const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  let rel = p;
+  if (rel.startsWith(designRel + '/')) rel = rel.slice(designRel.length + 1);
+  if (/^system\/[^/]+\/preview\//.test(rel)) return null;
+  const name = opts?.ds ?? dsLookup(cfg?.canvasDesignSystems, p, rel, designRel);
+  const entry = name ? cfg?.designSystems?.find((d) => d.name === name) : null;
+  return dsRenderFor(p, rel, entry || cfg?.designSystems?.[0], cfg, opts);
+}
+
+/** The design system a canvas follows (its `designSystems` entry), as `canvasDsRender` resolves it. */
+export function canvasDsSystem(p, cfg, opts) {
+  if (!p.endsWith('.tsx')) return null;
+  const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  let rel = p;
+  if (rel.startsWith(designRel + '/')) rel = rel.slice(designRel.length + 1);
+  if (/^system\/[^/]+\/preview\//.test(rel)) return null;
+  const name = opts?.ds ?? dsLookup(cfg?.canvasDesignSystems, p, rel, designRel);
+  const entry = name ? cfg?.designSystems?.find((d) => d.name === name) : null;
+  return entry || cfg?.designSystems?.[0] || null;
+}
+
+/**
+ * The config an OPEN canvas frame's identity is computed from (shell/viewport.jsx `stableSrc`). The head
+ * and the revisions-we-wait-for are left out on purpose: a head that moves is a SWAP at the next look
+ * (client/v2/ds/follower-swap.js), never a reload of every open canvas under the viewer's eyes. A frame
+ * that is (re)created is built with the live values.
+ */
+export function canvasFrameCfg(cfg) {
+  // WHICH head is left out, THAT there is one is not (a system gaining or losing its head is a different frame)
+  const heads = {};
+  for (const [k, v] of Object.entries(cfg?.systemHeads ?? {}))
+    heads[k] = typeof v === 'string' && v ? HEAD_PLACEHOLDER : v;
+  return { ...cfg, canvasToken: undefined, systemHeads: heads, dsRevGaps: undefined };
+}
+const HEAD_PLACEHOLDER = 'f'.repeat(64);
+
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
@@ -84,6 +202,15 @@ export function canvasUrl(p, cfg, opts) {
   if (opts?.thumbnail) params.set('comments', '0');
   // Phase 27 (E2) — DiffView "before" pane renders the canvas at a past version.
   if (opts?.sha) params.set('sha', opts.sha);
+  // S1.14 — Version history's Viewing: the shell frames the past version `ref` (`r<n>` · `git:<sha>`)
+  // read-only — `ro=1` (no tools, no drag, no inline edit), no comment layer — and the canvas itself
+  // (`isHistoricalCanvas`) writes no camera or layout back and asks the shell for "now" on esc. The
+  // chrome stays: it is the same canvas, looked at.
+  if (opts?.viewing) {
+    params.set('sha', opts.viewing);
+    params.set('ro', '1');
+    params.set('comments', '0');
+  }
   // Phase 27 (E2) — DiffView renders a CLEAN canvas (no editor chrome: toolbar,
   // world minimap, devtools) so the before/after is just the design.
   if (opts?.hideChrome) params.set('hide-chrome', '1');
@@ -93,6 +220,20 @@ export function canvasUrl(p, cfg, opts) {
   // reads this flag). Boot-static on purpose — a role is per-session, and a
   // query param can't race the way a post-load message could.
   if (cfg?.readOnly) params.set('ro', '1');
+  // S9.22 — a Can comment session is read-only for the design but may still reply, resolve and reopen:
+  // `/_config.canComment` (a role that holds `comment`) says so, and the thread offers those buttons.
+  if (cfg?.readOnly && cfg?.canComment) params.set('cm', '1');
+  // S9.23 (S9-slices Q9) — presence `surface`: a canvas open in a browser tab says so in the room
+  // ("in a browser"). Only a studio window outside the Mac app; previews / embeds / follows publish nothing.
+  if (
+    !opts?.thumbnail &&
+    !opts?.embed &&
+    !opts?.follow &&
+    typeof window !== 'undefined' &&
+    window.location &&
+    !window.__TAURI__
+  )
+    params.set('surf', 'browser');
   // DDR-247 — the chromeless `?embed=1` view another app frames. Read-only
   // whatever the viewer's role (the embed offers looking, nothing else), no
   // comment layer, and `embed=1` so the canvas keeps its camera to itself
@@ -142,11 +283,16 @@ export function canvasUrl(p, cfg, opts) {
   // prefer the canvas's own design system's tokensCssRel — falling back to ds0
   // then the legacy top-level `cfg.tokensCssRel` (`system/colors_and_type.css`,
   // usually absent post-bootstrap).
-  const tokens = specMatch
+  let tokens = specMatch
     ? specDsEntry?.tokensCssRel || `system/${specMatch[1]}/colors_and_type.css`
     : uiDs?.tokensCssRel || cfg?.tokensCssRel;
+  // S10.4 (V2-1.6 §5.8) — a converted system hands a canvas the revision it follows or was left on;
+  // `null` (a specimen, an unconverted system, no field on the payload) leaves every line below as it was.
+  const dsRender = specMatch ? null : dsRenderFor(p, rel, uiDs, cfg, opts);
+  if (dsRender?.tokens) tokens = dsRender.tokens;
   if (tokens) params.set('tokens', tokens);
-  if (cfg?.componentsCssRel) params.set('components', cfg.componentsCssRel);
+  if (dsRender?.components) params.set('components', dsRender.components);
+  else if (cfg?.componentsCssRel) params.set('components', cfg.componentsCssRel);
   if (specMatch) {
     const dsName = specMatch[1];
     params.set('layout', `system/${dsName}/preview/_layout.css`);
@@ -157,7 +303,7 @@ export function canvasUrl(p, cfg, opts) {
     // UI canvas — load the canvas's own DS `_components.css` so the dc-canvas /
     // dc-section / dc-artboard chrome (and any DS classes the canvas reuses)
     // renders correctly under the same DS as the tokens above.
-    if (!cfg?.componentsCssRel) {
+    if (!cfg?.componentsCssRel && !dsRender?.components) {
       params.set('components', `${uiDs.path}/preview/_components.css`);
     }
   }

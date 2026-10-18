@@ -16,6 +16,14 @@
 // (never "not truthy"): a browser tab has no keychain, no ffmpeg and no whisper, and the routes behind
 // them are refused in a cell by design (DDR-209 D1) — they are ABSENT there, not disabled.
 
+import {
+  EXPERIMENTAL_TEAMS_PREF,
+  OWN_PLUGIN_COPY_PREF,
+  REPORT_LOGS_PREF,
+} from './advanced-prefs.js';
+
+export { EXPERIMENTAL_TEAMS_PREF, OWN_PLUGIN_COPY_PREF, REPORT_LOGS_PREF };
+
 export const SECTIONS = Object.freeze([
   { id: 'general', label: 'General', icon: 'settings' },
   { id: 'connections', label: 'Connections', icon: 'link', local: true },
@@ -223,12 +231,93 @@ export const SETTINGS_ROWS = Object.freeze([
     local: true,
   },
   {
+    // S11.13 (06 ad-settings › This Mac): "Bun 1.3.4 · built in" — the runtime that serves the project.
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-runtime',
+    where: 'Settings › Advanced › This Mac › Runtime',
+    local: true,
+  },
+  {
+    // C34: display only. `location.port`; never an input (a port you edit is a port that fights the proxy).
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-server-port',
+    where: 'Settings › Advanced › This Mac › Local server port',
+    local: true,
+  },
+  {
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-plugins',
+    where: 'Settings › Advanced › Claude Code › Plugins',
+    local: true,
+  },
+  {
+    // `MAUDE_NO_PLUGIN_BOOTSTRAP`, read at ACP spawn: prefs.json `ownPluginCopy`.
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-own-plugin-copy',
+    action: 'settings.use-own-plugin-copy',
+    where: 'Settings › Advanced › Claude Code › Use my own plugin copy',
+    local: true,
+  },
+  {
+    // C34: "N decisions · kgai" or "Not set up", from GET /_api/kg/summary.
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-decision-memory',
+    where: 'Settings › Advanced › Decision memory',
+    local: true,
+  },
+  {
+    // D13: the policy the Report a bug dialog reads (prefs.json `reportLogs`).
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-report-logs',
+    where: 'Settings › Advanced › Privacy › Logs in bug reports',
+    local: true,
+  },
+  {
+    // `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, set at ACP spawn: prefs.json `experimentalTeams`.
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-experimental-teams',
+    action: 'settings.experimental-teams',
+    where: 'Settings › Advanced › Experimental › AI reviews argue it out (teams)',
+    local: true,
+  },
+  {
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-reset-panel-layout',
+    action: 'settings.reset-panel-layout',
+    where: 'Settings › Advanced › Reset › Reset panel layout',
+    local: true,
+  },
+  {
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-reset-all',
+    action: 'settings.reset-all',
+    where: 'Settings › Advanced › Reset › Reset all settings…',
+    local: true,
+  },
+  {
+    // The per-fold switch list (ad-edge-remember): one switch per fold, `settings-fold-<id>`.
+    nd: null,
+    section: 'advanced',
+    testid: 'settings-fold-<id>',
+    where: 'Settings › Advanced › Reset › Open now, on this Mac',
+    local: true,
+  },
+  {
     // V2-4.10 (06 ad-settings › Reset, ad-edge-remember): the Advanced folds are remembered per panel per
     // Mac; this folds them all again. Its ⌘K twin is "Close all Advanced sections" (view.advanced-close-all).
     nd: null,
     section: 'advanced',
     testid: 'settings-reset-folds',
-    where: 'Settings › Advanced › Reset › Reset Advanced sections',
+    where: 'Settings › Advanced › Reset › Close all Advanced sections',
     local: true,
   },
 ]);
@@ -272,4 +361,164 @@ export function hostLabel(url) {
   } catch {
     return String(url ?? '');
   }
+}
+
+// ── S11.13 · Settings › Advanced (06 ad-settings, ad-edge-remember) ─────────────────────────────────
+
+/**
+ * C34 (decision `v2-S11-c34-unbuilt-rows-absent`): features Maude does not have get NO row — not a dead
+ * switch, not a disabled one. 06 draws two of them; the gate test pins that neither is ever rendered.
+ */
+export const ABSENT_ROW_LABELS = Object.freeze([
+  'Send anonymous usage data',
+  'Faster canvas engine',
+]);
+
+/** "523 decisions · kgai" when the graph is active for the project, else "Not set up" (never a guess). */
+export function decisionMemoryLine(summary) {
+  if (!summary || summary.active !== true) return 'Not set up';
+  const n = summary.decisions;
+  if (!Number.isInteger(n) || n < 0) return 'Not set up';
+  return `${n} ${n === 1 ? 'decision' : 'decisions'} · kgai`;
+}
+
+/** "Bun 1.3.4 · built in". An unanswered /_api/settings/about shows a dash, never a made-up version. */
+export function runtimeLine(about) {
+  const r = about && typeof about.runtime === 'string' ? about.runtime.trim() : '';
+  return r ? `${r} · built in` : '—';
+}
+
+/** "design 2.0.0 · flow 2.0.0"; null when the bundle ships no plugin manifest (an npm layout). */
+export function pluginsLine(about) {
+  const list = Array.isArray(about?.plugins) ? about.plugins : [];
+  const parts = list
+    .filter((p) => p && typeof p.name === 'string' && typeof p.version === 'string')
+    .map((p) => `${p.name} ${p.version}`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+/** Privacy › Logs in bug reports. The Report a bug dialog reads `reportLogs`; absent = ask. */
+export const REPORT_LOGS_CHOICES = Object.freeze([
+  { id: 'ask', label: 'Ask each time' },
+  { id: 'always', label: 'Always' },
+  { id: 'never', label: 'Never' },
+]);
+export function reportLogsPolicy(prefs) {
+  const v = prefs?.[REPORT_LOGS_PREF];
+  return v === 'always' || v === 'never' ? v : 'ask';
+}
+/**
+ * What Report a bug does with the policy (report-bug.jsx): `offer` = the log rows (server log
+ * tail + memory, crash logs) are in the preview; `on` = they start ticked. Ask each time starts
+ * them UNTICKED (the person opts in per report; decision v2-A6c-report-logs-never-hides), Always
+ * starts them ticked (the person can still untick), Never offers no log row, so nothing of the
+ * logs is sent.
+ */
+export function reportLogsConsent(policy) {
+  if (policy === 'never') return { offer: false, on: false };
+  return { offer: true, on: policy === 'always' };
+}
+
+/** What each fold is called in the per-fold switch list (06 ad-edge-remember "Open now, on this Mac"). */
+export const FOLD_LABELS = Object.freeze({
+  'left.canvases': 'Canvases › Advanced',
+  'left.layers': 'Layers › Advanced',
+  settings: 'Settings › Advanced',
+  diagnostics: 'Menu › Diagnostics › Advanced',
+  help: 'Keyboard shortcuts › Advanced',
+  inspector: 'Inspector › Advanced',
+  'ai.chat': 'AI chat list › Advanced',
+  ai: 'AI chat panel › Advanced',
+  history: 'Version history › Advanced',
+  code: 'Code › Advanced',
+  connections: 'Connections › Advanced',
+  share: 'Share › Advanced',
+  timeline: 'Timeline › Advanced',
+  export: 'Export › Advanced',
+  ds: 'Design system › Advanced',
+});
+
+/** The per-fold switch list: the panels that carry a fold, plus any id this Mac has remembered. */
+export function foldRows(ids) {
+  return [...new Set(ids)].map((id) => ({ id, label: FOLD_LABELS[id] ?? `${id} › Advanced` }));
+}
+
+/** Where a panel's moved to, and what Layers is, on a fresh Mac. */
+export const PANEL_SIDE_DEFAULTS = Object.freeze({
+  tree: 'left',
+  layers: 'left',
+  inspector: 'right',
+  comments: 'right',
+  changes: 'right',
+  assistant: 'right',
+});
+export const LAYERS_MODE_DEFAULT = 'separate';
+
+/**
+ * Reset panel layout: panels back to their sides, Layers back to its own panel, floating (not pinned),
+ * shown. Sizes stay: a width is the person's, not part of the layout. `calls` are the live handlers
+ * (so the open window follows); `patch` is the same state on disk, in one write.
+ */
+export function resetPanelLayoutPlan({ panelSide = {}, layersMode } = {}) {
+  const sideCalls = Object.entries(PANEL_SIDE_DEFAULTS).filter(
+    ([id, side]) => (panelSide?.[id] ?? side) !== side
+  );
+  return {
+    sideCalls,
+    layersModeCall: layersMode && layersMode !== LAYERS_MODE_DEFAULT ? LAYERS_MODE_DEFAULT : null,
+    patch: {
+      panelSides: { ...PANEL_SIDE_DEFAULTS },
+      layersMode: LAYERS_MODE_DEFAULT,
+      pin: { on: false },
+      panelsHidden: false,
+    },
+  };
+}
+
+/** The look a fresh Mac has (prefs.json 1.x defaults, mirrored from ui-prefs-migrate.ts V1_DEFAULTS). */
+export const LOOK_DEFAULTS = Object.freeze({
+  theme: 'dark',
+  minimap: false,
+  zoom: false,
+  annotations: true,
+  autoOpenInspector: true,
+});
+
+/**
+ * Reset all settings: every preference of the person back to a fresh Mac's. NOT reset: keys and
+ * sign-ins (Connections), this project's sync switches (they are the project's, not the person's),
+ * and the "seen" markers (a reset does not replay the tour). `foldIds` are folded to their defaults.
+ */
+export function resetAllPlan(live = {}, foldIds = []) {
+  const layout = resetPanelLayoutPlan({ panelSide: live.panelSide, layersMode: live.layersMode });
+  const toggles = [];
+  if (live.theme && live.theme !== LOOK_DEFAULTS.theme)
+    toggles.push(['onSetTheme', LOOK_DEFAULTS.theme]);
+  for (const [key, flag, handler] of [
+    ['minimapVisible', 'minimap', 'onToggleMinimap'],
+    ['zoomCtlVisible', 'zoom', 'onToggleZoomCtl'],
+    ['annotationsVisible', 'annotations', 'onToggleAnnotations'],
+    ['autoOpenInspector', 'autoOpenInspector', 'onToggleAutoOpenInspector'],
+  ]) {
+    if (typeof live[key] === 'boolean' && live[key] !== LOOK_DEFAULTS[flag])
+      toggles.push([handler]);
+  }
+  return {
+    ...layout,
+    toggles,
+    foldIds: [...new Set(foldIds)],
+    patch: {
+      ...layout.patch,
+      theme: LOOK_DEFAULTS.theme,
+      minimap: LOOK_DEFAULTS.minimap,
+      zoom: LOOK_DEFAULTS.zoom,
+      annotations: LOOK_DEFAULTS.annotations,
+      autoOpenInspector: LOOK_DEFAULTS.autoOpenInspector,
+      singleKeyShortcuts: true,
+      canvases: { showHidden: false },
+      [OWN_PLUGIN_COPY_PREF]: false,
+      [EXPERIMENTAL_TEAMS_PREF]: false,
+      [REPORT_LOGS_PREF]: 'ask',
+    },
+  };
 }

@@ -12,16 +12,43 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
+import { alignOps } from './align.ts';
+import { artboardResize } from './artboard-resize.ts';
+import { artboardTrash } from './artboard-trash.ts';
+import { CLEAR_LINK_OP } from './clear-link.ts';
+import { CLIP_OPS } from './clip/index.ts';
+import { objectConstrain } from './constraints.ts';
+import { objectSetCornerRadius } from './corner-radius.ts';
+import { distributeOps } from './distribute.ts';
+import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
+import { componentInsert } from './insert-component.ts';
+import { artboardDraw, objectInsertShape } from './insert-shape.ts';
+import { hasLayoutChange } from './layout-patch.ts';
 import { objectLock } from './lock.ts';
+import { objectPlaceFreely } from './place-freely.ts';
+import type { ReferenceLanes } from './references.ts';
+import { assetRelink } from './relink.ts';
+import { reorderOps } from './reorder.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
+import { objectRotate } from './rotate.ts';
+import { layoutSetGap } from './set-gap.ts';
+import { elementSetId } from './set-id.ts';
+import { SET_LINK_OP } from './set-link.ts';
+import { textSet, textSetLanguage } from './text-copy.ts';
+import { textDetachStyle } from './text-detach.ts';
+import { textResetStyle, textSetCase, textUseStyle } from './text-style-ops.ts';
 import {
   EDIT_OP_STATUS,
+  type EditCtx,
   type EditOp,
   type EditOpCode,
+  type EditOpOutput,
   type EditOpResult,
   type ElementRef,
+  type IdRename,
+  type LayoutPatch,
   parseEditOpRequest,
   REVERT_OP,
 } from './types.ts';
@@ -44,6 +71,44 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSendBack,
   objectLock,
   objectHide,
+  // S2.2b — the inspector's Element id field: renames the id and every durable reference to it
+  elementSetId,
+  // S2.7 — the align bar and the rotate handle
+  ...alignOps,
+  ...distributeOps,
+  objectRotate,
+  artboardResize, // S2.8 artboard.resize
+  // S2.10 — ⌘D / ⌥-drag / the artboard menu: a copy beside its source, in one write
+  artboardDuplicate,
+  artboardDuplicateAtWidth,
+  // S2.11 — Place freely, constraints, reorder (earlier / later / to a slot)
+  objectPlaceFreely,
+  objectConstrain,
+  ...reorderOps,
+  // S2.11c — ⌥ "every gap at once": one gap value over several auto layouts, one write
+  layoutSetGap,
+  // S3.10a — a click's destination: `data-cd-link` (S3-links-format §3)
+  SET_LINK_OP,
+  CLEAR_LINK_OP,
+  // S2.10b — ⌫ / "Move to trash" on an artboard: one `kind: 'trash'` action on an op-log home
+  artboardTrash,
+  // S2.12 — text in place, styles and the Czech ties
+  textSet,
+  textSetLanguage,
+  textSetCase,
+  textUseStyle,
+  textResetStyle,
+  textDetachStyle,
+  // S2.13 — the Frame / Shape tools' drag, the corner dot's drag
+  objectInsertShape,
+  artboardDraw,
+  objectSetCornerRadius,
+  // S8.19c — Relink… on a missing picture: every reference to the old file, one write
+  assetRelink,
+  // S7.6 — every clip verb (clip-ops.ts appliers) + the video ops, artboard-scoped
+  ...CLIP_OPS,
+  // S2.16 — ⇧I: a linked instance from the design system
+  componentInsert,
 ];
 
 export interface AiHoldHit {
@@ -59,12 +124,45 @@ export interface DispatchDeps {
   write(rel: string, before: string, after: string, label: string): Promise<void>;
   /** V2-1.15 §4 #13 — a live AI run holds this element (S5.4's `heldByAi`) */
   heldByAi(rel: string, element: string): AiHoldHit | null;
+  /** S2.10 — an op's positions into the layout lane (`meta.layout.artboards[]`); absent = not written */
+  writeLayout?(rel: string, patch: LayoutPatch): Promise<void>;
   /** the kernel action a write became, when the runtime already knows it */
   actionFor?(rel: string, after: string): string | null;
+  /** S2.10b — a live AI run holds this ARTBOARD (its lease, V2-1.15): ops that change it whole refuse */
+  heldArtboard?(rel: string, artboard: string): AiHoldHit | null;
+  /**
+   * S2.10b — an op-log home lands the write as ONE project action: the source and the op's layout
+   * lane together, with the op's kind / label / origin. Null = no such home here (a legacy link, no
+   * link): the ordinary `writeLayout` + `write` path runs. A refusal writes nothing.
+   */
+  land?(plan: LandPlan): Promise<LandOutcome | null>;
+  /** is there a regular file at this designRoot-relative path (S8.19c — the relink target must exist) */
+  exists?(rel: string): boolean;
   log: WriteLog;
+  /** S2.2b — the comments + board of a canvas; an id rename moves its references here. Without
+   *  it a rename that has references to move is refused (never a half-rename). */
+  references?: ReferenceLanes;
   /** the op table (tests pass their own); default `EDIT_OPS` */
   ops?: readonly EditOp[];
+  /** what the server knows about a canvas beyond its bytes (its meta); ops read it as `req.ctx` */
+  ctx?(rel: string): EditCtx;
 }
+
+/** What `land` is asked to make one action of. */
+export interface LandPlan {
+  rel: string;
+  before: string;
+  after: string;
+  layout?: LayoutPatch;
+  /** the op's action; absent = `kind: 'edit'` with a label from the op id */
+  action?: EditOpOutput['action'];
+  /** the snapshot reason (`pre-<op>`) */
+  reason: string;
+}
+
+export type LandOutcome =
+  | { ok: true; actionId: string | null; queued?: true }
+  | { ok: false; code: EditOpCode; message: string };
 
 /** The file's revision: the first 16 hex of SHA-256 of its bytes. */
 export function revOf(source: string): string {
@@ -115,7 +213,18 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     if (rec.file !== rel) return refuse('invalid', 'That undo belongs to another canvas.');
     const next = revertSource(rec, current);
     if (next === null) return refuse('stale', REVERT_STALE_MESSAGE);
-    return commit(rel, current, next, [], undefined, 'pre-edit-op-revert', deps);
+    // Undoing an id rename renames its references back too — one step (S2.2b). The inverse is a
+    // rename, not old bytes: a comment pinned to the new id since then moves with the element.
+    const back = rec.renamed ? { from: rec.renamed.to, to: rec.renamed.from } : undefined;
+    if (back) {
+      const w = walkIdElements(next, rel);
+      if (!w.ok || w.elements.filter((e) => e.id === back.to).length !== 1)
+        return refuse('stale', REVERT_STALE_MESSAGE);
+      const gate = await renameGate(rel, back, deps);
+      if (gate)
+        return !gate.ok && gate.code === 'invalid' ? refuse('stale', REVERT_STALE_MESSAGE) : gate;
+    }
+    return commit(rel, current, next, [], undefined, 'pre-edit-op-revert', deps, back);
   }
 
   // Stamp every target in this write (V2-1.4 rule 3): an op never sees a computed id.
@@ -148,25 +257,145 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         `${said(r.element)} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
       );
   }
+  // An artboard-scoped op (S7.6 clip / video ops): the artboard must exist before anything is held or locked.
+  const scoped = (op as EditOp).scope === 'artboard';
+  const ab = req.params?.artboard;
+  const board =
+    scoped && typeof ab === 'string'
+      ? walk.elements.find((x) => x.tag === 'DCArtboard' && x.artboard === ab)
+      : undefined;
+  if (scoped) {
+    if (ab !== undefined && (typeof ab !== 'string' || !ab))
+      return refuse('invalid', 'The edit names no video.');
+    if (typeof ab === 'string' && !board)
+      return refuse('invalid', 'That video is not on this canvas.');
+  }
+  // S2.10b — an op that changes artboards whole (resize, copy, trash, and S7.6's clip / video ops) respects
+  // the run's artboard lease. ONE check for all of them (v2-lead-artboard-hold-one-check): an op declares the
+  // artboards it edits; an artboard-scoped op with no artboard named edits every one of the file's.
+  if (deps.heldArtboard) {
+    const boards = [
+      ...((op as EditOp).artboards?.({
+        file: rel,
+        op: req.op,
+        targets: refs,
+        params: req.params ?? {},
+      }) ?? []),
+    ];
+    if (scoped && typeof ab !== 'string')
+      for (const x of walk.elements)
+        if (x.tag === 'DCArtboard' && x.artboard) boards.push(x.artboard);
+    for (const a of boards) {
+      const hold = deps.heldArtboard(rel, a);
+      if (hold)
+        return refuse(
+          'held-by-ai',
+          `${said(a)} is AI's until it's done${hold.mine ? ' · Stop in the AI chat' : ''}`
+        );
+    }
+  }
+  if (board?.locked && (op as EditOp).locked !== 'allow')
+    return refuse('locked', `${said(ab as string)} is locked · ⇧⌘L unlocks`);
   if ((op as EditOp).locked !== 'allow') {
     for (const r of refs) {
       if (walk.elements.find((x) => x.id === r.element)?.locked)
         return refuse('locked', `${said(r.element)} is locked · ⇧⌘L unlocks`);
     }
   }
-  let out: { source: string; created?: ElementRef[] };
+  let out: EditOpOutput;
   try {
     out = (op as EditOp).apply(source, {
       file: rel,
       op: req.op,
       targets: refs,
       params: req.params ?? {},
+      ...(deps.exists ? { exists: deps.exists } : {}),
+      ...(deps.ctx ? { ctx: deps.ctx(rel) } : {}),
     });
   } catch (e) {
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);
     throw e;
   }
-  return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps);
+  if (out.renamed) {
+    const gate = await renameGate(rel, out.renamed, deps);
+    if (gate) return gate;
+  }
+  // S2.10b — an op that writes source + layout, on an op-log home: ONE action (one ⌘Z, one history row).
+  if (deps.land && out.source !== current && hasLayoutChange(out.layout)) {
+    const landed = await deps.land({
+      rel,
+      before: current,
+      after: out.source,
+      ...(out.layout ? { layout: out.layout } : {}),
+      ...(out.action ? { action: out.action } : {}),
+      reason: `pre-${req.op}`,
+    });
+    if (landed) {
+      if (!landed.ok) return refuse(landed.code, landed.message);
+      // The op log undoes it; a legacy revert record would undo it a second way.
+      const res: EditOpResult = {
+        ok: true,
+        actionId: landed.actionId,
+        writeId: landed.actionId || landed.queued ? '' : deps.log.add(rel, current, out.source),
+        rev: revOf(out.source),
+        refs,
+      };
+      if (landed.queued) res.queued = true;
+      if (out.created?.length) res.created = out.created;
+      if (out.detail && Object.keys(out.detail).length) res.detail = out.detail;
+      return res;
+    }
+  }
+  // S2.10 — the layout lane goes first: an entry for an artboard that never got written is inert, while a
+  // written artboard with no entry would flash at its default-grid slot before it moved. A `remove` waits
+  // for an op-log home (types.ts LayoutPatch): here the entry stays and the source revert restores all.
+  if (out.layout && !out.layout.remove && out.source !== current && deps.writeLayout)
+    await deps.writeLayout(rel, out.layout);
+  const res = await commit(
+    rel,
+    current,
+    out.source,
+    refs,
+    out.created,
+    `pre-${req.op}`,
+    deps,
+    out.renamed
+  );
+  if (res.ok && out.detail && Object.keys(out.detail).length) res.detail = out.detail;
+  return res;
+}
+
+export const ID_HELD_BY_REFERENCE_MESSAGE =
+  'Not renamed: a comment or an arrow of a removed object still uses that id; pick another.';
+export const RENAME_SPLIT_MESSAGE =
+  'Not renamed: comments or arrows point at this object, and this project can’t move them in one undo step yet.';
+
+/**
+ * S2.2b — may this rename go ahead? The new id must not be held by an AI run or by a durable
+ * reference (a detached comment / arrow of a removed element would land on this one — V2-1.4
+ * §4.2); the old id's references must be movable as ONE undo step. Null = go.
+ */
+async function renameGate(
+  rel: string,
+  r: IdRename,
+  deps: DispatchDeps
+): Promise<EditOpResult | null> {
+  const ai = deps.heldByAi(rel, r.to);
+  if (ai)
+    return refuse(
+      'held-by-ai',
+      `${said(r.to)} is AI's until it's done${ai.mine ? ' · Stop in the AI chat' : ''}`
+    );
+  const lanes = deps.references;
+  if (!lanes) return refuse('invalid', RENAME_SPLIT_MESSAGE);
+  const taken = await lanes.count(rel, r.to);
+  if (!taken.ok) return refuse('invalid', taken.message);
+  if (taken.comments + taken.board > 0) return refuse('invalid', ID_HELD_BY_REFERENCE_MESSAGE);
+  const held = await lanes.count(rel, r.from);
+  if (!held.ok) return refuse('invalid', held.message);
+  if (held.comments + held.board > 0 && !lanes.oneStep())
+    return refuse('invalid', RENAME_SPLIT_MESSAGE);
+  return null;
 }
 
 async function commit(
@@ -176,7 +405,8 @@ async function commit(
   refs: ElementRef[],
   created: ElementRef[] | undefined,
   label: string,
-  deps: DispatchDeps
+  deps: DispatchDeps,
+  renamed?: IdRename
 ): Promise<EditOpResult> {
   if (after === before)
     return {
@@ -187,7 +417,25 @@ async function commit(
       refs,
     };
   await deps.write(rel, before, after, label);
-  const writeId = deps.log.add(rel, before, after);
+  let moved: { comments: number; board: number } | undefined;
+  if (renamed && deps.references) {
+    try {
+      moved = await deps.references.rename(rel, renamed);
+    } catch {
+      // Never a half-rename: put back what moved, then the source (only if nobody wrote since).
+      try {
+        await deps.references.rename(rel, { from: renamed.to, to: renamed.from });
+      } catch {
+        /* the lanes refused twice — the source still goes back; refs left on the new id detach */
+      }
+      if (deps.read(rel) === after) await deps.write(rel, after, before, `${label}-rollback`);
+      return refuse(
+        'invalid',
+        'Not renamed: the comments or the board could not be updated; nothing changed.'
+      );
+    }
+  }
+  const writeId = deps.log.add(rel, before, after, renamed);
   const res: EditOpResult = {
     ok: true,
     actionId: deps.actionFor?.(rel, after) ?? null,
@@ -196,5 +444,6 @@ async function commit(
     refs,
   };
   if (created?.length) res.created = created;
+  if (moved && res.ok) res.moved = moved;
   return res;
 }

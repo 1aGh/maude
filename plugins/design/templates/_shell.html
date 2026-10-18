@@ -193,6 +193,10 @@
       // `git show <sha>:<path>`). Baked into the module URL so both the initial
       // import and the HMR soft-reload carry it.
       const shaParam = params.get('sha');
+      const versionMeta =
+        shaParam && window.__canvas_meta_version__ && typeof window.__canvas_meta_version__ === 'object'
+          ? window.__canvas_meta_version__
+          : null;
       // Cloud Phase 27 (DDR-209) — THE CAPABILITY TRAVELS WITH EVERY REQUEST.
       //
       // On a desktop the canvas origin is loopback and needs none, so `cap` is
@@ -308,6 +312,379 @@
           fetch(withCap('/_canvas-shell.html'), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
         }
       });
+
+      // ds-css:begin
+      // S10.4 (V2-1.6 §5.8) — the follower swap. The studio says which two files a canvas follows now
+      // (`ds-css`, designRoot-relative `.css` paths) and this document swaps its two <link> hrefs; the
+      // shell decides WHEN (the next look at the canvas — client/v2/ds/follower-swap.js), never this
+      // document. SECURITY (DDR-054): the canvas module shares this realm, so a swap is honoured only
+      // from the parent, and only for a plain relative `.css` path — never a URL, never `..`.
+      const DS_CSS_REL = /^(?!\/)(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9 ._\/-]{0,255}\.css$/;
+      function applyDsCss(m) {
+        if (!m || typeof m !== 'object') return;
+        const pairs = [['tokens', 'canvas-tokens'], ['components', 'canvas-components']];
+        for (const pair of pairs) {
+          const rel = m[pair[0]];
+          if (typeof rel !== 'string' || !DS_CSS_REL.test(rel)) continue;
+          const link = document.getElementById(pair[1]);
+          if (!link) continue;
+          const href = withCap('/' + designRel + '/' + rel);
+          if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+        }
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-css') return;
+        applyDsCss(m);
+      });
+      // ds-css:end
+
+      // ds-pins:begin
+      // S10.4 (V2-1.6 §5.8) — element pins. An element may carry `data-ds-rev="head"` or
+      // `data-ds-rev="<id>"`: it keeps that revision's look while the rest of the canvas renders its own.
+      // The document only ASKS (`ds-pins-want`: the distinct, well-formed values it sees); the studio
+      // answers (`ds-pins`) with the two sibling paths per value, and this document fetches them and
+      // scopes them with the mirror of ds/pin-scope.ts below (test/ds-element-pin.test.ts holds the two
+      // equal). SECURITY (DDR-054): pins arrive only from the parent, are validated, and an unlisted
+      // value is never fetched — the canvas can ask, it cannot name a path.
+      const dsPinScope = (() => {
+        const PIN_CSS_MAX = 2 * 1024 * 1024;
+        const PIN_ID = /^[0-9a-f]{64}$/;
+        const ROOT_CLASS = /^[A-Za-z_][\w-]{0,63}$/;
+        function isPinValue(v) {
+          return v === 'head' || (typeof v === 'string' && PIN_ID.test(v));
+        }
+function splitTop(s, sep) {
+  const out = [];
+  let depth = 0;
+  let quote = "";
+  let start = 0;
+  for (let i = 0;i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      if (c === "\\")
+        i++;
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'")
+      quote = c;
+    else if (c === "/" && s[i + 1] === "*") {
+      const end = s.indexOf("*/", i + 2);
+      i = end < 0 ? s.length : end + 1;
+    } else if (c === "(" || c === "[")
+      depth++;
+    else if (c === ")" || c === "]")
+      depth = Math.max(0, depth - 1);
+    else if (c === sep && depth === 0) {
+      out.push(s.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(s.slice(start));
+  return out;
+}
+function stripComments(s) {
+  let out = "";
+  let quote = "";
+  for (let i = 0;i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      out += c;
+      if (c === "\\")
+        out += s[++i] ?? "";
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      out += c;
+    } else if (c === "/" && s[i + 1] === "*") {
+      const end = s.indexOf("*/", i + 2);
+      if (end < 0)
+        break;
+      i = end + 1;
+    } else
+      out += c;
+  }
+  return out;
+}
+function topLevel(css) {
+  const text = stripComments(css);
+  const out = [];
+  let i = 0;
+  while (i < text.length) {
+    let depth = 0;
+    let quote = "";
+    let j = i;
+    let hit = "";
+    for (;j < text.length; j++) {
+      const c = text[j];
+      if (quote) {
+        if (c === "\\")
+          j++;
+        else if (c === quote)
+          quote = "";
+      } else if (c === '"' || c === "'")
+        quote = c;
+      else if (c === "(" || c === "[")
+        depth++;
+      else if (c === ")" || c === "]")
+        depth = Math.max(0, depth - 1);
+      else if (depth === 0 && (c === "{" || c === ";" || c === "}")) {
+        hit = c;
+        break;
+      }
+    }
+    const prelude = text.slice(i, j).trim();
+    if (hit === ";") {
+      if (prelude)
+        out.push({ prelude, body: null });
+      i = j + 1;
+    } else if (hit === "{") {
+      let d = 1;
+      let q = "";
+      let k = j + 1;
+      for (;k < text.length && d > 0; k++) {
+        const c = text[k];
+        if (q) {
+          if (c === "\\")
+            k++;
+          else if (c === q)
+            q = "";
+        } else if (c === '"' || c === "'")
+          q = c;
+        else if (c === "{")
+          d++;
+        else if (c === "}")
+          d--;
+      }
+      out.push({ prelude, body: text.slice(j + 1, d === 0 ? k - 1 : k) });
+      i = k;
+    } else {
+      i = hit === "}" ? j + 1 : text.length;
+    }
+  }
+  return out;
+}
+const GROUPING = new Set(["media", "supports", "container", "layer", "scope", "document"]);
+function tokenTheme(compound, rootClass) {
+  let theme = "";
+  const rest = compound.replace(/\[\s*data-theme\s*(?:[~|]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s\]"']+))\s*\]/g, (_m, a, b, c) => {
+    theme = a ?? b ?? c ?? "";
+    return "";
+  });
+  if (rest.includes("["))
+    return null;
+  const parts = rest.match(/:root|html|\*|\.[A-Za-z_][\w-]*/g) ?? [];
+  if (parts.join("") !== rest)
+    return null;
+  let rooted = false;
+  for (const part of parts) {
+    if (part === "*")
+      continue;
+    if (part === ":root" || part === "html" || part === ".ds" || rootClass && part === `.${rootClass}`)
+      rooted = true;
+    else
+      return null;
+  }
+  return rooted || theme ? theme : null;
+}
+function lastCompoundStart(sel) {
+  let depth = 0;
+  let quote = "";
+  let start = 0;
+  for (let i = 0;i < sel.length; i++) {
+    const c = sel[i];
+    if (quote) {
+      if (c === "\\")
+        i++;
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'")
+      quote = c;
+    else if (c === "(" || c === "[")
+      depth++;
+    else if (c === ")" || c === "]")
+      depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (c === " " || c === ">" || c === "+" || c === "~" || c === "\t" || c === `
+`))
+      start = i + 1;
+  }
+  return start;
+}
+function pseudoElementAt(sel, from) {
+  let depth = 0;
+  let quote = "";
+  for (let i = from;i < sel.length; i++) {
+    const c = sel[i];
+    if (quote) {
+      if (c === "\\")
+        i++;
+      else if (c === quote)
+        quote = "";
+    } else if (c === '"' || c === "'")
+      quote = c;
+    else if (c === "(" || c === "[")
+      depth++;
+    else if (c === ")" || c === "]")
+      depth = Math.max(0, depth - 1);
+    else if (depth === 0 && c === ":") {
+      if (sel[i + 1] === ":")
+        return i;
+      if (/^:(?:before|after|first-line|first-letter)(?![\w-])/i.test(sel.slice(i)))
+        return i;
+    }
+  }
+  return sel.length;
+}
+function scopeSelector(selector, value, opts = {}) {
+  if (!isPinValue(value))
+    throw new Error("not a pin value");
+  const rootClass = opts.rootClass && ROOT_CLASS.test(opts.rootClass) ? opts.rootClass : null;
+  const sel = selector.trim();
+  if (!sel)
+    return null;
+  const pin = `[data-ds-rev="${value}"]`;
+  if (!/[\s>+~]/.test(sel.replace(/\([^)]*\)|\[[^\]]*\]/g, ""))) {
+    const theme = tokenTheme(sel, rootClass);
+    if (theme !== null) {
+      if (!theme)
+        return [pin];
+      const t = theme.replace(/["\\]/g, "");
+      return [`:where([data-theme="${t}"]) ${pin}`, `[data-theme="${t}"]${pin}`];
+    }
+  }
+  const at = pseudoElementAt(sel, lastCompoundStart(sel));
+  return [`${sel.slice(0, at)}:is(${pin}, ${pin} *)${sel.slice(at)}`];
+}
+function scopeRules(css, value, opts) {
+  const out = [];
+  for (const node of topLevel(css)) {
+    if (node.body === null)
+      continue;
+    const prelude = node.prelude;
+    if (prelude.startsWith("@")) {
+      const name = /^@([A-Za-z-]+)/.exec(prelude)?.[1]?.toLowerCase() ?? "";
+      if (!GROUPING.has(name))
+        continue;
+      const inner = scopeRules(node.body, value, opts);
+      if (inner)
+        out.push(`${prelude} {
+${inner}
+}`);
+      continue;
+    }
+    const selectors = [];
+    for (const s of splitTop(prelude, ",")) {
+      const scoped = scopeSelector(s, value, opts);
+      if (scoped) {
+        for (const x of scoped)
+          if (!selectors.includes(x))
+            selectors.push(x);
+      }
+    }
+    if (selectors.length)
+      out.push(`${selectors.join(`,
+`)} {${node.body}}`);
+  }
+  return out.join(`
+`);
+}
+function scopeCss(css, value, opts = {}) {
+  if (!isPinValue(value))
+    throw new Error("not a pin value");
+  if (typeof css !== "string" || css.length > PIN_CSS_MAX)
+    return "";
+  return scopeRules(css, value, opts);
+}
+        return { isPinValue: isPinValue, scopeCss: scopeCss, scopeSelector: scopeSelector, ROOT_CLASS: ROOT_CLASS };
+      })();
+      const pinSheets = {};
+      let pinWantSent = '';
+      let pinTimer = 0;
+      function pinValuesInDom() {
+        const seen = [];
+        for (const el of document.querySelectorAll('[data-ds-rev]')) {
+          const v = el.getAttribute('data-ds-rev');
+          if (dsPinScope.isPinValue(v) && seen.indexOf(v) < 0) seen.push(v);
+          if (seen.length >= 16) break;
+        }
+        return seen.sort();
+      }
+      function askForPins() {
+        pinTimer = 0;
+        const revs = pinValuesInDom();
+        const key = revs.join(',');
+        if (key === pinWantSent) return;
+        pinWantSent = key;
+        try { window.parent.postMessage({ dgn: 'ds-pins-want', revs: revs }, '*'); } catch (e) { /* parent gone */ }
+      }
+      function schedulePinScan() {
+        if (!pinTimer) pinTimer = setTimeout(askForPins, 150);
+      }
+      function dropPin(value) {
+        const cur = pinSheets[value];
+        if (cur && cur.el && cur.el.parentNode) cur.el.parentNode.removeChild(cur.el);
+        delete pinSheets[value];
+      }
+      function loadPin(value, entry, rootClass) {
+        const sig = entry.tokens + '|' + (entry.components || '') + '|' + (rootClass || '');
+        const cur = pinSheets[value];
+        if (cur && cur.sig === sig) return;
+        const mine = { sig: sig, el: cur ? cur.el : null };
+        pinSheets[value] = mine;
+        const text = (rel) => rel
+          ? fetch(withCap('/' + designRel + '/' + rel), { credentials: 'same-origin' })
+              .then((r) => (r.ok ? r.text() : ''))
+              .catch(() => '')
+          : Promise.resolve('');
+        Promise.all([text(entry.tokens), text(entry.components)]).then((parts) => {
+          // A newer answer (or a drop) for this value replaced this one while it was loading.
+          if (pinSheets[value] !== mine) return;
+          const css = parts
+            .map((p) => dsPinScope.scopeCss(p, value, { rootClass: rootClass }))
+            .filter(Boolean)
+            .join('\n');
+          if (!css) { dropPin(value); return; }
+          let el = mine.el;
+          if (!el) {
+            el = document.createElement('style');
+            el.setAttribute('data-ds-pin', value);
+            document.head.appendChild(el);
+            mine.el = el;
+          }
+          el.textContent = css;
+        });
+      }
+      function applyDsPins(m) {
+        if (!m || typeof m !== 'object' || !m.revs || typeof m.revs !== 'object' || Array.isArray(m.revs)) return;
+        const rootClass = typeof m.rootClass === 'string' && dsPinScope.ROOT_CLASS.test(m.rootClass) ? m.rootClass : null;
+        const keys = Object.keys(m.revs).slice(0, 16);
+        const keep = {};
+        for (const value of keys) {
+          if (!dsPinScope.isPinValue(value)) continue;
+          const entry = m.revs[value];
+          if (!entry || typeof entry !== 'object') continue;
+          if (typeof entry.tokens !== 'string' || !DS_CSS_REL.test(entry.tokens)) continue;
+          const comp = typeof entry.components === 'string' && DS_CSS_REL.test(entry.components) ? entry.components : null;
+          keep[value] = true;
+          loadPin(value, { tokens: entry.tokens, components: comp }, rootClass);
+        }
+        for (const value of Object.keys(pinSheets)) if (!keep[value]) dropPin(value);
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'ds-pins') return;
+        applyDsPins(m);
+      });
+      if (typeof MutationObserver === 'function') {
+        new MutationObserver(schedulePinScan).observe(document.documentElement, {
+          subtree: true, childList: true, attributes: true, attributeFilter: ['data-ds-rev'],
+        });
+      }
+      schedulePinScan();
+      // ds-pins:end
 
       // text-patches:begin
       function applyTextPatches(patches) {
@@ -683,6 +1060,8 @@
               // Phase 8 — canvas-meta sidecar changed. Filter to our own canvas:
               // `<canvasRel>.meta.json` strip → must equal canvasRel without ext.
               if (!canvasRel || !msg.file) return;
+              // A past version's meta is its own — today's sidecar changing does not move it.
+              if (versionMeta) return;
               const metaBase = msg.file.replace(/\.meta\.json$/i, '');
               const myBase = canvasRel.replace(/\.(tsx|html)$/i, '');
               if (metaBase !== myBase) return;
@@ -930,10 +1309,13 @@
         // server-side api.fileSlug (which trims paths.designRel).
         window.__canvas_design_rel__ = designRel;
         window.__canvas_rel__ = canvasRel;
-        const metaFetch = fetch(withCap('/_api/canvas-meta?file=' + metaFileParam), {
-          headers: { 'Cache-Control': 'no-store' },
-        })
-          .then((r) => (r.ok ? r.json() : null))
+        // S1.11 — a past version (`?sha=`) brings its own meta lane, injected by the server as
+        // window.__canvas_meta_version__ (V2-1.9 §5.6); without one, today's meta as before.
+        const metaFetch = (versionMeta
+          ? Promise.resolve(versionMeta)
+          : fetch(withCap('/_api/canvas-meta?file=' + metaFileParam), {
+              headers: { 'Cache-Control': 'no-store' },
+            }).then((r) => (r.ok ? r.json() : null)))
           .then((j) => {
             window.__canvas_meta__ = (j && typeof j === 'object') ? j : {};
             window.__canvas_meta_file__ = designRel + '/' + canvasRel;

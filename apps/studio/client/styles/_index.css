@@ -55,35 +55,66 @@
 @import url("../v2/present/present.css");
 /* V2-4.3a — the Share cluster, top-right. */
 @import url("../v2/shell/share-cluster.css");
+/* S3.9 - Preview's own islands: the PreviewBar and the zoom readout. */
+@import url("../v2/preview/preview.css");
+/* S8.2 — the Export sheet (client/v2/export/). */
+@import url("../v2/export/export.css");
+@import url("../v2/export/advanced/advanced.css");
+/* S8.4 — the Exports panel + job rows (client/v2/export/). */
+@import url("../v2/export/exports-panel.css");
+/* S8.9 — the export edges: Can comment line, Waiting for AI hold, Can view (client/v2/export/). */
+@import url("../v2/export/edges.css");
+@import url("../v2/inspect/inspect.css");
+@import url("../v2/presence/presence.css");
 /* V2-4.5c — tool panels the canvas toolbar opens (Stickers), pinned next to the toolbar island. */
 @import url("../v2/shell/tool-panels.css");
 /* S4.3 — the Stickers gallery island inside that panel (stamps, packs, search, credits). */
 @import url("../v2/annotations/stickers-gallery.css");
 /* S4.4 — the Templates panel (tile grid + "describe it") on the same tool-panel shell. */
 @import url("../v2/annotations/templates-panel.css");
+/* S4.17 — Layers in Preview = the annotation list (person chips, sections, the filter foot). */
+@import url("../v2/annotations/annotation-list.css");
+/* S2.16 — the Component picker (⇧I) on the same tool-panel shell. */
+@import url("../v2/inspector/component-picker.css");
 /* V2-4.8b — callouts: the old top banners (sync diverged / rejected, role, update, repo changed) as one stack. */
 @import url("../v2/shell/callouts.css");
+/* S2.20 — Menu › Edit › Undo history… (client/v2/undo/undo-history.jsx). */
+@import url("../v2/undo/undo.css");
 /* V2-4.4a — the left panel: Canvases · Layers · Assets, the pinned Design system row, Trash, Advanced. */
 @import url("../v2/left-panel/left-panel.css");
 /* S1.1 — the Canvases list at scale: Pinned, Sort, folders with counts, virtualised rows. */
 @import url("../v2/canvases/canvases.css");
+/* S1.14 — Version history: rows with pictures, the Now row, the Viewing bar, Name this version. */
+@import url("../v2/history/history.css");
 /* V2-4.7b — Menu › Diagnostics: the status words in the menu, the Logs · Server · AI setup · Sync sheet. */
 @import url("../v2/diagnostics/diagnostics.css");
 /* V2-4.7a — Settings: General · Connections · Advanced. */
 @import url("../v2/settings/settings.css");
+/* S9.19 — Share: Invite first, people and roles in words (10 co-share-sheet · co-share-roles). */
+@import url("../v2/share/share.css");
 /* S3.5 — Present ⌄ › Order and notes…: the order, the skipped artboards and the speaker notes. */
 @import url("../v2/present/order-notes.css");
 @import url("../v2/present/presenter-view.css");
+/* S8.18 — Import a brand: drop a logo or type a website, Reading, the result with roles + preview. */
+@import url("../v2/import/brand.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
+/* S11.7 — the code view (read-only TSX) and the broken-canvas card (client/v2/code/). */
+@import url("../v2/code/code.css");
 /* S11.1 — the empty kit: Empty, Spot (the one spring), Ask AI, Suggestions, arriving rows (client/v2/empty/). */
 @import url("../v2/empty/empty.css");
+/* S6.2 — a project with no canvases: the prompt box + the panel line (client/v2/create/). */
+@import url("../v2/create/empty-project.css");
+/* S9.24 — the "2 versions" mark and the object-conflict card (client/v2/sync-states/). */
+@import url("../v2/sync-states/sync-states.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
 @import url("../v2/search/search.css");
 /* S2.2 — the Inspector frame: name · kind chip · numbered sections · › Advanced (client/v2/inspector/). */
 @import url("../v2/inspector/inspector.css");
 /* S2.3 — the section bodies: rows, token chips, the Gap menu, constraints (client/v2/inspector/sections/). */
 @import url("../v2/inspector/sections/sections.css");
+/* S8.19c — the Inspector's box for a picture that is waiting or missing, and the relink sheet (client/v2/assets/). */
+@import url("../v2/assets/missing-frame.css");
 /* Phase 4 gate — the a11y contrast floor (WCAG 1.4.3), utilities layer: wins over shell + components. */
 @import url("../v2/shell/contrast.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
@@ -91,3 +122,5 @@
 @import url("./5-utilities.css");
 /* S3.7a — the Present follower page (follow bar, Live, watching; the audience window has no chrome). */
 @import url("../v2/present/follow.css");
+/* S9.22 — the Comments panel (filters, canvas groups, rows; client/v2/comments/). */
+@import url("../v2/comments/comments.css");

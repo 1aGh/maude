@@ -127,7 +127,13 @@ describe('POST /_api/project/undo', () => {
         new Request('http://localhost/_api/project/undo-stack?canvas=.design/ui/a.tsx'),
         {}
       );
-    expect(await (await get()).json()).toEqual({ ok: true, entries: [], redo: [] });
+    // (S5.15 U22 — a local home can always undo a chat as one version)
+    expect(await (await get()).json()).toEqual({
+      ok: true,
+      entries: [],
+      redo: [],
+      chatUndo: { ok: true },
+    });
     // …a panel undo IS an entry (⌘Z takes it back)
     await route(specs, 'POST', '/_api/project/undo').handle(
       post({ actionId: s1.actionId, via: 'panel' }),
@@ -152,6 +158,86 @@ describe('POST /_api/project/undo', () => {
       reason: 'needs-hub-update',
       line: NEEDS_HUB_UPDATE,
     });
+  });
+
+  test('S2.20c: undo-stack lists your edits waiting behind a run; ⌘Z on one names it by pendingTx + canvas', async () => {
+    const calls: unknown[] = [];
+    const waiting: Array<{
+      transactionId: string;
+      label: string;
+      madeAt: number;
+      undoes?: string;
+    }> = [{ transactionId: 'tx_p', label: 'Edit canvas', madeAt: 700 }];
+    const specs = createProjectUndoRoutes({
+      control: () => ({
+        acceptedHistory: async () => [
+          {
+            revision: 1,
+            actionId: 'a_old',
+            actor: 'me',
+            mine: true,
+            kind: 'edit',
+            label: 'Headline text',
+            committedAt: 600,
+            madeAt: 600,
+            undoes: null,
+            canvases: ['ui/a.tsx'],
+          },
+        ],
+        pendingEdits: (repoRel: string) => (repoRel === '.design/ui/a.tsx' ? waiting : []),
+        undoPendingEdit: async (repoRel: string, tx: string) => {
+          calls.push([repoRel, tx]);
+          if (tx !== 'tx_p') return { status: 'rejected' as const, code: 'not-pending' };
+          waiting.push({ transactionId: 'tx_i', label: 'Undo', madeAt: 800, undoes: 'tx_p' });
+          return { status: 'accepted' as const, transactionId: 'tx_i' };
+        },
+      }),
+      designRel: '.design',
+    });
+    const get = async () =>
+      (await (
+        await route(specs, 'GET', '/_api/project/undo-stack').handle(
+          new Request('http://localhost/_api/project/undo-stack?canvas=.design/ui/a.tsx'),
+          {}
+        )
+      ).json()) as { entries: Record<string, unknown>[]; redo: Record<string, unknown>[] };
+    const v = await get();
+    expect(v.entries.map((e) => e.actionId ?? e.pendingTx)).toEqual(['tx_p', 'a_old']);
+    expect(v.entries[0]).toMatchObject({ actionId: null, label: 'Edit canvas', state: 'done' });
+
+    const res = await route(specs, 'POST', '/_api/project/undo').handle(
+      post({ pendingTx: 'tx_p', canvas: '.design/ui/a.tsx', via: 'keys' }),
+      {}
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, pending: true, pendingTx: 'tx_i' });
+    expect(calls).toEqual([['.design/ui/a.tsx', 'tx_p']]);
+    const after = await get();
+    expect(after.entries.map((e) => e.actionId)).toEqual(['a_old']);
+    expect(after.redo[0]).toMatchObject({ pendingTx: 'tx_p', state: 'undone', pendingVia: 'tx_i' });
+
+    // gone out meanwhile → 409 not-pending; bad bodies are 400
+    const gone = await route(specs, 'POST', '/_api/project/undo').handle(
+      post({ pendingTx: 'tx_x', canvas: '.design/ui/a.tsx' }),
+      {}
+    );
+    expect(gone.status).toBe(409);
+    expect(await gone.json()).toMatchObject({ ok: false, reason: 'not-pending' });
+    for (const bad of [{ pendingTx: 'has space', canvas: 'x' }, { pendingTx: 'tx_p' }])
+      expect((await route(specs, 'POST', '/_api/project/undo').handle(post(bad), {})).status).toBe(
+        400
+      );
+  });
+
+  test('S2.20c: a local project has no pending entries — a pendingTx answers legacy, the stack is unchanged', async () => {
+    const p = localProject();
+    await p.home.ready();
+    const specs = createProjectUndoRoutes({ control: () => p.home.runtime, designRel: '.design' });
+    const res = await route(specs, 'POST', '/_api/project/undo').handle(
+      post({ pendingTx: 'tx_p', canvas: '.design/ui/a.tsx' }),
+      {}
+    );
+    expect(await res.json()).toEqual({ ok: false, reason: 'legacy' });
   });
 
   test('no home answers → legacy; both routes are main origin, the write refused read-only', async () => {

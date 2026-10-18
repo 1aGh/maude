@@ -59,13 +59,15 @@ export function createShellMode(caps = ALL_CAPS) {
     present: null,
     returnTo: null,
     position: null,
+    media: null,
+    viewing: null,
   });
   const subs = new Set();
   const emit = (next) => {
     snap = Object.freeze({ ...snap, ...next });
     for (const fn of subs) fn();
   };
-  const notPresenting = { present: null, returnTo: null, position: null };
+  const notPresenting = { present: null, returnTo: null, position: null, media: null };
   return {
     get: () => snap,
     subscribe(fn) {
@@ -75,12 +77,40 @@ export function createShellMode(caps = ALL_CAPS) {
     /** A person chose `mode` (the switch, a menu, a granted `mode-request`). Choosing a mode while
      *  presenting leaves Present for it. Present itself goes through `present(spec)`. */
     select(mode, { tool = null } = {}) {
-      if (mode === 'present') return;
+      if (mode === 'present' || snap.viewing) return; // S1.14: a past version holds the mode
       emit({ mode, tool, nonce: snap.nonce + 1, ...notPresenting });
+    },
+    /**
+     * S1.14 (V2-1.9 §5.6, S1-slices note 6 / Q10) — Version history's Viewing: the shell looks at a past
+     * version of `path` (`at` = `r<n>` or `git:<sha>`), read-only. The hold is a field, not a mode: the mode
+     * the person was in stays underneath (`heldMode` is what the canvases are told), so esc returns to
+     * exactly where they were. A canvas `mode-request` is refused meanwhile (`decideModeRequest`), and so
+     * are the switch and Present. Viewing another version replaces the first; a ref that is not a
+     * version is ignored. Presenting: esc leaves Present first (no hold over a presentation).
+     * @param v { path, at, title, when, who }
+     */
+    view(v) {
+      if (!v || !VERSION_REF.test(String(v.at ?? '')) || snap.mode === 'present') return false;
+      emit({
+        viewing: Object.freeze({
+          path: String(v.path ?? ''),
+          at: String(v.at),
+          title: String(v.title ?? ''),
+          when: String(v.when ?? ''),
+          who: String(v.who ?? ''),
+        }),
+      });
+      return true;
+    },
+    /** esc / "back to now" / a restore: leave the hold. */
+    leaveViewing() {
+      if (!snap.viewing) return false;
+      emit({ viewing: null, nonce: snap.nonce + 1 });
+      return true;
     },
     /** Enter Present (Artboards or the Canvas). Already presenting: nothing (esc leaves first). */
     present(spec) {
-      if (snap.mode === 'present') return false;
+      if (snap.mode === 'present' || snap.viewing) return false;
       emit({
         mode: 'present',
         tool: null,
@@ -88,6 +118,7 @@ export function createShellMode(caps = ALL_CAPS) {
         present: presentSpec(spec),
         returnTo: snap.mode,
         position: null,
+        media: null,
       });
       return true;
     },
@@ -112,12 +143,47 @@ export function createShellMode(caps = ALL_CAPS) {
         p.sid === sid
       )
         return;
+      // The clip belongs to the artboard it played on: a move to another one leaves it behind.
       emit({
         position: {
           index: pos.index,
           total: pos.total,
           artboardId: pos.artboardId,
           ...(sid ? { sid } : {}),
+        },
+        ...(p && p.artboardId === pos.artboardId ? {} : { media: null }),
+      });
+    },
+    /** S3.3 — the clip on the presented artboard (`present-media`): playing, time, duration, sound. */
+    media(m) {
+      if (snap.mode !== 'present' || snap.present?.kind !== 'artboards') return;
+      const sec = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 86400;
+      if (!m || typeof m.playing !== 'boolean' || typeof m.muted !== 'boolean') return;
+      if (!sec(m.t) || !sec(m.duration)) return;
+      // S3.8 — the media files the clip uses and whether they failed to load (media-presence.ts judges them).
+      const sources = Array.isArray(m.sources)
+        ? m.sources.filter((x) => typeof x === 'string' && x.length <= 400).slice(0, 8)
+        : [];
+      const missing = m.missing === true;
+      const c = snap.media;
+      if (
+        c &&
+        c.playing === m.playing &&
+        c.muted === m.muted &&
+        c.t === m.t &&
+        c.duration === m.duration &&
+        !!c.missing === missing &&
+        (c.sources ?? []).join('\n') === sources.join('\n')
+      )
+        return;
+      emit({
+        media: {
+          playing: m.playing,
+          t: m.t,
+          duration: m.duration,
+          muted: m.muted,
+          ...(sources.length ? { sources } : {}),
+          ...(missing ? { missing: true } : {}),
         },
       });
     },
@@ -161,6 +227,18 @@ export function presentSpecFor(kind, { selectedArtboard = null, inViewArtboard =
 /** The mode the canvases are in, clamped by the role (Present passes through). */
 export const effectiveMode = (mode, caps) => clampMode(mode, caps);
 
+/** A version a viewing hold may name: a kernel revision or a git commit (§5.1 `VersionRef`). */
+const VERSION_REF = /^(r\d+|git:[0-9a-f]{4,64})$/;
+
+/**
+ * S1.14 — what the canvases are TOLD: while Viewing a past version every frame gets Viewing with no
+ * capabilities (no tools, no annotate, no comment — Can view's posture, whatever the role), else the
+ * mode and caps as they are. The store's own `mode` is untouched, so leaving the hold needs no restore.
+ */
+export function heldMode(snap, mode, caps) {
+  return snap?.viewing ? { mode: 'viewing', caps: NO_CAPS } : { mode, caps };
+}
+
 /** The `set-mode` payload for one frame (§5.2: ≤ 300 bytes, M5). `tool` only for the active frame.
  *  S3.7a — `caps.present` (the canvas may publish its Present · Artboards position on awareness): Present
  *  · Artboards and `edit`, or presenter view on (S3.6b passes `presenterView`; S3-present-session §3). */
@@ -189,9 +267,12 @@ export function setModeMessage({ seq, mode, caps, tool, present = null, presente
  * @returns {{ kind: 'set', mode, tool? } | { kind: 'present', present } | { kind: 'exit-present', next? }
  *           | { kind: 'deny', reason: 'modal' | 'role' } | null}   null = nothing to do
  */
-export function decideModeRequest(req, { caps, presenting, mode, modalOpen }) {
+export function decideModeRequest(req, { caps, presenting, mode, modalOpen, viewing = null }) {
   if (!req) return null;
   if (modalOpen) return { kind: 'deny', reason: 'modal' };
+  // S1.14 — a past version holds the mode: esc / `back` returns to now, nothing else moves it.
+  if (viewing)
+    return req.mode === 'back' ? { kind: 'exit-viewing' } : { kind: 'deny', reason: 'viewing' };
   if (req.mode === 'back') {
     if (presenting) return { kind: 'exit-present' };
     if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
@@ -208,6 +289,32 @@ export function decideModeRequest(req, { caps, presenting, mode, modalOpen }) {
     ? { kind: 'set', mode: target, tool: req.tool }
     : { kind: 'set', mode: target };
   return presenting ? { kind: 'exit-present', next: set } : set;
+}
+
+/**
+ * S3.12 — esc with the SHELL focused (a switch button, the project pill, a panel — not a text field, not an
+ * open menu/sheet, which close first). The same promise the canvas keeps: one step back, never two, never
+ * out of the project (04 md-esc). The canvas has its own tools/selection; with the shell focused the only
+ * step left is the mode's terminal:
+ *   a past version held   → back to now
+ *   Present               → back to `returnTo`
+ *   Preview               → `baseMode` (Edit, or Viewing for a viewing role)
+ *   Edit / Viewing        → nothing ("there's no Edit to return to")
+ * @returns {{ kind: 'exit-viewing' } | { kind: 'exit-present' } | { kind: 'set', mode } | null}
+ */
+export function shellEscDecision({
+  mode,
+  presenting,
+  viewing,
+  caps,
+  typing = false,
+  overlayOpen = false,
+}) {
+  if (typing || overlayOpen) return null;
+  if (viewing) return { kind: 'exit-viewing' };
+  if (presenting) return { kind: 'exit-present' };
+  if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
+  return null;
 }
 
 /** Q1 — ⌥⌘P (and Menu / ⌘K "Preview"): Preview toggles back to `baseMode`, anything else enters
@@ -263,6 +370,11 @@ export function createModeLane({ frames, active, flushInsets = () => {} }) {
     step(win, to) {
       if (to !== 'next' && to !== 'prev' && !(Number.isInteger(to) && to >= 0)) return;
       post(win, { dgn: 'present-step', to });
+    },
+    /** Present · Artboards: drive the clip on the presented artboard (the transport — S3.3). */
+    media(win, op) {
+      if (op !== 'play' && op !== 'pause' && op !== 'mute' && op !== 'unmute') return;
+      post(win, { dgn: 'present-media-cmd', op });
     },
     get seq() {
       return seq;

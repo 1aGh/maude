@@ -146,6 +146,9 @@ export interface GitStatusResult {
   ahead?: number;
   behind?: number;
   remoteAhead?: boolean;
+  /** S11.10 — the `origin` URL with any credentials stripped (Version history › Advanced › Remote); absent
+   *  when there is no remote. */
+  remote?: string;
 }
 
 export interface GitStatusOpts {
@@ -452,6 +455,8 @@ export async function gitStatus(dir: string, opts: GitStatusOpts = {}): Promise<
   // Local "saved but not published" count — no network (uses the cached
   // remote-tracking ref). Lets the panel offer Publish even on a clean tree.
   result.unpushed = await localUnpushed(dir, result.branch, opts.remote || 'origin').catch(() => 0);
+  const remoteUrl = await originUrl(dir, opts.remote || 'origin').catch(() => null);
+  if (remoteUrl) result.remote = remoteUrl;
 
   if (opts.checkRemote) {
     try {
@@ -1863,6 +1868,62 @@ async function diffSystem(dir: string, sha: string, prefix: string): Promise<Git
     .map((file) => ({ file, before: sha, after: 'workdir' as const }));
 }
 
+/** A full object id (sha-1 or sha-256) — never a ref name, an abbreviation or a rev expression. */
+export const isFullCommitId = (sha: unknown): sha is string =>
+  typeof sha === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(sha);
+
+/**
+ * The repo-relative files commit `sha` changed against each of its parents (every file of a
+ * root commit) — `git diff-tree --name-only -r -m --root`. Null when `sha` is not a full
+ * object id naming a commit here. S9.12b: a canvas-only diff asks this before it answers.
+ */
+export async function gitCommitFiles(dir: string, sha: string): Promise<string[] | null> {
+  if (!isRepo(dir) || !isFullCommitId(sha)) return null;
+  if (await systemGitAvailable()) {
+    const t = await runGit(dir, ['cat-file', '-t', sha]);
+    if (t.code !== 0 || t.stdout.trim() !== 'commit') return null;
+    const r = await runGit(dir, [
+      'diff-tree',
+      '--no-commit-id',
+      '--name-only',
+      '-r',
+      '-m',
+      '--root',
+      '-z',
+      sha,
+    ]);
+    if (r.code !== 0) return null;
+    return [...new Set(r.stdout.split('\0').map((f) => f.replace(/\\/g, '/')))].filter(Boolean);
+  }
+  try {
+    const { commit } = await git.readCommit({ fs, dir, oid: sha });
+    const files = new Set<string>();
+    for (const parent of commit.parent.length ? commit.parent : [null]) {
+      const trees = parent
+        ? [git.TREE({ ref: sha }), git.TREE({ ref: parent })]
+        : [git.TREE({ ref: sha })];
+      await git.walk({
+        fs,
+        dir,
+        trees,
+        map: async (filepath, entries) => {
+          if (filepath === '.') return true;
+          const [a, b] = entries;
+          const type = a ? await a.type() : b ? await b.type() : 'blob';
+          if (type === 'tree') return true;
+          const oa = a ? await a.oid() : undefined;
+          const ob = parent ? (b ? await b.oid() : undefined) : null;
+          if (oa !== ob) files.add(filepath);
+          return true;
+        },
+      });
+    }
+    return [...files];
+  } catch {
+    return null;
+  }
+}
+
 // ── show a file at a past version (DiffView "before" render) ────────────────
 
 /** The text content of `repoRelPath` as it was at commit/ref `sha`, or null if
@@ -1898,6 +1959,22 @@ export async function gitShowFile(
  *  using only on-disk refs (no fetch). When no tracking ref exists but a remote
  *  is configured, every commit counts as unpushed (never published). 0 when
  *  there's no remote or no branch. Best-effort; callers swallow errors → 0. */
+/** The remote's URL for display: `user:token@` userinfo is dropped so a PAT never reaches the panel. */
+export function stripUrlCredentials(url: string): string {
+  const u = url.trim();
+  return u.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/i, '$1');
+}
+
+async function originUrl(dir: string, remote: string): Promise<string | null> {
+  if (!isSafeGitPositional(remote)) return null;
+  if (await systemGitAvailable()) {
+    const r = await runGit(dir, ['remote', 'get-url', remote]);
+    return r.code === 0 && r.stdout.trim() ? stripUrlCredentials(r.stdout) : null;
+  }
+  const url = await git.getConfig({ fs, dir, path: `remote.${remote}.url` }).catch(() => null);
+  return typeof url === 'string' && url ? stripUrlCredentials(url) : null;
+}
+
 async function localUnpushed(dir: string, branch: string | null, remote: string): Promise<number> {
   if (!branch) return 0;
   // Guard parity with the other system-git callsites — `branch`/`remote` are

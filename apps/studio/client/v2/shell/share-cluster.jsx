@@ -14,49 +14,10 @@
 // marks the cluster so Preview can make it compact (the faces and the status word step aside).
 
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
+import { modeCell } from '../../../bridge/mode-shows.ts';
 import { StIcon } from '../../shell/icons.jsx';
+import { PresenceFaces } from '../presence/faces.jsx';
 import { keyHint } from './project-menu-model.js';
-
-function Faces({ faces, onFollow }) {
-  if (!faces?.length) return null;
-  return (
-    <ul className="st-faces" aria-label="People here" data-testid="share-cluster-faces">
-      {faces.map((f) => {
-        const key = `${f.you ? 'you' : f.agent ? 'agent' : `peer-${f.clientID}`}:${f.name}`;
-        // A peer's face is the Follow control (it moved here with the faces from the canvas stack).
-        if (!f.you && !f.agent && typeof f.clientID === 'number' && onFollow) {
-          const first = f.name.split(/\s+/)[0] || f.name;
-          const label = f.following ? `Stop following ${first}` : `Follow ${first}`;
-          return (
-            <li key={key} className="st-face-li">
-              <button
-                type="button"
-                className={`st-face${f.following ? ' is-following' : ''}`}
-                title={`${f.name} · ${label}`}
-                aria-label={label}
-                aria-pressed={f.following ? 'true' : 'false'}
-                data-testid={`share-cluster-face-${f.clientID}`}
-                onClick={() => onFollow(f.clientID)}
-              >
-                {f.initials}
-              </button>
-            </li>
-          );
-        }
-        return (
-          <li
-            key={key}
-            className={`st-face${f.agent ? ' is-agent' : ''}`}
-            title={f.name}
-            aria-label={f.name}
-          >
-            {f.initials}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 function Ring({ value }) {
   return (
@@ -79,7 +40,9 @@ const withKey = (label, def, ctx) => {
 };
 
 /**
- * @param faces [{ initials, name, you?, agent? }]
+ * @param faces [{ initials, name, you?, agent?, clientID?, artboard?, idleSince?, surface?, inComments? }]
+ * @param presence S9.23 — { run(id, params), labelOf, roleOf?, canSummon, canvasLabel }; absent = the
+ *   pre-S9.23 strip (a peer's face is the Follow control)
  * @param status saveStatus() — ignored when `access` is set (same slot)
  * @param access accessStatus() — { word, action } for a person without edit rights, else null
  * @param commentsCount open comments
@@ -94,15 +57,19 @@ const withKey = (label, def, ctx) => {
  * @param onAskToEdit () => void
  * @param docked the cluster heads the pinned right column (no island chrome, no edge)
  * @param modeSlot the mode switch (V2-4.3b, mode-switch.jsx)
- * @param mode the canvas mode — `preview` makes the cluster compact
+ * @param mode the canvas mode — the cluster's form is the what-shows table's `share-cluster` row
+ *   (bridge/mode-shows.ts): Preview is `compact`, Viewing `full-access`; `data-cluster` carries it
+ * @param present the Present spec while presenting (Artboards · Canvas are two columns of the table)
  * @param accountSlot the account chip + card (S1.22a, account-card.jsx) — first, desktop only
  */
 export function ShareCluster({
   faces,
   onFollow,
+  presence = null,
   status,
   access = null,
   commentsCount = 0,
+  commentsCountKind = 'open',
   commentsOpen = false,
   exports: ex = { show: false, ring: undefined, busy: 0 },
   exportsOpen = false,
@@ -115,11 +82,17 @@ export function ShareCluster({
   docked = false,
   modeSlot = null,
   mode = null,
+  present = null,
   accountSlot = null,
 }) {
+  const cluster = mode ? modeCell('share-cluster', mode, present) : 'full';
   const panelsLabel = panelsHidden ? 'Show panels' : 'Hide panels';
   const exportsLabel = ex.ring !== undefined ? `Exports — ${ex.ring} % done` : 'Exports';
-  const commentsLabel = commentsCount > 0 ? `Comments — ${commentsCount} open` : 'Comments';
+  // S9.22b — the shell passes the unread @mention threads (canvas 10's "unread count on Comments")
+  const commentsLabel =
+    commentsCount > 0
+      ? `Comments — ${commentsCount} ${commentsCountKind === 'unread' ? 'unread' : 'open'}`
+      : 'Comments';
   return (
     <div
       className="st-share island"
@@ -128,9 +101,10 @@ export function ShareCluster({
       data-occludes={docked ? undefined : 'top'}
       data-docked={docked ? 'true' : undefined}
       data-mode={mode ?? undefined}
+      data-cluster={cluster}
     >
       {accountSlot}
-      <Faces faces={faces} onFollow={onFollow} />
+      <PresenceFaces faces={faces} onFollow={onFollow} presence={presence} />
       {access ? (
         <span
           className="st-saved"

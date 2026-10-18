@@ -9,6 +9,7 @@
  */
 
 import type { JSX, SVGProps } from 'react';
+import { IconExportArea, IconFrame, IconLineTool, IconPolygon } from './toolbars/toolbar-icons.tsx';
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -506,6 +507,7 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   browse: IconBrowse,
   move: IconMove,
   hand: IconHand,
+  inspect: IconHand, // S3.11 — Viewing's Hand slot (a drag pans)
   comment: IconComment,
   pen: IconPen,
   highlighter: IconHighlighter,
@@ -518,6 +520,14 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   section: IconSection,
   arrow: IconArrow,
   text: IconText,
+  // S2.12b — Edit's click-to-type Text wears the same glyph.
+  'el-text': IconText,
+  // S2.13 — Edit's drag tools wear the toolbar glyphs (toolbars/toolbar-icons.tsx)
+  frame: IconFrame,
+  'el-shape': IconRect,
+  line: IconLineTool,
+  polygon: IconPolygon,
+  slice: IconExportArea,
   eraser: IconEraser,
 };
 

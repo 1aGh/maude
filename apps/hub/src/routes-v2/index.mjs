@@ -32,6 +32,7 @@
 // project format must fence (V2-1.12 §5.4) asks the format itself.
 
 import { hubAccessRefusal } from '../access-gate.mjs';
+import { ASSET_PRESENCE_ROWS } from '../asset-presence.mjs';
 import { CAPABILITIES } from '../role-matrix.mjs';
 import { ACCESS_ROWS } from './access.mjs';
 import { COMMENT_ROWS } from './comments.mjs';
@@ -49,6 +50,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export const HUB_ROUTE_ROWS = Object.freeze([
   ...LEGACY_ROWS,
   ...ACCESS_ROWS,
+  ...ASSET_PRESENCE_ROWS, // S8.19
   ...COMMENT_ROWS,
   ...TRASH_ROWS,
   ...VOTES_ROWS,

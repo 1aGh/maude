@@ -466,7 +466,8 @@ export const RULES = [
   r(/client\/tree\/tree\.jsx$/, { s: /^DsFolderRow$/ }, 'A-design-system-view-s-key-picker'),
   r(/client\/tree\/tree\.jsx$/, { t: /canvases-ds-files/ }, 'A-raw-system-folder-and-maude-dsn-01'),
   r(/client\/tree\/tree\.jsx$/, { l: /^(Collapse sidebar)$/ }, 'D4'),
-  r(/client\/tree\/tree\.jsx$/, { l: /^New blank brief board$/ }, 'action:canvas.new'),
+  // S6.1: ⌘N / New canvas is a blank canvas now; the tree's brief-board composer is its own action.
+  r(/client\/tree\/tree\.jsx$/, { l: /^New blank brief board$/ }, 'action:canvas.new-brief'),
   r(/client\/tree\/tree\.jsx$/, { l: /^Share…$/ }, 'action:share.open'),
   r(/client\/tree\/tree\.jsx$/, { l: /^Rename…$/ }, 'action:canvas.rename'),
   r(/client\/tree\/tree\.jsx$/, { l: /^Duplicate$/ }, 'action:canvas.duplicate'),

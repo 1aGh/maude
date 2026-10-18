@@ -11,6 +11,10 @@
 // cookie session, so the landing page redeems IN THE BROWSER: one form, one
 // POST, and the person is in the studio. No desktop required.
 //
+// Words per the v2 CONTRACT §3–§4 (Maude v2 S9.14): a self-hosted hub is a
+// "project" to the person reading this, never a "workspace", and the page
+// names no protocol ("identity provider") and never says "we".
+//
 // Server-rendered and script-free, like `signInPage` and `servicePage`: this
 // is the first thing a newcomer sees, and a page that needs a bundle to show
 // a form is a page that can fail to show it.
@@ -24,7 +28,7 @@ import { MIN_PASSWORD_LENGTH } from './users.mjs';
 
 /** A hostname for the heading — `https://design.acme.com/` → `design.acme.com`. */
 function workspaceName(workspace) {
-  if (!workspace) return 'this workspace';
+  if (!workspace) return 'this project';
   const raw = String(workspace);
   try {
     return new URL(raw).host || raw;
@@ -73,7 +77,7 @@ export function joinPage({ token, workspace, email, error = null, env = process.
   // link alone, and says so.
   const body = passwordsRefused
     ? `<h1>You're invited to ${esc(name)}</h1>
-  <p>This workspace signs people in through its identity provider. Sign in there${
+  <p>${workspace ? esc(name) : 'This project'} signs people in through its own sign-in page. Sign in there${
     email ? ` with <strong>${esc(email)}</strong>` : ''
   } and whoever invited you will see you arrive.</p>
   ${oidc}`
@@ -97,7 +101,7 @@ export function joinPage({ token, workspace, email, error = null, env = process.
   ${oidc ? `<p class="or">or</p>${oidc}` : ''}
   ${
     workspace
-      ? `<p class="hint" data-desktop>Using the Maude desktop app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+      ? `<p class="hint" data-desktop>Using the Maude app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
       : ''
   }
 </form>`;

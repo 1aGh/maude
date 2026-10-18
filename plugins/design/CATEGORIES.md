@@ -26,7 +26,12 @@ Default verbs. No prefix. Members:
 | `/design:photo` | Edit a photo in the active canvas headlessly — adjustments / duotone / grain / pattern / mask (parametric, no browser) + magic background removal (client-side ML) via the non-destructive PhotoEdit sidecar |
 | `/design:critic` | Spawn the critic panel (or single agent / all critics) |
 | `/design:browse` | Boot the local dev server |
-| `/design:rollback` | Undo the last edit (snapshot-based) |
+| `/design:rollback` | Go back to an earlier version of the canvas (built on Version history; no flag undoes the last change) |
+| `/design:history` | Version history from the terminal: list, show, diff, restore (whole canvas, one artboard or one object), name a version |
+| `/design:trash` | See the Trash and restore a canvas or artboard (clearing it out is the owner's, at a terminal) |
+| `/design:comments` | Make the changes the open comments ask for, then reply and resolve each thread |
+| `/design:present` | Set Present order, skipped artboards and speaker notes; open the canvas in Present |
+| `/design:open` | Show a canvas, artboard, element or panel in the Maude window |
 | `/design:screenshot` | Capture a screenshot of the active canvas (`--full`/`--screen <id>`/`--element <id>`/`--all-screens`/`--selector <css>`) |
 | `/design:handoff` | Migrate the active canvas to a production target |
 | `/design:to-lottie` | Productionize a maude animation → ONE `.lottie` from code (web + mobile, 1:1; emitter, not converter) |
@@ -78,7 +83,7 @@ Some files under `plugins/design/agents/` are read-only audit agents auto-routed
 | `design-system-keeper` | `/design:new` step 9.5 (always) + `/design:edit` step 7.5 (when diff ≥ 10 lines or new class root) + `/design:edit` step 8a (DS-drift fast-path) | DS fidelity to priors — pattern reinvention scan + token-usage audit against the DS README's `## Token usage guide` section. Read-only; warnings unless ≥ 5 token mismatches OR ≥ 3 pattern reinventions stack. Skip with `--skip-ds-keeper`. See [DDR-010](../../.ai/archive/decisions/DDR-010-design-system-keeper-agent.md). |
 | `design-system-completeness-critic` | `skill design-system` bootstrap end + `/design:critic --system-only` | Structural completeness of the DS itself (3-tier rule set: Core blockers / Conventional warnings / Free-form acknowledged). Per-DS in multi-DS projects. |
 | `draw-agent` | `/design:draw` + `/design:new` (art slot) + `/design:edit` (draw/add logo·icon·illustration·diagram feedback) + `/design:setup-ds` (opt-in organic seed artifacts — backgrounds / patterns / spot / brand mark) | **Generator** (not an audit agent): produces a verified SVG mark via the geometry engine + plan→generate→pairwise-rank→keep-best→rubric loop. Emits the standard JSON verdict. See [DDR-070](../../.ai/archive/decisions/DDR-070-svg-generation-geometry-engine.md). |
-| `draw-critic` | `/design:draw` (default) + `/design:critic` panel (when the canvas has a custom logo/icon/illustration/diagram) | Independent rubric judge for standalone vector art (the gap `graphic-design-critic` doesn't cover). Scores against `agents/_draw-design-rules.md`. |
+| `draw-critic` | `/design:draw` (default) + `/design:critic` panel (when the canvas has a custom logo/icon/illustration/diagram) | Independent rubric judge for standalone vector art (the gap `graphic-design-critic` doesn't cover). Scores against `references/draw/design-rules.md`. |
 | `reconstruct-agent` | `/design:import --reconstruct` only | Vision-reconstruction authoring agent (DDR-174). Deliberately `tools: Read, Write, Glob, Grep` — no `Bash`/`WebSearch`/`WebFetch`, because it reads an untrusted source image. Never spawned by the critic panel or any other command. |
 | `reconstruct-critic` | `/design:import --reconstruct` only | Bash-free reality-check comparator (DDR-174) — a SEPARATE agent from `design-critic`, same restricted toolset as `reconstruct-agent`, because it also reads the untrusted source image (to judge fidelity). Emits a strict typed `converged` verdict; never routed as a general critic-panel member. |
 

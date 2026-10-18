@@ -68,7 +68,7 @@ import {
   stripSummon,
 } from './access-docs.mjs';
 import { createPokeVisibility } from './access-files.mjs';
-import { claimForMatch } from './access-gate.mjs';
+import { claimForMatch, planPausedFromEnv } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -86,6 +86,7 @@ import {
   transientFailures,
   writeBehindKey,
 } from './asset-lane.mjs';
+import { createAssetPresence } from './asset-presence.mjs';
 import {
   handleAssetProbeRoute,
   handleAssetRoute,
@@ -822,6 +823,10 @@ export function createHub(config = {}) {
         },
       })
     : null;
+  // S9.12b (V2-1.16 U6) — a token's kick also closes the studio sockets its session opened
+  // through the proxy (raw splices the Hocuspocus kick never reaches).
+  const kickLabel = (label) =>
+    kickSessionsForLabel(peers, label) + (studioProxy?.closeUpgrades({ label }) ?? 0);
   /** @type {ReturnType<typeof scheduleMirror>|null} */
   let mirror = null;
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
@@ -837,8 +842,25 @@ export function createHub(config = {}) {
     ...(config.rolesV2 !== undefined ? { rolesV2: config.rolesV2 } : {}),
     graceMs: config.switchGraceMs ?? 1500,
     connections: () => [...peers.values()].map((p) => p.connection).filter(Boolean),
-    kickLabel: (label) => kickSessionsForLabel(peers, label),
+    kickLabel,
+    kickEmail: (email) => studioProxy?.closeUpgrades({ email }) ?? 0,
     sweepNow: () => (revocationSweep?.enabled ? revocationSweep.tick() : null),
+  });
+
+  // S8.19 — who holds which asset, and whose sweep finished (hub runtime in the
+  // data dir, never a project file). Fed by `/_asset-probe`, read by the
+  // routes-v2 `asset-presence` row.
+  const assetPresence = createAssetPresence({ dataDir, salt: secret ?? '' });
+  const presenceDeps = () => ({
+    store: assetPresence,
+    dataDir,
+    designRoot:
+      workspaceMode && repoDir ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design') : null,
+    journal,
+    materializer,
+    checkReadRateLimit: rateLimit
+      ? (label) => checkConnRateLimit(fileReadBuckets, label, assetWriteRateLimitMax)
+      : undefined,
   });
 
   /**
@@ -1064,6 +1086,12 @@ export function createHub(config = {}) {
         // the last layer, never the only one.
         // Per connection, per document (L2): `!can('edit', canvas)`.
         if (connectionConfig && door.readOnly) connectionConfig.readOnly = true;
+        // A3 (S9.15b) — a paused project syncs read-only: same protocol gate,
+        // so its documents stay readable live and nothing writes to them. On
+        // the context too (`readOnly` below), because the per-message fence
+        // (`accepted.fence`) re-derives `connection.readOnly` from it.
+        const paused = planPausedFromEnv();
+        if (connectionConfig && paused) connectionConfig.readOnly = true;
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
@@ -1077,7 +1105,7 @@ export function createHub(config = {}) {
             source: match.source,
             dev: !!match.dev,
             scope: match.scope ?? '*',
-            readOnly: door.readOnly,
+            readOnly: door.readOnly || paused,
             format,
             ...docContextFields(match, door),
             // The address the token was minted for. Carried so the server-side
@@ -1190,6 +1218,8 @@ export function createHub(config = {}) {
           // `roles-v2` (V2-1.7 §5.8 step 4): this cell honours observer and
           // canvas-scoped credentials — the control plane mints `m2.` only
           // when it is here. Added by the lead's Q13 flip, never before.
+          // `votes-v1` (Gate 0 A18, S9.13): hub-held ballots at
+          // `/api/projects/:p/v1/votes*`.
           capabilities: withRolesV2(
             journal
               ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
@@ -1276,10 +1306,12 @@ export function createHub(config = {}) {
             accepted: () => accepted,
             auth: acceptedAuth,
             comments: commentsDeps,
-            votes: votesRoutes,
             browserSession: (req) => browserSession(dataDir, secret, req),
             designRoot: () => (studioProxy ? designRootFor() : null),
             signInUrl: (req) => signInUrl({ request: req }),
+            // Gate 0 A18 (S9.13) — the votes runtime, null until the store is open.
+            votes: votesRoutes,
+            presence: presenceDeps(), // S8.19
           },
         })
       ) {
@@ -1557,6 +1589,7 @@ export function createHub(config = {}) {
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
+          presence: assetPresence,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
@@ -1954,7 +1987,7 @@ export function createHub(config = {}) {
             respondRateLimited: () => respondRateLimited(response),
             respondJson: (status, payload) => respondAdminJson(response, status, payload),
             readJsonBody,
-            kickLabel: (label) => kickSessionsForLabel(peers, label),
+            kickLabel,
             pushActivity: (evt) => pushActivity(activity, evt),
           });
         } catch (err) {
@@ -1998,6 +2031,7 @@ export function createHub(config = {}) {
           port,
           startedAt,
           peers,
+          kickLabel,
           publicUrl,
           rateBuckets,
           rateStore,
@@ -2244,6 +2278,8 @@ export function createHub(config = {}) {
     projectId: process.env.MAUDE_TENANT_ID || 'local',
     auth: (req) => acceptedAuth(req),
     poke: createVotesPoke({ instance: server, visibility: pokeVisibility }),
+    // Per-person write budget (`VOTES_WRITE_LIMIT`); off with the hub's other limits.
+    ...(rateLimit ? {} : { writeLimit: null }),
   });
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it
@@ -2606,7 +2642,7 @@ export function createHub(config = {}) {
         revocationSweep = scheduleRevocationSweep({
           dataDir,
           revokeForOwner: revokeTokensForOwner,
-          kickLabel: (label) => kickSessionsForLabel(peers, label),
+          kickLabel,
         });
         if (revocationSweep.enabled) console.log('[revocation] sweep armed');
       }
@@ -2712,6 +2748,7 @@ export function createHub(config = {}) {
     accepted,
     acceptedReady,
     projectStore,
+    assetPresence,
     /** Flush the pending commit and detach. The SIGTERM path depends on this. */
     async stopWorkspaceAgent() {
       if (!workspace) return;
@@ -2731,6 +2768,7 @@ export function createHub(config = {}) {
      * was written in between (F3 S17 on the cloud cell, 2026-09-24).
      */
     async finalBackup() {
+      assetPresence.flush();
       try {
         server.hocuspocus?.flushPendingStores?.();
         const debouncer = server.hocuspocus?.debouncer;
@@ -2770,6 +2808,7 @@ export function createHub(config = {}) {
 
 async function handleAdminApi(ctx) {
   const { request, response, dataDir, secret, peers, publicUrl, rateBuckets, rateLimit } = ctx;
+  const kickLabel = ctx.kickLabel ?? ((label) => kickSessionsForLabel(peers, label));
   const { rateStore, clientIp } = ctx;
   const rateOpts = { store: rateStore, ip: clientIp?.(request) };
   const { activity, sqlitePath } = ctx;
@@ -2836,7 +2875,7 @@ async function handleAdminApi(ctx) {
       publicUrl,
       respondJson: (status, payload) => respondAdminJson(response, status, payload),
       readJsonBody,
-      kickLabel: (label) => kickSessionsForLabel(peers, label),
+      kickLabel,
       pushActivity: (evt) => pushActivity(activity, evt),
     });
     if (handled) return;
@@ -3002,7 +3041,7 @@ async function handleAdminApi(ctx) {
       // DDR-053 §4: kick existing WS sessions for the rotated label so dwell
       // time on a compromised token is bounded by rotate latency, not by the
       // attacker's choice to never disconnect.
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -3022,7 +3061,7 @@ async function handleAdminApi(ctx) {
       assertValidLabel(label);
       removeToken(dataDir, label);
       // Kick live sessions that authenticated with the deleted token (DDR-053 §4).
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -3525,6 +3564,8 @@ export function browserSession(dataDir, secret, request) {
   return {
     email: match.owner,
     role,
+    // S9.12b (U6) — the token this cookie is, so its kick closes the sockets it opened.
+    label: match.label ?? null,
     // S9.3 — the stored access claim travels with the session (the proxy's `x-maude-access`),
     // so Can view reaches the studio as Can view; a v1 session gets its role's legacy claim.
     access: match.access ?? legacyClaim(role),
@@ -3545,6 +3586,7 @@ function canvasOnlyBrowserSession(match) {
   return {
     email: match.owner,
     role: null,
+    label: match.label ?? null,
     access: claim,
     readOnly: true,
     canvasOnly: true,

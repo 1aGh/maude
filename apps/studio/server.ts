@@ -20,6 +20,7 @@ import { canvasOfSlug, createWsVisibility, seesSlug } from './access/filters.ts'
 import {
   accessForDesktop,
   acpRefusal,
+  lanesClosedFromProxy,
   notInScopeResponse,
   runWithAccess,
   setAccessFallback,
@@ -60,8 +61,9 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
+import { createActionFeed } from './sync/action-feed.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
-import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
@@ -291,6 +293,18 @@ const runRegistry = createRunRegistry({
   }),
 });
 await runRegistry.boot();
+// S5.15 — every accepted action reaches the shell as `project:action`, not only a run's publish and the
+// undo routes': a person's edit (yours, or a teammate's arriving from the hub) clears "Made by AI".
+const actionFeed = createActionFeed({
+  control: () => ctx.syncControl?.current?.() ?? null,
+  designRel: ctx.paths.designRel,
+  emit: (e, p) => ctx.bus.emit(e, p),
+  on: (e, fn) => ctx.bus.on(e, fn),
+});
+ctx.bus.on('fs:any', (rel: unknown) => {
+  if (typeof rel === 'string' && /\.tsx$/i.test(rel)) actionFeed.poke();
+});
+ctx.bus.on('sync:projected', () => actionFeed.poke());
 // runningChats() / activitySnapshot() read the registry (unioned with the bridge until S5.6)
 registerLiveRuns(() => runRegistry.live());
 // the hub's `{t:'runs', seq}` on the control channel (sync/ctl-provider.ts → bus)
@@ -360,7 +374,7 @@ const ws = createWs(
     closureOf: (access) => http.closureOf(access),
   })
 );
-const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
+const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot, { runs: () => runRegistry });
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
 const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {
@@ -370,6 +384,15 @@ const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs
 askQueue = http.askQueue;
 // S9.9 — `currentAccess()` outside a request (timers, boot): this process's own answer.
 setAccessFallback(() => http.accessOf());
+// S9.12b (V2-1.16 U6, desktop) — a socket keeps the access stamped at its upgrade; when that is
+// wider than the session's access now (hubs.json rewritten by a re-sign-in or a role drop, or the
+// project linked / relinked), it is closed and its client reconnects at the new access. A cell's
+// sockets are closed by the hub's proxy instead (studio-proxy.mjs `closeUpgrades`).
+if (!isWorkspaceMode()) {
+  const narrowSockets = () => ws.closeWiderThan(http.accessOf());
+  watchHubsConfig(narrowSockets);
+  ctx.bus.on('config-updated', narrowSockets);
+}
 const fsWatch = createFsWatch(ctx);
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.
@@ -591,6 +614,8 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             // absent header is an unproven session. S9.11 — from the access, so a
             // hub-linked desktop viewer is read-only too (and a grant edits its canvas).
             readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
+            // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
           },
         });
         if (ok) return undefined as unknown as Response;
@@ -655,6 +680,8 @@ function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
             // proxy's claim (fail closed as before), on a desktop the linked hub's
             // stored claim — a hub-linked viewer's socket was writable here.
             readOnly: !access.can('edit', null),
+            // S9.15c — a paused project: no comment write over this socket either.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
             // S9.11 (V2-1.16 L12) — what this socket may hear.
             access,
           },
@@ -805,6 +832,8 @@ function startCanvasServer(
             ...(WORKSPACE && req.headers.get('x-maude-collab-follow') === '1'
               ? { follow: true }
               : {}),
+            // S9.15c — a paused project (`x-maude-readonly: plan`): no lane writable, comments too.
+            ...(WORKSPACE && lanesClosedFromProxy(req.headers) ? { lanesClosed: true } : {}),
           },
         });
         if (ok) return undefined as unknown as Response;

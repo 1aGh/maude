@@ -97,6 +97,18 @@
     align-items: center;
     gap: 2px;
   }
+  /* S3.3 — the media transport: pause · 0:06 / 0:15 · sound */
+  .maude .pr-transport {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .maude .pr-time {
+    min-width: 88px;
+    text-align: center;
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
   .maude .pr-div {
     flex: 0 0 auto;
     align-self: center;

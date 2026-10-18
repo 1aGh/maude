@@ -4,8 +4,11 @@
 //   prompt      UserPromptSubmit  POST /_api/agent/run/begin; names the run folder once per session
 //                                                                                 → additionalContext or nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
-//   post-edit   PostToolUse       check (studio, else local) · rollback · touched   → block or nothing
-//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · out-of-project (bash-guard)
+//                                 (a sub-agent: its hand-off `owns`, outside .design/ too; S12.7)
+//   post-edit   PostToolUse       check (studio, else local) · rollback · touched · `ds` warnings
+//                                 (ds-check --hook, S12.4/D9)  → block, or additionalContext, or nothing
+//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · human-only · out-of-project (bash-guard)
+//                                 · an untrusted-content reader has no shell (S12.7)
 //                                                                                     → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
@@ -368,6 +371,45 @@ const parseOr = (text) => {
 const isSubagent = (input) => Boolean(input.agent_id || input.agent_type);
 
 /**
+ * S12.7 — the agents that read untrusted content (a source image, a clip's frames, an asset;
+ * DDR-174 Decision 1, DDR-183 F2). Their frontmatter already has no Bash/Web*; the hooks hold
+ * them to it at run time as well (an override, a widened copy): no Bash at all, and no write
+ * outside the design root — the DDR-174 Addendum gap (`.claude/settings.json`, a CLAUDE.md, a
+ * shell rc) that a tool list alone cannot close. `plugin-name-namespace.test.mjs` keeps this set
+ * equal to the agents it selects as readers.
+ */
+export const UNTRUSTED_READERS = new Set([
+  'footage-analyst',
+  'reconstruct-agent',
+  'reconstruct-critic',
+  'asset-describer',
+]);
+const isUntrustedReader = (input) =>
+  isSubagent(input) && UNTRUSTED_READERS.has(bareAgent(input.agent_type));
+
+/**
+ * A sub-agent's write OUTSIDE the design root (`d` = null): an untrusted-content reader never
+ * makes one; an agent held to a hand-off makes one only into a path its `owns` names (repo-
+ * relative, so nothing outside the project ever qualifies). Anything else is not ours to judge.
+ */
+function outsideGuard(ctx, input, fenceOf) {
+  if (!isSubagent(input)) return null;
+  const p = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+  if (typeof p !== 'string' || !p || p.includes('\0')) return null;
+  const abs = realpathDeep(isAbsolute(p) ? p : `${ctx.cwd}${sep}${p}`);
+  const rel = relative(realpathDeep(ctx.root), abs);
+  const inRepo = rel && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+  const repoRel = inRepo ? rel.split(sep).join('/') : null;
+  const shown = repoRel ? shownPath(repoRel) : fileText(abs, 200);
+  if (isUntrustedReader(input))
+    return `out-of-scope: ${input.agent_type} reads untrusted content (DDR-174/DDR-183) — it writes nothing outside ${DESIGN_REL}/, and ${shown} is outside it. Write only the files your inputs name.`;
+  const f = fenceOf();
+  if (f.error) return fenceReason(input, f.error);
+  if (!f.hs.length || (repoRel && f.hs.some((h) => ownsPath(h.doc, repoRel)))) return null;
+  return `out-of-scope: ${input.agent_type ?? 'this agent'} writes only what its hand-off owns — ${shown} is not in it. Put the change in your hand-off result and let the main agent apply it.`;
+}
+
+/**
  * The fence a sub-agent is held to: `{ hs: [{rel, doc}], error }`. The hand-offs SubagentStart
  * recorded (path + content hash), re-read and re-hashed — one gone or changed is an `error` and
  * every write the agent makes is denied (fail closed). No record (SubagentStart did not run: an
@@ -434,6 +476,37 @@ function runtimeGuard(input, rel, fenceOf) {
     code: 'out-of-scope',
     reason: `out-of-scope: ${input.agent_type ?? 'a sub-agent'} never writes ${shownRel(rel)} — the run folder's hand-offs, agents.json and snapshots belong to the main agent and the hooks.${outs.length ? ` Write your result to ${outs.slice(0, 3).map(shownPath).join(' or ')}.` : ''}`,
   };
+}
+
+/**
+ * S10.3b — a design system's `revisions/*` (content-addressed, immutable) and `revisions/head.json`
+ * (the pointer the ⌘Z hook moves) are written only by the DS engine (V2-1.6 §5.15; S10.2's
+ * `ds/head.ts` is the sole head.json writer). A hand edit would fork the history the review and
+ * every peer read, so the hook refuses it BEFORE the write — anyone, main agent included. The
+ * systems are the config's `designSystems[].path` plus the `system/<ds>/` convention
+ * (check/index.ts `kindOf` 'ds-managed', which still blocks a write that got past this).
+ */
+function dsManagedGuard(ctx, rel) {
+  const lc = rel.toLowerCase();
+  const segs = lc.split('/');
+  let hit =
+    segs[0] === 'system' &&
+    segs.length >= 3 &&
+    (segs[2] === 'revisions' || segs[segs.length - 1] === 'head.json');
+  if (!hit) {
+    const cfg = readJson(join(ctx.designRoot, 'config.json'), {});
+    const systems = Array.isArray(cfg?.designSystems) ? cfg.designSystems : [];
+    hit = systems.some((s) => {
+      if (typeof s?.path !== 'string') return false;
+      const root = s.path
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '')
+        .toLowerCase();
+      return !!root && (lc.startsWith(`${root}/revisions/`) || lc === `${root}/head.json`);
+    });
+  }
+  if (!hit) return null;
+  return `ds-managed: ${shownRel(rel)} is design-system history Maude keeps — revisions and head.json are never written by hand. Change the system with \`maude design ds\` (pending --set, publish, keep, undo, pick); \`maude design ds status --json\` shows where it stands.`;
 }
 
 /** The run id the hand-offs carry: stable per session, no studio needed (V2-1.18 §5.1 shape). */
@@ -722,12 +795,21 @@ async function prompt(ctx, input) {
 async function preEdit(ctx, input) {
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const d = designTarget(ctx, input);
-  if (!d) return null;
   let fence = null;
   const fenceOf = () => {
     fence ??= agentFence(ctx, input);
     return fence;
   };
+  if (!d) {
+    const outside = outsideGuard(ctx, input, fenceOf);
+    return outside ? deny(outside) : null;
+  }
+  // S10.3b: a design system's managed files (revisions, the review's own state) are written by the
+  // DS verbs, never by an editing tool.
+  if (!d.runtime) {
+    const managed = dsManagedGuard(ctx, d.rel);
+    if (managed) return deny(managed);
+  }
   if (isSubagent(input) && fenceOf().error) return deny(fenceReason(input, fence.error));
   if (d.runtime) {
     const g = runtimeGuard(input, d.rel, fenceOf);
@@ -854,6 +936,7 @@ function missingShots(ctx, touched) {
 }
 
 async function postEdit(ctx, input, self) {
+  const t0 = performance.now();
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const t = targetOf(ctx, input);
   if (!t) return null;
@@ -896,10 +979,60 @@ async function postEdit(ctx, input, self) {
     if (r?.status === 200 && Array.isArray(r.body?.artboards)) artboards = r.body.artboards;
   }
   recordTouch(ctx, t.rel, { by: input.agent_type ?? 'main', via: 'tool', artboards });
-  return syncedBoardHint(ctx, t.rel);
+  const notes = [syncedBoardHint(ctx, t.rel), dsWarnings(ctx, t.rel, input, self, t0)].filter(
+    Boolean
+  );
+  return notes.length
+    ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notes.join('\n') } }
+    : null;
 }
 
-/** §5.4 post-edit 4: a synced board edited directly gets one hint a run (no studio needed). */
+/** The files the `ds` checker reads S-rules / system structure from (the old hook's filter). */
+const DS_FILE_RE = /(?:\.tsx|\.css|(?:^|\/)components\.json)$/;
+/** V2-1.18 §5.3: the `ds` checker's share of the fast tier, and post-edit's whole budget. */
+export const DS_CHECK_MS = 400;
+export const POST_EDIT_BUDGET_MS = 1500;
+const DS_LINES = 16;
+const DS_LINE_MAX = 240;
+
+/**
+ * S12.4 (D9) — `maude design ds-check --hook` on the file just written: its S-rule / system
+ * findings as warnings (additionalContext text), never a decision. Fail-open: no `self`, a crash,
+ * a timeout, garbage or a forged decision → only the child's `additionalContext` string is ever
+ * read, cleaned per line and capped; anything else → nothing. Bounded by what is left of the
+ * post-edit budget (≤ DS_CHECK_MS); skipped when too little is left.
+ */
+function dsWarnings(ctx, rel, input, self, t0) {
+  if (!self || !DS_FILE_RE.test(rel)) return null;
+  const left = Math.min(DS_CHECK_MS, POST_EDIT_BUDGET_MS - 150 - (performance.now() - t0));
+  if (left < 100) return null;
+  try {
+    const p = spawnSync(
+      self[0],
+      [...self.slice(1), 'design', 'ds-check', '--hook', '--root', ctx.root],
+      {
+        input: JSON.stringify(input),
+        encoding: 'utf8',
+        timeout: Math.round(left),
+        killSignal: 'SIGKILL',
+        maxBuffer: 256 * 1024,
+        env: { ...process.env, MAUDE_NO_UPDATE_CHECK: '1' },
+      }
+    );
+    if (p.error || p.status !== 0 || !p.stdout) return null;
+    const text = JSON.parse(p.stdout)?.hookSpecificOutput?.additionalContext;
+    if (typeof text !== 'string' || !text.trim()) return null;
+    const lines = text
+      .split('\n')
+      .map((l) => cleanText(l, DS_LINE_MAX))
+      .filter((l) => l.trim());
+    return lines.slice(0, DS_LINES).join('\n') || null;
+  } catch {
+    return null;
+  }
+}
+
+/** §5.4 post-edit 4: a synced board edited directly gets one hint a run (no studio needed) — its text. */
 function syncedBoardHint(ctx, rel) {
   if (!BOARD_RE.test(rel)) return null;
   const cfg = readJson(join(ctx.designRoot, 'config.json'), {});
@@ -907,16 +1040,15 @@ function syncedBoardHint(ctx, rel) {
   const marker = join(ctx.run, 'board-hint');
   if (existsSync(marker)) return null;
   writeAt(marker, '');
-  return {
-    hookSpecificOutput: {
-      hookEventName: 'PostToolUse',
-      additionalContext: `${rel} is a board this project syncs with collaborators. For board changes prefer \`maude design annotate <canvas> --ops <ops.json>\`: it applies them as element ops that merge with other people's edits.`,
-    },
-  };
+  return `${rel} is a board this project syncs with collaborators. For board changes prefer \`maude design annotate <canvas> --ops <ops.json>\`: it applies them as element ops that merge with other people's edits.`;
 }
 
 function preBash(ctx, input) {
   if (input.tool_name !== 'Bash') return null;
+  if (isUntrustedReader(input))
+    return deny(
+      `out-of-scope: ${input.agent_type} reads untrusted content (DDR-174/DDR-183) — it has no shell. Do the work with Read (and Write for the files your inputs name); the orchestrator runs every command.`
+    );
   const command = input.tool_input?.command;
   let fence = null;
   const fenceOf = () => {

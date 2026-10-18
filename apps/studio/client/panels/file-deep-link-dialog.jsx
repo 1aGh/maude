@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { openLocalProject, resolveProjectForLink, openCloudUrl } from '../github.js';
 import { encodeOpenPath } from '../share-link.js';
-import { copyShareLink, useLinkDialogFocus } from '../share-dialog.jsx';
+import { copyShareLink, useLinkDialogFocus } from '../v2/share/link-dialog.js';
 
 /** The project zone is configured locally; file links never supply an origin. */
 export function fileProjectWebUrl(project, rel, cloudUrl) {

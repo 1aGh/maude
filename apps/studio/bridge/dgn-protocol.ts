@@ -81,6 +81,12 @@ export type OpenExportDetail = Record<string, unknown>;
 export type TimelineComp = Record<string, unknown>;
 export type RecordEditPayload = Record<string, unknown>;
 export type GitLifecycleEvent = Record<string, unknown>;
+/** S9.22 — the overlay's request id (`cm<n>`), echoed back so it can match the answer. */
+export type ReqId = string | number;
+/** S9.22 — one comment op as the overlay asks it; `op` is one of COMMENT_OPS, the rest the door's. */
+export type CommentOpRequest = { op: string } & Record<string, unknown>;
+/** S9.22 — a mention row as the popover shows it (comments/people.ts `MentionRow`). */
+export type MentionPerson = { id: string; name: string; role?: string };
 type Empty = Record<string, never>;
 
 /** canvas → shell (posted to window.parent) */
@@ -90,6 +96,9 @@ export interface CanvasToShell {
   'canvas-rendered': { file: string };
   'canvas-failed': { file: string };
   'canvas-mounted': { file: string; children: number };
+  // S10.4 (V2-1.6 §5.8) — the `data-ds-rev` values (`head` | a revision id) the canvas document carries;
+  // the studio answers with `ds-pins`. A value is a name, never a path.
+  'ds-pins-want': { revs: string[] };
   'canvas-expired': Empty;
   'canvas-notice': {
     message: string;
@@ -108,6 +117,8 @@ export interface CanvasToShell {
   'edit-text': { id: Id; file: string; text: string; occurrence?: number; before?: string };
   'apply-edit': ApplyEditMessage & { requestId: string };
   'undo-barrier': { requestId: string };
+  /** S2.20b — ⌘Z (`redo: false`) / ⇧⌘Z pressed in an op-log canvas: the shell's projection runs it */
+  'undo-key': { redo: boolean };
   /** S2.1 — one structural edit; the shell pins `file` to the active canvas (S2-edit-ops.md §6) */
   'edit-op': {
     requestId: string;
@@ -117,6 +128,12 @@ export interface CanvasToShell {
     expectRev?: string;
   };
   'active-artboard': { id: Id | null };
+  /**
+   * S2.11b — the slot a lifted card would land in, for Layers to draw the same numbered place
+   * (ed-lay-reorder). `index` is 1-based among `total` siblings of the frame `parentId`; `index: 0`
+   * = the drag ended (no slot). A frame with no `data-cd-id` has no `parentId` and Layers draws none.
+   */
+  'reorder-slot': { index: number; total: number; parentId?: Id };
   'layers-tree': { artboardId: Id | null; tree: LayerNode[] };
   'open-inspector': { tab?: string };
   'copy-style': Empty;
@@ -166,6 +183,10 @@ export interface CanvasToShell {
   'comment-patch': { id: Id; patch: CommentPatch };
   'comment-delete': { id: Id };
   'comment-click': { id: Id };
+  // S9.22 — the overlay asks the shell to run a comment op through `POST /_api/comments/op` (the op
+  // is the door's to judge, comments/ops.ts) and for the mention people; the shell answers the asker.
+  'comment-op': { reqId: ReqId; op: CommentOpRequest };
+  'comment-people-request': { reqId: ReqId };
   // export
   'export-request': { id: Id; payload: ExportPayload };
   'export-history-request': { id: Id };
@@ -185,11 +206,39 @@ export interface CanvasToShell {
   // (`present-enter` retired in V2-4.3b: Present lives in the Share cluster, shell-local)
   // V2-4.3b — who else is on the active canvas, from its Yjs awareness, for the Share cluster's faces.
   // Untrusted text: ≤ PEERS_MAX peers, names ≤ PEER_NAME_MAX, rendered as text only.
-  peers: { peers: Array<{ clientID: number; name: string; color?: string; following?: boolean }> };
+  // S9.23 — where each person is (the face menu, the people list): all optional, all checked by value.
+  peers: {
+    peers: Array<{
+      clientID: number;
+      name: string;
+      color?: string;
+      following?: boolean;
+      artboard?: string;
+      idleSince?: number;
+      surface?: 'browser';
+      inComments?: boolean;
+    }>;
+  };
+  // S2.18 (A10, V2-1.15 §5.8) — the single selection's holds, for the inspector's view mode: a person
+  // holding it (their name), and an AI run holding it (`held`) or another object of its artboard.
+  // Untrusted text, rendered as text only; ≤ HOLD_LABEL_MAX.
+  'hold-view': {
+    person: { name: string } | null;
+    label: string;
+    ai: { label: string; held: boolean; mine: boolean } | null;
+  };
   // legacy, no in-tree sender (accepted today; removal needs a characterization proof)
   select: { selection: Selection };
   'clear-select': Empty;
   artboards: { count: number };
+  /** S11.2 — the ONE selected artboard has nothing on it (the shell draws the hint at `rect`, iframe viewport px);
+   *  `rect: null` = it is not empty now / something else is selected. `label` / `from` are untrusted text. */
+  'artboard-empty': {
+    artboardId: Id | null;
+    rect: Rect | null;
+    label?: string;
+    from?: string;
+  };
   'insert-artboard-request': { id?: Id; label?: string; width?: number; height?: number };
 
   // ── V2-1.2 mode lane — live since V2-4.3b (set-mode / mode-changed / mode-request); the rest new ──
@@ -233,6 +282,34 @@ export interface CanvasToShell {
     watchers: number;
     ended: boolean;
   };
+  // S3.3 — the clip on the presented artboard (video-comp): the shell's transport mirrors it. `t` and
+  // `duration` are seconds, 0..86400.
+  // S3.8 — `sources`: the media files the clip uses (src URLs, ≤ 8 × 400 chars); `missing`: its media failed to
+  // load, so it holds its first frame. Untrusted: the shell only compares them with what is on this Mac.
+  'present-media': {
+    playing: boolean;
+    t: number;
+    duration: number;
+    muted: boolean;
+    sources?: string[];
+    missing?: boolean;
+  };
+  /** S3.10a — a plain click in Preview on an element with `data-cd-link` + `data-cd-id`. Never the target:
+   *  the shell reads it from the TSX (`GET /_api/links`, S3-links-format §1.3). */
+  'link-follow': { elementId: Id; artboardId: Id | null };
+  // S8.19 — the placeholder frame's Relink… (a Missing picture): the shell opens its relink sheet for
+  // that rel. The canvas asks; the shell decides (the write is the shell's `asset.relink` edit op).
+  'asset-relink-request': { rel: string };
+}
+
+/** S8.19 — one picture's state, as the shell tells the canvas (contract S8-S9-asset-presence §5.5). */
+export interface AssetStateItem {
+  rel: string;
+  state: 'here' | 'uploading' | 'waiting' | 'missing';
+  /** A display name only — never an e-mail, never a device id. */
+  who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
+  /** The hub already has the bytes; this Mac has not pulled them yet ("Syncing…"). */
+  syncing?: boolean;
 }
 
 /** shell → canvas (posted to iframe.contentWindow) */
@@ -248,9 +325,21 @@ export interface ShellToCanvas {
   }>;
   'view-annotations': { visible: boolean };
   'canvas-cap': { t: string };
+  // S10.4 — the follower swap: the two designRoot-relative `.css` files the canvas follows now
+  // (client/v2/ds/follower-swap.js decides WHEN; the shell swaps `#canvas-tokens` / `#canvas-components`).
+  'ds-css': { tokens?: string | null; components?: string | null };
+  // S10.4 — element pins: per `data-ds-rev` value, the sibling files of the revision it names (loaded by
+  // the shell document and scoped with ds/pin-scope.ts); a value not listed keeps the canvas's own look.
+  'ds-pins': {
+    revs: Record<string, { tokens: string; components: string | null }>;
+    rootClass: string | null;
+  };
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
   'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
+  /** S11.9 — Layers › Advanced › Select by selector: the canvas selects what the selector matches inside its
+   *  artboards (capped at 500, scoped to `[data-dc-screen]`). */
+  'select-by-selector': { selector: string };
   highlight: { id: Id | null; artboardId?: Id | null; index?: number };
   'request-layers': { artboardId: Id | null };
   'force-clear': Empty;
@@ -302,6 +391,16 @@ export interface ShellToCanvas {
   // S4.4: a Templates-panel pick (`id` is an annotations/templates.ts id); the canvas expands the same
   // spec `annotate --board <id>` does and, with `follow`, the ghost trails the pointer until a click (S4.13)
   'insert-template': { id: string; follow?: boolean };
+  // S2.16: a Component-picker pick (⇧I). `component` is a `@maude/ds` export name (validated here, and
+  // again by the `component.insert` writer); `mode` 'ghost' = the pick follows the pointer until a click,
+  // 'selection' = ↵ puts it in the selected frame. Accepted only from the shell (`gate: 'parent'`).
+  'place-component': {
+    component: string;
+    label?: string;
+    variant?: string;
+    glyph?: string;
+    mode: 'ghost' | 'selection';
+  };
   // S1.3: the Canvases panel's artboard jump list — ease (glide) or cut the camera to an artboard and
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
   // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
@@ -315,6 +414,13 @@ export interface ShellToCanvas {
       { state: 'running' | 'needs-you' | 'done'; who: string; tag: string; waiting: number }
     >;
   };
+  // S11.5 (05 es-all-trashed): the outlines an all-trashed canvas keeps. The shell reads the Trash itself and
+  // sends ids, labels and where each stood (`rect: null` = unknown, left out); the canvas draws and never says
+  // what is in the Trash. The table caps the strings (ids 128, labels 200); the layer draws at most 200.
+  'trashed-artboards': {
+    canvas: string;
+    items: Array<{ id: Id; label: string; rect: Rect | null }>;
+  };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -322,6 +428,19 @@ export interface ShellToCanvas {
   // comments
   'comments-set': { comments: CommentThread[] };
   'comment-focus': { id: Id | null };
+  // S9.22 — the shell's answers to `comment-op` / `comment-people-request`, to the frame that asked.
+  'comment-op-ack': { reqId: ReqId | null };
+  'comment-op-result': {
+    reqId: ReqId | null;
+    ok: boolean;
+    comment?: CommentThread | null;
+    status?: number;
+    error?: string;
+  };
+  'comment-people': { reqId: ReqId | null; people: MentionPerson[] | null };
+  // S4.17 — the Preview annotation list selects / filters on the canvas (handler: S4.9)
+  'annotation-select': { v: 1; ids: string[] };
+  'annotation-filter': { v: 1; authors: string[] };
   // export
   'export-capture': { id: Id; format: string; artboardIds: Id[]; scale: number };
   'export-selection-query': { id: Id };
@@ -355,10 +474,30 @@ export interface ShellToCanvas {
   // S3.7a — the follower page tells its canvas which session to follow (`sid: null` = the first
   // presenter seen), whether it is live, and whether it is the locked audience window.
   'present-follow': { sid: string | null; live: boolean; locked: boolean };
+  // S3.3 — the shell's transport (and presenter view: `mute` on the Mac's canvas) drives the clip.
+  'present-media-cmd': { op: 'play' | 'pause' | 'mute' | 'unmute' };
   // V2-4 gate (WCAG 2.1.4) — the per-Mac "Single-key shortcuts" switch: `false` → the canvas resolves no
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S2.18 (V2-1.15 §5.12) — what the canvas can't see for this person's `holding`: an inspector field has
+  // focus (`field`), the app has focus (`app`), an inspector edit just landed (`gesture`). State, sent on
+  // every change to the active canvas.
+  'hold-intent': { field: boolean; app: boolean; gesture?: boolean };
+  // S2.18 (V2-1.15 §5.8) — the objects live AI runs hold on this canvas (a run's `objects`): the canvas
+  // draws the spark outline + tag and the click tip. A tag and a flag per object — never a prompt.
+  'ai-holds': {
+    holds: Array<{ artboard: Id; element: Id; occurrence?: number; tag: string; mine: boolean }>;
+  };
+  // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
+  'undo-preview': { artboards: string[]; tag: string | null };
+  // S2.20b — state, not an event: `opLog: true` → the shell owns ⌘Z (the op log) and the canvas
+  // keeps no durable stack; sent on every change and to a frame on `loaded` / `canvas-rendered`.
+  'undo-mode': { opLog: boolean };
+  // S8.19 — "Waiting for Jonas's Mac" vs Missing for the open canvas's media. State, not an event: the
+  // shell sends the whole list on open, every 60 s while something waits, at reconnect and after a
+  // sweep ends. ≤ 256 items; a name with an `@` is refused whole (the canvas never sees an e-mail).
+  'asset-state': { items: AssetStateItem[] };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -394,6 +533,15 @@ const isPlain = (v: unknown): v is Record<string, unknown> =>
 const str: V = (v) => (typeof v === 'string' && v.length <= MAX_STR ? v : BAD);
 const num: V = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : BAD);
 const bool: V = (v) => (typeof v === 'boolean' ? v : BAD);
+/** S3.3 — a time in seconds: finite, 0..86400 (a day), else the whole message is junk. */
+const seconds: V = (v) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 86400 ? v : BAD;
+/** S3.8 — the media files a presented clip uses: at most 8 strings of at most 400 chars. */
+const mediaSources: V = (v) => {
+  if (!Array.isArray(v) || v.length > 8) return BAD;
+  for (const x of v) if (typeof x !== 'string' || x.length > 400) return BAD;
+  return [...v];
+};
 const lit =
   (...xs: readonly unknown[]): V =>
   (v) =>
@@ -402,6 +550,16 @@ const opt =
   (f: V): V =>
   (v) =>
     v === undefined ? undefined : f(v);
+// S3.10a — a linked element's authored id (V2-1.4 §4.2: never 8 hex) and its artboard (S3-links-format §9).
+const linkElementIdV: V = (v) =>
+  typeof v === 'string' &&
+  v.length <= 48 &&
+  /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(v) &&
+  !/^[0-9a-f]{8}$/.test(v)
+    ? v
+    : BAD;
+const linkArtboardIdV: V = (v) =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : BAD;
 const nul =
   (f: V): V =>
   (v) =>
@@ -480,6 +638,8 @@ const shortStr =
   (max: number): V =>
   (v) =>
     typeof v === 'string' && v.length <= max ? v : BAD;
+const dsName: V = (v) => (typeof v === 'string' && /^[A-Z][A-Za-z0-9]{0,63}$/.test(v) ? v : BAD);
+const dsSlug: V = (v) => (typeof v === 'string' && /^[a-z][a-z0-9-]{0,40}$/.test(v) ? v : BAD);
 const count: V = (v) =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 9999 ? v : BAD;
 const shape =
@@ -494,21 +654,48 @@ const shape =
     }
     return out;
   };
+/** A whole number in [min, max]. */
+const intIn =
+  (min: number, max: number): V =>
+  (v) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : BAD;
+/** The `data-cd-id` grammar the writers accept (api.ts CD_ID_RE): word characters and dashes, 1–64. */
+const cdId: V = (v) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : BAD);
 const rect = shape({ x: num, y: num, w: num, h: num });
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
 const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
-/** S3.7a — bounded ints, like the awareness `present` field (S3-present-session §2). */
-const intIn =
-  (lo: number, hi: number): V =>
-  (v) =>
-    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : BAD;
 const PRESENT_SID = /^[a-z0-9]{8,32}$/;
 const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
 const presenterName: V = (v) => (typeof v === 'string' && v.length <= PRESENT_NAME_MAX ? v : BAD);
 const insets: V = (v) => clampInsets(v) ?? BAD;
+/** S10.4 — a designRoot-relative `.css` path; the same rule as the shell's `DS_CSS_REL` (no URL, no `..`). */
+const DS_CSS_REL = /^(?!\/)(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9 ._/-]{0,255}\.css$/;
+const dsCssPath: V = (v) => (typeof v === 'string' && DS_CSS_REL.test(v) ? v : BAD);
+/** S10.4 — a `data-ds-rev` value: `head` or a revision id. */
+const PIN_VALUE = /^(?:head|[0-9a-f]{64})$/;
+export const DS_PINS_MAX = 16;
+const pinValue: V = (v) => (typeof v === 'string' && PIN_VALUE.test(v) ? v : BAD);
+const pinValues: V = (v) =>
+  Array.isArray(v) && v.length <= DS_PINS_MAX ? arrOf(pinValue)(v) : BAD;
+const dsPinEntry = shape({ tokens: dsCssPath, components: nul(dsCssPath) });
+const dsPinRevs: V = (v) => {
+  if (!isPlain(v)) return BAD;
+  const keys = Object.keys(v);
+  if (keys.length > DS_PINS_MAX) return BAD;
+  const out: Record<string, unknown> = Object.create(null);
+  for (const k of keys) {
+    if (pinValue(k) === BAD) return BAD;
+    const r = dsPinEntry(v[k]);
+    if (r === BAD) return BAD;
+    out[k] = r;
+  }
+  return out;
+};
+const rootClassName: V = (v) =>
+  typeof v === 'string' && /^[A-Za-z_][\w-]{0,63}$/.test(v) ? v : BAD;
 /** S3.6b — `present-run`: at most this many artboards (the follow fields' 0..2000 index range). */
 export const PRESENT_RUN_MAX = 2000;
 const presentRunCell = shape({
@@ -525,26 +712,98 @@ const presentRunList: V = (v) =>
 export const PEERS_MAX = 32;
 export const PEER_NAME_MAX = 64;
 const PEER_COLOR = /^(#[0-9a-f]{3,8}|oklch\([0-9.%\s/-]{1,40}\))$/i;
+const PEER_ARTBOARD = /^[A-Za-z0-9_-]{1,64}$/;
+type PeerEntry = {
+  clientID: number;
+  name: string;
+  color?: string;
+  following?: boolean;
+  artboard?: string;
+  idleSince?: number;
+  surface?: 'browser';
+  inComments?: boolean;
+};
 const peerList: V = (v) => {
   if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
-  const out: Array<{ clientID: number; name: string; color?: string; following?: boolean }> = [];
+  const out: PeerEntry[] = [];
   for (const x of v) {
     if (!isPlain(x)) return BAD;
-    const { clientID, name, color, following } = x;
+    const { clientID, name, color, following, artboard, idleSince, surface, inComments } = x;
     if (typeof clientID !== 'number' || !Number.isSafeInteger(clientID) || clientID < 0) return BAD;
     if (typeof name !== 'string' || name.length > PEER_NAME_MAX) return BAD;
     if (color !== undefined && (typeof color !== 'string' || !PEER_COLOR.test(color))) return BAD;
     if (following !== undefined && typeof following !== 'boolean') return BAD;
-    const peer: { clientID: number; name: string; color?: string; following?: boolean } = {
-      clientID,
-      name,
-    };
+    if (artboard !== undefined && (typeof artboard !== 'string' || !PEER_ARTBOARD.test(artboard)))
+      return BAD;
+    if (
+      idleSince !== undefined &&
+      (typeof idleSince !== 'number' || !Number.isSafeInteger(idleSince) || idleSince <= 0)
+    )
+      return BAD;
+    if (surface !== undefined && surface !== 'browser') return BAD;
+    if (inComments !== undefined && typeof inComments !== 'boolean') return BAD;
+    const peer: PeerEntry = { clientID, name };
     if (color !== undefined) peer.color = color;
     if (following === true) peer.following = true;
+    if (artboard !== undefined) peer.artboard = artboard;
+    if (idleSince !== undefined) peer.idleSince = idleSince;
+    if (surface === 'browser') peer.surface = 'browser';
+    if (inComments === true) peer.inComments = true;
     out.push(peer);
   }
   return out;
 };
+
+/** S2.18 — hold labels / tags (`hold-view`, `ai-holds`): bounded text, rendered as text only. */
+export const HOLD_LABEL_MAX = 120;
+export const AI_HOLDS_MAX = 256;
+const holdText: V = (v) => (typeof v === 'string' && v.length <= HOLD_LABEL_MAX ? v : BAD);
+const aiHoldList: V = (v) =>
+  Array.isArray(v) && v.length <= AI_HOLDS_MAX
+    ? arrOf(
+        shape({
+          artboard: holdText,
+          element: holdText,
+          occurrence: opt((x) =>
+            typeof x === 'number' && Number.isInteger(x) && x >= 0 && x < 10000 ? x : BAD
+          ),
+          tag: holdText,
+          mine: bool,
+        })
+      )(v)
+    : BAD;
+
+/** S9.22 — the comment bridge. The op names the door takes (comments/ops.ts `parseCommentOp`). */
+export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own'] as const;
+const reqIdV: V = (v) =>
+  (typeof v === 'string' && v.length > 0 && v.length <= 64) ||
+  (typeof v === 'number' && Number.isSafeInteger(v))
+    ? v
+    : BAD;
+/** The op body: a plain object with a known `op`, every value under the JSON caps. */
+const commentOpV: V = (v) => {
+  if (!isPlain(v) || !(COMMENT_OPS as readonly unknown[]).includes(v.op)) return BAD;
+  return json(v);
+};
+const mentionPerson = shape({ id: shortStr(200), name: shortStr(120), role: opt(shortStr(40)) });
+/** S8.19 — `asset-state`: a planted or oversized list is REJECTED whole, never trimmed. */
+export const ASSET_STATE_MAX = 256;
+const ASSET_WHO_NAME_MAX = 64;
+const assetWho = shape({
+  name: nul((v) =>
+    typeof v === 'string' && v.length <= ASSET_WHO_NAME_MAX && !v.includes('@') ? v : BAD
+  ),
+  kind: nul(lit('mac', 'pc', 'linux')),
+  self: bool,
+});
+const assetStateItem = shape({
+  rel: shortStr(512),
+  state: lit('here', 'uploading', 'waiting', 'missing'),
+  who: opt(assetWho),
+  syncing: opt(bool),
+});
+const assetStateList: V = (v) =>
+  Array.isArray(v) && v.length <= ASSET_STATE_MAX ? arrOf(assetStateItem)(v) : BAD;
 
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
@@ -587,6 +846,13 @@ const c2s: C2S = {
     orphan: 'no-handler',
     parse: p({ file: str, children: num }),
   },
+  // S10.4 — handled by client/v2/ds/pins.js (createPinsHost.onMessage)
+  'ds-pins-want': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/ds/pins',
+    parse: p({ revs: pinValues }),
+  },
   'canvas-expired': { gate: 'frame', status: 'live', owner: 'h/use-shell-core', parse: none },
   'canvas-notice': {
     gate: 'active',
@@ -628,6 +894,12 @@ const c2s: C2S = {
     }),
   },
   'undo-barrier': { gate: 'active', status: 'live', owner: BR, parse: p({ requestId: str }) },
+  'undo-key': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/undo/use-undo-mode-lane (S2.20b)',
+    parse: p({ redo: bool }),
+  },
   'edit-op': {
     gate: 'active',
     status: 'live',
@@ -641,6 +913,22 @@ const c2s: C2S = {
     }),
   },
   'active-artboard': { gate: 'active', status: 'live', owner: BR, parse: p({ id: nul(str) }) },
+  'reorder-slot': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/reorder-slot',
+    parse: (raw) => {
+      const r = p<CanvasToShell['reorder-slot']>({
+        index: intIn(0, MAX_ARR),
+        total: intIn(0, MAX_ARR),
+        parentId: opt(cdId),
+      })(raw);
+      // a slot lies inside its total and names its frame; index 0 is "the drag ended"
+      if (!r || r.index > r.total) return null;
+      if (r.index > 0 && r.parentId === undefined) return null;
+      return r;
+    },
+  },
   'layers-tree': {
     gate: 'active',
     status: 'live',
@@ -788,13 +1076,36 @@ const c2s: C2S = {
   },
   'comment-delete': { gate: 'active', status: 'live', owner: BR, parse: p({ id: str }) },
   'comment-click': { gate: 'active', status: 'live', owner: BR, parse: p({ id: str }) },
+  // S9.22 — the shell runs the op as the session (the door judges it); an `add` is pinned to the
+  // active canvas in the handler (client/v2/comments/comment-bridge.js), the iframe's `file` ignored.
+  'comment-op': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/comments/comment-bridge (S9.22)',
+    parse: p({ reqId: reqIdV, op: commentOpV }),
+  },
+  'comment-people-request': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/comments/comment-bridge (S9.22)',
+    parse: p({ reqId: reqIdV }),
+  },
+  // A6b-2: S8.2 retired the in-canvas export dialog (export-dialog.tsx) that sent these two; the shell
+  // still answers them (the gate in use-canvas-bridge stays), nothing in the tree asks.
   'export-request': {
     gate: 'active',
     status: 'live',
     owner: BR,
+    orphan: 'no-sender',
     parse: p({ id: str, payload: jsonObj }),
   },
-  'export-history-request': { gate: 'active', status: 'live', owner: BR, parse: p({ id: str }) },
+  'export-history-request': {
+    gate: 'active',
+    status: 'live',
+    owner: BR,
+    orphan: 'no-sender',
+    parse: p({ id: str }),
+  },
   'open-export': { gate: 'active', status: 'legacy', owner: BR, parse: p({ detail: jsonObj }) },
   'export-capture-progress': {
     gate: 'asked',
@@ -846,6 +1157,16 @@ const c2s: C2S = {
     owner: 'v2/shell/use-canvas-mode-lane (V2-4.3b)',
     parse: p({ peers: peerList }),
   },
+  'hold-view': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/inspector/view-mode (S2.18)',
+    parse: p({
+      person: nul(shape({ name: holdText })),
+      label: holdText,
+      ai: nul(shape({ label: holdText, held: bool, mine: bool })),
+    }),
+  },
   select: {
     gate: 'active',
     status: 'legacy',
@@ -860,12 +1181,20 @@ const c2s: C2S = {
     orphan: 'no-sender',
     parse: none,
   },
+  // S11.2 — live: the canvas reports its real artboard count (editing/empty-report.ts); the empty canvas
+  // ("Your canvas is ready.") shows at 0.
   artboards: {
     gate: 'active',
-    status: 'legacy',
-    owner: BR,
-    orphan: 'no-sender',
+    status: 'live',
+    owner: 'v2/empty (S11.2); the shell bridge keeps the Layers count',
     parse: p({ count: num }),
+  },
+  // S11.2 — the shell draws the empty-artboard hint (Q5 of S11-slices): the copy lives in one table.
+  'artboard-empty': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/empty (S11.2)',
+    parse: p({ artboardId: nul(str), rect: nul(rect), label: opt(str), from: opt(str) }),
   },
   'insert-artboard-request': {
     gate: 'active',
@@ -913,11 +1242,13 @@ const c2s: C2S = {
       replace: opt(str),
     }),
   },
-  // S3.2b — live: Present the canvas posts its zoom for the pill (present/present-zoom.ts).
+  // S3.2b — Present: the canvas posts its zoom for the pill (present/present-zoom.ts). S3.9 — canvas-lib's
+  // ViewportZoomReporter posts it too; the shell's ZoomOnly readout (Preview) listens.
   'viewport-zoom': {
     gate: 'active',
     status: 'live',
-    owner: 'present/present-zoom.ts',
+    owner:
+      'present/present-zoom.ts (S3.2b) + v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
     parse: p({ zoom: num }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
@@ -961,6 +1292,35 @@ const c2s: C2S = {
       ended: bool,
     }),
   },
+  // S3.3 — live: the Present stage's media engine (present/present-media.ts) echoes the clip;
+  // the shell lane (use-canvas-mode-lane) keeps it for the transport.
+  'present-media': {
+    gate: 'active',
+    status: 'live',
+    owner: 'present/present-media (S3.3)',
+    parse: p({
+      playing: bool,
+      t: seconds,
+      duration: seconds,
+      muted: bool,
+      sources: opt(mediaSources),
+      missing: opt(bool),
+    }),
+  },
+  // S3.10a — live: input-router's Preview branch posts it; the shell's link-follow plays it. Extra keys
+  // (`target`, `url`, …) are dropped by `p`, so a planted canvas cannot hand the shell a destination.
+  'link-follow': {
+    gate: 'active', // + shell mode === 'preview' + no modal + ≤ 4/s, in the handler
+    status: 'live',
+    owner: 'S3 links (client/v2/preview/link-follow.js)',
+    parse: p({ elementId: linkElementIdV, artboardId: nul(linkArtboardIdV) }),
+  },
+  'asset-relink-request': {
+    gate: 'active',
+    status: 'live',
+    owner: 'client/v2/assets/asset-state-lane (S8.19)',
+    parse: p({ rel: shortStr(512) }),
+  },
 };
 
 const s2c: S2C = {
@@ -991,6 +1351,20 @@ const s2c: S2C = {
     parse: p({ visible: bool }),
   },
   'canvas-cap': { gate: 'parent', status: 'live', owner: 'tpl/_shell.html', parse: p({ t: str }) },
+  // S10.4 — sent by client/v2/ds/follower-swap.js, honoured by the shell template's `ds-css` region
+  'ds-css': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ tokens: opt(nul(dsCssPath)), components: opt(nul(dsCssPath)) }),
+  },
+  // S10.4 — sent by client/v2/ds/pins.js, loaded + scoped by the shell template's `ds-pins` region
+  'ds-pins': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'tpl/_shell.html',
+    parse: p({ revs: dsPinRevs, rootClass: nul(rootClassName) }),
+  },
   'ai-activity': {
     gate: 'parent',
     status: 'live',
@@ -1002,6 +1376,12 @@ const s2c: S2C = {
     status: 'live',
     owner: CS,
     parse: p({ id: opt(str), artboardId: opt(nul(str)), index: opt(num) }),
+  },
+  'select-by-selector': {
+    gate: 'parent',
+    status: 'live',
+    owner: CS,
+    parse: p({ selector: str }),
   },
   highlight: {
     gate: 'any',
@@ -1119,8 +1499,7 @@ const s2c: S2C = {
   'reveal-artboard': {
     gate: 'parent',
     status: 'live',
-    // S1.3 sends it from the jump list once REVEAL_ARTBOARD_LIVE flips; canvas-lib's handler (L1) is pending
-    orphan: 'no-handler',
+    // S1.3 sends it from the jump list once REVEAL_ARTBOARD_LIVE flips; the handler is canvas-shell's (A6c)
     owner: 'canvas-lib',
     parse: p({ artboardId: str, glide: bool, flash: bool }),
   },
@@ -1146,6 +1525,27 @@ const s2c: S2C = {
     orphan: 'no-handler',
     owner: 'annotations-layer',
     parse: p({ id: str, follow: opt(bool) }),
+  },
+  'trashed-artboards': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'artboard-ghosts-overlay (S11.5)',
+    parse: p({
+      canvas: shortStr(1024),
+      items: arrOf(shape({ id: shortStr(128), label: shortStr(200), rect: nul(rect) })),
+    }),
+  },
+  'place-component': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/place-ghost',
+    parse: p({
+      component: dsName,
+      label: opt(shortStr(64)),
+      variant: opt(dsSlug),
+      glyph: opt(dsSlug),
+      mode: lit('ghost', 'selection'),
+    }),
   },
   'insert-annotation-media': {
     gate: 'parent',
@@ -1187,6 +1587,46 @@ const s2c: S2C = {
     owner: 'comments-overlay',
     parse: p({ id: nul(str) }),
   },
+  'comment-op-ack': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'comments-overlay (S9.22)',
+    parse: p({ reqId: nul(reqIdV) }),
+  },
+  'comment-op-result': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'comments-overlay (S9.22)',
+    parse: p({
+      reqId: nul(reqIdV),
+      ok: bool,
+      comment: opt(nul(jsonObj)),
+      status: opt(num),
+      error: opt(str),
+    }),
+  },
+  'comment-people': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'comments-overlay (S9.22)',
+    parse: p({ reqId: nul(reqIdV), people: nul(arrOf(mentionPerson)) }),
+  },
+  // S4.17 sends them (client/v2/annotations/annotation-list-model.js); the annotations layer's
+  // handler lands with S4.9 (rows added by S9.22b: the coverage gate named them unlisted)
+  'annotation-select': {
+    gate: 'parent',
+    status: 'live',
+    orphan: 'no-handler',
+    owner: 'annotations-layer (S4.9)',
+    parse: p({ v: lit(1), ids: arrOf(shortStr(200)) }),
+  },
+  'annotation-filter': {
+    gate: 'parent',
+    status: 'live',
+    orphan: 'no-handler',
+    owner: 'annotations-layer (S4.9)',
+    parse: p({ v: lit(1), authors: arrOf(shortStr(200)) }),
+  },
   'export-capture': {
     gate: 'parent',
     status: 'live',
@@ -1199,16 +1639,19 @@ const s2c: S2C = {
     owner: 'canvas-lib (export)',
     parse: p({ id: str }),
   },
+  // A6b-2: the answers to the two retired in-canvas export requests (see c2s `export-request`).
   'export-result': {
     gate: 'parent',
     status: 'live',
     owner: 'export-dialog',
+    orphan: 'no-handler',
     parse: p({ id: str, ok: bool, browser: opt(bool), jobId: opt(str), error: opt(str) }),
   },
   'export-history-result': {
     gate: 'parent',
     status: 'live',
     owner: 'export-dialog',
+    orphan: 'no-handler',
     parse: p({ id: str, history: arrOf(jsonObj) }),
   },
   'timeline-play': {
@@ -1299,11 +1742,50 @@ const s2c: S2C = {
     owner: 'bridge/canvas-mode-store (S3.7a)',
     parse: p({ sid: nul(sid), live: bool, locked: bool }),
   },
+  // S3.3 — live: the shell transport's buttons; the Present stage's media engine applies it.
+  'present-media-cmd': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'present/present-media (S3.3)',
+    parse: p({ op: lit('play', 'pause', 'mute', 'unmute') }),
+  },
   'key-prefs': {
     gate: 'parent',
     status: 'live',
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
+  },
+  'hold-intent': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/hold-rings (S2.18)',
+    parse: p({ field: bool, app: bool, gesture: opt(bool) }),
+  },
+  // S9.22b — sent by the shell's run list (S5.11 runs-store → v2/ai/ring-relay.js `holdsFor`):
+  // neutral tags from the state and the holder's name only, never the run's prompt
+  'ai-holds': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/hold-rings (S2.18)',
+    parse: p({ holds: aiHoldList }),
+  },
+  'undo-preview': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-preview (S2.20)',
+    parse: p({ artboards: arrOf(str), tag: nul(str) }),
+  },
+  'undo-mode': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-mode (S2.20b)',
+    parse: p({ opLog: bool }),
+  },
+  'asset-state': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'canvas-lib asset placeholder frame (S8.19, L1)',
+    parse: p({ items: assetStateList }),
   },
 };
 

@@ -23,6 +23,7 @@
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { PROJECT_MENU } from '../../../actions/menu.ts';
 import { isEnabled, isVisible } from '../../../actions/resolve.ts';
+import { ROLE_RANK } from '../../../actions/types.ts';
 import { initialMode, NO_CAPS, roleOfCaps, visibleSlots } from '../../../bridge/canvas-modes.ts';
 import { DOCK_PANELS } from '../../shell/dock.jsx';
 import { hiddenMenuIds } from '../diagnostics/diagnostics-model.js';
@@ -199,7 +200,9 @@ function whyRowAbsent(rowId, ctx) {
   const v = def?.visible;
   if (v?.shell && !v.shell.includes(ctx.shell))
     return `${def.label} is for ${v.shell.join(' and ')} only`;
-  if (v?.minRole) return `${def.label} needs ${v.minRole} rights`;
+  // A6c — only when the role is below it: a Can view floor must not explain a member's missing row.
+  if (v?.minRole && ROLE_RANK[ctx.role] < ROLE_RANK[v.minRole])
+    return `${def.label} needs ${v.minRole} rights`;
   if (rowId === 'sync.resync' || rowId === 'sync.download-all')
     return 'a cloud project syncs through its hub: the hub refuses a member’s resync (DDR-209 D1)';
   return 'not offered in this shell';

@@ -52,8 +52,58 @@ describe('Home route guards (§5.8 item 1)', () => {
       '/_home/cloud/prepare',
       '/_home/internal/search',
       '/_home/internal/thumbs',
+      // S6.5 — sign-in + invite proxy, and the profile Rust names for the next sign-in
+      '/_home/cloud/signin/start',
+      '/_home/cloud/signin/poll',
+      '/_home/cloud/signin/cancel',
+      '/_home/invite/peek',
+      '/_home/invite/accept',
+      '/_home/internal/signin/profile',
+      // S6.6 — hub, AI, CLI, What's New
+      '/_home/hub/test',
+      '/_home/hub/prepare',
+      '/_home/ai/status',
+      '/_home/ai/connect',
+      '/_home/cli/status',
+      '/_home/cli/install',
+      '/_home/whats-new',
     ])
-      expect(paths.has(p)).toBe(true);
+      expect([p, paths.has(p)]).toEqual([p, true]);
+  });
+
+  test("S6.6: the hub / AI / CLI / What's New rows are page routes (page secret)", () => {
+    const kinds = new Map(homeRouteTable(homeDeps()).map((r) => [`${r.method} ${r.path}`, r.kind]));
+    for (const row of [
+      'POST /_home/hub/test',
+      'POST /_home/hub/prepare',
+      'GET /_home/ai/status',
+      'POST /_home/ai/connect',
+      'GET /_home/cli/status',
+      'POST /_home/cli/install',
+      'GET /_home/whats-new',
+      'POST /_home/whats-new',
+    ])
+      expect([row, kinds.get(row)]).toEqual([row, 'home']);
+  });
+
+  test('every page row is reached only through the page secret — none is internal or open', () => {
+    // a new row lands in SAMPLES automatically; this pins that it is one of the two guarded kinds
+    for (const r of homeRouteTable(homeDeps()))
+      expect([r.path, r.kind === 'home' || r.kind === 'internal']).toEqual([r.path, true]);
+    expect(PAGE.length + INTERNAL.length).toBe(SAMPLES.length);
+  });
+
+  test('S6.5: the sign-in and invite rows are page routes, the profile row is internal', () => {
+    const kinds = new Map(homeRouteTable(homeDeps()).map((r) => [`${r.method} ${r.path}`, r.kind]));
+    for (const row of [
+      'POST /_home/cloud/signin/start',
+      'POST /_home/cloud/signin/poll',
+      'POST /_home/cloud/signin/cancel',
+      'POST /_home/invite/peek',
+      'POST /_home/invite/accept',
+    ])
+      expect([row, kinds.get(row)]).toEqual([row, 'home']);
+    expect(kinds.get('POST /_home/internal/signin/profile')).toBe('internal');
   });
 
   test('a request the Home page would send passes', async () => {
@@ -216,7 +266,15 @@ describe('the Home page secret (V2-3.6 H1)', () => {
 describe('internal routes (§5.8 item 2)', () => {
   test('Rust with the token gets in', async () => {
     for (const s of INTERNAL) {
-      const r = await fetchHome(rustReq(`${s.path}?q=x&pids=&pid=l0000000000000000`));
+      const r = await fetchHome(
+        s.method === 'POST'
+          ? new Request(`http://${HOST}${s.path}`, {
+              method: 'POST',
+              headers: rustReq(s.path).headers,
+              body: JSON.stringify({ profile: 'default', invite: null }),
+            })
+          : rustReq(`${s.path}?q=x&pids=&pid=l0000000000000000`)
+      );
       expect([s.path, r.status]).toEqual([s.path, 200]);
     }
   });

@@ -27,7 +27,7 @@ import { createHash } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
 import { legacyClaim } from '../../studio/access/scope.ts';
-import { OBSERVER_REFUSAL } from './access-gate.mjs';
+import { OBSERVER_REFUSAL, planPausedFromEnv, planPauseRefusal } from './access-gate.mjs';
 import {
   followAccessClaim,
   followAskOf,
@@ -256,6 +256,7 @@ export function upstreamHeaders(
     canvasToken,
     renderToken,
     collabRealm,
+    paused = false,
     canvasOnly = false,
     collabFollow = false,
   }
@@ -288,9 +289,27 @@ export function upstreamHeaders(
   // what `viewer` means — that would be a second copy of the role model, in
   // another language, in a package that ships to end users on npm. One table
   // (`role-matrix.mjs`), one authority; everything else mirrors its answer.
+  //
+  // `paused` (A3, S9.15b) — a socket on a paused project opens READ-ONLY at
+  // the member's real role: the studio's existing read-only socket gates then
+  // drop its Yjs body writes and its inspector mutations, while it keeps
+  // receiving everything. Only the socket lanes pass it; an HTTP write on a
+  // paused project never gets this far (402 plan above).
+  //
+  // S9.15c — and with NO writable lane: `plan`, not `1`. `1` is read-only BY
+  // ROLE, where the comment lane stays open (Can comment); `plan` closes it too,
+  // so a paused project's comments cannot sync over a socket either (lead
+  // decision `v2-lead-paused-comments-refused`). A studio reads anything but
+  // `0`/`1` as that stricter mode; an older one reads it as "not `0`" =
+  // read-only by role, which is what S9.15b already sent.
+  //
   // S3.7c — a canvas-only session has NO project role: the projection says
   // read-only whatever its grants hold (the claim below carries the grants).
-  out[`${INJECTED_HEADER_PREFIX}readonly`] = canvasOnly || isReadOnlyRole(role) ? '1' : '0';
+  out[`${INJECTED_HEADER_PREFIX}readonly`] = paused
+    ? 'plan'
+    : canvasOnly || isReadOnlyRole(role)
+      ? '1'
+      : '0';
   // V2-1.7 §5.4 — the whole ACCESS CLAIM (project role + canvas grants), which
   // the studio's `withSession` reads into `currentAccess()` (S9.9). The role and
   // readonly headers above stay what they were — the PROJECT role and its
@@ -493,6 +512,46 @@ export function createStudioProxy({
    *  - a canvas-only session gets no other capability: the general one would
    *    carry no project role and floor to observer of the WHOLE project.
    */
+  // S9.12b (V2-1.16 U6) — every upgrade this proxy spliced, by who opened it. The splice is
+  // a raw byte pipe, so the hub's own socket kick (`kickSessionsForLabel`, Hocuspocus peers)
+  // never reached these: a person removed from the project kept the studio's inspector,
+  // collab and canvas-HMR sockets — and every frame on them — until they closed the tab.
+  /** @type {Set<{ socket: any, email: string | null, label: string | null }>} */
+  const spliced = new Set();
+  function track(socket, { email, label = null }) {
+    const entry = {
+      socket,
+      email: typeof email === 'string' && email ? email.trim().toLowerCase() : null,
+      label: typeof label === 'string' && label ? label : null,
+    };
+    spliced.add(entry);
+    const drop = () => spliced.delete(entry);
+    if (typeof socket?.once === 'function') socket.once('close', drop);
+    else socket?.on?.('close', drop);
+  }
+
+  /**
+   * Destroy every spliced socket opened by `email` (both doors) or by the session holding
+   * token `label` (the shell door). Returns how many. Naming nobody closes nothing.
+   */
+  function closeUpgrades({ email = null, label = null } = {}) {
+    const who = typeof email === 'string' && email ? email.trim().toLowerCase() : null;
+    const tag = typeof label === 'string' && label ? label : null;
+    if (!who && !tag) return 0;
+    let n = 0;
+    for (const entry of [...spliced]) {
+      if (!((who && entry.email === who) || (tag && entry.label === tag))) continue;
+      spliced.delete(entry);
+      try {
+        entry.socket.destroy();
+      } catch {
+        /* already gone */
+      }
+      n += 1;
+    }
+    return n;
+  }
+
   function canvasTokenFor(session, request, canvasOnly) {
     const ask = followAskOf(request);
     if (ask.asked) {
@@ -542,6 +601,18 @@ export function createStudioProxy({
         reason: 'read-only',
         capability: verdict.capability,
       });
+      return true;
+    }
+    // A3 (S9.15b) — a paused project: the browser studio's writes answer the
+    // same 402 plan as the hub's own routes, AFTER the role check, so a role
+    // that could not write keeps its 403. Reads and keeping your place pass.
+    const paused = planPauseRefusal({
+      capability: verdict.capability,
+      role: session.role,
+      paused: planPausedFromEnv(env),
+    });
+    if (paused) {
+      refuse(response, paused.status, paused.body);
       return true;
     }
 
@@ -773,6 +844,17 @@ export function createStudioProxy({
         });
         return true;
       }
+      // A3 (S9.15b) — the same pause as the shell door, at the role the
+      // capability vouches.
+      const paused = planPauseRefusal({
+        capability: writeVerdict.capability,
+        role,
+        paused: planPausedFromEnv(env),
+      });
+      if (paused) {
+        refuse(response, paused.status, paused.body);
+        return true;
+      }
     }
     // Plant it on the shell document, and only there. Every other response on
     // this origin is a subresource of a shell that already carries one, so a
@@ -964,9 +1046,11 @@ export function createStudioProxy({
         sessionKey: null,
         publicUrl: env.MAUDE_PUBLIC_CANVAS_ORIGIN ?? null,
         collabRealm: 'canvas',
+        paused: planPausedFromEnv(env),
         collabFollow: following,
       }),
     });
+    track(socket, { email: verdict.subject ?? null });
     return true;
   }
 
@@ -1048,12 +1132,14 @@ export function createStudioProxy({
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
+        paused: planPausedFromEnv(env),
       }),
     });
+    track(socket, { email: session.email, label: session.label ?? null });
     return true;
   }
 
-  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade };
+  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade, closeUpgrades };
 }
 
 /** Straight byte pipe to loopback. Streams both ways — the asset lane moves
@@ -1124,4 +1210,7 @@ function defaultForwardUpgrade({ request, socket, head, port, path, headers }) {
   });
   upstreamSocket.on('error', () => socket.destroy());
   socket.on('error', () => upstreamSocket.destroy());
+  // S9.12b — a socket the proxy closes (U6) takes its studio half with it, and vice versa.
+  socket.on('close', () => upstreamSocket.destroy());
+  upstreamSocket.on('close', () => socket.destroy());
 }

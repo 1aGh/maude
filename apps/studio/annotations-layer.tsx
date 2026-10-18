@@ -190,6 +190,7 @@ import {
   type SnapGuide,
 } from './annotations-snap.ts';
 import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
+import { modeShows } from './bridge/mode-shows.ts';
 import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
 import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
 import {
@@ -201,6 +202,7 @@ import {
 } from './canvas-lib.tsx';
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
+import { clickToType } from './editing/click-to-type.ts';
 import { crossedDragThreshold, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
 import {
@@ -744,7 +746,8 @@ export interface StrokesStoreValue {
  *  ⌘Enter) are Preview's: in Edit the same chords are the OBJECT's (editing/object-keys.ts), so this
  *  listener stands down there. A canvas that never got a `set-mode` (null) keeps v1's behaviour. */
 export function boardChordsLive(win: Window): boolean {
-  return canvasModeStore(win).get().mode !== 'edit';
+  const mode = canvasModeStore(win).get().mode;
+  return !mode || !modeShows(mode, 'object-tools');
 }
 
 export const StrokesStoreContext = createContext<StrokesStoreValue | null>(null);
@@ -1169,7 +1172,8 @@ export function AnnotationsLayer() {
     tool === 'arrow' ||
     tool === 'sticky' ||
     tool === 'section' ||
-    tool === 'text';
+    tool === 'text' ||
+    tool === 'el-text'; // S2.12b — click to type owns the pointer, draws nothing
   const isErase = tool === 'eraser';
   const isActive = isDraw || isErase;
   // T20 / Phase 24 — every shape primitive carries stroke weight (FigJam ships
@@ -2133,6 +2137,17 @@ export function AnnotationsLayer() {
           label: 'Section',
           color: DEFAULT_SECTION_COLOR,
         });
+      } else if (tool === 'el-text') {
+        // S2.12b — Edit's Text is click to type: editable text under the click types in place, a
+        // click on nothing adds a text element (the toolbar insert verb), never an annotation.
+        const how = clickToType(document, findEditableElementAt(e.clientX, e.clientY), e);
+        if (how === 'code')
+          showCanvasToast(
+            'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
+          );
+        // Editing ARTBOARD content is an edit-mode activity: back to Select, as the Text tool does.
+        setTool('move');
+        return true;
       } else if (tool === 'text') {
         // Dogfood fix + Phase 4 (unified-text-editing) — the Text tool
         // clicking EXISTING editable text edits it in place rather than
@@ -2392,16 +2407,22 @@ export function AnnotationsLayer() {
   // canvas-shell Esc handler (`maude:cancel-stroke`). Safe to call when
   // nothing is being drawn — the early-return on drawingRef keeps it
   // a no-op.
-  const cancelStroke = useCallback(() => {
-    if (!drawingRef.current) return;
+  const cancelStroke = useCallback((): boolean => {
+    if (!drawingRef.current) return false;
     drawAnchorRef.current = null;
     lastDrawPointRef.current = null;
     setDrawing(null);
+    return true;
   }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const onCancel = () => cancelStroke();
+    // S3.12 — the event carries `{ cancelled }` so the esc ladder knows this press WAS the stroke's rung.
+    const onCancel = (e: Event) => {
+      const hit = cancelStroke();
+      const detail = (e as CustomEvent<{ cancelled?: boolean } | null>).detail;
+      if (hit && detail && typeof detail === 'object') detail.cancelled = true;
+    };
     document.addEventListener('maude:cancel-stroke', onCancel);
     return () => document.removeEventListener('maude:cancel-stroke', onCancel);
   }, [cancelStroke]);

@@ -100,17 +100,23 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
+import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
   type OverlayVisibility,
 } from './artboard-guides-overlay.tsx';
+import { AssetPlaceholderLayer } from './asset-placeholder.tsx';
 import { CanvasShell } from './canvas-shell.tsx';
+import { dragPansCanvas, isDesignSurface } from './input-router.tsx';
 import { usePresentStage } from './present/present-stage.tsx';
+import { usePreviewCamera, usePreviewing } from './preview/preview-camera.tsx';
+import { previewWheelPassthrough } from './preview/wheel-scroll.ts';
 import type { ArtboardPrintProp } from './print/units.ts';
 // feature-2-print-artboards T3 — side-effect import: registers the print
 // kind's overlay content (bleed/trim/margin) into artboard-guides-overlay's
@@ -130,11 +136,19 @@ import {
   shouldBootRefit,
 } from './bridge/canvas-mode-store.ts';
 import { type Insets, visibleRect, ZERO_INSETS } from './bridge/occlusion.ts';
-import {
-  buildMoveArtboardsRecord,
-  diffLayoutPositions,
-} from './commands/move-artboards-command.ts';
+import { buildMoveArtboardsRecord, type LayoutRider } from './commands/move-artboards-command.ts';
 import { scopedCdSelector, selectorIndex, shortText } from './dom-selection.ts';
+import {
+  type CommitPositionsOptions,
+  type CommitRider,
+  canvasMetaBody,
+  createDragBusCore,
+  type DragBusCore,
+  type DragFrame,
+  type LayoutRect,
+} from './drag-bus.ts';
+import { routeDrop } from './editing/duplicate-rhythm.ts';
+import { growCh, nextRenameId, RENAME_EVENT, requestRename } from './editing/rename-order.ts';
 import { applyCaptureChrome } from './exporters/capture-chrome.ts';
 import {
   type DomToSvgApi,
@@ -150,7 +164,12 @@ import {
 // (photo/pipeline.ts, which imports pixi.js) is loaded via a DYNAMIC import
 // inside <PhotoLayer> only when an edited photo actually mounts — see there.
 import { isDefaultEdit, type PhotoEdit } from './photo/schema.ts';
-import { isEmbedCanvas, isFollowCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
+import {
+  isEmbedCanvas,
+  isFollowCanvas,
+  isReadOnlyCanvas,
+  persistsCanvasMeta,
+} from './read-only-mode.ts';
 import { AgentPresenceProvider, useAgentPresence } from './use-agent-presence.tsx';
 import { type DragState, useArtboardDrag } from './use-artboard-drag.tsx';
 import {
@@ -325,10 +344,9 @@ const ENGINE_CSS = `
      down on zoom-out. Inherited, so this covers every descendant. No-op on Blink. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* DDR-046 — snap-layer magenta is distinct from --accent so the snap chrome
-     never visually melts into the selection halo during a drag-snap gesture.
-     OKLCH default approximates FigJam magenta in the project's color space. */
-  --guide-magenta: oklch(62% 0.28 350);
+  /* DDR-046 — the guide colour (--guide, was --guide-magenta) is distinct from --accent so the snap chrome
+     never visually melts into the selection halo during a drag-snap gesture. It is defined once, by the
+     generated HUD block (canvas-hud-tokens.gen.ts, from maude-v2); the literal below is the fallback only. */
   /* Canvas-shell chrome — the workspace plane + dotted grid follow the Maude
      chrome theme (--maude-chrome-*), NOT the DS palette. See canvas-shell.tsx
      HUD_TOKENS_CSS. Artboards (.dc-artboard) keep the DS theme. */
@@ -348,8 +366,8 @@ const ENGINE_CSS = `
   transform-origin: center;
 }
 .dc-snap-guide--sibling {
-  background: var(--guide-magenta, oklch(62% 0.28 350));
-  box-shadow: 0 0 4px color-mix(in oklab, var(--guide-magenta, oklch(62% 0.28 350)) 35%, transparent);
+  background: var(--guide, oklch(0.55 0.20 328));
+  box-shadow: 0 0 4px color-mix(in oklab, var(--guide, oklch(0.55 0.20 328)) 35%, transparent);
 }
 .dc-snap-guide--grid {
   background: color-mix(in oklab, var(--maude-chrome-fg-1, #4a3f30) 40%, transparent);
@@ -362,8 +380,8 @@ const ENGINE_CSS = `
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  color: #fff;
-  background: var(--guide-magenta, oklch(62% 0.28 350));
+  color: var(--guide-fg, #fff);
+  background: var(--guide, oklch(0.55 0.20 328));
   padding: 3px 6px;
   border-radius: 3px;
   white-space: nowrap;
@@ -378,9 +396,19 @@ const ENGINE_CSS = `
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.88); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
+/* A6c — reveal-artboard's flash (S1.3 jump list, S1.15 Compare): one ring, then gone. */
+.dc-reveal-flash {
+  animation: dc-reveal-flash 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes dc-reveal-flash {
+  0%   { box-shadow: 0 0 0 0 transparent; }
+  25%  { box-shadow: 0 0 0 4px var(--guide, oklch(0.55 0.20 328)); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 @media (prefers-reduced-motion: reduce) {
   .dc-snap-guide,
-  .dc-snap-pill {
+  .dc-snap-pill,
+  .dc-reveal-flash {
     animation: none !important;
   }
 }
@@ -634,7 +662,7 @@ export function useWorldRefContext(): RefObject<HTMLDivElement | null> | null {
 
 const VP_GRID = { cols: 3, w: 1280, h: 820, gutter: 80 } as const;
 
-interface ArtboardSeed {
+export interface ArtboardSeed {
   id: string;
   w: number;
   h: number;
@@ -715,7 +743,7 @@ function subtreeHasVideoComp(children: ReactNode): boolean {
   return visit(children);
 }
 
-function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
+export function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
   // Render order (the order DCArtboards appear in JSX), not alphabetical —
   // authors label artboards DS-01 / DS-02 / CV-01 etc. and expect that
   // numeric order to show top-left → bottom-right, but their ids are usually
@@ -851,16 +879,21 @@ export function isMetaSelfEcho(now: number = Date.now()): boolean {
   return now - last < META_SELF_ECHO_WINDOW_MS;
 }
 
-function patchCanvasMeta(patch: {
-  viewport?: ViewportState;
-  layout?: { artboards: ArtboardRect[] };
-}): void {
+function patchCanvasMeta(
+  patch: {
+    viewport?: ViewportState;
+    layout?: { artboards: ArtboardRect[] };
+  },
+  /** S2.9b — annotations riding with the layout (one action); `onRefused` when the server refuses. */
+  rider?: LayoutRider & { onRefused?: () => void }
+): void {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
   // DDR-247 — an embedded view persists nothing, camera included: its fit is
   // not the designer's view, and the next time they open the canvas in the
   // studio it must be where they left it. S3.7a — nor does a Present follower: its camera is the
   // presenter's, and the audience window shares the designer's own `_canvas-state/` view file.
-  if (isEmbedCanvas() || isFollowCanvas()) return;
+  // S1.14 — nor does a past version (`?sha=`, Version history's Viewing): it is not the designer's view.
+  if (!persistsCanvasMeta()) return;
   // Cloud Phase 25 C2 — a read-only session persists its CAMERA (per-user
   // `_canvas-state/` view, DDR-115) but never the LAYOUT lane (versioned
   // `.meta.json`). The dev-server refuses the layout lane too (http.ts);
@@ -905,13 +938,19 @@ function patchCanvasMeta(patch: {
   // (PATCH → server write → fs:json broadcast → iframe message) lands
   // safely inside the echo window even on a fast network.
   window.__maude_last_meta_self_write_at = Date.now();
+  const body = canvasMetaBody(file, sanitized, rider);
   fetch('/_api/canvas-meta', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ file, patch: sanitized }),
-  }).catch((err) => {
-    console.warn('[canvas-lib] persist viewport failed:', err);
-  });
+    body: JSON.stringify(body),
+  })
+    .then((res) => {
+      // A refused rider refused the whole move (nothing was written): show what the disk holds.
+      if (body.annotations && !res.ok) rider?.onRefused?.();
+    })
+    .catch((err) => {
+      console.warn('[canvas-lib] persist viewport failed:', err);
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -951,7 +990,12 @@ export interface ViewportControllerOptions {
    * state. Omit / return `false` to keep the Phase-4 behavior (drag only
    * with Space or middle-mouse).
    */
-  isPanDragActive?: () => boolean;
+  isPanDragActive?: (e: PointerEvent) => boolean;
+  /**
+   * S3.9 (Preview) — true hands this wheel event to the design underneath instead of panning (a web
+   * artboard scrolling inside itself). Read per event; omit to keep today's wheel (always the canvas').
+   */
+  wheelPassthrough?: (e: WheelEvent) => boolean;
 }
 
 export interface ViewportControllerHandle {
@@ -1016,7 +1060,7 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
+export function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
   return computeFit([rect], hostEl, pad, canvasInsets());
 }
 
@@ -1130,9 +1174,12 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     onSettle,
     jumpTargets,
     isPanDragActive,
+    wheelPassthrough,
   } = opts;
-  const isPanDragActiveRef = useRef<(() => boolean) | undefined>(isPanDragActive);
+  const isPanDragActiveRef = useRef<((e: PointerEvent) => boolean) | undefined>(isPanDragActive);
   isPanDragActiveRef.current = isPanDragActive;
+  const wheelPassthroughRef = useRef<((e: WheelEvent) => boolean) | undefined>(wheelPassthrough);
+  wheelPassthroughRef.current = wheelPassthrough;
 
   // Canonical viewport in a ref — synchronous, drives the world transform.
   const vpRef = useRef<ViewportState>({ x: 0, y: 0, zoom: 1 });
@@ -1593,7 +1640,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
       // signals hand-mode via `isPanDragActive`. Read per-event so the live
       // tool state controls the gate.
       const isLeftWithHandTool =
-        e.button === 0 && !spaceHeld.current && !!isPanDragActiveRef.current?.();
+        e.button === 0 && !spaceHeld.current && !!isPanDragActiveRef.current?.(e);
       if (!isMiddle && !isLeftWithSpace && !isLeftWithHandTool) return;
       e.preventDefault();
       try {
@@ -1690,6 +1737,7 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     const doc = host.ownerDocument || document;
     const captureWheel = (e: WheelEvent) => {
       if (!host.contains(e.target as Node)) return;
+      if (wheelPassthroughRef.current?.(e)) return; // S3.9: Preview — the design scrolls itself
       onWheel(e);
     };
     const captureKeyDown = (e: KeyboardEvent) => {
@@ -1778,36 +1826,37 @@ export function useViewportControllerContext(): ViewportControllerHandle | null 
   return useContext(ControllerContext);
 }
 
+export type { MovedArtboard } from './drag-bus.ts';
 // Drag-state context (Phase 4.2) — published by DesignCanvas so SnapGuideOverlay
 // (mounted by CanvasShell) can read the active drag's snap guides + so each
 // DCArtboard can know whether it's being dragged as a follower (multi-select
 // drag). A single source-of-truth: only one drag can be active at a time, so
 // the bus holds a single DragState. Each DCArtboard's hook writes here when
 // non-idle and resets to idle on release.
-/** Optional metadata accompanying a position commit. */
-export interface CommitPositionsOptions {
-  /**
-   * HUD / undo-stack label override. Default = `"move N artboard(s)"`.
-   * Distribute / align gestures pass their own label so undo HUD reads
-   * `"Undo: equal-space 4 artboards"` instead of `"Undo: move 4 artboards"`.
-   */
-  label?: string;
-}
+// S2.9b — the bus's stable half (frames, riders, layoutRects, the commit door) lives in
+// drag-bus.ts; contract client/v2/contracts/S2-S4-artboard-motion-ids.md §1–§2.
+export type { CommitPositionsOptions, CommitRider, DragFrame, LayoutRect };
 
-interface DragStateBus {
+interface DragStateBus extends DragBusCore {
   current: DragState;
   setCurrent: (s: DragState) => void;
-  /** Commit drag positions — DesignCanvas wires this to patchCanvasMeta. */
-  commitPositions: (
-    moved: { id: string; x: number; y: number }[],
-    opts?: CommitPositionsOptions
-  ) => void;
 }
 
 const DragStateContext = createContext<DragStateBus | null>(null);
+/** S2.9b — the same stable core, in a context whose value never changes during a drag. */
+const DragFramesContext = createContext<DragBusCore | null>(null);
 
 export function useDragStateContext(): DragStateBus | null {
   return useContext(DragStateContext);
+}
+
+/**
+ * S2.9b — `subscribeFrames` / `onCommit` / `layoutRects` without re-rendering per frame: a layer
+ * that moves 200 stickies at 60 fps reads the bus here, not through `useDragStateContext` (whose
+ * value changes with `current`).
+ */
+export function useDragFrames(): DragBusCore | null {
+  return useContext(DragFramesContext);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2160,7 +2209,16 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   const toolModeCtx = useToolModeOptional();
   const toolRef = useRef(toolModeCtx?.tool ?? 'move');
   toolRef.current = toolModeCtx?.tool ?? 'move';
-  const isPanDragActive = useCallback(() => toolRef.current === 'hand', []);
+  // S3.9 — Hand pans anywhere; Preview's Hand (`browse`) pans only off the design (V2-1.2 Q3).
+  const isPanDragActive = useCallback(
+    (e: PointerEvent) => dragPansCanvas(toolRef.current, isDesignSurface(e.target)),
+    []
+  );
+  // S3.9 — a web artboard scrolls inside itself in Preview; any other wheel pans as before.
+  const wheelPassthrough = useCallback(
+    (e: WheelEvent) => previewWheelPassthrough(e, canvasModeStore(window).get().mode),
+    []
+  );
 
   const controller = useViewportController({
     hostRef,
@@ -2170,6 +2228,19 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     onSettle,
     jumpTargets: artboards,
     isPanDragActive,
+    wheelPassthrough,
+  });
+
+  // S3.9 — Edit ⇄ Preview: the camera eases onto the artboard in view, once (preview/preview-camera.tsx).
+  usePreviewCamera({
+    hostRef,
+    artboards,
+    controller,
+    getCamera: getLiveViewport,
+    fit: (rect) => {
+      const host = hostRef.current;
+      return host ? computeFit([rect], host, 24, canvasInsets()) : { x: 0, y: 0, zoom: 1 };
+    },
   });
 
   // V2-1.2 §5.6 I2 — boot re-fit, once only. The shell's first `occluded-insets` usually lands after
@@ -2293,9 +2364,13 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
    * undo stack — both the initial commit (do) and every undo/redo replay
    * route through here, so React state always tracks the server.
    */
-  const applyArtboardLayout = useCallback((layout: unknown) => {
+  const applyArtboardLayout = useCallback((layout: unknown, rider?: LayoutRider) => {
+    const was = artboardsRef.current;
     setArtboards(layout as ArtboardRect[]);
-    patchCanvasMeta({ layout: { artboards: layout as ArtboardRect[] } });
+    patchCanvasMeta(
+      { layout: { artboards: layout as ArtboardRect[] } },
+      rider ? { ...rider, onRefused: () => setArtboards(was) } : undefined
+    );
   }, []);
 
   // Register the layout patch sink with the undo provider so the rebuilt
@@ -2306,43 +2381,39 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     return () => undoSinks.setSink('layoutPatchFn', undefined);
   }, [undoSinks, applyArtboardLayout]);
 
-  const commitArtboardPositions = useCallback(
-    (moved: { id: string; x: number; y: number }[], opts?: CommitPositionsOptions) => {
-      const movedById = new Map(moved.map((m) => [m.id, m]));
-      const before = artboardsRef.current;
-      const next = before.map((r) => {
-        const m = movedById.get(r.id);
-        if (m) return { ...r, x: m.x, y: m.y };
-        return r;
-      });
-      // Phase 20 — skip pushing no-op drags (click-without-movement). The
-      // user got back what they had, no edit happened, undo would do nothing.
-      if (!diffLayoutPositions(before, next)) return;
-      const record = buildMoveArtboardsRecord({
-        before: before.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, h: r.h })),
-        after: next.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, h: r.h })),
-        ...(opts?.label ? { label: opts.label } : {}),
-      });
-      // push() invokes the rebuilt cmd.do() = applyArtboardLayout(next) BEFORE
-      // updating the stack, so the optimistic local + PATCH flow is preserved.
-      void undoStackRef.current.push(record);
-    },
+  // S2.9b — the bus core: one per mount, stable across drags (frames, riders, layoutRects and
+  // the commit door every artboard-position commit goes through — drag, nudge, align, Tidy).
+  // Phase 20's no-op skip (click without movement) lives in the core.
+  const busCore = useMemo(
+    () =>
+      createDragBusCore({
+        layout: () => artboardsRef.current,
+        commit: (after, before, opts) => {
+          const record = buildMoveArtboardsRecord({
+            before,
+            after,
+            ...(opts.label ? { label: opts.label } : {}),
+            ...(opts.rider ? { rider: opts.rider } : {}),
+          });
+          // push() invokes the rebuilt cmd.do() = applyArtboardLayout(next, rider) BEFORE
+          // updating the stack, so the optimistic local + PATCH flow is preserved.
+          void undoStackRef.current.push(record);
+        },
+      }),
     []
   );
 
   const dragBus = useMemo<DragStateBus>(
-    () => ({
-      current: dragCurrent,
-      setCurrent: setDragCurrent,
-      commitPositions: commitArtboardPositions,
-    }),
-    [dragCurrent, commitArtboardPositions]
+    () => ({ ...busCore, current: dragCurrent, setCurrent: setDragCurrent }),
+    [dragCurrent, busCore]
   );
 
   const inner = (
     <div className="dc-canvas" ref={hostRef}>
       <div className="dc-world" ref={worldRef} style={worldStyle}>
         {children}
+        {/* S11.5 — the outlines an all-trashed canvas keeps (world coords, no hit area, shell-told). */}
+        <ArtboardGhostsLayer />
       </div>
       {showMiniMap ? <DCMiniMap /> : null}
       {/* Plan C F6 — separate bottom-left zoom pill (the design's ZoomHud).
@@ -2351,15 +2422,21 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
           ToolPalette's inline zoom is removed in tool-palette.tsx). It carries
           MORE than the mock — fit + actual-size — so no capability is lost. */}
       {showZoom ? <DCZoomToolbar /> : null}
+      <ViewportZoomReporter />
+      {/* ── S8.19 (L1) placeholder frames ── "Waiting for Jonas's Mac" / Missing over a picture
+          that failed to load; driven only by the shell's dgn `asset-state` (asset-placeholder.tsx). */}
+      <AssetPlaceholderLayer />
     </div>
   );
 
   return (
     <WorldContext.Provider value={ctxValue}>
       <ControllerContext.Provider value={controller}>
-        <DragStateContext.Provider value={dragBus}>
-          <CanvasShell hostRef={hostRef}>{inner}</CanvasShell>
-        </DragStateContext.Provider>
+        <DragFramesContext.Provider value={busCore}>
+          <DragStateContext.Provider value={dragBus}>
+            <CanvasShell hostRef={hostRef}>{inner}</CanvasShell>
+          </DragStateContext.Provider>
+        </DragFramesContext.Provider>
       </ControllerContext.Provider>
     </WorldContext.Provider>
   );
@@ -2562,9 +2639,14 @@ export function DCArtboard({
     // Cloud Phase 25 C2 — a read-only canvas keeps the Move tool for
     // selection, but artboards don't drag (editing is absent, not hidden).
     enabled: !!ctx && (toolMode?.tool ?? 'move') === 'move' && !isReadOnlyCanvas(),
-    onCommit: (moved) => {
-      if (dragBus) dragBus.commitPositions(moved);
+    // S2.9b — the ⌥-drag duplicate gesture carries no riders (contract §2: annotations are not
+    // duplicated with an artboard in v2.0); every other drop rides.
+    onCommit: (moved, { alt }) => {
+      // S2.10 — an ⌥ drop copies (the originals stay; `editing/artboard-commands.tsx` writes the copy);
+      // with nothing listening (an embed, a specimen) it is the v1 move, without riders (contract §2).
+      if (dragBus) routeDrop(alt, moved, window, (m, o) => dragBus.commitPositions(m, o));
     },
+    onFrame: (f) => dragBus?.emitFrame(f),
   });
 
   // Publish this artboard's drag state to the bus. Only push when non-idle;
@@ -2593,6 +2675,17 @@ export function DCArtboard({
   // shell writes the `label` prop), Escape or an unchanged name cancels.
   const [renaming, setRenaming] = useState(false);
   const renameDoneRef = useRef(false);
+  // S2.10 — the registry's `artboard.rename` and Tab from the previous name open this one's field.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const open = (e: Event) => {
+      if ((e as CustomEvent<{ id?: string }>).detail?.id !== id || isReadOnlyCanvas()) return;
+      renameDoneRef.current = false;
+      setRenaming(true);
+    };
+    window.addEventListener(RENAME_EVENT, open);
+    return () => window.removeEventListener(RENAME_EVENT, open);
+  }, [id]);
   const commitRename = (value: string) => {
     if (renameDoneRef.current) return;
     renameDoneRef.current = true;
@@ -2802,6 +2895,12 @@ export function DCArtboard({
             aria-label="Artboard name"
             defaultValue={label}
             maxLength={80}
+            // S2.10 — the field is as wide as the whole name (never the artboard's width, which would hide
+            // the end of a long one); it grows with every key.
+            style={{ width: 'max-content', minWidth: `max(100%, ${growCh(label)}ch)` }}
+            onInput={(e) => {
+              e.currentTarget.style.minWidth = `max(100%, ${growCh(e.currentTarget.value)}ch)`;
+            }}
             // biome-ignore lint/a11y/noAutofocus: the rename field opens on the designer's own double-click
             autoFocus
             onFocus={(e) => e.currentTarget.select()}
@@ -2812,7 +2911,13 @@ export function DCArtboard({
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === 'Enter') commitRename(e.currentTarget.value);
-              else if (e.key === 'Escape') {
+              else if (e.key === 'Tab') {
+                // S2.10 — save, then the next artboard's name opens (reading order; ⇧ goes back)
+                e.preventDefault();
+                const to = nextRenameId(ctx?.artboards ?? [], id, e.shiftKey);
+                commitRename(e.currentTarget.value);
+                if (to) requestRename(to);
+              } else if (e.key === 'Escape') {
                 renameDoneRef.current = true;
                 setRenaming(false);
               }
@@ -2946,7 +3051,7 @@ export interface CanvasRectsManifest {
 // mirrors the pickSpecimenEl chrome denylist (canvas-comment-mount.tsx) plus
 // the annotation layer's own root.
 const RECTS_CHROME_SELECTOR =
-  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar';
+  '.cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, [data-mc-hover-halo], [data-mdcc-annotations], .dc-minimap, .dc-zoom-toolbar, .dc-absent-layer';
 
 const RECTS_INTERACTIVE_TAGS = new Set([
   'button',
@@ -4088,7 +4193,9 @@ export function DCZoomToolbar() {
   // Before the early returns — hooks cannot sit behind a branch. Live, because
   // a zoom readout that only updates on settle reads as a frozen UI.
   const liveVp = useLiveViewport();
-  if (!controller) return null;
+  // S3.9 — Preview shows the shell's ZoomOnly readout instead (04 md-preview), so this pill steps aside.
+  const previewing = usePreviewing();
+  if (!controller || previewing) return null;
   // Menubar "View ▸ Zoom controls" toggle + Presentation Mode.
   if (chrome && (!chrome.zoom || chrome.present)) return null;
   const pct = Math.round(liveVp.zoom * 100);
@@ -4118,6 +4225,37 @@ export function DCZoomToolbar() {
   );
 }
 DCZoomToolbar.displayName = 'DCZoomToolbar';
+
+/**
+ * S3.9 — tells the shell the zoom (`viewport-zoom`): its ZoomOnly readout in Preview (and ZoomUndo later)
+ * draws it. `useLiveViewport` is the same ≤ 20 Hz cadence the pill above reads — live during a gesture,
+ * the settled value after — and an unchanged percentage posts nothing.
+ */
+function ViewportZoomReporter() {
+  const vp = useLiveViewport();
+  // A fresh `set-mode` (the shell seeds a canvas that just became the active one) re-posts the zoom: the
+  // shell only listens to the ACTIVE canvas, so a background canvas' last post was dropped.
+  const store = typeof window === 'undefined' ? null : canvasModeStore(window);
+  const modeSeq = useSyncExternalStore(
+    store ? store.subscribe : () => () => {},
+    () => (store ? store.get().modeSeq : -1),
+    () => -1
+  );
+  const lastKey = useRef('');
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    const key = `${Math.round(vp.zoom * 100)}|${modeSeq}`;
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+    try {
+      window.parent.postMessage({ dgn: 'viewport-zoom', zoom: vp.zoom }, '*');
+    } catch {
+      /* detached */
+    }
+  }, [vp.zoom, modeSeq]);
+  return null;
+}
+ViewportZoomReporter.displayName = 'ViewportZoomReporter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Specimen helpers

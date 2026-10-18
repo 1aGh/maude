@@ -6,6 +6,8 @@
 // helpers (`toolKeyAction`, `escStep`, `baseMode`, `initialMode`, `clampMode`,
 // `holdsModuleUpdates`) and `MODE_TOOLS` land with the dormant governed path (V2-2.10e, T8).
 
+import { holdsAiChanges } from './mode-shows.ts';
+
 export const CANVAS_MODES = ['edit', 'viewing', 'preview', 'present'] as const;
 export type CanvasModeV2 = (typeof CANVAS_MODES)[number];
 
@@ -76,7 +78,7 @@ export const isToolId = (v: unknown): v is ToolId => typeof v === 'string' && TO
 // v1 bridge: until the two v2 toolbars land (V2-4.5) the canvas still runs DDR-223's binary
 // `preview | edit` posture over the v1 tools. A governed mode maps onto it:
 //   edit    → edit / `move`
-//   viewing → edit / `move`      a read-only `move` IS v1's "select & inspect" (`inspect` is S3's)
+//   viewing → edit / `inspect`   S3.11: `inspect` is a tool of its own (outline + size tag, no handles)
 //   preview → preview / `browse`
 //   present → preview / `browse`  Present · Canvas: clicks pan (Present · Artboards is S3's)
 
@@ -114,7 +116,7 @@ export const V1_POSTURE: Readonly<Record<CanvasModeV2, 'preview' | 'edit'>> = Ob
 /** The resting tool each governed mode arms (v1 ids until V2-4.5). */
 export const REST_TOOL: Readonly<Record<CanvasModeV2, ToolId>> = Object.freeze({
   edit: 'move',
-  viewing: 'move',
+  viewing: 'inspect',
   preview: 'browse',
   present: 'browse',
 });
@@ -185,12 +187,13 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
     slots: Object.freeze([
       slot({ key: 'V', label: 'Select', tool: 'move', minRole: 'edit' }),
       slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'edit' }),
-      // Frame / Text / Image are backed by today's "+ Insert Div / Text / Image" until S2 builds the
-      // tools: a click adds one at its default size, as the insert does.
-      slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit', insert: 'div' }),
-      slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit', pending: 'S2' }),
+      // Frame and Shape are drawn by dragging (S2.13): a frame inside an artboard, an artboard on empty canvas.
+      // Image is still backed by today's "+ Insert Image" until S2 builds the tool.
+      slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit' }),
+      slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit' }),
       slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit', pending: 'S2' }),
-      slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit', insert: 'text' }),
+      // Click to type (S2.12b): a tool, no longer today's momentary Insert Text.
+      slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit' }),
       slot({
         key: 'I',
         label: 'Image',
@@ -199,14 +202,8 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
         insert: 'image',
         panel: 'assets',
       }),
-      slot({
-        key: '⇧I',
-        label: 'Component',
-        tool: 'component',
-        minRole: 'edit',
-        panel: 'components',
-        pending: 'S2',
-      }),
+      // Component arms no tool: the shell's picker (⇧I, S2.16) hands a pick back as `place-component`
+      slot({ key: '⇧I', label: 'Component', tool: null, minRole: 'edit', panel: 'components' }),
       slot({
         key: '',
         label: 'More',
@@ -214,11 +211,12 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
         minRole: 'edit',
         popover: 'more',
         more: Object.freeze([
-          slot({ key: '', label: 'Line', tool: 'line', minRole: 'edit', pending: 'S2' }),
-          slot({ key: '', label: 'Ellipse', tool: 'ellipse', minRole: 'edit', pending: 'S2' }),
-          slot({ key: '', label: 'Polygon', tool: 'polygon', minRole: 'edit', pending: 'S2' }),
+          slot({ key: '', label: 'Line', tool: 'line', minRole: 'edit' }),
+          slot({ key: '', label: 'Ellipse', tool: 'ellipse', minRole: 'edit' }),
+          slot({ key: '', label: 'Polygon', tool: 'polygon', minRole: 'edit' }),
           slot({ key: '', label: 'Crop', tool: 'crop', minRole: 'edit', pending: 'S2' }),
-          slot({ key: '', label: 'Export area', tool: 'slice', minRole: 'edit', pending: 'S2' }),
+          // Export area (S2.13): drag a rectangle, the Export sheet opens with it. Writes nothing to the file.
+          slot({ key: '', label: 'Export area', tool: 'slice', minRole: 'edit' }),
         ]),
       }),
     ]),
@@ -256,7 +254,7 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
   viewing: Object.freeze({
     rest: 'inspect' as const,
     slots: Object.freeze([
-      // A click shows specs, a drag pans. `inspect` is S3's; until then the slot rides `move`.
+      // A click shows specs, a drag pans (S3.11: the `inspect` tool).
       slot({ key: 'H', label: 'Hand', tool: 'inspect', minRole: 'view' }),
       slot({ key: 'C', label: 'Comment', tool: 'comment', minRole: 'comment' }),
     ]),
@@ -271,10 +269,9 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
   }),
 });
 
-/** Until a v2 tool has a descriptor, its slot arms this v1 tool instead (S3 retires the entry). */
-export const V1_TOOL_BRIDGE: Readonly<Partial<Record<ToolId, ToolId>>> = Object.freeze({
-  inspect: 'move',
-});
+/** Until a v2 tool has a descriptor, its slot arms this v1 tool instead. S3.11 retired `inspect → move`
+ *  (it is a tool of its own now); the map stays for the next v2 slot that needs a bridge (none today). */
+export const V1_TOOL_BRIDGE: Readonly<Partial<Record<ToolId, ToolId>>> = Object.freeze({});
 
 /** The tools a double-click locks on (sticky lock, T19). Q7: a mode change clears the lock. */
 export const STICKY_LOCKABLE: ReadonlySet<ToolId> = new Set<ToolId>([
@@ -485,7 +482,7 @@ export function homeModeOfTool(
 export function holdsModuleUpdates(
   snap: { mode: CanvasModeV2 | null; present: PresentSpec | null } | null | undefined
 ): boolean {
-  return !!snap && snap.mode === 'present' && snap.present?.kind === 'artboards';
+  return !!snap && !!snap.mode && holdsAiChanges(snap.mode, snap.present);
 }
 
 /** A well-formed Present spec (the shell's own, or one a `mode-request` asked for): `artboards`

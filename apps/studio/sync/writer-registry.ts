@@ -55,7 +55,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-css': { ...LANE_SOURCE, rows: 'S02' },
   '/_api/edit-attr': { ...LANE_SOURCE, rows: 'S03' },
   // S2.1 — the one dispatch route for S2/S3 structural edits (routes/edit.ts, edit-ops/)
-  '/_api/edit-op': { ...LANE_SOURCE, rows: 'S2-ops' },
+  // S2.10b — in accepted mode an op with a layout part (a copy and its place, an artboard moved to the
+  // trash) is ONE proposal: proposeLanes, html + meta (kind / label / origin.trashed from the op).
+  '/_api/edit-op': {
+    ...LANE_SOURCE,
+    rows: 'S2-ops',
+    via: 'an op that places or removes artboards: proposeLanes → one action, html + meta lane.replace with the read bases, written raw after acceptance; any other op: the source write path',
+    test: 'test/v2-artboard-one-step-hub.test.ts',
+  },
   '/_api/reorder': { ...LANE_SOURCE, rows: 'S04' },
   '/_api/delete-element': { ...LANE_SOURCE, rows: 'S05' },
   '/_api/insert-element': { ...LANE_SOURCE, rows: 'S06' },
@@ -91,7 +98,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/canvas-meta': {
     class: 'lane',
     rows: 'S19',
-    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base; camera/overlays/locked stay local',
+    // S2.9b — a PATCH with an `annotations` rider is ONE action: proposeLanes, meta + annotations.
+    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base; camera/overlays/locked stay local; with an annotations rider → proposeLanes, meta + annotations as one action',
     test: 'test/sync-accepted-runtime.test.ts',
   },
   '/_api/annotations': {
@@ -132,6 +140,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
+  '/_api/links': { class: 'read' }, // S3.10a routes/element-links.ts: where on-click links go, parsed from the TSX
   '/_api/project/restore': {
     class: 'lane',
     rows: 'X15',
@@ -157,6 +166,23 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S11.6 — the structured canvas errors (routes/canvas-source.ts, with /_api/canvas-source)
+  '/_api/canvas-errors': { class: 'read' },
+  // S1.12b routes/history.ts — Version history (V2-1.9 §5.11)
+  '/_api/project/versions': { class: 'read' },
+  '/_api/project/changes': { class: 'read' },
+  '/_api/project/object-history': { class: 'read' },
+  '/_api/project/source': { class: 'read' },
+  '/_api/project/name': {
+    class: 'structural',
+    via: 'history.name { doc, revision, name|null } — one `name` action, an @name effect + names row, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
+  '/_api/project/aside': {
+    class: 'structural',
+    via: 'history.aside { doc, lane, content, label? } — one `aside` action, the body as an @aside blob, no head moves',
+    test: 'test/history-routes-access.test.ts',
+  },
   // S1.7 routes/trash.ts — the shared Trash over the one op log (S1-trash.md)
   '/_api/trash': { class: 'read' },
   '/_api/trash/restore': {
@@ -168,6 +194,50 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     class: 'structural',
     via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
     test: 'test/acl-l18-trash.test.ts',
+  },
+  // S10.3 routes/ds.ts — a converted design system's reviews (V2-1.6 §5.11–§5.12)
+  '/_api/ds/state': { class: 'read' },
+  '/_api/ds/revision': { class: 'read' },
+  '/_api/ds/revisions': { class: 'read' },
+  '/_api/ds/usage': { class: 'read' },
+  '/_api/ds/publish': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-publish.test.ts',
+  },
+  '/_api/ds/pending': {
+    class: 'lane',
+    via: 'the DS canvas meta (dsPending) as ONE kernel action (proposeFiles)',
+    test: 'test/ds-routes-roles.test.ts',
+  },
+  '/_api/ds/outside': {
+    class: 'file-plane',
+    rows: 'keep: a revision + head.json base; undo: the working files from base — Plane B only',
+  },
+  '/_api/ds/pick': {
+    class: 'lane',
+    via: 'the pending entry dropped from the DS canvas meta (proposeFiles) + head.json base = K',
+    test: 'test/ds-conflict-pick.test.ts',
+  },
+  '/_api/ds/canvas': {
+    class: 'lane',
+    via: 'a canvas meta dsRev (+ its data-ds-rev="head" strips) as ONE kernel action (proposeFiles)',
+    test: 'test/ds-undo-hook.test.ts',
+  },
+  '/_api/ds/trash': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/restore': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
+  },
+  '/_api/ds/clear': {
+    class: 'lane',
+    via: 'ONE kernel action (proposeFiles: meta/TSX lane.replace ops) for the Plane-A half; revisions, working files and head.json ride the file plane, head.json last (ds/engine.ts, S10.2)',
+    test: 'test/ds-trash-token.test.ts',
   },
   // S1.18 — a stable canvas link's entry → path (history/links.ts)
   '/_api/link/resolve': { class: 'read' },
@@ -316,6 +386,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/cloud/attach/code': { class: 'local' },
   '/_api/cloud/detach': { class: 'local' },
   '/_api/cloud/history': { class: 'read' },
+  // S6.0b routes/cloud-move.ts: creates the cloud project + links THIS folder (the attach lane);
+  // the seed-up is the sync runtime's, never this route's
+  '/_api/cloud/move': { class: 'local' },
   '/_api/cloud/projects': { class: 'read' },
   '/_api/cloud/signin/poll': { class: 'local' },
   '/_api/cloud/signin/start': { class: 'local' },
@@ -324,8 +397,10 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/debug-bundle': { class: 'local' },
   '/_api/export': { class: 'local' },
   '/_api/export-assemble': { class: 'local' },
+  '/_api/export-estimate': { class: 'local' }, // S8.1 — numbers only, writes nothing
   '/_api/export-jobs': { class: 'local' },
   '/_api/export-jobs/download': { class: 'local' },
+  '/_api/export-jobs/retry': { class: 'local' }, // S8.4 — re-runs a job's failed items; the files stay on this Mac
   '/_api/export-warmup': { class: 'local' },
   '/_api/figma/connect': { class: 'local' },
   '/_api/generate/keyframe-model': { class: 'local' },
@@ -353,7 +428,20 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/outbox/:id/retry': { class: 'local' },
   '/_api/shell/status': { class: 'read' }, // routes/shell.ts: the desktop shell's probe — four counts, no effect
   '/_api/project/format': { class: 'read' }, // routes/project-format.ts
+  '/_api/asset-state': { class: 'read' }, // routes/asset-state.ts (S8.19): disk + queue + hub presence, no effect
   '/_api/pins': { class: 'local' }, // routes/pins.ts: _canvas-state/_pins.json (DDR-115 runtime)
+  // S11.13 routes/settings.ts — Settings › Advanced reads (a count; plugin versions)
+  '/_api/kg/summary': { class: 'read' },
+  '/_api/settings/about': { class: 'read' },
+  '/_api/sync/availability': { class: 'read' }, // routes/availability.ts (S11.4): listed minus on disk, no effect
+  '/_api/sync/conflicts': { class: 'read' }, // routes/sync-conflicts.ts (S9.24): this Mac's _state/conflicts/, no effect
+  // S9.24 — a conflict pick is the canvas's own op path: one batch, one annotations lane.replace.
+  '/_api/sync/conflicts/resolve': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'applyAnnotationOps → onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
+    test: 'test/sync-conflicts-route.test.ts',
+  },
   // S3.5 — routes/present.ts: Present order / skip / notes in the versioned .meta.json
   '/_api/present-meta': {
     class: 'lane',
@@ -361,6 +449,18 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onMetaChanged hook → meta lane.replace with the replaced file as base (api writeCanvasMetaText, the layout lane writer)',
     test: 'test/present-meta-route.test.ts',
   },
+  '/_api/ds/components': { class: 'read' }, // S2.16 routes/edit.ts: what the Component picker lists (minRole edit)
+  '/_api/comp-media': { class: 'read' }, // S7.4 routes/video.ts: the comp's words / speech / beats, derived from the cut
+  // S9.19 — routes/share.ts: the desktop's door to the linked hub's /api/access/*. Who has access
+  // lives on the hub (users / invites / grants), never in the project's files: no lane carries it.
+  '/_api/share/posture': { class: 'read' },
+  '/_api/share/me': { class: 'read' },
+  '/_api/share/people': { class: 'read' },
+  '/_api/share/invites': { class: 'local' }, // the hub's invitation (or this Mac's outbox while offline)
+  '/_api/share/invites/:id/resend': { class: 'local' },
+  '/_api/share/invites/:id/revoke': { class: 'local' },
+  '/_api/share/people/:id': { class: 'local' },
+  '/_api/share/people/:id/remove': { class: 'local' },
   '/_api/project/migrate': {
     class: 'migration',
     via: 'the migrate engine rewrites files after the hub format flip (V2-1.12 §5.10 I7, all-or-nothing with its own snapshot); peers receive the rewritten files through the file plane / watcher import like any outside edit',

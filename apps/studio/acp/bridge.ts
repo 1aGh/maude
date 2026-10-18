@@ -29,7 +29,8 @@ import {
 } from '@agentclientprotocol/sdk';
 
 import { autoAllowRules } from '../actions/verbs.ts';
-import { chatSpawnEnv, scrubAgentEnv } from './env.ts';
+import { readUiPrefs } from '../ui-prefs.ts';
+import { chatSpawnEnv, scrubAgentEnv, teamsSpawnEnv } from './env.ts';
 import type { SdkPluginConfig } from './plugin-bootstrap.ts';
 import {
   resolveAdapterEntry,
@@ -1139,7 +1140,8 @@ export class AcpBridge {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
       // V2-1.15 §5.4 — this chat's id and no other's (a stale MAUDE_CHAT_ID is dropped).
-      env: chatSpawnEnv(env, this.opts.chatId),
+      // S11.13 — Settings › Advanced › teams (prefs.json experimentalTeams), read at each spawn.
+      env: chatSpawnEnv(teamsSpawnEnv(env, readUiPrefs()), this.opts.chatId),
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',

@@ -103,6 +103,18 @@ const TEXT_TAGS = new Set([
 ]);
 
 // ── the built-ins ──────────────────────────────────────────────────────────────────────────
+// S2.9 — several artboards (and only artboards): their own rows, "4 artboards" in the title. Ahead of `multi`.
+registerKind({
+  id: 'multi-artboard',
+  order: 5,
+  label: (s) => {
+    const kindsOf = new Set(s.map((el) => el?.attrs?.['data-dc-kind'] || 'digital'));
+    return kindsOf.size === 1
+      ? (ARTBOARD_KIND_CHIPS[[...kindsOf][0]] ?? ARTBOARD_KIND_CHIPS.digital)
+      : 'Mixed';
+  },
+  match: (s) => Array.isArray(s) && s.length > 1 && s.every((el) => isArtboardSelection(el)),
+});
 registerKind({
   id: 'multi',
   label: 'Mixed',

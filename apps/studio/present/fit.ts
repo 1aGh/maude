@@ -108,6 +108,23 @@ export function fitForKind(input: FitInput): Fit {
   };
 }
 
+/**
+ * S3.3 — a web page scrolled by `scroll` artboard px (md-edge-mixed: "starts at the top and scrolls with the
+ * trackpad"). The page moves up by `scroll` and the visible window moves down with it, so the stage mask
+ * follows. Clamped to 0..maxScroll; only a web artboard has anything to scroll, every other fit comes back
+ * as it is.
+ */
+export function scrolled(fit: Fit, scroll: number): Fit {
+  if (!(fit.maxScroll > 0) || !Number.isFinite(scroll)) return fit;
+  const s = Math.min(fit.maxScroll, Math.max(0, scroll));
+  if (s === 0) return fit;
+  return {
+    ...fit,
+    place: { x: fit.place.x, y: fit.place.y - s * fit.scale },
+    window: { ...fit.window, y: fit.window.y + s },
+  };
+}
+
 /** The canvas camera that puts `fit` on screen when the artboard's top-left is at `origin` (world px). */
 export function cameraFor(
   fit: Fit,

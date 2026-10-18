@@ -8,7 +8,7 @@
  *             SMIL animation children injected onto each track's target — so the
  *             two forms can never structurally drift (the test asserts this).
  *
- *             Mechanism (per the DDR-094 conversion rules + `_draw-motion-rules`):
+ *             Mechanism (per the DDR-094 conversion rules + `references/draw/motion-rules`):
  *               • `d` shape morph → `<animate attributeName="d" calcMode="spline">`
  *                 (NEVER CSS `d:path()`, which doesn't animate live).
  *               • opacity / fill / stroke → `<animate>`.
@@ -22,7 +22,7 @@
  *             gate for the SVG form (CSS-driven host). SMIL itself ignores the
  *             CSS catch-all (a re-discovered gotcha — DDR-094 background); the
  *             durable RM story is the host wrapper (`useReducedMotion`) for JSX
- *             and the Lottie host for production. Documented in `_draw-motion-rules.md`.
+ *             and the Lottie host for production. Documented in `references/draw/motion-rules.md`.
  *
  *             Production delivery is Lottie (DDR-094) — this is the maude
  *             authoring/preview form. React-free (DDR-067): JSX is a STRING.
@@ -282,7 +282,7 @@ function buildAnimatedTree(
   const { missing } = injectAnimations(tree, plan);
   // Only the SVG form gets a live <style> RM gate — a CSS `{}` block can't be a
   // JSX text child without entity-escaping the braces; JSX hosts gate via
-  // useReducedMotion (see _draw-motion-rules.md).
+  // useReducedMotion (see references/draw/motion-rules.md).
   if (dialect === 'svg') tree.children.unshift(reducedMotionStyle());
   return { tree, missing };
 }
@@ -309,7 +309,7 @@ export function toAnimatedSvg(
  * embedding. Renders the SAME SMIL node tree in the JSX dialect (React renders
  * SMIL inside an `<svg>`), so the on-disk and on-canvas animated forms are
  * structurally identical. The reduced-motion gate is the host's responsibility
- * (`useReducedMotion`) — see `_draw-motion-rules.md`.
+ * (`useReducedMotion`) — see `references/draw/motion-rules.md`.
  */
 export function toAnimatedJsx(
   primitives: DrawPrimitive[],

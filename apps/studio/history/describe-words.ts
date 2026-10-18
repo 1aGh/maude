@@ -4,6 +4,31 @@
 // real noun. Everything here is deterministic and side-effect free, so S1.10's CSS / meta / annotation
 // lanes reuse the same property words, value words and quoting as the TSX lane.
 
+import { canvasWords, externalDisplay, parseLinkTarget } from '../bridge/link-target.ts';
+
+/**
+ * S3.10a — where a `data-cd-link` goes, in words: another canvas by name ("Pricing", "Pricing › desktop"),
+ * an artboard of this canvas by id ("artboard desktop"), a website by host + path ("cal.com/studio"). An
+ * invalid value is quoted; a formula is "a formula".
+ */
+export function linkTargetWords(raw: string): string {
+  if (raw === '{expr}') return 'a formula';
+  const t = parseLinkTarget(raw);
+  if (!t) return quote(raw, 40);
+  if (t.kind === 'artboard') return `artboard ${quote(t.artboard, 40)}`;
+  if (t.kind === 'canvas')
+    return t.artboard === null ? canvasWords(t.canvas) : `${canvasWords(t.canvas)} › ${t.artboard}`;
+  return externalDisplay(t.url);
+}
+
+/** "Link to <target> added / changed / removed on <element>" (lead decision v2-lead-link-changes-in-tsx-lane). */
+export function linkChangeWords(before: string | null, after: string | null, who: string): string {
+  if (before === null && after !== null) return `Link to ${linkTargetWords(after)} added on ${who}`;
+  if (before !== null && after === null)
+    return `Link to ${linkTargetWords(before)} removed on ${who}`;
+  return `Link to ${linkTargetWords(after ?? '')} changed on ${who}`;
+}
+
 /** A source value: a literal (string form) or a computed expression (its normalised source). */
 export interface Val {
   lit: boolean;

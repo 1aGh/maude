@@ -18,6 +18,16 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { keywords: ['mode', 'live', 'interact', 'edit'] },
   },
   {
+    // S3.10a — back out of a followed link (S3-links-format §5 "Back"): the PreviewBar's "‹ Homepage". No key
+    // (esc leaves Preview, it does not go back). A per-window stack in shell memory; nothing to pop = nothing.
+    id: 'preview.back',
+    label: 'Back',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { mode: ['preview'] },
+    search: { keywords: ['link', 'previous', 'return', 'canvas'] },
+  },
+  {
     id: 'view.panels',
     label: 'Hide panels',
     kind: 'toggle',
@@ -46,6 +56,34 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // v1's bare H died with V2-4.5b (H is Hand in every toolbar, rule 13): the Canvases › Advanced
     // switch and View › Advanced, no key.
     legacy: { menu: 'Show hidden files', sheet: 'Hidden files' },
+  },
+  // S11.9 (06 `ad-left`) — the two switches of the left panel's Advanced folds. Both are the person's own
+  // view (kept on this Mac, never written to the project); the select-by-selector field is the Layers
+  // panel's, and the canvas answers with a selection of what matched inside the artboards (capped, scoped).
+  {
+    id: 'canvases.show-file-names',
+    label: 'Show file names',
+    kind: 'toggle',
+    exec: 'shell',
+    search: { keywords: ['file', 'names', 'tsx', 'files'], where: 'Canvases panel › Advanced' },
+  },
+  {
+    id: 'layers.show-tags',
+    label: 'Show tags and ids',
+    kind: 'toggle',
+    exec: 'shell',
+    search: { keywords: ['tags', 'ids', 'layers', 'html'], where: 'Layers panel › Advanced' },
+  },
+  {
+    id: 'layers.select-by-selector',
+    label: 'Select by selector',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['selector', 'css', 'query', 'select', 'matching'],
+      where: 'Layers panel › Advanced',
+    },
   },
   {
     id: 'view.design-system',
@@ -85,6 +123,17 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // Clearing it out is owner-only [A6].
   },
   {
+    id: 'trash.restore',
+    label: 'Restore',
+    kind: 'command',
+    icon: 'trash',
+    exec: 'shell',
+    // S1.17 (S1-slices row S1.7, V2-1.7 §5.2 `trash`): the Trash row's hover Restore (S1.8 draws it).
+    // POST /_api/trash/restore refuses a viewer/commenter itself. Needs a row, so ⌘K hides it. No key.
+    visible: { minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
     id: 'trash.clear',
     label: 'Clear out the trash…',
     kind: 'command',
@@ -108,12 +157,27 @@ export const VIEW_ACTIONS: ActionDef[] = [
       sheet: 'Comments sidebar',
     },
   },
+  // S9.22 — the Comments panel's four filters (CONTRACT §6: Open · Mine · Resolved · All) and a thread
+  // deep link. Each opens the panel (as `view.comments` does) on that filter; ⌘K lists them by their
+  // words. No keys: ⇧⌘M stays the panel's one chord. `comments.open-thread` takes `{ id }` over the
+  // `run-action` lane (the mention toast's Open, a deep link, ⌘K on a result).
+  { id: 'comments.filter-open', label: 'Show open comments', kind: 'command', exec: 'shell' },
+  { id: 'comments.filter-mine', label: 'Show my comments', kind: 'command', exec: 'shell' },
+  {
+    id: 'comments.filter-resolved',
+    label: 'Show resolved comments',
+    kind: 'command',
+    exec: 'shell',
+  },
+  { id: 'comments.filter-all', label: 'Show all comments', kind: 'command', exec: 'shell' },
+  { id: 'comments.open-thread', label: 'Open comment thread', kind: 'command', exec: 'shell' },
   {
     id: 'view.exports',
     label: 'Exports',
     kind: 'toggle',
     icon: 'export',
     exec: 'shell',
+    visible: { minRole: 'comment' },
     // V2-4.3a (CONTRACT §1, C9): the Exports list — also the Share cluster's Exports icon once any export
     // exists, and ⌘K "Exports". No key; shell-side (the export center is the shell's).
   },
@@ -285,7 +349,8 @@ export const VIEW_ACTIONS: ActionDef[] = [
     icon: 'link',
     exec: 'shell',
     visible: { minRole: 'edit' },
-    enabled: { any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
+    // S3.8 (S3-present-session §5): offline the copy waits — greyed until the network is back.
+    enabled: { facts: ['online'], any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
     search: {
       keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
       note: 'in a cloud project',

@@ -6,6 +6,7 @@
 
 import type { ActionDef, ActionId } from '../types.ts';
 
+// Decision v2-A6c-can-view-menu-minrole: Diagnostics is an app-level row — every role keeps it.
 const row = (id: ActionId, label: string): ActionDef => ({
   id,
   label,
@@ -18,6 +19,11 @@ export const DIAGNOSTICS_ACTIONS: ActionDef[] = [
   row('diag.server', 'Server'),
   row('diag.ai', 'AI setup'),
   row('diag.logs', 'Logs'),
+  // S11.11 — the Logs sheet's two buttons, also reachable from ⌘K. Copy goes to the clipboard in the
+  // shell; Show in Finder is the Tauri command `diagnostics_reveal_logs` (S11.16), so it is `native`
+  // and only runs where that command exists (menu-runner.js NATIVE_COMMANDS).
+  row('diag.copy-logs', 'Copy logs'),
+  { id: 'diag.logs-show-in-finder', label: 'Show logs in Finder', kind: 'command', exec: 'native' },
   row('diag.ai-recheck', 'Check AI setup again'),
   row('diag.address', 'Address'),
   row('diag.process', 'Process'),

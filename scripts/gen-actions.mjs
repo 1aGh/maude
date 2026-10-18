@@ -39,10 +39,15 @@ const { aiActionsDoc, cliHelpModule, designHelpBlock, studioActionsSkill, withHe
   await import('./gen-actions-docs.mjs');
 const { FORMAT_SCHEMAS } = await import('../apps/studio/schema/formats.ts');
 const { annotationsJsonSchema } = await import('../apps/studio/annotations/board-schema.ts');
+const { transcriptJsonSchema, beatsJsonSchema } = await import(
+  '../apps/studio/video/format-ids.ts'
+);
 
 /** The generated schemas, by the `schema` path formats.ts names for them. */
 const GENERATED = {
   'annotations/board-schema.ts#annotationsJsonSchema': annotationsJsonSchema,
+  'video/format-ids.ts#transcriptJsonSchema': transcriptJsonSchema,
+  'video/format-ids.ts#beatsJsonSchema': beatsJsonSchema,
 };
 
 function die(msg) {
@@ -105,7 +110,11 @@ function nativeMenu() {
       if ('separator' in n) return { kind: 'separator', ...(n.macos ? { macos: true } : {}) };
       const a = ACTIONS_BY_ID.get(n.action);
       if (!a) die(`native-menu.ts names '${n.action}', which is not a registered action`);
-      const key = primaryBinding(a);
+      // S1.22b: an item may carry one of the action's ALIAS chords (a second key for the same
+      // action is its own, usually hidden, menu item — a menu item has one accelerator).
+      const key = n.chord ? (a.keys ?? []).find((b) => b.chord === n.chord) : primaryBinding(a);
+      if (n.chord && !key) die(`native-menu.ts: '${n.action}' has no key '${n.chord}'`);
+      if (n.hidden && !n.chord) die(`native-menu.ts: hidden item '${n.nativeId}' needs a chord`);
       return {
         kind: 'item',
         id: n.nativeId,
@@ -113,6 +122,7 @@ function nativeMenu() {
         label: n.label,
         exec: a.exec,
         ...(key ? { accel: toTauriAccel(key.chord) } : {}),
+        ...(n.hidden ? { hidden: true } : {}),
       };
     }),
   }));

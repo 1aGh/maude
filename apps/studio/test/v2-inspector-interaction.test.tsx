@@ -149,7 +149,6 @@ async function ensureSections() {
     'sections/effects',
     'sections/type',
     'sections/interaction',
-    'sections/export-slot',
     'kinds/multi',
   ]) {
     const mod = (await import(`../client/v2/inspector/${f}.jsx?s25=${generation}`)) as Record<
@@ -161,6 +160,11 @@ async function ensureSections() {
     if (typeof mod.forgetCornerChoices === 'function')
       forgets.push(mod.forgetCornerChoices as () => void);
   }
+  // S8.8 — the Export section is S8's (it takes S2.5's placeholder out of the registry itself)
+  const exp = (await import(
+    `../client/v2/export/inspector-export.jsx?s88=${generation}`
+  )) as Record<string, unknown>;
+  reregistered.push(exp.offInspectorExport as () => void);
 }
 
 async function frame(selected: unknown) {
@@ -321,14 +325,33 @@ describe('On hover', () => {
   });
 });
 
-describe('On click (S3 owns the write; the row reads the link and says so)', () => {
-  test('an external link reads "Open cal.com/studio" and cannot be changed from here yet', async () => {
+describe('On click (the row says what the link does; "None" clears it through /_api/edit-op)', () => {
+  test('an external link reads "Open cal.com/studio"; None clears it with one element.clear-link write', async () => {
     const host = await one();
     const sel = q(host, 'insp-ctl-click') as HTMLSelectElement;
     expect(shown(sel)).toBe('Open cal.com/studio');
-    expect(sel.disabled).toBe(true);
-    expect(q(host, 'insp-click-pending')?.textContent).toContain('isn’t available yet');
+    expect(sel.disabled).toBe(false);
+    expect(optionLabels(sel)).toEqual(['Open cal.com/studio', 'None']);
+    expect(q(host, 'insp-click-pending')).toBeNull();
     await pick(sel, 'none');
+    expect(posts.map((p) => [p.url, p.body])).toEqual([
+      [
+        '/_api/edit-op',
+        {
+          file: FILE,
+          op: 'element.clear-link',
+          targets: [{ artboard: 'desktop', element: 'book-call' }],
+        },
+      ],
+    ]);
+  });
+
+  test('no link: the row says None and has nothing to change; an object with no id writes nothing', async () => {
+    const none = await one({ attrs: {} });
+    expect((q(none, 'insp-ctl-click') as HTMLSelectElement).disabled).toBe(true);
+    const noId = await one({ id: undefined, artboardId: null });
+    expect((q(noId, 'insp-ctl-click') as HTMLSelectElement).disabled).toBe(true);
+    await pick(q(noId, 'insp-ctl-click'), 'none');
     expect(posts).toEqual([]);
   });
 
@@ -367,13 +390,16 @@ describe('the Export slot (S8 fills it; C21: the default presets per kind)', () 
     expect(q(host, 'insp-export-more')?.textContent).toContain('⇧⌘E');
   });
 
-  test('an artboard offers its kind’s own preset (08): Fixed size PNG 1×, Print PDF, Video MP4', async () => {
+  test('an artboard offers its kind’s own preset (08): Fixed size PNG 1× (S8.8: as a size row), Print PDF, Video MP4', async () => {
     const at = async (kind: string | undefined) =>
-      presets(await frame({ ...ARTBOARD, attrs: kind ? { 'data-dc-kind': kind } : {} }));
-    expect(await at(undefined)).toEqual(['PNG · 1×']);
-    expect(await at('web')).toEqual(['PNG · 1×']);
-    expect(await at('print')).toEqual(['Print PDF']);
-    expect(await at('video')).toEqual(['MP4']);
+      frame({ ...ARTBOARD, attrs: kind ? { 'data-dc-kind': kind } : {} });
+    for (const kind of [undefined, 'web']) {
+      const host = await at(kind);
+      expect(shown(q(host, 'insp-export-scale-0'))).toBe('1×');
+      expect(shown(q(host, 'insp-export-format-0'))).toBe('PNG');
+    }
+    expect(presets(await at('print'))).toEqual(['Print PDF']);
+    expect(presets(await at('video'))).toEqual(['MP4']);
   });
 
   test('several objects offer one export for all of them', async () => {

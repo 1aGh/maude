@@ -414,7 +414,7 @@ const DEFAULT_CLOUD_HOST: &str = "cloud.maude.sh";
 /// shells out to `xdg-open`, a POSIX shell script whose `$BROWSER`-with-`%s` path
 /// word-splits and glob-expands the URL. The whitespace rule is the only thing
 /// standing between that and argv injection.
-fn has_unsafe_bytes(url: &str) -> bool {
+pub(crate) fn has_unsafe_bytes(url: &str) -> bool {
     url.contains(|c: char| {
         c.is_whitespace()
             || c.is_control()
@@ -430,7 +430,7 @@ fn has_unsafe_bytes(url: &str) -> bool {
 /// would leave Rust locked to a different origin than the one the sidecar is
 /// actually talking to — the opener would then refuse the very URL the dialog is
 /// showing. Falls back to the default on anything unparseable.
-fn cloud_base() -> reqwest::Url {
+pub(crate) fn cloud_base() -> reqwest::Url {
     if let Ok(raw) = std::env::var("MAUDE_CLOUD_URL") {
         if let Ok(u) = reqwest::Url::parse(raw.trim()) {
             // A bare single-label host (`https://sh`, `https://com`) is a typo, not

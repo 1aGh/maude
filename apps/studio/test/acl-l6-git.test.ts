@@ -77,6 +77,38 @@ describe('L6 — git diff (the export class)', () => {
     ]);
   });
 
+  // S9.12b — the sha oracle: the diff runs against the working tree, so a commit that touched
+  // only invisible canvases still listed the visible files changed since — an existing sha
+  // answered differently from a missing one. Now it answers exactly like a missing sha (U1),
+  // and so does a ref name (draft names are hidden from a canvas-only session, U4).
+  test('A-only: a sha that touched no visible file, or a ref name, answers like a missing sha', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const cOnly = execFileSync('git', ['-C', cell.root, 'rev-parse', 'HEAD']).toString().trim();
+    // Not vacuous: the owner's diff against the C-only commit lists files.
+    const owner = await get(cell, `/_api/git/diff?sha=${cOnly}`, OWNER);
+    expect((owner.json as { entries: unknown[] }).entries.length).toBeGreaterThan(0);
+    const missing = await get(cell, `/_api/git/diff?sha=${'deadbeef'.repeat(5)}`, A_ONLY);
+    expect(missing.status).toBe(200);
+    expect(missing.json).toEqual({ entries: [] });
+    for (const sha of [cOnly, cOnly.slice(0, 7), 'main', 'HEAD~0']) {
+      const r = await get(cell, `/_api/git/diff?sha=${encodeURIComponent(sha)}`, A_ONLY);
+      expect({ sha, status: r.status, text: r.text }).toEqual({
+        sha,
+        status: missing.status,
+        text: missing.text,
+      });
+    }
+    // A commit that did touch A still diffs (the first one), and no sha is the dirty set.
+    const first = await get(cell, `/_api/git/diff?sha=${cell.firstSha}`, A_ONLY);
+    expect((first.json as { entries: Array<{ file: string }> }).entries.map((e) => e.file)).toEqual(
+      [A]
+    );
+    const dirty = await get(cell, '/_api/git/diff', A_ONLY);
+    expect((dirty.json as { entries: Array<{ file: string }> }).entries.map((e) => e.file)).toEqual(
+      [A]
+    );
+  });
+
   test('without export anywhere (an observer grant, an observer) → 403 read-only', async () => {
     for (const h of [canvasOnly('observer'), asRole('observer')]) {
       const r = await get(cell, `/_api/git/diff?sha=${cell.firstSha}`, h);

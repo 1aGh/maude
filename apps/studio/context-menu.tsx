@@ -114,7 +114,8 @@ function defaultExportItem(label: string, scopeHint: string): MenuItem {
     onSelect: () => {
       const detail = { scope: scopeHint };
       try {
-        window.dispatchEvent(new CustomEvent('maude:open-export', { detail }));
+        // S8.2 — the shell's one Export sheet (the iframe's own dialog is retired)
+        window.parent.postMessage({ dgn: 'open-export', detail }, '*');
       } catch {
         /* SSR / non-window environments */
       }
@@ -409,7 +410,13 @@ export function ContextMenuView({
     )
     .filter((section) => section.length > 0);
   return (
-    <div ref={ref} className="dc-context-menu" role="menu" style={{ left: pos.x, top: pos.y }}>
+    <div
+      ref={ref}
+      className="dc-context-menu"
+      role="menu"
+      data-esc-owner=""
+      style={{ left: pos.x, top: pos.y }}
+    >
       {visibleSections.map((section, si) => {
         const sectionKey = section.map((i) => i.id).join('|') || `s${si}`;
         return (

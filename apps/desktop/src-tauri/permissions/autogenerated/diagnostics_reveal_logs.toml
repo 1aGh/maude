@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-diagnostics-reveal-logs"
+description = "Enables the diagnostics_reveal_logs command without any pre-configured scope."
+commands.allow = ["diagnostics_reveal_logs"]
+
+[[permission]]
+identifier = "deny-diagnostics-reveal-logs"
+description = "Denies the diagnostics_reveal_logs command without any pre-configured scope."
+commands.deny = ["diagnostics_reveal_logs"]

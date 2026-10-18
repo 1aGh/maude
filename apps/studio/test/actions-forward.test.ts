@@ -7,6 +7,7 @@ import { chordFromEvent, type KeyEventLike } from '../actions/keys.ts';
 
 // What inspect.ts forwarded by hand before the swap (v1): ⌘K, ⌘R and ⇧⌘{I,M,E,H,T,G}.
 const V1_HAND_LIST = {
+  '⇧⌘C': 'export.copy-png', // S8.8 (09 Export ex-inspector): Copy as PNG, from the canvas too
   '⇧⌘E': 'export.open',
   '⇧⌘H': 'handoff.open',
   '⇧⌘I': 'view.inspector',

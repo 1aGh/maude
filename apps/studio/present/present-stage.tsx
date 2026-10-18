@@ -7,6 +7,8 @@
 //
 //   click · → · space      the next artboard (← · ⇧space the previous), in the run `order.ts` builds
 //   esc                    `mode-request back` — the shell decides where it returns to (escStep)
+//   wheel                  a web artboard scrolls inside the stage (S3.3) — never the canvas camera
+//   a clip (S3.3)          plays when its artboard's turn comes; a click pauses it (present-media.ts)
 //   `present-step {to}`    the shell's own controls and presenter view (canvas-mode-store `step`)
 //   every move             `present-position {index,total,artboardId}` (reportPresentPosition)
 //
@@ -27,10 +29,16 @@ import {
   touchesForeignClient,
   useCollab,
 } from '../use-collab.tsx';
-import { cameraFor, fitForKind } from './fit.ts';
+import { cameraFor, type Fit, fitForKind, scrolled } from './fit.ts';
 import { createFollower, type FollowView, newPresentSid } from './follow.ts';
 import { type PresentMeta, presentRun, startIndex } from './order.ts';
 import { usePointerDot } from './pointer-dot.tsx';
+import {
+  type ClipRef,
+  createPresentMedia,
+  type StageMedia,
+  watchArtboardMedia,
+} from './present-media.ts';
 import { usePresentZoom } from './present-zoom.ts';
 
 export interface Camera {
@@ -73,6 +81,8 @@ export interface StageDeps {
   } | null;
   /** S3.7a — a person moved the stage here (a key or a click), not the shell or the presenter. */
   onLocalStep?(): void;
+  /** S3.3 — the clip on the presented artboard (present-media.ts). Absent: nothing plays. */
+  media?: StageMedia;
 }
 
 export interface StageState {
@@ -198,6 +208,9 @@ export function createPresentStage(deps: StageDeps): PresentStage {
   let exiting = false;
   let detach: (() => void) | null = null;
   let locked = false;
+  /** S3.3 — a web artboard's scroll, in artboard px, and the fit it scrolls within (before the scroll). */
+  let scroll = 0;
+  let baseFit: Fit | null = null;
 
   const ms = () => (deps.reducedMotion() ? 1 : Math.max(1, deps.liftMs()));
 
@@ -294,8 +307,12 @@ export function createPresentStage(deps: StageDeps): PresentStage {
     const id = r.run[index];
     const rect = deps.getArtboards().find((a) => a.id === id);
     if (!rect) return;
+    // The page above is left: the clip on it stops BEFORE the shell hears the move, so no echo of the old
+    // clip reaches the new place.
+    if (announce) deps.media?.leave();
+    if (id !== artboardId) scroll = 0; // each visit to a page starts at its top
     artboardId = id;
-    const fit = fitForKind({
+    const base = fitForKind({
       kind: rect.kind,
       art: { w: rect.w, h: rect.h },
       stage: stageSize(),
@@ -303,6 +320,9 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       minScale: ZOOM_MIN,
       maxScale: ZOOM_MAX,
     });
+    baseFit = base;
+    scroll = Math.min(Math.max(0, scroll), base.maxScroll);
+    const fit = scrolled(base, scroll);
     const el = ensureMask();
     if (el) {
       el.style.left = `${rect.x + fit.window.x}px`;
@@ -324,6 +344,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
     if (announce) {
       const session = deps.onMove?.({ index, total, artboardId: id }) ?? null;
       reportPresentPosition(deps.win, { index, total, artboardId: id, ...(session ?? {}) });
+      deps.media?.arrive(id);
     }
   };
 
@@ -396,7 +417,25 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       const m = e as MouseEvent;
       consume(e);
       if (locked) return;
-      if (m.button === 0 && !m.metaKey && !m.ctrlKey && !m.altKey && !m.shiftKey) go('next', true);
+      if (m.button === 0 && !m.metaKey && !m.ctrlKey && !m.altKey && !m.shiftKey) {
+        // A click on a playing clip pauses it; on anything else it moves on.
+        if (!deps.media?.click()) go('next', true);
+      }
+    };
+    // S3.3 — the trackpad scrolls a web artboard inside the stage (never the canvas camera). A pinch
+    // (ctrl + wheel), a sideways swipe and every other kind do nothing.
+    const onWheel = (e: Event) => {
+      if (!own(e)) return;
+      consume(e);
+      const w = e as WheelEvent;
+      if (locked || w.ctrlKey || w.metaKey || !baseFit || baseFit.maxScroll <= 0 || exiting) return;
+      const unit = w.deltaMode === 1 ? 16 : w.deltaMode === 2 ? stageSize().h : 1;
+      const dy = (Number(w.deltaY) || 0) * unit;
+      if (!dy) return;
+      const next = Math.min(baseFit.maxScroll, Math.max(0, scroll + dy / baseFit.scale));
+      if (next === scroll) return;
+      scroll = next;
+      show(index, 'cut', false);
     };
     // The router and the viewport controller must not see the audience's mouse: nothing is selected,
     // dragged, edited or panned on the stage.
@@ -411,18 +450,19 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       'mouseup',
       'dblclick',
       'contextmenu',
-      'wheel',
       'gesturestart',
       'gesturechange',
     ];
     win.addEventListener('keydown', onKey, true);
     win.addEventListener('click', onClick, true);
     for (const t of swallow) win.addEventListener(t, eat, { capture: true, passive: false });
+    win.addEventListener('wheel', onWheel, { capture: true, passive: false });
     win.addEventListener('resize', onResize);
     detach = () => {
       win.removeEventListener('keydown', onKey, true);
       win.removeEventListener('click', onClick, true);
       for (const t of swallow) win.removeEventListener(t, eat, true);
+      win.removeEventListener('wheel', onWheel, true);
       win.removeEventListener('resize', onResize);
     };
   };
@@ -462,6 +502,8 @@ export function createPresentStage(deps: StageDeps): PresentStage {
         selection: sel ? [...sel.selected] : [],
       };
       cam = null;
+      scroll = 0;
+      deps.media?.start();
       // The audience sees no selection halo: clear it now, restore it on the way out.
       if (sel && saved.selection.length > 0) sel.clear();
       attach();
@@ -476,6 +518,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       detach?.();
       detach = null;
       applyCursor();
+      deps.media?.stop();
       const s = saved;
       const sel = deps.getSelection();
       if (sel && s && s.selection.length > 0) sel.replace(s.selection as never);
@@ -509,6 +552,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
         active = false;
         detach?.();
         detach = null;
+        deps.media?.stop();
         const sel = deps.getSelection();
         if (sel && saved && saved.selection.length > 0) sel.replace(saved.selection as never);
         exiting = true;
@@ -556,6 +600,9 @@ function reducedMotion(win: Window): boolean {
     return false;
   }
 }
+
+/** video-comp.tsx's registry entry, as far as the engine reads it. */
+type ClipLike = ClipRef;
 
 const NO_SUBSCRIBE = () => () => {};
 const NO_SNAPSHOT = () => null;
@@ -625,6 +672,25 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
         return { sid: s.sid, seq: s.seq };
       },
       onLocalStep: () => followRef.current?.localStep(),
+      media: createPresentMedia({
+        win,
+        clips: () => {
+          const reg = (win as unknown as { __maudeVideoComps?: Map<string, ClipLike> })
+            .__maudeVideoComps;
+          return reg ? ([...reg.values()] as unknown as ClipRef[]) : [];
+        },
+        post: (msg) => {
+          if (win.parent === win) return;
+          try {
+            win.parent.postMessage(msg, '*');
+          } catch {
+            /* detached */
+          }
+        },
+        setTimer: (fn, ms) => win.setTimeout(fn, ms),
+        clearTimer: (h) => win.clearTimeout(h),
+        watch: (id, onFail) => watchArtboardMedia(win.document, id, onFail),
+      }),
     });
   }
 

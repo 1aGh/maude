@@ -6,6 +6,7 @@
 //   @element       → `select-by-id` {id, artboardId}            (object.select-child/-parent/-next)
 //   --select <x>   → run-action `select.all` / `select.none` / `select.all-annotations`
 //   --mode present → the present toggle (present.canvas); edit / preview → present off
+//   --panel <id>   → the registry action that opens that panel or sheet (S12.8, D11); no canvas, no tab
 //
 // A freshly opened canvas iframe mounts its listener late (dgn:'loaded' fires before the React
 // shell is up), so the canvas messages are re-posted on the same retry ladder as the halo restore
@@ -19,11 +20,27 @@ const SELECT_ACTION = {
   annotations: 'select.all-annotations',
 };
 
+/** S12.8 — `maude design open --panel <id>` → the registry action the UI runs for it. */
+export const PANEL_ACTION = {
+  trash: 'view.trash',
+  'design-system': 'view.design-system',
+  'layers-panel': 'view.layers-panel',
+  layers: 'view.layers',
+  inspector: 'view.inspector',
+  settings: 'settings.open',
+  shortcuts: 'help.shortcuts',
+  'whats-new': 'help.whats-new',
+};
+
 const runAction = (id, params) =>
   params ? { dgn: 'run-action', v: 1, id, params } : { dgn: 'run-action', v: 1, id };
 
 /** What a `ui-open` payload does, as data. Pure. null when the payload is not one. */
 export function uiOpenPlan(open) {
+  if (open && typeof open === 'object' && typeof open.panel === 'string') {
+    const action = Object.hasOwn(PANEL_ACTION, open.panel) ? PANEL_ACTION[open.panel] : null;
+    return action ? { file: null, posts: [], present: null, action } : null;
+  }
   if (!open || typeof open !== 'object' || typeof open.file !== 'string' || !open.file) return null;
   const posts = [];
   if (typeof open.artboard === 'string' && open.artboard)
@@ -47,11 +64,16 @@ export function uiOpenPlan(open) {
  *   frameFor(file)         — the canvas iframe element for that file, or null
  *   setPresent(on)         — present mode on / off
  *   schedule(fn, ms)       — setTimeout (injected for tests)
+ *   runAction(id)          — a registry action by id (a panel open), menuRunner.run in the app
  * Returns the plan (null = ignored).
  */
 export function applyUiOpen(open, deps) {
   const plan = uiOpenPlan(open);
   if (!plan) return null;
+  if (plan.action) {
+    deps.runAction?.(plan.action);
+    return plan;
+  }
   deps.openTab(plan.file);
   if (plan.present !== null) deps.setPresent(plan.present);
   if (plan.posts.length) {

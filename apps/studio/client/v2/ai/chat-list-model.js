@@ -163,7 +163,7 @@ export function buildSearchList(hits = [], query = '', now = Date.now()) {
  * registry action carries its id and is dropped where the registry says it is not visible (rule 12: the
  * server refuses the same writes). `Open` is the row itself.
  */
-export function rowMenu(ctx, byId = ACTIONS_BY_ID) {
+export function rowMenu(ctx, byId = ACTIONS_BY_ID, o = {}) {
   const item = (id, extra = {}) => {
     const def = byId.get(id);
     if (!def || !isVisible(def, ctx)) return null;
@@ -173,6 +173,12 @@ export function rowMenu(ctx, byId = ACTIONS_BY_ID) {
     { id: 'open', label: 'Open' },
     item('chat.rename'),
     item('chat.copy-transcript'),
+    // S5.15 (V2-1.5 §5.3) — every action your AI made in this chat, as ONE new version; disabled with the
+    // update line when the team server is too old (`o.chatUndo` = the server's `chatUndo` probe)
+    item(
+      'chat.undo',
+      o.chatUndo && o.chatUndo.ok === false ? { disabled: true, hint: o.chatUndo.line } : {}
+    ),
     'sep',
     item('chat.archive'),
     item('chat.trash', { danger: true }),

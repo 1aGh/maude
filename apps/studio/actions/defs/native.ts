@@ -18,6 +18,8 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     // window. A project window opens IdentityBar's create dialog; Home's create sheet is the
     // target ("focus/open Home, then emit to it") once Home has one.
     exec: 'shell',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     keys: [kb('⇧⌘N', 'global', { inText: true, when: DESKTOP })],
     native: { menu: 'File', order: 2 },
   },
@@ -28,20 +30,22 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Pull a local copy…',
     kind: 'command',
     exec: 'shell',
-    visible: DESKTOP,
+    visible: { ...DESKTOP, minRole: 'comment' },
   },
   {
     id: 'project.share-github',
     label: 'Share on GitHub…',
     kind: 'command',
     exec: 'shell',
-    visible: DESKTOP,
+    visible: { ...DESKTOP, minRole: 'comment' },
   },
   {
     id: 'project.open',
     label: 'Open project…',
     kind: 'command',
     exec: 'native',
+    // A6c (S3.12, 04 Modes note 23): not a Can view row — a viewer's menu lists only what they may do.
+    visible: { minRole: 'comment' },
     keys: [kb('⌘O', 'global', { inText: true, when: DESKTOP })],
     help: { group: 'finding', order: 20 },
     native: { menu: 'File', order: 3 },
@@ -68,7 +72,7 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'home',
     exec: 'native',
-    visible: { shell: ['desktop', 'cloud'] },
+    visible: { shell: ['desktop', 'cloud'] }, // every role (decision v2-A6c-can-view-menu-minrole)
   },
   // ── V2-3.9: the own tab bar's tab commands (contract V2-3.7 §5). Native: the shell owns the
   // tab list, so lib.rs runs them; no web binding fires them (AppKit takes the accelerator). ──
@@ -88,7 +92,12 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Show next tab',
     kind: 'command',
     exec: 'native',
-    keys: [kb('⌃tab', 'global', { inText: true, when: DESKTOP })],
+    // S1.22b: ⇧⌘] as in Safari / Chrome / Arc — a hidden native item of its own
+    // (native-menu.ts `next_tab_alt`: a menu item carries one accelerator).
+    keys: [
+      kb('⌃tab', 'global', { inText: true, when: DESKTOP }),
+      kb('⇧⌘]', 'global', { inText: true, alias: true, when: DESKTOP }),
+    ],
     help: { group: 'tabs-windows', order: 10 },
     native: { menu: 'Window', order: 1 },
   },
@@ -97,9 +106,32 @@ export const NATIVE_ACTIONS: ActionDef[] = [
     label: 'Show previous tab',
     kind: 'command',
     exec: 'native',
-    keys: [kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP })],
+    keys: [
+      kb('⌃⇧tab', 'global', { inText: true, when: DESKTOP }),
+      kb('⇧⌘[', 'global', { inText: true, alias: true, when: DESKTOP }),
+    ],
     help: { group: 'tabs-windows', order: 20 },
     native: { menu: 'Window', order: 2 },
+  },
+  {
+    // S1.22b: every open tab in one list in the tab strip (square, name, account, state; Find a
+    // tab) — Window ▸ Show All Tabs, the strip's "N more", ⇧⌘\ as in Safari.
+    id: 'tab.overview',
+    label: 'Show all tabs',
+    kind: 'command',
+    exec: 'native',
+    keys: [kb('⇧⌘\\', 'global', { inText: true, when: DESKTOP })],
+    help: { group: 'tabs-windows', order: 25 },
+    native: { menu: 'Window', order: 3 },
+  },
+  {
+    // S1.22b: the tab menu's (right-click a tab) Rename… — the name THIS MAC shows for the
+    // project (strip, window title, Home); the folder and the project's own files never change.
+    id: 'tab.rename',
+    label: 'Rename…',
+    kind: 'command',
+    exec: 'native',
+    visible: DESKTOP,
   },
   // Jump to project tab 1…8, and to the LAST project tab (Home is Show Home). ⌘<n>, as in Safari /
   // Chrome / Arc / Terminal (V2-3.11): Actual size moved to ⇧0, so ⌘1 is free. ⌥⌘<n> stays

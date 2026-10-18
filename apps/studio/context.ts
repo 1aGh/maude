@@ -280,6 +280,18 @@ export interface Context {
      *  retire step. Null in solo mode. Structural on purpose — see above. */
     current?(): {
       cancelAssetSweep(): boolean;
+      /** S8.19 — see SyncRuntime.assetPresenceAsker / assetUploading (routes/asset-state.ts). */
+      assetPresenceAsker?(): {
+        ask(rels: readonly string[]): Promise<Map<
+          string,
+          {
+            rel: string;
+            state: 'here' | 'waiting' | 'missing' | 'unknown';
+            who?: { name: string | null; kind: 'mac' | 'pc' | 'linux' | null; self: boolean };
+          }
+        > | null>;
+      } | null;
+      assetUploading?(): ReadonlyMap<string, { progress?: number }> | null;
       retireForMove?(fromSlug: string, toRel: string): Promise<boolean>;
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeLane. */
       proposeLane?(
@@ -302,6 +314,8 @@ export interface Context {
           | { op: 'dir.move'; from: string; to: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
       acceptedMode?(): boolean;
+      /** S11.4 — the availability read model's input (sync/availability.ts); a read, never a fetch. */
+      availability?(): import('./sync/availability.ts').AvailabilitySource;
       commentsConfirmedOnHub?(slug: string): boolean;
       acceptedHistory?(q: {
         limit?: number;
@@ -311,7 +325,11 @@ export interface Context {
         kind?: string | null;
         mine?: boolean;
       }): Promise<unknown[] | null>;
-      acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      acceptedVersion?(
+        repoRel: string,
+        revision: number,
+        lane?: 'html' | 'css' | 'meta'
+      ): Promise<string | null>;
       /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
       acceptedLinkDocs?(): Promise<
         { entry: string; path: string | null; retired: boolean }[] | null

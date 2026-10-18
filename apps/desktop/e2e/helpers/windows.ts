@@ -88,9 +88,11 @@ export async function pinCurrentWindow(): Promise<string> {
 }
 
 /** What the strip draws: its tabs' labels in strip order (`tab-home` is not
- *  one), the active label, and Home's accessible name + text. */
+ *  one), every slot left to right (`order` — `home` first, S1.22c), the active label,
+ *  and Home's accessible name + text. */
 export async function strip(): Promise<{
   tabs: string[];
+  order: string[];
   active: string | null;
   home: { label: string | null; text: string };
   dots: Record<string, string>;
@@ -108,8 +110,13 @@ export async function strip(): Promise<{
       if (d) dots[el.getAttribute('data-label') || ''] = d.getAttribute('data-dot') || '';
     });
     const home = document.querySelector('[data-testid="tab-home"]');
+    // S1.22c: every slot in document (= visual, left to right) order — Home is the first.
+    const order = Array.from(
+      document.querySelectorAll('[data-testid="tab-home"], #tabs [role="tab"][data-label]')
+    ).map((el) => (el === home ? 'home' : el.getAttribute('data-label') || ''));
     return {
       tabs,
+      order,
       active: document.body.getAttribute('data-active'),
       home: {
         label: home?.getAttribute('aria-label') ?? null,

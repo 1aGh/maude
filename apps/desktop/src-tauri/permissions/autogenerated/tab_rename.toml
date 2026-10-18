@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tab-rename"
+description = "Enables the tab_rename command without any pre-configured scope."
+commands.allow = ["tab_rename"]
+
+[[permission]]
+identifier = "deny-tab-rename"
+description = "Denies the tab_rename command without any pre-configured scope."
+commands.deny = ["tab_rename"]

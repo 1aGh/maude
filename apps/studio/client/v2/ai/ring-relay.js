@@ -5,22 +5,30 @@
 // The message is `{dgn:'ai-runs', artboards: Record<artboardId, {state, who, tag, waiting}>}` — built by
 // `ringsFor` (runs-model.js), which carries a state, a name and a count and never a prompt.
 //
+// S9.22b — beside it, `{dgn:'ai-holds', holds: [{artboard, element, occurrence?, tag, mine}]}` (`holdsFor`):
+// the OBJECTS running / needs-you runs hold, for the canvas's spark outline + tag and the inspector's hold
+// line (editing/hold-rings.tsx). Same rule: a fixed tag from the state and a name, never a prompt.
+//
 // Which frames: the ACTIVE canvas iframe (`canvas-frame`, `data-path` = its file). A frame that has just
 // loaded does not listen yet, so it is told again on `loaded` / `canvas-rendered`; an unchanged answer is
 // not re-sent to a frame that already has it.
 
 import { useEffect } from 'react';
-import { mergeRings, ringsFor, doneRings } from './runs-model.js';
+import { getMadeByAiStore, madeByAiRings } from './made-by-ai.js';
+import { doneRings, holdsFor, mergeRings, ringsFor } from './runs-model.js';
 import { getRunsStore } from './runs-store.js';
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 
 export function createRingsLane({
   store,
+  // S5.15 — "Made by AI" (made-by-ai.js): settled rings that last until the next person's change
+  madeByAi = getMadeByAiStore(),
   doc = globalThis.document,
   win = globalThis.window,
 } = {}) {
   const spoken = new WeakMap(); // Window → the JSON last sent to it
+  const spokenHolds = new WeakMap(); // Window → the `ai-holds` JSON last sent to it
   const frames = () => [...(doc?.querySelectorAll?.(FRAME) ?? [])];
 
   const tell = (frame, force = false) => {
@@ -28,19 +36,30 @@ export function createRingsLane({
     if (!target) return;
     const { view, done } = store.getSnapshot();
     const file = frame.getAttribute('data-path') || frame.dataset?.path || '';
-    const artboards = mergeRings(
-      ringsFor(view, { activeCanvas: file }),
-      doneRings(Object.keys(done))
-    );
+    const artboards = mergeRings(ringsFor(view, { activeCanvas: file }), {
+      ...madeByAiRings(madeByAi?.getSnapshot(), file),
+      ...doneRings(Object.keys(done)),
+    });
     const json = JSON.stringify(artboards);
     const before = spoken.get(target);
-    if (!force && before === json) return;
     // a frame never spoken to with nothing to say stays quiet; one that had rings is told they are gone
-    if (before === undefined && json === '{}') return;
-    spoken.set(target, json);
+    if ((force || before !== json) && !(before === undefined && json === '{}')) {
+      spoken.set(target, json);
+      try {
+        // A literal `{ dgn }` (not postToCanvas) so the bridge inventory sees this send site.
+        target.postMessage({ dgn: 'ai-runs', artboards }, '*');
+      } catch {
+        /* detached */
+      }
+    }
+    const holds = holdsFor(view, { activeCanvas: file });
+    const holdsJson = JSON.stringify(holds);
+    const holdsBefore = spokenHolds.get(target);
+    if (!force && holdsBefore === holdsJson) return;
+    if (holdsBefore === undefined && holdsJson === '[]') return;
+    spokenHolds.set(target, holdsJson);
     try {
-      // A literal `{ dgn }` (not postToCanvas) so the bridge inventory sees this send site.
-      target.postMessage({ dgn: 'ai-runs', artboards }, '*');
+      target.postMessage({ dgn: 'ai-holds', holds }, '*');
     } catch {
       /* detached */
     }
@@ -51,12 +70,14 @@ export function createRingsLane({
   };
 
   const unsub = store.subscribe(tellAll);
+  const unsubMade = madeByAi?.subscribe(tellAll);
   const onMessage = (e) => {
     const dgn = e.data?.dgn;
     if (dgn !== 'loaded' && dgn !== 'canvas-rendered') return;
     const frame = frames().find((f) => f.contentWindow === e.source);
     if (frame) {
       spoken.delete(frame.contentWindow);
+      spokenHolds.delete(frame.contentWindow);
       tell(frame, true);
     }
   };
@@ -64,6 +85,7 @@ export function createRingsLane({
   tellAll();
   return () => {
     unsub();
+    unsubMade?.();
     win?.removeEventListener?.('message', onMessage);
   };
 }

@@ -53,6 +53,8 @@ type StatusFn = () => Record<string, unknown>;
 
 interface State {
   rings: Record<Source, string[]>;
+  /** S11.11 — when each ring line was recorded (epoch ms), index-aligned with `rings`. */
+  stamps: Record<Source, number[]>;
   status: Map<Source, StatusFn>;
   logDir: string;
   repoRoot: string | undefined;
@@ -64,6 +66,7 @@ interface State {
 
 const state: State = {
   rings: { server: [], sync: [], ai: [], export: [] },
+  stamps: { server: [], sync: [], ai: [], export: [] },
   status: new Map(),
   logDir: process.env.MAUDE_LOG_DIR || join(homedir(), '.maude', 'logs'),
   repoRoot: undefined,
@@ -103,8 +106,13 @@ export async function stopDiagnostics() {
 export function record(line: string, now = Date.now()) {
   const source = classify(line);
   const ring = state.rings[source];
+  const stamps = state.stamps[source];
   ring.push(line);
-  if (ring.length > RING_MAX) ring.splice(0, ring.length - RING_MAX);
+  stamps.push(now);
+  if (ring.length > RING_MAX) {
+    ring.splice(0, ring.length - RING_MAX);
+    stamps.splice(0, stamps.length - RING_MAX);
+  }
   if (!state.persist) return;
   // One entry per line: a message's own newlines are escaped so it cannot forge entries.
   const clean = scrub(line, { repoRoot: state.repoRoot }).replace(/\r?\n/g, '\\n');
@@ -156,7 +164,15 @@ function statusOf(source: Source): Record<string, unknown> {
 export interface Diagnostics {
   retentionDays: number;
   logDir: string;
-  sources: Record<Source, { status: Record<string, unknown>; recent: string[] }>;
+  sources: Record<
+    Source,
+    {
+      status: Record<string, unknown>;
+      recent: string[];
+      /** S11.11 — epoch ms per `recent` line (additive; the Logs view's time column). */
+      recentAt: number[];
+    }
+  >;
 }
 
 /** The Diagnostics API payload: every source's status and recent lines, scrubbed. */
@@ -167,6 +183,7 @@ export function diagnostics(tail = 200): Diagnostics {
     sources[source] = {
       status: JSON.parse(s(JSON.stringify(statusOf(source)))),
       recent: state.rings[source].slice(-tail).map(s),
+      recentAt: state.stamps[source].slice(-tail),
     };
   }
   return { retentionDays: RETENTION_DAYS, logDir: s(state.logDir), sources };
@@ -191,7 +208,10 @@ export function report(meta: Record<string, unknown> = {}, tail = 60): string {
 
 /** Test seam: forget everything (rings, providers, persistence). */
 export function resetDiagnosticsForTest() {
-  for (const source of SOURCES) state.rings[source] = [];
+  for (const source of SOURCES) {
+    state.rings[source] = [];
+    state.stamps[source] = [];
+  }
   state.status.clear();
   state.bytes.clear();
   state.persist = false;

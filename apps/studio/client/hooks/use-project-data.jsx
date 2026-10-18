@@ -53,6 +53,12 @@ export function useProjectData({
           // only `reconstructed-experimental`), folded in the same way + for the
           // same reason as canvasDesignSystems above.
           canvasKinds: data.canvasKinds ?? {},
+          // S10.4 (V2-1.6 §5.8) — which revision each canvas renders; absent until a system is
+          // converted, which canvasUrl() reads as "today's working files".
+          canvasDsRevs: data.canvasDsRevs ?? {},
+          systemHeads: data.systemHeads ?? {},
+          dsConverted: data.dsConverted ?? {},
+          dsRevGaps: data.dsRevGaps ?? {},
         }));
       },
       onError: (error) => {

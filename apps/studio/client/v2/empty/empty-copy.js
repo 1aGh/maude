@@ -72,6 +72,9 @@ export const COPY = Object.freeze({
     keys: '⌘/',
   },
 
+  // S11.2 (W7, "no door"): the way in that is not the AI — the canvas gained this button with the row.
+  'es-canvas-ai.door': { action: 'New artboard' },
+
   'es-landing.frame': { title: 'Your canvas is ready.', action: 'Ask AI' },
 
   'es-canvas-three.offline': {
@@ -191,6 +194,9 @@ export const COPY = Object.freeze({
     tag: '{count} artboards on their way',
     foot: 'Getting {project} · {done} of {total} canvases',
   },
+  // Q13 fallback (decision v2-lead-arriving-canvas-copy): an opened canvas whose artboard sizes the hub
+  // listing does not carry yet is one centred card, not skeletons.
+  'es-arriving.canvas-arriving': { title: '{canvas} is on its way.' },
   'es-offline-uncached.not-local': {
     title: "{canvas} isn't on this Mac yet.",
     next: 'It opens by itself when this Mac is back online. Nothing in it is lost — the cloud copy is safe.',

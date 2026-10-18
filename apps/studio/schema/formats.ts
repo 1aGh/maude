@@ -76,6 +76,38 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     skill: 'design:footage-director',
   },
   {
+    // S8 asset sidecars §5.2 / §5.5: one provenance file per AI take; lenient (keeps unknown keys).
+    format: 'gen',
+    files: '<designRoot>/assets/<sha8>.gen.json',
+    schema: 'schema/gen.v1.schema.json',
+    id: 'https://maude.sh/schema/gen/v1',
+    source: 'hand',
+    check: 'validateGen (generation/gen-sidecar.ts); the schema mirrors it',
+    skill: 'design:ai-generation',
+  },
+  {
+    format: 'transcript',
+    files: '<designRoot>/assets/<sha8>.transcript.json',
+    schema: 'schema/transcript.v1.schema.json',
+    id: 'https://maude.sh/schema/transcript/v1',
+    source: 'generated',
+    generator: 'video/format-ids.ts#transcriptJsonSchema',
+    check:
+      'validateTranscript(doc, {strict:true, rel}) (video/schema.ts) — preserving: unknown keys are kept',
+    skill: 'design:video-comp',
+  },
+  {
+    format: 'beats',
+    files: '<designRoot>/assets/<sha8>.beats.json',
+    schema: 'schema/beats.v1.schema.json',
+    id: 'https://maude.sh/schema/beats/v1',
+    source: 'generated',
+    generator: 'video/format-ids.ts#beatsJsonSchema',
+    check:
+      'validateBeats(doc, {strict:true, rel}) (video/schema.ts) — preserving: unknown keys are kept',
+    skill: 'design:video-comp',
+  },
+  {
     format: 'tokens',
     files: '<designRoot>/system/<ds>/tokens.json',
     schema: 'schema/ds-tokens-v1.schema.json',
@@ -92,6 +124,31 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     source: 'hand',
     check: 'ds-check <ds> structure, as warnings (V2-1.13)',
     skill: 'design:design-system',
+  },
+  // S10.2 (decision v2-lead-ds-revision-formats-rows): versioned Plane-B files the DS engine
+  // writes; agents READ them and reach them only through `maude design ds …` (the hook refuses a
+  // hand edit, V2-1.18), so they stay out of the "Files Claude edits" table (`runtime`).
+  {
+    format: 'ds-revision',
+    files: '<designRoot>/system/<ds>/revisions/<64 hex>.json (+ <id>.tokens.css / .components.css)',
+    schema: 'schema/ds-revision-v1.schema.json',
+    id: 'https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-revision-v1.schema.json',
+    source: 'hand',
+    check:
+      'verifyRevision (ds/revision.ts): the id names the canonical body, every sha256 its text; immutable, app-written',
+    skill: 'design:design-system',
+    runtime: true,
+  },
+  {
+    format: 'ds-head',
+    files: '<designRoot>/system/<ds>/revisions/head.json',
+    schema: 'schema/ds-head-v1.schema.json',
+    id: 'https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-head-v1.schema.json',
+    source: 'hand',
+    check:
+      'headShapeError (ds/head.ts); written only by the DS engine (ds/head.ts writeHead), last',
+    skill: 'design:design-system',
+    runtime: true,
   },
   {
     format: 'design-config',

@@ -1,6 +1,6 @@
 ---
 name: source-command-rollback
-description: "Restore one or more snapshots of the active canvas."
+description: "Go back to an earlier version of the active canvas, from Version history."
 user-invocable: false
 ---
 

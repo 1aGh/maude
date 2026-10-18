@@ -244,6 +244,9 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
       },
       onTool: ({ tool: t }) => setTool(t),
       onEscape: () => {
+        // S3.12 — a UI canvas's esc belongs to the canvas shell's ladder (one rung per press); this mount
+        // layer's own clear-everything would be a second step on the same key.
+        if (!isBareSpecimen()) return;
         if (toolRef.current !== 'move') setTool('move');
         setHoverEl(null);
         selSet.clear();

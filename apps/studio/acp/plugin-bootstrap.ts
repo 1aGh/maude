@@ -39,6 +39,7 @@
 // bundled copy injected here is the ONLY one that ever loads.
 
 import { DESIGN_PLUGIN_DIR, FLOW_PLUGIN_DIR, KGAI_PLUGIN_DIR } from '../paths.ts';
+import { readUiPrefs } from '../ui-prefs.ts';
 
 /**
  * SDK plugin-load config (`@anthropic-ai/claude-agent-sdk` `SdkPluginConfig`).
@@ -108,9 +109,15 @@ export function computeSessionPlugins(deps: SessionPluginDeps): SdkPluginConfig[
  * detect-and-guide posture (no injection, the readiness `plugins` row shows the
  * manual marketplace remediation). For a power user who wants to force the manual
  * path, a locked-down deployment, or test isolation.
+ *
+ * S11.13 — Settings › Advanced › "Use my own plugin copy" (`prefs.json ownPluginCopy`) is the
+ * same switch without a terminal: `ownPluginCopy === true` ≡ `MAUDE_NO_PLUGIN_BOOTSTRAP=1`, read
+ * when the AI chat next starts. Only a session that edits the project on this Mac may set it
+ * (http.ts `/_api/ui-prefs`, test/access-spawn-prefs.test.ts).
  */
-export function isNativePluginContext(): boolean {
+export function isNativePluginContext(prefs: { ownPluginCopy?: boolean } = readUiPrefs()): boolean {
   if (process.env.MAUDE_NO_PLUGIN_BOOTSTRAP === '1') return false;
+  if (prefs.ownPluginCopy === true) return false;
   return (
     !!process.env.MAUDE_DEV_SERVER_ROOT || DESIGN_PLUGIN_DIR !== null || FLOW_PLUGIN_DIR !== null
   );

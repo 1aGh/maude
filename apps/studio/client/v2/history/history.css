@@ -1,0 +1,902 @@
+/* client/v2/history/history.css — S1.14: Version history (11 · pn-history) and its Viewing bar.
+ * Classes are `vh-*` (nothing reuses a bare v1 name); values are the shell's tokens. */
+
+@layer shell {
+  .vh-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-height: 0;
+    padding: var(--space-3);
+    color: var(--fg-1);
+  }
+  .vh-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-1);
+  }
+  .vh-hd > strong {
+    flex: 1;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+
+  /* All · Named · Made by AI · People */
+  .vh-seg {
+    align-self: flex-start;
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+  }
+  .vh-seg-b {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    font: inherit;
+    font-size: var(--type-xs);
+    min-height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: 6px;
+  }
+  .vh-seg-b[aria-pressed="true"] {
+    background: var(--bg-1);
+    color: var(--fg-0);
+  }
+  .vh-seg-b:focus-visible,
+  .vh-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .vh-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  /* the Now row */
+  .vh-now {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 36px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-xs);
+  }
+  .vh-dot {
+    width: 10px;
+    height: 10px;
+    margin: 0 var(--space-1) 0 var(--space-3);
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+  .vh-now-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    text-align: left;
+  }
+  .vh-now-t > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+  }
+  .vh-now > .btn {
+    margin-left: auto;
+  }
+  button.vh-now-t.vh-row {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .vh-g,
+  .vh-ul {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .vh-gt {
+    margin: var(--space-2) 0 var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+
+  /* a version */
+  .vh-row {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 62px;
+    padding: var(--space-1) var(--space-2);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .vh-row:hover {
+    background: var(--bg-2);
+  }
+  .vh-row.is-sel,
+  .vh-row[aria-current="true"] {
+    background: var(--accent-tint);
+  }
+  .vh-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-t > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-medium);
+    color: var(--fg-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vh-row.is-named .vh-t > strong {
+    font-weight: var(--w-semibold);
+  }
+  .vh-t > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vh-ai {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--spark-muted);
+  }
+  .vh-face {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3, var(--bg-2));
+    color: var(--fg-1);
+    font-size: 8px;
+    font-weight: var(--w-semibold);
+  }
+
+  /* the picture: a skeleton until it lands */
+  .vh-pic {
+    flex: none;
+    width: 72px;
+    height: 54px;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .vh-pic img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .vh-pic[data-state="pending"],
+  .vh-skel {
+    background: linear-gradient(90deg, var(--bg-2), var(--bg-3, var(--bg-1)), var(--bg-2));
+    background-size: 200% 100%;
+    animation: vh-shimmer 1200ms linear infinite;
+  }
+  @keyframes vh-shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  .vh-skel {
+    display: block;
+    height: 54px;
+    margin: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .vh-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-1) var(--space-2);
+  }
+  .vh-more {
+    align-self: center;
+    margin: var(--space-2) 0;
+  }
+  .vh-note,
+  .vh-offline {
+    margin: var(--space-2) var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-6, 24px) var(--space-4);
+    text-align: center;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .vh-empty > strong {
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+
+  /* the Advanced fold at the foot keeps its own look; only the embedded git body is tamed */
+  .vh-panel .v2-fold-body .gp-panel {
+    width: auto;
+    flex-basis: auto;
+    border: 0;
+    box-shadow: none;
+  }
+
+  /* ── name this version ── */
+  .vh-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: var(--scrim, rgb(0 0 0 / 0.32));
+  }
+  .vh-dialog {
+    width: min(360px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+  }
+  .vh-dialog-t {
+    margin: 0;
+    font-size: var(--type-base);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .vh-dialog-sub {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-field {
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-0, var(--bg-1));
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm);
+  }
+  .vh-field:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .vh-dialog-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--danger, var(--fg-1));
+  }
+  .vh-dialog-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  /* ── the Viewing bar (11 · pn-viewbar) ── */
+  .island.vh-viewbar {
+    position: absolute;
+    left: 50%;
+    top: var(--space-4);
+    translate: -50% 0;
+    z-index: 12;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 40px;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    font-size: var(--type-sm);
+    animation: st-island-in var(--dur-panel) var(--ease-out);
+  }
+  .vh-viewbar > svg {
+    color: var(--accent-text, var(--accent));
+  }
+  .vh-viewbar-t {
+    white-space: nowrap;
+    color: var(--fg-1);
+  }
+  .vh-viewbar-t strong {
+    color: var(--fg-0);
+    font-weight: var(--w-semibold);
+  }
+  .vh-viewbar-esc {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .vh-viewbar-esc:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .vh-viewbar-esc:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* S1.16 - Version history filtered to one object (10 / co-vh). */
+  .vh-tail {
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    white-space: nowrap;
+  }
+  .vh-obj-row .vh-t strong {
+    font-weight: 600;
+  }
+  .vh-obj-value {
+    font-style: italic;
+    color: var(--fg-1);
+    overflow-wrap: anywhere;
+  }
+  .vh-obj-words {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .vh-obj-hint {
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-1);
+  }
+  .vh-obj[data-aside="true"] .vh-obj-row {
+    opacity: 0.8;
+  }
+
+  /* ── Compare (S1.15 · 11 · pn-compare) ── */
+  .cmp-mark {
+    display: inline-grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    margin-right: var(--space-1);
+    padding: 0 3px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg, var(--bg-0));
+    font-size: 9px;
+    font-weight: var(--w-semibold);
+    vertical-align: 1px;
+  }
+  .cmp-mark--b {
+    background: var(--fg-1);
+    color: var(--bg-0);
+  }
+  .vh-acts--cmp {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+  .vh-why {
+    font-size: var(--type-xs);
+    line-height: 1.4;
+    color: var(--fg-2);
+  }
+  .vh-btns {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+
+  /* Version history › Advanced: Compare pictures, then today's git body */
+  .vh-adv {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .vh-adv-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .vh-adv-note {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* the canvas area while comparing: two frames, the bar, the list */
+  .cmp-view {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: 64px var(--space-4) var(--space-4);
+    background: var(--bg-1);
+    color: var(--fg-1);
+    animation: st-island-in var(--dur-panel) var(--ease-out);
+  }
+  .cmp-stage {
+    position: relative;
+    flex: 1 1 55%;
+    min-height: 160px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+  .cmp-pane {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .cmp-cap {
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cmp-frame {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-0);
+  }
+  /* Overlay: B over A, the slider decides how much of B shows (from its left edge) */
+  .cmp-stage.cmp-overlay {
+    display: block;
+  }
+  .cmp-overlay .cmp-pane {
+    position: absolute;
+    inset: 0;
+  }
+  .cmp-overlay .cmp-pane:nth-child(2) {
+    clip-path: inset(0 0 0 var(--cmp-wipe, 50%));
+    pointer-events: none;
+  }
+  .cmp-overlay .cmp-pane:nth-child(2) .cmp-cap {
+    text-align: right;
+  }
+  .cmp-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .cmp-n {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .cmp-wipe {
+    width: 160px;
+    accent-color: var(--accent);
+  }
+  .cmp-scroll {
+    flex: 0 1 34%;
+    min-height: 72px;
+    overflow: auto;
+  }
+  .cmp-list,
+  .cmp-sub {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cmp-line {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 32px;
+    padding: var(--space-1) var(--space-2);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .cmp-line:hover {
+    background: var(--bg-2);
+  }
+  .cmp-line.is-focus {
+    background: var(--accent-tint);
+  }
+  .cmp-line:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cmp-dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .cmp-ab {
+    flex: none;
+    max-width: 30%;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cmp-words {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg-0);
+  }
+  .cmp-who {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .cmp-who.is-none {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .cmp-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .cmp-item > .cmp-line {
+    flex: 1 1 0;
+    width: auto;
+  }
+  .cmp-sub {
+    flex-basis: 100%;
+    padding: 0 0 var(--space-1) var(--space-6, 24px);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vh-pic[data-state="pending"],
+    .vh-skel,
+    .island.vh-viewbar,
+    .cmp-view {
+      animation-duration: 1ms;
+      animation-iteration-count: 1;
+    }
+  }
+}
+
+@layer shell {
+  /* ── Version history › Advanced › the git (S11.10; 06 · ad-history) ── */
+  .vh-git {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .vh-git-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+  }
+  .vh-git-k {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg-1);
+    white-space: nowrap;
+  }
+  .vh-git-v {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    min-width: 0;
+    max-width: 64%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-0);
+    text-align: right;
+  }
+  .vh-git-v.is-mono,
+  .vh-git-mono {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .vh-git-sep {
+    margin: 0 var(--space-1);
+    color: var(--fg-2);
+  }
+  .vh-git-select {
+    max-width: 100%;
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-0, var(--bg-1));
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-xs);
+  }
+  .vh-git-select:focus-visible,
+  .vh-git-check:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .vh-git-draft {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vh-git-sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: var(--space-2) 0 0;
+    padding-top: var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .vh-git-sub-a {
+    font-family: var(--font-mono);
+    font-weight: var(--w-regular);
+    color: var(--fg-1);
+  }
+  .vh-git-badge {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-4);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+  }
+  .vh-git-badge.is-M {
+    color: var(--status-warn-text);
+  }
+  .vh-git-badge.is-A,
+  .vh-git-badge.is-U {
+    color: var(--status-success-text);
+  }
+  .vh-git-badge.is-D {
+    color: var(--status-error-text);
+  }
+  .vh-git-ul {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .vh-git-unit,
+  .vh-git-chg {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 28px;
+    font-size: var(--type-xs);
+  }
+  .vh-git-file {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+  }
+  button.vh-git-file {
+    cursor: pointer;
+  }
+  .vh-git-fname {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+  }
+  .vh-git-fpath {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    color: var(--fg-2);
+  }
+  .vh-git-chg > .vh-git-mono:first-of-type {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .vh-git-chg em {
+    flex: none;
+    font-style: normal;
+  }
+  .vh-git .is-add {
+    color: var(--status-success-text);
+  }
+  .vh-git .is-del {
+    color: var(--status-error-text);
+  }
+  .vh-git-diff {
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--space-1);
+    padding: var(--space-1) 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    line-height: var(--lh-xs);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .vh-git-diff span {
+    padding: 0 var(--space-2);
+  }
+  .vh-git-more {
+    color: var(--fg-2);
+  }
+  .vh-git-none,
+  .vh-git-note-line {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-git-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--status-error-text);
+  }
+  .vh-git-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+  .vh-git-acts .btn {
+    white-space: nowrap;
+  }
+  .vh-git-banner {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .vh-git-banner-t {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .vh-git-banner-t strong {
+    color: var(--fg-0);
+  }
+  .vh-git-x {
+    flex: none;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .vh-git-ver {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--type-xs);
+  }
+  .vh-git-ver-b {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .vh-git-ver-t {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .vh-git-ver-m,
+  .vh-git-ver-w {
+    color: var(--fg-2);
+  }
+  .vh-git-ver-a {
+    display: flex;
+    gap: var(--space-1);
+  }
+  .vh-git-note {
+    min-height: 64px;
+    padding: var(--space-2);
+    resize: vertical;
+  }
+  .vh-git-selectall {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .vh-git-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .vh-dialog:has(.vh-git-ul) {
+    width: min(440px, calc(100vw - 32px));
+  }
+}

@@ -162,6 +162,8 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
             id,
             path: item.path,
             ...(r.queued ? { queued: true } : {}),
+            // S11.5: Restore N undoes as one step — the caller collects every restore's action id
+            ...(r.actionId ? { actionId: r.actionId } : {}),
           });
         }
         const entry = (CANVAS_ID.exec(id) as RegExpExecArray)[1] as string;

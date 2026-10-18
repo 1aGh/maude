@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-home-cloud-signed-in"
+description = "Enables the home_cloud_signed_in command without any pre-configured scope."
+commands.allow = ["home_cloud_signed_in"]
+
+[[permission]]
+identifier = "deny-home-cloud-signed-in"
+description = "Denies the home_cloud_signed_in command without any pre-configured scope."
+commands.deny = ["home_cloud_signed_in"]

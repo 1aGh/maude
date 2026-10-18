@@ -1,0 +1,108 @@
+/* client/v2/create/empty-project.css — S6.2: a project with no canvases (05 es-project-new).
+ *
+ * The block itself is the S11.1 kit's (`es-*`, client/v2/empty/empty.css); this file only places it in the
+ * viewport and draws the one thing the kit has no part for — the prompt box under the situation (05's
+ * `.es-askbox` with the DS `.ask` input: a pill on --bg-2, the spark on the send). Tokens only. Reduced motion
+ * needs nothing here: the only transition collapses with the --dur-* tokens. */
+
+@layer components {
+  /* The card centres on the whole window body, as the canvas draws it (no toolbar: nothing to draw on). */
+  .ep-host {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--space-8);
+    overflow: auto;
+  }
+  .ep-ask {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: min(520px, 100%);
+    margin-top: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 0.5px var(--border-default);
+    text-align: left;
+    transition: box-shadow var(--dur-flip) var(--ease-out);
+  }
+  .ep-ask:focus-within {
+    box-shadow:
+      var(--shadow-sm),
+      inset 0 0 0 1px var(--focus-ring, var(--accent));
+  }
+  .ep-ask-in {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-base);
+    color: var(--fg-0);
+    outline: none;
+  }
+  .ep-ask-in::placeholder {
+    color: var(--fg-2);
+  }
+  .ep-ask-send {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--spark);
+    color: var(--spark-fg);
+    cursor: pointer;
+  }
+  .ep-ask-send:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 2px;
+  }
+  .ep-ask-send[data-idle] {
+    background: var(--bg-3);
+    color: var(--fg-3);
+    cursor: default;
+  }
+
+  /* The Canvases panel's own empty line: the kit block, then the "New canvas" row the canvas draws. */
+  .ep-panel-none {
+    display: flex;
+    flex-direction: column;
+  }
+  .ep-panel-new {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 28px;
+    margin: 0 var(--space-2);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ep-panel-new:hover {
+    background: var(--bg-3);
+  }
+  .ep-panel-new:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: -2px;
+  }
+  .ep-panel-new:disabled {
+    color: var(--fg-3);
+    cursor: not-allowed;
+  }
+}

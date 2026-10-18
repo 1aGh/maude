@@ -56,6 +56,10 @@ export function tenantFromRow(row) {
     cellRunning: !!row.cell_running,
     exportSent: !!row.export_sent_at,
     adverseSince: typeof row.adverse_since === 'number' ? row.adverse_since : null,
+    // A3 (S9.15): set only on a trial project. Read-only for reconcile —
+    // `saveTenant` never writes either of these.
+    trialEndsAt: row.trial_ends_at ?? null,
+    subscriptionId: row.subscription_id ?? null,
   };
 }
 

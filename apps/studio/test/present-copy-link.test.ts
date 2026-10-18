@@ -1,7 +1,7 @@
 // S3.7b — Copy presentation link (S3-present-session §5): `<hub>/present/<rel without .tsx>`, each
 // segment encoded; only for a cloud-linked project (the base is the share link's public web origin —
 // the linked hub on a desktop, the tab's own origin in a cloud tab; never a loopback address).
-// Offline it still copies (the URL is deterministic) and says viewers follow once you're back.
+// Offline it waits (S3.8: 04's note 25 — "Copy presentation link waits for a connection").
 
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -96,15 +96,15 @@ describe('copyPresentationLink', () => {
     expect(toasts).toEqual([{ title: 'Presentation link copied', kind: 'success' }]);
   });
 
-  test('offline: still copies, and says viewers follow once you are back', async () => {
+  test('offline: waits — nothing is copied and the toast says why (S3.8, md-edge-offline)', async () => {
     const copied: string[] = [];
     const { ok, toasts } = await run(false, async (s) => {
       copied.push(s);
     });
-    expect(ok).toBe(true);
-    expect(copied).toEqual(['https://a.cloud.maude.sh/present/ui/A']);
+    expect(ok).toBe(false);
+    expect(copied).toEqual([]);
     expect(toasts).toEqual([
-      { title: "Copied — viewers follow once you're back online.", kind: 'success' },
+      { title: 'Copy presentation link — waits for a connection', kind: 'error' },
     ]);
   });
 

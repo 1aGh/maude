@@ -278,7 +278,8 @@ describe('renameElementId asks the dispatch route (S2.1) and says the answer in 
       seen = { url, body: JSON.parse(init.body) };
       return new Response(JSON.stringify({ ok: true, writeId: 'w1', actionId: null }));
     }) as never);
-    expect(r).toEqual({ ok: true });
+    // S2.2b: the write id comes back, so the inspector can record the one-step undo
+    expect(r).toEqual({ ok: true, writeId: 'w1', actionId: null });
     expect(seen.url).toBe('/_api/edit-op');
     expect(seen.body).toEqual({
       file: '.design/ui/Home.tsx',
@@ -319,14 +320,36 @@ describe('renameElementId asks the dispatch route (S2.1) and says the answer in 
     for (const r of [held, locked, none, down])
       expect((r as { message: string }).message).not.toContain('!');
   });
+
+  test('S2.2b: `invalid` says the server’s own reason (taken, grammar, references)', async () => {
+    const taken = await renameElementId(
+      REQ,
+      reply(400, {
+        ok: false,
+        code: 'invalid',
+        message: 'Not renamed: another object on this canvas already has that id.',
+      }) as never
+    );
+    expect((taken as { message: string }).message).toBe(
+      'Not renamed: another object on this canvas already has that id.'
+    );
+    const bare = await renameElementId(REQ, reply(400, { ok: false, code: 'invalid' }) as never);
+    expect((bare as { message: string }).message).toContain('does not fit');
+  });
 });
 
-describe('the registry carries the three inspector actions (rule 14: each with its AI path)', () => {
+describe('the registry carries the inspector actions (rule 14: each with its AI path)', () => {
   test('registered as shell commands, greyed without an object, each with an agent path', () => {
     expect([...INSPECTOR_ACTION_IDS]).toEqual([
       'inspector.copy-css',
       'element.copy-id',
       'element.set-id',
+      'element.clear-link', // S3.10a
+      // S11.8
+      'inspector.copy-code',
+      'inspector.edit-css-as-text',
+      'element.detach',
+      'inspect.copy-code', // S3.11
     ]);
     for (const id of INSPECTOR_ACTION_IDS) {
       const def = ACTIONS_BY_ID.get(id);
@@ -336,13 +359,17 @@ describe('the registry carries the three inspector actions (rule 14: each with i
       expect(AGENT_PATHS[id], id).toBeTruthy();
     }
     expect(ACTIONS_BY_ID.get('element.set-id')?.enabled?.minRole).toBe('edit');
+    // S11.8: the code is a download (Can comment and up); the other two write the file
+    expect(ACTIONS_BY_ID.get('inspector.copy-code')?.enabled?.minRole).toBe('comment');
+    expect(ACTIONS_BY_ID.get('inspector.edit-css-as-text')?.enabled?.minRole).toBe('edit');
+    expect(ACTIONS_BY_ID.get('element.detach')?.enabled?.minRole).toBe('edit');
+    // S3.11: the Inspect panel's Copy code is the same download, so the same floor
+    expect(ACTIONS_BY_ID.get('inspect.copy-code')?.enabled?.minRole).toBe('comment');
     expect(ACTIONS_BY_ID.get('inspector.copy-css')?.label).toBe('Copy CSS');
-    // writing an id is a project write by the file path (the TSX); the copies write nothing
+    // writing an id is a project write; an agent does not rename ids (A5 lead: the references
+    // live in _comments/ + the board, which agents never write) — the copies write nothing
     expect(AGENT_PATHS['element.set-id'].effect).toBe('project');
-    expect(AGENT_PATHS['element.set-id'].agent).toMatchObject({
-      path: 'file',
-      format: 'canvas-tsx',
-    });
+    expect(AGENT_PATHS['element.set-id'].agent).toMatchObject({ path: 'human', because: 'keys' });
     expect(AGENT_PATHS['inspector.copy-css'].effect).toBe('none');
   });
 

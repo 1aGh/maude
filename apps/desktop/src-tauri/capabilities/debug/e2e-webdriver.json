@@ -21,6 +21,7 @@
     "allow-e2e-github-sign-in-as",
     "allow-e2e-notification-click",
     "allow-e2e-deliver-deep-link",
+    "allow-e2e-route-deep-link",
     "allow-profiles-list",
     "allow-profiles-create",
     "allow-profiles-delete"

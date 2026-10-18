@@ -48,7 +48,9 @@ import {
   toolKeyAction,
   V1_TOOL_IDS,
 } from './bridge/canvas-modes.ts';
-import { isEmbedCanvas } from './read-only-mode.ts';
+import { escOwnerOpen } from './bridge/esc-ladder.ts';
+import { modeShows } from './bridge/mode-shows.ts';
+import { isEmbedCanvas, isHistoricalCanvas } from './read-only-mode.ts';
 import { lastMarkerTip } from './toolbars/marker-tip.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +95,8 @@ export type Tool =
   // untouched. Pressing V flips to `move` (the select tool). See DDR-187.
   | 'browse'
   | 'move'
+  // S3.11 — Viewing's resting tool: a click inspects (outline + size tag, no handles), a drag pans.
+  | 'inspect'
   | 'hand'
   | 'comment'
   | 'pen'
@@ -110,6 +114,15 @@ export type Tool =
   | 'arrow'
   | 'sticky'
   | 'text'
+  // S2.12b — Edit's Text: click to type (annotations-layer `beginStroke`), not an annotation.
+  | 'el-text'
+  // S2.13 — Edit's Frame (F), Shape (R) and More (Line · Ellipse · Polygon · Export area): drawn by dragging
+  // (editing/draw-tools.tsx owns the pointer), not annotations. `ellipse` above is the same id.
+  | 'frame'
+  | 'el-shape'
+  | 'line'
+  | 'polygon'
+  | 'slice'
   // FigJam v3 — labelled organizing container (Shift+S).
   | 'section'
   | 'eraser';
@@ -123,6 +136,13 @@ const ANNOTATION_TOOLS = new Set<Tool>([
   'arrow',
   'sticky',
   'text',
+  'el-text',
+  // S2.13 — the drag tools of Edit own the pointer exactly as the annotation tools do
+  'frame',
+  'el-shape',
+  'line',
+  'polygon',
+  'slice',
   'section',
   'eraser',
 ]);
@@ -226,8 +246,21 @@ const ROUTER_KEYS = canvasKeyIndex(
     .concat(Object.keys(ROUTER_FIXED))
 );
 
-const V1_TOOLS: ReadonlySet<string> = new Set(V1_TOOL_IDS);
-/** A v2 slot tool as the v1 `Tool` the canvas arms (Viewing's `inspect` rides `move` until S3). */
+// `el-text` (S2.12b) and the S2.13 drag tools are the v2 tools the canvas arms itself; the others wait on their slice.
+const V1_TOOLS: ReadonlySet<string> = new Set<string>([
+  ...V1_TOOL_IDS,
+  'el-text',
+  // S2.13 — drawn by editing/draw-tools.tsx
+  'frame',
+  'el-shape',
+  'ellipse',
+  'line',
+  'polygon',
+  'slice',
+  // S3.11 — `inspect` is a tool with no v1 bridge
+  'inspect',
+]);
+/** A v2 slot tool as the `Tool` the canvas arms (S3.11: `inspect` is one, with no bridge). */
 const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) as Tool | null;
 
 function classifyToolKey(chord: string, mode: CanvasModeV2, input: ClassifyInput): RouterAction {
@@ -297,6 +330,8 @@ function classifyKey(input: ClassifyInput): RouterAction {
   // DDR-247 — an embed's esc belongs to its relay; it never asks the embed's shell for a mode.
   if (fixed.kind === 'escape' && governed && !isEmbedCanvas()) {
     if (escStep(governed, input.activeTool) === 'back') return { kind: 'escape', back: true };
+    // S1.14 — a past version (Viewing, `?sha=`): esc is "back to now"; the shell steps out of the hold.
+    if (isHistoricalCanvas()) return { kind: 'escape', back: true };
   }
   return { ...fixed };
 }
@@ -331,6 +366,15 @@ export function classify(input: ClassifyInput): RouterAction {
     // behavior); bare hover stays native.
     if (input.activeTool === 'browse') {
       if (!metaOrCtrl(input)) return { kind: 'no-op' };
+      return {
+        kind: 'hover',
+        deep: true,
+        clientX: input.clientX ?? 0,
+        clientY: input.clientY ?? 0,
+      };
+    }
+    // S3.11 — Inspect: the halo previews the deepest element a click would inspect.
+    if (input.activeTool === 'inspect') {
       return {
         kind: 'hover',
         deep: true,
@@ -395,6 +439,18 @@ export function classify(input: ClassifyInput): RouterAction {
     // the controller's pointerdown listener on the same host claims the drag.
     if (input.activeTool === 'hand') return { kind: 'no-op' };
 
+    // S3.11 — Inspect: a click picks the deepest element and holds exactly one (Shift does not add).
+    // The press is not claimed (see onPointerDown): a drag from here pans the canvas.
+    if (input.activeTool === 'inspect') {
+      return {
+        kind: 'select',
+        mode: 'replace',
+        deep: true,
+        clientX: input.clientX ?? 0,
+        clientY: input.clientY ?? 0,
+      };
+    }
+
     // Browse tool (feature-4 boot default): bare/Shift left-clicks pass
     // through so the mock stays alive (a button press fires, a link follows,
     // an input focuses). Cmd/Ctrl+click is the ESCAPE HATCH (user steer
@@ -445,7 +501,9 @@ export interface RouterCallbacks {
   onDropComment?: (a: Extract<RouterAction, { kind: 'drop-comment' }>) => void;
   onContextMenu?: (a: Extract<RouterAction, { kind: 'context-menu' }>) => void;
   onTool?: (a: Extract<RouterAction, { kind: 'tool' }>) => void;
-  onEscape?: () => void;
+  /** S3.12 — `true` when the press ran a rung (the ladder in bridge/esc-ladder.ts): the mode is not
+   *  asked to step back as well. Anything else (`void` included) is v1's "ran everything". */
+  onEscape?: () => boolean | void;
   /** Phase 20 — Cmd+Z / Ctrl+Z. */
   onUndo?: () => void;
   /** Phase 20 — Cmd+Shift+Z / Ctrl+Y / Cmd+Y. */
@@ -556,6 +614,23 @@ export function isArtboardDragChrome(t: EventTarget | null): boolean {
   return !!el.closest('[data-dc-screen]') && !el.closest('.dc-artboard-body');
 }
 
+/** S3.9 — is the target inside an artboard's design surface (`.dc-artboard-body`)? The label strip and
+ *  the bare canvas are not. */
+export function isDesignSurface(t: EventTarget | null): boolean {
+  if (!t || typeof (t as Element).closest !== 'function') return false;
+  return !!(t as Element).closest('.dc-artboard-body');
+}
+
+/**
+ * S3.9 (V2-1.2 Q3) — does a bare left-button drag pan the canvas? Hand always does; Preview's Hand rests on
+ * `browse`, where a click uses the design, so a drag pans only when it starts OFF the design (empty canvas,
+ * an artboard's label) — a drag on the design goes to the design (sliders, scroll areas, text selection).
+ * Space-drag and middle-button pan everywhere, ahead of this.
+ */
+export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
+  return tool === 'hand' || tool === 'inspect' || (tool === 'browse' && !onDesign);
+}
+
 /**
  * Should the router's pointerdown/mousedown handler skip
  * `stopImmediatePropagation` so the event still reaches use-artboard-drag.tsx?
@@ -606,6 +681,55 @@ export function yieldsClickToArtboardChrome(
 
 /** V2-4.5b — a momentary slot's key asks the toolbar (tool-palette.tsx owns the insert anchor). */
 export const TOOLBAR_INSERT_EVENT = 'maude:toolbar-insert';
+
+// ── S3.10a — on-click links, Preview branch only (contract S3-links-format §5 step 1) ────────────
+// A plain left click in Preview whose `closest('[data-cd-link]')` also carries a `data-cd-id` posts
+// `link-follow {elementId, artboardId}` and prevents the default. The canvas never posts the TARGET (the
+// shell reads it from the TSX, `GET /_api/links`): the canvas origin is untrusted (DDR-054). Edit,
+// Viewing and Present never post it; ⌘-click inspects (S3.11).
+const LINK_ELEMENT_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const LINK_ARTBOARD_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** What a click asks the shell to follow, or null. Pure over the DOM it is handed. */
+export function linkFollowOf(
+  target: EventTarget | null,
+  click: { mode: CanvasModeV2 | null | undefined; button: number; mod: boolean; shift?: boolean }
+): { elementId: string; artboardId: string | null } | null {
+  if (!modeShows(click.mode, 'live-design') || click.button !== 0 || click.mod || click.shift)
+    return null;
+  const el = (target as Element | null)?.closest?.('[data-cd-link]');
+  const id = el?.getAttribute('data-cd-id');
+  if (!el || !id || id.length > 48 || !LINK_ELEMENT_ID_RE.test(id) || /^[0-9a-f]{8}$/.test(id))
+    return null;
+  const ab = el.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null;
+  return { elementId: id, artboardId: ab && LINK_ARTBOARD_ID_RE.test(ab) ? ab : null };
+}
+
+// Both routers of a document (the comment-mount ancestor too) see one click: post once per event.
+const linkFollowed = new WeakSet<Event>();
+
+function postLinkFollow(e: MouseEvent): boolean {
+  if (typeof window === 'undefined' || window.parent === window) return false;
+  const hit = linkFollowOf(e.target, {
+    mode: canvasModeStore(window).get()?.mode ?? null,
+    button: e.button,
+    mod: e.metaKey || e.ctrlKey,
+    shift: e.shiftKey,
+  });
+  if (!hit) return false;
+  e.preventDefault();
+  if (linkFollowed.has(e)) return true;
+  linkFollowed.add(e);
+  try {
+    window.parent.postMessage(
+      { dgn: 'link-follow', elementId: hit.elementId, artboardId: hit.artboardId },
+      '*'
+    );
+  } catch {
+    /* detached */
+  }
+  return true;
+}
 
 /** V2-4.5b — a key's `mode-request` (M3: no local change). Both routers of a document can see one
  *  keydown (the comment-mount ancestor claims esc too), so the document asks once (claimRequest).
@@ -672,11 +796,13 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
         case 'tool':
           callbacks.onTool?.(action);
           break;
-        case 'escape':
-          callbacks.onEscape?.();
-          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep).
-          if (action.back) postModeRequest({ mode: 'back', cause: 'esc' });
+        case 'escape': {
+          const ranRung = callbacks.onEscape?.();
+          // V2-4.5b — nothing left to leave here: the shell steps the mode back (escStep). S3.12: only when
+          // the press ran no rung — a cleared selection is the step, the mode stays (04 md-esc, one at a time).
+          if (action.back && ranRung !== true) postModeRequest({ mode: 'back', cause: 'esc' });
           break;
+        }
         case 'mode-request':
           postModeRequest(action);
           if (action.panel) postPanelOpen(action.panel);
@@ -751,7 +877,11 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       // click-drag text-selection — it only skips stopImmediatePropagation,
       // which is the one call that would keep the event from ever reaching
       // the bubble-phase listener bound to the very element it targeted.
-      const yields = yieldsToArtboardDrag(action, e.target, e);
+      // S3.11 — the same exemption for Inspect: its select must not keep the viewport controller from
+      // arming a pan on the same press (a click inspects, a drag pans).
+      const yields =
+        yieldsToArtboardDrag(action, e.target, e) ||
+        (action.kind === 'select' && getActiveTool() === 'inspect');
       if (action.kind !== 'no-op') {
         // Suppress native behavior on every event the router claims —
         // button presses don't fire, inputs don't focus, the canvas
@@ -819,6 +949,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
     const onClick = (e: MouseEvent): void => {
       if (isOverlayTarget(e.target)) return;
       if (isEditableTarget(e.target)) return;
+      if (postLinkFollow(e)) return; // S3.10a — Preview only; the shell follows (or drops) it
       const tool = getActiveTool();
       const mod = e.metaKey || e.ctrlKey;
       // Map the click to the action kind the matching pointerdown would have
@@ -831,7 +962,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       const wouldRouteKind: RouterAction['kind'] | null =
         tool === 'comment'
           ? 'drop-comment'
-          : tool === 'move' && e.button === 0
+          : (tool === 'move' || tool === 'inspect') && e.button === 0
             ? 'select'
             : (isAnnotationTool(tool) || tool === 'browse') && mod && e.button === 0
               ? 'select'
@@ -893,6 +1024,9 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
           singleKeys: gov?.singleKeys ?? true,
         })
       );
+      // S3.12 — a context menu / thread popover / picker owns this esc and closes itself: no rung runs,
+      // the mode does not move, the key is not consumed here.
+      if (action.kind === 'escape' && escOwnerOpen(host.ownerDocument ?? document)) return;
       if (
         action.kind === 'tool' ||
         action.kind === 'mode-request' ||

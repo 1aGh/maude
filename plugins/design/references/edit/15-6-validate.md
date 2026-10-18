@@ -1,22 +1,18 @@
 ### 6. Validate
 
+The hooks check every write (`maude design check --tier fast`): a canvas that no longer parses, draws or keeps its ids is put back at that edit, with the reason. That replaces the old restore-from-snapshot step. What is left for you is the design-level drift the check cannot see:
+
 ```bash
-grep -q "$(basename "$TOKENS_REL")" "$ACTIVE" || RESTORE=1
+grep -q "$(basename "$TOKENS_REL")" "$ACTIVE" || DRIFT=1
 # Accept BOTH plain HTML (class="…") and JSX (className="…") form — React canvases
 # render the rootClass via JSX so it never appears as a literal HTML attribute.
-grep -qE "(^| )(class|className)=\"$ROOT_CLASS([\" ])" "$ACTIVE" || RESTORE=1
+grep -qE "(^| )(class|className)=\"$ROOT_CLASS([\" ])" "$ACTIVE" || DRIFT=1
 # grep for hardcoded #hex in style attributes — should be 0 hits in newly added lines
 ```
 
-If `RESTORE=1`, copy back the snapshot and report drift to user. Don't leave broken HTML.
+If `DRIFT=1`, fix it with another Edit (put the tokens import or the root class back) and tell the person what drifted. Don't leave a half-themed canvas. The earlier version is in Version history if the person wants to go back.
 
-```bash
-# Phase 8 Task 4 — refresh AI banner heartbeat (keeps the banner alive through
-# the validate + screenshot + critic steps that follow).
-curl -s -m 2 -X POST -H 'content-type: application/json' \
-  -d "{\"file\":\"$ACTIVE\"}" \
-  "http://127.0.0.1:$PORT/_api/ai/heartbeat" >/dev/null 2>&1 || true
-```
+Nothing here keeps the run alive: the hooks do that while you work.
 
 #### Schema lint on the changed lines (V2-2.15)
 

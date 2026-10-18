@@ -42,8 +42,21 @@ export type EditOpResult =
       /** the targets as written: same order, every `element` an authored id */
       refs: ElementRef[];
       created?: ElementRef[];
+      /** S2.2b — `element.set-id`: the references that followed the new id, per lane */
+      moved?: { comments: number; board: number };
+      /** S2.10b — an op-log home took the write but has not answered yet (the outbox keeps it);
+       *  `writeId` is then '' — an op-log write never gets a legacy revert record. */
+      queued?: true;
+      /** op-specific facts about the write (S7.6: a split's new clip id, a trim's new length) */
+      detail?: Record<string, unknown>;
     }
   | { ok: false; code: EditOpCode; message: string };
+
+/** S2.2b — an id rename an op made; the dispatcher moves every durable reference with it. */
+export interface IdRename {
+  from: string;
+  to: string;
+}
 
 /** The request an op sees: designRoot-relative `file`, stamped `targets`. */
 export interface ResolvedEditOp {
@@ -51,6 +64,16 @@ export interface ResolvedEditOp {
   op: EditOpId;
   targets: ElementRef[];
   params: Record<string, unknown>;
+  /** Is there a regular file at this designRoot-relative path? Only ops that name a file (S8.19c `asset.relink`) ask. */
+  exists?: (rel: string) => boolean;
+  /** What the SERVER knows about this canvas (never the request): its meta's `dsRev` (S2.16). */
+  ctx?: EditCtx;
+}
+
+/** Server-side facts an op may read; the client cannot set them. */
+export interface EditCtx {
+  /** `meta.dsRev` — set on a canvas left out of the design system's current revision */
+  dsRev: string | null;
 }
 
 /** One writer. Pure: bytes in, bytes out; throw `CanvasEditError` to refuse with `invalid`. */
@@ -58,7 +81,55 @@ export interface EditOp {
   id: EditOpId;
   /** 'refuse' (default): a locked target refuses the op. 'allow' only for the lock op itself. */
   locked?: 'refuse' | 'allow';
-  apply(source: string, req: ResolvedEditOp): { source: string; created?: ElementRef[] };
+  /**
+   * S2.10b — the artboards this op changes as a whole (resize, copy, trash): an AI run's lease on
+   * any of them refuses the op with `held-by-ai`, like an element hold. Absent = none.
+   */
+  artboards?(req: ResolvedEditOp): string[];
+  /**
+   * S7.6 (additive): 'artboard' = the op edits a whole video artboard's comp, addressed by
+   * `params.artboard` (every artboard of the file when absent) instead of `targets`. The dispatcher then
+   * refuses an artboard that is not on the canvas, and a locked one. The AI lease on it is the
+   * `artboards` check above — declare `artboards` too (v2-lead-artboard-hold-one-check). Default 'targets'.
+   */
+  scope?: 'targets' | 'artboard';
+  apply(source: string, req: ResolvedEditOp): EditOpOutput;
+}
+
+/**
+ * Positions an op wants in the layout lane (`<canvas>.meta.json` `layout.artboards[]`, DDR-027: an artboard's
+ * x/y live there, never in the TSX). `set` always lands; `pin` only fills an id that has no entry yet (so a
+ * copy spliced into the JSX order cannot shift a board that was placed by the default grid). S2.10.
+ */
+export interface LayoutPatch {
+  set?: Array<{ id: string; x: number; y: number }>;
+  pin?: Array<{ id: string; x: number; y: number }>;
+  /**
+   * S2.10b — entries an op takes out (an artboard moved to the trash). Only on an op-log home, where
+   * the removal is in the same action as the source: on a legacy link the entry stays (an orphan entry
+   * is inert, and the source revert then brings the board back at its own place).
+   */
+  remove?: string[];
+}
+
+export interface EditOpOutput {
+  source: string;
+  created?: ElementRef[];
+  /** op-specific facts about the write (S7.6: a split's new clip id, a trim's new length) */
+  detail?: Record<string, unknown>;
+  /** written to the layout lane in the same request, BEFORE the source (an orphan entry is harmless) */
+  layout?: LayoutPatch;
+  /** S2.2b — `element.set-id`: the id it renamed (its references move in the same request) */
+  renamed?: IdRename;
+  /**
+   * S2.10b — the project action this write is on an op-log home. Absent: `kind: 'edit'` with the
+   * op's `label`. `trashed` is the artboard-trash action's `origin.trashed` (S1-trash.md §2).
+   */
+  action?: {
+    kind: 'edit' | 'trash';
+    label: string;
+    trashed?: Array<{ artboard: string; label?: string }>;
+  };
 }
 
 /** HTTP status per refusal code (contract §2). */

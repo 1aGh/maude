@@ -20,6 +20,10 @@
 //                the write changed + `dsRev` unchanged (./meta.ts)
 //   edl/footage  strict: validateEdl / validateFootageAnalysis (footage/schema.ts — the runtime source
 //                the edl.v1 schema mirrors); lenient: parse
+//   gen          strict: validateGen (generation/gen-sidecar.ts — lenient on unknown keys; the gen.v1
+//                schema mirrors it); lenient: parse
+//   transcript/beats  strict: validateTranscript / validateBeats in writer mode (video/schema.ts, S7.1 —
+//                preserving: an unknown key is never a finding); lenient: parse
 //   handoff      maude.agent-handoff/1 of the role the file name declares (cli/lib/handoff.mjs)
 //   json kinds   parse
 //   runtime `_*` (other than hand-offs), files outside the design root, everything else: skipped
@@ -40,7 +44,9 @@ import { jsonEq } from '../annotations/fields.ts';
 import { validateBoard } from '../annotations/validate-board.ts';
 import { isValidElementId } from '../element-ids.ts';
 import { validateEdl, validateFootageAnalysis } from '../footage/schema.ts';
+import { validateGen } from '../generation/gen-sidecar.ts';
 import { presentIdIssues } from '../present/meta-schema.ts';
+import { validateBeats, validateTranscript } from '../video/schema.ts';
 import { checkIdsAdapter } from './ids.ts';
 import { validateMeta } from './meta.ts';
 
@@ -50,7 +56,10 @@ export type CheckKind =
   | 'canvas-meta'
   | 'edl'
   | 'footage'
+  | 'transcript'
+  | 'beats'
   | 'photo-edit'
+  | 'gen'
   | 'ds'
   | 'ds-managed'
   | 'design-config'
@@ -83,6 +92,8 @@ export interface CheckOptions {
   tier?: 'fast' | 'stop';
   /** AI writes are strict: a lenient-loader drop is an error, not a warning */
   strict?: boolean;
+  /** S3.10a: another canvas's artboard ids (null = not in the project) — judges `link-dangling` */
+  canvasArtboards?: (canvas: string) => readonly string[] | null;
   /** S3.5 — a `.meta.json`'s canvas artboards (`artboardIdsOfSource` of the sibling `.tsx`), for the
    *  Present id rule; absent = only the duplicate half runs. */
   artboards?: { ids: readonly string[]; complete: boolean } | null;
@@ -103,7 +114,10 @@ export function kindOf(rel: string): CheckKind {
   if (rel.endsWith('.meta.json')) return 'canvas-meta';
   if (rel.endsWith('.edl.json')) return 'edl';
   if (rel.endsWith('.footage.json')) return 'footage';
+  if (rel.endsWith('.transcript.json')) return 'transcript';
+  if (rel.endsWith('.beats.json')) return 'beats';
   if (rel.endsWith('.photo.json')) return 'photo-edit';
+  if (rel.endsWith('.gen.json')) return 'gen';
   if (rel.endsWith('.tsx') && segs[0] !== 'system') return 'canvas-tsx';
   if (rel.endsWith('.json')) return 'json';
   return 'skip';
@@ -246,7 +260,11 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       );
     else seen.set(ab.id, line);
   }
-  const ids = checkIdsAdapter(text, { against: opts.against ?? undefined, path: rel });
+  const ids = checkIdsAdapter(text, {
+    against: opts.against ?? undefined,
+    path: rel,
+    canvasArtboards: opts.canvasArtboards,
+  });
   for (const f of ids.findings) {
     // an element id that is not an id is file text: drop it, the line names the element
     const raw = typeof f.id === 'string' && !isValidElementId(f.id) ? f.id : null;
@@ -259,7 +277,7 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       line: f.line,
     };
     if (f.element) out.element = f.element;
-    (f.severity === 'error' ? r.errors : r.infos).push(out);
+    (f.severity === 'error' ? r.errors : f.severity === 'warning' ? r.warnings : r.infos).push(out);
   }
 }
 
@@ -405,13 +423,38 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
                 : 'write the analysis in the documented shape (skill design:footage-director)'
             )
           );
+    } else if (kind === 'gen' && opts.strict) {
+      const doc = parseJson(rel, text, r);
+      if (doc !== undefined)
+        for (const e of validateGen(doc).errors)
+          r.errors.push(
+            finding(
+              'gen',
+              `${rel} › ${fileText(e.split(':')[0])}`,
+              cleanText(e, 200),
+              'write the provenance in the documented shape (apps/studio/schema/gen.v1.schema.json, skill design:ai-generation)'
+            )
+          );
+    } else if ((kind === 'transcript' || kind === 'beats') && opts.strict) {
+      const doc = parseJson(rel, text, r);
+      const validate = kind === 'transcript' ? validateTranscript : validateBeats;
+      if (doc !== undefined)
+        for (const e of validate(doc, { strict: true, rel }).errors)
+          r.errors.push(
+            finding(
+              kind,
+              `${rel} › ${fileText(e.split(':')[0])}`,
+              cleanText(e, 200),
+              `write the ${kind} in the documented shape (apps/studio/schema/${kind}.v1.schema.json, skill design:video-comp)`
+            )
+          );
     } else if (kind === 'ds-managed')
       r.errors.push(
         finding(
           'ds-managed',
           rel,
-          'design-system revisions are written by the review verbs, never by hand',
-          'change the system through `maude design ds-upgrade` or the DS review'
+          'design-system revisions and head.json are written by the DS engine, never by hand',
+          'change the system with `maude design ds` (pending --set, publish, keep, undo, pick) or the DS review'
         )
       );
     else if (rel.endsWith('.json') && kind !== 'skip') parseJson(rel, text, r);

@@ -24,6 +24,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { currentAccess, notInScopeResponse } from '../access/request.ts';
+import type { Access } from '../access/scope.ts';
 import {
   ATTACH_FOLDER_LIMITS,
   countFiles,
@@ -55,6 +57,8 @@ export interface ChatAttachDeps {
   projectRoot: string;
   /** `api.saveAssetFromStream` — the Assets writer (sniff, caps, budget, content address). */
   saveAsset: (stream: ReadableStream<Uint8Array>) => Promise<SaveAssetResult>;
+  /** THIS request's access; default `currentAccess()` (server.ts sets it per request). */
+  access?: () => Access;
   /** tests only */
   grants?: GrantStore;
   home?: string;
@@ -114,6 +118,7 @@ function concat(chunks: Uint8Array[]): Uint8Array {
 
 export function createChatAttachRoutes(deps: ChatAttachDeps): RouteSpec[] {
   const grants = () => deps.grants ?? createGrantStore(deps.designRoot);
+  const canvasOnly = () => (deps.access ?? currentAccess)().canvasOnly;
   const env = () => ({
     projectRoot: deps.projectRoot,
     designRoot: deps.designRoot,
@@ -278,11 +283,16 @@ export function createChatAttachRoutes(deps: ChatAttachDeps): RouteSpec[] {
       },
     },
     {
+      // `project` class (test/_acl-route-classes.ts): the folders AI may read are the project's
+      // AI chat's. A canvas-only session gets the not-in-scope answer, granted folders or none.
       method: 'GET',
       path: '/_api/ai/attach/folders',
       origin: 'main',
       readOnly: 'allowed',
-      handle: () => json(200, { folders: grants().list(), limits: ATTACH_FOLDER_LIMITS }),
+      handle: () =>
+        canvasOnly()
+          ? notInScopeResponse()
+          : json(200, { folders: grants().list(), limits: ATTACH_FOLDER_LIMITS }),
     },
     {
       // Read-only listing of a folder THIS chat carries, one level. `sub` is resolved and must
@@ -292,6 +302,7 @@ export function createChatAttachRoutes(deps: ChatAttachDeps): RouteSpec[] {
       origin: 'main',
       readOnly: 'allowed',
       handle: (req) => {
+        if (canvasOnly()) return notInScopeResponse();
         const q = new URL(req.url).searchParams;
         const chatId = q.get('chatId');
         const root = q.get('root') ?? '';

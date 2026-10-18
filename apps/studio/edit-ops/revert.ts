@@ -7,6 +7,7 @@
 // that touches the same bytes is refused, never overwritten. No positional ids anywhere.
 
 import { mergeSource } from '../sync/source-merge.ts';
+import type { IdRename } from './types.ts';
 
 export interface WriteRecord {
   writeId: string;
@@ -14,6 +15,8 @@ export interface WriteRecord {
   file: string;
   before: string;
   after: string;
+  /** S2.2b — this write renamed an element id; undoing it renames the references back */
+  renamed?: IdRename;
 }
 
 export const WRITE_LOG_CAP = 200;
@@ -29,9 +32,12 @@ function newWriteId(): string {
 export function createWriteLog(cap = WRITE_LOG_CAP) {
   const log = new Map<string, WriteRecord>();
   return {
-    add(file: string, before: string, after: string): string {
+    add(file: string, before: string, after: string, renamed?: IdRename): string {
       const writeId = newWriteId();
-      log.set(writeId, { writeId, file, before, after });
+      log.set(
+        writeId,
+        renamed ? { writeId, file, before, after, renamed } : { writeId, file, before, after }
+      );
       while (log.size > cap) {
         const oldest = log.keys().next().value;
         if (oldest === undefined) break;

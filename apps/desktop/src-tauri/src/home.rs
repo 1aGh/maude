@@ -66,12 +66,20 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-managed-project-open",
     "allow-managed-projects-list",
     "allow-open-cloud-url",
+    // S9.17: a Can view project's `409 browser-door` opens a `c-*` cell tab.
+    "allow-open-cell-tab",
     "allow-resolve-dev-server-url",
     "allow-send-notification",
     // V2-3.5: a link for a project this machine doesn't know is parked for Home.
     "allow-take-pending-deep-link",
     // V2-3.6 H1: the page secret for the Home server's page routes.
     "allow-home-session",
+    // S6.7: Home's own Maude Cloud sign-in (profiles.rs) and the invite link
+    // parked for Home (deep_link.rs).
+    "allow-home-cloud-sign-in-prepare",
+    "allow-home-cloud-sign-in-open",
+    "allow-home-cloud-signed-in",
+    "allow-take-pending-invite",
 ];
 
 // ── The Home server record ──────────────────────────────────────────────────
@@ -693,7 +701,12 @@ pub fn build_shell_state(
             ShellProject {
                 pid: pid.clone(),
                 root: e.root.clone(),
-                name: name_of(&e.root, &e.name),
+                // S1.22b: a tab renamed on this Mac shows that name on Home too.
+                name: e
+                    .display_name
+                    .as_deref()
+                    .map(crate::notify::sanitize_title)
+                    .unwrap_or_else(|| name_of(&e.root, &e.name)),
                 profile: e.profile.clone(),
                 place,
                 focused: label.is_some() && book.focused() == label.as_deref(),
@@ -859,18 +872,38 @@ pub fn spawn_index_watch(app: &AppHandle) {
 
 // ── Intents (§5.4 "The create-from-Home intent") ────────────────────────────
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenIntent {
     pub kind: String,
+    #[serde(default)]
     pub prompt: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_hint: Option<String>,
+    /// S6.7 (decision v2-lead-cloud-move-window-only, S6.0c): a project Home
+    /// just created while signed in moves to the cloud — and the move is the
+    /// project WINDOW's own same-origin `POST /_api/cloud/move`, so the flag
+    /// rides here, parked in Rust, never in a URL. Only on a NEW tab opened by
+    /// folder (`open_project({root})`, the create-local path) — see
+    /// `windows::intent_for_opened`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub move_to_cloud: bool,
 }
 
+/// The intent kinds Home parks (S6-slices Q8): a canvas from one sentence, an
+/// empty canvas (⌘N on Home), and the two imports. `create-canvas` needs its
+/// sentence; `create-empty` carries none; an import may carry one (≤ 4000).
+pub const INTENT_KINDS: &[&str] = &["create-canvas", "create-empty", "import-brand", "import-figma"];
+
 pub fn validate_intent(i: OpenIntent) -> Result<OpenIntent, String> {
-    let ok = i.kind == "create-canvas"
-        && !i.prompt.trim().is_empty()
+    let blank = i.prompt.trim().is_empty();
+    let prompt_ok = INTENT_KINDS.contains(&i.kind.as_str())
+        && match i.kind.as_str() {
+            "create-canvas" => !blank,
+            "create-empty" => i.prompt.is_empty(),
+            _ => true, // the imports: an optional sentence
+        };
+    let ok = prompt_ok
         && i.prompt.chars().count() <= 4000
         && i.project_hint
             .as_ref()
@@ -1001,6 +1034,36 @@ async fn internal_get(
         .json::<Value>()
         .await
         .map_err(|e| format!("Home search answered oddly: {e}"))
+}
+
+/// The internal route through which Rust names the profile the Home server's
+/// next sign-in may write (S6.7 → S6.5, "profile path from Rust only"). The
+/// Home server maps the id to its `cloud.json` with the `paths_in` rule
+/// (`home/cloud.ts` `profileCloudPath`) and its `start` refuses any other id.
+pub const SIGNIN_PROFILE_ROUTE: &str = "/_home/internal/signin/profile";
+
+/// `POST /_home/internal/signin/profile {profile, invite}` (bearer). The ids are
+/// validated before they leave Rust; nothing credential-shaped is in the body.
+pub async fn register_sign_in_profile(
+    app: &AppHandle,
+    profile: &str,
+    invite: Option<&str>,
+) -> Result<(), String> {
+    crate::profiles::validate_id(profile)?;
+    if invite.is_some_and(|i| !crate::profiles::valid_invite_id(i)) {
+        return Err("That invitation link is not valid.".to_string());
+    }
+    let (base, token) = endpoint(app).ok_or_else(|| "Maude Home is still starting.".to_string())?;
+    internal_client()?
+        .post(format!("{base}{SIGNIN_PROFILE_ROUTE}"))
+        .header(HOME_HEADER, "1")
+        .bearer_auth(token)
+        .json(&json!({ "profile": profile, "invite": invite }))
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map(|_| ())
+        .map_err(|_| "Maude Home couldn't start the sign-in. Try again in a moment.".to_string())
 }
 
 /// Inline each row's cover as a `data:` JPEG (`/_home/internal/thumbs`, ≤ 50
@@ -1202,6 +1265,7 @@ pub fn search_result_target(
     let target = windows::validate_target(windows::OpenTarget {
         canvas: Some(canvas),
         artboard,
+        thread: None,
     })?;
     Ok((PathBuf::from(&entry.root), target))
 }
@@ -1757,6 +1821,7 @@ mod tests {
             kind: "create-canvas".into(),
             prompt: "a pricing page".into(),
             project_hint: None,
+            move_to_cloud: false,
         };
         assert!(validate_intent(good.clone()).is_ok());
         assert!(validate_intent(OpenIntent {
@@ -1782,6 +1847,37 @@ mod tests {
         assert_eq!(take_intent("p-other"), None);
         assert_eq!(take_intent("p-lt"), Some(good));
         assert_eq!(take_intent("p-lt"), None);
+    }
+
+    /// S6.7 / S6-slices Q8: the four kinds Home parks, each with its prompt rule;
+    /// anything else is refused. The wire shape stays camelCase, and a v1-shaped
+    /// intent (no `moveToCloud`) still reads.
+    #[test]
+    fn intents_kinds() {
+        let i = |kind: &str, prompt: &str| OpenIntent {
+            kind: kind.into(),
+            prompt: prompt.into(),
+            ..Default::default()
+        };
+        assert!(validate_intent(i("create-canvas", "a poster for the derby")).is_ok());
+        assert!(validate_intent(i("create-canvas", "")).is_err(), "a sentence is required");
+        assert!(validate_intent(i("create-empty", "")).is_ok());
+        assert!(validate_intent(i("create-empty", "start an AI run")).is_err(), "an empty canvas carries no prompt");
+        for k in ["import-brand", "import-figma"] {
+            assert!(validate_intent(i(k, "")).is_ok(), "{k}");
+            assert!(validate_intent(i(k, "the spring palette")).is_ok(), "{k}");
+            assert!(validate_intent(i(k, &"x".repeat(4001))).is_err(), "{k}");
+        }
+        for k in ["", "Create-Canvas", "run-shell", "move-to-cloud", "import-figma "] {
+            assert!(validate_intent(i(k, "x")).is_err(), "{k:?}");
+        }
+        assert_eq!(INTENT_KINDS.len(), 4);
+        let v1: OpenIntent = serde_json::from_str(r#"{"kind":"create-canvas","prompt":"x"}"#).unwrap();
+        assert!(!v1.move_to_cloud);
+        assert_eq!(serde_json::to_string(&v1).unwrap(), r#"{"kind":"create-canvas","prompt":"x"}"#);
+        let moved: OpenIntent = serde_json::from_str(r#"{"kind":"create-empty","moveToCloud":true}"#).unwrap();
+        assert!(moved.move_to_cloud && moved.prompt.is_empty());
+        assert!(serde_json::to_string(&moved).unwrap().contains(r#""moveToCloud":true"#));
     }
 
     #[test]

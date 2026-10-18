@@ -57,6 +57,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // file — `export`, so Can view (`observer`) is refused it. The rendered canvas
   // is still theirs to look at.
   '/_api/canvas-source': { safe: 'export', unsafe: null },
+  // S11.6 — the structured errors quote the broken line (`lineText`): the same download rule.
+  '/_api/canvas-errors': { safe: 'export', unsafe: null },
   '/_api/component-map': { safe: 'read', unsafe: null },
   '/_api/preflight': { safe: 'read', unsafe: null },
   '/_api/setup-readiness': { safe: 'read', unsafe: null },
@@ -78,6 +80,11 @@ export const STUDIO_ROUTES = Object.freeze({
   // .pptx in-cell with PptxGenJS — pure JS over pure data, the zip containment
   // class. POST because it takes work; `export` is an all-roles capability.
   '/_api/export-assemble': { safe: null, unsafe: 'export' },
+  // S8.1 — the export sheet's estimate: a POST that writes nothing and evaluates nothing (it
+  // reads the index); the export capability, like every export row.
+  '/_api/export-estimate': { safe: null, unsafe: 'export' },
+  // S8.4 — Retry re-runs a finished export's failed items: the export capability, the owner's jobs
+  '/_api/export-jobs/retry': { safe: null, unsafe: 'export' },
   // DDR-231 T7 — warm-up ping: a proxied render-service /_health GET so the
   // container wakes while the member is still picking options. Read-class.
   '/_api/export-warmup': { safe: 'read', unsafe: null },
@@ -112,6 +119,9 @@ export const STUDIO_ROUTES = Object.freeze({
   // PATCH only (a body without changes is how the sheet reads them), and an edit: unlike
   // canvas-meta there is no per-user lane to split out.
   '/_api/present-meta': { safe: null, unsafe: 'edit' },
+  // S7.4 — the comp's words, speech and beats, derived from its cut (routes/video.ts). A transcript is
+  // the project's content, not chrome: Can view is refused, Can comment and up read it.
+  '/_api/comp-media': { safe: 'comment', unsafe: null },
 
   // ---- the one write a viewer holds --------------------------------------
   '/_comments': { safe: 'read', unsafe: 'comment' },
@@ -160,6 +170,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // GET was refused 405 for every role, owner included. `read` on the safe side,
   // nothing on the unsafe side — it writes nothing (inspector-edits RCA).
   '/_api/edit-scope': { safe: 'read', unsafe: null },
+  // S3.10a — the shell's link-follow reads where an on-click link goes (read only, any role)
+  '/_api/links': { safe: 'read', unsafe: null },
   '/_api/insert-artboard': { safe: null, unsafe: 'edit' },
   '/_api/insert-element': { safe: null, unsafe: 'edit' },
   '/_api/insert-sequence': { safe: null, unsafe: 'edit' },
@@ -246,6 +258,16 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/undo': REFUSED,
   // S5.5 — "your ⌘Z stack" is the same per-person question as undo itself.
   '/_api/project/undo-stack': REFUSED,
+  // S1.12b — Version history. Rows and words are reading the project (Can view
+  // included); raw source at a version is a download (`export`, like
+  // `/_api/canvas-source`); naming and keeping a version aside are edits. The
+  // studio judges each session's vouched claim itself (canvas-only scope, U1).
+  '/_api/project/versions': { safe: 'read', unsafe: null },
+  '/_api/project/changes': { safe: 'read', unsafe: null },
+  '/_api/project/object-history': { safe: 'read', unsafe: null },
+  '/_api/project/source': { safe: 'export', unsafe: null },
+  '/_api/project/name': { safe: null, unsafe: 'edit' },
+  '/_api/project/aside': { safe: null, unsafe: 'edit' },
   // S1.7 — the shared Trash. The studio judges each session's vouched claim
   // itself (L18: a canvas-only session lists only its canvases, restore needs
   // `trash` on the canvas, clear-out the project owner's `delete`), because its
@@ -253,6 +275,24 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/trash': { safe: 'read', unsafe: null },
   '/_api/trash/restore': { safe: null, unsafe: 'trash' },
   '/_api/trash/clear': { safe: null, unsafe: 'delete' },
+  // S2.16 — routes/edit.ts: what the Component picker lists. A read of the system, but it exists to ADD to a
+  // canvas, so the studio refuses everything below Can edit (a hidden row is never the only gate).
+  '/_api/ds/components': { safe: 'edit', unsafe: null },
+  // S10.3 — a converted design system's reviews (apps/studio/routes/ds.ts). The studio judges
+  // each session's vouched claim itself (Q15): pending needs edit on the DS canvas, the other
+  // writes edit on the whole project, clearing a token out of the trash the owner (`delete`).
+  '/_api/ds/state': { safe: 'read', unsafe: null },
+  '/_api/ds/revision': { safe: 'read', unsafe: null },
+  '/_api/ds/revisions': { safe: 'read', unsafe: null },
+  '/_api/ds/usage': { safe: 'read', unsafe: null },
+  '/_api/ds/publish': { safe: null, unsafe: 'edit' },
+  '/_api/ds/pending': { safe: null, unsafe: 'edit' },
+  '/_api/ds/outside': { safe: null, unsafe: 'edit' },
+  '/_api/ds/pick': { safe: null, unsafe: 'edit' },
+  '/_api/ds/canvas': { safe: null, unsafe: 'edit' },
+  '/_api/ds/trash': { safe: null, unsafe: 'edit' },
+  '/_api/ds/restore': { safe: null, unsafe: 'edit' },
+  '/_api/ds/clear': { safe: null, unsafe: 'delete' },
   // S1.18 — entry → path. The studio reads each session's claim per request (S9.9, http.ts
   // `links.scope`): a canvas-only visitor resolves only its granted canvases, every other entry is
   // `unknown` (history/links.ts — no existence oracle). A read: anyone who may view may follow a link.
@@ -274,9 +314,31 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/format': { safe: 'read', unsafe: null },
   '/_api/project/migrate': REFUSED,
   '/_api/outbox': REFUSED,
+  // S9.19 — the desktop's door to ITS linked hub's /api/access/* (routes/share.ts), with the Mac's
+  // stored credential. A cell IS the hub: its browser door asks /api/access/* there, never through
+  // the studio child (which is linked to nothing). The `:id` verbs match nothing: default-closed.
+  '/_api/share/posture': REFUSED,
+  '/_api/share/me': REFUSED,
+  '/_api/share/people': REFUSED,
+  '/_api/share/invites': REFUSED,
   // V2-3.3 — a pin is ONE person's view state in `_canvas-state/`, and a cell's is shared by
   // every member: refused rather than letting one member's pins become everyone's.
   '/_api/pins': REFUSED,
+  // S11.4 — which canvases of the project are on this checkout vs still coming. A read; the
+  // studio filters it by the proxied access (a canvas-only member learns only its grants).
+  '/_api/sync/availability': { safe: 'read', unsafe: null },
+  // S11.13 — a cell has no local decision graph and no desktop runtime to describe: refused there.
+  '/_api/kg/summary': REFUSED,
+  '/_api/settings/about': REFUSED,
+  // S8.19 — asset state merges THIS machine's disk + upload queue with its linked hub's
+  // presence. A cell is the hub: its studio has no peer hub to ask, and a browser member's
+  // client reads a refusal as the quiet "Not here yet" (contract §5.5, offline row).
+  '/_api/asset-state': REFUSED,
+  // S9.24 — the object-conflict card is the PROPOSER's, kept in this checkout's `_state/conflicts/`;
+  // a cell's would be every member's (like pins). A cell proposes in-process and never replays a
+  // day-old outbox, so it has no card to show: refused on the record.
+  '/_api/sync/conflicts': REFUSED,
+  '/_api/sync/conflicts/resolve': REFUSED,
   // Preparing a device for offline work is a desktop's; a cell IS the copy.
   '/_api/sync/offline': REFUSED,
 
@@ -327,6 +389,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/claude/signin-status': REFUSED,
   '/_api/cloud/attach': REFUSED,
   '/_api/cloud/attach/code': REFUSED,
+  '/_api/cloud/move': REFUSED, // S6.0b: a cell IS the cloud — moving it there is a desktop act
   '/_api/cloud/projects': REFUSED,
   '/_api/cloud/signin/poll': REFUSED,
   '/_api/cloud/signin/start': REFUSED,

@@ -5,6 +5,8 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { createHomeAi } from '../home/ai.ts';
+import { createHomeCli } from '../home/cli.ts';
 import { createHomeCloud } from '../home/cloud.ts';
 import { createHomeFetch, type HomeDeps } from '../home/routes.ts';
 import { createIndexService } from '../index/service.ts';
@@ -122,6 +124,22 @@ export function homeDeps(over: Partial<HomeDeps> = {}): HomeDeps {
     formatSupported: 2,
     projectsDir: mkdtempSync(join(tmpdir(), 'maude-home-projects-')),
     cloud: createHomeCloud(),
+    // S6.6 — never the real Claude CLI or ~/.local/bin from a test: a still AI module and a
+    // CLI installer rooted in a temp dir with no bundled maude (every install → unavailable)
+    ai: createHomeAi({
+      probe: async () => ({ available: false, adapterEntry: null, claudePath: null }),
+      installState: () => ({ phase: 'idle' }),
+      signinInFlight: () => false,
+      startInstall: () => ({ ok: false, reason: 'test' }),
+      startSignin: () => ({ ok: false, reason: 'test' }),
+      cancelSignin: () => {},
+      cancelInstall: () => {},
+    }),
+    cli: createHomeCli({
+      paths: () => ({ binDir: join(tmpdir(), 'maude-home-cli-never'), bundled: null }),
+      claude: () => null,
+      run: async () => 1,
+    }),
     ...over,
   };
 }

@@ -21,7 +21,15 @@
  */
 
 import { Player, type PlayerRef } from '@remotion/player';
-import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentType,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { canvasModeStore } from './bridge/canvas-mode-store.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Comp meta contract + the module-level seek registry
@@ -357,6 +365,30 @@ export interface VideoCompProps extends VideoCompMeta {
 
 let mountCounter = 0;
 
+/**
+ * S3.3 — the loop the Player gets. Present · Artboards plays a clip once and HOLDS its last frame (04
+ * md-edge-mixed: "Holds its last frame when it ends; → moves on"), whatever the author or the Timeline
+ * asked for in the editor. Everywhere else the loop is the author's / the Timeline's.
+ */
+export function loopFor(loop: boolean, presentingArtboards: boolean): boolean {
+  return presentingArtboards ? false : loop;
+}
+
+const NO_SUBSCRIBE = () => () => {};
+
+/** True while the shell has this canvas in Present · Artboards (the mode store the stage reads). */
+function usePresentingArtboards(): boolean {
+  const store = typeof window === 'undefined' ? null : canvasModeStore(window);
+  return useSyncExternalStore(
+    store ? store.subscribe : NO_SUBSCRIBE,
+    () => {
+      const s = store?.get();
+      return !!s && s.mode === 'present' && s.present?.kind === 'artboards';
+    },
+    () => false
+  );
+}
+
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
   try {
@@ -412,6 +444,7 @@ export function VideoComp({
   // Loop is live-controlled from the Timeline (timeline-loop message), not just
   // the mount prop — so toggling loop OFF actually stops the replay.
   const [loopState, setLoopState] = useState(loop);
+  const presenting = usePresentingArtboards();
   const capturing = hideChrome();
   // The Timeline panel is the control surface (transport + scrub + volume), so
   // the Player's own chrome is redundant on the artboard — hidden by default.
@@ -570,7 +603,7 @@ export function VideoComp({
         compositionHeight={height}
         inputProps={inputProps ?? {}}
         controls={showControls}
-        loop={loopState}
+        loop={loopFor(loopState, presenting)}
         autoPlay={play}
         initialFrame={initialFrame}
         // Clicking the artboard must NOT toggle playback — it selects elements

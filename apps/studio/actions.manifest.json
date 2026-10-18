@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "204fb6c9df58",
+  "manifestVersion": "c2308323457c",
   "actions": [
     {
       "id": "search.open",
@@ -96,6 +96,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Write a new .tsx under the design root with a DCArtboard per screen"
+      }
+    },
+    {
+      "id": "canvas.new-brief",
+      "label": "New brief board",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write a brief-board .tsx from plugins/design/templates/brief-board.tsx.template under the design root"
       }
     },
     {
@@ -203,6 +216,104 @@
       }
     },
     {
+      "id": "canvas.view-code",
+      "label": "View code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-source"
+      }
+    },
+    {
+      "id": "canvas.reveal-in-finder",
+      "label": "Reveal in Finder",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens Finder on the person’s Mac; an agent already holds the file"
+      }
+    },
+    {
+      "id": "canvas.open-in-editor",
+      "label": "Open in editor",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens the person’s editor on the file; an agent edits the .tsx itself"
+      }
+    },
+    {
+      "id": "canvas.copy-file-path",
+      "label": "Copy file path",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvas.rename-file",
+      "label": "Rename file…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rename the .tsx and its .meta.json together"
+      }
+    },
+    {
+      "id": "canvas.copy-error",
+      "label": "Copy error",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-errors"
+      }
+    },
+    {
+      "id": "canvas.ask-ai-fix",
+      "label": "Ask AI to fix it",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-errors"
+      }
+    },
+    {
+      "id": "canvas.last-good",
+      "label": "Last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
+      }
+    },
+    {
       "id": "import.figma",
       "label": "Import from Figma…",
       "kind": "command",
@@ -218,7 +329,7 @@
       "label": "Import a brand…",
       "kind": "command",
       "exec": "shell",
-      "effect": "project",
+      "effect": "external",
       "agent": {
         "path": "cli",
         "verb": "maude design import-brand"
@@ -337,6 +448,18 @@
         "path": "human",
         "because": "keys",
         "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
+      }
+    },
+    {
+      "id": "edit.undo-history",
+      "label": "Undo history…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack, shown; an agent reads history with `maude design history list`"
       }
     },
     {
@@ -644,6 +767,344 @@
       }
     },
     {
+      "id": "align.left",
+      "label": "Align left",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.hcentre",
+      "label": "Align horizontal centres",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.right",
+      "label": "Align right",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.top",
+      "label": "Align top",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.vmiddle",
+      "label": "Align vertical middles",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "align.bottom",
+      "label": "Align bottom",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.h",
+      "label": "Distribute horizontally",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.v",
+      "label": "Distribute vertically",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "object.rotate",
+      "label": "Rotate 90°",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions"
+      }
+    },
+    {
+      "id": "object.place-freely",
+      "label": "Place freely",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give the element style position: \"absolute\" with left, top, width and height (px) as it sits now; if its parent is static, give the parent position: \"relative\""
+      }
+    },
+    {
+      "id": "object.reorder-earlier",
+      "label": "Move earlier",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX one place earlier among its siblings (in an auto layout the order in the code is the order on the canvas)"
+      }
+    },
+    {
+      "id": "object.reorder-later",
+      "label": "Move later",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX one place later among its siblings (in an auto layout the order in the code is the order on the canvas)"
+      }
+    },
+    {
+      "id": "object.reorder-to",
+      "label": "Move next to…",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX before, after or inside another element; for a copy, duplicate it first (a copy keeps no data-cd-id)"
+      }
+    },
+    {
+      "id": "object.constrain",
+      "label": "Constraints",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages"
+      }
+    },
+    {
+      "id": "layout.set-gap",
+      "label": "Set gap",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set style.gap on each frame to the same value: var(--space-N) when the system names that stop, else px; one edit for all the frames. Over HTTP: POST /_api/edit-op {file, op: \"layout.set-gap\", targets: [{artboard, element}…], params: {gap: {token: \"--space-N\"} | {px: n}}} — one write, one undo step, a locked or non-layout target refuses the whole request"
+      }
+    },
+    {
+      "id": "layout.convert-to-absolute",
+      "label": "Convert children to absolute position",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give each child position: \"absolute\" with left/top/width/height as rendered, and a static parent position: \"relative\" with its own width/height fixed if it would collapse; the children then no longer take part in the layout"
+      }
+    },
+    {
+      "id": "object.insert-shape",
+      "label": "Draw a shape",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div> (data-shape=\"rectangle|ellipse|line|polygon\" for a shape) as the last child of the frame or artboard, position: \"absolute\" with left / top / width / height in px; give a static parent position: \"relative\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "artboard.draw",
+      "label": "Draw an artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add <DCArtboard id=\"artboard-N\" label=\"Artboard N\" kind=\"digital\" width={w} height={h} fixed> and its x / y in layout.artboards[] of the .meta.json — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "object.set-corner-radius",
+      "label": "Round a corner",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius"
+      }
+    },
+    {
+      "id": "text.set",
+      "label": "Set text",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace the element’s text child with the new copy (escape { } < > &). In a Czech element (lang=\"cs\" on it or an ancestor) set the copy as Czech sets it: a no-break space (U+00A0) after every one-letter word (v k s z o u i a …) and „quotes“ — never inside a URL or `code`. Over HTTP: POST /_api/edit-op {file, op: \"text.set\", targets: [{artboard, element}], params: {text, before?, lang?}}"
+      }
+    },
+    {
+      "id": "text.set-language",
+      "label": "Set language",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set lang=\"<tag>\" on the element (cs, en, sk, de, pl). For cs also set the copy as Czech sets it: U+00A0 after every one-letter word, „quotes“; other languages leave the copy alone. Over HTTP: POST /_api/edit-op {file, op: \"text.set-language\", targets, params: {lang}}"
+      }
+    },
+    {
+      "id": "text.set-case",
+      "label": "Set case",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "AA is style.textTransform \"uppercase\"; As typed removes it (write \"none\" when the element’s style sets a case). Over HTTP: POST /_api/edit-op {op: \"text.set-case\", params: {case: \"upper\"|\"typed\", explicit?}}"
+      }
+    },
+    {
+      "id": "text.use-style",
+      "label": "Use a style",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give the element the style’s class from system/<ds>/components.json typeRoles (heading → t-heading), replacing any other t-* class, and take out its inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle so the style shows. Over HTTP: POST /_api/edit-op {op: \"text.use-style\", params: {role: \"t-heading\"}}"
+      }
+    },
+    {
+      "id": "text.reset-style",
+      "label": "Reset text style",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Delete the inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle from the element’s style so its t-* class shows (params.props names fewer). Over HTTP: POST /_api/edit-op {op: \"text.reset-style\", params: {props?}}"
+      }
+    },
+    {
+      "id": "component.insert",
+      "label": "Place a component",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add the component to the artboard (or the frame) as a linked instance: put its name in the file’s `import { … } from \"@maude/ds\"` once and write `<Button variant=\"primary\">…</Button>` as the last child, with a data-cd-id. On a canvas whose meta has dsRev (left out of the system’s current revision) add data-ds-rev=\"head\" to it. Names and variants: GET /_api/ds/components or system/<ds>/components.json. Over HTTP: POST /_api/edit-op {op: \"component.insert\", targets: [frame?], params: {component, variant?, text?, artboard?, at?: {x: number|\"centre\", y}}}"
+      }
+    },
+    {
+      "id": "text.detach-style",
+      "label": "Detach text style",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: \"text.detach-style\", params: {values: {\"font-size\": \"var(--type-xl)\", …}}} — the values as the design system wrote them (tokens), not px"
+      }
+    },
+    {
       "id": "inspector.copy-css",
       "label": "Copy CSS",
       "kind": "command",
@@ -676,10 +1137,238 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "ask the person to use Element id; an agent never rewrites the comments file"
+      }
+    },
+    {
+      "id": "artboard.resize",
+      "label": "Resize artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
+        "how": "Set the DCArtboard’s width and height props (64–8192); add the bare `fixed` prop to make the height exact. Its position is layout.artboards[] in the .meta.json, not a prop"
+      }
+    },
+    {
+      "id": "artboard.add-width",
+      "label": "Add a width",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json"
+      }
+    },
+    {
+      "id": "artboard.tidy",
+      "label": "Tidy up artboards",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards"
+      }
+    },
+    {
+      "id": "artboard.duplicate",
+      "label": "Duplicate artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop → desktop-2), a new label (Desktop → Desktop 2) and no data-cd-id or data-cd-locked inside; put it at the source’s right edge + the row’s gap in layout.artboards[] of the .meta.json — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.duplicate-at-width",
+      "label": "Duplicate at another width",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.rename",
+      "label": "Rename artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the DCArtboard’s label prop (up to 80 characters; accents are kept)"
+      }
+    },
+    {
+      "id": "artboard.reset-position",
+      "label": "Reset artboard position",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot"
+      }
+    },
+    {
+      "id": "artboard.trash",
+      "label": "Move artboard to the trash",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the <DCArtboard id=\"…\"> element (canvas-tsx.md § Remove an artboard), its layout.artboards[] entry in the .meta.json and, in the .annotations.json, the annotations whose parentArtboard is it with what sits in its sections; the canvas keeps at least one artboard"
+      }
+    },
+    {
+      "id": "artboard.ask-ai",
+      "label": "Ask AI about this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "element.set-link",
+      "label": "Set link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add data-cd-link=\"#<artboard>\" | \"<canvas>.tsx#<artboard>\" | \"https://…\" to the element, next to its data-cd-id (add an id if it has none)"
+      }
+    },
+    {
+      "id": "element.clear-link",
+      "label": "Clear link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the element’s data-cd-link attribute"
+      }
+    },
+    {
+      "id": "inspector.copy-code",
+      "label": "Copy code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the .tsx (find its data-cd-id)"
+      }
+    },
+    {
+      "id": "inspector.edit-css-as-text",
+      "label": "Edit CSS as text…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Edit the element’s style={{…}} props in the .tsx, one declaration per property"
+      }
+    },
+    {
+      "id": "element.detach",
+      "label": "Detach from shared component",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the component definition under a new name and point this one instance at the copy; the other places keep the original"
+      }
+    },
+    {
+      "id": "inspect.copy-code",
+      "label": "Copy code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the .tsx (find its data-cd-id)"
+      }
+    },
+    {
+      "id": "inspect.edit",
+      "label": "Edit",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element> --mode edit"
+      }
+    },
+    {
+      "id": "asset.relink",
+      "label": "Relink…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./"
       }
     },
     {
@@ -687,6 +1376,17 @@
       "label": "Preview",
       "kind": "toggle",
       "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode preview"
+      }
+    },
+    {
+      "id": "preview.back",
+      "label": "Back",
+      "kind": "command",
+      "exec": "shell",
       "effect": "none",
       "agent": {
         "path": "cli",
@@ -728,15 +1428,50 @@
       }
     },
     {
-      "id": "view.design-system",
-      "label": "Design system",
+      "id": "canvases.show-file-names",
+      "label": "Show file names",
       "kind": "toggle",
       "exec": "shell",
       "effect": "none",
       "agent": {
         "path": "human",
         "because": "view-pref",
-        "note": "read system/<ds>/ for the design system itself"
+        "note": "a second line under each canvas, in the person’s own view"
+      }
+    },
+    {
+      "id": "layers.show-tags",
+      "label": "Show tags and ids",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "tag and id after each layer’s name, in the person’s own view"
+      }
+    },
+    {
+      "id": "layers.select-by-selector",
+      "label": "Select by selector",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a selection in the person’s window; an agent finds elements with `maude design canvas-rects`"
+      }
+    },
+    {
+      "id": "view.design-system",
+      "label": "Design system",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open --panel design-system"
       }
     },
     {
@@ -757,9 +1492,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "puts Layers in the left panel or in the Inspector"
+        "path": "cli",
+        "verb": "maude design open --panel layers-panel"
       }
     },
     {
@@ -769,9 +1503,25 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "shows the Trash list; the parked files are under <designRoot>/_trash/"
+        "path": "cli",
+        "verb": "maude design trash list"
+      }
+    },
+    {
+      "id": "trash.restore",
+      "label": "Restore",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/trash/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design trash restore <id>"
       }
     },
     {
@@ -798,6 +1548,61 @@
       "kind": "toggle",
       "exec": "shell",
       "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list"
+      }
+    },
+    {
+      "id": "comments.filter-open",
+      "label": "Show open comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --open"
+      }
+    },
+    {
+      "id": "comments.filter-mine",
+      "label": "Show my comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --mine"
+      }
+    },
+    {
+      "id": "comments.filter-resolved",
+      "label": "Show resolved comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --resolved"
+      }
+    },
+    {
+      "id": "comments.filter-all",
+      "label": "Show all comments",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design comments list --all"
+      }
+    },
+    {
+      "id": "comments.open-thread",
+      "label": "Open comment thread",
+      "kind": "command",
+      "exec": "shell",
       "effect": "none",
       "agent": {
         "path": "cli",
@@ -835,9 +1640,8 @@
       "fromCanvas": true,
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "read the element’s JSX for its properties"
+        "path": "cli",
+        "verb": "maude design open --panel inspector"
       }
     },
     {
@@ -870,9 +1674,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "read the canvas source for its structure"
+        "path": "cli",
+        "verb": "maude design open --panel layers"
       }
     },
     {
@@ -1154,7 +1957,20 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Add a frame (a <div>) to the artboard in the canvas .tsx"
+        "how": "Add a frame (a <div> with position: \"absolute\", left / top / width / height in px, background: \"var(--bg-1)\") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind=\"digital\" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.el-shape",
+      "label": "Shape",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"rectangle\"> with position: \"absolute\", left / top / width / height in px and background: \"var(--accent)\" — see canvas-tsx.md § Draw a frame or a shape"
       }
     },
     {
@@ -1181,6 +1997,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Add an <img> (a project asset) to the artboard in the canvas .tsx"
+      }
+    },
+    {
+      "id": "tool.components",
+      "label": "Component",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Place a component from the design system: see component.insert (write `<Name>` with `import { Name } from \"@maude/ds\"`)"
       }
     },
     {
@@ -1380,9 +2209,46 @@
       "effect": "project",
       "agent": {
         "path": "file",
-        "format": "annotations",
-        "skill": "design:whiteboard",
-        "how": "Add an ellipse shape element to the canvas’s .annotations.json"
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"ellipse\"> with position: \"absolute\", left / top / width / height in px, borderRadius: \"50%\" and background: \"var(--accent)\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.line",
+      "label": "Line",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"line\"> with position: \"absolute\", left / top at the first point, width = the length, height: 0, borderTop: \"2px solid var(--fg-0)\", transform: rotate(<deg>) and transformOrigin: \"0 0\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.polygon",
+      "label": "Polygon",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"polygon\"> with position: \"absolute\", left / top / width / height in px, background: \"var(--accent)\" and clipPath: \"polygon(…%)\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.slice",
+      "label": "Export area",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export"
       }
     },
     {
@@ -1470,30 +2336,6 @@
       }
     },
     {
-      "id": "timeline.undo",
-      "label": "Undo timeline edit",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "keys",
-        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
-      }
-    },
-    {
-      "id": "timeline.redo",
-      "label": "Redo timeline edit",
-      "kind": "command",
-      "exec": "shell",
-      "effect": "none",
-      "agent": {
-        "path": "human",
-        "because": "keys",
-        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
-      }
-    },
-    {
       "id": "timeline.split",
       "label": "Split at playhead",
       "kind": "command",
@@ -1551,6 +2393,292 @@
       }
     },
     {
+      "id": "video.captions.add",
+      "label": "Captions from speech",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design captions add"
+      }
+    },
+    {
+      "id": "video.captions.style",
+      "label": "Caption style",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set words / position / font / highlight / maxChars on the comp’s one <Captions>"
+      }
+    },
+    {
+      "id": "video.captions.fix-word",
+      "label": "Fix a caption word",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Add { src, at, text } to <Captions fixes> as a JSON literal (text null hides the word)"
+      }
+    },
+    {
+      "id": "video.captions.export",
+      "label": "Export captions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "comment",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design captions export"
+      }
+    },
+    {
+      "id": "video.transcript.cut",
+      "label": "Cut these words",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design cut-words"
+      }
+    },
+    {
+      "id": "video.transcript.find-speech",
+      "label": "Find speech",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design transcribe-local"
+      }
+    },
+    {
+      "id": "video.music.beats",
+      "label": "Find the beat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design beats"
+      }
+    },
+    {
+      "id": "video.music.duck",
+      "label": "Lower under speech",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the one music <Audio> in <Duck db attackMs releaseMs>; unwrap to turn it off"
+      }
+    },
+    {
+      "id": "video.cut-to-beat",
+      "label": "Cut to the beat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design cut-to-beat"
+      }
+    },
+    {
+      "id": "video.snap",
+      "label": "Snap to the beat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "artboardMeta.<id>.snap: \"beat\" | \"off\" in the canvas .meta.json"
+      }
+    },
+    {
+      "id": "video.reframe",
+      "label": "Re-frame",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the clip’s media in <Reframe focus zoom formats> (source-second keyframes, sorted)"
+      }
+    },
+    {
+      "id": "video.poster.set",
+      "label": "Set as poster frame",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-meta",
+        "skill": "design:video-comp",
+        "how": "artboardMeta.<id>.poster: a comp frame, in the canvas .meta.json"
+      }
+    },
+    {
+      "id": "video.format.add",
+      "label": "Add a format",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Copy the video DCArtboard with a new id and size; its <VideoComp> keeps component={X} (linked)"
+      }
+    },
+    {
+      "id": "video.format.unlink",
+      "label": "Make an unlinked copy",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Copy the comp under a new name and point this artboard’s <VideoComp component> at it"
+      }
+    },
+    {
+      "id": "video.take.swap",
+      "label": "Swap a take",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set the clip media’s trimBefore (output frames) to the other take; keep durationInFrames"
+      }
+    },
+    {
+      "id": "video.fit",
+      "label": "Fit the picture",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Set fit=\"fit\" | \"blur\" on the clip’s <Reframe> (fill is the default)"
+      }
+    },
+    {
+      "id": "video.place",
+      "label": "Place the title",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the title’s content in <Place at={[x, y]} formats={{ \"16:9\": [x, y] }}> (centre anchor, fractions of the output frame)"
+      }
+    },
+    {
       "id": "export.open",
       "label": "Export…",
       "kind": "command",
@@ -1559,7 +2687,19 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design export"
+        "verb": "maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]"
+      }
+    },
+    {
+      "id": "export.copy-png",
+      "label": "Copy as PNG",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export png"
       }
     },
     {
@@ -1575,17 +2715,6 @@
       }
     },
     {
-      "id": "export.canvas-dialog",
-      "label": "Export from the canvas",
-      "kind": "command",
-      "exec": "canvas",
-      "effect": "none",
-      "agent": {
-        "path": "cli",
-        "verb": "maude design export"
-      }
-    },
-    {
       "id": "export.rerun-last",
       "label": "Export again",
       "kind": "command",
@@ -1594,6 +2723,22 @@
       "agent": {
         "path": "cli",
         "verb": "maude design exports again <id>"
+      }
+    },
+    {
+      "id": "export.retry",
+      "label": "Retry",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "comment",
+      "server": {
+        "route": "/_api/export-jobs/retry",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design exports retry <id> [--item <id,…>]"
       }
     },
     {
@@ -1619,15 +2764,138 @@
       }
     },
     {
+      "id": "share.move-to-cloud",
+      "label": "Move to cloud…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "human",
+        "because": "billing",
+        "note": "moves the project to the person’s billed Maude Cloud account"
+      }
+    },
+    {
+      "id": "share.invite",
+      "label": "Invite people…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/invites",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "invite"
+      }
+    },
+    {
+      "id": "share.set-role",
+      "label": "Change what someone can do…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/people/:id",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
+      }
+    },
+    {
+      "id": "share.remove",
+      "label": "Remove someone…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/people/:id/remove",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
+      }
+    },
+    {
+      "id": "share.resend",
+      "label": "Resend an invite…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/invites/:id/resend",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "invite"
+      }
+    },
+    {
       "id": "settings.open",
       "label": "Settings…",
       "kind": "command",
       "exec": "shell",
       "effect": "none",
       "agent": {
+        "path": "cli",
+        "verb": "maude design open --panel settings"
+      }
+    },
+    {
+      "id": "settings.reset-panel-layout",
+      "label": "Reset panel layout",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
         "path": "human",
         "because": "view-pref",
-        "note": "settings are the user’s"
+        "note": "puts the panels back where they started; a UI preference"
+      }
+    },
+    {
+      "id": "settings.reset-all",
+      "label": "Reset all settings…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "puts this Mac’s Maude preferences back to a fresh Mac’s; keys and sign-ins stay"
+      }
+    },
+    {
+      "id": "settings.use-own-plugin-copy",
+      "label": "Use my own plugin copy",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "prefs.json ownPluginCopy: the AI chat loads your own plugin copy"
+      }
+    },
+    {
+      "id": "settings.experimental-teams",
+      "label": "AI reviews argue it out (teams)",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "prefs.json experimentalTeams: agent teams at the next AI session"
       }
     },
     {
@@ -1660,8 +2928,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "onboarding"
+        "path": "cli",
+        "verb": "maude design open --panel shortcuts"
       }
     },
     {
@@ -1673,6 +2941,17 @@
       "agent": {
         "path": "human",
         "because": "onboarding"
+      }
+    },
+    {
+      "id": "ai.ask-fill-artboard",
+      "label": "Ask AI to fill this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon"
       }
     },
     {
@@ -1704,8 +2983,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "onboarding"
+        "path": "cli",
+        "verb": "maude design open --panel whats-new"
       }
     },
     {
@@ -1844,7 +3123,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design status"
+        "verb": "maude design sync status"
       }
     },
     {
@@ -1876,9 +3155,31 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
+        "path": "cli",
+        "verb": "maude design logs"
+      }
+    },
+    {
+      "id": "diag.copy-logs",
+      "label": "Copy logs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design logs"
+      }
+    },
+    {
+      "id": "diag.logs-show-in-finder",
+      "label": "Show logs in Finder",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
         "path": "human",
-        "because": "view-pref",
-        "note": "opens the log sheet; the files sit in ~/.maude/logs"
+        "because": "native-window",
+        "note": "reveals ~/.maude/logs in Finder; the agent reads `maude design logs`"
       }
     },
     {
@@ -1935,9 +3236,13 @@
       "exec": "shell",
       "effect": "shared",
       "agent": {
-        "path": "human",
-        "because": "hub-link",
-        "note": "restarts the sync link; read its state with `maude design status`"
+        "path": "cli",
+        "verb": "maude design sync resync"
+      },
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/sync/resync",
+        "method": "POST"
       }
     },
     {
@@ -2323,6 +3628,29 @@
       }
     },
     {
+      "id": "tab.overview",
+      "label": "Show all tabs",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "the name this Mac shows for a tab; the project files never change"
+      }
+    },
+    {
       "id": "tab.select-1",
       "label": "Show tab 1",
       "kind": "command",
@@ -2638,6 +3966,592 @@
         "path": "human",
         "because": "ai-chat"
       }
+    },
+    {
+      "id": "history.filter",
+      "label": "Filter versions",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "All · Named · Made by AI · People; the rows themselves: maude design history list"
+      }
+    },
+    {
+      "id": "history.view-version",
+      "label": "View this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history show"
+      }
+    },
+    {
+      "id": "history.object",
+      "label": "Version history of this object",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history object <canvas> <artboard>/<id>"
+      }
+    },
+    {
+      "id": "history.compare",
+      "label": "Compare",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history diff"
+      }
+    },
+    {
+      "id": "history.compare-pictures",
+      "label": "Compare pictures",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the same two versions as words: maude design history diff"
+      }
+    },
+    {
+      "id": "history.name",
+      "label": "Name this version…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history name <canvas> <ref> \"<name>\""
+      }
+    },
+    {
+      "id": "history.restore",
+      "label": "Restore this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref>"
+      }
+    },
+    {
+      "id": "history.restore-artboard",
+      "label": "Restore only this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --artboard <id>"
+      }
+    },
+    {
+      "id": "history.restore-object",
+      "label": "Restore this object",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> <ref> --element <artboard>/<id>"
+      }
+    },
+    {
+      "id": "history.go-back",
+      "label": "Go back to the last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
+      }
+    },
+    {
+      "id": "history.branch-switch",
+      "label": "Switch branch",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/checkout",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git switch <branch>"
+      }
+    },
+    {
+      "id": "history.new-branch",
+      "label": "New branch…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/branch",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git switch -c <branch>"
+      }
+    },
+    {
+      "id": "history.fetch",
+      "label": "Fetch",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "server": {
+        "route": "/_api/git/fetch",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git fetch"
+      }
+    },
+    {
+      "id": "history.publish",
+      "label": "Publish",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/push",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git push"
+      }
+    },
+    {
+      "id": "history.save-with-note",
+      "label": "Save a version with a note…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/commit",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git commit -m \"<note>\""
+      }
+    },
+    {
+      "id": "history.open-pr",
+      "label": "Add to main · opens a pull request",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/fold",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: gh pr create (or git merge locally)"
+      }
+    },
+    {
+      "id": "history.discard-file",
+      "label": "Discard changes to a file",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/discard",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git restore <file>"
+      }
+    },
+    {
+      "id": "history.continue-draft",
+      "label": "Continue on your draft",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/checkout",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git switch <draft>"
+      }
+    },
+    {
+      "id": "history.undo-action",
+      "label": "Undo this change",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/project/undo",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history undo --action <id>"
+      }
+    },
+    {
+      "id": "presence.follow",
+      "label": "Follow",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon",
+        "note": "a person watching another person’s camera"
+      }
+    },
+    {
+      "id": "presence.go-to",
+      "label": "Go to",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard>"
+      }
+    },
+    {
+      "id": "presence.bring-everyone",
+      "label": "Bring everyone here",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "summon",
+        "note": "moves other people’s cameras; the hub strips `summon` without the capability"
+      }
+    },
+    {
+      "id": "presence.stop",
+      "label": "Stop following",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon",
+        "note": "ends a Follow or the spotlight"
+      }
+    },
+    {
+      "id": "sync.conflict.keep-mine",
+      "label": "Keep yours",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/sync/conflicts/resolve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "replace the element (same id) in <slug>.annotations.json with the record’s `mine`; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
+      }
+    },
+    {
+      "id": "sync.conflict.keep-theirs",
+      "label": "Keep theirs",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/sync/conflicts/resolve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "leave <slug>.annotations.json as it is; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
+      }
+    },
+    {
+      "id": "sync.conflict.keep-both",
+      "label": "Keep both",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/sync/conflicts/resolve",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "add the record’s `mine` to <slug>.annotations.json under a NEW id, to the right of the element; then remove that conflict from <designRoot>/_state/conflicts/<slug>.json"
+      }
+    },
+    {
+      "id": "ds.publish",
+      "label": "Update canvases",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/publish",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds publish <ds> [--leave-out <canvas>…]"
+      }
+    },
+    {
+      "id": "ds.cancel-pending",
+      "label": "Cancel",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pending <ds> --cancel"
+      }
+    },
+    {
+      "id": "ds.keep-outside",
+      "label": "Keep",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/outside",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds keep <ds>"
+      }
+    },
+    {
+      "id": "ds.undo-outside",
+      "label": "Undo",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "none",
+      "server": {
+        "route": "/_api/ds/outside",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds undo <ds>"
+      }
+    },
+    {
+      "id": "ds.pick",
+      "label": "Use this",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/pick",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds pick <ds> <css> --use canvas|file"
+      }
+    },
+    {
+      "id": "ds.canvas-update",
+      "label": "Update",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/canvas",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds canvas update <canvas>"
+      }
+    },
+    {
+      "id": "ds.canvas-leave",
+      "label": "Keep this version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/canvas",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds canvas leave <canvas>"
+      }
+    },
+    {
+      "id": "ds.trash-token",
+      "label": "Move to Trash",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/trash",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds trash <ds> <css> --replacement <css>"
+      }
+    },
+    {
+      "id": "ds.restore-token",
+      "label": "Restore",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/ds/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds restore <ds> <css>"
+      }
+    },
+    {
+      "id": "ds.clear-token",
+      "label": "Clear out",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "owner",
+      "undo": "version",
+      "server": {
+        "route": "/_api/ds/clear",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design ds clear <ds> <css>"
+      }
+    },
+    {
+      "id": "ds.open",
+      "label": "Design system",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <ds.path>/design-system.tsx"
+      }
+    },
+    {
+      "id": "ds.set-theme-preview",
+      "label": "Show the system in Light or Dark",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design screenshot --url \"<canvas-url>&dsMode=dark\" --full --out <png>"
+      }
     }
   ],
   "verbs": [
@@ -2698,6 +4612,18 @@
     {
       "scope": "design",
       "verb": "design canvas-rects",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-errors",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-source",
       "effect": "none",
       "tier": "auto"
     },
@@ -2769,6 +4695,12 @@
     },
     {
       "scope": "design",
+      "verb": "design assets",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design help",
       "effect": "none",
       "tier": "auto"
@@ -2824,6 +4756,18 @@
     },
     {
       "scope": "design",
+      "verb": "design history object",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design comments list",
       "effect": "none",
       "tier": "auto"
@@ -2854,6 +4798,18 @@
     },
     {
       "scope": "design",
+      "verb": "design logs",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design annotate",
       "effect": "project",
       "tier": "auto"
@@ -2878,12 +4834,6 @@
     },
     {
       "scope": "design",
-      "verb": "design import-brand",
-      "effect": "project",
-      "tier": "auto"
-    },
-    {
-      "scope": "design",
       "verb": "design import-tokens",
       "effect": "project",
       "tier": "auto"
@@ -2897,6 +4847,54 @@
     {
       "scope": "design",
       "verb": "design photo-adjust",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design transcribe-local",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design beats",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions add",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions export",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design captions",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design cut-words",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design cut-to-beat",
       "effect": "project",
       "tier": "auto"
     },
@@ -2969,6 +4967,12 @@
     },
     {
       "scope": "design",
+      "verb": "design import-brand",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design photo-bg-remove",
       "effect": "external",
       "tier": "prompt"
@@ -3017,7 +5021,31 @@
     },
     {
       "scope": "design",
+      "verb": "design trash restore",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash clear",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design history undo",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design history name",
       "effect": "shared",
       "tier": "prompt"
     },
@@ -3029,7 +5057,43 @@
     },
     {
       "scope": "design",
+      "verb": "design sync resync",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design sync",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design runs",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds usage",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds revisions",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds",
       "effect": "shared",
       "tier": "prompt"
     },
@@ -3285,6 +5349,27 @@
       "skill": "design:footage-director"
     },
     {
+      "format": "gen",
+      "schema": "apps/studio/schema/gen.v1.schema.json",
+      "id": "https://maude.sh/schema/gen/v1",
+      "source": "hand",
+      "skill": "design:ai-generation"
+    },
+    {
+      "format": "transcript",
+      "schema": "apps/studio/schema/transcript.v1.schema.json",
+      "id": "https://maude.sh/schema/transcript/v1",
+      "source": "generated",
+      "skill": "design:video-comp"
+    },
+    {
+      "format": "beats",
+      "schema": "apps/studio/schema/beats.v1.schema.json",
+      "id": "https://maude.sh/schema/beats/v1",
+      "source": "generated",
+      "skill": "design:video-comp"
+    },
+    {
       "format": "tokens",
       "schema": "apps/studio/schema/ds-tokens-v1.schema.json",
       "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-tokens-v1.schema.json",
@@ -3297,6 +5382,22 @@
       "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
       "source": "hand",
       "skill": "design:design-system"
+    },
+    {
+      "format": "ds-revision",
+      "schema": "apps/studio/schema/ds-revision-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-revision-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system",
+      "runtime": true
+    },
+    {
+      "format": "ds-head",
+      "schema": "apps/studio/schema/ds-head-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-head-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system",
+      "runtime": true
     },
     {
       "format": "design-config",

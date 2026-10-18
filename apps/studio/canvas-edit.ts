@@ -35,11 +35,13 @@ import path from 'node:path';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 import { fileText } from '../../cli/lib/finding-text.mjs';
+import { formatLinkTarget, type LinkTarget, parseLinkTarget } from './bridge/link-target.ts';
 import {
   attrRemovalSpan,
   copyWithoutIds,
   type ElementId,
   generateElementId,
+  type IdElement,
   insertIds,
   isValidElementId,
   seedOf,
@@ -2362,6 +2364,10 @@ export interface LooseMediaInfo {
   src: string | null;
   cdId: string | null;
   contentHash: string;
+  /** S7.4 — the element's source span, so `video/derive.ts` can read a music bed's literal timing
+   *  props (`trimBefore`, a fractional `playbackRate`, `volume={0}`) without a second parse. */
+  start: number;
+  end: number;
 }
 
 export interface CompClips {
@@ -2636,6 +2642,8 @@ export function enumerateClips(
       src: getStringAttr(mel.node.openingElement, 'src'),
       cdId: cdIdOf.get(mel.node) ?? null,
       contentHash: hashSpan(source, mel.start, mel.end),
+      start: mel.start,
+      end: mel.end,
     }));
 
   return {
@@ -4711,7 +4719,10 @@ export function applyDuplicateArtboard(
   canvasAbsPath: string,
   source: string,
   artboardId: string,
-  newWidth: number
+  /** `null` (S2.10 ⌘D, with `names`): the copy keeps the source's width attribute verbatim. */
+  newWidth: number | null,
+  /** S2.10 — the copy's own id / label (⌘D: "Desktop 2"); absent = the v1 width-suffixed names. */
+  names?: { id?: string; label?: string }
 ): { source: string; artboardId: string } {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
@@ -4728,22 +4739,36 @@ export function applyDuplicateArtboard(
       id: artboardId,
     });
   }
-  const width = Math.max(1, Math.round(newWidth));
+  const width = newWidth === null ? null : Math.max(1, Math.round(newWidth));
+  if (width === null && !(names?.id && names.label))
+    throw new CanvasEditError('A copy at the same width needs its own id and label.', {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
 
   const existingIds = new Set(
     artboards
       .map((a) => getStringAttr(a.openingElement, 'id'))
       .filter((x): x is string => typeof x === 'string')
   );
-  let newId = `${artboardId}-${width}`;
-  let suffix = 2;
-  while (existingIds.has(newId)) {
-    newId = `${artboardId}-${width}-${suffix}`;
-    suffix += 1;
+  let newId = names?.id ?? `${artboardId}-${width}`;
+  if (names?.id) {
+    if (existingIds.has(newId)) {
+      throw new CanvasEditError(`<DCArtboard id="${newId}"> already exists in ${canvasAbsPath}`, {
+        canvas: canvasAbsPath,
+        id: newId,
+      });
+    }
+  } else {
+    let suffix = 2;
+    while (existingIds.has(newId)) {
+      newId = `${artboardId}-${width}-${suffix}`;
+      suffix += 1;
+    }
   }
 
   const sourceLabel = getStringAttr(target.openingElement, 'label') ?? artboardId;
-  const newLabel = `${sourceLabel} (${width}px)`;
+  const newLabel = names?.label ?? `${sourceLabel} (${width}px)`;
 
   const elStart = target.start as number;
   const elEnd = target.end as number;
@@ -4770,14 +4795,31 @@ export function applyDuplicateArtboard(
   } else {
     cs.appendLeft(idAttr.end - elStart, ` label="${escapeAttr(newLabel)}"`);
   }
-  if (widthAttr && typeof widthAttr.start === 'number' && typeof widthAttr.end === 'number') {
+  if (width === null) {
+    // same width: the attribute (a number or an expression) is copied as it was
+  } else if (
+    widthAttr &&
+    typeof widthAttr.start === 'number' &&
+    typeof widthAttr.end === 'number'
+  ) {
     cs.overwrite(widthAttr.start - elStart, widthAttr.end - elStart, `width={${width}}`);
   } else {
     cs.appendLeft(idAttr.end - elStart, ` width={${width}}`);
   }
   const patchedClone = cs.toString();
 
-  const out = spliceBesideArtboard(source, elStart, elEnd, patchedClone);
+  let out = spliceBesideArtboard(source, elStart, elEnd, patchedClone);
+  // V2-1.4 §5.2: a copy never inherits an element id or a lock — every `data-cd-id` / `data-cd-locked`
+  // inside the clone is dropped (its elements are named lazily, like a duplicated element's).
+  const copyWalk = walkIdElements(out, canvasAbsPath);
+  if (copyWalk.ok) {
+    const board = copyWalk.elements.find((e) => e.tag === 'DCArtboard' && e.artboard === newId);
+    if (board)
+      out =
+        out.slice(0, board.start) +
+        copyWithoutIds(out, copyWalk.elements, board.start, board.end) +
+        out.slice(board.end);
+  }
   const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
   if (check.errors && check.errors.length > 0) {
     throw new CanvasEditError(
@@ -6220,6 +6262,30 @@ export function ensureStamped(
   occurrence?: number,
   reserved?: Iterable<string>
 ): { source: string; id: ElementId } {
+  const { el, walk, targetId } = locateWalked(canvasAbsPath, source, id, occurrence);
+  if (el.idKind === 'expression') {
+    throw new CanvasEditError(
+      `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
+      { canvas: canvasAbsPath, id: targetId }
+    );
+  }
+  if (el.id !== null) {
+    if (!isValidElementId(el.id)) {
+      throw new CanvasEditError(
+        `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
+        { canvas: canvasAbsPath, id: targetId }
+      );
+    }
+    return { source, id: el.id };
+  }
+  const used = usedIds(walk);
+  for (const r of reserved ?? []) used.add(r);
+  const sid = generateElementId(seedOf(el), used);
+  return { source: insertIds(source, [{ nameEnd: el.nameEnd, id: sid }]), id: sid };
+}
+
+/** The walked element `id` (+ `occurrence`) addresses — never stamps. Throws when it is not there. */
+function locateWalked(canvasAbsPath: string, source: string, id: string, occurrence?: number) {
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     throw new CanvasEditError(
@@ -6238,25 +6304,7 @@ export function ensureStamped(
       id: targetId,
     });
   }
-  if (el.idKind === 'expression') {
-    throw new CanvasEditError(
-      `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
-      { canvas: canvasAbsPath, id: targetId }
-    );
-  }
-  if (el.id !== null) {
-    if (!isValidElementId(el.id)) {
-      throw new CanvasEditError(
-        `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
-        { canvas: canvasAbsPath, id: targetId }
-      );
-    }
-    return { source, id: el.id };
-  }
-  const used = usedIds((walk as { elements: Parameters<typeof usedIds>[0] }).elements);
-  for (const r of reserved ?? []) used.add(r);
-  const sid = generateElementId(seedOf(el), used);
-  return { source: insertIds(source, [{ nameEnd: el.nameEnd, id: sid }]), id: sid };
+  return { el, walk: (walk as { elements: IdElement[] }).elements, targetId };
 }
 
 /** The walked element carrying the authored id `id` (it exists — callers stamp first). */
@@ -6355,4 +6403,102 @@ export function applySetHidden(
     source: marker ? removeSpan(restored, attrRemovalSpan(restored, marker)) : restored,
     id: st.id,
   };
+}
+
+// ---------------------------------------------------------------------------
+// S3.10a — on-click links (contract client/v2/contracts/S3-links-format.md §3). A link is ONE
+// attribute, `data-cd-link="<target>"`, next to the element's `data-cd-id`: writing it stamps the id
+// (when missing) and sets the link in the same returned source — one write, one undo step. It is
+// canvas-only metadata (stripped by every exporter) but, unlike `data-cd-locked`, a copy keeps it.
+
+/** A `data-cd-link` value outside the grammar (bridge/link-target.ts). The dispatcher answers `invalid`. */
+export class LinkTargetError extends CanvasEditError {
+  readonly code = 'link-format' as const;
+  constructor(canvas: string, id: string) {
+    super('A link goes to "#<artboard>", "<canvas>.tsx#<artboard>" or an "https://" address.', {
+      canvas,
+      id,
+    });
+    this.name = 'LinkTargetError';
+  }
+}
+
+/**
+ * Stamp `id` if needed + set `data-cd-link` in ONE returned source. Idempotent; replaces an existing
+ * value in place. External values are written in `href` form. Throws LinkTargetError on an invalid target.
+ */
+export function applySetLink(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  target: string,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const parsed = parseLinkTarget(target);
+  if (!parsed) throw new LinkTargetError(canvasAbsPath, id);
+  const value = formatLinkTarget(parsed);
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  if (el.linkKind === 'literal' && el.link === value) return st;
+  const attr = `data-cd-link="${value}"`;
+  if (el.linkAttr) {
+    const s = new MagicString(st.source);
+    s.overwrite(el.linkAttr.start, el.linkAttr.end, attr);
+    return { source: s.toString(), id: st.id };
+  }
+  return { source: addCdAttr(st.source, el, attr), id: st.id };
+}
+
+/** Remove `data-cd-link`. The id stays (ids are never removed). No-op (no stamp either) when absent. */
+export function applyClearLink(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  opts: { occurrence?: number } = {}
+): { source: string; id: ElementId } {
+  const { el } = locateWalked(canvasAbsPath, source, id, opts.occurrence);
+  if (!el.linkAttr) return { source, id: el.id && isValidElementId(el.id) ? el.id : id };
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence);
+  const after = stampedElement(canvasAbsPath, st.source, st.id);
+  if (!after.linkAttr) return st;
+  return { source: removeSpan(st.source, attrRemovalSpan(st.source, after.linkAttr)), id: st.id };
+}
+
+export interface LinkRow {
+  /** the element's authored id; null when it has none (check: `link-no-id`) */
+  id: ElementId | null;
+  /** the DCArtboard the element sits in */
+  artboardId: string | null;
+  line: number;
+  /** the cooked value, or the expression's source text */
+  raw: string;
+  /** null = invalid (reported, never followed) */
+  target: LinkTarget | null;
+}
+
+/** Every link in a file, in source order. Throws CanvasEditError when the file does not parse. */
+export function readLinks(source: string, path: string): LinkRow[] {
+  const walk = walkIdElements(source, path);
+  if (!walk.ok) {
+    throw new CanvasEditError(`oxc-parser failed on ${path}: ${walk.error}`, {
+      canvas: path,
+      id: '',
+    });
+  }
+  const out: LinkRow[] = [];
+  for (const e of walk.elements) {
+    if (!e.linkAttr) continue;
+    const literal = e.linkKind === 'literal';
+    const raw = literal
+      ? (e.link as string)
+      : source.slice(source.indexOf('=', e.linkAttr.start) + 1, e.linkAttr.end).trim();
+    out.push({
+      id: e.idKind === 'literal' && e.id && isValidElementId(e.id) ? e.id : null,
+      artboardId: e.artboard,
+      line: e.line,
+      raw,
+      target: literal ? parseLinkTarget(e.link) : null,
+    });
+  }
+  return out;
 }

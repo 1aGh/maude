@@ -54,6 +54,7 @@
       "edit.paste-properties",
       "edit.redo",
       "edit.undo",
+      "edit.undo-history",
       "export.open",
       "handoff.open",
       "help.guides",
@@ -121,6 +122,7 @@
       "account.switch": ["file"],
       "edit.undo": ["edit"],
       "edit.redo": ["edit"],
+      "edit.undo-history": ["edit"],
       "edit.cut": ["edit"],
       "edit.copy": ["edit"],
       "edit.paste": ["edit"],
@@ -253,6 +255,7 @@
             "account.switch",
             "edit.undo",
             "edit.redo",
+            "edit.undo-history",
             "edit.cut",
             "edit.copy",
             "edit.paste",
@@ -377,7 +380,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
             "preview": [
               "Hand",
               "Sticky",
@@ -502,6 +505,46 @@
               "section": "advanced"
             },
             {
+              "testid": "settings-runtime",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-server-port",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-plugins",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-own-plugin-copy",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-decision-memory",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-report-logs",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-experimental-teams",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-panel-layout",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-all",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-fold-<id>",
+              "section": "advanced"
+            },
+            {
               "testid": "settings-reset-folds",
               "section": "advanced"
             }
@@ -589,6 +632,7 @@
             "canvas.close",
             "edit.undo",
             "edit.redo",
+            "edit.undo-history",
             "edit.cut",
             "edit.copy",
             "edit.paste",
@@ -715,7 +759,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
             "preview": [
               "Hand",
               "Sticky",
@@ -836,6 +880,46 @@
               "section": "advanced"
             },
             {
+              "testid": "settings-runtime",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-server-port",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-plugins",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-own-plugin-copy",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-decision-memory",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-report-logs",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-experimental-teams",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-panel-layout",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-reset-all",
+              "section": "advanced"
+            },
+            {
+              "testid": "settings-fold-<id>",
+              "section": "advanced"
+            },
+            {
               "testid": "settings-reset-folds",
               "section": "advanced"
             }
@@ -928,6 +1012,7 @@
             "account.switch",
             "edit.undo",
             "edit.redo",
+            "edit.undo-history",
             "edit.cut",
             "edit.copy",
             "edit.paste",
@@ -1056,7 +1141,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
             "preview": [
               "Hand",
               "Sticky",
@@ -1188,6 +1273,7 @@
             "account.switch",
             "edit.undo",
             "edit.redo",
+            "edit.undo-history",
             "edit.cut",
             "edit.copy",
             "edit.paste",
@@ -1316,7 +1402,7 @@
           "present": true,
           "role": "edit",
           "modes": {
-            "edit": ["Select", "Hand", "Frame", "Text", "Image"],
+            "edit": ["Select", "Hand", "Frame", "Shape", "Text", "Image", "Component", "More"],
             "preview": [
               "Hand",
               "Sticky",
@@ -1441,6 +1527,7 @@
             "account.switch",
             "edit.undo",
             "edit.redo",
+            "edit.undo-history",
             "edit.cut",
             "edit.copy",
             "edit.paste",
@@ -1490,7 +1577,15 @@
             "diag.project-folder",
             "settings.open"
           ],
-          "disabled": ["edit.undo", "edit.redo", "edit.cut", "edit.paste", "edit.paste-properties"],
+          "disabled": [
+            "handoff.open",
+            "edit.undo",
+            "edit.redo",
+            "edit.undo-history",
+            "edit.cut",
+            "edit.paste",
+            "edit.paste-properties"
+          ],
           "ctx": {
             "shell": "cloud",
             "role": "comment"
@@ -1695,6 +1790,7 @@
             "canvas.close",
             "edit.undo",
             "edit.redo",
+            "edit.undo-history",
             "edit.cut",
             "edit.copy",
             "edit.paste",
@@ -1746,7 +1842,15 @@
             "sync.download-all",
             "settings.open"
           ],
-          "disabled": ["edit.undo", "edit.redo", "edit.cut", "edit.paste", "edit.paste-properties"],
+          "disabled": [
+            "handoff.open",
+            "edit.undo",
+            "edit.redo",
+            "edit.undo-history",
+            "edit.cut",
+            "edit.paste",
+            "edit.paste-properties"
+          ],
           "ctx": {
             "shell": "browser",
             "role": "comment"

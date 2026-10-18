@@ -74,6 +74,28 @@ const ROWS: Row[] = [
     editor: true,
   },
   { family: 'canvas', method: 'POST', path: '/_api/clip-edit', viewer: 'refused', editor: true },
+  // S7.6c — a clip / video op through the dispatcher (hidden ≠ refused: the server says no)
+  {
+    family: 'canvas (clip op)',
+    method: 'POST',
+    path: '/_api/edit-op',
+    body: {
+      file: 'ui/fixture.tsx',
+      op: 'clip.split',
+      targets: [],
+      params: { stableId: 'name:a', atFrame: 10 },
+    },
+    viewer: 'refused',
+    editor: true,
+  },
+  {
+    family: 'canvas (video op)',
+    method: 'POST',
+    path: '/_api/edit-op',
+    body: { file: 'ui/fixture.tsx', op: 'video.captions.add', targets: [], params: {} },
+    viewer: 'refused',
+    editor: true,
+  },
   { family: 'canvas', method: 'POST', path: '/_api/fs-move', viewer: 'refused', editor: true },
   { family: 'canvas', method: 'POST', path: '/_api/fs-mkdir', viewer: 'refused', editor: true },
   // ── meta / layout ──

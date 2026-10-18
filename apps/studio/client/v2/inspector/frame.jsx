@@ -9,19 +9,28 @@
 // The frame owns no write. A section body gets `ctx` (the panel's edit channels) and writes through the
 // existing /_api/edit-* routes; the frame only lays them out, names them and folds the raw layer away.
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { AssetAbsentBox } from '../assets/missing-frame.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
 import { bindInspectorActions } from './inspector-actions.js';
+import { writeLink } from './link-write.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { SECTIONS } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
+import { HoldLine, useHoldView, viewModeOf } from './view-mode.jsx';
 
 function Section({ def, entries, ctx, el, selection, kindId }) {
-  const adder = def.adder ? entries.find((e) => typeof e.add === 'function') : null;
+  const adder = def.adder
+    ? entries.find(
+        (e) =>
+          typeof e.add === 'function' &&
+          (typeof e.canAdd !== 'function' || e.canAdd({ el, selection, kind: kindId, ctx }))
+      )
+    : null;
   const aside = entries.find((e) => e.aside != null)?.aside;
   const asideNode = typeof aside === 'function' ? aside({ el, ctx }) : aside;
   // a body may rename its section for what is selected: Border is "Stroke" on a line or a Pen path
@@ -71,6 +80,7 @@ export function InspectorFrame({
   canvasFile,
   onOptimistic,
   onRecordEdit,
+  onRunAction,
   onReplaceMedia,
   onUndoRedo,
   onRenameElementId,
@@ -79,13 +89,19 @@ export function InspectorFrame({
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
+  onSetArtboardTheme,
   onDuplicateArtboard,
   onSelectCrumb,
+  editScope,
+  onDetachInstance,
 }) {
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
   const el = Array.isArray(selected) ? selected[0] : selected;
   const adv = useAdvancedOpen(hasAnySlot());
+  // S2.18 — someone else holds the selection: view mode (view-mode.jsx)
+  const rootRef = useRef(null);
+  const hold = viewModeOf(useHoldView({ canvasOrigin: cfg?.canvasOrigin, rootRef }));
   const el1 = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
   // the three registry actions (⌘K) run on what this frame shows; with several objects they say so
   useEffect(() => {
@@ -101,6 +117,20 @@ export function InspectorFrame({
             : 'Not copied; try again.'
           : 'This element has no id yet. Edit element id… gives it one.'
       ),
+      'element.clear-link': only(async (e) => {
+        if (!e.attrs?.['data-cd-link']) return 'This object has no link.';
+        const canvas = e.file ?? canvasFile;
+        if (!canvas || !e.artboardId || !hasUsableId(e))
+          return 'Not changed; select the object again.';
+        const r = await writeLink({
+          canvas,
+          artboardId: e.artboardId,
+          id: e.id,
+          index: e.index,
+          target: null,
+        });
+        return r.ok ? 'Cleared the link.' : r.message;
+      }),
       'element.set-id': only(() => {
         adv.show();
         requestAnimationFrame(() =>
@@ -109,34 +139,43 @@ export function InspectorFrame({
         return null;
       }),
     });
-  }, [el1, adv.show]);
+  }, [el1, adv.show, canvasFile]);
   if (!el) return null;
 
   const kind = resolveKind(selected);
   const chip = kindChipOf(selected);
   const crumbs = crumbsOf(layersTree, Array.isArray(selected) ? null : el);
   const ds = activeDsNameFor(canvasFile, cfg);
-  const ctx = {
-    canvasFile,
-    cfg,
-    editable: !!el.id,
-    onOptimistic,
-    onRecordEdit,
-    onUndoRedo,
-    onReplaceMedia,
-  };
-  const edit = { onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo };
+  // S2.8 — the artboard's handlers ride on ctx too: kinds/artboard.jsx's section bodies write through them
   const artboard = {
     onResizeArtboard,
     onSetArtboardHug,
     onSetArtboardStyle,
     onSetArtboardKind,
     onSetArtboardPrint,
+    onSetArtboardTheme,
     onDuplicateArtboard,
   };
+  const ctx = {
+    canvasFile,
+    cfg,
+    editable: !!el.id,
+    onOptimistic,
+    onRecordEdit,
+    onRunAction,
+    onUndoRedo,
+    onReplaceMedia,
+    artboard,
+  };
+  const edit = { onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo };
 
   return (
-    <div className="insp" data-testid="inspector-frame" data-kind={kind.id}>
+    <div
+      ref={rootRef}
+      className={hold.view ? 'insp ed-insp--view' : 'insp'}
+      data-testid="inspector-frame"
+      data-kind={kind.id}
+    >
       {/* S2.1 — the canvas's own crumbs (clickable, + esc); the layer-tree path for an old bundle */}
       {Array.isArray(el.crumbs) && !Array.isArray(selected) ? (
         <InspectorCrumbs crumbs={el.crumbs} onPick={onSelectCrumb} />
@@ -156,33 +195,41 @@ export function InspectorFrame({
           Uses {ds}
         </p>
       ) : null}
-      {SECTIONS.map((def) => {
-        const entries = slotsFor(def.id, kind.id, selected);
-        if (!entries.length) return null;
-        return (
-          <Section
-            key={def.id}
-            def={def}
-            entries={entries}
-            ctx={ctx}
-            el={el}
-            selection={selected}
-            kindId={kind.id}
-          />
-        );
-      })}
-      <InspectorAdvanced
-        selected={selected}
-        el={el}
-        layersTree={layersTree}
-        cfg={cfg}
-        canvasFile={canvasFile}
-        open={adv.open}
-        onToggle={adv.toggle}
-        onRenameElementId={onRenameElementId}
-        edit={edit}
-        artboard={artboard}
-      />
+      {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
+      <AssetAbsentBox el={el1} canvas={canvasFile} />
+      <HoldLine line={hold.line} />
+      {/* view mode: every value stays readable, no field opens (a disabled fieldset is the one switch) */}
+      <fieldset className="ed-insp-fields" disabled={hold.view}>
+        {SECTIONS.map((def) => {
+          const entries = slotsFor(def.id, kind.id, selected, ctx);
+          if (!entries.length) return null;
+          return (
+            <Section
+              key={def.id}
+              def={def}
+              entries={entries}
+              ctx={ctx}
+              el={el}
+              selection={selected}
+              kindId={kind.id}
+            />
+          );
+        })}
+        <InspectorAdvanced
+          selected={selected}
+          el={el}
+          layersTree={layersTree}
+          cfg={cfg}
+          canvasFile={canvasFile}
+          open={adv.open}
+          onToggle={adv.toggle}
+          onRenameElementId={onRenameElementId}
+          edit={edit}
+          artboard={artboard}
+          editScope={editScope}
+          onDetachInstance={onDetachInstance}
+        />
+      </fieldset>
     </div>
   );
 }

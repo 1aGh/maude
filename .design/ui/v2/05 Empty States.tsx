@@ -786,7 +786,7 @@ export default function EmptyStates() {
             <Window tabs={STUDIO_TABS} activeTab={0}>
               <Canvas>
                 <Empty size="canvas" spot="canvas" land className="es-center es-center--panel" title="Your canvas is ready."
-                  action={<AskBtn keys="⌘/">Ask AI</AskBtn>}>
+                  action={<><AskBtn keys="⌘/">Ask AI</AskBtn><span className="btn btn--ghost btn--sm">New artboard</span></>}>
                   Ask AI for a first draft, or start drawing.
                 </Empty>
               </Canvas>
@@ -1127,7 +1127,7 @@ export default function EmptyStates() {
         </DCArtboard>
 
         <DCArtboard id="es-arriving" label="17 · The cloud copy hasn't arrived yet" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="Arriving is not empty.">On a new Mac, Alligators brand comes down in the order you'll need it. Names and sizes are known first, so the panel lists every canvas by name and the canvas shows its shape — never an “empty project”.</Note>}>
+          <Stage note={<Note n={17} title="Arriving is not empty.">On a new Mac, Alligators brand comes down in the order you'll need it. Names and sizes are known first, so the panel lists every canvas by name and the canvas shows its shape — never an “empty project”. A canvas whose artboard sizes haven't come down yet is one small card instead of shapes (bottom right).</Note>}>
             <Window tabs={[TABS.studio, { ...TABS.alligators, syncing: true }]} activeTab={1}>
               <Canvas>
                 <Artboard label="Web · STAŇ SE GATOREM" kind="web" x={330} y={110} w={460} h={288}><GatorMock variant="web" /></Artboard>
@@ -1136,6 +1136,7 @@ export default function EmptyStates() {
                 <SkelBoard label="A4 · plakát" kind="print" x={830} y={400} w={200} h={283} />
                 <SkelBoard label="16:9 · teaser" kind="video" x={330} y={450} w={320} h={180} />
                 <span className="es-arrive-tag"><Icon name="sync" size={12} />4 artboards on their way</span>
+                <Empty size="canvas" className="es-arrive-card es-e--plain" title="Combine-video-AI is on its way." />
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
               <PanelShell foot={<span className="es-progress"><span>Getting Alligators brand · 41 of {ALLIGATORS_COUNT} canvases</span><span className="es-bar"><i style={{ width: "44%" }} /></span></span>}>

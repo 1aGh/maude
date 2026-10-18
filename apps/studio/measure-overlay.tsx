@@ -25,11 +25,13 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { modeShows } from './bridge/mode-shows.ts';
 import { useArtboardsContext } from './canvas-lib.tsx';
 import { resolveSelectionEl } from './dom-selection.ts';
 import { computePairGap } from './equal-spacing-detector.ts';
 import { resolveHoverTarget } from './input-router.tsx';
 import { type ModifierState, reduceModifiers } from './use-cursor-modifiers.tsx';
+import { useGovernedMode } from './use-governed-mode.ts';
 import { useSelectionSet } from './use-selection-set.tsx';
 
 const MEASURE_CSS = `
@@ -151,6 +153,10 @@ function paintAxis(
 
 export function MeasureOverlay() {
   ensureStyles();
+  // S3.11 — measure is on in Edit, Preview and Viewing and off in Present (bridge/mode-shows.ts), so the
+  // Alt-hover tracking below never runs while presenting.
+  const mode = useGovernedMode();
+  const shown = modeShows(mode, 'measure');
   const { selected } = useSelectionSet();
   const world = useArtboardsContext();
   const layerRef = useRef<HTMLDivElement | null>(null);
@@ -160,7 +166,7 @@ export function MeasureOverlay() {
   // Alt + hover tracking, gated together: hover RESOLUTION (a real per-move
   // cost — resolveHoverTarget walks the DOM) only runs while Alt is held.
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || !shown) return;
     let mods: ModifierState = { alt: false, shift: false, meta: false };
     const onKeyChange = (e: KeyboardEvent) => {
       const next = reduceModifiers(mods, e);
@@ -197,11 +203,11 @@ export function MeasureOverlay() {
       document.removeEventListener('pointermove', onPointer);
       window.removeEventListener('blur', onBlur);
     };
-  }, []);
+  }, [shown]);
 
   const one = selected.length === 1 ? selected[0] : null;
   const zoom = world?.viewport?.zoom || 1;
-  const active = alt && !!one && !!hoverEl;
+  const active = shown && alt && !!one && !!hoverEl;
 
   useEffect(() => {
     const layer = layerRef.current;

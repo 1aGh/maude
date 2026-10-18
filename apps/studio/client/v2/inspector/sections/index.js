@@ -2,7 +2,13 @@
 // One import per slice's section file; the registry (../slots.js) owns the order. Imported once, where the
 // frame is wired (client/inspector/inspector-panel.jsx).
 
+import { offConvert, offPlaceFreely } from '../kinds/frame.jsx';
+import { offInspectorExport } from '../../export/inspector-export.jsx';
 import { offMulti } from '../kinds/multi.jsx';
+import { offShape } from '../kinds/shape.jsx';
+import { offTextBody, offTextStyle } from '../kinds/text.jsx';
+import { offArtboardSections } from '../kinds/artboard.jsx';
+import { offMultiArtboard } from '../kinds/multi-artboard.jsx';
 import { offBorder } from './border.jsx';
 import { offCorners } from './corners.jsx';
 import { offEffects } from './effects.jsx';
@@ -21,10 +27,18 @@ export function unregisterSections() {
   offLayout();
   offFill();
   offMulti();
+  offMultiArtboard();
   offCorners();
   offBorder();
   offEffects();
   offType();
+  offTextStyle();
+  offTextBody();
   offInteraction();
+  offInspectorExport();
   offExportSlot();
+  offPlaceFreely();
+  offConvert();
+  offArtboardSections();
+  offShape();
 }

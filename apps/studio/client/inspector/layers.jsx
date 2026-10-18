@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { StIcon } from '../shell/icons.jsx';
 import { LayerRowTools } from '../v2/inspector/layers-row-tools.jsx';
+import { LayerSlotRow } from '../v2/inspector/layers-slot.jsx';
+import { tagLabel } from '../v2/left-panel/advanced-model.js';
+import { useViewPref, VIEW_PREF_KEYS } from '../v2/left-panel/view-prefs.js';
 
 // ---------- Inspector panel (display-only) ----------
 //
@@ -113,6 +116,8 @@ export function LayerRow({
   onRename,
 }) {
   const key = `${node.id}:${node.index}`;
+  // S11.9 — Layers › Advanced › Show tags and ids: the tag and id after the name (the person's own view)
+  const [showTags] = useViewPref(VIEW_PREF_KEYS.tags);
   const hasKids = node.children && node.children.length > 0;
   const isCollapsed = collapsed.has(key);
   // feature-4 T7 — a synthetic group row (unstamped wrapper) is a pure
@@ -276,6 +281,11 @@ export function LayerRow({
             {node.label}
           </span>
         )}
+        {showTags && tagLabel(node) ? (
+          <span className="st-layer-tag" data-testid="layer-tag">
+            {tagLabel(node)}
+          </span>
+        ) : null}
         <span className="st-layer-type">{inst ? inst.component : node.type}</span>
         {!isSynthetic ? (
           <LayerRowTools
@@ -288,28 +298,33 @@ export function LayerRow({
         ) : null}
       </div>
       {hasKids && !isCollapsed
-        ? node.children.map((c, ci) => (
-            <LayerRow
-              key={`${c.id}:${c.index}`}
-              node={c}
-              depth={depth + 1}
-              selectedId={selectedId}
-              selectedIndex={selectedIndex}
-              collapsed={collapsed}
-              hiddenOverride={hiddenOverride}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onHover={onHover}
-              onToggleVisibility={onToggleVisibility}
-              onReorder={onReorder}
-              onRowPointerDown={onRowPointerDown}
-              dragState={dragState}
-              componentMap={componentMap}
-              lockedKeys={lockedKeys}
-              onToggleLock={onToggleLock}
-              onRename={onRename}
-            />
-          ))
+        ? node.children.map((c, ci) =>
+            // S2.11b — the numbered slot a lifted card would land in (drawn from a copy of the tree)
+            c.slot ? (
+              <LayerSlotRow key="__slot__" node={c} depth={depth + 1} />
+            ) : (
+              <LayerRow
+                key={`${c.id}:${c.index}`}
+                node={c}
+                depth={depth + 1}
+                selectedId={selectedId}
+                selectedIndex={selectedIndex}
+                collapsed={collapsed}
+                hiddenOverride={hiddenOverride}
+                onToggle={onToggle}
+                onSelect={onSelect}
+                onHover={onHover}
+                onToggleVisibility={onToggleVisibility}
+                onReorder={onReorder}
+                onRowPointerDown={onRowPointerDown}
+                dragState={dragState}
+                componentMap={componentMap}
+                lockedKeys={lockedKeys}
+                onToggleLock={onToggleLock}
+                onRename={onRename}
+              />
+            )
+          )
         : null}
     </>
   );

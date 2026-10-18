@@ -154,8 +154,11 @@ presenterViewOn)`. The relay strip (§2) is what enforces D11. The cap only keep
   `POST /api/access/links` and open the canvas.
 - **Copy presentation link** (`client/v2/present/copy-link.js`): `${cfg.cloud.url}/present/${rel without .tsx,
   each segment encodeURIComponent}`. It is shown only in cloud-linked projects. ⌘K lists it greyed, with the note
-  "in a cloud project", elsewhere (V2-4.9 decision 2 pattern). Offline it still copies (the URL is deterministic)
-  and toasts "Copied — viewers follow once you're back online."
+  "in a cloud project", elsewhere (V2-4.9 decision 2 pattern). **Offline the copy waits** (amended at A6c, S3.8):
+  the row is greyed on the `online` fact (`actions/defs/view.ts` `enabled.facts`), ⌘K names it "waits for a
+  connection", and a call that slips through copies nothing and says so (`copyAvailability`). The shell's menu
+  context carries `online` and `linkedHub` (app.jsx `menuCtx`). Superseded: "offline it still copies and toasts
+  'Copied — viewers follow once you're back online.'"
 
 ## 6 · Tauri: the audience window (L4, `apps/desktop/src-tauri/src/present.rs`, S3.6a)
 

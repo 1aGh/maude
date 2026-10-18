@@ -59,8 +59,6 @@ const SHELL_IDS = new Set([
   'timeline.to-end',
   'timeline.prev-keyframe',
   'timeline.next-keyframe',
-  'timeline.undo',
-  'timeline.redo',
   'timeline.split',
   'export.open',
   'handoff.open',
@@ -104,9 +102,9 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     ['⌘Z', shell('text'), null],
     ['⌘Z', shell('range'), null],
     ['⌘Z', shell('select'), 'edit.undo'], // v1's global handler never counted <select> as typing
-    ['⌘Z', shell('chrome', { timelineVisible: true }), 'timeline.undo'],
+    ['⌘Z', shell('chrome', { timelineVisible: true }), 'edit.undo'], // S7.6: one stack
     ['⌘Z', shell('select', { timelineVisible: true }), null], // transport skips <select>, global skips the timeline
-    ['⌘Z', shell('range', { timelineVisible: true }), 'timeline.undo'],
+    ['⌘Z', shell('range', { timelineVisible: true }), 'edit.undo'],
     ['⇧⌘Z', shell('chrome'), 'edit.redo'],
     ['⌘Y', shell('chrome'), 'edit.redo'],
     ['⇧⌘Y', shell('chrome'), 'edit.redo'],
@@ -184,7 +182,7 @@ describe('shell document (use-keyboard-shortcuts + transport + ⌫ guard)', () =
     [',', shell('chrome', { timelineVisible: true }), 'timeline.prev-keyframe'],
     ['.', shell('chrome', { timelineVisible: true }), 'timeline.next-keyframe'],
     ['⌘.', shell('chrome', { timelineVisible: true }), 'timeline.next-keyframe'],
-    ['⇧⌘Z', shell('chrome', { timelineVisible: true }), 'timeline.redo'],
+    ['⇧⌘Z', shell('chrome', { timelineVisible: true }), 'edit.redo'],
     ['⌘B', shell('chrome', { timelineVisible: true }), 'timeline.split'],
     ['⌘B', shell('chrome'), null],
     ['C', shell('chrome', { timelineVisible: true }), null], // TimelinePanel's own listener
@@ -210,11 +208,11 @@ describe('canvas document', () => {
       ['⇧V', inCanvas, null],
       ['H', inCanvas, 'tool.hand'],
       ['F', inCanvas, 'tool.frame'],
-      ['R', inCanvas, null], // Edit's Shape is S2's: no key before its tool, and never Preview's R
+      ['R', inCanvas, 'tool.el-shape'], // Edit's Shape (S2.13) — never Preview's R
       ['P', inCanvas, null], // S2's Pen
       ['T', inCanvas, 'tool.el-text'],
       ['I', inCanvas, 'tool.image'],
-      ['⇧I', inCanvas, null], // S2's Component
+      ['⇧I', inCanvas, 'tool.components'], // S2.16's Component picker
       ['C', inCanvas, 'tool.comment'],
       ['C', viewer, 'tool.comment'], // the shell decides (the denial line)
       ['N', inCanvas, 'tool.sticky'],

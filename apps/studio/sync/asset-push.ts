@@ -40,6 +40,7 @@
 // HUB's validation is the authoritative gate at each trust boundary; the
 // filters here are the courtesy layer that keeps junk off the wire.
 
+import { randomBytes } from 'node:crypto';
 import { type Dirent, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
@@ -304,7 +305,15 @@ async function probePresent(ctx: {
     const res = await ctx.fetchImpl(`${ctx.base}/_asset-probe`, {
       method: 'POST',
       headers: { ...ctx.headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ paths: ctx.paths }),
+      // S8.19 (contract S8-S9-asset-presence §5.2): the sweep's one batch is
+      // also "this Mac holds these, and this sweep is done" — the hub's asset
+      // presence store learns who holds what. Optional fields: a hub that
+      // predates them ignores them and answers exactly as before.
+      body: JSON.stringify({
+        paths: ctx.paths,
+        held: true,
+        sweep: { id: `s${Date.now().toString(36)}${randomBytes(6).toString('hex')}`, final: true },
+      }),
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!res.ok) return null;

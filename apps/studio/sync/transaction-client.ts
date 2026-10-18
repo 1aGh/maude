@@ -62,7 +62,14 @@ interface OutboxAction {
   operations: Operation[];
   dependsOn?: string[];
   /** V2-1.5 §5.1 — an AI run's publish names its run / chat / landing time (+ partial). */
-  origin?: { runId?: string; chatId?: string; madeAt?: number; partial?: true };
+  origin?: {
+    runId?: string;
+    chatId?: string;
+    madeAt?: number;
+    partial?: true;
+    /** S2.10b — an artboard-trash action's removed boards (S1-trash.md §2; kind `trash` only) */
+    trashed?: Array<{ artboard: string; label?: string }>;
+  };
   /** V2-1.15 §5.2 — the leases the publish holds; the kernel checks them in its commit. */
   fence?: { runId: string; leases: Array<{ entry: string; artboard: string; token: number }> };
 }
@@ -88,6 +95,12 @@ interface OutboxEntry {
   /** B2 — the link (hub) this entry was written under. An `unbound` entry
    *  binds ONLY to that link's project. Absent on entries from older builds. */
   link?: string;
+  /**
+   * S6.13b — the refused create this entry re-proposes under a new name. On
+   * recovery an entry it names is already superseded (a crash between writing
+   * this one and removing that one) and is dropped unsent.
+   */
+  replaces?: string;
 }
 
 /**
@@ -137,6 +150,33 @@ export interface TransactionClientOptions {
    * relink to another hub never adopts the old link's unsent work.
    */
   linkId?: string;
+  /**
+   * S6.13b — a `doc.create` the project refused with `path-conflict`: a peer
+   * made a canvas under the same name while this Mac was away. The hook moves
+   * this Mac's canvas to a free name and answers with the documents it renamed
+   * (or null: the refusal stands). Called again, for the same transaction,
+   * after a crash — it must answer the same way (its own journal).
+   */
+  onCreateConflict?: (
+    operations: Operation[],
+    result: ProposalResult,
+    transactionId: string
+  ) => Promise<CreateConflictAnswer | null>;
+  /** Test seam (S6.13b crash test): called at named points of a rename. */
+  fault?: (point: string) => void;
+}
+
+/** S6.13b — one document a refused create moved to, and where. */
+export interface CreateRename {
+  fromDoc: string;
+  toDoc: string;
+  toPath: string;
+}
+
+export interface CreateConflictAnswer {
+  renames: CreateRename[];
+  /** The renamed create has its FINAL answer (the refused entry is gone). */
+  settled: (result: ProposalResult) => void;
 }
 
 export interface TransactionStats {
@@ -155,6 +195,19 @@ export interface TransactionStats {
    * person must be told instead of "check your connection".
    */
   credentialRefused: boolean;
+}
+
+/**
+ * S6.13 (V2-1.14 fix 5.12d) — a place in the chain claimed BEFORE its
+ * proposal exists: the create window notes its creates on disk under it and
+ * seals into exactly this name, so a crash in between is the same change.
+ */
+export interface Reservation {
+  transactionId: string;
+  createdAt: number;
+  /** the link (B2) and project it was claimed under — kept on recovery */
+  link: string;
+  projectId: string | null;
 }
 
 const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
@@ -278,7 +331,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     } catch {
       return [];
     }
-    return names
+    const all = names
       .sort()
       .map((n) => {
         const file = path.join(outboxDir, n);
@@ -289,6 +342,24 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         }
       })
       .filter((x): x is { file: string; entry: OutboxEntry } => x !== null);
+    // S6.13b — a refused create whose renamed proposal is already written is
+    // that same change: dropped, never sent again.
+    const superseded = new Set(all.map((x) => x.entry.replaces).filter((t) => !!t));
+    if (!superseded.size) return all;
+    return all.filter(({ file, entry }) => {
+      if (!superseded.has(entry.transactionId)) return true;
+      rmSync(file, { force: true });
+      return false;
+    });
+  }
+
+  /** The entry as it is on disk now (S6.13b may have rewritten it), or null once gone. */
+  function reread(file: string): OutboxEntry | null {
+    try {
+      return JSON.parse(readFileSync(file, 'utf8')) as OutboxEntry;
+    } catch {
+      return null;
+    }
   }
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -339,7 +410,16 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * outcome: a transport failure is resolved by asking for the transaction's
    * result before the same bytes are sent again.
    */
-  async function deliver(file: string, entry: OutboxEntry): Promise<ProposalResult> {
+  async function deliver(
+    file: string,
+    entry: OutboxEntry,
+    keep?: (result: ProposalResult) => boolean
+  ): Promise<ProposalResult> {
+    // S6.13b — a refusal the caller still acts on keeps its entry until then.
+    const done = (result: ProposalResult): ProposalResult => {
+      if (!keep?.(result)) rmSync(file, { force: true });
+      return result;
+    };
     let attempt = 0;
     for (;;) {
       if (stopped) throw new TransactionError('client stopped', 'stopped');
@@ -353,8 +433,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
           const known = await request('GET', `transactions/${entry.transactionId}`);
           if (known.status === 200 && known.json) {
             setCredentialRefused(false);
-            rmSync(file, { force: true });
-            return known.json as ProposalResult;
+            return done(known.json as ProposalResult);
           }
         }
         const { status, json } = await request('POST', 'proposals', entry.bytes, entry.format);
@@ -381,8 +460,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
             );
             return park(file, entry, 'format');
           }
-          rmSync(file, { force: true });
-          return result;
+          return done(result);
         }
         // B1 — no protocol answer, but a 4xx is still an answer: final.
         if (status >= 400 && status < 500 && !TRANSIENT_4XX.has(status)) {
@@ -431,17 +509,38 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     });
   }
 
-  function makeEntry(action: OutboxAction, transactionId: string): OutboxEntry {
+  function makeEntry(action: OutboxAction, transactionId: string, at?: Reservation): OutboxEntry {
+    // A reservation keeps its place and its link; its project is the one it
+    // was claimed for, or — same link, learnt since — the one known now.
+    const bound = at ? (at.projectId ?? (at.link === linkId ? projectId : null)) : projectId;
     return {
       transactionId,
-      createdAt: stamp(),
+      createdAt: at?.createdAt ?? stamp(),
       bytes: envelope(action, transactionId),
       label: action.label,
       action,
-      link: linkId,
+      link: at?.link ?? linkId,
       ...(opts.declaredFormat ? { format: opts.declaredFormat() } : {}),
-      ...(projectId === null ? { unbound: true } : { projectId }),
+      ...(bound === null ? { unbound: true } : { projectId: bound }),
     };
+  }
+
+  /** S6.13 — claim the next place in the chain (see `Reservation`). */
+  function reserve(): Reservation {
+    return { transactionId: newTransactionId(), createdAt: stamp(), link: linkId, projectId };
+  }
+
+  /** Where a reservation's proposal lives once it is written. */
+  const entryFile = (r: Pick<Reservation, 'createdAt' | 'transactionId'>): string =>
+    path.join(outboxDir, `${r.createdAt}-${r.transactionId}.json`);
+
+  /**
+   * S6.13 — write a reserved proposal to the outbox WITHOUT sending it: a
+   * previous process's create window, recovered at boot. The drain delivers it
+   * in creation order with everything else that process left.
+   */
+  function persist(action: OutboxAction, at: Reservation): string {
+    return writeOutbox(makeEntry(action, at.transactionId, at));
   }
 
   /**
@@ -473,15 +572,130 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     }
   }
 
+  /** S6.13b — a refusal that means a peer took this create's name while this Mac was away. */
+  const isCreateConflict = (entry: OutboxEntry, r: ProposalResult): boolean =>
+    r.status === 'rejected' &&
+    r.code === 'path-conflict' &&
+    !!opts.onCreateConflict &&
+    !!entry.action?.operations.some((o) => o.op === 'doc.create');
+
+  /** One document's new name, applied to an operation that names it. */
+  function renamedOp(o: Operation, by: Map<string, CreateRename>): Operation {
+    let next = o;
+    const to = typeof o.doc === 'string' ? by.get(o.doc) : undefined;
+    if (to) {
+      next = { ...next, doc: to.toDoc };
+      if (o.op === 'doc.create') next.path = to.toPath;
+    }
+    if (Array.isArray(o.docs) && o.docs.some((d) => typeof d === 'string' && by.has(d))) {
+      next = {
+        ...next,
+        docs: o.docs.map((d) => (typeof d === 'string' ? (by.get(d)?.toDoc ?? d) : d)),
+      };
+    }
+    return next;
+  }
+
+  /**
+   * S6.13b — what queued behind a refused create follows it to its new name.
+   * Never sent yet: proposals go one at a time, and every entry here waited
+   * behind that create. Each file is rewritten atomically; a crash between two
+   * leaves the rest for the replay, which rewrites them the same way.
+   */
+  function rewriteQueued(
+    by: Map<string, CreateRename>,
+    oldTx: string,
+    newTx: string,
+    after: number
+  ): void {
+    for (const { file, entry } of readOutbox()) {
+      if (entry.createdAt <= after || !entry.action) continue;
+      const before = entry.action;
+      const operations = before.operations.map((o) => renamedOp(o, by));
+      const deps = before.dependsOn?.map((d) => (d === oldTx ? newTx : d));
+      const changed =
+        operations.some((o, i) => o !== before.operations[i]) ||
+        !!deps?.some((d, i) => d !== before.dependsOn?.[i]);
+      if (!changed) continue;
+      const action = { ...before, operations, ...(deps ? { dependsOn: deps } : {}) };
+      const next: OutboxEntry = {
+        ...entry,
+        action,
+        bytes: entry.unbound ? entry.bytes : envelope(action, entry.transactionId),
+      };
+      writeFileSync(`${file}.tmp`, JSON.stringify(next));
+      renameSync(`${file}.tmp`, file);
+    }
+  }
+
+  /**
+   * S6.13b — re-propose a refused create under the names the hook chose, in
+   * the SAME place in the chain. Order is what makes a crash recoverable: the
+   * hook's journal and the local move first, then what queued behind it, then
+   * the renamed entry (naming the one it replaces), and only then the refused
+   * entry goes. A replay before that last step asks the hook again, which
+   * answers from its journal; a replay after it drops the refused entry unsent.
+   */
+  async function renameRefusedCreate(
+    file: string,
+    entry: OutboxEntry,
+    result: ProposalResult
+  ): Promise<{ file: string; entry: OutboxEntry; answer: CreateConflictAnswer } | null> {
+    if (!opts.onCreateConflict || !entry.action) return null;
+    let answer: CreateConflictAnswer | null = null;
+    try {
+      answer = await opts.onCreateConflict(entry.action.operations, result, entry.transactionId);
+    } catch (err) {
+      log.warn(
+        `[sync/tx] ${entry.label}: could not move it to a free name (${(err as Error).message})`
+      );
+    }
+    if (!answer?.renames.length) return null;
+    const by = new Map(answer.renames.map((r) => [r.fromDoc, r]));
+    // Derived, not drawn: a replay that rewrites the queue again names the
+    // same transaction (it is only ever written once, so never sent twice).
+    const transactionId = `tx_${sha256(`${entry.transactionId}:renamed`).slice(0, 32)}`;
+    rewriteQueued(by, entry.transactionId, transactionId, entry.createdAt);
+    const action = {
+      ...entry.action,
+      operations: entry.action.operations.map((o) =>
+        o.op === 'doc.create' ? renamedOp(o, by) : o
+      ),
+    };
+    const next: OutboxEntry = {
+      ...makeEntry(action, transactionId, {
+        transactionId,
+        createdAt: entry.createdAt,
+        link: entry.link ?? linkId,
+        projectId: madeFor(entry),
+      }),
+      replaces: entry.transactionId,
+    };
+    const nextFile = writeOutbox(next);
+    opts.fault?.('sealed');
+    rmSync(file, { force: true });
+    return { file: nextFile, entry: next, answer };
+  }
+
   async function settle(file: string, entry: OutboxEntry): Promise<ProposalResult> {
+    return (await settleEntry(file, entry)).result;
+  }
+
+  async function settleEntry(
+    file: string,
+    entry: OutboxEntry
+  ): Promise<{ result: ProposalResult; operations: Operation[] }> {
+    // S6.13b — a rename ahead of it may have rewritten this entry on disk.
+    entry = reread(file) ?? entry;
     if (projectId === null) await bootstrapWhenReachable();
     if (!belongsHere(entry)) {
       // B2 — never sent to a project it was not made for (G18).
       log.warn(`[sync/tx] ${entry.label}: made for another project; kept aside, not sent`);
       const parked = park(file, entry, 'project-changed');
       rejectedCount++;
-      opts.onResult?.(parked, { label: entry.label, operations: entry.action?.operations ?? [] });
-      return parked;
+      const operations = entry.action?.operations ?? [];
+      opts.onResult?.(parked, { label: entry.label, operations });
+      return { result: parked, operations };
     }
     if (entry.unbound && entry.action) {
       entry = {
@@ -493,7 +707,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       writeFileSync(`${file}.tmp`, JSON.stringify(entry));
       renameSync(`${file}.tmp`, file);
     }
-    let result = await deliver(file, entry);
+    const madeAt = entry.createdAt;
+    const first = entry;
+    let result = await deliver(file, first, (r) => isCreateConflict(first, r));
     if (result.status === 'rejected' && result.code === 'epoch-stale' && entry.action) {
       // A rebase is a NEW transaction under the current epoch, never a mutated
       // retry — and anything that depended on the old id now depends on this.
@@ -509,20 +725,40 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       const nextFile = writeOutbox(next);
       owned.add(nextFile);
       try {
-        result = await deliver(nextFile, next);
+        result = await deliver(nextFile, next, (r) => isCreateConflict(next, r));
       } finally {
         owned.delete(nextFile);
       }
+      file = nextFile;
+      entry = next;
+    }
+    // S6.13b — the name was taken while this Mac was away: the canvas moves to
+    // the next free one and its create goes again (bounded: a name taken again
+    // meanwhile moves on once more).
+    for (let round = 0; isCreateConflict(entry, result); round++) {
+      const renamed = round < 5 ? await renameRefusedCreate(file, entry, result) : null;
+      if (!renamed) {
+        rmSync(file, { force: true });
+        break;
+      }
+      file = renamed.file;
+      entry = renamed.entry;
+      const current = entry;
+      owned.add(file);
+      try {
+        result = await deliver(file, current, (r) => isCreateConflict(current, r));
+      } finally {
+        owned.delete(file);
+      }
+      renamed.answer.settled(result);
     }
     if (result.status === 'accepted') {
-      acks.push(Math.max(0, now() - entry.createdAt));
+      acks.push(Math.max(0, now() - madeAt));
       if (acks.length > 200) acks.shift();
     } else rejectedCount++;
-    opts.onResult?.(result, {
-      label: entry.label,
-      operations: entry.action?.operations ?? [],
-    });
-    return result;
+    const operations = entry.action?.operations ?? [];
+    opts.onResult?.(result, { label: entry.label, operations });
+    return { result, operations };
   }
 
   function enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -541,12 +777,16 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * `transactionId` may be chosen by the caller (`newTransactionId()`) so a
    * later proposal can name this one in `dependsOn` before it is answered.
    */
-  function propose(action: OutboxAction & { transactionId?: string }): Promise<ProposalResult> {
-    const { transactionId, ...rest } = action;
+  function propose(
+    action: OutboxAction & { transactionId?: string; reservation?: Reservation }
+  ): Promise<ProposalResult> {
+    const { transactionId, reservation, ...rest } = action;
     let entry: OutboxEntry;
     let file: string;
     try {
-      entry = makeEntry(rest, transactionId ?? newTransactionId());
+      entry = reservation
+        ? makeEntry(rest, reservation.transactionId, reservation)
+        : makeEntry(rest, transactionId ?? newTransactionId());
       file = writeOutbox(entry);
     } catch (err) {
       // Local persistence failed — say so; never pretend the edit is safe.
@@ -579,13 +819,17 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     return enqueue(async () => {
       const entries = readOutbox().filter(({ file }) => !owned.has(file));
       const results: ProposalResult[] = [];
-      for (const { file, entry } of entries) {
+      for (const { file } of entries) {
+        // S6.13b — re-read: a rename ahead of it may have rewritten it, or
+        // superseded it (gone).
+        const entry = reread(file);
+        if (!entry) continue;
         waiting.set(entry.transactionId, entry.createdAt);
         setPending(1);
         try {
-          const result = await settle(file, entry);
+          const { result, operations } = await settleEntry(file, entry);
           results.push(result);
-          onEach?.(result, entry.action?.operations ?? []);
+          onEach?.(result, operations);
         } finally {
           waiting.delete(entry.transactionId);
           setPending(-1);
@@ -627,6 +871,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     propose,
     read,
     newTransactionId,
+    reserve,
+    persist,
+    entryFile,
     drainOutbox,
     holdsValue,
     /** The epoch proposals are currently made under. */

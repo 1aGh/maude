@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import { type Dirent, renameSync } from 'node:fs';
+import { type Dirent, existsSync, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -32,7 +32,15 @@ import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
-import { renderBriefBoard, validateCanvasName, validateFolderName } from './canvas-create.ts';
+import {
+  nameFromPrompt,
+  nextFreeCanvasName,
+  renderBlankCanvas,
+  renderBriefBoard,
+  UNTITLED_CANVAS,
+  validateCanvasName,
+  validateFolderName,
+} from './canvas-create.ts';
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
@@ -45,6 +53,8 @@ import {
   type OpActor,
   type OpResult,
 } from './comments/ops.ts';
+import { readHead } from './ds/head.ts';
+import { dsRenderIndex } from './ds/render-rev.ts';
 import { dropPin, rekeyUserState } from './home/user-state.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
@@ -109,24 +119,8 @@ import {
   toggleClipHidden,
 } from './canvas-edit.ts';
 import {
-  applyClipAudio,
-  applyClipFraming,
-  applyClipGrade,
-  applyDetachAudio,
-  applyEditTransition,
   applyFitTotalToContent,
-  applyInsertTransition,
-  applyMoveClipToOverlay,
-  applyMoveClipToStoryline,
   applyOnDisk,
-  applyRemoveTransition,
-  applyReorderOverlayLayer,
-  applyResolvePlaceholder,
-  applySetClipText,
-  applySetPlaybackRate,
-  applySplitClip,
-  applyTrimIn,
-  type GradeParams,
   insertClipAt,
   removeClipRippled,
   seriesMove,
@@ -475,10 +469,28 @@ export type ReorderRevertResult =
 
 /** S4.7 — one lane of a two-lane action, as file text (the runtime canonicalizes). */
 export interface LaneChange {
-  lane: 'annotations' | 'comments';
+  /** S2.9b adds `meta`: an artboard move and its annotation riders (one action). S2.10b adds `html`:
+   *  an edit-op's source and its layout lane (a copy and its place, an artboard moved to the trash). */
+  lane: 'annotations' | 'comments' | 'meta' | 'html';
   text: string;
   baseText: string;
 }
+
+/** S2.9b — the `annotations` rider of an artboard move (routes/canvas-meta-rider.ts). */
+export interface RiderMove {
+  ops: readonly AnnotationOp[];
+  /** The bus's `undoGroup`: the write id the layout and its riders share. */
+  actionId: string;
+  /** The move-delta rule over the board and the layout the meta holds now; a refusal writes nothing. */
+  check(
+    board: readonly AnnotationElement[],
+    layoutBefore: unknown
+  ): { status: number; body: Record<string, unknown> } | null;
+}
+
+export type RiderMoveResult =
+  | { ok: true; meta: Record<string, unknown>; actionId?: string; queued?: boolean }
+  | { ok: false; status: number; body: Record<string, unknown> };
 
 export interface LanesOutcome {
   status: 'accepted' | 'rejected';
@@ -527,6 +539,12 @@ export interface Api {
   fileSlug(file: string): string;
   loadCommentsForFile(file: string): Promise<Comment[]>;
   saveCommentsForFile(file: string, list: Comment[]): Promise<void>;
+  /**
+   * S2.2b — rewrite one canvas's comment list through the one publish path (shared doc first, then
+   * disk): `fn` gets the current list and returns the new one, or null for "no change". Used by
+   * `element.set-id` to move element pins with a renamed id.
+   */
+  rewriteComments(file: string, fn: (list: Comment[]) => Comment[] | null): Promise<void>;
   loadAllComments(): Promise<Record<string, Comment[]>>;
   /**
    * Resolve a canvas URL slug back to its repo-relative `file` path by scanning
@@ -575,7 +593,13 @@ export interface Api {
    * the file text it replaced) and cell announce as a layout write. No `last_modified` stamp. False
    * when the path is refused.
    */
-  writeCanvasMetaText(file: string, nextText: string, baseText: string | null): Promise<boolean>;
+  writeCanvasMetaText(
+    file: string,
+    nextText: string,
+    baseText: string | null,
+    /** S2.10b — `hooks: false`: an accepted-mode action already carries the lane (no `onMetaChanged`) */
+    opts?: { hooks?: boolean }
+  ): Promise<boolean>;
   // Annotations board (DDR-242 — .design/<slug>.annotations.json)
   /** Canonical board text; a not-yet-migrated legacy SVG is read through the migration. */
   loadAnnotations(file: string): Promise<string | null>;
@@ -589,7 +613,10 @@ export interface Api {
   applyAnnotationOps(
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
+    actionId?: string,
+    /** S2.10c — `hooks: false`: the file only (no live room, no change hook) — an accepted-mode
+     *  action already carries the annotations lane (routes/edit.ts, an artboard moved to the trash) */
+    opts?: { hooks?: boolean }
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
@@ -601,6 +628,13 @@ export interface Api {
   ): Promise<ConvertResult<T>>;
   /** S4.7 — the no-home undo of a conversion (refused `stale` once a lane moved on). */
   restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }>;
+  /** S2.9b — an artboard move + its annotation riders as ONE project action. */
+  moveArtboardsWithRider(
+    file: string,
+    layout: unknown,
+    rider: RiderMove,
+    proposer: LanesProposer | null
+  ): Promise<RiderMoveResult>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -662,6 +696,7 @@ export interface Api {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
@@ -730,31 +765,6 @@ export interface Api {
     durationInFrames?: unknown;
     from?: unknown;
   }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
-  // feature-enhanced-video-editing (Phase 2) — parametric clip verbs (speed ·
-  // trim-in · audio · detach-audio · framing · grade · transition).
-  clipEditOp(input: {
-    canvas?: unknown;
-    artboardId?: unknown;
-    stableId?: unknown;
-    contentHash?: unknown;
-    verb?: unknown;
-    rate?: unknown;
-    deltaFrames?: unknown;
-    muted?: unknown;
-    volume?: unknown;
-    framing?: unknown;
-    grade?: unknown;
-    presentation?: unknown;
-    durationInFrames?: unknown;
-    atFrame?: unknown;
-    src?: unknown;
-    mediaKind?: unknown;
-    text?: unknown;
-    toIndex?: unknown;
-  }): Promise<
-    | { ok: true; seq?: number; extra?: Record<string, unknown> }
-    | { ok: false; status: number; error: string }
-  >;
   // DDR-150 P3 — remove a clip addressed by stableId (fingerprint + semantic
   // gate; refuses the only clip; drops an adjacent transition in a series).
   removeSequenceOp(input: {
@@ -1516,6 +1526,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const settled = dedupeCommentsById(list);
     await onCommentsChanged(file, settled, base ? dedupeCommentsById(base) : undefined);
     await saveCommentsForFile(file, settled);
+  }
+
+  async function rewriteComments(
+    file: string,
+    fn: (list: Comment[]) => Comment[] | null
+  ): Promise<void> {
+    const list = await loadCommentsForFile(file);
+    const next = fn(structuredClone(list));
+    if (next) await publishComments(file, next, list);
   }
 
   async function loadAllComments(): Promise<Record<string, Comment[]>> {
@@ -2352,12 +2371,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function writeCanvasMetaText(
     file: string,
     nextText: string,
-    baseText: string | null
+    baseText: string | null,
+    opts?: { hooks?: boolean }
   ): Promise<boolean> {
     const metaAbs = canvasMetaPath(file);
     if (!metaAbs) return false;
     await Bun.write(metaAbs, nextText);
-    hooks.onMetaChanged?.(file, nextText, baseText);
+    if (opts?.hooks !== false) hooks.onMetaChanged?.(file, nextText, baseText);
     announceWritten(path.relative(paths.designRoot, metaAbs));
     return true;
   }
@@ -2491,8 +2511,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function applyAnnotationOps(
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
+    actionId?: string,
+    opts?: { hooks?: boolean }
   ): Promise<AnnotationOpsResult> {
+    const withHooks = opts?.hooks !== false;
     return onAnnotationChain(file, async () => {
       const rejectedOf = (r: ApplyResult) =>
         r.rejected.map((x) => ({
@@ -2502,7 +2524,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }));
       // A live room is ahead of the file (its flush is debounced): the batch
       // goes to its replica, or it would revert a peer's unflushed edit (H1).
-      const live = hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null;
+      const live = withHooks ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null) : null;
       if (live === 'too-large') {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }
@@ -2521,7 +2543,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
       }
       await writeBoardFile(file, text);
-      onAnnotationsChanged?.(file, text, actionId, beforeText);
+      if (withHooks) onAnnotationsChanged?.(file, text, actionId, beforeText);
       return { ok: true, changed: true, rejected };
     });
   }
@@ -2637,6 +2659,98 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ...(a.status === 'accepted' && a.actionId ? { actionId: a.actionId } : {}),
     ...(a.queued ? { queued: true } : {}),
   });
+
+  /**
+   * S2.9b — an artboard move and the annotations riding with it as ONE project
+   * action (contract S2-S4-artboard-motion-ids §2): the layout lane of the
+   * versioned `.meta.json` and the board, then one `proposer.send` with both
+   * lanes. Same three homes as `convertLanes`: accepted mode decides first and
+   * writes raw (no per-lane hooks, which would propose each lane on its own); the
+   * local home and no home take the ordinary write paths, the local home then
+   * records both lanes as one action. `rider.check` refuses before anything is
+   * written; a rejected op (gone / stale) refuses the whole move.
+   */
+  async function moveArtboardsWithRider(
+    file: string,
+    layout: unknown,
+    rider: RiderMove,
+    proposer: LanesProposer | null
+  ): Promise<RiderMoveResult> {
+    const metaAbs = canvasMetaPath(file);
+    const srcAbs = canvasSourceAbs(file);
+    if (!metaAbs || !srcAbs || !(await Bun.file(srcAbs).exists()))
+      return { ok: false, status: 404, body: { ok: false, reason: 'not-found' } };
+    const raw = layout as Record<string, unknown> | null;
+    const artboards =
+      raw && typeof raw === 'object' && !Array.isArray(raw) && 'artboards' in raw
+        ? normalizeLayoutArtboards(raw.artboards)
+        : null;
+    if (!raw || !artboards)
+      return { ok: false, status: 400, body: { ok: false, reason: 'layout.artboards required' } };
+    return onAnnotationChain(file, async (): Promise<RiderMoveResult> => {
+      let currentText: string | null = null;
+      let current: Record<string, unknown> = {};
+      try {
+        currentText = await Bun.file(metaAbs).text();
+        const parsed = JSON.parse(currentText);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+          current = parsed as Record<string, unknown>;
+      } catch {
+        currentText = null;
+      }
+      const read = await readBoard(file);
+      if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+      const elements = read.text ? parseBoard(read.text).elements : [];
+      const boardBefore = read.text ?? '';
+      const refused = rider.check(elements, current.layout);
+      if (refused) return { ok: false, ...refused };
+      const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), rider.ops);
+      if (r.rejected.length)
+        return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+      const boardAfter = r.touched.size ? serializeBoard([...r.state.values()]) : boardBefore;
+      if (boardAfter.length > MAX_ANNOTATIONS_BYTES)
+        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+      const next: Record<string, unknown> = { ...current, layout: { ...raw, artboards } };
+      next.viewport = undefined;
+      next.last_modified = new Date().toISOString();
+      const nextText = `${JSON.stringify(next, null, 2)}\n`;
+      const metaRel = path.relative(paths.designRoot, metaAbs);
+      const lanes: LaneChange[] = [
+        { lane: 'meta', text: nextText, baseText: currentText ?? '{}' },
+        ...(boardAfter !== boardBefore
+          ? [{ lane: 'annotations' as const, text: boardAfter, baseText: boardBefore }]
+          : []),
+      ];
+      if (proposer?.accepted) {
+        const answer = await proposer.send(lanes);
+        if (answer.status !== 'accepted')
+          return { ok: false, status: 409, body: { ok: false, reason: answer.code ?? 'rejected' } };
+        await Bun.write(metaAbs, nextText);
+        announceWritten(metaRel);
+        if (boardAfter !== boardBefore) await writeBoardFile(file, boardAfter);
+        return { ok: true, meta: (await loadCanvasMeta(file)) ?? {}, ...actionOf(answer) };
+      }
+      if (boardAfter !== boardBefore) {
+        const live = hooks.applyAnnotationOpsLive?.(file, rider.ops, rider.actionId) ?? null;
+        if (live === 'too-large')
+          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+        if (!live) {
+          await writeBoardFile(file, boardAfter);
+          onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore);
+        }
+      }
+      await Bun.write(metaAbs, nextText);
+      hooks.onMetaChanged?.(
+        file,
+        nextText,
+        Object.keys(current).length ? JSON.stringify(current) : null
+      );
+      announceWritten(metaRel);
+      const meta = (await loadCanvasMeta(file)) ?? {};
+      if (!proposer) return { ok: true, meta };
+      return { ok: true, meta, ...actionOf(await proposer.send(lanes)) };
+    });
+  }
 
   /**
    * S4.7 — put a conversion's two lanes back as they were (the no-home undo
@@ -3552,21 +3666,48 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // gated by `validateCanvasName` (path + JSX + JSON injection boundary); `group`
   // is allowlisted to the configured canvas groups; a `resolve()` containment
   // assert is the defense-in-depth backstop.
+  // V2 S6.1 (C4) — a `blank` create with no name is named by the server ("Untitled canvas", " 2", …, or
+  // from `fromPrompt`). Creates run one at a time so two ⌘N in the same instant cannot both pick the
+  // same free name (the pick and the write are separated by awaits).
+  let blankCreateQueue: Promise<unknown> = Promise.resolve();
   async function createCanvas(input: {
     name?: unknown;
     kind?: unknown;
     group?: unknown;
+    fromPrompt?: unknown;
     // DDR-150 P4 Task 12 — video-comp assemble payload (kind === 'video-comp').
     clips?: unknown;
     fps?: unknown;
     width?: unknown;
     height?: unknown;
   }): Promise<CreateCanvasResult> {
+    const run = blankCreateQueue.then(() => createCanvasNow(input));
+    blankCreateQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  async function createCanvasNow(input: {
+    name?: unknown;
+    kind?: unknown;
+    group?: unknown;
+    fromPrompt?: unknown;
+    clips?: unknown;
+    fps?: unknown;
+    width?: unknown;
+    height?: unknown;
+  }): Promise<CreateCanvasResult> {
     // v1 stamps blank brief-boards + assembled video-comps — richer generation
-    // stays with `/design:new` (Claude).
-    const kind = input.kind == null || input.kind === '' ? 'brief-board' : input.kind;
-    if (kind !== 'brief-board' && kind !== 'video-comp') {
-      return { ok: false, status: 400, error: 'kind must be "brief-board" or "video-comp"' };
+    // stays with `/design:new` (Claude). V2 S6.1 adds the blank canvas: with no `kind`, a name means a
+    // brief board (every v1 caller) and no name means a blank canvas.
+    const noName = input.name == null || input.name === '';
+    const kind =
+      input.kind == null || input.kind === '' ? (noName ? 'blank' : 'brief-board') : input.kind;
+    if (kind !== 'brief-board' && kind !== 'video-comp' && kind !== 'blank') {
+      return {
+        ok: false,
+        status: 400,
+        error: 'kind must be "blank", "brief-board" or "video-comp"',
+      };
     }
     // Parse + validate the assemble clip list up front (video-comp only).
     const assembleClips: AssembleClip[] = [];
@@ -3591,7 +3732,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         assembleClips.push({ src, mediaKind, durationInFrames });
       }
     }
-    const v = validateCanvasName(input.name);
+    // A blank canvas with no name is named below, once the folder is known.
+    const autoName = kind === 'blank' && noName;
+    let v = autoName ? validateCanvasName(UNTITLED_CANVAS) : validateCanvasName(input.name);
     if (!v.ok || !v.name || !v.componentName) {
       return { ok: false, status: 400, error: v.error ?? 'invalid name' };
     }
@@ -3606,6 +3749,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
 
     const groupAbs = path.join(paths.designRoot, group);
+    if (autoName) {
+      const base =
+        input.fromPrompt == null ? UNTITLED_CANVAS : nameFromPrompt(input.fromPrompt).canvas;
+      // A canvas in the trash is not in the folder, so it does not hold its name.
+      const free = nextFreeCanvasName(
+        base,
+        (n) =>
+          existsSync(path.join(groupAbs, `${n}.tsx`)) ||
+          existsSync(path.join(groupAbs, `${n}.meta.json`))
+      );
+      v = validateCanvasName(free);
+      if (!v.ok || !v.name || !v.componentName) {
+        return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      }
+    }
     const fileAbs = path.join(groupAbs, `${v.name}.tsx`);
     // Containment backstop, two layers (Phase 22 security review F2). The name
     // regex already forbids traversal, but `group` comes from config
@@ -3658,6 +3816,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           error: err instanceof Error ? err.message : 'assemble failed',
         };
       }
+    } else if (kind === 'blank') {
+      tsx = renderBlankCanvas({
+        name: v.name,
+        componentName: v.componentName,
+        dsName,
+        platform,
+        historyDir: path.posix.join(paths.designRel, '_history', slug),
+      });
     } else {
       tsx = renderBriefBoard({
         name: v.name,
@@ -3682,16 +3848,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             created: now,
             last_modified: now,
           }
-        : {
-            kind: 'brief-board',
-            title: v.name,
-            subtitle: 'brief board',
-            brief: v.name,
-            designSystem: dsName,
-            platform,
-            created: now,
-            last_modified: now,
-          };
+        : kind === 'blank'
+          ? {
+              // `canvas`, not a new kind: the index and a v1 peer both know it (V2 S6.1).
+              kind: 'canvas',
+              title: v.name,
+              subtitle: 'blank canvas',
+              brief: '',
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            }
+          : {
+              kind: 'brief-board',
+              title: v.name,
+              subtitle: 'brief board',
+              brief: v.name,
+              designSystem: dsName,
+              platform,
+              created: now,
+              last_modified: now,
+            };
     await Bun.write(fileAbs, tsx);
     await Bun.write(
       path.join(groupAbs, `${v.name}.meta.json`),
@@ -5563,172 +5741,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  /**
-   * feature-enhanced-video-editing (Phase 2) — the parametric clip verbs, one
-   * dispatch op: speed · trim-in · audio · detach-audio · framing · grade ·
-   * transition. Every verb is a pure clip-ops fn run under the file lock, with
-   * the same stableId + contentHash optimistic-concurrency discipline, pre-op
-   * snapshot, and whole-file undo seq as the structural clip ops.
-   */
-  async function clipEditOp(input: {
-    canvas?: unknown;
-    artboardId?: unknown;
-    stableId?: unknown;
-    contentHash?: unknown;
-    verb?: unknown;
-    rate?: unknown;
-    deltaFrames?: unknown;
-    muted?: unknown;
-    volume?: unknown;
-    framing?: unknown;
-    grade?: unknown;
-    presentation?: unknown;
-    durationInFrames?: unknown;
-    atFrame?: unknown;
-    src?: unknown;
-    mediaKind?: unknown;
-    text?: unknown;
-    toIndex?: unknown;
-  }): Promise<
-    | { ok: true; seq?: number; extra?: Record<string, unknown> }
-    | { ok: false; status: number; error: string }
-  > {
-    const r = resolveCanvasAbs(input.canvas);
-    if (!r.ok) return r;
-    const stableId = typeof input.stableId === 'string' ? input.stableId : null;
-    if (!stableId) return { ok: false, status: 400, error: 'stableId required' };
-    const artboardId = typeof input.artboardId === 'string' ? input.artboardId : undefined;
-    const hash = typeof input.contentHash === 'string' ? input.contentHash : undefined;
-    const verb = typeof input.verb === 'string' ? input.verb : '';
-    const abs = r.abs;
-    // Just `{ source: string }`: the `& Record<string, unknown>` was there for
-    // the rest-spread below, but an INTERFACE return (SpeedResult and friends)
-    // has no implicit index signature, so no verb's function was actually
-    // assignable — every branch failed the check the same way.
-    let run: ((source: string) => { source: string }) | null = null;
-    switch (verb) {
-      case 'speed': {
-        const rate = Number(input.rate);
-        run = (src) => applySetPlaybackRate(abs, src, artboardId, stableId, hash, rate);
-        break;
-      }
-      case 'trim-in': {
-        const delta = Number(input.deltaFrames);
-        if (!Number.isFinite(delta))
-          return { ok: false, status: 400, error: 'deltaFrames required' };
-        run = (src) => applyTrimIn(abs, src, artboardId, stableId, hash, delta);
-        break;
-      }
-      case 'audio': {
-        const opts: { muted?: boolean; volume?: number | null } = {};
-        if (typeof input.muted === 'boolean') opts.muted = input.muted;
-        if (input.volume !== undefined)
-          opts.volume = input.volume == null ? null : Number(input.volume);
-        run = (src) => applyClipAudio(abs, src, artboardId, stableId, hash, opts);
-        break;
-      }
-      case 'detach-audio': {
-        run = (src) => applyDetachAudio(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'framing': {
-        const f = input.framing as { scale?: unknown; x?: unknown; y?: unknown } | null;
-        const framing =
-          f == null
-            ? null
-            : { scale: Number(f.scale) || 1, x: Number(f.x) || 0, y: Number(f.y) || 0 };
-        run = (src) => applyClipFraming(abs, src, artboardId, stableId, hash, framing);
-        break;
-      }
-      case 'grade': {
-        const grade = input.grade == null ? null : (input.grade as GradeParams);
-        run = (src) => applyClipGrade(abs, src, artboardId, stableId, hash, grade);
-        break;
-      }
-      case 'transition': {
-        const opts: { presentation?: string; durationInFrames?: number } = {};
-        if (typeof input.presentation === 'string') opts.presentation = input.presentation;
-        if (input.durationInFrames != null) opts.durationInFrames = Number(input.durationInFrames);
-        run = (src) => applyEditTransition(abs, src, artboardId, stableId, hash, opts);
-        break;
-      }
-      case 'split': {
-        const atFrame = Number(input.atFrame);
-        if (!Number.isFinite(atFrame)) return { ok: false, status: 400, error: 'atFrame required' };
-        run = (src) => applySplitClip(abs, src, artboardId, stableId, hash, atFrame);
-        break;
-      }
-      case 'insert-transition': {
-        const presentation = typeof input.presentation === 'string' ? input.presentation : 'fade';
-        const frames = Number(input.durationInFrames) || 15;
-        run = (src) =>
-          applyInsertTransition(abs, src, artboardId, stableId, hash, presentation, frames);
-        break;
-      }
-      case 'remove-transition': {
-        run = (src) => applyRemoveTransition(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'set-text': {
-        const t = typeof input.text === 'string' ? input.text : '';
-        run = (src) => applySetClipText(abs, src, artboardId, stableId, hash, t);
-        break;
-      }
-      case 'to-overlay': {
-        run = (src) => applyMoveClipToOverlay(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'to-storyline': {
-        run = (src) => applyMoveClipToStoryline(abs, src, artboardId, stableId, hash);
-        break;
-      }
-      case 'layer-order': {
-        const toIndex = Number(input.toIndex);
-        if (!Number.isFinite(toIndex)) return { ok: false, status: 400, error: 'toIndex required' };
-        run = (src) => applyReorderOverlayLayer(abs, src, artboardId, stableId, hash, toIndex);
-        break;
-      }
-      case 'resolve-placeholder': {
-        const src2 = typeof input.src === 'string' ? input.src : '';
-        const mediaKind = input.mediaKind === 'image' ? 'image' : 'video';
-        run = (src) =>
-          applyResolvePlaceholder(abs, src, artboardId, stableId, hash, src2, mediaKind);
-        break;
-      }
-      default:
-        return { ok: false, status: 400, error: `unknown clip verb "${verb}"` };
-    }
-    const rel = path.relative(paths.designRoot, abs);
-    ctx.bus.emit('activity:suppress', rel);
-    try {
-      const before = await Bun.file(abs).text();
-      // The switch above either assigned `run` or returned; say so to the checker.
-      if (!run) return { ok: false, status: 400, error: `unknown clip verb "${verb}"` };
-      const result = await applyOnDisk(abs, run);
-      const after = await Bun.file(abs).text();
-      let seq: number | undefined;
-      if (after === before) {
-        ctx.bus.emit('activity:unsuppress', rel);
-      } else {
-        try {
-          await history.writeSnapshot(rel, before, `pre-clip-${verb}`);
-        } catch {
-          /* snapshot best-effort */
-        }
-        seq = logUndo(abs, before, after);
-      }
-      const { source: _src, ...extra } = result;
-      return { ok: true, seq, extra };
-    } catch (err) {
-      ctx.bus.emit('activity:unsuppress', rel);
-      return {
-        ok: false,
-        status: err instanceof CanvasEditError ? 422 : 500,
-        error: err instanceof Error ? err.message : `clip ${verb} failed`,
-      };
-    }
-  }
-
   // Stage I (feature-element-editing-robustness) — general element structural
   // edits (delete / insert / new-artboard) + free-hand artboard resize (D4). All
   // MAIN-ORIGIN ONLY at the route layer; each logs a whole-file {before, after}
@@ -7065,6 +7077,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // instead of unconditionally designSystems[0]. Populated from the canvas
     // groups below; returned on the payload and folded into the client cfg.
     const canvasDesignSystems: Record<string, string> = {};
+    // S10.4 (V2-1.6 §5.8) — the revision a canvas was left on (`dsRev`), for the converted systems only:
+    // an unconverted project builds none of this, and its payload is what it always was.
+    const convertedDs = new Set(
+      (cfg.designSystems ?? [])
+        .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
+        .map((d) => d.name)
+    );
+    const canvasRevs: Record<string, { system: string; dsRev: string }> = {};
     // DDR-174 (T15) — surface a canvas's `.meta.json` `kind` in the file tree
     // when it's a value the user should notice at a glance (today: only
     // `reconstructed-experimental`, so this map stays empty on every project
@@ -7168,14 +7188,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       for (const fp of filePaths) {
         if (!fp.endsWith('.tsx')) continue;
         let dsName = ownerDsName(fp);
+        let meta: Record<string, unknown> | null = null;
         if (!dsName) {
-          const meta = await loadCanvasMeta(fp);
+          meta = await loadCanvasMeta(fp);
           const declared = meta?.designSystem;
           dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
           const kind = meta?.kind;
           if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
         }
         canvasDesignSystems[fp] = dsName;
+        if (convertedDs.has(dsName)) {
+          // a canvas inside the system's own folder carries no sidecar read above
+          meta ??= await loadCanvasMeta(fp);
+          const dsRev = meta?.dsRev;
+          if (typeof dsRev === 'string' && dsRev) canvasRevs[fp] = { system: dsName, dsRev };
+        }
       }
       // Strip down to `g.path` so per-DS folders (`project`, `beta`, …) show
       // up as the top-level dirs inside the DS section. Single-DS configs get
@@ -7247,6 +7274,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
+    // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
+    // has none gets the payload it always had.
+    const dsRender =
+      convertedDs.size > 0
+        ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
+        : null;
+
     // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
     return filterIndexData(
       {
@@ -7256,6 +7290,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         groups,
         canvasDesignSystems,
         canvasKinds,
+        ...(dsRender
+          ? {
+              canvasDsRevs: Object.fromEntries(
+                Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
+              ),
+              systemHeads: dsRender.systemHeads,
+              dsConverted: dsRender.dsConverted,
+              dsRevGaps: dsRender.dsRevGaps,
+            }
+          : {}),
       },
       projectVisibility(ctx).current(),
       paths.designRel,
@@ -7465,6 +7509,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     fileSlug,
     loadCommentsForFile,
     saveCommentsForFile,
+    rewriteComments,
     loadAllComments,
     fileForSlug,
     commentsAdd,
@@ -7492,6 +7537,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     applyAnnotationOps,
     projectAnnotations,
     convertLanes,
+    moveArtboardsWithRider,
     restoreConversion,
     saveAsset,
     listAssets,
@@ -7515,7 +7561,6 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     editCss,
     editText,
     editAttr,
-    clipEditOp,
     removeSequenceOp,
     insertSequenceOp,
     reorderSequenceOp,
