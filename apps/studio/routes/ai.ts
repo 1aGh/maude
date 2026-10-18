@@ -94,12 +94,15 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
     lastHeartbeat: r.hookAt ?? r.createdAt,
   });
 
+  // `path` is spelled out per call: the writer-registry and hub-manifest scrapers read literal
+  // `path: '…'` strings in routes/*.ts, and a template would be a route nobody classified.
   const runAction = (
     verb: 'stop' | 'cancel' | 'keep-going',
+    p: { path: string },
     fn: (id: string) => Promise<RunRecord | null>
   ): RouteSpec => ({
     method: 'POST',
-    path: `/_api/ai/runs/:id/${verb}`,
+    path: p.path,
     origin: 'main',
     readOnly: 'refused',
     async handle(_req, params) {
@@ -135,9 +138,9 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
         return json(200, await reg.stopAll(reason));
       },
     },
-    runAction('stop', (id) => reg.stop(id, 'you')),
-    runAction('cancel', (id) => reg.cancel(id)),
-    runAction('keep-going', (id) => reg.keepGoing(id)),
+    runAction('stop', { path: '/_api/ai/runs/:id/stop' }, (id) => reg.stop(id, 'you')),
+    runAction('cancel', { path: '/_api/ai/runs/:id/cancel' }, (id) => reg.cancel(id)),
+    runAction('keep-going', { path: '/_api/ai/runs/:id/keep-going' }, (id) => reg.keepGoing(id)),
 
     // ── v1 (Phase 8 Task 4): `/design:edit` curls these; the banner is derived ──────────────
     {
