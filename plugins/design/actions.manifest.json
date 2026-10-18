@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "dd6ae58ae9a7",
+  "manifestVersion": "3e751eb9a4ba",
   "actions": [
     {
       "id": "search.open",
@@ -797,6 +797,32 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
+      }
+    },
+    {
+      "id": "artboard.resize",
+      "label": "Resize artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the DCArtboard’s width and height props (64–8192); add the bare `fixed` prop to make the height exact. Its position is layout.artboards[] in the .meta.json, not a prop"
+      }
+    },
+    {
+      "id": "artboard.add-width",
+      "label": "Add a width",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json"
       }
     },
     {

@@ -566,7 +566,7 @@
       "v2": {
         "action": null,
         "testid": "canvas-menu-item-theme",
-        "where": "Right-click an artboard’s label › Theme › DS default · Follow chrome · Light · Dark (until S2)"
+        "where": "Right-click an artboard’s label › Theme › DS default · Follow chrome · Light · Dark — and Inspector › Advanced › Theme on a selected artboard (S2.8)"
       }
     },
     {
@@ -774,7 +774,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-body-layout",
-        "where": "Click an artboard’s label → Inspector › Advanced — the artboard’s own editor with its Body layout select (S2.8 moves it into the artboard sections)"
+        "where": "Click an artboard’s label → Inspector › Layout › Content — the artboard’s body layout select (S2.8; the testid is unchanged)"
       }
     },
     {
@@ -3021,7 +3021,6 @@
     "testid:studio/client/export-center.jsx#menubar/exports": "testid:exports",
     "testid:studio/client/file-tree.jsx#sidebar/tree/role-tree-role-treeitem": "testid:[role=\"tree\"] / [role=\"treeitem\"]",
     "testid:studio/client/file-tree.jsx#sidebar/tree/st-tree": "testid:.st-tree",
-    "testid:studio/client/inspector/artboard-knobs.jsx#inspector/inspector-body-layout": "A-body-layout-select",
     "testid:studio/client/inspector/css-knobs.jsx#inspector/inspector-custom-css": "A-custom-css-property-rows",
     "testid:studio/client/inspector/css-knobs.jsx#inspector/inspector-html-attrs": "A-html-attribute-rows",
     "testid:studio/client/inspector/grid-tracks-editor.jsx#inspector/inspector-grid-tracks": "A-grid-tracks-editor",
@@ -3359,7 +3358,7 @@
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-edit-save": "testid:comment-edit-save",
     "testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-id": "testid:canvas-menu-item-<id>",
     "testid:studio/context-menu.tsx#canvas iframe chrome/dc-context-menu-data-action": "D6",
-    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "D7",
+    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "testid:.dc-elem-ctx-tb / [data-on]",
     "testid:studio/cursors-overlay.tsx#canvas iframe chrome/dc-cursor-dc-peer-selection-data-peer-gesture": "testid:.dc-cursor / .dc-peer-selection / [data-peer-gesture]",
     "testid:studio/figma/to-artboard.ts#canvas iframe chrome/data-dc-element": "testid:[data-dc-element]",
     "testid:studio/measure-overlay.tsx#canvas iframe chrome/dc-cv-measure-line-dc-cv-measure-pill": "testid:.dc-cv-measure-line / .dc-cv-measure-pill",
@@ -3456,15 +3455,29 @@
     "testid:studio/editing/align-bar.tsx#canvas/edit-align-edge": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas/edit-align-guide": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas/edit-distribute-axis": "v2 code (added after the freeze)",
+    "testid:studio/editing/artboard-handles.tsx#canvas/ed-ab-frame": "v2 code (added after the freeze)",
+    "testid:studio/editing/artboard-handles.tsx#canvas/ed-ab-handle-h": "v2 code (added after the freeze)",
     "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-badge": "v2 code (added after the freeze)",
     "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-tip": "v2 code (added after the freeze)",
+    "testid:studio/editing/minimap-context.tsx#canvas/ed-minimap": "v2 code (added after the freeze)",
+    "testid:studio/editing/minimap-context.tsx#canvas/ed-minimap-band": "v2 code (added after the freeze)",
+    "testid:studio/editing/minimap-context.tsx#canvas/ed-minimap-section": "v2 code (added after the freeze)",
+    "testid:studio/editing/minimap-context.tsx#canvas/ed-minimap-sentence": "v2 code (added after the freeze)",
+    "testid:studio/editing/minimap-context.tsx#canvas/ed-minimap-strip": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-gap-side": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-gaps": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-bubble": "v2 code (added after the freeze)",
+    "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-ghost": "v2 code (added after the freeze)",
+    "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-guide": "v2 code (added after the freeze)",
+    "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-hint": "v2 code (added after the freeze)",
+    "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-ruler": "v2 code (added after the freeze)",
+    "testid:studio/editing/preset-ruler.tsx#canvas/ed-ab-tick-w": "v2 code (added after the freeze)",
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-angle": "v2 code (added after the freeze)",
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-handle": "v2 code (added after the freeze)",
     "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-hint": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
-    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)"
+    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)",
+    "testid:studio/editing/sticky-name.tsx#canvas/ed-sticky-name": "v2 code (added after the freeze)"
   }
 }

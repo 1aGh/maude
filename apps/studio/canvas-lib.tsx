@@ -325,10 +325,9 @@ const ENGINE_CSS = `
      down on zoom-out. Inherited, so this covers every descendant. No-op on Blink. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* DDR-046 — snap-layer magenta is distinct from --accent so the snap chrome
-     never visually melts into the selection halo during a drag-snap gesture.
-     OKLCH default approximates FigJam magenta in the project's color space. */
-  --guide-magenta: oklch(62% 0.28 350);
+  /* DDR-046 — the guide colour (--guide, was --guide-magenta) is distinct from --accent so the snap chrome
+     never visually melts into the selection halo during a drag-snap gesture. It is defined once, by the
+     generated HUD block (canvas-hud-tokens.gen.ts, from maude-v2); the literal below is the fallback only. */
   /* Canvas-shell chrome — the workspace plane + dotted grid follow the Maude
      chrome theme (--maude-chrome-*), NOT the DS palette. See canvas-shell.tsx
      HUD_TOKENS_CSS. Artboards (.dc-artboard) keep the DS theme. */
@@ -348,8 +347,8 @@ const ENGINE_CSS = `
   transform-origin: center;
 }
 .dc-snap-guide--sibling {
-  background: var(--guide-magenta, oklch(62% 0.28 350));
-  box-shadow: 0 0 4px color-mix(in oklab, var(--guide-magenta, oklch(62% 0.28 350)) 35%, transparent);
+  background: var(--guide, oklch(0.55 0.20 328));
+  box-shadow: 0 0 4px color-mix(in oklab, var(--guide, oklch(0.55 0.20 328)) 35%, transparent);
 }
 .dc-snap-guide--grid {
   background: color-mix(in oklab, var(--maude-chrome-fg-1, #4a3f30) 40%, transparent);
@@ -362,8 +361,8 @@ const ENGINE_CSS = `
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  color: #fff;
-  background: var(--guide-magenta, oklch(62% 0.28 350));
+  color: var(--guide-fg, #fff);
+  background: var(--guide, oklch(0.55 0.20 328));
   padding: 3px 6px;
   border-radius: 3px;
   white-space: nowrap;

@@ -79,6 +79,7 @@ export function InspectorFrame({
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
+  onSetArtboardTheme,
   onDuplicateArtboard,
   onSelectCrumb,
 }) {
@@ -116,6 +117,16 @@ export function InspectorFrame({
   const chip = kindChipOf(selected);
   const crumbs = crumbsOf(layersTree, Array.isArray(selected) ? null : el);
   const ds = activeDsNameFor(canvasFile, cfg);
+  // S2.8 — the artboard's handlers ride on ctx too: kinds/artboard.jsx's section bodies write through them
+  const artboard = {
+    onResizeArtboard,
+    onSetArtboardHug,
+    onSetArtboardStyle,
+    onSetArtboardKind,
+    onSetArtboardPrint,
+    onSetArtboardTheme,
+    onDuplicateArtboard,
+  };
   const ctx = {
     canvasFile,
     cfg,
@@ -124,16 +135,9 @@ export function InspectorFrame({
     onRecordEdit,
     onUndoRedo,
     onReplaceMedia,
+    artboard,
   };
   const edit = { onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo };
-  const artboard = {
-    onResizeArtboard,
-    onSetArtboardHug,
-    onSetArtboardStyle,
-    onSetArtboardKind,
-    onSetArtboardPrint,
-    onDuplicateArtboard,
-  };
 
   return (
     <div className="insp" data-testid="inspector-frame" data-kind={kind.id}>

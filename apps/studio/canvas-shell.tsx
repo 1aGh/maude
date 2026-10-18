@@ -1373,6 +1373,36 @@ function setArtboardTheme(screenId: string, mode: 'follow' | ArtboardPin): void 
   if (mode === 'follow') _artboardPins.delete(screenId);
   else _artboardPins.set(screenId, mode);
   rebuildArtboardThemeStyle();
+  stampArtboardPins();
+}
+
+/** S2.8 — mirror the pins onto the frames as `data-dc-theme-pin`, so the artboard inspector (Advanced › Theme) reads
+ *  the pin back through the same `data-dc-*` read-back every artboard prop uses. `follow` carries no attribute. */
+function stampArtboardPins(): void {
+  if (typeof document === 'undefined') return;
+  for (const el of Array.from(document.querySelectorAll('[data-dc-theme-pin]'))) {
+    const id = el.getAttribute('data-dc-screen');
+    if (!id || !_artboardPins.has(id)) el.removeAttribute('data-dc-theme-pin');
+  }
+  for (const [id, pin] of _artboardPins) {
+    document
+      .querySelector(`[data-dc-screen="${CSS.escape(id)}"]`)
+      ?.setAttribute('data-dc-theme-pin', pin);
+  }
+}
+
+// S2.8 — the artboard inspector's Theme row asks through editing/ (the shell's run-action); same pin as the
+// artboard menu's Theme submenu, same single-theme gate on Light / Dark.
+if (typeof window !== 'undefined') {
+  window.addEventListener('maude:set-artboard-theme', (e) => {
+    const d = (e as CustomEvent<{ artboard?: unknown; mode?: unknown }>).detail;
+    const mode = d?.mode;
+    if (typeof d?.artboard !== 'string') return;
+    if (mode !== 'follow' && mode !== 'ds' && mode !== 'light' && mode !== 'dark') return;
+    // Light / Dark are no-ops on a one-theme DS (the menu greys them); freeing a pin never is
+    if ((mode === 'light' || mode === 'dark') && !detectDsThemeSupport().supported) return;
+    setArtboardTheme(d.artboard, mode);
+  });
 }
 
 /**

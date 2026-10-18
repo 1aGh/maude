@@ -17,6 +17,7 @@ import { distributeOps } from './distribute.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
+import { artboardResize } from './artboard-resize.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import { objectRotate } from './rotate.ts';
 import {
@@ -51,6 +52,7 @@ export const EDIT_OPS: readonly EditOp[] = [
   ...alignOps,
   ...distributeOps,
   objectRotate,
+  artboardResize, // S2.8 artboard.resize
 ];
 
 export interface AiHoldHit {
