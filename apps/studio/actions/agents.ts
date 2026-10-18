@@ -228,6 +228,15 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.hidden-files': PREF(),
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
+  // S9.22 — the panel's filters are the verb's flags; an agent reads the same list the person sees.
+  'comments.filter-open': { effect: 'none', agent: cli('maude design comments list --open') },
+  'comments.filter-mine': { effect: 'none', agent: cli('maude design comments list --mine') },
+  'comments.filter-resolved': {
+    effect: 'none',
+    agent: cli('maude design comments list --resolved'),
+  },
+  'comments.filter-all': { effect: 'none', agent: cli('maude design comments list --all') },
+  'comments.open-thread': { effect: 'none', agent: cli('maude design comments list') },
   'history.open': { effect: 'none', agent: cli('maude design history list') },
   'view.exports': { effect: 'none', agent: cli('maude design exports list') },
   // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).

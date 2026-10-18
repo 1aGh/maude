@@ -90,6 +90,9 @@ describe('editing a comment', () => {
   test("someone else's comment offers no Edit", () => {
     mount(false, []);
     expect(button('Edit')).toBeNull();
-    expect(button('Delete')).not.toBeNull();
+    // S9.22 (CONTRACT §6, D8): "Delete comment" is on your own comments only.
+    expect(button('Delete comment')).toBeNull();
+    expect(button('Delete')).toBeNull();
+    expect(button('✓ Resolve')).not.toBeNull();
   });
 });
