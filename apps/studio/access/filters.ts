@@ -39,6 +39,7 @@
 //     canvasOnlyLogPaths(vis, path, designRel) · mergeCanvasOnlyLog(runs, limit)
 //                                                  GET /_api/git/log
 //     filterGitDiff(entries, vis, designRel) · diffRefusal(vis)    GET /_api/git/diff
+//     diffShaVisible(gitCommitFiles(sha), vis, designRel)           its `?sha=` (S9.12b, U1)
 //     filterAcceptedHistory(rows, vis, designRel)                  GET /_api/project/history
 //     changedSubject(canvases)                     the U4 subject ("Changed A, B")
 //   L7 export (canvas-only rows; S8 owns the everyone-fixes)
@@ -961,6 +962,30 @@ export function filterGitDiff<E extends { file: string }>(
     const canvas = r === null ? undefined : owned.get(r);
     return canvas !== undefined && vis.access.can('export', canvas);
   });
+}
+
+/**
+ * S9.12b (U1) — may a canvas-only session diff against a `?sha=` it named? Only when that
+ * commit's OWN change (`files`, from `gitCommitFiles`: null = not a full id naming a commit)
+ * touched a file it may diff. The diff runs against the working tree, so without this a
+ * commit that touched only invisible canvases answered with the visible files changed since —
+ * an existence oracle. A ref name or an abbreviation is null too: draft names are not its to
+ * probe (U4). Every refusal answers exactly like a missing sha (`{ entries: [] }`).
+ */
+export function diffShaVisible(
+  files: readonly string[] | null,
+  vis: Visibility,
+  designRel: string
+): boolean {
+  if (vis.full) return true;
+  if (!files) return false;
+  return (
+    filterGitDiff(
+      files.map((file) => ({ file })),
+      vis,
+      designRel
+    ).length > 0
+  );
 }
 
 interface HistoryRowShape {
