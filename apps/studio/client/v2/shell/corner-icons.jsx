@@ -6,6 +6,8 @@
 // Words: the UI says "Hide / Show panels" — never fold, tuck or collapse (CONTRACT §3).
 
 import { StIcon } from '../../shell/icons.jsx';
+import FoldNeeds, { foldState } from '../ai/FoldNeeds.jsx';
+import { useNeedsYou, useNeedsYouFeed } from '../ai/needs-you-store.js';
 
 const FIRST_OF_KIND = {
   left: ['tree', 'layers', 'assets', 'changes', 'comments', 'inspector', 'sync'],
@@ -30,9 +32,12 @@ const LABEL = {
   sync: 'Sync',
 };
 
-function Corner({ at, edge, icon, label, title, working, onClick, testid }) {
+function Corner({ at, edge, icon, label, title, working, needs = 0, onClick, testid }) {
   return (
-    <span className={`st-corner st-corner--${at} island`} data-occludes={edge}>
+    <span
+      className={`st-corner st-corner--${at} island${needs > 0 ? ' st-corner--needs' : ''}`}
+      data-occludes={edge}
+    >
       <button
         type="button"
         className="st-iconbtn"
@@ -42,7 +47,12 @@ function Corner({ at, edge, icon, label, title, working, onClick, testid }) {
         onClick={onClick}
       >
         <StIcon name={icon} size={15} />
-        {working ? <i className="st-corner-dot" aria-hidden="true" /> : null}
+        {/* S5.13 (03 `ai-needs-hidden`): a chat waiting for YOU is an azure count and wins over the busy dot. */}
+        {needs > 0 ? (
+          <FoldNeeds count={needs} />
+        ) : working ? (
+          <i className="st-corner-dot" aria-hidden="true" />
+        ) : null}
       </button>
     </span>
   );
@@ -67,6 +77,8 @@ export function CornerIcons({
   onShow,
 }) {
   const out = [];
+  useNeedsYouFeed();
+  const needsYou = useNeedsYou();
   const reveal = (active, id) => () => {
     if (hidden) onShow();
     if (!active) onOpen(id);
@@ -107,9 +119,16 @@ export function CornerIcons({
         edge={assistant.side}
         icon="sparkle"
         testid="panel-icon-assistant"
-        label={hidden ? 'Show panels' : 'Open Assistant'}
+        label={
+          foldState({ needs: needsYou, busy: assistant.busy }).kind === 'needs'
+            ? 'Open Assistant — AI needs you'
+            : hidden
+              ? 'Show panels'
+              : 'Open Assistant'
+        }
         title={hidden ? 'Show panels (⌘\\)' : 'Assistant'}
         working={assistant.busy}
+        needs={needsYou}
         onClick={() => {
           if (hidden) onShow();
           if (!assistant.shown) onOpen('assistant');

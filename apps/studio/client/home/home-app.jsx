@@ -375,13 +375,16 @@ export function HomeApp() {
   // A file link whose project IS here (its tab failed to open from the link) opens like a
   // Pinned card; one for a project this Mac doesn't have gets the calm note below.
   const linkPid =
-    link?.kind === 'file' && data.shell ? localPidForLink(data.shell, link.project) : null;
+    (link?.kind === 'file' || link?.kind === 'canvas') && data.shell
+      ? localPidForLink(data.shell, link.project)
+      : null;
   useEffect(() => {
-    if (!linkPid || link?.kind !== 'file') return;
+    if (!linkPid || (link?.kind !== 'file' && link?.kind !== 'canvas')) return;
     setLink(null);
     open(linkPid, link.rel);
   }, [linkPid, link, open, setLink]);
-  const linkNote = link?.kind === 'file' && data.status !== 'loading' && !linkPid;
+  const linkNote =
+    (link?.kind === 'file' || link?.kind === 'canvas') && data.status !== 'loading' && !linkPid;
 
   // A connect link: the project window's "Open <project>" answer — its own copy on this Mac.
   // There is no folder here to connect, so that half of CloudBar's decision has no Home form.

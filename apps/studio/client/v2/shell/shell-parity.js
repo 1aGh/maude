@@ -221,6 +221,10 @@ function shareClusterPart(shell, { readOnly, role }) {
     when: {
       'share-cluster-exports': 'once any export exists',
       'share-cluster-faces': 'when other people (or Claude) are in the project',
+      // S1.22a — the account chip: the desktop's Mac accounts (a cloud tab's account is the hub's).
+      ...(shell.id === 'desktop'
+        ? { 'share-cluster-account': 'signed in, with two or more accounts on this Mac' }
+        : {}),
     },
     access: access ? access.word : null,
     action: access ? access.action : 'Share',

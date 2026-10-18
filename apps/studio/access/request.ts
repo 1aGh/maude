@@ -56,6 +56,12 @@ export const SESSION_WRITES: ReadonlySet<string> = new Set([
 
 /** Comment, reply — `comment` on the comment's canvas (Can comment holds it, Can view does not). */
 export const COMMENT_WRITES: ReadonlySet<string> = new Set(['/_comments']);
+/**
+ * Table routes (routes/*.ts) of the comment class — S9.7b's `POST /_api/comments/op`. The spec
+ * declares `readOnly: 'allowed'` itself (so it is not in READ_ONLY_ALLOWED_WRITES twice); this
+ * set says WHICH capability that is: `comment`, never the table's default `session`.
+ */
+export const COMMENT_TABLE_WRITES: ReadonlySet<string> = new Set(['/_api/comments/op']);
 /** The generated half of the comment lane (an exact set cannot name it). */
 export const COMMENT_WRITE_PATTERNS: readonly RegExp[] = Object.freeze([
   /^\/_api\/comments\/[A-Za-z0-9_-]+\/reply$/,
@@ -76,6 +82,10 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
 export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
   '/_api/annotations',
   '/_api/annotations/ops',
+  // S4.7 — sticky ↔ comment (routes/annotations.ts): a board write either way, and its undo token
+  '/_api/annotations/to-comment',
+  '/_api/comments/to-sticky',
+  '/_api/annotations/convert-undo',
 ]);
 
 /** Clearing out the trash is the owner's (§5.5 `delete`); the per-Mac `_trash/` prune is not this. */
@@ -94,7 +104,11 @@ export function writeCapability(pathname: string, tableSession?: SessionAllowlis
   // D2 — the AI chat drives file edits: no write under it is ever anything but `edit` (C30).
   if (pathname.startsWith('/_api/acp/')) return 'edit';
   if (EXPORT_WRITES.has(pathname)) return 'export';
-  if (COMMENT_WRITES.has(pathname) || COMMENT_WRITE_PATTERNS.some((re) => re.test(pathname)))
+  if (
+    COMMENT_WRITES.has(pathname) ||
+    COMMENT_TABLE_WRITES.has(pathname) ||
+    COMMENT_WRITE_PATTERNS.some((re) => re.test(pathname))
+  )
     return 'comment';
   if (SESSION_WRITES.has(pathname)) return 'session';
   if (tableSession?.exact.has(pathname) || tableSession?.patterns.some((re) => re.test(pathname)))
@@ -269,6 +283,31 @@ export interface GateInput {
   closure?: () => Closure | null;
   /** Does designRoot-relative `rel` exist (G2 create-only assets)? */
   exists?: (rel: string) => boolean;
+  /**
+   * A route that knows its own target better than the generic read (routes/table.ts
+   * `RouteSpec.target`, S9.7b): a reply names a comment id, and only the server knows which
+   * canvas that thread is on. When it answers, its target REPLACES `targetOf` — a body naming a
+   * granted canvas cannot unlock a thread that lives on another.
+   */
+  targetFor?: (req: Request, pathname: string) => Promise<string | null | undefined> | undefined;
+}
+
+/** The target the gate judges: the route's own answer, else the generic `targetOf`. */
+async function gateTarget(
+  req: Request,
+  g: GateInput,
+  pathname?: string
+): Promise<string | null | undefined> {
+  let path = pathname;
+  if (path === undefined) {
+    try {
+      path = new URL(req.url).pathname;
+    } catch {
+      return null;
+    }
+  }
+  const own = g.targetFor?.(req, path);
+  return own ? await own : targetOf(req, g.designRel);
 }
 
 /** May a session with grants see `rel`: a granted canvas, or its closure. */
@@ -283,7 +322,7 @@ function seesTarget(g: GateInput, rel: string): boolean {
  */
 export async function canvasScopeRefusal(req: Request, g: GateInput): Promise<Response | null> {
   if (!g.access.canvasOnly) return null;
-  const target = await targetOf(req, g.designRel);
+  const target = await gateTarget(req, g);
   if (target === undefined) return null;
   if (target === null || !seesTarget(g, target)) return notInScopeResponse();
   return null;
@@ -302,7 +341,7 @@ export async function localGate(req: Request, pathname: string, g: GateInput): P
   const cap = writeCapability(pathname, g.tableSession);
   if (g.access.can(cap, null)) return { ok: true };
   if (g.access.grants.length === 0) return { ok: false, reason: 'capability', cap };
-  const target = await targetOf(req, g.designRel);
+  const target = await gateTarget(req, g, pathname);
   if (target === undefined) return { ok: false, reason: 'capability', cap };
   if (target === null) return { ok: false, reason: 'not-in-scope' };
   if (g.access.canvasOnly && !seesTarget(g, target)) return { ok: false, reason: 'not-in-scope' };

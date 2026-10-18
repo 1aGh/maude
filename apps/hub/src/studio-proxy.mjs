@@ -28,8 +28,15 @@ import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
 import { legacyClaim } from '../../studio/access/scope.ts';
 import { OBSERVER_REFUSAL, planPausedFromEnv, planPauseRefusal } from './access-gate.mjs';
+import {
+  followAccessClaim,
+  followAskOf,
+  followRoomPath,
+  mayFollow,
+  sessionAccess,
+} from './follow-capability.mjs';
 import { RENDER_TOKEN_TTL_MS } from './render-token.mjs';
-import { FLOOR_ROLE, isReadOnlyRole } from './role-matrix.mjs';
+import { FLOOR_ROLE, isReadOnlyRole, maxRole } from './role-matrix.mjs';
 import { servicePage } from './studio-door.mjs';
 import { decide } from './studio-manifest.mjs';
 
@@ -199,6 +206,27 @@ const HOP_BY_HOP = new Set([
   'upgrade',
 ]);
 
+/**
+ * The role a browser session is judged at by the shell door's one table.
+ *
+ * A project session: its role. S3.7c — a CANVAS-ONLY session (`browserSession`
+ * admits a claim-bearing role-null cookie as `canvasOnly`): the highest role
+ * any of its grants holds (V2-1.7 §5.4 — `x-maude-role` is `maxRole(role,
+ * ...grants)`, for display), and it is forwarded WITH its claim, so the
+ * studio's per-request reader (access/request.ts, S9.9) decides every target —
+ * a project-scope request from it is refused there, with the same answer a
+ * missing target gets. Anything else (no session, a role-null session without
+ * such a claim) has no door role and is refused here.
+ */
+export function doorRoleOf(session) {
+  if (!session) return null;
+  if (session.role) return session.role;
+  if (session.canvasOnly !== true) return null;
+  const access = sessionAccess(session);
+  if (!access.canvasOnly) return null;
+  return access.grants.reduce((top, g) => maxRole(top, g.r), null);
+}
+
 /** A role (+ the render capability's sorted grants) as the access claim it states. */
 function claimFrom(role, grants) {
   const claim = legacyClaim(role);
@@ -229,6 +257,8 @@ export function upstreamHeaders(
     renderToken,
     collabRealm,
     paused = false,
+    canvasOnly = false,
+    collabFollow = false,
   }
 ) {
   const out = {};
@@ -265,7 +295,11 @@ export function upstreamHeaders(
   // drop its Yjs body writes and its inspector mutations, while it keeps
   // receiving everything. Only the socket lanes pass it; an HTTP write on a
   // paused project never gets this far (402 plan above).
-  out[`${INJECTED_HEADER_PREFIX}readonly`] = paused || isReadOnlyRole(role) ? '1' : '0';
+  //
+  // S3.7c — a canvas-only session has NO project role: the projection says
+  // read-only whatever its grants hold (the claim below carries the grants).
+  out[`${INJECTED_HEADER_PREFIX}readonly`] =
+    paused || canvasOnly || isReadOnlyRole(role) ? '1' : '0';
   // V2-1.7 §5.4 — the whole ACCESS CLAIM (project role + canvas grants), which
   // the studio's `withSession` reads into `currentAccess()` (S9.9). The role and
   // readonly headers above stay what they were — the PROJECT role and its
@@ -293,6 +327,10 @@ export function upstreamHeaders(
   // the prefix strip above already removed any client-supplied value), so a
   // canvas-origin socket cannot claim the privileged shell realm.
   if (collabRealm) out[`${INJECTED_HEADER_PREFIX}collab-realm`] = collabRealm;
+  // S3.7c — a presentation follower's socket: receive-only in the studio room
+  // (every sync update dropped, awareness stripped to `watching`). Injected
+  // only by the canvas door, for the one room its follow capability names.
+  if (collabFollow) out[`${INJECTED_HEADER_PREFIX}collab-follow`] = '1';
   return out;
 }
 
@@ -453,6 +491,31 @@ export function createStudioProxy({
   onAssetWritten = null,
 } = {}) {
   /**
+   * The canvas capability a shell request is handed, or null.
+   *
+   *  - S3.7c `follow=1&canvas=<rel>` (the follower page): a FOLLOW capability
+   *    for that one canvas when the session may read it — otherwise none, the
+   *    same answer for a canvas that does not exist (no oracle). Never falls
+   *    back to a wider token.
+   *  - DDR-247 `embed=1` (its `/_config` and every re-mint): READ-ONLY, so the
+   *    canvas it frames can never write, whatever the member's role.
+   *  - a canvas-only session gets no other capability: the general one would
+   *    carry no project role and floor to observer of the WHOLE project.
+   */
+  function canvasTokenFor(session, request, canvasOnly) {
+    const ask = followAskOf(request);
+    if (ask.asked) {
+      return ask.rel && mayFollow(session, ask.rel)
+        ? (mintCanvasToken?.(session, { readOnly: true, follow: ask.rel }) ?? null)
+        : null;
+    }
+    if (canvasOnly) return null;
+    return (
+      mintCanvasToken?.(session, isEmbedRequest(request) ? { readOnly: true } : undefined) ?? null
+    );
+  }
+
+  /**
    * Handle one HTTP request destined for the studio.
    *
    * @returns {Promise<boolean>} true when this proxy answered (or forwarded).
@@ -463,12 +526,14 @@ export function createStudioProxy({
     // Order matters. The session check comes BEFORE the manifest so an
     // unauthenticated request never learns which routes exist, and the upstream
     // check comes last so a signed-in member gets "starting up", not "sign in".
-    if (!session?.role) {
+    const doorRole = doorRoleOf(session);
+    if (!doorRole) {
       refuse(response, 401, { error: 'sign in to open this project', reason: 'no-session' });
       return true;
     }
+    const canvasOnly = !session.role;
 
-    const verdict = decide(method, pathname, session.role);
+    const verdict = decide(method, pathname, doorRole);
     if (!verdict.allow) {
       if (verdict.reason === 'method') {
         refuse(response, 405, { error: 'method not allowed' });
@@ -482,7 +547,7 @@ export function createStudioProxy({
         return true;
       }
       refuse(response, 403, {
-        error: readOnlyMessageFor(session.role),
+        error: readOnlyMessageFor(doorRole),
         reason: 'read-only',
         capability: verdict.capability,
       });
@@ -529,18 +594,17 @@ export function createStudioProxy({
       response,
       port: up.port,
       headers: upstreamHeaders(request.headers, {
-        role: session.role,
+        role: doorRole,
         access: session.access,
+        canvasOnly,
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
-        // DDR-247 — the `?embed=1` view asks with `embed=1` (its `/_config`
-        // and every re-mint) and is handed a READ-ONLY capability, so the
-        // canvas it frames can never write, whatever the member's role.
-        canvasToken:
-          mintCanvasToken?.(session, isEmbedRequest(request) ? { readOnly: true } : undefined) ??
-          null,
-        renderToken: mintRenderToken?.(session) ?? null,
+        canvasToken: canvasTokenFor(session, request, canvasOnly),
+        // A canvas-only session gets no project-wide render capability (it is
+        // viewer-scoped to the whole project); its exports wait on one that
+        // carries its grants.
+        renderToken: canvasOnly ? null : (mintRenderToken?.(session) ?? null),
       }),
     });
     // B3 — only on a write that SUCCEEDED. The studio's own caps and sniff have
@@ -785,6 +849,9 @@ export function createStudioProxy({
         // routes, no export, no config exist on this origin at any role).
         role,
         grants: auth?.grants,
+        // S3.7c — a follower's capability looks at its ONE canvas: the studio
+        // reads it as a canvas-only observer of that canvas (V2-1.16 L15).
+        ...(auth?.follow ? { access: followAccessClaim(auth.follow) } : {}),
         // The MEMBER, not null: the capability names its subject, and
         // `/_api/git-user` on the canvas listener is where collab presence gets
         // its display name. Without this every cloud peer is `anonymous-…` (the
@@ -898,7 +965,13 @@ export function createStudioProxy({
     // them); an embed's read-only capability gets none. The HMR socket
     // (`/_ws`) ignores inbound frames and stays open, so the embed still
     // follows edits to the source.
-    if (verdict.readOnly && rest !== '/_ws') {
+    // S3.7c — the one exception: a FOLLOW capability opens the collab room of
+    // the ONE canvas it names (receive-only — the studio room drops its sync
+    // and keeps only its `watching`). Any other room answers exactly like an
+    // embed's refusal, whether that canvas exists or not.
+    const followRoom = verdict.follow ? followRoomPath(verdict.follow) : null;
+    const following = followRoom !== null && rest === followRoom;
+    if (verdict.readOnly && rest !== '/_ws' && !following) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return true;
@@ -918,11 +991,13 @@ export function createStudioProxy({
       headers: upstreamHeaders(request.headers, {
         role: verdict.role ?? FLOOR_ROLE,
         grants: verdict.grants,
+        ...(verdict.follow ? { access: followAccessClaim(verdict.follow) } : {}),
         user: verdict.subject ?? null,
         sessionKey: null,
         publicUrl: env.MAUDE_PUBLIC_CANVAS_ORIGIN ?? null,
         collabRealm: 'canvas',
         paused: planPausedFromEnv(env),
+        collabFollow: following,
       }),
     });
     return true;
@@ -959,7 +1034,8 @@ export function createStudioProxy({
    * whose panels never update. Same gate: session first, manifest second.
    */
   function handleUpgrade({ request, socket, head, session }) {
-    if (!session?.role) {
+    const doorRole = doorRoleOf(session);
+    if (!doorRole) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return true;
@@ -999,8 +1075,9 @@ export function createStudioProxy({
       head,
       port: up.port,
       headers: upstreamHeaders(request.headers, {
-        role: session.role,
+        role: doorRole,
         access: session.access,
+        canvasOnly: !session.role,
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
