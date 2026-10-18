@@ -33,7 +33,12 @@ import { cameraFor, type Fit, fitForKind, scrolled } from './fit.ts';
 import { createFollower, type FollowView, newPresentSid } from './follow.ts';
 import { type PresentMeta, presentRun, startIndex } from './order.ts';
 import { usePointerDot } from './pointer-dot.tsx';
-import { type ClipRef, createPresentMedia, type StageMedia } from './present-media.ts';
+import {
+  type ClipRef,
+  createPresentMedia,
+  type StageMedia,
+  watchArtboardMedia,
+} from './present-media.ts';
 import { usePresentZoom } from './present-zoom.ts';
 
 export interface Camera {
@@ -684,6 +689,7 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
         },
         setTimer: (fn, ms) => win.setTimeout(fn, ms),
         clearTimer: (h) => win.clearTimeout(h),
+        watch: (id, onFail) => watchArtboardMedia(win.document, id, onFail),
       }),
     });
   }

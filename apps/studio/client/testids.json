@@ -14824,6 +14824,51 @@
     "v2": "new"
   },
   {
+    "hook": "presenter-offline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view top bar: \"Offline — kept on this Mac\", which replaces \"Audience on <display>\" while the project is offline (an audience screen that would not open outranks it).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-offline.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-clip-missing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the Now box's notice when the presented clip's file is not on this Mac: \"Clip isn't on this Mac — the audience sees its first frame\". The audience screen holds the clip's first frame.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-offline.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-clip-skip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Skip, on the missing-clip notice: moves on to the next artboard (disabled at the last).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-offline.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "presenter-elapsed",
     "kind": "testid",
     "pattern": false,

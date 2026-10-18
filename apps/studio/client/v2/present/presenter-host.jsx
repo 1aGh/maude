@@ -12,12 +12,20 @@
 // from a canvas can start it (S3-present-session §4). End, esc (the view going away with Present) and a
 // display that disappears close it again.
 //
+// OFFLINE (S3.8, md-edge-offline). With the project offline (the Share cluster's own rule, `saveStatus`) the top
+// bar's audience line becomes "Offline — kept on this Mac". The canvas reports the media files the presented
+// clip uses (`present-media.sources`); a file that is not among the ones on this Mac (GET /_api/assets, the
+// existing list — present/media-presence.ts) earns the Now box's "Clip isn't on this Mac …" notice with Skip.
+// The audience screen already holds that clip's first frame — the engine in its own canvas does it.
+//
 // DATA. The artboards come from the canvas's `present-run` report when it sent one (names + world rects in
 // canvas order), else the project index's list (names only → the map draws a plain grid). The order, skips
 // and notes are the canvas's `.meta.json` (`GET /_api/canvas-meta`, readable by every role — a viewer who
 // presents locally reads them too).
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { fetchLocalAssets, missingSources } from '../../../present/media-presence.ts';
+import { syncPresentation } from '../../../sync/presentation.ts';
 import { normalizeOpenPath } from '../../share-link.js';
 import { basename, displayName } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
@@ -26,7 +34,7 @@ import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { presentStep, shellMode } from '../shell/use-canvas-mode-lane.js';
 import { closeAudience, openAudience } from './audience-window.js';
 import { AUDIENCE_LOCK } from './follow-location.js';
-import { savedFromMeta } from './presenter-model.js';
+import { presenterOffline, savedFromMeta } from './presenter-model.js';
 import {
   chosenDisplay,
   presenterOn,
@@ -63,6 +71,59 @@ function useSavedPresent(file, enabled, artboardId) {
   return saved;
 }
 
+const subscribeOnline = (fn) => {
+  window.addEventListener('online', fn);
+  window.addEventListener('offline', fn);
+  return () => {
+    window.removeEventListener('online', fn);
+    window.removeEventListener('offline', fn);
+  };
+};
+const onlineNow = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
+
+/** How often a missing clip is looked for again: its file may arrive while the slide is up. */
+const RECHECK_MS = 5000;
+
+/**
+ * Is the presented clip's media missing from this Mac? `media` is the canvas's `present-media` report. The
+ * list of files that are here is re-read when the clip's files change, when the network comes back, and
+ * slowly while one is missing. No list (the route did not answer) is no verdict.
+ */
+function useClipMissing(media, enabled, designRel) {
+  const [seen, setSeen] = useState({ key: '', local: null });
+  const key = (media?.sources ?? []).join('\n');
+  const [tick, setTick] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `tick` re-reads on a network change or the slow check
+  useEffect(() => {
+    if (!enabled || !key) return undefined;
+    let live = true;
+    fetchLocalAssets().then((local) => live && setSeen({ key, local }));
+    return () => {
+      live = false;
+    };
+  }, [enabled, key, tick]);
+  const host = typeof location !== 'undefined' ? location.hostname : '';
+  const missing = useMemo(
+    () =>
+      enabled && seen.key === key
+        ? missingSources(media?.sources, seen.local, { designRel, hosts: host ? [host] : [] })
+            .length > 0
+        : false,
+    [enabled, seen, key, designRel, host, media?.sources]
+  );
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const bump = () => setTick((n) => n + 1);
+    window.addEventListener('online', bump);
+    const h = missing ? setInterval(bump, RECHECK_MS) : null;
+    return () => {
+      window.removeEventListener('online', bump);
+      if (h) clearInterval(h);
+    };
+  }, [enabled, missing]);
+  return missing;
+}
+
 function useClock(running) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -76,7 +137,7 @@ function useClock(running) {
 
 export function PresenterViewHost() {
   const {
-    shellCore: { activePath, cfg },
+    shellCore: { activePath, cfg, cloudLinkedHub, syncStatus, project },
     photoAndTimeline: { exitPresent },
   } = useShellStore();
   const snap = useSyncExternalStore(shellMode.subscribe, shellMode.get, shellMode.get);
@@ -101,6 +162,18 @@ export function PresenterViewHost() {
   const artboards = run && run.file === activePath ? run.artboards : boards;
   const saved = useSavedPresent(activePath, visible, position?.artboardId);
   const nowMs = useClock(visible);
+
+  // ── offline (S3.8) ──
+  const online = useSyncExternalStore(subscribeOnline, onlineNow, () => true);
+  const linked =
+    !!cfg?.cloud || !!cloudLinkedHub?.credentialed || (!!syncStatus && syncStatus.linked !== false);
+  const phase = useMemo(
+    () =>
+      syncPresentation(syncStatus, { project: cfg?.cloud?.projectName || project })?.phase ?? null,
+    [syncStatus, cfg?.cloud?.projectName, project]
+  );
+  const offline = presenterOffline({ linked, online, phase });
+  const clipMissing = useClipMissing(snap.media, visible, cfg?.designRel);
 
   // ── the audience window ──
   const [audience, setAudience] = useState({ status: 'waiting' });
@@ -163,6 +236,8 @@ export function PresenterViewHost() {
       elapsedMs={nowMs - startedAt.current}
       now={new Date(nowMs)}
       audience={audience}
+      offline={offline}
+      clipMissing={clipMissing}
       onStep={presentStep}
       onEnd={onEnd}
       onRetry={() => setRetries((n) => n + 1)}

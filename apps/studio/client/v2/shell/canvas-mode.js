@@ -160,16 +160,32 @@ export function createShellMode(caps = ALL_CAPS) {
       const sec = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 86400;
       if (!m || typeof m.playing !== 'boolean' || typeof m.muted !== 'boolean') return;
       if (!sec(m.t) || !sec(m.duration)) return;
+      // S3.8 — the media files the clip uses and whether they failed to load (media-presence.ts judges them).
+      const sources = Array.isArray(m.sources)
+        ? m.sources.filter((x) => typeof x === 'string' && x.length <= 400).slice(0, 8)
+        : [];
+      const missing = m.missing === true;
       const c = snap.media;
       if (
         c &&
         c.playing === m.playing &&
         c.muted === m.muted &&
         c.t === m.t &&
-        c.duration === m.duration
+        c.duration === m.duration &&
+        !!c.missing === missing &&
+        (c.sources ?? []).join('\n') === sources.join('\n')
       )
         return;
-      emit({ media: { playing: m.playing, t: m.t, duration: m.duration, muted: m.muted } });
+      emit({
+        media: {
+          playing: m.playing,
+          t: m.t,
+          duration: m.duration,
+          muted: m.muted,
+          ...(sources.length ? { sources } : {}),
+          ...(missing ? { missing: true } : {}),
+        },
+      });
     },
     /** The canvas clamped us (a `mode-changed` with cause `clamp`): adopt it without re-sending. */
     adopt(mode) {

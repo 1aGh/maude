@@ -174,11 +174,14 @@ export function menuCtx({
   presenting = false,
   linkedHub = false,
   observer = false,
+  // S3.8 — the network is up (`navigator.onLine`). Default true: a caller that never asks keeps today's rows.
+  online = true,
 } = {}) {
   const facts = new Set();
   if (native) facts.add('native');
   // S3.7b — a desktop project linked to a cloud hub (Copy presentation link is enabled there).
   if (linkedHub) facts.add('linkedHub');
+  if (online) facts.add('online');
   if (canvasOpen) facts.add('canvasOpen');
   if (presenting) facts.add('presenting');
   return {
