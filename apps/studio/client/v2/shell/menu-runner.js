@@ -11,6 +11,7 @@
 //   3. exec 'native' → the Tauri command that owns it (NATIVE_COMMANDS).
 // An id with none of the three has no runner: `runnableIds()` says so and the test pins it empty.
 
+import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
@@ -175,6 +176,13 @@ export function createMenuHandlers(d) {
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);
+  // S4.4: ⌘K "<Template> template" — the same `insert-template` a Templates-panel tile sends, so the
+  // pick trails the pointer until a click (S4.13). Only an open canvas has anywhere to put it.
+  for (const t of TEMPLATES)
+    h[`annotation.template-${t.id}`] = () => {
+      if (d.canvasOpen !== false)
+        d.postToActiveCanvas({ dgn: 'insert-template', id: t.id, follow: true });
+    };
   // V2-4.8a: outside the desktop app "Back to Home" is the cloud dashboard (the v1 menubar's
   // "← Dashboard" link). In the desktop app it stays the native Home tab (NATIVE_COMMANDS).
   if (!d.native) h['nav.home'] = () => d.onOpenDashboard?.();

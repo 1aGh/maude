@@ -44,6 +44,10 @@
 @import url("../v2/shell/share-cluster.css");
 /* V2-4.5c — tool panels the canvas toolbar opens (Stickers), pinned next to the toolbar island. */
 @import url("../v2/shell/tool-panels.css");
+/* S4.3 — the Stickers gallery island inside that panel (stamps, packs, search, credits). */
+@import url("../v2/annotations/stickers-gallery.css");
+/* S4.4 — the Templates panel (tile grid + "describe it") on the same tool-panel shell. */
+@import url("../v2/annotations/templates-panel.css");
 /* V2-4.8b — callouts: the old top banners (sync diverged / rejected, role, update, repo changed) as one stack. */
 @import url("../v2/shell/callouts.css");
 /* V2-4.4a — the left panel: Canvases · Layers · Assets, the pinned Design system row, Trash, Advanced. */

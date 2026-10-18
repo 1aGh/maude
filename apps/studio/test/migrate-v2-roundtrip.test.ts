@@ -117,7 +117,7 @@ describe('maude migrate v2 — the fixture', () => {
       ) as string;
       const board = parseBoard(read(boardRel)).elements;
       const sticky = board.find((e) => e.type === 'sticky') as Record<string, unknown>;
-      sticky.resolved = true;
+      sticky.resolved = { by: 'Jonas', at: '2026-10-01T10:00:00Z' };
       write(boardRel, serializeBoard(board));
       const metaRel = 'ui/c00.meta.json';
       const meta = JSON.parse(read(metaRel));
@@ -134,7 +134,7 @@ describe('maude migrate v2 — the fixture', () => {
       if (!strip) {
         expect(lost).toEqual([]);
         expect(parseBoard(read(boardRel)).elements.find((e) => e.id === sticky.id)).toMatchObject({
-          resolved: true,
+          resolved: { by: 'Jonas', at: '2026-10-01T10:00:00Z' },
         });
         expect(JSON.parse(read(metaRel))).toMatchObject({ present: { order: ['b1', 'b0'] } });
       } else {
