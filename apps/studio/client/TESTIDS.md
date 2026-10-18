@@ -350,26 +350,26 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `chat-caps-connecting` | testid | Capability bar placeholder while the agent connects. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
 | `chat-caps-bar` | testid | The capability bar (live model/mode/effort pickers). | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
 | `chat-mode-picker` | testid | The permission-mode picker in the capability bar. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
-| `chat-permission-prompt` | testid | The tool-permission prompt card. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
-| `chat-perm-queue` | testid | Queue counter on the permission prompt. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | — | stable — re-emit |
-| `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
-| `chat-perm-paths` | testid | The list of paths a permission request touches. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
-| `chat-elicit-prompt` | testid | The "Claude is asking you" elicitation card. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | e2e:acp-ask-user-question, whats-new | stable — re-emit |
+| `chat-permission-prompt` | testid | The tool-permission prompt card. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope | stable — re-emit |
+| `chat-perm-queue` | testid | Queue counter on the permission prompt. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | stable — re-emit |
+| `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
+| `chat-perm-paths` | testid | The list of paths a permission request touches. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope | stable — re-emit |
+| `chat-elicit-prompt` | testid | The "Claude is asking you" elicitation card. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question, whats-new | stable — re-emit |
 | `chat-elicit-step` | testid | Step counter on a multi-question elicitation. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-back` | testid | Elicitation Back button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
-| `chat-elicit-submit` | testid | Elicitation Submit button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | e2e:acp-ask-user-question | stable — re-emit |
+| `chat-elicit-submit` | testid | Elicitation Submit button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question | stable — re-emit |
 | `chat-elicit-next` | testid | Elicitation Next button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
-| `chat-elicit-skip` | testid | Elicitation Skip button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
+| `chat-elicit-skip` | testid | Elicitation Skip button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | stable — re-emit |
 | `chat-elicit-cancel` | testid | Elicitation Cancel button. | `client/panels/ElicitationPrompt.jsx` · `ElicitationPrompt` | — | stable — re-emit |
 | `chat-elicit-question-<id>` | testid (pattern) | One question fieldset (`<id>` = question id). | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
-| `chat-elicit-option-<id>-<i>` | testid (pattern) | Option `<i>` of question `<id>`; `chat-elicit-option-<id>-other` is the free-text "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question` | e2e:acp-ask-user-question | stable — re-emit |
-| `chat-elicit-custom-<id>` | testid (pattern) | Free-text input behind the "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
+| `chat-elicit-option-<id>-<i>` | testid (pattern) | Option `<i>` of question `<id>`; `chat-elicit-option-<id>-other` is the free-text "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | e2e:acp-ask-user-question | stable — re-emit |
+| `chat-elicit-custom-<id>` | testid (pattern) | Free-text input behind the "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question`<br>`client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | stable — re-emit |
 | `chat-elicit-text-<id>` | testid (pattern) | Text answer input for a text question. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-secret-warning` | testid | Warning shown when a question asks for a secret. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `.chat-input` | selector | The composer textarea. | `client/v2/ai/Composer.jsx` · `HighlightedInput` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-write-scope | stable — re-emit |
 | `[aria-label="Send message"]` | selector | Composer send button. | `client/v2/ai/Composer.jsx` · `Composer` | e2e:acp-ask-user-question, e2e:acp-write-scope | stable — re-emit |
 | `[aria-label="Stop"]` | selector | The composer's Stop button; rendered only while the thread is running. | `client/v2/ai/Composer.jsx` · `Composer` | e2e-helper:assistant | stable — re-emit |
-| `.btn--danger (permission prompt)` | selector | The deny/destructive button on the permission prompt (`[data-testid="chat-permission-prompt"] .btn--danger`). | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
+| `.btn--danger (permission prompt)` | selector | The deny/destructive button on the permission prompt (`[data-testid="chat-permission-prompt"] .btn--danger`). | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt`<br>`client/v2/ai/PermissionCard.jsx` · `PermissionCard` | e2e:acp-write-scope | stable — re-emit |
 | `.rdy-copy / .rdy-fix-tx / .rdy-fix-tx--err` | selector | Readiness list: copy-command button, fix transcript, and its error state. | `client/panels/ReadinessList.jsx` · `Row`<br>`client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 
 ### timeline
@@ -765,6 +765,26 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-suggest-why` | testid | The one quiet line that says why the suggestions are there ("Because 3 comments are open on this canvas"). | `client/v2/ai/Suggest.jsx` · `SuggestStrip` | — | stable |
 | `ai-hint` | testid | The empty chat's hint line ("Ask for a change, a few variants, or an answer."). | `client/v2/ai/Suggest.jsx` · `ChatEmpty` | — | stable |
 | `ai-canvas-unchanged` | testid | The note that ends an answer which touched nothing: "The canvas didn't change." | `client/v2/ai/Feed.jsx` · `AssistantMessage` | — | stable |
+| `ai-needs-slot` | testid | The place between the chat feed and the field where the open question, a failure and the kept prompt's line live. | `client/v2/ai/NeedsYouSlot.jsx` · `NeedsYouSlot` | — | new |
+| `ai-permission-title` | testid | The permission card's title ("Edit Foo.tsx?"). Its verb is the verb on the allow button. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-detail` | testid | What the agent called the call, under the title (never hidden behind the short title). | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-always` | testid | "Always for this canvas" check on the permission card. Absent when the agent offered no `allow_always` option, and for an out-of-project write. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-allow` | testid | The permission card's primary button; its label is the title's verb. Answers with the once-only option, or the standing one when the box is ticked. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-decline` | testid | "Not now" on the permission card (also `.btn--danger`, drawn quiet). | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-permission-option` | testid | One button of a multi-way permission set (ExitPlanMode and the like); repeats. | `client/v2/ai/PermissionCard.jsx` · `PermissionCard` | — | new |
+| `ai-choice-question` | testid | The choice card's question line. | `client/v2/ai/ChoiceCard.jsx` · `ChoiceCard` | — | new |
+| `ai-problem-card` | testid | A refusal the server coded (`read-only`, `not-queued`): what happened and what is safe. `data-code` = the code. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
+| `ai-problem-title` | testid | The problem card's sentence. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
+| `ai-problem-verb` | testid | The problem card's one verb, when it has one. | `client/v2/ai/ProblemCard.jsx` · `ProblemCard` | — | new |
+| `ai-not-ready` | testid | The state of a kept prompt. `data-kind` = offline | connect | setting-up | used-up | waiting. | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-queued-line` | testid | "Queued — sends when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-offline-line` | testid | "AI is back when this Mac is online." | `client/v2/ai/NotReady.jsx` · `QueuedState` | — | new |
+| `ai-quota-line` | testid | The almost-used-up meter above the field ("90% of this 5-hour allowance used · resets 18:40"). | `client/v2/ai/NotReady.jsx` · `QuotaLine` | — | new |
+| `ai-connect-sheet` | testid | The one "Connect your Claude account?" sheet (CONTRACT §7). `data-phase` = idle | installing | waiting. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-go` | testid | The sheet's Connect button (installs Claude Code if missing, then opens the browser sign-in). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-cancel` | testid | The sheet's Cancel (withdraws a sign-in in flight, else drops the kept prompt). | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-connect-error` | testid | Why Connect did not finish. | `client/v2/ai/ConnectSheet.jsx` · `ConnectSheet` | — | new |
+| `ai-fold-needs` | testid | The azure count on the folded AI spark when chats wait for you (wins over the busy dot). | `client/v2/ai/FoldNeeds.jsx` · `FoldNeeds` | — | new |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `embed-view` | testid | Root of the embed shell (`?embed` location). | `client/embed-view.jsx` · `EmbedView` | — | stable — re-emit |

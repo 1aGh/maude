@@ -1233,6 +1233,12 @@
       "file": "apps/studio/client/panels/PermissionPrompt.jsx",
       "symbol": "PermissionPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+        "symbol": "PermissionCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
@@ -1246,6 +1252,12 @@
       "file": "apps/studio/client/panels/PermissionPrompt.jsx",
       "symbol": "PermissionPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+        "symbol": "PermissionCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": [],
     "v2": "stable"
@@ -1259,6 +1271,12 @@
       "file": "apps/studio/client/panels/PermissionPrompt.jsx",
       "symbol": "PermissionPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+        "symbol": "PermissionCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": [
       "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts",
@@ -1275,6 +1293,12 @@
       "file": "apps/studio/client/panels/PermissionPrompt.jsx",
       "symbol": "PermissionPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+        "symbol": "PermissionCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
@@ -1288,6 +1312,12 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+        "symbol": "ChoiceCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": [
       "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
@@ -1330,6 +1360,12 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+        "symbol": "ChoiceCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
     "v2": "stable"
@@ -1356,6 +1392,12 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "ElicitationPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+        "symbol": "ChoiceCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": [],
     "v2": "stable"
@@ -1395,6 +1437,12 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "Question"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+        "symbol": "ChoiceCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
     "v2": "stable"
@@ -1408,6 +1456,12 @@
       "file": "apps/studio/client/panels/ElicitationPrompt.jsx",
       "symbol": "Question"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+        "symbol": "ChoiceCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": [],
     "v2": "stable"
@@ -5879,6 +5933,12 @@
       "file": "apps/studio/client/panels/PermissionPrompt.jsx",
       "symbol": "PermissionPrompt"
     },
+    "alsoProducedBy": [
+      {
+        "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+        "symbol": "PermissionCard"
+      }
+    ],
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
@@ -11066,6 +11126,286 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-needs-slot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The place between the chat feed and the field where the open question, a failure and the kept prompt's line live.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NeedsYouSlot.jsx",
+      "symbol": "NeedsYouSlot"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-permission-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The permission card's title (\"Edit Foo.tsx?\"). Its verb is the verb on the allow button.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+      "symbol": "PermissionCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-permission-detail",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What the agent called the call, under the title (never hidden behind the short title).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+      "symbol": "PermissionCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-permission-always",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Always for this canvas\" check on the permission card. Absent when the agent offered no `allow_always` option, and for an out-of-project write.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+      "symbol": "PermissionCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-permission-allow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The permission card's primary button; its label is the title's verb. Answers with the once-only option, or the standing one when the box is ticked.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+      "symbol": "PermissionCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-permission-decline",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Not now\" on the permission card (also `.btn--danger`, drawn quiet).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+      "symbol": "PermissionCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-permission-option",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One button of a multi-way permission set (ExitPlanMode and the like); repeats.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/PermissionCard.jsx",
+      "symbol": "PermissionCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-choice-question",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The choice card's question line.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChoiceCard.jsx",
+      "symbol": "ChoiceCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-problem-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A refusal the server coded (`read-only`, `not-queued`): what happened and what is safe. `data-code` = the code.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ProblemCard.jsx",
+      "symbol": "ProblemCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-problem-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The problem card's sentence.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ProblemCard.jsx",
+      "symbol": "ProblemCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-problem-verb",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The problem card's one verb, when it has one.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ProblemCard.jsx",
+      "symbol": "ProblemCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-not-ready",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The state of a kept prompt. `data-kind` = offline | connect | setting-up | used-up | waiting.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NotReady.jsx",
+      "symbol": "QueuedState"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-queued-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Queued — sends when this Mac is online.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NotReady.jsx",
+      "symbol": "QueuedState"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-offline-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"AI is back when this Mac is online.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NotReady.jsx",
+      "symbol": "QueuedState"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-quota-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The almost-used-up meter above the field (\"90% of this 5-hour allowance used · resets 18:40\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/NotReady.jsx",
+      "symbol": "QuotaLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-connect-sheet",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one \"Connect your Claude account?\" sheet (CONTRACT §7). `data-phase` = idle | installing | waiting.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-connect-go",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's Connect button (installs Claude Code if missing, then opens the browser sign-in).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-connect-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's Cancel (withdraws a sign-in in flight, else drops the kept prompt).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-connect-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why Connect did not finish.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ConnectSheet.jsx",
+      "symbol": "ConnectSheet"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-fold-needs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The azure count on the folded AI spark when chats wait for you (wins over the busy dot).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/FoldNeeds.jsx",
+      "symbol": "FoldNeeds"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-needs-you.test.tsx"],
     "v2": "new"
   }
 ]
