@@ -672,7 +672,7 @@ function csrfFor(request, env) {
 }
 
 /** Same-origin, and the CSRF field matches. Fails closed. */
-async function postAllowed(request, env, url, form) {
+export async function postAllowed(request, env, url, form) {
   const origin = request.headers.get('origin');
   if (origin && origin !== url.origin) return false;
   const expected = await csrfFor(request, env);

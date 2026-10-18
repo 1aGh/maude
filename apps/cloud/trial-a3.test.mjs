@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { after, before, beforeEach, describe, test } from 'node:test';
 
+import { accountCsrf } from './account-pages.mjs';
 import { sha256Hex } from './accounts.mjs';
 import { TRIAL_DAYS, TRIALS_PER_VERIFIED_EMAIL, trialView } from './billing.mjs';
 import { deriveCellSecret } from './cell-token.mjs';
@@ -75,6 +76,12 @@ async function freshEnv() {
     },
     sqlite,
   };
+}
+
+/** The billing page's per-session token (S9.16): choosePlan refuses a post without it. */
+async function csrfFor(env, session) {
+  env.CELL_SECRET_MASTER ??= 'a-csrf-test-master';
+  return accountCsrf(session, env.CELL_SECRET_MASTER);
 }
 
 const form = (fields) => new URLSearchParams(fields).toString();
@@ -501,7 +508,7 @@ describe('at expiry: paused, not deleted; Choose a plan converts the same projec
           'content-type': 'application/x-www-form-urlencoded',
           cookie: `maude_session=${session}`,
         },
-        body: form({ plan: 'project', interval: 'monthly' }),
+        body: form({ plan: 'project', interval: 'monthly', csrf: await csrfFor(env, session) }),
       }),
       env
     );
@@ -547,12 +554,41 @@ describe('at expiry: paused, not deleted; Choose a plan converts the same projec
           'content-type': 'application/x-www-form-urlencoded',
           cookie: `maude_session=${memberSession}`,
         },
-        body: form({ plan: 'project', interval: 'monthly' }),
+        body: form({
+          plan: 'project',
+          interval: 'monthly',
+          csrf: await csrfFor(env, memberSession),
+        }),
       }),
       env
     );
     assert.equal(res.status, 404);
     assert.equal(stripeCalls.length, 0);
+  });
+
+  test('Choose a plan refuses a post without the page’s csrf field, or from another site (S9.16)', async () => {
+    const { env, session } = await expiredTrialProject();
+    fakeChooseAPlanStripe();
+    const post = async (extra, headers = {}) =>
+      worker.fetch(
+        new Request('https://cloud.test/projects/zkusebni-tym/billing/plan', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            cookie: `maude_session=${session}`,
+            ...headers,
+          },
+          body: form({ plan: 'project', interval: 'monthly', ...extra }),
+        }),
+        env
+      );
+    const before = stripeCalls.length;
+    assert.equal((await post({})).status, 403, 'no csrf field');
+    assert.equal((await post({ csrf: 'wrong' })).status, 403, 'wrong csrf field');
+    const csrf = await csrfFor(env, session);
+    assert.equal((await post({ csrf }, { origin: 'https://evil.test' })).status, 403, 'other site');
+    assert.equal(stripeCalls.length, before, 'no Checkout was started by any of them');
+    assert.equal((await post({ csrf })).status, 303, 'the page’s own token works');
   });
 });
 
@@ -707,7 +743,11 @@ describe('S9.15b: the cell is told, and restarted only on a flip', () => {
             'content-type': 'application/x-www-form-urlencoded',
             cookie: `maude_session=${session}`,
           },
-          body: form({ plan: 'project', interval: 'monthly' }),
+          body: form({
+            plan: 'project',
+            interval: 'monthly',
+            csrf: await csrfFor(env, session),
+          }),
         }),
         env
       );

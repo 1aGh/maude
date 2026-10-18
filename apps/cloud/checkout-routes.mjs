@@ -16,6 +16,7 @@
 // backstop for the person who closed the tab, and there is no third machine
 // to go wrong.
 
+import { postAllowed } from './account-pages.mjs';
 import { startTrial, trialEmailKey } from './accounts.mjs';
 import { track } from './analytics.mjs';
 import {
@@ -776,6 +777,10 @@ async function choosePlan(env, { request, url, account, project, pricing, ctx })
     return html('<p>This project already has a plan.</p>', 409);
   }
   const form = await request.formData();
+  // The picker is the billing page's (S9.16) and carries its per-session token:
+  // same-origin AND the `csrf` field, fail closed (a cross-site form post can
+  // otherwise start a Checkout in the owner's name).
+  if (!(await postAllowed(request, env, url, form))) return html('<p>Not allowed.</p>', 403);
   const choice = validatePlanChoice({
     plan: String(form.get('plan') ?? ''),
     interval: String(form.get('interval') ?? ''),
