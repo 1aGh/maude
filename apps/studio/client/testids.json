@@ -11196,5 +11196,96 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "undo-history",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Menu › Edit › Undo history…: the popover (your changes and your AI's on this canvas, newest first).",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-row-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Undo history row, 0 = newest; `data-who` you|ai, `data-state` done|stale|undone, `data-top=\"true\"` on the row ⌘Z undoes next. A click undoes rows 0..i as one step.",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo history with nothing to undo on this canvas yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The foot line naming the other people who changed this canvas (\"Tereza's changes are theirs to undo.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-version",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo history's Version history ⌥⌘H row.",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-undo-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the outline on an artboard an Undo history row would undo (`data-artboard`).",
+    "producer": {
+      "file": "apps/studio/editing/undo-preview.tsx",
+      "symbol": "UndoPreview"
+    },
+    "region": "canvas",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-undo-preview-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"Would undo · 14 changes\" tag on the first lit artboard.",
+    "producer": {
+      "file": "apps/studio/editing/undo-preview.tsx",
+      "symbol": "UndoPreview"
+    },
+    "region": "canvas",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
   }
 ]
