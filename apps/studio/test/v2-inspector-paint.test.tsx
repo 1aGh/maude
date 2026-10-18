@@ -53,6 +53,7 @@ beforeAll(() => {
 afterAll(async () => {
   const { unregisterSections } = await import('../client/v2/inspector/sections/index.js');
   unregisterSections();
+  for (const off of reregistered.splice(0)) off();
   globalThis.fetch = realFetch;
   GlobalRegistrator.unregister();
 });
@@ -65,6 +66,7 @@ beforeEach(async () => {
   const { foldStore } = await import('../client/v2/fold/use-fold.js');
   foldStore.set('inspector', false);
   (await import('../client/v2/inspector/sections/corners.jsx')).forgetCornerChoices();
+  for (const f of forgets) f();
 });
 afterEach(async () => {
   for (const r of roots.splice(0)) await act(async () => r.unmount());
@@ -161,8 +163,37 @@ const CFG = {
 };
 const recorded: Array<Record<string, unknown>> = [];
 
-async function frame(selected: unknown) {
+// The registry is process-wide and another test file's afterAll may have emptied it (bun runs the files in one
+// process): evaluate the section files again, under a new URL, so they register afresh.
+const reregistered: Array<() => void> = [];
+const forgets: Array<() => void> = [];
+let generation = 0;
+async function ensureSections() {
   await import('../client/v2/inspector/sections/index.js');
+  const { slotsFor } = await import('../client/v2/inspector/slots.js');
+  if (slotsFor('fill', 'frame').length) return;
+  generation += 1;
+  for (const f of [
+    'sections/fill',
+    'sections/corners',
+    'sections/border',
+    'sections/effects',
+    'sections/type',
+    'kinds/multi',
+  ]) {
+    const mod = (await import(`../client/v2/inspector/${f}.jsx?s24=${generation}`)) as Record<
+      string,
+      unknown
+    >;
+    for (const [k, v] of Object.entries(mod))
+      if (/^off[A-Z]/.test(k) && typeof v === 'function') reregistered.push(v as () => void);
+    if (typeof mod.forgetCornerChoices === 'function')
+      forgets.push(mod.forgetCornerChoices as () => void);
+  }
+}
+
+async function frame(selected: unknown) {
+  await ensureSections();
   const { InspectorFrame } = await import('../client/v2/inspector/frame.jsx');
   recorded.length = 0;
   return mount(
