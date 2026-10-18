@@ -14,8 +14,8 @@ written into the sections below (row ids in brackets, e.g. [A7], [C26]). Nothing
 
 - Opened by the **project pill** (mark + project name, top-left). Accessible name: **"Project menu"**.
 - In "where it lives" chips and copy, write the path as **`Menu › File › Export…`** — never "Icon menu", never "the icon menu".
-- **The Mac's own menu bar** [C3, D19] keeps **Maude** (About · Check for Updates… · Quit), **Edit** (the predefined undo/redo/cut/copy/paste/select-all WKWebView needs) and **Help › Report a Bug…** as today. Its **File** menu becomes **New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · New Home tab ⌘T**, and a **Window** menu carries the native tab commands (⌘1–⌘8 tab 1–8 · ⌘9 last tab).
-- **Project tabs are native macOS window tabs** [A1]. Home is its own window tab (⌘T, "Back to Home"). A tab shows no avatar and no status glyph — that state lives in the project pill and the Share cluster. Right-clicking a tab gives the native tab menu; **"Sign in as another account…"** lives in the project pill menu.
+- **The Mac's own menu bar** [C3, D19] keeps **Maude** (About · Check for Updates… · Quit), **Edit** (the predefined undo/redo/cut/copy/paste/select-all WKWebView needs) and **Help › Report a Bug…** as today. Its **File** menu becomes **New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · New Home tab ⌘T**, and a **Window** menu carries the tab commands (⌘1–⌘8 tab 1–8 · ⌘9 last tab).
+- **Project tabs are Maude's own tab strip** [A1, amended 2026-10-14 by Michal — decision `maude/v2-3.7-own-tab-bar`, contract `V2-3.7-own-tab-bar.md`]: one shell window; Home is a pinned, icon-only first tab (⌘T, "Back to Home"); one tab per project. A tab carries the project's square and name and one small state mark (AI working · done · needs you), as canvas 11 `pn-tab-b` draws it; the full state still lives in the project pill and the Share cluster. Right-clicking a tab gives the tab menu of canvas 11 `pn-tab-menu`; dragging a tab out to a new window and merging windows are not in v2.0 (V2-3.7 §10). **"Sign in as another account…"** lives in the project pill menu.
 
 ```
 Menu
@@ -124,7 +124,7 @@ Menu
 
 - **Empty canvas line:** "Your canvas is ready. Ask AI for a first draft, or start drawing." (never "screen").
 - **Share sheet:** primary button **Invite**; "Copy link" is a secondary button in the link row. It is the ONE Share surface everywhere [C11]; a local project's state ("Move to cloud…") lives inside it.
-- **Project tabs** [A1]: native window tabs, no avatar, no status glyph; the native tab menu on right-click; "Sign in as another account…" in the project pill menu.
+- **Project tabs** [A1, amended 2026-10-14]: Maude's own tab strip — Home pinned first, the project square + name + one state mark per tab, the tab menu on right-click (no drag-out / merge in v2.0); "Sign in as another account…" in the project pill menu.
 - **Accounts** [C6]: Settings › General lists every account on this Mac; each project tab is bound to one.
 - **Save status:** one word next to the faces in the Share cluster — *Saved* · *Syncing…* · *Offline — kept on this Mac* · *Local project*. No dot on the project pill. A failed, un-queued write shows a fifth word, **Not saved**, only while it is true, with one action (**Retry**) [C2].
 - **Errors & recovery** [C37]: after a crash the relaunch shows one line, "Maude quit unexpectedly. Your work up to 14:05 is here." + Report a bug…; a full disk shows *Not saved* + "This Mac is out of space — changes wait here until there's room." + Show in Finder.
