@@ -7,10 +7,11 @@
 // words live in aria-label / title. Editors get Edit · Preview · Present; Can view / Can comment get
 // Viewing in the first slot — editing controls are hidden, never greyed.
 //
-// Present⌄ is the kit's one 40px slot with two hit targets: the segment presents, the chevron opens
-// Present's small menu (04 md-present-menu). Only the rows that exist today are listed — Present ·
-// Artboards (from the selection, from the start), presenter view, order and notes, and the link are
-// S3's; until then the segment presents the canvas, today's Present (DDR-117).
+// Present⌄ is the kit's one 40px slot with two hit targets: the segment presents from the selected
+// artboard, the chevron opens Present's small menu (04 md-present-menu). S3.1 lists the rows that
+// exist: Artboards, one by one (from the selection ⌥⌘↵, from the start ⇧⌥⌘↵) and the canvas, pan
+// freely. Presenter view, Order and notes… and the presentation link stay hidden until their slice
+// (S3.6b, S3.5, S3.7a) — hidden, never greyed.
 //
 // The segments keep the palette's testids (`palette-mode-*`, V2-1.2 §5.5 rule 5 — the multiplayer e2e
 // reads `palette-mode-edit`), plus `palette-mode-viewing`.
@@ -73,6 +74,12 @@ function ModeGlyph({ m }) {
   );
 }
 
+/** ⌥⌘↵ → Alt+Meta+Enter (aria-keyshortcuts). */
+const ariaKeys = (k) =>
+  [k.includes('⇧') && 'Shift', k.includes('⌥') && 'Alt', k.includes('⌘') && 'Meta', 'Enter']
+    .filter(Boolean)
+    .join('+');
+
 const LABEL = {
   edit: 'Edit — click selects and edits',
   viewing: 'Viewing — click shows specs',
@@ -80,14 +87,47 @@ const LABEL = {
   present: 'Present',
 };
 
+/** Present ⌄'s rows (04 md-present-menu; words CONTRACT §2–§3). */
+const PRESENT_ROWS = [
+  { group: 'Artboards, one by one' },
+  { kind: 'selection', testid: 'mode-present-from-selection', label: 'Present', keys: '⌥⌘↵' },
+  {
+    kind: 'start',
+    testid: 'mode-present-from-start',
+    label: 'Present from the start',
+    keys: '⇧⌥⌘↵',
+  },
+  { group: 'The canvas, pan freely' },
+  {
+    kind: 'canvas',
+    testid: 'mode-present-canvas',
+    label: 'Present the canvas',
+    note: 'no chrome, no pins',
+  },
+];
+
 /**
  * @param mode the mode the canvas is in: edit | viewing | preview | present
  * @param caps ModeCaps — `caps.edit` decides Edit vs Viewing
- * @param onSelect (mode) => void
- * @param onPresentCanvas () => void — Present ⌄ › Present the canvas
+ * @param onSelect (mode) => void — a click on Present is `onSelect('present')`: from the selection
+ * @param onPresent (kind) => void — Present ⌄ › 'selection' | 'start' | 'canvas'
+ * @param onPresentCanvas () => void — the older single-row prop, used when `onPresent` is absent
+ * @param presentFromLabel the selected artboard's label: the first row reads Present from “…”
  * @param canPresent false with no canvas open (Present has nothing to show)
  */
-export function ModeSwitch({ mode, caps, onSelect, onPresentCanvas, canPresent = true }) {
+export function ModeSwitch({
+  mode,
+  caps,
+  onSelect,
+  onPresent,
+  onPresentCanvas,
+  presentFromLabel = null,
+  canPresent = true,
+}) {
+  const run = (kind) => {
+    if (onPresent) onPresent(kind);
+    else if (kind === 'canvas') onPresentCanvas?.();
+  };
   const [menu, setMenu] = useState(false);
   const rootRef = useRef(null);
   const firstRowRef = useRef(null);
@@ -179,26 +219,36 @@ export function ModeSwitch({ mode, caps, onSelect, onPresentCanvas, canPresent =
           aria-label="Present"
           data-testid="mode-present-list"
         >
-          <div className="st-mode-menu-hd" role="presentation">
-            The canvas, pan freely
-          </div>
-          <div role="none" className="st-pm-li">
-            <button
-              ref={firstRowRef}
-              type="button"
-              role="menuitem"
-              className="st-pm-row"
-              data-testid="mode-present-canvas"
-              onClick={() => {
-                setMenu(false);
-                onPresentCanvas?.();
-              }}
-            >
-              <span className="st-pm-ic" aria-hidden="true" />
-              <span className="st-pm-lab">Present the canvas</span>
-              <span className="st-mode-menu-note">no chrome, no pins</span>
-            </button>
-          </div>
+          {PRESENT_ROWS.map((row, i) =>
+            row.group ? (
+              <div key={row.group} className="st-mode-menu-hd" role="presentation">
+                {row.group}
+              </div>
+            ) : (
+              <div key={row.kind} role="none" className="st-pm-li">
+                <button
+                  ref={i === 1 ? firstRowRef : undefined}
+                  type="button"
+                  role="menuitem"
+                  className="st-pm-row"
+                  data-testid={row.testid}
+                  aria-keyshortcuts={row.keys ? ariaKeys(row.keys) : undefined}
+                  onClick={() => {
+                    setMenu(false);
+                    run(row.kind);
+                  }}
+                >
+                  <span className="st-pm-ic" aria-hidden="true" />
+                  <span className="st-pm-lab">
+                    {row.kind === 'selection' && presentFromLabel
+                      ? `Present from “${presentFromLabel}”`
+                      : row.label}
+                  </span>
+                  <span className="st-mode-menu-note">{row.keys ?? row.note}</span>
+                </button>
+              </div>
+            )
+          )}
         </div>
       ) : null}
     </div>

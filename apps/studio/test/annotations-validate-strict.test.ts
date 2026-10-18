@@ -196,3 +196,96 @@ describe('validateBoard — strict (AI writes)', () => {
     expect(performance.now() - t0).toBeLessThan(600);
   });
 });
+
+// S4.5 — the format-2 extension fields and types obey the same strict rules as every other field.
+describe('validateBoard — strict, format-2 fields (S4.5)', () => {
+  const NOW = '2026-10-18T10:00:00Z';
+  const arrow = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    type: 'arrow',
+    index: 'a0',
+    start: { x: 0, y: 0 },
+    end: { x: 100, y: 0 },
+    author: { kind: 'ai' },
+    ...extra,
+  });
+
+  test('a new AI sticky with resolved / parentArtboard / source / timeRange passes', () => {
+    const el = sticky('s1', {
+      resolved: { by: 'AI', at: NOW },
+      parentArtboard: 'desktop',
+      source: { kind: 'figjam', author: 'Klara' },
+      timeRange: { artboard: 'clip', start: 1, end: 2 },
+    });
+    expect(validateBoard(doc([el]), { strict: true, against: null }).errors).toEqual([]);
+  });
+
+  test('a bound arrow end (startHost / endHost) passes; a magnet of one coordinate does not', () => {
+    const ok = arrow('a1', { endHost: { ref: 'el:desktop/cta', label: 'Book a call' } });
+    expect(validateBoard(doc([ok]), { strict: true, against: null }).errors).toEqual([]);
+    const half = arrow('a1', { endHost: { ref: 'el:desktop/cta', label: 'x', nx: 0.5 } });
+    expect(codes(validateBoard(doc([half]), { strict: true, against: null }))).toEqual([
+      'invalid-value',
+    ]);
+  });
+
+  test('an extension field on a type that does not carry it is unknown, and the fix names the ones it has', () => {
+    const shape = {
+      id: 'sh1',
+      type: 'shape',
+      index: 'a0',
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 60,
+      resolved: { by: 'AI', at: NOW },
+      author: { kind: 'ai' },
+    };
+    const r = validateBoard(doc([shape]), { strict: true, against: null });
+    expect(codes(r)).toEqual(['unknown-field']);
+    expect(r.errors[0]?.fix).toContain('parentArtboard');
+  });
+
+  test('a made-up field next to the real extension fields is still an error', () => {
+    const r = validateBoard(doc([sticky('s1', { resolvedBy: 'AI' })]), {
+      strict: true,
+      against: null,
+    });
+    expect(codes(r)).toEqual(['unknown-field']);
+  });
+
+  test('resolving a LOCKED sticky is an edit to a locked item', () => {
+    const locked = sticky('s1', { locked: true });
+    const r = validateBoard(doc([{ ...locked, resolved: { by: 'AI', at: NOW } }]), {
+      strict: true,
+      against: doc([locked]),
+    });
+    expect(codes(r)).toEqual(['locked-changed']);
+    expect(r.errors[0]?.what).toContain('resolved');
+  });
+
+  test('the author of a resolved sticky is still immutable', () => {
+    const before = sticky('s1', { author: { kind: 'human', name: 'Tereza' } });
+    const r = validateBoard(
+      doc([{ ...before, author: { kind: 'ai' }, resolved: { by: 'AI', at: NOW } }]),
+      { strict: true, against: doc([before]) }
+    );
+    expect(codes(r)).toEqual(['author-changed']);
+  });
+
+  test('a new stamp is judged like any element (new → authored by AI)', () => {
+    const stamp = {
+      id: 'stamp-x',
+      type: 'stamp',
+      index: 'a0',
+      x: 0,
+      y: 0,
+      w: 40,
+      h: 40,
+      kind: 'plus-one',
+    };
+    expect(codes(validateBoard(doc([stamp]), { strict: true, against: null }))).toContain(
+      'author-missing'
+    );
+  });
+});

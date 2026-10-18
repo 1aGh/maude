@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
 import { installDropGuard } from '../shell/drop-guard.js';
+import { togglePresentCanvas, usePresentMode } from '../v2/shell/use-canvas-mode-lane.js';
 import {
   ANNOT_STORE,
   LAYERS_MODE_STORE,
@@ -571,17 +572,18 @@ export function usePhotoAndTimeline({
       return next;
     });
   }, [broadcastChrome]);
-  const togglePresent = useCallback(() => {
-    setPresentMode((v) => {
-      const next = !v;
-      broadcastChrome({ present: next });
-      return next;
-    });
-  }, [broadcastChrome]);
-  const exitPresent = useCallback(() => {
-    setPresentMode(false);
-    broadcastChrome({ present: false });
-  }, [broadcastChrome]);
+  // S3.1 (D1) — Present lives in the ONE mode store (use-canvas-mode-lane): the toggle and the exit
+  // are calls into it, and the canvases' `view-chrome {present}` follows the store, whatever entered
+  // or left Present (the switch, ⌥⌘↵, a canvas `mode-request`, esc, the pill).
+  const [presenting] = usePresentMode();
+  const chromePresentRef = useRef(false);
+  useEffect(() => {
+    if (chromePresentRef.current === presenting) return;
+    chromePresentRef.current = presenting;
+    broadcastChrome({ present: presenting });
+  }, [presenting, broadcastChrome]);
+  const togglePresent = useCallback(() => togglePresentCanvas(), []);
+  const exitPresent = useCallback(() => setPresentMode(false), [setPresentMode]);
   // feature-2-print-artboards T3 — per-canvas persisted, so (unlike
   // broadcastChrome above) this targets ONLY the active iframe and PATCHes
   // view.json's `overlays.print` through the same GET-merge/PATCH-split lane

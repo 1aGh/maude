@@ -43,6 +43,7 @@ import {
   statSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { fileAccessFor } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
@@ -288,7 +289,12 @@ export function handleFilesRoute({
       a.path < b.path ? -1 : a.path > b.path ? 1 : 0
     );
   }
-  const visible = files.filter((f) => matchesScope(match.scope, f.path));
+  // V2-1.16 L1 — a project session: its DDR-053 scope, as always; a
+  // canvas-only session: its canvases' closure (`access-files.mjs`).
+  const access = fileAccessFor(match, { designRoot, journal: inertFromJournal });
+  const visible = files.filter((f) =>
+    access.claimDecides ? access.sees(f.path) : matchesScope(match.scope, f.path)
+  );
   respondJson(200, {
     files: visible,
     count: visible.length,
@@ -461,11 +467,13 @@ export async function handleProjectFileRoute(ctx) {
   // write half was fixed for: a committed symlink inside a token's scope could
   // point at a file outside it, and the read would pass the gate on the name
   // while serving the target's bytes.
-  if (
-    !target.ok ||
-    !isFilePlaneClass(checkoutFileClass(target.realRel, designRoot)) ||
-    !matchesScope(match.scope, target.realRel)
-  ) {
+  // V2-1.16 L1 / A19 — a canvas-only session reads (and downloads) only its
+  // closure; outside it the answer is this same 404 (U1).
+  const access = fileAccessFor(match, { designRoot, dataDir });
+  const inScope = access.claimDecides
+    ? target.ok && access.sees(target.realRel) && access.exports(target.realRel)
+    : target.ok && matchesScope(match.scope, target.realRel);
+  if (!target.ok || !isFilePlaneClass(checkoutFileClass(target.realRel, designRoot)) || !inScope) {
     respond(response, 404, 'not found');
     return true;
   }

@@ -3,8 +3,9 @@
 //   Edit (editors) or Viewing (Can view / Can comment) · Preview · Present
 //
 // Mode is per project window (Q6): a link to another canvas keeps Preview, and every canvas iframe is
-// told. Present stays today's shell-level Present (`presentMode`, DDR-117) — this store holds the mode
-// you are in when you are NOT presenting, so leaving Present returns to it.
+// told. S3.1 (D1): this store is the ONE mode owner, Present included — `{ mode, present, returnTo }`.
+// The shell's `presentMode` (DDR-117's chrome hiding) is derived from it (`mode === 'present'`), never
+// held beside it, so the two cannot disagree. Leaving Present returns to `returnTo`.
 //
 // Pure and DOM-free: the store, the caps, the M4 router decision and the lane that posts `set-mode`
 // AFTER the target layout's insets (§5.6). The hook in use-canvas-mode-lane.js wires them to the shell.
@@ -15,6 +16,7 @@ import {
   clampMode,
   initialMode,
   NO_CAPS,
+  presentSpec,
   slotAllows,
 } from '../../../bridge/canvas-modes.ts';
 
@@ -45,32 +47,79 @@ export const MODE_WORD = Object.freeze({
  * The shell's mode store. `nonce` changes on every `select`, so choosing the mode you are already in
  * still re-sends `set-mode` — with the mode's resting tool, the "get me out of the pen" gesture the
  * palette's active segment used to be.
+ *
+ * Present (S3.1): `present(spec)` enters with `returnTo` = the mode you were in; `back()` leaves to
+ * it. `position` is the Present · Artboards echo (`present-position`) while presenting.
  */
 export function createShellMode(caps = ALL_CAPS) {
-  let snap = Object.freeze({ mode: initialMode(caps), tool: null, nonce: 0 });
+  let snap = Object.freeze({
+    mode: initialMode(caps),
+    tool: null,
+    nonce: 0,
+    present: null,
+    returnTo: null,
+    position: null,
+  });
   const subs = new Set();
   const emit = (next) => {
-    snap = Object.freeze(next);
+    snap = Object.freeze({ ...snap, ...next });
     for (const fn of subs) fn();
   };
+  const notPresenting = { present: null, returnTo: null, position: null };
   return {
     get: () => snap,
     subscribe(fn) {
       subs.add(fn);
       return () => subs.delete(fn);
     },
-    /** A person chose `mode` (the switch, a menu, a granted `mode-request`). */
+    /** A person chose `mode` (the switch, a menu, a granted `mode-request`). Choosing a mode while
+     *  presenting leaves Present for it. Present itself goes through `present(spec)`. */
     select(mode, { tool = null } = {}) {
-      emit({ mode, tool, nonce: snap.nonce + 1 });
+      if (mode === 'present') return;
+      emit({ mode, tool, nonce: snap.nonce + 1, ...notPresenting });
+    },
+    /** Enter Present (Artboards or the Canvas). Already presenting: nothing (esc leaves first). */
+    present(spec) {
+      if (snap.mode === 'present') return false;
+      emit({
+        mode: 'present',
+        tool: null,
+        nonce: snap.nonce + 1,
+        present: presentSpec(spec),
+        returnTo: snap.mode,
+        position: null,
+      });
+      return true;
+    },
+    /** Leave Present for where it was entered from (esc, the pill, `mode-request back`). */
+    back() {
+      if (snap.mode !== 'present') return false;
+      emit({ mode: snap.returnTo ?? 'edit', tool: null, nonce: snap.nonce + 1, ...notPresenting });
+      return true;
+    },
+    /** The presenting canvas moved on (`present-position`). Kept only while presenting artboards. */
+    position(pos) {
+      if (snap.mode !== 'present' || snap.present?.kind !== 'artboards') return;
+      const p = snap.position;
+      if (p && p.index === pos.index && p.total === pos.total && p.artboardId === pos.artboardId)
+        return;
+      emit({ position: { index: pos.index, total: pos.total, artboardId: pos.artboardId } });
     },
     /** The canvas clamped us (a `mode-changed` with cause `clamp`): adopt it without re-sending. */
     adopt(mode) {
-      if (mode !== snap.mode) emit({ ...snap, mode, tool: null });
+      if (mode === 'present' || snap.mode === 'present') return;
+      if (mode !== snap.mode) emit({ mode, tool: null });
     },
     /** A role change (demoted / promoted): `clampMode(current, caps')`. Before anyone chose a mode
      *  (the role arrives with `/_config`, after boot) it is the boot posture instead: a view-only link
-     *  opens in Preview, as DDR-223's read-only canvas does. */
+     *  opens in Preview, as DDR-223's read-only canvas does. Present stays (any role may present
+     *  locally); where it returns to is clamped. */
     clamp(caps2) {
+      if (snap.mode === 'present') {
+        const r = snap.returnTo && clampMode(snap.returnTo, caps2);
+        if (r !== snap.returnTo) emit({ returnTo: r });
+        return;
+      }
       const m = snap.nonce === 0 ? initialMode(caps2) : clampMode(snap.mode, caps2);
       if (m !== snap.mode)
         emit({ mode: m, tool: null, nonce: snap.nonce === 0 ? 0 : snap.nonce + 1 });
@@ -78,18 +127,32 @@ export function createShellMode(caps = ALL_CAPS) {
   };
 }
 
-/** The mode the canvases are in: Present while presenting, else the stored mode clamped by the role. */
-export const effectiveMode = (mode, caps, presenting) =>
-  presenting ? 'present' : clampMode(mode, caps);
+/** D1 — the shell's `presentMode`, derived from the one store. */
+export const presentingOf = (snap) => snap.mode === 'present';
+
+/**
+ * Where Present starts (04 md-present-menu, CONTRACT §2 ⌥⌘↵ / ⇧⌥⌘↵):
+ *   'selection' — the selected artboard, else the artboard in view, else the start;
+ *   'start'     — the first artboard in canvas order;
+ *   'canvas'    — Present the canvas (pan freely).
+ */
+export function presentSpecFor(kind, { selectedArtboard = null, inViewArtboard = null } = {}) {
+  if (kind === 'canvas') return { kind: 'canvas' };
+  if (kind === 'start') return { kind: 'artboards', from: 'start' };
+  return presentSpec({ kind: 'artboards', from: selectedArtboard || inViewArtboard || 'start' });
+}
+
+/** The mode the canvases are in, clamped by the role (Present passes through). */
+export const effectiveMode = (mode, caps) => clampMode(mode, caps);
 
 /** The `set-mode` payload for one frame (§5.2: ≤ 300 bytes, M5). `tool` only for the active frame. */
-export function setModeMessage({ seq, mode, caps, tool }) {
+export function setModeMessage({ seq, mode, caps, tool, present = null }) {
   const msg = {
     dgn: 'set-mode',
     v: 2,
     seq,
     mode,
-    present: mode === 'present' ? { kind: 'canvas' } : null,
+    present: mode === 'present' ? presentSpec(present) : null,
     caps: { edit: !!caps.edit, annotate: !!caps.annotate, comment: !!caps.comment },
   };
   if (tool) msg.tool = tool;
@@ -99,7 +162,7 @@ export function setModeMessage({ seq, mode, caps, tool }) {
 /**
  * M4 — what a `mode-request` from a canvas does. The caller has already checked it came from the
  * ACTIVE canvas (the table's `active` gate); this adds "no modal open" and "the role allows it".
- * @returns {{ kind: 'set', mode, tool? } | { kind: 'present' } | { kind: 'exit-present', next? }
+ * @returns {{ kind: 'set', mode, tool? } | { kind: 'present', present } | { kind: 'exit-present', next? }
  *           | { kind: 'deny', reason: 'modal' | 'role' } | null}   null = nothing to do
  */
 export function decideModeRequest(req, { caps, presenting, mode, modalOpen }) {
@@ -110,7 +173,8 @@ export function decideModeRequest(req, { caps, presenting, mode, modalOpen }) {
     if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
     return null;
   }
-  if (req.mode === 'present') return presenting ? null : { kind: 'present' };
+  if (req.mode === 'present')
+    return presenting ? null : { kind: 'present', present: presentSpec(req.present) };
   if (req.mode === 'edit' && !caps.edit) return { kind: 'deny', reason: 'role' };
   const target = clampMode(req.mode, caps);
   // V2-4.5b (Q2): a key the role may not use — a viewing role's N / M / A / S, or C without the
@@ -147,19 +211,24 @@ export function createModeLane({ frames, active, flushInsets = () => {} }) {
   };
   return {
     /** A mode transition (or a role change): insets first, then every frame. */
-    broadcast({ mode, caps, tool = null }) {
+    broadcast({ mode, caps, tool = null, present = null }) {
       flushInsets();
       const act = active();
       for (const win of frames()) {
         seq += 1;
-        post(win, setModeMessage({ seq, mode, caps, tool: win === act ? tool : null }));
+        post(win, setModeMessage({ seq, mode, caps, present, tool: win === act ? tool : null }));
       }
     },
     /** Tell ONE frame the current mode (a freshly loaded or newly active canvas). No tool: a seed never
      *  re-arms a tool the canvas already holds. */
-    seed(win, { mode, caps }) {
+    seed(win, { mode, caps, present = null }) {
       seq += 1;
-      post(win, setModeMessage({ seq, mode, caps, tool: null }));
+      post(win, setModeMessage({ seq, mode, caps, present, tool: null }));
+    },
+    /** Present · Artboards: step the active canvas (shell controls, presenter view — S3.2b). */
+    step(win, to) {
+      if (to !== 'next' && to !== 'prev' && !(Number.isInteger(to) && to >= 0)) return;
+      post(win, { dgn: 'present-step', to });
     },
     get seq() {
       return seq;

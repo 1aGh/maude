@@ -49,49 +49,141 @@ export const LEGACY_ROWS = Object.freeze([
   { path: '/.well-known/*', cap: { safe: null, unsafe: 'edit' }, scope: 'none' },
 
   // ---- the file plane (Sync v2, DDR-226) --------------------------------------
-  { path: '/api/journal', cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
+  // `canvasDoor` (S9.4, V2-1.16 L1/L5): each handler asks `access-files.mjs`
+  // per path, so a canvas-only session lists, pulls, probes and writes only its
+  // canvases' closure. `/api/file-limits` reveals only the caller's own quota.
+  {
+    path: '/api/journal',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
   // The studio child's loopback nudge.
   { path: '/api/journal/report', cap: { safe: null, unsafe: 'edit' }, scope: 'none' },
-  { path: '/api/files', cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
+  {
+    path: '/api/files',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
   // One manifest entry's BYTES (A19).
-  { path: '/_project-file/*', cap: { safe: 'export', unsafe: 'edit' }, scope: 'canvas' },
-  { path: '/api/file/*', cap: { safe: 'read', unsafe: 'edit' }, scope: 'canvas' },
-  { path: '/api/file-uploads*', cap: { safe: 'read', unsafe: 'edit' }, scope: 'canvas' },
-  { path: '/api/file-limits', cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
+  {
+    path: '/_project-file/*',
+    cap: { safe: 'export', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
+  { path: '/api/file/*', cap: { safe: 'read', unsafe: 'edit' }, scope: 'canvas', canvasDoor: true },
+  {
+    path: '/api/file-uploads*',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
+  {
+    path: '/api/file-limits',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'project',
+    canvasDoor: true,
+  },
   { path: '/api/project-config', cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
   { path: '/api/project-format', cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
   // The materializer's own token (cell boot), never a member's.
   { path: '/_materialize', cap: { safe: null, unsafe: null }, scope: 'project' },
   // The asset proxy: a GET hands the asset's BYTES away (A19); writes alias the file door.
-  { path: '/assets/*', cap: { safe: 'export', unsafe: 'edit' }, scope: 'canvas' },
+  { path: '/assets/*', cap: { safe: 'export', unsafe: 'edit' }, scope: 'canvas', canvasDoor: true },
   // GET is presence-only by a recorded review decision; PUT aliases the file door.
-  { path: '/_asset-file/*', cap: { safe: 'read', unsafe: 'edit' }, scope: 'canvas' },
+  {
+    path: '/_asset-file/*',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
   // A presence probe sent as POST, with the gates of the push sweep it serves.
-  { path: '/_asset-probe', cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
+  {
+    path: '/_asset-probe',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
 
   // ---- documents (plane A) -----------------------------------------------------
-  { path: '/api/documents', cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
+  // `canvasDoor` (S9.5, V2-1.16 L2/L4/L6): the handler filters or refuses per
+  // target for a canvas-only session; without it the gate refuses them all.
+  {
+    path: '/api/documents',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
   { path: '/api/documents/*', cap: { safe: 'read', unsafe: 'edit' }, scope: 'canvas' },
 
   // ---- accepted revisions (DDR-241) ---------------------------------------------
   // The bootstrap manifest, a lane body and a blob are the project's bytes (A19).
-  { pattern: accepted('bootstrap'), cap: { safe: 'export', unsafe: 'edit' }, scope: 'project' },
-  { pattern: accepted('lane'), cap: { safe: 'export', unsafe: 'edit' }, scope: 'canvas' },
-  { pattern: accepted('blobs'), cap: { safe: 'export', unsafe: 'edit' }, scope: 'canvas' },
+  // V2-1.16 L4: bootstrap is FILTERED for a canvas-only session (docs, dirs,
+  // canvas groups and project config cut to what it sees).
+  {
+    pattern: accepted('bootstrap'),
+    cap: { safe: 'export', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
+  {
+    pattern: accepted('lane'),
+    cap: { safe: 'export', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
+  {
+    pattern: accepted('blobs'),
+    cap: { safe: 'export', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
   // The kernel judges every operation of a proposal per canvas.
-  { pattern: accepted('proposals'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'canvas' },
-  { pattern: accepted('transactions'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
-  { pattern: accepted('revisions'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
-  { pattern: accepted('history'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
+  {
+    pattern: accepted('proposals'),
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
+  {
+    pattern: accepted('transactions'),
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
+  {
+    pattern: accepted('revisions'),
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
+  {
+    pattern: accepted('history'),
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
   { pattern: accepted('mode'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
   { pattern: accepted('parity'), cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
   // Any other shape answers its own 404 / 405; it is still the project's lane.
   { path: '/api/projects/*', cap: { safe: 'read', unsafe: 'edit' }, scope: 'project' },
 
   // ---- the cell's git history --------------------------------------------------
-  { path: '/api/history', cap: { safe: 'read', unsafe: 'edit' }, scope: 'filtered' },
+  {
+    path: '/api/history',
+    cap: { safe: 'read', unsafe: 'edit' },
+    scope: 'filtered',
+    canvasDoor: true,
+  },
   // A file AT a commit: raw bytes (A19).
-  { path: '/api/history/file', cap: { safe: 'export', unsafe: 'edit' }, scope: 'canvas' },
+  {
+    path: '/api/history/file',
+    cap: { safe: 'export', unsafe: 'edit' },
+    scope: 'canvas',
+    canvasDoor: true,
+  },
 
   // ---- take your work home -----------------------------------------------------
   // POST because it takes work; the route keeps its own owner-only gate (cell-ops).

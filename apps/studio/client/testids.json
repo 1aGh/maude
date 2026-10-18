@@ -4550,6 +4550,32 @@
     "v2": "new"
   },
   {
+    "hook": "mode-present-from-selection",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Present (⌥⌘↵): Present · Artboards from the selected artboard (else the one in view, else the start).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-from-start",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Present from the start (⇧⌥⌘↵): Present · Artboards from the first artboard in canvas order.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "artboard-rename-<id>",
     "kind": "testid",
     "pattern": true,
@@ -10936,6 +10962,110 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-click",
+    "kind": "testid",
+    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). Read-only until the link writer (S3 through S2.1's edit-op) is wired; the select is disabled.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
+      "symbol": "InteractionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-hover",
+    "kind": "testid",
+    "meaning": "Interaction › On hover: None, Lift to Resting / Floating / Sheet, Darken, Underline (a closed set; \"Custom\" for a value outside it). Writes `data-hover` through /_api/edit-attr.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
+      "symbol": "InteractionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-click-pending",
+    "kind": "testid",
+    "meaning": "Interaction › the quiet line saying the click target cannot be changed from the inspector yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
+      "symbol": "InteractionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-hover-locked",
+    "kind": "testid",
+    "meaning": "Interaction › the line shown instead of a write when the object has no id yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
+      "symbol": "InteractionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-interaction-note",
+    "kind": "testid",
+    "meaning": "Interaction › \"Preview plays it; the link shows on the canvas while this is selected — as in 04 Modes.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
+      "symbol": "InteractionBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-presets",
+    "kind": "testid",
+    "meaning": "Export › the row holding the default export presets for the selected kind (object PNG 2× + SVG; Fixed size / Web page PNG 1×; Print PDF; Video MP4; several objects: \"N files…\"). S8 fills the section later.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/export-slot.jsx",
+      "symbol": "ExportSlotBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-preset",
+    "kind": "testid",
+    "meaning": "Export › one preset chip (repeats inside insp-export-presets).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/export-slot.jsx",
+      "symbol": "ExportSlotBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-export-more",
+    "kind": "testid",
+    "meaning": "Export › \"Export… — every option ⇧⌘E\": the pointer at the export sheet.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/export-slot.jsx",
+      "symbol": "ExportSlotBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   }
 ]
