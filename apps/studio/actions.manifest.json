@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3e751eb9a4ba",
+  "manifestVersion": "53a70b1cd12a",
   "actions": [
     {
       "id": "search.open",
@@ -823,6 +823,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json"
+      }
+    },
+    {
+      "id": "artboard.tidy",
+      "label": "Tidy up artboards",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards"
       }
     },
     {

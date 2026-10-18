@@ -330,4 +330,14 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['artboard'] },
     search: { hidden: true },
   },
+  // S2.9 — Tidy up: the align bar's button over 2+ artboards (one row, even gaps, on the lowest one's line). The
+  // positions go to the layout lane in ONE commit (annotations ride along, one ⌘Z). Also a ⌘K row.
+  {
+    id: 'artboard.tidy',
+    label: 'Tidy up artboards',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { keywords: ['tidy', 'row', 'even', 'gaps', 'arrange', 'line up'] },
+  },
 ];
