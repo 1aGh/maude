@@ -12,13 +12,13 @@ export const PANEL_HOSTS = Object.freeze({
   stickers: 'popover', // the Stickers gallery (S4.3), anchored
   assets: 'left-panel', // the Canvases panel's Assets tab (V2-4.4a)
   components: null, // no surface yet (the Component picker is S2)
-  // The Templates panel is S4's (canvas 15 owns it; S4.4 builds it). The host exists from S4.3 so a
-  // `tool-panel-open {panel:'templates'}` is placed like Stickers; with no opener wired it opens nothing.
+  // The Templates panel is S4's (canvas 15 owns it; S4.4, annotations/templates-panel.jsx). Placed like
+  // Stickers; it opens only once the shell wires `openTemplates` (app.jsx).
   templates: 'popover',
 });
 
-/** A panel's preferred width (shell px); absent = `placePanel`'s default. The Stickers island is 440 (canvas 15). */
-export const PANEL_SIZE = Object.freeze({ stickers: { w: 440 } });
+/** A panel's preferred width (shell px); absent = `placePanel`'s default. Stickers is 440, Templates 640 (canvas 15). */
+export const PANEL_SIZE = Object.freeze({ stickers: { w: 440 }, templates: { w: 640 } });
 
 export const PANEL_GAP = 10;
 export const PANEL_MARGIN = 8;

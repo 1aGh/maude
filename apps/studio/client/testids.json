@@ -6232,6 +6232,71 @@
     "v2": "new"
   },
   {
+    "hook": "templates-grid",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Templates panel's tile grid (eight tiles; arrow keys move the highlight).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-tile-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One template tile (`kanban`, `retro`, `flow`, `calendar`, `roadmap`, `brainstorm`, `checklist`, `blank`); a click emits the pick and closes the panel.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-ask",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Templates panel's \"describe it\" form: Enter or the send button fills the AI chat composer (never sends).",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-ask-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"describe it\" text field (\"Describe it — AI builds it on the canvas\").",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "templates-ask-send",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"describe it\" send button; disabled until there are words.",
+    "producer": {
+      "file": "apps/studio/client/v2/annotations/templates-panel.jsx",
+      "symbol": "TemplatesPanel"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/templates-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": ".maude[data-theme]",
     "kind": "selector",
     "pattern": false,
