@@ -248,3 +248,23 @@ the registry, not on a text parser. Spec: `plugins/design/skills/whiteboard/`.
   - it writes through a loopback `/_api/annotations/ops` when a server is up, and
     otherwise writes the board file atomically (`board-io.ts`); an unreadable
     board is never written over
+- **Format-2 on the agent surface** (S4.5):
+  - `read-annotations` also prints `resolved`, `parentArtboard`, `source`, `timeRange`,
+    `folded`, `sticker`, an arrow's `fromHost`/`toHost`, and `stamp`/`vote` (never a
+    `ballot`). `--selection <ids>` scopes to the selected annotations and resolves what
+    their arrows point at (`el:`/`ab:` ref + name, `found: false` when dangling)
+  - `annotate` adds `--resolve` (`resolved: {by: "AI", at}`, a person's resolve is kept),
+    `--sticker <pack>/<id>` (an `image` with `sticker{pack,id}`; the picture is copied to
+    `assets/`), canvas-bound arrow ends (`to: "ab:…" | "el:…"`, cached point + `startHost`/
+    `endHost`; it needs `--rects`/`--canvas-state` or an explicit x/y, never a guess),
+    `--to`, and `--wrap-section`. A new top-level note rides with the artboard under its
+    centre (`parentArtboard`), and `move` keeps that current
+  - strictness is unchanged and now covers the extension fields: unknown fields are errors,
+    `author` is immutable, a locked element is refused, and `vote`/`ballot`/`stamp` are
+    people's — every write to one is refused (`PEOPLE_ONLY_TYPES`). `validateBoard`'s strict
+    mode applies the same rules to a file edit
+  - `import-figma --board <url> --into <canvas>` (`figma/into-board.ts`) lands a FigJam board
+    as one "From FigJam" section: per-import ids, `source: {kind: "figjam", author?}`,
+    comments as stickies, widgets as pictures, one `put` batch (op route, else the file)
+  - `--flow`/`--board` expansion lives in `annotations/board-ops.ts`, shared with the
+    Templates panel

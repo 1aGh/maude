@@ -408,4 +408,20 @@
     background: var(--bg-2);
     color: var(--fg-0);
   }
+  /* ── Export slot (S2.5): the default presets per kind, as plain chips ── */
+  .insp-export-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .insp-export-chip {
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    font-size: var(--type-xs);
+    line-height: 20px;
+    color: var(--fg-1);
+  }
 }

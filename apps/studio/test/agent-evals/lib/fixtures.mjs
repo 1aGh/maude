@@ -605,24 +605,16 @@ function buildBoard300(dest) {
   const els = b.elements.map((el, i) =>
     canonical({ ...remap(el), author: { kind: 'human', name: PEOPLE[i % PEOPLE.length] } })
   );
-  // The vote: an element type the v1 registry does not know yet (kept verbatim by the loader).
+  // The vote (S4.1 board format 2, Gate 0 A18): a record over its targets, no geometry, never drawn;
+  // the ballots stay out of the board (here `_state/votes/`, the hub in the cloud) until it ends.
   const vote = {
     id: 'vote-pricing',
     type: 'vote',
     index: 'a0',
-    x: 3200,
-    y: -420,
-    w: 520,
-    h: 220,
+    targets: ['opt-three-tiers', 'opt-two-tiers', 'opt-usage'],
     title: 'Which pricing layout should we ship?',
-    options: [
-      { id: 'opt-three-tiers', label: 'Three tiers' },
-      { id: 'opt-two-tiers', label: 'Two tiers + enterprise' },
-      { id: 'opt-usage', label: 'Usage based' },
-    ],
-    hidden: true,
-    status: 'open',
-    votes: 5,
+    state: 'open',
+    votersDone: 5,
     author: { kind: 'human', name: 'Tereza' },
   };
   const all = [...els, canonical(vote)];

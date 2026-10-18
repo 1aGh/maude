@@ -10,8 +10,8 @@
 // Never "update" the frozen parts below to match a new hub. If one has to
 // change, a v1.9.x desktop in the field just broke.
 //
-// Extensions to come (S9-slices §3): file PUT, the comment path (S9.3 / S9.7),
-// canvas-scoped doors refusing as a missing path (S9.4 / S9.5).
+// Extensions to come (S9-slices §3): the comment path (S9.7), the canvas-scoped
+// document doors (S9.5). S9.4 pins the file plane below.
 
 import assert from 'node:assert/strict';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -26,6 +26,7 @@ import * as Y from 'yjs';
 import { accessClaims, signAccessToken, signAccessTokenV2 } from '../src/cloud-identity.mjs';
 import { createHub } from '../src/server.mjs';
 import { closeUsers } from '../src/users.mjs';
+import { A_VISIBLE, B_ONLY, bootAclHub, call } from './_acl-files-fixture.mjs';
 
 const BASE_PORT = Number.parseInt(process.env.HUB_V1_COMPAT_TEST_PORT ?? '15380', 10);
 const SECRET = 'test-admin-secret';
@@ -252,6 +253,78 @@ describe('S9.3 — the capability gate: a 1.9.1 desktop sees today’s answers',
         headers: { authorization: `Bearer ${token}` },
       });
       assert.equal(logout.status, 200, `${role} signs out`);
+    });
+  }
+});
+
+// ------------------------------------------------------------------- S9.4
+
+/** The 1.9.1 desktop's file-plane reads and probes (manifest, bytes, presence). */
+const V1_FILE_PLANE_READS = [
+  '/api/files',
+  '/_project-file/assets/b-only.png',
+  '/assets/b-only.png',
+  '/assets/shared.png',
+  '/_asset-file/assets/b-only.png',
+];
+
+describe('S9.4 — the canvas-scoped file plane: a 1.9.1 desktop sees the whole project', () => {
+  for (const role of ['owner', 'member', 'viewer']) {
+    test(`${role}: journal, manifest, bytes, presence and probe answer as today`, async () => {
+      const acl = await bootAclHub(`maude-v1-s94-${role}`);
+      try {
+        const res = await fetch(`${acl.http}/auth/login`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token: v1ProjectToken(role) }),
+        });
+        assert.equal(res.status, 200);
+        const { token } = await res.json();
+        const journal = await call(acl, 'GET', '/api/journal?since=0', token);
+        assert.equal(journal.status, 200);
+        const journalPaths = journal.body.entries.map((e) => e.path);
+        for (const p of [...A_VISIBLE, ...B_ONLY]) {
+          assert.ok(journalPaths.includes(p), `${role} journal ${p}`);
+        }
+        // The real head, not a visible one (U7).
+        assert.equal(journal.body.head, Math.max(...journal.body.entries.map((e) => e.seq)));
+        for (const path of V1_FILE_PLANE_READS) {
+          assert.equal((await call(acl, 'GET', path, token)).status, 200, `${role} ${path}`);
+        }
+        const files = await call(acl, 'GET', '/api/files', token);
+        for (const p of [...A_VISIBLE, ...B_ONLY]) {
+          assert.ok(
+            files.body.files.some((f) => f.path === p),
+            `${role} manifest ${p}`
+          );
+        }
+        const probe = await call(acl, 'POST', '/_asset-probe', token, {
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            paths: ['assets/a-only.png', 'assets/b-only.png', 'assets/nope.png'],
+          }),
+        });
+        if (role === 'viewer') {
+          // 1.9.1's read-only gate refused every non-GET outside its allowlist,
+          // the probe included (it serves the push sweep).
+          assert.equal(probe.status, 403);
+          assert.equal(probe.body?.reason, 'read-only');
+        } else {
+          assert.deepEqual(probe.body.present.sort(), ['assets/a-only.png', 'assets/b-only.png']);
+        }
+        // A write to another canvas's sidecar is judged exactly as today.
+        const put = await call(acl, 'PUT', '/api/file/assets/b-only.photo.json', token, {
+          body: '{"v":1}',
+        });
+        if (role === 'viewer') {
+          assert.equal(put.status, 403);
+          assert.equal(put.body?.reason, 'read-only');
+        } else {
+          assert.equal(put.status, 200, `${role}: ${JSON.stringify(put.body)}`);
+        }
+      } finally {
+        await acl.stop();
+      }
     });
   }
 });

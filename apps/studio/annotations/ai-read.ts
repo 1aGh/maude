@@ -23,6 +23,8 @@
  *             zero-width characters from every text field it passed.
  */
 
+import type { HostLookup } from './ai-write.ts';
+import { parseHostRef } from './elements/_shared.ts';
 import { stripUnsafe } from './fields.ts';
 import { defOf } from './registry.ts';
 import { Scene } from './scene.ts';
@@ -139,6 +141,42 @@ function endHost(e: unknown): string | null {
   return e && typeof e === 'object' && 'el' in (e as ArrowEnd) ? (e as { el: string }).el : null;
 }
 
+const isRec = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * The format-2 fields (contract S4 §2) an agent needs to read a board correctly: who resolved a
+ * sticky, which artboard an annotation rides with, a video pin's time range, what an arrow end is
+ * bound to on the canvas (`fromHost` / `toHost`: the ref and the name it was bound under), which
+ * sticker an image is, and what a stamp or a vote is about. Ballots are never projected — they are
+ * the voters' secret until the vote ends (Q5), and the agent has no business with them.
+ */
+function projectExtensions(el: AnnotationElement, out: ProjectedElement): void {
+  if (isRec(el.resolved)) out.resolved = { by: el.resolved.by, at: el.resolved.at };
+  if (typeof el.parentArtboard === 'string') out.parentArtboard = el.parentArtboard;
+  if (isRec(el.source)) out.source = el.source;
+  if (isRec(el.timeRange)) out.timeRange = el.timeRange;
+  if (el.folded === true) out.folded = true;
+  if (isRec(el.sticker)) out.sticker = el.sticker;
+  for (const [field, key] of [
+    ['startHost', 'fromHost'],
+    ['endHost', 'toHost'],
+  ] as const) {
+    const h = el[field];
+    if (isRec(h)) out[key] = { ref: h.ref, label: h.label };
+  }
+  if (el.type === 'stamp') {
+    out.stamp = { kind: el.kind, ...(typeof el.target === 'string' ? { target: el.target } : {}) };
+  } else if (el.type === 'vote') {
+    out.vote = {
+      state: el.state ?? 'open',
+      targets: el.targets,
+      ...(typeof el.title === 'string' && el.title ? { title: el.title } : {}),
+      ...(isRec(el.tallies) ? { tallies: el.tallies } : {}),
+    };
+  }
+}
+
 function projectOne(scene: Scene, el: AnnotationElement, full: boolean): ProjectedElement {
   const out: ProjectedElement = { id: el.id, type: el.type };
   if (el.type === 'arrow') {
@@ -166,6 +204,7 @@ function projectOne(scene: Scene, el: AnnotationElement, full: boolean): Project
   else if (author?.name) out.authorName = author.name;
   // #137 — an agent must see the lock before it tries to move the element.
   if (el.locked === true) out.locked = true;
+  projectExtensions(el, out);
   // Style of KNOWN types only: an unknown type's keys are arbitrary peer data.
   const known = defOf(el.type);
   if (full && known) {
@@ -282,10 +321,259 @@ export function projectBoard(
     }
     roots = [sec];
   } else {
-    roots = [...scene.childrenOf(null)];
+    roots = scene.childrenOf(null).filter((e) => e.type !== 'ballot'); // Q5: ballots stay secret
   }
   let tree = roots.map(build);
   const types = opts.types?.size ? opts.types : null;
   if (types) tree = pruneTree(tree, (e) => types.has(e.type));
   return { untrusted: UNTRUSTED_NOTE, elements: tree };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Canvas hosts and the selection scope (S4.5)
+
+/** An artboard rect from `canvas-state` / a `canvas-rects` manifest (world). */
+export interface ArtboardRect {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label?: unknown;
+}
+
+/** A DOM element rect from a `canvas-rects` manifest (world); the manifest is canvas-authored, so untrusted. */
+export interface DomRect {
+  cdId?: unknown;
+  selector: string;
+  tag?: unknown;
+  text?: unknown;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const HOST_NAME_MAX = 60;
+
+/**
+ * Resolve `ab:<artboard>` / `el:<artboard>/<id>[#occ]` to its WORLD box and the name a person would
+ * call it (an element's text, else its id; an artboard's label, else its id), from the geometry the
+ * verbs are given (`--canvas-state` / `--rects`). Null when the manifest does not have it — the
+ * caller says so, it never guesses a rect.
+ */
+export function makeHostLookup(
+  artboards: readonly ArtboardRect[],
+  elements: readonly DomRect[]
+): HostLookup {
+  return (ref) => {
+    const p = parseHostRef(ref);
+    if (!p) return null;
+    if (p.kind === 'ab') {
+      const r = artboards.find((a) => a.id === p.artboard);
+      if (!r) return null;
+      return {
+        box: { x: r.x, y: r.y, w: r.w, h: r.h },
+        label: safeString(r.label, HOST_NAME_MAX).trim() || r.id,
+      };
+    }
+    const ab = artboards.find((a) => a.id === p.artboard);
+    let hits = elements.filter((e) => e.cdId === p.element);
+    if (ab) {
+      hits = hits.filter((e) => {
+        const cx = e.x + e.w / 2;
+        const cy = e.y + e.h / 2;
+        return cx >= ab.x && cx <= ab.x + ab.w && cy >= ab.y && cy <= ab.y + ab.h;
+      });
+    }
+    const hit = hits[p.occurrence ?? 0];
+    if (!hit) return null;
+    return {
+      box: { x: hit.x, y: hit.y, w: hit.w, h: hit.h },
+      label: safeString(hit.text, HOST_NAME_MAX).trim() || p.element,
+    };
+  };
+}
+
+/**
+ * Name what sits under a world point — the smallest manifest element containing it (its durable
+ * `el:` ref when the artboard and a valid authored id are known), else the artboard. For a free
+ * pointer arrow (`annotate --pin`), whose end carries no ref of its own.
+ */
+export function makePointResolver(
+  artboards: readonly ArtboardRect[],
+  elements: readonly DomRect[]
+): NonNullable<SelectionContext['pointAt']> {
+  return (x, y) => {
+    const ab = artboards.find((a) => x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h);
+    let best: DomRect | null = null;
+    let area = Number.POSITIVE_INFINITY;
+    for (const e of elements) {
+      if (x < e.x || x > e.x + e.w || y < e.y || y > e.y + e.h) continue;
+      const a = Math.max(0, e.w) * Math.max(0, e.h);
+      if (a < area) {
+        area = a;
+        best = e;
+      }
+    }
+    if (best) {
+      const ref = ab && typeof best.cdId === 'string' ? `el:${ab.id}/${best.cdId}` : undefined;
+      const name = safeString(best.text, HOST_NAME_MAX).trim() || safeString(best.cdId, 48);
+      return {
+        kind: 'element',
+        ...(ref && parseHostRef(ref) ? { ref } : {}),
+        ...(name ? { name } : {}),
+      };
+    }
+    if (ab) {
+      return {
+        kind: 'artboard',
+        ref: `ab:${ab.id}`,
+        name: safeString(ab.label, HOST_NAME_MAX).trim() || ab.id,
+      };
+    }
+    return null;
+  };
+}
+
+/** What a selected annotation points at. */
+export interface SelectionTarget {
+  /** How the annotation reaches it: an arrow it owns, or a stamp's own target. */
+  via: 'arrow' | 'stamp';
+  kind: 'element' | 'artboard' | 'annotation' | 'point';
+  /** `el:` / `ab:` ref when the target is a canvas host; the annotation id when it is another annotation. */
+  ref?: string;
+  /** What a person would call it ("Book a call", "Desktop") — peer / canvas-authored data. */
+  name?: string;
+  /** The arrow that points at it. */
+  arrow?: string;
+  /** False when the geometry the verb was given does not have the host any more (it is dangling). */
+  found?: boolean;
+  /** A free pointer end, in world units. */
+  at?: [number, number];
+}
+
+export interface SelectionEntry {
+  id: string;
+  type: string;
+  text?: string;
+  author?: string;
+  resolved?: boolean;
+  targets: SelectionTarget[];
+}
+
+export interface SelectionContext {
+  /** Finds the live box + name of a host, when the verb was given geometry. */
+  hosts?: HostLookup;
+  /** Names the canvas element / artboard under a world point (a free pointer arrow's end). */
+  pointAt?: (
+    x: number,
+    y: number
+  ) => { ref?: string; name?: string; kind: 'element' | 'artboard' } | null;
+}
+
+/**
+ * The annotation scope an agent is handed (`read-annotations --selection a,b,c`, the "3 stickies"
+ * chip): for each selected annotation, what it means — the canvas element, artboard or other
+ * annotation its arrows point at (bound ends carry the name they were bound under; a free pointer
+ * end is resolved against the geometry when there is some), and, for a stamp, its target. An id that
+ * is not on the board throws, so a stale selection never reads as "empty".
+ */
+export function resolveSelection(
+  elements: Iterable<AnnotationElement>,
+  ids: readonly string[],
+  ctx: SelectionContext = {}
+): SelectionEntry[] {
+  const all = [...elements];
+  const scene = new Scene(all);
+  const arrows = all.filter((e) => e.type === 'arrow');
+  const out: SelectionEntry[] = [];
+
+  const hostTarget = (host: unknown, arrowId: string): SelectionTarget | null => {
+    if (!isRec(host) || typeof host.ref !== 'string') return null;
+    const live = ctx.hosts ? ctx.hosts(host.ref) : undefined;
+    const parsed = parseHostRef(host.ref);
+    const name = (live?.label || (typeof host.label === 'string' ? host.label : '')).trim();
+    return {
+      via: 'arrow',
+      kind: parsed?.kind === 'ab' ? 'artboard' : 'element',
+      ref: host.ref,
+      ...(name ? { name: safeString(name, 200) } : {}),
+      arrow: arrowId,
+      ...(ctx.hosts ? { found: !!live } : {}),
+    };
+  };
+
+  /** The target at one end of `arrow`. */
+  const endTarget = (arrow: AnnotationElement, which: 'start' | 'end'): SelectionTarget | null => {
+    const host = hostTarget(arrow[which === 'start' ? 'startHost' : 'endHost'], arrow.id);
+    if (host) return host;
+    const e = arrow[which] as ArrowEnd | undefined;
+    if (!e) return null;
+    if ('el' in e) {
+      const t = scene.get(e.el);
+      if (!t) return null;
+      const text = textOf(t);
+      return {
+        via: 'arrow',
+        kind: 'annotation',
+        ref: t.id,
+        ...(text ? { name: safeString(text, 200) } : {}),
+        arrow: arrow.id,
+      };
+    }
+    const hit = ctx.pointAt?.(e.x, e.y) ?? null;
+    return {
+      via: 'arrow',
+      kind: hit?.kind ?? 'point',
+      ...(hit?.ref ? { ref: hit.ref } : {}),
+      ...(hit?.name ? { name: safeString(hit.name, 200) } : {}),
+      arrow: arrow.id,
+      at: [r(e.x), r(e.y)],
+    };
+  };
+
+  for (const id of new Set(ids)) {
+    const el = scene.get(id);
+    if (!el) throw new Error(`"${id}" is not an annotation on this board`);
+    const targets: SelectionTarget[] = [];
+    if (el.type === 'arrow') {
+      for (const which of ['start', 'end'] as const) {
+        const t = endTarget(el, which);
+        if (t && t.kind !== 'annotation') targets.push(t);
+      }
+    } else {
+      for (const a of arrows) {
+        const s = a.start as ArrowEnd | undefined;
+        const e = a.end as ArrowEnd | undefined;
+        const mineStart = !!s && 'el' in s && s.el === id;
+        const mineEnd = !!e && 'el' in e && e.el === id;
+        if (mineStart === mineEnd) continue; // not attached, or a loop on itself
+        const t = endTarget(a, mineStart ? 'end' : 'start');
+        if (t) targets.push(t);
+      }
+      if (el.type === 'stamp' && typeof el.target === 'string') {
+        const parsed = parseHostRef(el.target);
+        const live = parsed && ctx.hosts ? ctx.hosts(el.target) : undefined;
+        targets.push({
+          via: 'stamp',
+          kind: !parsed ? 'annotation' : parsed.kind === 'ab' ? 'artboard' : 'element',
+          ref: el.target,
+          ...(live?.label ? { name: safeString(live.label, 200) } : {}),
+          ...(parsed && ctx.hosts ? { found: !!live } : {}),
+        });
+      }
+    }
+    const text = textOf(el);
+    const author = el.author as { kind?: string; name?: string } | undefined;
+    out.push({
+      id: el.id,
+      type: el.type,
+      ...(text !== undefined ? { text } : {}),
+      ...(author?.kind === 'ai' ? { author: 'ai' } : author?.name ? { author: author.name } : {}),
+      ...(isRec(el.resolved) ? { resolved: true } : {}),
+      targets,
+    });
+  }
+  return out;
 }

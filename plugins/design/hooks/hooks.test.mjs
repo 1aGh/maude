@@ -20,6 +20,9 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { createAgentRuns } from '../../../apps/studio/agent-runs.ts';
+import { createLocalLeaseHome } from '../../../apps/studio/ai/lease-home.ts';
+import { createRunRegistry } from '../../../apps/studio/ai/runs.ts';
 import { agentRouteSpecs } from '../../../apps/studio/routes/agent.ts';
 import { mountRoutes } from '../../../apps/studio/routes/table.ts';
 import { rootIdentity } from '../../../cli/lib/studio-locate.mjs';
@@ -74,7 +77,7 @@ function makeProject(prefix) {
 
 async function hook(event, input, env = {}) {
   const t0 = performance.now();
-  const { MAUDE_AGENT_ACTOR: _unset, ...base } = process.env;
+  const { MAUDE_AGENT_ACTOR: _unset, MAUDE_CHAT_ID: _unsetChat, ...base } = process.env;
   const p = Bun.spawn(['node', MAUDE, 'design', 'hook', event], {
     stdin: new Blob([typeof input === 'string' ? input : JSON.stringify(input)]),
     stdout: 'pipe',
@@ -544,6 +547,91 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(r).toMatchObject({ status: 0, stdout: '' });
     expect(r.ms).toBeLessThan(1500);
     expect(bracket).toContain('touch sc ui/C.tsx');
+  });
+});
+
+describe('S5.4 — MAUDE_CHAT_ID binds a chat’s hooks to its run (V2-1.15 §5.4, H5)', () => {
+  let project;
+  let server;
+  let reg;
+  beforeAll(() => {
+    project = makeProject('maude-hook-chat-');
+    reg = createRunRegistry({
+      designRoot: null,
+      designRel: '.design',
+      home: createLocalLeaseHome({ actor: 'you' }),
+      autoRenew: false,
+      artboardsOf: () => ['hero', 'pricing'],
+    });
+    const { exact } = mountRoutes(
+      agentRouteSpecs({
+        repoRoot: project,
+        designRel: '.design',
+        shells: () => 1,
+        emit: () => {},
+        runs: createAgentRuns({}, undefined, reg),
+      })
+    );
+    server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/_health')
+          return Response.json({ app: 'design', rootId: rootIdentity(project) });
+        const h = exact[url.pathname];
+        return h ? h(req) : new Response('not found', { status: 404 });
+      },
+    });
+    writeFileSync(
+      join(project, '.design', '_server.json'),
+      JSON.stringify({
+        pid: process.pid,
+        port: server.port,
+        url: `http://127.0.0.1:${server.port}`,
+      })
+    );
+  });
+  afterAll(() => {
+    reg?.close();
+    server?.stop(true);
+    rmSync(project, { recursive: true, force: true });
+  });
+  const CHAT = { MAUDE_AGENT_ACTOR: 'maude-chat', MAUDE_CHAT_ID: 'chat1' };
+
+  test('the chat’s prompt hook is its `starting` run; its chip denies the other artboard', async () => {
+    const run = await reg.ask({
+      chatId: 'chat1',
+      origin: 'maude-chat',
+      scope: { canvas: 'ui/C.tsx', artboards: ['hero'] },
+    });
+    expect(run.state).toBe('starting');
+    await hook('prompt', { session_id: 'cs1', prompt_id: 'p1', cwd: project, prompt: 'x' }, CHAT);
+    expect(reg.live()).toHaveLength(1);
+    expect(reg.get(run.runId)?.sessionId).toBe('cs1');
+    expect(await hook('pre-edit', edit(project, 'cs1', 'e1', 'Hi', 'Hello'), CHAT)).toMatchObject({
+      stdout: '',
+    });
+    const off = await hook('pre-edit', edit(project, 'cs1', 'e2', '<p>x</p>', '<p>y</p>'), CHAT);
+    expect(isDeny(off, 'out-of-scope')).toBe(true);
+  });
+
+  test('a terminal session (no MAUDE_CHAT_ID) is its own run and is denied the chat’s artboard', async () => {
+    await hook('prompt', { session_id: 'ts1', cwd: project, prompt: 'y' });
+    expect(reg.live()).toHaveLength(2);
+    const r = await hook('pre-edit', edit(project, 'ts1', 't1', 'Hi', 'Hey'));
+    expect(isDeny(r, 'artboard-busy')).toBe(true);
+    expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('your AI in another chat');
+    expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('maude design runs list');
+  });
+
+  test('a MAUDE_CHAT_ID that is not a chat id is ignored: the hook binds by session', async () => {
+    await hook(
+      'prompt',
+      { session_id: 'bs1', cwd: project, prompt: 'z' },
+      { MAUDE_CHAT_ID: '../chat1' }
+    );
+    expect(reg.live()).toHaveLength(3);
+    expect(reg.live().find((r) => r.sessionId === 'bs1')?.chatId).toBe(null);
   });
 });
 
