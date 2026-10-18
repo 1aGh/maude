@@ -21,6 +21,12 @@ export const STATIC_COMMANDS = [
       'Open the existing native Studio ACP chat panel. ACP harness support is a separate integration.',
   },
   {
+    name: 'design:comments',
+    description:
+      'Read the open comments on a canvas, make the changes they ask for, then reply and resolve each thread.',
+    argHint: '[<canvas>] [--open | --resolved | --all] …',
+  },
+  {
     name: 'design:critic',
     description: 'Review the active canvas with the selected specialist critic panel.',
     argHint: '[--agent <name>] [--all] [--panel] …',
@@ -58,6 +64,11 @@ export const STATIC_COMMANDS = [
     description: 'List available design workflows and their invocation names.',
   },
   {
+    name: 'design:history',
+    description: 'List, show and restore versions of a canvas in Version history; name a version.',
+    argHint: '[list|show|diff|restore|name] [<canvas>] [<r12>] …',
+  },
+  {
     name: 'design:hub-workspace',
     description: 'Set up and verify a self-hosted Maude workspace.',
     argHint: '[--dry-run] [--domain HOST] [--config FILE]',
@@ -79,9 +90,20 @@ export const STATIC_COMMANDS = [
     argHint: '<Name> "<brief>" [--blank] [--from-annotations] …',
   },
   {
+    name: 'design:open',
+    description: 'Show a canvas, an artboard, an element or a panel in the Maude window.',
+    argHint: '<canvas>[#artboard][@element] …',
+  },
+  {
     name: 'design:photo',
     description: 'Adjust or retouch a canvas photo, apply masks, or remove its background.',
     argHint: '--asset <assets/<sha8>.<ext> | <sha8>> …',
+  },
+  {
+    name: 'design:present',
+    description:
+      'Set the order, skipped artboards and speaker notes for Present, then open the canvas in Present.',
+    argHint: '<canvas> [--order a,b,c] [--skip x,y] …',
   },
   {
     name: 'design:reel',
@@ -91,8 +113,8 @@ export const STATIC_COMMANDS = [
   },
   {
     name: 'design:rollback',
-    description: 'Restore one or more snapshots of the active canvas.',
-    argHint: '[--steps N] [--list]',
+    description: 'Go back to an earlier version of the active canvas, from Version history.',
+    argHint: '[<canvas>] [--steps N] [--list]',
   },
   {
     name: 'design:screenshot',
@@ -123,6 +145,11 @@ export const STATIC_COMMANDS = [
     name: 'design:to-rn',
     description: 'Create a React Native SVG animation fallback for light motion.',
     argHint: '"<animated mark | IR handle | canvas>" …',
+  },
+  {
+    name: 'design:trash',
+    description: 'See what is in the Trash and restore a canvas or artboard from it.',
+    argHint: '[list | restore <id | canvas path>]',
   },
   {
     name: 'design:video-analyze',

@@ -73,7 +73,7 @@ the Lottie to `os.environ["MAUDE_LOTTIE_OUT"]`. Map:
 
 Each was found the hard way in the POC — encode ALL 8 (full text:
 [`design-to-lottie-skill-spec.md`](../../../.ai/plans/notes/design-to-lottie-skill-spec.md)
-+ [`_draw-motion-rules.md`](../agents/_draw-motion-rules.md)):
++ [`references/draw/motion-rules.md`](../references/draw/motion-rules.md)):
 
 1. **Per-segment easing from the real CSS tokens** — every kf gets `o=(x1,y1)` +
    `i=(x2,y2)`; **preserve overshoot (`y>1`)** (the "snap"). Each animation its OWN token.

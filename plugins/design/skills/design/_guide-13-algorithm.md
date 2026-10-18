@@ -16,13 +16,18 @@ no_gains_count = 0
 append_to_chat_md(iter=0, feedback, selected, snapshot_id, edit_summary, critic_verdict=null)
 
 for iter in 1..max_iter:
-  # 1. Run critic panel (routing logic above)
-  panel = pick_panel(canvas, feedback, selected)   # routing forces signature-moment-critic for /design:new
-  spawn panel in parallel                           # optionally Monitor critique/ for progressive per-critic status (Phase C / DDR-061)
-  parse JSON verdicts → aggregate
-  write iter NNN-PANEL.md                            # written LAST, after all critics return — the loop reads THIS, not the partial per-critic files
+  # 1. One round of the pipeline: deterministic checks → render → keeper → ≤ 3 critics
+  check   = `maude design check <canvas> --tier stop --json`   # errors count as correctness blockers
+  shots   = `maude design screenshot --canvas <canvas> --all-screens --out-dir $RUN/critique/shots-<n>/`
+  keeper  = design-system-keeper (when its trigger fires — /design:new 9.5, /design:edit 7.5)
+  panel   = pick_panel(canvas, feedback, selected)   # ≤ 3; routing gives signature-moment-critic the third seat on /design:new
+  for critic in panel: write $RUN/handoff/<critic>-<n>.in.json   # owns = its result + its report, never the canvas
+  spawn panel in parallel                           # optionally Monitor $RUN/handoff/ for progressive per-critic status (Phase C / DDR-061)
+  verdicts = [handoffToCriticVerdict(out) for each valid <critic>-<n>.out.json]   # `maude design check <out>` first
+  reduce-pass (DDR-130) → write $RUN/critique/panel-<n>.md   # written LAST — the loop reads THIS, not the partial results
+  # never post comments here — only an explicit /design:critic does (one batched call)
 
-  correctness = sum_blockers_across(panel except signature-moment-critic)
+  correctness = check.errors + sum_blockers_across(panel except signature-moment-critic) + keeper.blockers
   aspiration  = signature-moment-critic.aspiration_score (or 5 if not in panel)
   specificity = signature-moment-critic.specificity      (or "pass" if not in panel)
 
@@ -81,11 +86,10 @@ for iter in 1..max_iter:
     max = 3,
     sort_by = "severity"               # severity: a11y > ds-tokens > specificity > signature > restraint > others
   )
-  snapshot canvas
-  apply edit (Edit tool, scoped to top blocker if line N is set; canvas-wide for aspiration fixes)
-  validate (tokens link, rootClass)
-  if validation fails:
-    restore from snapshot
+  # snapshots: the design plugin's pre-edit hook saves the bytes before each of your edits (_guide-07)
+  apply edit (Edit tool — you, never a critic; scoped to top blocker if line N is set; canvas-wide for aspiration fixes)
+  validate: the post-edit hook runs `maude design check --tier fast`; a failed check blocks the edit and restores the file
+  if validation fails (the hook blocked the fix twice for the same blocker):
     refresh_docs()
     exit validation-failed
 

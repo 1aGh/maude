@@ -95,14 +95,28 @@ export function localClientRefusal(req: Request): Response | null {
 export const AGENT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 export const OPEN_MODES = ['edit', 'preview', 'present'] as const;
 export const OPEN_SELECTS = ['all', 'none', 'annotations'] as const;
+/** S12.8 (D11) — `maude design open --panel <id>`: the panels and sheets the UI opens from a menu. */
+export const OPEN_PANELS = [
+  'trash',
+  'design-system',
+  'layers-panel',
+  'layers',
+  'inspector',
+  'settings',
+  'shortcuts',
+  'whats-new',
+] as const;
 export type OpenMode = (typeof OPEN_MODES)[number];
 export type OpenSelect = (typeof OPEN_SELECTS)[number];
+export type OpenPanel = (typeof OPEN_PANELS)[number];
 
 export interface UiOpen {
-  /** designRoot-relative canvas, e.g. `ui/Pricing.tsx` */
-  canvas: string;
+  /** designRoot-relative canvas, e.g. `ui/Pricing.tsx` (absent for a `panel` open) */
+  canvas?: string;
   /** the shell's tab key: designRel-prefixed (`.design/ui/Pricing.tsx`) */
-  file: string;
+  file?: string;
+  /** S12.8 — a panel, with no canvas */
+  panel?: OpenPanel;
   artboard?: string;
   element?: string;
   mode?: OpenMode;
@@ -133,9 +147,16 @@ export function parseUiOpen(
   if (!body || typeof body !== 'object' || Array.isArray(body))
     return { ok: false, error: 'body must be a JSON object' };
   const b = body as Record<string, unknown>;
-  const known = new Set(['canvas', 'artboard', 'element', 'mode', 'select']);
+  const known = new Set(['canvas', 'artboard', 'element', 'mode', 'select', 'panel']);
   const extra = Object.keys(b).filter((k) => !known.has(k));
   if (extra.length) return { ok: false, error: `unknown field ${extra[0]}` };
+  if (b.panel !== undefined) {
+    // a panel is its own target: it moves the user's view to a sheet, so no canvas goes with it
+    if (!OPEN_PANELS.includes(b.panel as OpenPanel))
+      return { ok: false, error: `panel is ${OPEN_PANELS.join(' | ')}` };
+    if (Object.keys(b).length > 1) return { ok: false, error: 'a panel takes no other field' };
+    return { ok: true, open: { panel: b.panel as OpenPanel } };
+  }
   const canvas = canvasRel(b.canvas);
   if (!canvas) return { ok: false, error: 'canvas is a .tsx path inside the design root' };
   const open: UiOpen = { canvas, file: path.posix.join(designRel, canvas) };
@@ -832,7 +853,7 @@ export function agentRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         if (refused) return refused;
         const parsed = parseUiOpen(await readJson(req), deps.designRel);
         if (!parsed.ok) return json(400, { error: parsed.error, code: 'usage' });
-        if (!insideDesignRoot(deps, parsed.open.canvas))
+        if (parsed.open.canvas && !insideDesignRoot(deps, parsed.open.canvas))
           return json(404, { error: `no canvas ${parsed.open.canvas}`, code: 'not-found' });
         const shells = deps.shells();
         if (shells === 0)

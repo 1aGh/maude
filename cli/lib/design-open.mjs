@@ -6,6 +6,9 @@
 // registry actions the UI does (view.zoom-to-artboard, select-by-id, present.canvas, select.*).
 // Effect none (it moves the user's view, never a file) → auto tier in the AI chat.
 //
+// `maude design open --panel <id>` (S12.8, D11) opens a panel or sheet instead (trash · design-system ·
+// layers-panel · layers · inspector · settings · shortcuts · whats-new), with no canvas.
+//
 // Exit 0 shown · 1 no such canvas / studio error · 2 usage · 3 "No Maude window is showing this
 // project" (no studio for this root, or one with no shell attached).
 //
@@ -17,10 +20,23 @@ import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-
 
 export const OPEN_USAGE = `usage: maude design open <canvas>[#artboard][@element] [--mode edit|preview|present]
                          [--select all|none|annotations] [--root <project>] [--json]
+       maude design open --panel trash|design-system|layers-panel|layers|inspector|settings|shortcuts|whats-new
   <canvas> is the design-root-relative .tsx (ui/Pricing.tsx); .design/… and absolute paths work too.
+  --panel opens that panel or sheet in the Maude window and takes no canvas.
 `;
 
 const MODES = new Set(['edit', 'preview', 'present']);
+// twin of OPEN_PANELS in apps/studio/routes/agent.ts (maude-design-open.test.ts holds them equal)
+const PANELS = new Set([
+  'trash',
+  'design-system',
+  'layers-panel',
+  'layers',
+  'inspector',
+  'settings',
+  'shortcuts',
+  'whats-new',
+]);
 const SELECTS = new Set(['all', 'none', 'annotations']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 
@@ -35,9 +51,16 @@ export function parseOpenArgs(words) {
     if (flag === '--json') out.json = true;
     else if (flag === '--mode') out.mode = value();
     else if (flag === '--select') out.select = value();
+    else if (flag === '--panel') out.panel = value();
     else if (flag === '--root') out.root = value();
     else if (flag.startsWith('--')) return { error: `unknown flag ${flag}` };
     else pos.push(w);
+  }
+  if (out.panel !== undefined) {
+    if (!PANELS.has(out.panel)) return { error: `--panel is ${[...PANELS].join(' | ')}` };
+    if (pos.length || out.mode !== undefined || out.select !== undefined)
+      return { error: '--panel takes no canvas, --mode or --select' };
+    return out;
   }
   if (pos.length !== 1) return { error: 'name one canvas' };
   if (out.mode !== undefined && !MODES.has(out.mode))
@@ -105,6 +128,39 @@ export function toDesignRel(root, canvas) {
   return rel.split(sep).join('/');
 }
 
+const noWindowError = () =>
+  'maude design open: No Maude window is showing this project. Open it in Maude (or `maude design serve`) and try again.\n';
+
+/** `--panel <id>`: no canvas to check, so the studio is the only thing that can say no. */
+async function openPanel({ root, panel, json, out, err }) {
+  const studio = await locateStudio(root, { timeoutMs: 1500 });
+  if (!studio) {
+    err.write(noWindowError());
+    return 3;
+  }
+  const r = await postStudio(studio, '/_api/ui/open', { panel });
+  if (!r) {
+    err.write('maude design open: the studio did not answer\n');
+    return 1;
+  }
+  if (r.status === 409) {
+    err.write(noWindowError());
+    return 3;
+  }
+  if (r.status === 400) {
+    err.write(`maude design open: ${r.body?.error ?? 'refused'}\n`);
+    return 2;
+  }
+  if (r.status !== 200) {
+    err.write(`maude design open: the studio refused (${r.status} ${r.body?.error ?? ''})\n`);
+    return 1;
+  }
+  out.write(
+    json ? `${JSON.stringify({ ok: true, open: { panel } })}\n` : `→ showing ${panel} in Maude\n`
+  );
+  return 0;
+}
+
 export async function runOpen({
   words,
   env = process.env,
@@ -128,6 +184,7 @@ export async function runOpen({
     );
     return 2;
   }
+  if (a.panel) return openPanel({ root, panel: a.panel, json: a.json, out, err });
   const canvas = toDesignRel(root, a.target.canvas);
   if (!canvas) {
     err.write(`maude design open: ${a.target.canvas} is not inside ${DESIGN_REL}/\n`);

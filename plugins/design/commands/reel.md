@@ -145,16 +145,22 @@ Collect the verdicts. Drop clips that returned `{ error: "no video track" }`
 
 ## Step 3 — Direct the cut (footage-director → EDL)
 
-Spawn `design:footage-director` **once**, after all analysts finish:
+Spawn `design:footage-director` **once**, after all analysts finish, on a hand-off: write its
+role-"in" JSON to `.design/_runs/<session>/handoff/footage-director-0.in.json` (the **Sample
+hand-off** in [`agents/footage-director.md`](../agents/footage-director.md): `owns` = the new
+`.design/<slug>.edl.json` + its result, nothing else) and put the same JSON at the top of the
+prompt. The hooks deny it any other write.
 
 ```
 Task tool → subagent_type: "design:footage-director"
-prompt: "ROOT=<repo>  PORT=<port>  SLUG=<slug>  BRIEF=\"<brief verbatim>\"
+prompt: "<the hand-off JSON>
+         ROOT=<repo>  SLUG=<slug>  BRIEF=\"<brief verbatim>\"
          TARGET={seconds:<--target-seconds>, fps:<--fps>, width:<W>, height:<H>}
          MUSIC=<--music or none>.
-         Read every assets/*.footage.json, assemble the Edl, PUT it via /_api/footage?slug=<slug>.
-         Return your JSON verdict."
+         Read every assets/*.footage.json, write the Edl to .design/<slug>.edl.json, check it."
 ```
+
+Then read its result (`output`); `status` other than `done` → surface `findings` and stop.
 
 ## Step 3.5 — Proactive gap proposal (opt-out; feature-ai-media-generation Phase 4, DDR-164)
 

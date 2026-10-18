@@ -859,6 +859,222 @@ describe('sub-agents — SubagentStart / pre-edit `owns` / SubagentStop (V2-1.18
   });
 });
 
+// S12.5 — the critic protocol: the hand-off /design:critic documents, used as written. A critic
+// keeps `Write` (S12-slices D2) and the hook fences it to what the hand-off owns.
+describe('S12.5 — a critic spawned with the documented hand-off', () => {
+  let project;
+  const S = 's125';
+  const run = () => join(project, '.design', '_runs', S);
+  const PLUGIN = join(ROOT, 'plugins', 'design');
+  /** The first ```json fence after `heading` in a plugin file, with `<session>` filled in. */
+  const sample = (rel, heading) => {
+    const text = readFileSync(join(PLUGIN, rel), 'utf8');
+    const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(heading)));
+    return JSON.parse(m[1].replaceAll('<session>', S));
+  };
+  const IN = () => sample('commands/critic.md', /^#+ .*Sample hand-off/m);
+  const OUT = () => sample('agents/design-critic.md', /^#+ Sample result/m);
+  const critic = { session_id: S, agent_id: 'c1', agent_type: 'design:design-critic' };
+  const write = (id, rel, content = 'x') => ({
+    ...critic,
+    tool_use_id: id,
+    cwd: project,
+    tool_name: 'Write',
+    tool_input: { file_path: join(project, rel), content },
+  });
+  beforeAll(async () => {
+    project = makeProject('maude-hook-critic-');
+    writeFileSync(join(project, '.design', 'ui', 'C.meta.json'), '{}');
+    mkdirSync(join(run(), 'handoff'), { recursive: true });
+    const doc = IN();
+    writeFileSync(
+      join(project, doc.output.replace(/\.out\.json$/, '.in.json')),
+      JSON.stringify(doc)
+    );
+    await hook('subagent-start', { ...critic, cwd: project, hook_event_name: 'SubagentStart' });
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('editing the canvas or its sidecar → out-of-scope; its report and result are free', async () => {
+    const onCanvas = await hook('pre-edit', { ...edit(project, S, 'k1', 'Hi', 'Yo'), ...critic });
+    expect(isDeny(onCanvas, 'out-of-scope')).toBe(true);
+    expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
+    expect(
+      isDeny(
+        await hook('pre-edit', write('k2', '.design/ui/C.meta.json', '{"a":1}')),
+        'out-of-scope'
+      )
+    ).toBe(true);
+    const report = `.design/_runs/${S}/critique/design-critic-0.md`;
+    expect(await hook('pre-edit', write('k3', report, '# design-critic'))).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+    expect(await hook('pre-edit', write('k4', IN().output, '{}'))).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+  });
+
+  test('SubagentStop holds it to its result; the documented sample result lets it end', async () => {
+    const stop = () =>
+      hook('stop', {
+        ...critic,
+        cwd: project,
+        hook_event_name: 'SubagentStop',
+        stop_hook_active: false,
+      });
+    const r = await stop();
+    expect(r.json?.decision).toBe('block');
+    expect(r.json.reason).toContain('design-critic-0.out.json');
+    writeFileSync(join(project, IN().output), JSON.stringify(OUT()));
+    expect(await stop()).toMatchObject({ status: 0, stdout: '' });
+  });
+});
+
+// S12.7 — bounded writers + untrusted-input readers on hand-offs (V2-1.18 §5.5, DDR-174/183).
+// The writers are spawned with the hand-off their own agent file documents, used as written.
+describe('S12.7 — bounded writers and untrusted-input readers', () => {
+  let project;
+  const S = 's127';
+  const PLUGIN = join(ROOT, 'plugins', 'design');
+  const IN = (agent) => {
+    const text = readFileSync(join(PLUGIN, 'agents', `${agent}.md`), 'utf8');
+    const m = /```json\n([\s\S]*?)\n```/.exec(text.slice(text.search(/^#+ Sample hand-off/m)));
+    return JSON.parse(m[1].replaceAll('<session>', S));
+  };
+  const WRITERS = { 'draw-agent': 'w1', 'footage-director': 'w2', 'reconstruct-agent': 'w3' };
+  const who = (agent) => ({
+    session_id: S,
+    agent_id: WRITERS[agent] ?? `r-${agent}`,
+    agent_type: `design:${agent}`,
+  });
+  const write = (agent, id, path, content = 'x') => ({
+    ...who(agent),
+    tool_use_id: id,
+    cwd: project,
+    tool_name: 'Write',
+    tool_input: { file_path: path.startsWith('/') ? path : join(project, path), content },
+  });
+  const free = (r) => expect(r).toMatchObject({ status: 0, stdout: '' });
+  beforeAll(async () => {
+    project = makeProject('maude-hook-writers-');
+    mkdirSync(join(project, '.design', '_runs', S, 'handoff'), { recursive: true });
+    for (const agent of Object.keys(WRITERS)) {
+      const doc = IN(agent);
+      writeFileSync(
+        join(project, doc.output.replace(/\.out\.json$/, '.in.json')),
+        JSON.stringify(doc)
+      );
+      await hook('subagent-start', {
+        ...who(agent),
+        cwd: project,
+        hook_event_name: 'SubagentStart',
+      });
+    }
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('draw-agent: editing an existing canvas → out-of-scope; the new mark it owns is free', async () => {
+    const doc = IN('draw-agent');
+    const onCanvas = await hook('pre-edit', {
+      ...edit(project, S, 'd1', 'Hi', 'Yo'),
+      ...who('draw-agent'),
+    });
+    expect(isDeny(onCanvas, 'out-of-scope')).toBe(true);
+    expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
+    const rewrite = await hook('pre-edit', write('draw-agent', 'd2', '.design/ui/C.tsx', CANVAS));
+    expect(isDeny(rewrite, 'out-of-scope')).toBe(true);
+    for (const [i, own] of doc.owns.entries())
+      free(await hook('pre-edit', write('draw-agent', `d3${i}`, own)));
+    // its scratch under _draw/ is runtime and stays free; a source file outside .design/ is not
+    free(await hook('pre-edit', write('draw-agent', 'd4', '.design/_draw/logo.build.ts')));
+    const src = await hook('pre-edit', write('draw-agent', 'd5', 'src/logo.ts'));
+    expect(isDeny(src, 'out-of-scope')).toBe(true);
+  });
+
+  test('footage-director: writes only its new EDL — never a canvas or a clip sidecar', async () => {
+    const doc = IN('footage-director');
+    const edl = doc.owns.find((g) => g.endsWith('.edl.json'));
+    expect(edl).toBeTruthy();
+    free(await hook('pre-edit', write('footage-director', 'f1', edl, '{}')));
+    for (const [id, rel] of [
+      ['f2', '.design/ui/C.tsx'],
+      ['f3', '.design/assets/36b11e50.footage.json'],
+    ])
+      expect(
+        isDeny(await hook('pre-edit', write('footage-director', id, rel)), 'out-of-scope')
+      ).toBe(true);
+  });
+
+  test('reconstruct-agent: owns its two new files; any other write — and any Bash — is refused', async () => {
+    const doc = IN('reconstruct-agent');
+    for (const [i, own] of doc.owns.entries())
+      free(await hook('pre-edit', write('reconstruct-agent', `x${i}`, own)));
+    expect(
+      isDeny(
+        await hook('pre-edit', {
+          ...edit(project, S, 'x5', 'Hi', 'Yo'),
+          ...who('reconstruct-agent'),
+        }),
+        'out-of-scope'
+      )
+    ).toBe(true);
+    // DDR-174 Addendum: the writes outside the design root its Write tool could reach
+    for (const [id, path] of [
+      ['x6', '.claude/settings.json'],
+      ['x7', 'CLAUDE.md'],
+      ['x8', join(homedir(), '.claude', 'settings.json')],
+    ])
+      expect(
+        isDeny(await hook('pre-edit', write('reconstruct-agent', id, path)), 'out-of-scope')
+      ).toBe(true);
+    const sh = await hook('pre-bash', {
+      ...bash(project, S, 'x9', 'ls'),
+      ...who('reconstruct-agent'),
+    });
+    expect(isDeny(sh, 'out-of-scope')).toBe(true);
+    expect(sh.json.hookSpecificOutput.permissionDecisionReason).toContain('untrusted');
+  });
+
+  test('footage-analyst / reconstruct-critic with no hand-off: no Bash, no write outside .design/', async () => {
+    for (const agent of ['footage-analyst', 'reconstruct-critic']) {
+      const sh = await hook('pre-bash', {
+        ...bash(project, S, `b-${agent}`, 'cat notes.md'),
+        ...who(agent),
+      });
+      expect(isDeny(sh, 'out-of-scope')).toBe(true);
+      const out = await hook('pre-edit', write(agent, `o-${agent}`, 'notes.md'));
+      expect(isDeny(out, 'out-of-scope')).toBe(true);
+    }
+    // reconstruct-critic's one verdict file (a runtime path the orchestrator names) stays free
+    free(
+      await hook(
+        'pre-edit',
+        write('reconstruct-critic', 'v1', '.design/_untrusted/verdict-1.json', '{}')
+      )
+    );
+  });
+
+  test('the main agent and an unlisted sub-agent are not touched by these rules', async () => {
+    free(await hook('pre-bash', bash(project, S, 'm1', 'ls')));
+    free(
+      await hook('pre-edit', {
+        ...write('draw-agent', 'm2', 'src/logo.ts'),
+        agent_id: undefined,
+        agent_type: undefined,
+      })
+    );
+    free(
+      await hook('pre-bash', {
+        ...bash(project, S, 'm3', 'ls'),
+        agent_id: 'g9',
+        agent_type: 'general-purpose',
+      })
+    );
+  });
+});
+
 describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => {
   let project;
   beforeAll(() => {

@@ -11,8 +11,8 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { rootIdentity } from '../../../cli/lib/studio-locate.mjs';
-import { applyUiOpen, OPEN_LADDER_MS, uiOpenPlan } from '../client/ui-open.js';
-import { agentRouteSpecs, isLoopbackHostHeader } from '../routes/agent.ts';
+import { applyUiOpen, OPEN_LADDER_MS, PANEL_ACTION, uiOpenPlan } from '../client/ui-open.js';
+import { agentRouteSpecs, isLoopbackHostHeader, OPEN_PANELS } from '../routes/agent.ts';
 import { mountRoutes } from '../routes/table.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
@@ -89,6 +89,22 @@ describe('POST /_api/ui/open (routes/agent.ts)', () => {
         },
       },
     ]);
+  });
+
+  test('S12.8 — a panel needs no canvas: {panel} relays, a canvas beside it or an unknown panel is 400', async () => {
+    emitted.length = 0;
+    shells = 1;
+    const r = await handle(post({ panel: 'trash' }));
+    expect(r.status).toBe(200);
+    expect(emitted).toEqual([{ event: 'ui-open', payload: { panel: 'trash' } }]);
+    emitted.length = 0;
+    expect((await handle(post({ panel: 'nope' }))).status).toBe(400);
+    expect((await handle(post({ panel: 'trash', canvas: 'ui/Pricing.tsx' }))).status).toBe(400);
+    expect(emitted).toEqual([]);
+    shells = 0;
+    expect((await handle(post({ panel: 'trash' }))).status).toBe(409); // no window, nothing emitted
+    shells = 1;
+    expect(emitted).toEqual([]);
   });
 
   test('no shell attached → 409 no-window, nothing emitted', async () => {
@@ -198,6 +214,31 @@ describe('`maude design open` (the CLI against a fixture studio)', () => {
     expect(r.stderr).toContain('No Maude window is showing this project');
   });
 
+  test('S12.8 — --panel trash with an attached shell selects it (exit 0); without one exit 3', async () => {
+    emitted.length = 0;
+    shells = 1;
+    const r = await run('--panel', 'trash', '--root', project);
+    expect({ status: r.status, err: r.stderr }).toEqual({ status: 0, err: '' });
+    expect(r.stdout).toContain('trash');
+    expect(emitted.map((e) => e.payload)).toEqual([{ panel: 'trash' }]);
+    shells = 0;
+    const none = await run('--panel', 'trash', '--root', project);
+    shells = 1;
+    expect(none.status).toBe(3);
+    expect(none.stderr).toContain('No Maude window is showing this project');
+    // usage: an unknown panel, or a canvas beside a panel
+    expect((await run('--panel', 'nope', '--root', project)).status).toBe(2);
+    expect((await run('ui/Pricing.tsx', '--panel', 'trash', '--root', project)).status).toBe(2);
+  });
+
+  test('S12.8 — the CLI, the route and the shell name the same panels', () => {
+    const cli = readFileSync(join(ROOT, 'cli', 'lib', 'design-open.mjs'), 'utf8');
+    const m = /const PANELS = new Set\(\[([^\]]*)\]\)/.exec(cli);
+    const cliPanels = (m?.[1].match(/'([a-z-]+)'/g) ?? []).map((x) => x.slice(1, -1)).sort();
+    expect(cliPanels).toEqual([...OPEN_PANELS].sort());
+    expect(Object.keys(PANEL_ACTION).sort()).toEqual([...OPEN_PANELS].sort());
+  });
+
   test('no studio for this root → exit 3; a missing canvas → 1; usage → 2; --help → 0', async () => {
     const lone = realpathSync(mkdtempSync(join(tmpdir(), 'maude-open-none-')));
     mkdirSync(join(lone, '.design', 'ui'), { recursive: true });
@@ -297,6 +338,30 @@ describe('the shell side (client/ui-open.js) runs the registry actions', () => {
     // not a ui-open payload → nothing at all
     const none = run({ nope: 1 });
     expect([none.plan, none.calls, none.posted]).toEqual([null, [], []]);
+  });
+
+  test('S12.8 — a panel runs its registry action, no tab opens', () => {
+    expect(uiOpenPlan({ panel: 'trash' })).toEqual({
+      file: null,
+      posts: [],
+      present: null,
+      action: 'view.trash',
+    });
+    expect(uiOpenPlan({ panel: 'nope' })).toBe(null);
+    const ran: string[] = [];
+    const calls: unknown[] = [];
+    const plan = applyUiOpen(
+      { panel: 'settings' },
+      {
+        openTab: (f: string) => calls.push(['openTab', f]),
+        setPresent: () => calls.push('present'),
+        frameFor: () => null,
+        runAction: (id: string) => ran.push(id),
+        schedule: (fn: () => void) => fn(),
+      }
+    );
+    expect(plan?.action).toBe('settings.open');
+    expect({ ran, calls }).toEqual({ ran: ['settings.open'], calls: [] });
   });
 
   test('app.jsx routes the ws `ui-open` frame to applyUiOpen through a ref', () => {

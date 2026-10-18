@@ -24,6 +24,8 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { UNTRUSTED_READERS } from './design-hook.mjs';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function grep(pattern, extraArgs = '') {
@@ -141,45 +143,79 @@ const agents = loadAgents();
 
 test('agents/ holds no _*.md (rule files are not agents)', () => {
   const offenders = readdirSync(AGENTS_DIR).filter((f) => f.startsWith('_') && f.endsWith('.md'));
-  assertWithKnown('Underscore rule files registered as agents', offenders, {
-    '_draw-design-rules.md': 'S12.7 moves it to references/draw/design-rules.md (D3)',
-    '_draw-motion-rules.md': 'S12.7 moves it to references/draw/motion-rules.md (D3)',
-  });
+  // S12.7 moved the draw rubrics to references/draw/ (D3): the list is empty and stays empty.
+  assertWithKnown('Underscore rule files registered as agents', offenders, {});
+  // …and the rubrics the draw agents read are where their pointers say.
+  for (const f of ['design-rules.md', 'motion-rules.md'])
+    assert.ok(
+      readdirSync(join(ROOT, 'plugins', 'design', 'references', 'draw')).includes(f),
+      `references/draw/${f} exists`
+    );
+  const stale = grep('_draw-\\(design\\|motion\\)-rules');
+  assert.deepEqual(
+    stale,
+    [],
+    `pointers to the old agents/_draw-*-rules.md:\n  ${stale.join('\n  ')}`
+  );
 });
 
 // The reshaped critics (V2-1.18 §5.5): Write stays in frontmatter (D2), so the BODY must
-// name the hand-off protocol and the check that validates the output. draw-critic and
-// reconstruct-critic are "unchanged" in the inventory.
-const UNCHANGED_CRITICS = new Set(['draw-critic', 'reconstruct-critic']);
+// name the hand-off protocol and the check that validates the output. reconstruct-critic has
+// no Bash (DDR-174): it gets the envelope section below, not the shared critic block.
+const NO_BASH_CRITICS = new Set(['reconstruct-critic']);
+
+const writeCritics = () =>
+  agents.filter((a) => a.frontmatter && /-critic$/.test(a.name) && a.tools.includes('Write'));
+const bashCritics = () => writeCritics().filter((a) => !NO_BASH_CRITICS.has(a.name));
 
 test('critics with Write name the hand-off protocol and `maude design check`', () => {
-  const critics = agents.filter(
-    (a) =>
-      a.frontmatter &&
-      /-critic$/.test(a.name) &&
-      a.tools.includes('Write') &&
-      !UNCHANGED_CRITICS.has(a.name)
-  );
-  assert.ok(critics.length >= 10, `expected the 10 Write-holding critics, found ${critics.length}`);
+  const critics = bashCritics();
+  assert.ok(critics.length >= 11, `expected the 11 Write+Bash critics, found ${critics.length}`);
   const offenders = critics
-    .filter((a) => !(/hand-?off/i.test(a.body) && /maude design check/.test(a.body)))
+    .filter(
+      (a) =>
+        !(
+          /maude\.agent-handoff\/1/.test(a.body) &&
+          /hand-?off/i.test(a.body) &&
+          /maude design check/.test(a.body)
+        )
+    )
     .map((a) => a.name);
   assertWithKnown(
-    'Critics with Write that do not name the hand-off protocol + `maude design check <output>`',
+    'Critics with Write that do not name maude.agent-handoff/1 + `maude design check <output>`',
     offenders,
-    {
-      'design-critic': 'S12.5',
-      'signature-moment-critic': 'S12.5',
-      'a11y-critic': 'S12.6',
-      'brand-critic': 'S12.6',
-      'copy-critic': 'S12.6',
-      'frontend-critic': 'S12.6',
-      'graphic-design-critic': 'S12.6',
-      'info-architecture-critic': 'S12.6',
-      'motion-critic': 'S12.6',
-      'typography-critic': 'S12.6',
-    }
+    {}
   );
+});
+
+// S12.5 / S12.6: the "Hand-off" section is ONE text. design-critic carries the master copy
+// between the critic-handoff markers; every critic with Bash carries it byte-for-byte.
+const HANDOFF_BLOCK = /<!-- critic-handoff:begin[^>]*-->[\s\S]*?<!-- critic-handoff:end -->/;
+
+test('the critic hand-off section is one shared text (design-critic holds the master)', () => {
+  const master = agents.find((a) => a.name === 'design-critic')?.body.match(HANDOFF_BLOCK)?.[0];
+  assert.ok(master, 'design-critic carries the <!-- critic-handoff:begin --> … end block');
+  assert.match(master, /maude\.agent-handoff\/1/);
+  assert.match(master, /maude design check <output>/);
+  const missing = bashCritics()
+    .filter((a) => a.body.match(HANDOFF_BLOCK)?.[0] !== master)
+    .map((a) => a.name);
+  assert.deepEqual(
+    missing,
+    [],
+    `these critics do not carry design-critic's hand-off block: ${missing}`
+  );
+  const drifted = agents
+    .filter((a) => HANDOFF_BLOCK.test(a.body) && a.body.match(HANDOFF_BLOCK)[0] !== master)
+    .map((a) => a.name);
+  assert.deepEqual(drifted, [], `hand-off block differs from design-critic's in: ${drifted}`);
+});
+
+test('reconstruct-critic names the hand-off envelope and keeps its tools (no Bash, no Web*)', () => {
+  const rc = agents.find((a) => a.name === 'reconstruct-critic');
+  assert.ok(rc, 'reconstruct-critic exists');
+  assert.match(rc.body, /maude\.agent-handoff\/1/);
+  assert.deepEqual(rc.tools, ['Read', 'Write', 'Glob', 'Grep']);
 });
 
 // Readers of untrusted content (a video, an image, an asset) must have no egress: no
@@ -205,6 +241,13 @@ test('readers of untrusted content have no Bash or Web* tools', () => {
     [],
     `Untrusted-content readers must be egress-free:\n  ${offenders.join('\n  ')}`
   );
+  // S12.7: the design hook holds the same readers to it at run time (no Bash, no write outside
+  // .design/) — one list each side, so a reader added here and not there is red.
+  for (const a of readers)
+    assert.ok(
+      UNTRUSTED_READERS.has(a.name),
+      `${a.name}: missing from design-hook UNTRUSTED_READERS`
+    );
 });
 
 // Writers are bounded (new files only) and only ever spawned by a command or the main
@@ -220,13 +263,13 @@ test('bounded-writer descriptions say they are never auto-delegated', () => {
     );
   }
   const offenders = writers
-    .filter((a) => !/never auto-delegated/i.test(a.description))
+    .filter((a) => !/spawned only by [^;]+; never auto-delegated/i.test(a.description))
     .map((a) => a.name);
-  assertWithKnown('Writer descriptions without "never auto-delegated"', offenders, {
-    'draw-agent': 'S12.7',
-    'footage-director': 'S12.7',
-    'reconstruct-agent': 'S12.7',
-  });
+  assertWithKnown(
+    'Writer descriptions without "spawned only by …; never auto-delegated"',
+    offenders,
+    {}
+  );
 });
 
 // Every agent description sits in the main agent's context on every turn. Budget: today's
