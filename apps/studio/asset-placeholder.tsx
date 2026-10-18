@@ -28,10 +28,11 @@ export interface FrameWords {
 const KIND_WORD = { mac: 'Mac', pc: 'PC', linux: 'computer' } as const;
 
 /**
- * Relink on a Missing frame. Off until the shell's relink sheet and its edit op land (S8.19
- * Continue): a button with nothing behind it would be a lie. The frame still says Missing.
+ * Relink on a Missing frame: the shell's relink sheet and the `asset.relink` edit op are live (S8.19c).
+ * The button only asks (`asset-relink-request`); the shell decides, from its own answer, and a session
+ * that cannot edit opens nothing.
  */
-export const RELINK_LIVE = false;
+export const RELINK_LIVE = true;
 
 /** "jonas" → "Jonas's" (the canvas words: "Waiting for Jonas's Mac"). */
 function possessive(name: string): string {

@@ -9,6 +9,7 @@ import { ASSET_STATE_MAX, acceptFromShell } from '../bridge/dgn-protocol.ts';
 import {
   ASSET_STATE_POLL_MS,
   assetStateTriggers,
+  clearAssetAnswers,
   createAssetStateLane,
 } from '../client/v2/assets/asset-state-lane.js';
 
@@ -103,12 +104,59 @@ describe('the shell lane', () => {
     h.lane.stop();
   });
 
-  test('Relink… from the active canvas opens the sheet; another origin or window is ignored', async () => {
-    const h = harness([]);
+  test('Relink… from the active canvas opens the sheet — only for a rel the studio called missing', async () => {
+    clearAssetAnswers();
+    const h = harness([
+      {
+        status: 200,
+        items: [
+          { rel: 'assets/partneri-2025.png', state: 'missing' },
+          { rel: 'assets/acko-hero2.png', state: 'waiting', who: JONAS },
+          { rel: 'assets/here0001.png', state: 'here' },
+        ],
+      },
+    ]);
+    // before the studio has answered nothing is known, so nothing opens
+    h.send({ dgn: 'asset-relink-request', rel: 'assets/partneri-2025.png' });
+    expect(h.relinks).toEqual([]);
+    h.send({ dgn: 'canvas-rendered', file: 'ui/Post.tsx' });
+    await h.settle();
     h.send({ dgn: 'asset-relink-request', rel: 'assets/partneri-2025.png' });
     h.send({ dgn: 'asset-relink-request', rel: 'assets/x.png' }, h.canvasWin, 'https://evil.test');
     h.send({ dgn: 'asset-relink-request', rel: 'assets/y.png' }, {});
     expect(h.relinks).toEqual([['assets/partneri-2025.png', 'ui/Post.tsx']]);
+    h.lane.stop();
+  });
+
+  test('a canvas-forged rel never opens a relink: not in the answer, not missing, not a project path', async () => {
+    clearAssetAnswers();
+    const h = harness([
+      {
+        status: 200,
+        items: [
+          { rel: 'assets/acko-hero2.png', state: 'waiting', who: JONAS },
+          { rel: 'assets/here0001.png', state: 'here' },
+          { rel: 'assets/gone0001.png', state: 'missing' },
+        ],
+      },
+    ]);
+    h.send({ dgn: 'canvas-rendered', file: 'ui/Post.tsx' });
+    await h.settle();
+    for (const rel of [
+      '../../etc/passwd',
+      '/etc/passwd',
+      'assets/never-mentioned.png',
+      'assets/here0001.png',
+      'assets/acko-hero2.png',
+      './assets/gone0001.png',
+      'assets/gone0001.png?x',
+      '__proto__',
+      'constructor',
+    ])
+      h.send({ dgn: 'asset-relink-request', rel });
+    expect(h.relinks).toEqual([]);
+    h.send({ dgn: 'asset-relink-request', rel: 'assets/gone0001.png' });
+    expect(h.relinks).toEqual([['assets/gone0001.png', 'ui/Post.tsx']]);
     h.lane.stop();
   });
 

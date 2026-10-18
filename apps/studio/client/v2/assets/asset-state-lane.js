@@ -11,10 +11,53 @@
 // nothing is said, and a frame that had news is told it has none — never Missing.
 //
 // Relink…: a Missing frame's button posts `asset-relink-request {rel}`; only the ACTIVE canvas is
-// heard (origin + source gate), and the lane hands it to `onRelink` — the relink sheet decides.
+// heard (origin + source gate). The canvas's string is only ever MATCHED against this lane's own
+// answer for that canvas (S8.19c): a rel the studio did not say is missing is dropped, so a canvas
+// cannot make the shell open a relink for a path of its choosing. `onRelink` gets the studio's rel.
 
 import { useEffect, useRef } from 'react';
 import { acceptFromCanvas } from '../../../bridge/dgn-protocol.ts';
+
+/** canvas file → (rel → item): what the studio last said about each canvas. The relink gate and the
+ *  Inspector's absent-picture box read it; nothing else does. */
+const answers = new Map();
+const subs = new Set();
+let answersVersion = 0;
+const NONE = new Map();
+
+function setAnswer(canvas, items) {
+  const next = new Map();
+  for (const it of items) if (it && typeof it.rel === 'string') next.set(it.rel, it);
+  const prev = answers.get(canvas);
+  if (prev && JSON.stringify([...prev]) === JSON.stringify([...next])) return;
+  if (next.size) answers.set(canvas, next);
+  else answers.delete(canvas);
+  answersVersion += 1;
+  for (const fn of subs) fn();
+}
+
+/** The studio's last answer for a canvas: rel → item. Empty when nothing is known. */
+export const assetItemsFor = (canvas) => answers.get(canvas) ?? NONE;
+export const assetAnswersVersion = () => answersVersion;
+export function subscribeAssetAnswers(fn) {
+  subs.add(fn);
+  return () => subs.delete(fn);
+}
+/** Tests only. */
+export function clearAssetAnswers() {
+  answers.clear();
+  answersVersion += 1;
+  for (const fn of subs) fn();
+}
+
+/** The studio's item for an element's `src` (`/assets/x.png`, `./assets/x.png?v=2`), or null. */
+export function assetItemForSrc(canvas, src) {
+  if (typeof src !== 'string' || !src) return null;
+  let s = src.replace(/[?#].*$/, '');
+  while (s.startsWith('./')) s = s.slice(2);
+  s = s.replace(/^\/+/, '');
+  return assetItemsFor(canvas).get(s) ?? null;
+}
 
 const FRAME = 'iframe[data-testid="canvas-frame"]';
 export const ASSET_STATE_POLL_MS = 60_000;
@@ -71,6 +114,7 @@ export function createAssetStateLane(deps) {
     const got = await ask(canvas);
     // Refused / unreadable: quiet. Never invent a Missing; a frame that had news hears "none".
     const items = got ?? [];
+    setAnswer(canvas, items);
     if (items.some((it) => it?.state === 'waiting')) waiting.add(canvas);
     else waiting.delete(canvas);
     arm();
@@ -117,7 +161,11 @@ export function createAssetStateLane(deps) {
     });
     if (!m || m.dgn !== 'asset-relink-request') return;
     const frame = frames().find((f) => f.contentWindow === e.source);
-    deps.onRelink?.(m.rel, pathOf(frame));
+    const canvas = pathOf(frame);
+    // Only a picture the studio itself calls Missing opens a relink (a waiting one is relinked from
+    // the Inspector's box, where the person chose it).
+    const item = assetItemsFor(canvas).get(m.rel);
+    if (item?.state === 'missing') deps.onRelink?.(item.rel, canvas);
   };
   win?.addEventListener?.('message', onMessage);
 
