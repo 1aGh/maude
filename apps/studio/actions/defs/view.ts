@@ -240,6 +240,22 @@ export const VIEW_ACTIONS: ActionDef[] = [
     legacy: { menu: 'Presentation Mode' },
   },
   {
+    // S3.7b (md-present-link) — the link a cloud viewer with Can view follows (hub `GET /present/<canvas>`,
+    // client/v2/present/copy-link.js). An editor's row; shown greyed with "in a cloud project" outside a
+    // cloud-linked project (the V2-4.9 decision 2 pattern — absence with a notice, never a silent hole).
+    id: 'present.copy-link',
+    label: 'Copy presentation link',
+    kind: 'command',
+    icon: 'link',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { any: [{ facts: ['linkedHub'] }, { shell: ['cloud'] }] },
+    search: {
+      keywords: ['presentation', 'slideshow', 'audience', 'follow', 'share', 'link', 'url'],
+      note: 'in a cloud project',
+    },
+  },
+  {
     // S3.5 (CONTRACT §6 [C31], 04 md-present-menu): the sheet that sets the Present order, the skipped
     // artboards and the speaker notes — all in the versioned `.meta.json`, through PATCH
     // /_api/present-meta (main origin, refused to a read-only session). Hidden below edit.

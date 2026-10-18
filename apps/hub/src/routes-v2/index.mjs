@@ -35,6 +35,7 @@ import { hubAccessRefusal } from '../access-gate.mjs';
 import { CAPABILITIES } from '../role-matrix.mjs';
 import { ACCESS_ROWS } from './access.mjs';
 import { LEGACY_ROWS } from './legacy.mjs';
+import { PRESENT_ROWS } from './present.mjs';
 
 /** V2-1.16 U3 — the four scope classes. Anything else is unclassified. */
 export const SCOPES = Object.freeze(['none', 'canvas', 'filtered', 'project']);
@@ -42,7 +43,7 @@ export const SCOPES = Object.freeze(['none', 'canvas', 'filtered', 'project']);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Every v2 area's rows, in one list. Later slices append their area here. */
-export const HUB_ROUTE_ROWS = Object.freeze([...LEGACY_ROWS, ...ACCESS_ROWS]);
+export const HUB_ROUTE_ROWS = Object.freeze([...LEGACY_ROWS, ...ACCESS_ROWS, ...PRESENT_ROWS]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */
 export const DEFAULT_ROW = Object.freeze({

@@ -15,9 +15,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-
+import { filterRunsView, type Seer } from '../access/filters.ts';
 import { isLive, type RunRecord } from '../ai/run-lifecycle.ts';
 import type { RunRegistry } from '../ai/runs.ts';
+import { filterAiEntries } from '../collab/ai-activity.ts';
 import type { RouteSpec } from './table.ts';
 
 export interface AiRouteDeps {
@@ -32,6 +33,8 @@ export interface AiRouteDeps {
     startedAt: number;
     lastHeartbeat: number;
   }>;
+  /** S9.11 (V2-1.16 L13) — the request's seer; null = a project session (the identity) */
+  seerFor?: (req: Request) => Seer | null;
   /** T16: a v1 edit is ONE project action (sync runtime `beginAiAction` / `endAiAction`) */
   beginAction?: (key: string, name: string) => void;
   endAction?: (key: string, outcome: 'done' | 'failed') => Promise<unknown> | undefined;
@@ -122,7 +125,11 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       path: '/_api/ai/runs',
       origin: 'main',
       readOnly: 'allowed',
-      handle: () => json(200, { ...reg.view(), diagnostics: reg.diagnostics() }),
+      handle: (req) =>
+        json(200, {
+          ...filterRunsView(reg.view(), deps.seerFor?.(req) ?? null, deps.designRel),
+          diagnostics: reg.diagnostics(),
+        }),
     },
     {
       method: 'POST',
@@ -148,11 +155,14 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       path: '/_api/ai',
       origin: 'canvas',
       readOnly: 'allowed',
-      handle() {
+      handle(req) {
         const derived = reg.bannerEntries();
         const files = new Set(derived.map((e) => e.file));
         const legacy = (deps.legacyEntries?.() ?? []).filter((e) => !files.has(e.file));
-        return json(200, { entries: [...derived, ...legacy] });
+        const see = deps.seerFor?.(req) ?? null;
+        return json(200, {
+          entries: filterAiEntries([...derived, ...legacy], see, deps.designRel),
+        });
       },
     },
     {

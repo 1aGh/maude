@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "4b37b15c25fd",
   "actions": [
     {
       "id": "search.open",
@@ -957,6 +957,18 @@
         "path": "cli",
         "verb": "maude design open <canvas> --mode present"
       }
+    },
+    {
+      "id": "present.copy-link",
+      "label": "Copy presentation link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
+      },
+      "minRole": "edit"
     },
     {
       "id": "present.order-notes",
