@@ -24,6 +24,7 @@ import { type CanvasSourceRouteDeps, createCanvasSourceRoutes } from './canvas-s
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
+import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
@@ -89,6 +90,8 @@ export interface RouteDeps {
   availability?: AvailabilityRouteDeps;
   /** S11.11 — `POST /_api/sync/resync` (moved from http.ts) + the trace `/_sync-status` reports */
   sync: SyncRouteDeps;
+  /** S6.0b — `POST|GET /_api/cloud/move`: a local folder becomes a cloud project (S6-S9 §5.5) */
+  cloudMove: CloudMoveDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -141,5 +144,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
     ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
     ...createSyncRoutes(deps.sync),
+    ...createCloudMoveRoutes(deps.cloudMove),
   ];
 }

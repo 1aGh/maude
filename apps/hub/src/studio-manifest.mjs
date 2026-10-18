@@ -344,6 +344,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/claude/signin-status': REFUSED,
   '/_api/cloud/attach': REFUSED,
   '/_api/cloud/attach/code': REFUSED,
+  '/_api/cloud/move': REFUSED, // S6.0b: a cell IS the cloud — moving it there is a desktop act
   '/_api/cloud/projects': REFUSED,
   '/_api/cloud/signin/poll': REFUSED,
   '/_api/cloud/signin/start': REFUSED,

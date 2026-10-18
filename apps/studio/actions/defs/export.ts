@@ -66,4 +66,14 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     legacy: { palette: 'Copy share link' },
   },
+  {
+    // S6.0c — CONTRACT §6: a local project's "Move to cloud…" lives inside the Share sheet (S9.20
+    // builds it). `POST /_api/cloud/move` answers only the Maude window's own fetch; the AI never
+    // starts it (decision:maude/v2-lead-cloud-move-window-only). A linked project has moved already.
+    id: 'share.move-to-cloud',
+    label: 'Move to cloud…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'], notFacts: ['linkedHub'] },
+  },
 ];

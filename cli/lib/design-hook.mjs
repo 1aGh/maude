@@ -7,7 +7,7 @@
 //                                 (a sub-agent: its hand-off `owns`, outside .design/ too; S12.7)
 //   post-edit   PostToolUse       check (studio, else local) · rollback · touched · `ds` warnings
 //                                 (ds-check --hook, S12.4/D9)  → block, or additionalContext, or nothing
-//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · out-of-project (bash-guard)
+//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · human-only · out-of-project (bash-guard)
 //                                 · an untrusted-content reader has no shell (S12.7)
 //                                                                                     → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing

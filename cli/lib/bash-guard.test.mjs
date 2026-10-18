@@ -373,3 +373,44 @@ test('designWritesSince finds versioned files changed in the window, never runti
     rmSync(dr, { recursive: true, force: true });
   }
 });
+
+// S6.0c (decision maude/v2-lead-cloud-move-window-only): moving a project to the cloud uploads it
+// to a billed account — the person's act in the Maude window. The studio refuses a POST without
+// the window's Sec-Fetch-Site; this second net names why before the command even runs.
+const MOVE = 'http://127.0.0.1:4399/_api/cloud/move';
+const MOVE_DENIED = [
+  `maude design curl-local --method POST ${MOVE}`,
+  `maude design curl-local --method post --data '{}' ${MOVE}`,
+  `maude design curl-local --data '{"name":"x"}' ${MOVE}`,
+  `curl -X POST ${MOVE}`,
+  `curl -XPOST ${MOVE}`,
+  `curl --request=POST ${MOVE}`,
+  `curl -d '{}' ${MOVE}`,
+  `curl --json '{}' ${MOVE}`,
+  `curl -H 'Sec-Fetch-Site: same-origin' -X POST "http://127.0.0.1:\${PORT}/_api/cloud/move"`,
+  'curl -X POST http://127.0.0.1:4399/_api/cl""oud/move',
+  `wget --post-data='{}' ${MOVE}`,
+  `node -e "fetch('${MOVE}',{method:'POST'})"`,
+  `bun -e "await fetch('${MOVE}', { method: 'POST' })"`,
+  `python3 -c "import urllib.request as u; u.urlopen(u.Request('${MOVE}', data=b'{}'))"`,
+  `env FOO=1 curl -sS -X POST ${MOVE} | jq .`,
+  `X=$(curl -s -X POST ${MOVE})`,
+];
+const MOVE_ALLOWED = [
+  `maude design curl-local ${MOVE}`,
+  `maude design curl-local --method GET ${MOVE}`,
+  `curl -s ${MOVE}`,
+  `curl -sS -X GET ${MOVE} | jq .state`,
+  'curl -X POST http://127.0.0.1:4399/_api/cloud/connect',
+  "rg -n '_api/cloud/move' apps/studio",
+  'grep -rn cloud/move apps/studio/routes',
+];
+
+test('S6.0c: a write to /_api/cloud/move is denied (human-only); a status read is not', () => {
+  for (const cmd of MOVE_DENIED) assert.equal(code(cmd), 'human-only', cmd);
+  for (const cmd of MOVE_ALLOWED) assert.equal(code(cmd), null, cmd);
+  const r = classifyBash(MOVE_DENIED[0], { cwd: ROOT, designRoot: DR });
+  assert.match(r.reason, /^human-only: /);
+  assert.match(r.reason, /Move to cloud/);
+  assert.doesNotMatch(r.reason, /"(ask|allow)"/);
+});

@@ -342,6 +342,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/cloud/attach/code': { class: 'local' },
   '/_api/cloud/detach': { class: 'local' },
   '/_api/cloud/history': { class: 'read' },
+  // S6.0b routes/cloud-move.ts: creates the cloud project + links THIS folder (the attach lane);
+  // the seed-up is the sync runtime's, never this route's
+  '/_api/cloud/move': { class: 'local' },
   '/_api/cloud/projects': { class: 'read' },
   '/_api/cloud/signin/poll': { class: 'local' },
   '/_api/cloud/signin/start': { class: 'local' },

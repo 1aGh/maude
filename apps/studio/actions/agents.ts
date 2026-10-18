@@ -652,6 +652,12 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   'share.open': { effect: 'shared', agent: human('links') },
   'share.copy-link': { effect: 'none', agent: human('links') },
+  // S6.0c: uploads the whole project to the person's billed cloud account — the window only; the
+  // studio refuses a POST without its Sec-Fetch-Site and the design hook denies one (human-only).
+  'share.move-to-cloud': {
+    effect: 'external',
+    agent: human('billing', 'moves the project to the person’s billed Maude Cloud account'),
+  },
   // ── app / help / ai ──
   'settings.open': { effect: 'none', agent: cli('maude design open --panel settings') },
   'ai.chat': { effect: 'none', agent: human('summon') },
