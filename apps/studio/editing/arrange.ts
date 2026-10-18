@@ -186,8 +186,11 @@ export async function runArranged(
     deps.toast?.(result.message || 'That did not go through.', 'error');
     return result;
   }
-  if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, label));
+  if (result.actionId === null && result.writeId) {
+    // null on the op log: the write is a kernel action there, ⌘Z is the shell's projection
+    const rec = editOpRecord(result.writeId, label);
+    if (rec) deps.record?.(rec);
+  }
   return result;
 }
 

@@ -238,8 +238,11 @@ export function takeOver(t: TakeOver, deps: LayoutOpsDeps = layoutOpsDeps.curren
         params: { position: t.position, copy: true },
       });
       if (!result.ok) deps.toast?.(result.message || 'That did not go through.', 'error');
-      else if (result.actionId === null && result.writeId)
-        deps.record?.(editOpRecord(result.writeId, 'Copy'));
+      else if (result.actionId === null && result.writeId) {
+        // null on the op log: the write is a kernel action there, ⌘Z is the shell's projection
+        const rec = editOpRecord(result.writeId, 'Copy');
+        if (rec) deps.record?.(rec);
+      }
     })();
     return true;
   }

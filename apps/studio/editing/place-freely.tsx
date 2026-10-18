@@ -151,8 +151,11 @@ export async function placeFreely(
     deps.toast?.(result.message || 'That did not go through.', 'error');
     return result;
   }
-  if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, 'Place freely'));
+  if (result.actionId === null && result.writeId) {
+    // null on the op log: the write is a kernel action there, ⌘Z is the shell's projection
+    const rec = editOpRecord(result.writeId, 'Place freely');
+    if (rec) deps.record?.(rec);
+  }
   return result;
 }
 
@@ -179,8 +182,11 @@ export async function constrain(
     params: { h: pins.h, v: pins.v, geometry },
   });
   if (!result.ok) deps.toast?.(result.message || 'That did not go through.', 'error');
-  else if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, 'Constraints'));
+  else if (result.actionId === null && result.writeId) {
+    // null on the op log: the write is a kernel action there, ⌘Z is the shell's projection
+    const rec = editOpRecord(result.writeId, 'Constraints');
+    if (rec) deps.record?.(rec);
+  }
   return result;
 }
 

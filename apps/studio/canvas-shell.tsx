@@ -85,10 +85,10 @@ import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
 import { editOpRecord } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
-// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
-import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
+// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
+import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { forwardUndoKey } from './editing/undo-mode.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
@@ -3088,10 +3088,14 @@ function CanvasRouter({
         // posts `revert {writeId}`, which restores the source and the moved references together.
         if (p && (p as { op?: string }).op === 'edit-op') {
           const q = p as { writeId?: unknown; label?: unknown };
-          if (typeof q.writeId === 'string' && /^w_[0-9a-f]{16}$/.test(q.writeId))
-            undoStack.record(
-              editOpRecord(q.writeId, typeof q.label === 'string' ? q.label.slice(0, 80) : 'Edit')
+          if (typeof q.writeId === 'string' && /^w_[0-9a-f]{16}$/.test(q.writeId)) {
+            // null on the op log: the rename is a kernel action there, ⌘Z is the shell's projection
+            const rec = editOpRecord(
+              q.writeId,
+              typeof q.label === 'string' ? q.label.slice(0, 80) : 'Edit'
             );
+            if (rec) undoStack.record(rec);
+          }
           return;
         }
         // Phase 12.1 — a landed reorder (drag / keyboard move). The shell POSTed

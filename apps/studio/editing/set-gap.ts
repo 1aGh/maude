@@ -46,7 +46,10 @@ export async function runSetGap(
     params: { gap: token ? { token } : { px } },
   });
   if (!result.ok) deps.toast?.(result.message || 'That did not go through.', 'error');
-  else if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, SET_GAP_LABEL));
+  else if (result.actionId === null && result.writeId) {
+    // null on the op log: the write is a kernel action there, ⌘Z is the shell's projection
+    const rec = editOpRecord(result.writeId, SET_GAP_LABEL);
+    if (rec) deps.record?.(rec);
+  }
   return result;
 }

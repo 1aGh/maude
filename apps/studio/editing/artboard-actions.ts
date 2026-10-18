@@ -61,8 +61,11 @@ export async function writeCopies(
     deps.toast?.(result.message || 'That did not go through.', 'error');
     return result;
   }
-  if (result.actionId === null && result.writeId)
-    deps.record?.(editOpRecord(result.writeId, DUPLICATE_LABEL));
+  if (result.actionId === null && result.writeId) {
+    // null on the op log: the write is a kernel action there, ⌘Z is the shell's projection
+    const rec = editOpRecord(result.writeId, DUPLICATE_LABEL);
+    if (rec) deps.record?.(rec);
+  }
   const ids = (result.created ?? []).map((c) => c.artboard);
   if (ids.length) deps.select?.(ids);
   return result;
