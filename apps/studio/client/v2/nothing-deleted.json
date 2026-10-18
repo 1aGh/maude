@@ -3461,6 +3461,8 @@
     "testid:studio/editing/align-bar.tsx#canvas/edit-align-guide": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas/edit-distribute-axis": "v2 code (added after the freeze)",
     "testid:studio/editing/align-bar.tsx#canvas/edit-tidy": "v2 code (added after the freeze)",
+    "testid:studio/editing/artboard-commands.tsx#canvas/ab-custom-width": "v2 code (added after the freeze)",
+    "testid:studio/editing/artboard-commands.tsx#canvas/ab-custom-width-input": "v2 code (added after the freeze)",
     "testid:studio/editing/artboard-guides.tsx#canvas/edit-ab-bubble": "v2 code (added after the freeze)",
     "testid:studio/editing/artboard-guides.tsx#canvas/edit-ab-gap": "v2 code (added after the freeze)",
     "testid:studio/editing/artboard-guides.tsx#canvas/edit-ab-guide-soft": "v2 code (added after the freeze)",

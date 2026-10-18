@@ -1,11 +1,12 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 108,
+  "humanMax": 109,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
     "accounts": "decision:maude/v2-4-gate-github-doors",
     "ai-chat": "decision:maude/v2-S5.7-chat-actions-human-ai-chat",
+    "clear-trash": "decision:maude/v2-lead-trash-clear-human-only",
     "hub-link": "decision:maude/v2-4.7b-diagnostics-in-the-menu",
     "keys": "decision:maude/v2-2.4b-undo-keys-human",
     "links": "decision:maude/v2-V2-1.11-ai-operability",
@@ -57,7 +58,13 @@
       "from": 107,
       "by": "decision:maude/v2-S2.10-ask-ai-row-human",
       "why": "S2.10: artboard.ask-ai is the artboard menu's Ask AI row (⌘/), a request the person makes of the AI chat; an agent has nobody to ask. Human 'ai-chat' like every chat row. The row is greyed until S5's composer takes the artboard."
+    },
+    {
+      "to": 109,
+      "from": 108,
+      "by": "decision:maude/v2-lead-trash-clear-human-only",
+      "why": "S1.7b registers trash.clear (the Trash’s Clear out…): deleting for good what the team could still restore is the project owner’s own confirmation, never an agent’s — human clear-trash. One human row. trash.restore gets its agent path with S1.17’s `maude design trash restore` and is not registered yet."
     }
   ],
-  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. S2.10 integration: artboard.ask-ai (the artboard menu's Ask AI row; human 'ai-chat' like every chat row) is the 108th (decision:maude/v2-S2.10-ask-ai-row-human)."
+  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row. S2.10 integration: artboard.ask-ai (the artboard menu's Ask AI row; human 'ai-chat' like every chat row) is the 108th (decision:maude/v2-S2.10-ask-ai-row-human). S2.10b integration: S1.7b trash.clear (human clear-trash) is the 109th (decision:maude/v2-lead-trash-clear-human-only)."
 }
