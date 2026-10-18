@@ -72,13 +72,18 @@ export const EXPORT_WRITES: ReadonlySet<string> = new Set([
   '/_api/export',
   '/_api/export-jobs',
   '/_api/export-jobs/download',
-  // S8.4 — Retry re-runs a finished export's failed items: the same class as exporting.
-  '/_api/export-jobs/retry',
   // DDR-231 T6 — recording that you exported is the same class as exporting.
   '/_api/export-history',
   // The deck's composition half: packs bytes the session already captured.
   '/_api/export-assemble',
 ]);
+
+/**
+ * S8.4 — table routes (routes/export.ts) of the export class: Retry re-runs a finished export's failed
+ * items. The spec declares `readOnly: 'allowed'` itself (so the path is not in READ_ONLY_ALLOWED_WRITES
+ * twice); this set says WHICH capability that is: `export`, never the table's default `session`.
+ */
+export const EXPORT_TABLE_WRITES: ReadonlySet<string> = new Set(['/_api/export-jobs/retry']);
 
 /** Stickies, marker, arrows, stickers, sections (V2-1.7 §5.2 `annotate`). */
 export const ANNOTATE_WRITES: ReadonlySet<string> = new Set([
@@ -105,7 +110,7 @@ export interface SessionAllowlist {
 export function writeCapability(pathname: string, tableSession?: SessionAllowlist): Capability {
   // D2 — the AI chat drives file edits: no write under it is ever anything but `edit` (C30).
   if (pathname.startsWith('/_api/acp/')) return 'edit';
-  if (EXPORT_WRITES.has(pathname)) return 'export';
+  if (EXPORT_WRITES.has(pathname) || EXPORT_TABLE_WRITES.has(pathname)) return 'export';
   if (
     COMMENT_WRITES.has(pathname) ||
     COMMENT_TABLE_WRITES.has(pathname) ||
