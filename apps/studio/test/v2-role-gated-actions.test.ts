@@ -55,7 +55,8 @@ const COMMENTER: [string, Offer, string][] = [
   ['project.open', 'offered', 'another project; this role is per project'],
   ['canvas.close', 'offered', 'the person’s own tabs'],
   ['export.open', 'offered', 'Can comment holds export (V2-1.7 §5.2)'],
-  ['handoff.open', 'offered', 'an export'],
+  // S8.9 (A6b-2): visible at Can comment, enabled from Can edit — a handoff is a production bundle, not an export
+  ['handoff.open', 'greyed', 'Handoff needs Can edit (decision v2-S8.9)'],
 ];
 
 describe('role gating — Can comment', () => {
