@@ -61,6 +61,8 @@ export type ChangesAnswer =
       changes: Change[];
       detail: Record<string, Change[]>;
       blame: Record<number, string>;
+      /** Artboard key → its name in words, for the groups' headers. */
+      labels: Record<string, string>;
     }
   | { ok: false; reason: 'unreachable' | 'legacy' | 'not-found' };
 
@@ -124,6 +126,7 @@ export async function describeBetween(input: ChangesInput): Promise<ChangesAnswe
       changes: words.changes,
       detail: words.detail,
       blame,
+      labels: words.labels,
     };
   } catch {
     return { ok: false, reason: 'unreachable' };

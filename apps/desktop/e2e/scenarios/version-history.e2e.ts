@@ -1,4 +1,4 @@
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { $, $$, browser, expect } from '@wdio/globals';
@@ -14,6 +14,8 @@ import { pinCurrentWindow } from '../helpers/windows';
  * S1.14 — Version history, DOM-driven (V2-1.9 §5.4–§5.8, 11 · pn-history):
  *   name the current version → change the canvas → look at the named version (the Viewing bar, the canvas
  *   frame at `?sha=`, esc returns) → Restore this version → the toast "Restored “…” · Undo" → Undo.
+ * S1.15 — Compare (11 · pn-compare, V2-1.9 §5.7–§5.8): the named version is A and Now is B → two read-only frames,
+ *   the changes in words with who made them → Restore only <artboard> puts one artboard back as a new version.
  *
  * Not run in CI by this slice (the lead runs desktop e2e at the Phase 5 gate). The change in step 2 is an
  * outside write to the canvas file — Maude records it as a version of its own ("changed outside Maude"),
@@ -101,6 +103,62 @@ describe('version-history — name, look, restore, undo', () => {
       timeout: 15_000,
       timeoutMsg: 'esc did not bring the canvas back to now',
     });
+  });
+
+  it('compares the named version with Now, then restores only the artboard that changed', async () => {
+    const root = process.env.MAUDE_PROJECT_ROOT as string;
+    const file = join(root, CANVAS_PATH);
+    // an outside edit to the artboard's own style: a change with words, on an artboard A holds. A row is named
+    // by its LAST revision (`vh-row-r<n>`), so a new first row — merged into the one before or not — is the sign.
+    const newest = async () =>
+      (await $$('[data-testid^="vh-row-"]'))[0]?.getAttribute('data-testid');
+    const before = await newest();
+    writeFileSync(file, readFileSync(file, 'utf8').replace('color: "#111"', 'color: "#c00"'));
+    await browser.waitUntil(async () => (await newest()) !== before, {
+      timeout: 30_000,
+      timeoutMsg: 'the style edit never became a version',
+    });
+    const named = await $(
+      `//*[@data-testid and starts-with(@data-testid, "vh-row-")][.//*[contains(@class, "chip") and normalize-space()="Named"]]`
+    );
+    await named.click();
+    await (await $(tid('vh-viewbar'))).waitForDisplayed({ timeout: 10_000 });
+    await (await $(tid('vh-compare'))).click();
+    // A and B are marked; two read-only frames; the changes are in words
+    await (await $(tid('cmp-view'))).waitForDisplayed({ timeout: 15_000 });
+    await (await $(tid('vh-mark-A'))).waitForDisplayed({ timeout: 10_000 });
+    await (await $(`${tid('vh-now')} ${tid('vh-mark-B')}`)).waitForDisplayed({ timeout: 10_000 });
+    const frameA = await (await $(tid('cmp-frame-a'))).getAttribute('src');
+    const frameB = await (await $(tid('cmp-frame-b'))).getAttribute('src');
+    expect(frameA).toMatch(/[?&]sha=r\d+/);
+    expect(frameA).toContain('ro=1');
+    expect(frameB).not.toMatch(/[?&]sha=/);
+    expect(frameB).toContain('ro=1');
+    await browser.waitUntil(
+      async () => /change(s)? between A and B/.test(await (await $(tid('cmp-summary'))).getText()),
+      { timeout: 30_000, timeoutMsg: 'Compare never said what changed' }
+    );
+    await (await $(tid('cmp-line-0'))).waitForDisplayed({ timeout: 10_000 });
+    await capture('comparing');
+    // Overlay keeps both frames
+    await (await $(tid('cmp-mode-overlay'))).click();
+    await (await $(tid('cmp-wipe'))).waitForDisplayed({ timeout: 10_000 });
+    await (await $(tid('cmp-mode-side'))).click();
+    // Restore only <artboard>: the style is back, the outside comment from before stays
+    const only = await $(tid('vh-restore-only'));
+    await only.waitForDisplayed({ timeout: 10_000 });
+    expect(await only.getText()).toMatch(/^Restore only /);
+    await only.click();
+    await (await $(tid('cmp-view'))).waitForDisplayed({ reverse: true, timeout: 15_000 });
+    await (await $(toastText('Restored SMOKE/01'))).waitForDisplayed({ timeout: 15_000 });
+    await browser.waitUntil(() => readFileSync(file, 'utf8').includes('color: "#111"'), {
+      timeout: 30_000,
+      timeoutMsg: 'Restore only did not put the artboard back',
+    });
+    expect(readFileSync(file, 'utf8')).toContain('// edited outside Maude');
+    await capture('restored-only');
+    await (await $(`//button[normalize-space()="Undo"]`)).click();
+    await (await $(toastText('Restore undone.'))).waitForDisplayed({ timeout: 15_000 });
   });
 
   it('restores it as a new version and takes the restore back with Undo', async () => {

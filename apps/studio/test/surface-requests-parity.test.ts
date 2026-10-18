@@ -83,6 +83,8 @@ const NO_OWN_REQUEST: Record<string, string> = {
   'history.filter': 'the person’s own panel filter (human view-pref)',
   'history.view-version': 'a read: `history show` — GET, no body',
   'history.compare': 'a read: `history diff` — GET, no body',
+  'history.compare-pictures':
+    'looking at two renders (human view-pref); the words are `history diff`',
 };
 
 let studio: ReturnType<typeof fakeStudio> | null = null;
@@ -142,7 +144,7 @@ describe('surface = substrate: history + Trash (S1.17)', () => {
     // ratchet: the exemptions name real actions (a removed action leaves the list too)
     const stale = Object.keys(NO_OWN_REQUEST).filter((id) => !ids.includes(id));
     expect(stale).toEqual([]);
-    expect(Object.keys(NO_OWN_REQUEST).length).toBeLessThanOrEqual(4);
+    expect(Object.keys(NO_OWN_REQUEST).length).toBeLessThanOrEqual(5);
   });
 
   test('a covered action’s agent path is the verb the test runs', () => {

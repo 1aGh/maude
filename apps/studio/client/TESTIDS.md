@@ -550,6 +550,28 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `vh-name-scrim` | testid | The dim behind the Name this version dialog. | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 | `vh-name-input` | testid | The name field (1–80 characters). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 | `vh-name-save` | testid | Name version (the dialog's primary button). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-mark-A` | testid | Compare › the "A" mark on the version being compared from (the held row). | `client/v2/history/history-panel.jsx` · `Mark` | — | new |
+| `vh-mark-B` | testid | Compare › the "B" mark on the second version (a row, or the Now row when B is Now). | `client/v2/history/history-panel.jsx` · `Mark` | — | new |
+| `vh-why` | testid | Compare › the held row's why-line: what "Restore this version" takes back from others ("… — Tereza's change to Helma z boku goes too. Now stays in the list."). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-stop-compare` | testid | Compare › "Stop comparing": back to looking at the version. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-restore-only` | testid | Compare › "Restore only <artboard>": that artboard as it was at A, as a new version. Edit only; absent for a generated family or an artboard A does not hold. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-advanced` | testid | Version history › Advanced body: Compare pictures, then today's git body. | `client/v2/history/git-advanced.jsx` · `HistoryAdvanced` | — | new |
+| `vh-compare-pictures` | testid | Version history › Advanced › "Compare pictures": opens the picture DiffView (before / after as ?sha= panes, side by side or overlay wipe). | `client/v2/history/git-advanced.jsx` · `HistoryAdvanced` | — | new |
+| `cmp-view` | testid | Compare: the canvas area while comparing (two read-only frames, the bar, the list of changes). | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-stage` | testid | Compare: the two frames' stage (`data-mode` side | overlay). | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-frame-a` | testid | Compare: the read-only frame of version A (`?sha=<ref>&ro=1&comments=0&hide-chrome=1`). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-frame-b` | testid | Compare: the read-only frame of version B (a version like A, or Now through the embed URL). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-frame-a-cap` | testid | Compare: A's caption ("A · Schváleno trenéry · 5 Oct, 18:40 · Jonas"). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-frame-b-cap` | testid | Compare: B's caption ("B · Now · 6 Oct, 14:32"). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-mode-<id>` | testid (pattern) | Compare: Side by side | Overlay (`aria-pressed`); `<id>` is side or overlay. | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-wipe` | testid | Compare › Overlay: the slider between A and B. | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-summary` | testid | Compare: "4 changes between A and B — 3 on Venkovní dres · přední, 1 on Helma z boku" (also "Reading the changes…" and the failed line). | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-retry` | testid | Compare: Retry changes, pressed by hand, never automatic. | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-list` | testid | Compare: the changes in words, grouped by artboard. | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
+| `cmp-line-<n>` | testid (pattern) | Compare: one change line (`<n>` is its place in the server's list); a click focuses its artboard in both frames (`aria-current`). | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
+| `cmp-who-<n>` | testid (pattern) | Compare: who made change `<n>` — the spark or a face and the time, or "changed in between" (`data-maker` ai | person | none). | `client/v2/history/change-list.jsx` · `Maker` | — | new |
+| `cmp-expand-<n>` | testid (pattern) | Compare: opens a reworked artboard's own lines ("Show 624 changes"). | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
+| `cmp-sub-<n>` | testid (pattern) | Compare: the opened lines of reworked line `<n>`. | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
 | `vh-name-error` | testid | The reason under the name field (`role=alert`). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 
 ### sync/cloud

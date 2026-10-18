@@ -584,6 +584,10 @@ export function usePaletteAndPanels({
           refreshKey={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
           resizing={resizingFor('changes')}
           onClose={() => setChangesOpen(false)}
+          // S1.15 — Version history › Advanced › Compare pictures: today's picture DiffView
+          onComparePictures={({ file, beforeSha }) =>
+            setDiffTarget({ file, beforeSha, conflict: false })
+          }
           advanced={renderPanelBody('changes-git')}
         />
       );

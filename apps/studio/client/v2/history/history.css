@@ -374,10 +374,226 @@
     outline-offset: 1px;
   }
 
+  /* ── Compare (S1.15 · 11 · pn-compare) ── */
+  .cmp-mark {
+    display: inline-grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    margin-right: var(--space-1);
+    padding: 0 3px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-fg, var(--bg-0));
+    font-size: 9px;
+    font-weight: var(--w-semibold);
+    vertical-align: 1px;
+  }
+  .cmp-mark--b {
+    background: var(--fg-1);
+    color: var(--bg-0);
+  }
+  .vh-acts--cmp {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+  .vh-why {
+    font-size: var(--type-xs);
+    line-height: 1.4;
+    color: var(--fg-2);
+  }
+  .vh-btns {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+
+  /* Version history › Advanced: Compare pictures, then today's git body */
+  .vh-adv {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .vh-adv-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .vh-adv-note {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* the canvas area while comparing: two frames, the bar, the list */
+  .cmp-view {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: 64px var(--space-4) var(--space-4);
+    background: var(--bg-1);
+    color: var(--fg-1);
+    animation: st-island-in var(--dur-panel) var(--ease-out);
+  }
+  .cmp-stage {
+    position: relative;
+    flex: 1 1 55%;
+    min-height: 160px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+  .cmp-pane {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .cmp-cap {
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cmp-frame {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-0);
+  }
+  /* Overlay: B over A, the slider decides how much of B shows (from its left edge) */
+  .cmp-stage.cmp-overlay {
+    display: block;
+  }
+  .cmp-overlay .cmp-pane {
+    position: absolute;
+    inset: 0;
+  }
+  .cmp-overlay .cmp-pane:nth-child(2) {
+    clip-path: inset(0 0 0 var(--cmp-wipe, 50%));
+    pointer-events: none;
+  }
+  .cmp-overlay .cmp-pane:nth-child(2) .cmp-cap {
+    text-align: right;
+  }
+  .cmp-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .cmp-n {
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .cmp-wipe {
+    width: 160px;
+    accent-color: var(--accent);
+  }
+  .cmp-scroll {
+    flex: 0 1 34%;
+    min-height: 72px;
+    overflow: auto;
+  }
+  .cmp-list,
+  .cmp-sub {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cmp-line {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 32px;
+    padding: var(--space-1) var(--space-2);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--type-sm);
+    text-align: left;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .cmp-line:hover {
+    background: var(--bg-2);
+  }
+  .cmp-line.is-focus {
+    background: var(--accent-tint);
+  }
+  .cmp-line:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .cmp-dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+  }
+  .cmp-ab {
+    flex: none;
+    max-width: 30%;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cmp-words {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg-0);
+  }
+  .cmp-who {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .cmp-who.is-none {
+    color: var(--fg-3, var(--fg-2));
+  }
+  .cmp-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .cmp-item > .cmp-line {
+    flex: 1 1 0;
+    width: auto;
+  }
+  .cmp-sub {
+    flex-basis: 100%;
+    padding: 0 0 var(--space-1) var(--space-6, 24px);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .vh-pic[data-state="pending"],
     .vh-skel,
-    .island.vh-viewbar {
+    .island.vh-viewbar,
+    .cmp-view {
       animation-duration: 1ms;
       animation-iteration-count: 1;
     }

@@ -14899,5 +14899,357 @@
       "apps/studio/test/v2-history-panel.test.tsx"
     ],
     "v2": "new"
+  },
+  {
+    "hook": "vh-mark-A",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare › the \"A\" mark on the version being compared from (the held row).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Mark"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-mark-B",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare › the \"B\" mark on the second version (a row, or the Now row when B is Now).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "Mark"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-why",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare › the held row's why-line: what \"Restore this version\" takes back from others (\"… — Tereza's change to Helma z boku goes too. Now stays in the list.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-stop-compare",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare › \"Stop comparing\": back to looking at the version.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-restore-only",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare › \"Restore only <artboard>\": that artboard as it was at A, as a new version. Edit only; absent for a generated family or an artboard A does not hold.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/history-panel.jsx",
+      "symbol": "VersionHistoryPanel"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history › Advanced body: Compare pictures, then today's git body.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "HistoryAdvanced"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "vh-compare-pictures",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Version history › Advanced › \"Compare pictures\": opens the picture DiffView (before / after as ?sha= panes, side by side or overlay wipe).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/git-advanced.jsx",
+      "symbol": "HistoryAdvanced"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: the canvas area while comparing (two read-only frames, the bar, the list of changes).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "CompareView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-stage",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: the two frames' stage (`data-mode` side | overlay).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "CompareView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-frame-a",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: the read-only frame of version A (`?sha=<ref>&ro=1&comments=0&hide-chrome=1`).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "Frame"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-frame-b",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: the read-only frame of version B (a version like A, or Now through the embed URL).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "Frame"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-frame-a-cap",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: A's caption (\"A · Schváleno trenéry · 5 Oct, 18:40 · Jonas\").",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "Frame"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-frame-b-cap",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: B's caption (\"B · Now · 6 Oct, 14:32\").",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "Frame"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-mode-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare: Side by side | Overlay (`aria-pressed`); `<id>` is side or overlay.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "CompareView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-wipe",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare › Overlay: the slider between A and B.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "CompareView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-summary",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: \"4 changes between A and B — 3 on Venkovní dres · přední, 1 on Helma z boku\" (also \"Reading the changes…\" and the failed line).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "CompareView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: Retry changes, pressed by hand, never automatic.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/compare-view.jsx",
+      "symbol": "CompareView"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare: the changes in words, grouped by artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/change-list.jsx",
+      "symbol": "ChangeList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-line-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare: one change line (`<n>` is its place in the server's list); a click focuses its artboard in both frames (`aria-current`).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/change-list.jsx",
+      "symbol": "ChangeList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-who-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare: who made change `<n>` — the spark or a face and the time, or \"changed in between\" (`data-maker` ai | person | none).",
+    "producer": {
+      "file": "apps/studio/client/v2/history/change-list.jsx",
+      "symbol": "Maker"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-expand-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare: opens a reworked artboard's own lines (\"Show 624 changes\").",
+    "producer": {
+      "file": "apps/studio/client/v2/history/change-list.jsx",
+      "symbol": "ChangeList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "cmp-sub-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Compare: the opened lines of reworked line `<n>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/history/change-list.jsx",
+      "symbol": "ChangeList"
+    },
+    "region": "git/history",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-compare-view.test.tsx"
+    ],
+    "v2": "new"
   }
 ]
