@@ -65,6 +65,32 @@ function db(dataDir) {
        created_by  TEXT
      )`
   );
+  // V2-1.7 §5.8 (S9.6) — the invite's access claim (the canvas scope), the
+  // existing ADD COLUMN way. NULL = a project invite, which is every invite
+  // that predates S9.6.
+  const columns = handle
+    .prepare('PRAGMA table_info(invites)')
+    .all()
+    .map((c) => c.name);
+  if (!columns.includes('access')) handle.exec('ALTER TABLE invites ADD COLUMN access TEXT');
+  // Ask to edit (V2-1.7 §5.6) on a self-hosted hub. One OPEN request per
+  // person per scope — the unique index is the 409 `pending`, enforced by the
+  // database rather than by a read-then-write.
+  handle.exec(
+    `CREATE TABLE IF NOT EXISTS access_requests (
+       id          TEXT PRIMARY KEY,
+       email       TEXT NOT NULL,
+       canvas_path TEXT,
+       created_at  INTEGER NOT NULL,
+       decided_at  INTEGER,
+       decision    TEXT,
+       decided_by  TEXT
+     )`
+  );
+  handle.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS access_requests_open
+       ON access_requests (email, IFNULL(canvas_path, '')) WHERE decided_at IS NULL`
+  );
   try {
     chmodSync(path, 0o600);
   } catch {
@@ -114,7 +140,10 @@ export function inviteTtlMs(hours) {
  * colleague has broken it, and that is the most common thing that happens to
  * an invite in a small team.
  */
-export function createInvite(dataDir, { email, role = 'member', ttlHours, createdBy } = {}) {
+export function createInvite(
+  dataDir,
+  { email, role = 'member', ttlHours, createdBy, access = null } = {}
+) {
   // An invite becomes an ACCOUNT, and a hub's accounts are 'admin' | 'member'.
   // Anything else used to be stored as 'member' while the response echoed the
   // requested role — so "invite a viewer" silently minted a writer. Refuse it:
@@ -124,6 +153,9 @@ export function createInvite(dataDir, { email, role = 'member', ttlHours, create
     throw new Error(
       'role must be one of: admin, member — a self-hosted hub has no view-only accounts'
     );
+  // A canvas invite (S9.6) becomes a canvas-only MEMBER account: never admin.
+  const stored = inviteAccess(access);
+  if (stored && role !== 'member') throw new Error('a canvas invite has the member role');
   const handle = db(dataDir);
   const value = INVITE_PREFIX + randomBytes(24).toString('hex');
   const id = randomBytes(8).toString('hex');
@@ -131,8 +163,8 @@ export function createInvite(dataDir, { email, role = 'member', ttlHours, create
   const expiresAt = now + inviteTtlMs(ttlHours);
   handle
     .prepare(
-      `INSERT INTO invites (id, hash, email, role, created_at, expires_at, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO invites (id, hash, email, role, created_at, expires_at, created_by, access)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -141,9 +173,71 @@ export function createInvite(dataDir, { email, role = 'member', ttlHours, create
       role,
       now,
       expiresAt,
-      createdBy ?? null
+      createdBy ?? null,
+      stored ? JSON.stringify(stored) : null
     );
-  return { id, value, expiresAt, email: email ?? null, role };
+  return {
+    id,
+    value,
+    expiresAt,
+    email: email ?? null,
+    role,
+    ...(stored ? { access: stored } : {}),
+  };
+}
+
+/** A canvas invite's claim: canvas-only, `member` grants (users.mjs keeps the same shape). */
+function inviteAccess(access) {
+  if (access === null || access === undefined) return null;
+  const grants = Array.isArray(access?.grants) ? access.grants : null;
+  if (access?.v !== 1 || access.role !== null || !grants?.length) {
+    throw new Error('access must be a canvas-only claim ({ v: 1, role: null, grants })');
+  }
+  for (const g of grants) {
+    if (!g || typeof g.c !== 'string' || !g.c || g.r !== 'member') {
+      throw new Error('a self-hosted grant is { c: <canvas path>, r: "member" }');
+    }
+  }
+  return { v: 1, role: null, grants: grants.map(({ c, r }) => ({ c, r })) };
+}
+
+function accessOfRow(row) {
+  if (!row?.access) return null;
+  try {
+    return JSON.parse(row.access);
+  } catch {
+    // Unreadable: a canvas invite we can no longer read is NO grant, never a
+    // project-wide one.
+    return { v: 1, role: null, grants: [] };
+  }
+}
+
+/** The one canvas a canvas invite names (S9.6 invites name exactly one), or null. */
+export const canvasOfInvite = (invite) => invite?.access?.grants?.[0]?.c ?? null;
+
+/** One invite by id, as the access API sees it (no hash, no value), or null. */
+export function getInvite(dataDir, id, now = Date.now()) {
+  if (typeof id !== 'string' || !/^[0-9a-f]{16}$/.test(id)) return null;
+  const row = db(dataDir).prepare('SELECT * FROM invites WHERE id = ?').get(id);
+  return row ? inviteRecord(row, now) : null;
+}
+
+/**
+ * Re-issue an OPEN invite: a fresh value and a fresh lifetime, the old link
+ * dead (V2-1.7 §5.6 Resend). A self-hosted hub sends no mail, so "resend" is
+ * a new link the owner passes on — and the value is still never stored.
+ */
+export function reissueInvite(dataDir, id, { ttlHours } = {}, now = Date.now()) {
+  const handle = db(dataDir);
+  const value = INVITE_PREFIX + randomBytes(24).toString('hex');
+  const expiresAt = now + inviteTtlMs(ttlHours);
+  const res = handle
+    .prepare(
+      `UPDATE invites SET hash = ?, expires_at = ?
+        WHERE id = ? AND redeemed_at IS NULL AND revoked_at IS NULL`
+    )
+    .run(hashInvite(handle, value), expiresAt, String(id));
+  return res.changes === 1 ? { id: String(id), value, expiresAt } : null;
 }
 
 /** The link a person receives. The token is in the PATH, never a query string —
@@ -178,9 +272,16 @@ export function peekInvite(dataDir, value, now = Date.now()) {
   if (row.revoked_at) return { ok: false, reason: 'revoked' };
   if (row.redeemed_at) return { ok: false, reason: 'already-used' };
   if (row.expires_at <= now) return { ok: false, reason: 'expired' };
+  const access = accessOfRow(row);
   return {
     ok: true,
-    invite: { id: row.id, email: row.email, role: row.role, expiresAt: row.expires_at },
+    invite: {
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      expiresAt: row.expires_at,
+      ...(access ? { access } : {}),
+    },
   };
 }
 
@@ -194,10 +295,19 @@ export function peekInvite(dataDir, value, now = Date.now()) {
  *
  * @param {(args: {email: string, password: string, role: string}) => object} createAccount
  */
-export function redeemInvite(dataDir, { value, email, password, createAccount }, now = Date.now()) {
+export function redeemInvite(
+  dataDir,
+  { value, email, password, createAccount, honoursAccess = false },
+  now = Date.now()
+) {
   const handle = db(dataDir);
   const check = peekInvite(dataDir, value, now);
   if (!check.ok) return { ok: false, reason: check.reason };
+  // FAIL CLOSED (S9.6). A canvas invite is redeemable only by a caller that
+  // stores its claim on the account AND mints the session through the mint
+  // door (`peerTokenDoor`) — one that mints from the account role would hand
+  // a one-canvas guest a project-wide member session.
+  if (check.invite.access && !honoursAccess) return { ok: false, reason: 'access-version' };
 
   // WHEN AN INVITE IS BOUND TO AN ADDRESS, THAT ADDRESS WINS (B5). An invite
   // carries a role, so a link the admin scoped to `bob@acme.com, member` must
@@ -222,7 +332,12 @@ export function redeemInvite(dataDir, { value, email, password, createAccount },
   // used first would burn the invite on a typo.
   let user;
   try {
-    user = createAccount({ email: address, password, role: check.invite.role });
+    user = createAccount({
+      email: address,
+      password,
+      role: check.invite.role,
+      ...(check.invite.access ? { access: check.invite.access } : {}),
+    });
   } catch (err) {
     return { ok: false, reason: 'account-failed', detail: err.message };
   }
@@ -274,30 +389,111 @@ export function revokeInvite(dataDir, id, now = Date.now()) {
  * a value could be derived — an operator surface that displays outstanding
  * invites must not be a way to use them.
  */
+function inviteRecord(row, now) {
+  const access = accessOfRow(row);
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    status: row.revoked_at
+      ? 'revoked'
+      : row.redeemed_at
+        ? 'used'
+        : row.expires_at <= now
+          ? 'expired'
+          : 'open',
+    redeemedAt: row.redeemed_at ?? null,
+    redeemedBy: row.redeemed_by ?? null,
+    ...(access ? { access } : {}),
+  };
+}
+
 export function listInvites(dataDir, { now = Date.now() } = {}) {
   try {
     return db(dataDir)
       .prepare('SELECT * FROM invites ORDER BY created_at DESC')
       .all()
-      .map((row) => ({
-        id: row.id,
-        email: row.email,
-        role: row.role,
-        createdAt: row.created_at,
-        expiresAt: row.expires_at,
-        status: row.revoked_at
-          ? 'revoked'
-          : row.redeemed_at
-            ? 'used'
-            : row.expires_at <= now
-              ? 'expired'
-              : 'open',
-        redeemedAt: row.redeemed_at ?? null,
-        redeemedBy: row.redeemed_by ?? null,
-      }));
+      .map((row) => inviteRecord(row, now));
   } catch {
     return [];
   }
+}
+
+// ------------------------------------------------- Ask to edit (S9.6)
+
+const REQUEST_ID = /^req_[0-9a-f]{16}$/;
+
+function requestRecord(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    canvas: row.canvas_path ?? null,
+    createdAt: row.created_at,
+    ...(row.decided_at ? { decidedAt: row.decided_at, decision: row.decision } : {}),
+  };
+}
+
+/**
+ * Record one Ask to edit. `{ ok: false, reason: 'pending' }` when the person
+ * already has an open request at that scope (the unique index decides).
+ */
+export function createAccessRequest(dataDir, { email, canvas = null }, now = Date.now()) {
+  const address = String(email ?? '')
+    .trim()
+    .toLowerCase();
+  if (!address) throw new Error('createAccessRequest: an email is required');
+  const id = `req_${randomBytes(8).toString('hex')}`;
+  try {
+    db(dataDir)
+      .prepare(
+        'INSERT INTO access_requests (id, email, canvas_path, created_at) VALUES (?, ?, ?, ?)'
+      )
+      .run(id, address, canvas, now);
+  } catch (err) {
+    if (String(err?.code ?? '').startsWith('SQLITE_CONSTRAINT')) {
+      return { ok: false, reason: 'pending' };
+    }
+    throw err;
+  }
+  return { ok: true, request: { id, email: address, canvas, createdAt: now } };
+}
+
+/** Every open request, oldest first. */
+export function listOpenAccessRequests(dataDir) {
+  try {
+    return db(dataDir)
+      .prepare('SELECT * FROM access_requests WHERE decided_at IS NULL ORDER BY created_at')
+      .all()
+      .map(requestRecord);
+  } catch {
+    return [];
+  }
+}
+
+/** One OPEN request, or null. */
+export function getOpenAccessRequest(dataDir, id) {
+  if (typeof id !== 'string' || !REQUEST_ID.test(id)) return null;
+  const row = db(dataDir)
+    .prepare('SELECT * FROM access_requests WHERE id = ? AND decided_at IS NULL')
+    .get(id);
+  return row ? requestRecord(row) : null;
+}
+
+/** Close an open request. True when THIS call decided it. */
+export function decideAccessRequest(dataDir, id, { decision, by = null }, now = Date.now()) {
+  if (decision !== 'approved' && decision !== 'declined') {
+    throw new Error('decision must be approved or declined');
+  }
+  return (
+    db(dataDir)
+      .prepare(
+        `UPDATE access_requests SET decided_at = ?, decision = ?, decided_by = ?
+          WHERE id = ? AND decided_at IS NULL`
+      )
+      .run(now, decision, by, String(id)).changes === 1
+  );
 }
 
 /** Sweep invites that expired long ago. Housekeeping, not a security control —
