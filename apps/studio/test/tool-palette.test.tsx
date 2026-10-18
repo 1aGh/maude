@@ -14,7 +14,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
-  if (typeof window === 'undefined') GlobalRegistrator.register();
+  // `document`, not `window`: a `window` stub another file left must not skip the DOM.
+  if (typeof document === 'undefined') GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 afterAll(async () => {
@@ -126,7 +127,12 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
     ]);
     expect(MODE_TOOLS.viewing.rest).toBe('inspect');
     expect(MODE_TOOLS.present.hidden).toBe(true);
-    expect(MODE_TOOLS.present.slots).toEqual([]);
+    // No toolbar, but one tool: the Pointer (L) — data so the key table knows it (S3.1), pending
+    // until S3.2b builds the dot, so nothing renders and L is not yet bound.
+    expect(MODE_TOOLS.present.slots.map((s) => `${s.label} ${s.key} ${s.pending}`)).toEqual([
+      'Pointer L S3',
+    ]);
+    expect(visibleSlots('present', 'owner')).toEqual([]);
   });
 
   test('every slot names a real tool id; v1 ids keep their v1 meaning', () => {
@@ -208,14 +214,30 @@ describe('visibleSlots / role, pending and read-only', () => {
 describe('pending slots / no dead buttons', () => {
   // The same pin as V2-4.2's pending menu ids: every not-yet-built tool names its package, and the
   // package list only shrinks when that package lands (the lead edits this list in the same commit).
-  test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
+  test('every pending slot is a v2 tool owned by its package; the list is exactly the unbuilt tools', () => {
     const pend = pendingSlots();
     expect(pend.map((p) => p.slot.tool).sort()).toEqual(
-      ['component', 'crop', 'el-pen', 'el-shape', 'ellipse', 'line', 'polygon', 'slice'].sort()
+      [
+        'component',
+        'crop',
+        'el-pen',
+        'el-shape',
+        'ellipse',
+        'line',
+        'pointer',
+        'polygon',
+        'slice',
+      ].sort()
     );
     for (const p of pend) {
-      expect(p.slot.pending).toBe('S2');
-      expect(p.mode).toBe('edit');
+      // Edit's unbuilt tools are S2's; Present's Pointer is S3's (S3.1 data, S3.2b builds it).
+      if (p.slot.tool === 'pointer') {
+        expect(p.slot.pending).toBe('S3');
+        expect(p.mode).toBe('present');
+      } else {
+        expect(p.slot.pending).toBe('S2');
+        expect(p.mode).toBe('edit');
+      }
       expect((V2_TOOL_IDS as readonly string[]).includes(p.slot.tool as string)).toBe(true);
     }
   });
