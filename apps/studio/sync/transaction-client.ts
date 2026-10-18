@@ -157,6 +157,19 @@ export interface TransactionStats {
   credentialRefused: boolean;
 }
 
+/**
+ * S6.13 (V2-1.14 fix 5.12d) — a place in the chain claimed BEFORE its
+ * proposal exists: the create window notes its creates on disk under it and
+ * seals into exactly this name, so a crash in between is the same change.
+ */
+export interface Reservation {
+  transactionId: string;
+  createdAt: number;
+  /** the link (B2) and project it was claimed under — kept on recovery */
+  link: string;
+  projectId: string | null;
+}
+
 const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 /** The hub's lane hash: sha256 of the canonical UTF-8 lane text. */
@@ -431,17 +444,38 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     });
   }
 
-  function makeEntry(action: OutboxAction, transactionId: string): OutboxEntry {
+  function makeEntry(action: OutboxAction, transactionId: string, at?: Reservation): OutboxEntry {
+    // A reservation keeps its place and its link; its project is the one it
+    // was claimed for, or — same link, learnt since — the one known now.
+    const bound = at ? (at.projectId ?? (at.link === linkId ? projectId : null)) : projectId;
     return {
       transactionId,
-      createdAt: stamp(),
+      createdAt: at?.createdAt ?? stamp(),
       bytes: envelope(action, transactionId),
       label: action.label,
       action,
-      link: linkId,
+      link: at?.link ?? linkId,
       ...(opts.declaredFormat ? { format: opts.declaredFormat() } : {}),
-      ...(projectId === null ? { unbound: true } : { projectId }),
+      ...(bound === null ? { unbound: true } : { projectId: bound }),
     };
+  }
+
+  /** S6.13 — claim the next place in the chain (see `Reservation`). */
+  function reserve(): Reservation {
+    return { transactionId: newTransactionId(), createdAt: stamp(), link: linkId, projectId };
+  }
+
+  /** Where a reservation's proposal lives once it is written. */
+  const entryFile = (r: Pick<Reservation, 'createdAt' | 'transactionId'>): string =>
+    path.join(outboxDir, `${r.createdAt}-${r.transactionId}.json`);
+
+  /**
+   * S6.13 — write a reserved proposal to the outbox WITHOUT sending it: a
+   * previous process's create window, recovered at boot. The drain delivers it
+   * in creation order with everything else that process left.
+   */
+  function persist(action: OutboxAction, at: Reservation): string {
+    return writeOutbox(makeEntry(action, at.transactionId, at));
   }
 
   /**
@@ -541,12 +575,16 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * `transactionId` may be chosen by the caller (`newTransactionId()`) so a
    * later proposal can name this one in `dependsOn` before it is answered.
    */
-  function propose(action: OutboxAction & { transactionId?: string }): Promise<ProposalResult> {
-    const { transactionId, ...rest } = action;
+  function propose(
+    action: OutboxAction & { transactionId?: string; reservation?: Reservation }
+  ): Promise<ProposalResult> {
+    const { transactionId, reservation, ...rest } = action;
     let entry: OutboxEntry;
     let file: string;
     try {
-      entry = makeEntry(rest, transactionId ?? newTransactionId());
+      entry = reservation
+        ? makeEntry(rest, reservation.transactionId, reservation)
+        : makeEntry(rest, transactionId ?? newTransactionId());
       file = writeOutbox(entry);
     } catch (err) {
       // Local persistence failed — say so; never pretend the edit is safe.
@@ -627,6 +665,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     propose,
     read,
     newTransactionId,
+    reserve,
+    persist,
+    entryFile,
     drainOutbox,
     holdsValue,
     /** The epoch proposals are currently made under. */
