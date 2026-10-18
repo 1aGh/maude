@@ -55,7 +55,14 @@ function parityProblems(safe: ReadonlySet<string>, mapKeys: readonly string[]): 
   return out;
 }
 
-const PRIVILEGED = ['/_api/export', '/_config', '/_api/thumbs/want', '/_api/index'];
+// A6c — `/_api/ui-prefs` flips ACP spawn (ownPluginCopy, experimentalTeams): main origin only.
+const PRIVILEGED = [
+  '/_api/export',
+  '/_config',
+  '/_api/thumbs/want',
+  '/_api/index',
+  '/_api/ui-prefs',
+];
 
 describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {
   test('every canvas-safe path has a canvas-map handler; every map key is canvas-safe or /_health', () => {

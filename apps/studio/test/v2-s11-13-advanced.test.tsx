@@ -6,6 +6,8 @@
 // 3. Reset: panel layout, Close all, the per-fold switch list, and Reset all settings… behind a dialog
 //    titled with its verb. No test touches the real keychain or prefs file (fetch and Tauri are stubs).
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -20,6 +22,7 @@ import {
   foldRows,
   pluginsLine,
   REPORT_LOGS_CHOICES,
+  reportLogsConsent,
   reportLogsPolicy,
   resetAllPlan,
   resetPanelLayoutPlan,
@@ -125,6 +128,16 @@ describe('the words', () => {
     expect(reportLogsPolicy({ reportLogs: 'never' })).toBe('never');
     expect(reportLogsPolicy({ reportLogs: 'sometimes' })).toBe('ask');
     expect(reportLogsPolicy(undefined)).toBe('ask');
+  });
+
+  // A6c — what Report a bug does with the policy. Ask each time keeps today's dialog (the log
+  // rows offered, ticked — the preview IS the consent); Never offers no log row and sends none.
+  test('Report a bug reads the policy: never offers no log row; ask and always offer it ticked', () => {
+    expect(reportLogsConsent('ask')).toEqual({ offer: true, on: true });
+    expect(reportLogsConsent('always')).toEqual({ offer: true, on: true });
+    expect(reportLogsConsent('never')).toEqual({ offer: false, on: false });
+    const src = readFileSync(join(import.meta.dir, '..', 'client', 'report-bug.jsx'), 'utf8');
+    expect(src).toContain('reportLogsConsent(reportLogsPolicy(');
   });
 });
 

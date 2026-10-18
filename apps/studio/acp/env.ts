@@ -97,6 +97,20 @@ export function chatSpawnEnv(
 }
 
 /**
+ * S11.13 — Settings › Advanced › "AI reviews argue it out (teams)" (`prefs.json experimentalTeams`):
+ * agent teams on for the adapter this bridge spawns (the debate relay tier, DDR-130). Off adds
+ * nothing — a CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS the person exported themselves stays. Pure.
+ */
+export function teamsSpawnEnv(
+  env: Record<string, string>,
+  prefs: { experimentalTeams?: boolean }
+): Record<string, string> {
+  return prefs.experimentalTeams === true
+    ? { ...env, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' }
+    : { ...env };
+}
+
+/**
  * Return a copy of `source` with the billing/provider-redirect keys removed and
  * any `undefined` values dropped (Bun.spawn's `env` wants Record<string,string>).
  * Pure — never mutates the input, so `process.env` stays intact for the parent.

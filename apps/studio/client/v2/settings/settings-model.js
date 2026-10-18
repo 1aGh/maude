@@ -407,6 +407,15 @@ export function reportLogsPolicy(prefs) {
   const v = prefs?.[REPORT_LOGS_PREF];
   return v === 'always' || v === 'never' ? v : 'ask';
 }
+/**
+ * What Report a bug does with the policy (report-bug.jsx): `offer` = the log rows (server log
+ * tail + memory, crash logs) are in the preview; `on` = they start ticked. Ask each time and
+ * Always keep the dialog's consent-first preview (the person can still untick); Never offers no
+ * log row, so nothing of the logs is sent.
+ */
+export function reportLogsConsent(policy) {
+  return policy === 'never' ? { offer: false, on: false } : { offer: true, on: true };
+}
 
 /** What each fold is called in the per-fold switch list (06 ad-edge-remember "Open now, on this Mac"). */
 export const FOLD_LABELS = Object.freeze({

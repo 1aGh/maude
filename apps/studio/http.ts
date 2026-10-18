@@ -37,6 +37,7 @@ import {
   seerOf,
 } from './access/filters.ts';
 import {
+  ACP_REFUSAL,
   accessForDesktop,
   accessFromProxy,
   COMMENT_WRITE_PATTERNS,
@@ -6035,6 +6036,18 @@ export function createHttp(
       const checked = validateUiPrefsPatch(body);
       if (!checked.ok) return new Response(checked.error, { status: 400 });
       const patch = checked.patch;
+      // A6c (S11.13 security) — `ownPluginCopy` / `experimentalTeams` change how THIS Mac's AI
+      // chat starts (plugin-bootstrap, the adapter's env), so they are the AI chat's, not a view
+      // preference: only a session that edits the project may flip them (D2, like `acpRefusal`),
+      // and never in a cloud cell (no one's Mac). The whole patch is refused, nothing half-saved.
+      if (
+        ('ownPluginCopy' in patch || 'experimentalTeams' in patch) &&
+        (isWorkspaceMode() || !accessOf(req).can('edit', null))
+      )
+        return Response.json(ACP_REFUSAL, {
+          status: 403,
+          headers: { 'Cache-Control': 'no-store' },
+        });
       try {
         return Response.json(writeUiPrefs(patch), { headers: { 'Cache-Control': 'no-store' } });
       } catch (err) {

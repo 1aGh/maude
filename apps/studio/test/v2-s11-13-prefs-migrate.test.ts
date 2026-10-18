@@ -162,3 +162,18 @@ describe('the v2 seen store', () => {
     expect(fresh.has('mode-hint')).toBe(false); // only `true` counts
   });
 });
+
+// A6c — the call site (S11.13 patch 7): app.jsx runs the migration ONCE, before the shell renders
+// (so no v2 home is read before its 1.x value moved), and only for the shell — a follow / embed view
+// is not where a person's preferences live.
+describe('app.jsx boots through migrateAtBoot', () => {
+  test('one call, before bootShellMode', () => {
+    const src = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
+    const calls = src.match(/\bmigrateAtBoot\(/g) ?? [];
+    expect(calls.length).toBe(1);
+    const at = src.indexOf('migrateAtBoot(');
+    const boot = src.lastIndexOf('bootShellMode(');
+    expect(at).toBeGreaterThan(src.lastIndexOf('isEmbedLocation(location)'));
+    expect(at).toBeLessThan(boot);
+  });
+});

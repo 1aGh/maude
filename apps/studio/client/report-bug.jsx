@@ -21,6 +21,7 @@ import {
   pickMediaFile,
   readPickedMediaBlob,
 } from './github.js';
+import { reportLogsConsent, reportLogsPolicy } from './v2/settings/settings-model.js';
 
 // Two of these are auto-captured (window + artboard), so the ceiling leaves
 // room for the user to still attach their own.
@@ -181,6 +182,8 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
     projectName: false,
     crashLogs: true,
   });
+  // S11.13 — Settings › Privacy › Logs in bug reports (prefs.json `reportLogs`), read per open.
+  const [logs, setLogs] = useState(() => reportLogsConsent('ask'));
   const [shellPending, setShellPending] = useState(false);
   const [redacting, setRedacting] = useState(false);
   const [result, setResult] = useState(null); // {issueUrl, issueNumber} | {fallbackDir}
@@ -245,6 +248,15 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   useEffect(() => {
     if (!open) return;
     let alive = true;
+    fetch('/_api/ui-prefs')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((prefs) => {
+        if (!alive) return;
+        const policy = reportLogsConsent(reportLogsPolicy(prefs));
+        setLogs(policy);
+        setConsent((c) => ({ ...c, logTail: policy.on, crashLogs: policy.on }));
+      })
+      .catch(() => {});
     fetch('/_api/debug-bundle')
       .then((r) => (r.ok ? r.json() : null))
       .then((b) => alive && setBundle(b))
@@ -585,7 +597,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                     </span>
                   </label>
                 )}
-                {bundle?.logs?.serverLogTail ? (
+                {logs.offer && bundle?.logs?.serverLogTail ? (
                   <label className="rb-check">
                     <input
                       type="checkbox"
@@ -607,7 +619,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                     </span>
                   </label>
                 ) : null}
-                {isNativeApp() && crashLogs.length > 0 && (
+                {logs.offer && isNativeApp() && crashLogs.length > 0 && (
                   <label className="rb-check">
                     <input
                       type="checkbox"

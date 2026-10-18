@@ -82,6 +82,7 @@ import {
 } from './panels/timeline-comp-target.js';
 import { durationFramesForDrop, probeMediaDuration } from './panels/timeline-media-cache.js';
 import GenerateDialog from './generate-dialog.jsx';
+import { migrateAtBoot } from './v2/settings/prefs-migrate.js';
 import SettingsSheet from './v2/settings/settings-sheet.jsx';
 import StickersGallery from './v2/annotations/stickers-gallery.jsx';
 import TemplatesPanel from './v2/annotations/templates-panel.jsx';
@@ -3361,4 +3362,12 @@ const root = createRoot(document.getElementById('root'));
 // S3.7a — a follow link (`?present=follow`, or any `audience` URL) is the follower page: never the editor.
 if (isFollowLocation(location)) root.render(<FollowView />);
 else if (isEmbedLocation(location)) root.render(<EmbedView />);
-else bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />));
+else {
+  // S11.13 (Gate 0 D20) — the 1.x preferences move to their v2 homes once per origin, before the
+  // first v2 home is read (a second boot is a no-op without a request). Bounded: a slow server
+  // never holds the first paint, and a failure leaves the 1.x keys where they are.
+  const migrated = migrateAtBoot().catch(() => {});
+  Promise.race([migrated, new Promise((r) => setTimeout(r, 1500))]).then(() =>
+    bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />))
+  );
+}
