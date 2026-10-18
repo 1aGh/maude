@@ -91,6 +91,10 @@ const FILTERED = [
 ];
 
 const CANVAS = [
+  // S9.12b — landed on feat with S3.5 (Present order + notes) and the edit-op lane: both
+  // write the ONE canvas their JSON body's `file` names (PATCH / POST, main origin only).
+  '/_api/present-meta',
+  '/_api/edit-op',
   '/.design/:rel',
   '/assets/:asset',
   '/_canvas-shell',

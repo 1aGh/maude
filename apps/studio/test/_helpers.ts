@@ -56,13 +56,18 @@ export function nextPort(): number {
 }
 
 function portIsFree(port: number): boolean {
-  try {
-    const probe = Bun.listen({ hostname: '127.0.0.1', port, socket: { data() {} } });
-    probe.stop(true);
-    return true;
-  } catch {
-    return false;
+  // Both the loopback AND the wildcard address: macOS ControlCenter (AirPlay) holds `*:5000`
+  // and `*:7000`, yet a 127.0.0.1 bind there succeeds — and `localhost` then reaches AirPlay
+  // over ::1, so the boot's health probe never sees the studio (S9.12b, port 5000).
+  for (const hostname of ['127.0.0.1', '0.0.0.0']) {
+    try {
+      const probe = Bun.listen({ hostname, port, socket: { data() {} } });
+      probe.stop(true);
+    } catch {
+      return false;
+    }
   }
+  return true;
 }
 
 export async function bootServer(
