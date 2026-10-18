@@ -70,7 +70,7 @@
   canvas: =
 ## browser/canvas/chrome Meta+r
   keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
-  to-shell: child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child viewport-zoom · child artboards · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
+  to-shell: child loaded · child viewport-zoom · child hold-view · child peers · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child viewport-zoom · child artboards · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child viewport-zoom · child canvas-rendered · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child peers · child mode-changed tool=move mode=edit · child viewport-zoom · child canvas-mounted
   to-canvas: parent comments-set · parent theme · parent view-chrome · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets · parent set-mode mode=edit · parent occluded-insets
   writes: (none)
   shell: =
