@@ -196,6 +196,7 @@ function answer(ctx, { status, body }) {
  *   rolesV2?: boolean, graceMs?: number,
  *   connections: () => Iterable<object>,
  *   kickLabel: (label: string) => number,
+ *   kickEmail?: (email: string) => number,
  *   sweepNow?: () => unknown,
  *   fetchImpl?: typeof fetch,
  *   now?: () => number,
@@ -210,6 +211,8 @@ export function createAccessService({
   graceMs = DEFAULT_GRACE_MS,
   connections,
   kickLabel,
+  // S9.12b (U6) — sockets keyed by person rather than token (the studio proxy's splices).
+  kickEmail = () => 0,
   sweepNow = null,
   fetchImpl = fetch,
   now = Date.now,
@@ -231,6 +234,7 @@ export function createAccessService({
     }
     let n = 0;
     for (const label of revokeTokensForOwner(dataDir, email)) n += kickLabel(label);
+    n += kickEmail(email);
     return n;
   }
 

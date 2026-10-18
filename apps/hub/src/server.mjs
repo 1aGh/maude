@@ -822,6 +822,10 @@ export function createHub(config = {}) {
         },
       })
     : null;
+  // S9.12b (V2-1.16 U6) — a token's kick also closes the studio sockets its session opened
+  // through the proxy (raw splices the Hocuspocus kick never reaches).
+  const kickLabel = (label) =>
+    kickSessionsForLabel(peers, label) + (studioProxy?.closeUpgrades({ label }) ?? 0);
   /** @type {ReturnType<typeof scheduleMirror>|null} */
   let mirror = null;
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
@@ -837,7 +841,8 @@ export function createHub(config = {}) {
     ...(config.rolesV2 !== undefined ? { rolesV2: config.rolesV2 } : {}),
     graceMs: config.switchGraceMs ?? 1500,
     connections: () => [...peers.values()].map((p) => p.connection).filter(Boolean),
-    kickLabel: (label) => kickSessionsForLabel(peers, label),
+    kickLabel,
+    kickEmail: (email) => studioProxy?.closeUpgrades({ email }) ?? 0,
     sweepNow: () => (revocationSweep?.enabled ? revocationSweep.tick() : null),
   });
 
@@ -1954,7 +1959,7 @@ export function createHub(config = {}) {
             respondRateLimited: () => respondRateLimited(response),
             respondJson: (status, payload) => respondAdminJson(response, status, payload),
             readJsonBody,
-            kickLabel: (label) => kickSessionsForLabel(peers, label),
+            kickLabel,
             pushActivity: (evt) => pushActivity(activity, evt),
           });
         } catch (err) {
@@ -1998,6 +2003,7 @@ export function createHub(config = {}) {
           port,
           startedAt,
           peers,
+          kickLabel,
           publicUrl,
           rateBuckets,
           rateStore,
@@ -2606,7 +2612,7 @@ export function createHub(config = {}) {
         revocationSweep = scheduleRevocationSweep({
           dataDir,
           revokeForOwner: revokeTokensForOwner,
-          kickLabel: (label) => kickSessionsForLabel(peers, label),
+          kickLabel,
         });
         if (revocationSweep.enabled) console.log('[revocation] sweep armed');
       }
@@ -2770,6 +2776,7 @@ export function createHub(config = {}) {
 
 async function handleAdminApi(ctx) {
   const { request, response, dataDir, secret, peers, publicUrl, rateBuckets, rateLimit } = ctx;
+  const kickLabel = ctx.kickLabel ?? ((label) => kickSessionsForLabel(peers, label));
   const { rateStore, clientIp } = ctx;
   const rateOpts = { store: rateStore, ip: clientIp?.(request) };
   const { activity, sqlitePath } = ctx;
@@ -2836,7 +2843,7 @@ async function handleAdminApi(ctx) {
       publicUrl,
       respondJson: (status, payload) => respondAdminJson(response, status, payload),
       readJsonBody,
-      kickLabel: (label) => kickSessionsForLabel(peers, label),
+      kickLabel,
       pushActivity: (evt) => pushActivity(activity, evt),
     });
     if (handled) return;
@@ -3002,7 +3009,7 @@ async function handleAdminApi(ctx) {
       // DDR-053 §4: kick existing WS sessions for the rotated label so dwell
       // time on a compromised token is bounded by rotate latency, not by the
       // attacker's choice to never disconnect.
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -3022,7 +3029,7 @@ async function handleAdminApi(ctx) {
       assertValidLabel(label);
       removeToken(dataDir, label);
       // Kick live sessions that authenticated with the deleted token (DDR-053 §4).
-      const disconnected = kickSessionsForLabel(peers, label);
+      const disconnected = kickLabel(label);
       pushActivity(activity, {
         type: 'warn',
         user: label,
@@ -3525,6 +3532,8 @@ export function browserSession(dataDir, secret, request) {
   return {
     email: match.owner,
     role,
+    // S9.12b (U6) — the token this cookie is, so its kick closes the sockets it opened.
+    label: match.label ?? null,
     // S9.3 — the stored access claim travels with the session (the proxy's `x-maude-access`),
     // so Can view reaches the studio as Can view; a v1 session gets its role's legacy claim.
     access: match.access ?? legacyClaim(role),
@@ -3545,6 +3554,7 @@ function canvasOnlyBrowserSession(match) {
   return {
     email: match.owner,
     role: null,
+    label: match.label ?? null,
     access: claim,
     readOnly: true,
     canvasOnly: true,

@@ -20,12 +20,17 @@ import {
   canvasOnlyLogPaths,
   canvasOriginTarget,
   diffRefusal,
+  diffShaVisible,
   exportTargetVerdict,
   filterAcceptedHistory,
+  filterAssetListing,
   filterConfig,
+  filterGitBranches,
   filterGitDiff,
+  filterGitStatus,
   filterIndexSearch,
   filterIndexSnapshot,
+  filterTrashListing,
   mergeCanvasOnlyLog,
   projectVisibility,
   type Seer,
@@ -155,7 +160,7 @@ import {
 } from './generation/whisper-models.ts';
 import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
-import { gitShowFile } from './git/service.ts';
+import { gitCommitFiles, gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
 import {
   cssOverridesFor,
@@ -3287,7 +3292,12 @@ export function createHttp(
       // security review A3). That probe lands in phase-28 over the server-held
       // keychain token (server-side, never client-supplied), not here.
       const checkRemote = new URL(req.url).searchParams.get('remote') === '1';
-      return gitJson(await gitApi.status({ checkRemote }));
+      // S9.12 (V2-1.16 L6) — a canvas-only session's changed files are its visible ones.
+      const status = await gitApi.status({ checkRemote });
+      return gitJson({
+        ...status,
+        json: filterGitStatus(status.json, visOf(req), ctx.paths.designRel),
+      });
     },
 
     '/_api/git/log': async (req: Request) => {
@@ -3320,7 +3330,17 @@ export function createHttp(
       // holds only the files its canvases own.
       const vis = visOf(req);
       if (diffRefusal(vis)) return readOnlyRefusalResponse();
-      const result = await gitApi.diff(new URL(req.url).searchParams.get('sha'));
+      const sha = new URL(req.url).searchParams.get('sha');
+      // S9.12b (U1) — a named sha whose own change touched nothing it may diff answers like
+      // a missing one (no sha = the dirty set, which every session may ask for).
+      if (
+        !vis.full &&
+        sha !== null &&
+        sha !== 'HEAD' &&
+        !diffShaVisible(await gitCommitFiles(ctx.paths.repoRoot, sha), vis, ctx.paths.designRel)
+      )
+        return gitJson({ status: 200, json: { entries: [] } });
+      const result = await gitApi.diff(sha);
       if (vis.full || result.status !== 200) return gitJson(result);
       const entries = (result.json as { entries?: Array<{ file: string }> }).entries ?? [];
       return gitJson({
@@ -3335,7 +3355,9 @@ export function createHttp(
     // watcher turns into a Yjs flush + reload (DDR-051) — no logic duplicated here.
     '/_api/git/branches': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-      return gitJson(await gitApi.branches());
+      // S9.12 (V2-1.16 L6, U4) — draft names are free text: a canvas-only session lists none.
+      const branches = await gitApi.branches();
+      return gitJson({ ...branches, json: filterGitBranches(branches.json, visOf(req)) });
     },
 
     '/_api/git/branch': async (req: Request) => {
@@ -3781,7 +3803,8 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method === 'GET') {
-        const entries = listTrash(ctx.paths.designRoot);
+        // S9.12b — a canvas-only session lists only the copies of canvases it sees.
+        const entries = filterTrashListing(listTrash(ctx.paths.designRoot), visOf(req));
         const bytes = entries.reduce((n, e) => n + e.size, 0);
         return Response.json(
           // Cap the wire size; totals stay exact so the panel never lies.
@@ -4784,7 +4807,8 @@ export function createHttp(
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       const r = await api.listAssets();
       return Response.json(
-        { ok: true, assets: r.assets },
+        // S9.12 (V2-1.16 L8) — a canvas-only session lists the assets its closure reads.
+        { ok: true, assets: filterAssetListing(r.assets, visOf(req)) },
         { headers: { 'Cache-Control': 'no-store' } }
       );
     },

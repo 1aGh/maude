@@ -61,7 +61,7 @@ import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
-import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { accessFor, getHubRecord, watchHubsConfig } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
@@ -370,6 +370,15 @@ const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs
 askQueue = http.askQueue;
 // S9.9 — `currentAccess()` outside a request (timers, boot): this process's own answer.
 setAccessFallback(() => http.accessOf());
+// S9.12b (V2-1.16 U6, desktop) — a socket keeps the access stamped at its upgrade; when that is
+// wider than the session's access now (hubs.json rewritten by a re-sign-in or a role drop, or the
+// project linked / relinked), it is closed and its client reconnects at the new access. A cell's
+// sockets are closed by the hub's proxy instead (studio-proxy.mjs `closeUpgrades`).
+if (!isWorkspaceMode()) {
+  const narrowSockets = () => ws.closeWiderThan(http.accessOf());
+  watchHubsConfig(narrowSockets);
+  ctx.bus.on('config-updated', narrowSockets);
+}
 const fsWatch = createFsWatch(ctx);
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.

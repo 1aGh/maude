@@ -4,7 +4,7 @@
 import type { ServerWebSocket, WebSocketHandler } from 'bun';
 
 import type { WsVisibility } from './access/filters.ts';
-import type { Access } from './access/scope.ts';
+import { type Access, accessWiderThan } from './access/scope.ts';
 import type { Acp } from './acp/index.ts';
 import type { Activity } from './activity.ts';
 import type { Api } from './api.ts';
@@ -174,7 +174,15 @@ export interface Ws {
   clientCount(): number;
   /** V2-2.4b — the shells `maude design open` can reach (see `ui-open` below). */
   shellCount(): number;
+  /**
+   * S9.12b (V2-1.16 U6) — close every inspector / collab / canvas-HMR socket whose stamped
+   * access is wider than `current` (the clients reconnect at the new access). Returns how many.
+   */
+  closeWiderThan(current: Access): number;
 }
+
+/** The close a socket gets when the access it was opened under is no longer the session's. */
+export const ACCESS_CHANGED_CLOSE = Object.freeze({ code: 4403, reason: 'access-changed' });
 
 export function createWs(
   ctx: Context,
@@ -190,6 +198,8 @@ export function createWs(
   scope?: WsVisibility
 ): Ws {
   const clients = new Set<ServerWebSocket<WsData>>();
+  // S9.12b (U6) — every socket that carries a stamped access, whichever set it joins below.
+  const stamped = new Set<ServerWebSocket<WsData>>();
 
   /**
    * S9.11 — `frame` as THIS socket may receive it (`msg` is its JSON): the same string for
@@ -434,6 +444,7 @@ export function createWs(
 
   const handler: WebSocketHandler<WsData> = {
     async open(ws) {
+      if (ws.data.kind !== 'acp') stamped.add(ws);
       if (ws.data.kind === 'collab') {
         const room = collab.registry.get(ws.data.slug);
         const conn = bindCollab(
@@ -468,6 +479,7 @@ export function createWs(
       if (out !== null) send(ws, out);
     },
     async close(ws) {
+      stamped.delete(ws);
       if (ws.data.kind === 'acp') {
         acp.onClose(ws);
         return;
@@ -585,5 +597,20 @@ export function createWs(
     broadcast,
     clientCount: () => clients.size,
     shellCount: () => [...clients].filter(isOpenTarget).length,
+    closeWiderThan(current: Access): number {
+      let n = 0;
+      for (const ws of [...stamped]) {
+        const was = ws.data.kind === 'acp' ? undefined : ws.data.access;
+        if (!was || !accessWiderThan(was, current)) continue;
+        stamped.delete(ws);
+        try {
+          ws.close(ACCESS_CHANGED_CLOSE.code, ACCESS_CHANGED_CLOSE.reason);
+        } catch {
+          /* already closing */
+        }
+        n += 1;
+      }
+      return n;
+    },
   };
 }
