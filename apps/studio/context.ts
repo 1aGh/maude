@@ -311,7 +311,11 @@ export interface Context {
         kind?: string | null;
         mine?: boolean;
       }): Promise<unknown[] | null>;
-      acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      acceptedVersion?(
+        repoRel: string,
+        revision: number,
+        lane?: 'html' | 'css' | 'meta'
+      ): Promise<string | null>;
       /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
       acceptedLinkDocs?(): Promise<
         { entry: string; path: string | null; retired: boolean }[] | null

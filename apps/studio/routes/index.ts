@@ -23,6 +23,7 @@ import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { type ChatAttachDeps, createChatAttachRoutes } from './chat-attach.ts';
 import { type CommentRouteDeps, createCommentRoutes } from './comments.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
+import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -62,6 +63,8 @@ export interface RouteDeps {
   present: PresentRouteDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
   trash?: TrashRouteDeps;
+  /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
+  history?: HistoryRouteDeps;
   /** S1.18 — `GET /_api/link/resolve` (stable canvas links: entry → path) */
   links?: LinksRouteDeps;
   /** S5.10 — attachments (→ Assets / this Mac's `_chat/attachments/`) + folder consent */
@@ -102,6 +105,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
         readSource: () => null,
       }
     ),
+    ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
     ...createLinksRoutes(deps.links ?? { control: () => null, designRel: deps.ai.designRel }),
     ...createCommentRoutes(
       deps.comments ?? {

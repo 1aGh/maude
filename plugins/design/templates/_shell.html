@@ -193,6 +193,10 @@
       // `git show <sha>:<path>`). Baked into the module URL so both the initial
       // import and the HMR soft-reload carry it.
       const shaParam = params.get('sha');
+      const versionMeta =
+        shaParam && window.__canvas_meta_version__ && typeof window.__canvas_meta_version__ === 'object'
+          ? window.__canvas_meta_version__
+          : null;
       // Cloud Phase 27 (DDR-209) — THE CAPABILITY TRAVELS WITH EVERY REQUEST.
       //
       // On a desktop the canvas origin is loopback and needs none, so `cap` is
@@ -683,6 +687,8 @@
               // Phase 8 — canvas-meta sidecar changed. Filter to our own canvas:
               // `<canvasRel>.meta.json` strip → must equal canvasRel without ext.
               if (!canvasRel || !msg.file) return;
+              // A past version's meta is its own — today's sidecar changing does not move it.
+              if (versionMeta) return;
               const metaBase = msg.file.replace(/\.meta\.json$/i, '');
               const myBase = canvasRel.replace(/\.(tsx|html)$/i, '');
               if (metaBase !== myBase) return;
@@ -930,10 +936,13 @@
         // server-side api.fileSlug (which trims paths.designRel).
         window.__canvas_design_rel__ = designRel;
         window.__canvas_rel__ = canvasRel;
-        const metaFetch = fetch(withCap('/_api/canvas-meta?file=' + metaFileParam), {
-          headers: { 'Cache-Control': 'no-store' },
-        })
-          .then((r) => (r.ok ? r.json() : null))
+        // S1.11 — a past version (`?sha=`) brings its own meta lane, injected by the server as
+        // window.__canvas_meta_version__ (V2-1.9 §5.6); without one, today's meta as before.
+        const metaFetch = (versionMeta
+          ? Promise.resolve(versionMeta)
+          : fetch(withCap('/_api/canvas-meta?file=' + metaFileParam), {
+              headers: { 'Cache-Control': 'no-store' },
+            }).then((r) => (r.ok ? r.json() : null)))
           .then((j) => {
             window.__canvas_meta__ = (j && typeof j === 'object') ? j : {};
             window.__canvas_meta_file__ = designRel + '/' + canvasRel;

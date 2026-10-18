@@ -191,13 +191,61 @@ describe('maude design history restore / undo (prompt tier)', () => {
     ]);
   });
 
-  test('restore takes the operands in either order; no --artboard (one-artboard restore is S1)', async () => {
+  test('restore takes the operands in either order', async () => {
     studio = fakeStudio(writer({ ok: true, status: 'accepted' }));
     expect((await studio.run('history', ['restore', '11', 'ui/home.tsx'])).code).toBe(0);
     expect(writes(studio.seen)[0]?.body).toEqual({ path: '.design/ui/home.tsx', revision: 11 });
-    const r = await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--artboard', 'a1']);
-    expect(r.code).toBe(2);
-    expect(writes(studio.seen)).toHaveLength(1);
+  });
+
+  // S1.13 — the agent paths of history.restore-artboard / restore-object / go-back.
+  test('--artboard, --element and @last-good post the scoped restore; a refusal prints its line', async () => {
+    studio = fakeStudio(
+      writer({ ok: true, actionId: 'a_9', line: 'Restored Hero to 5 Oct, 18:40' })
+    );
+    const a = await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--artboard', 'hero']);
+    expect(a.code).toBe(0);
+    expect(a.stdout).toContain('Restored Hero to 5 Oct, 18:40');
+    expect(
+      (await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--element', 'hero/title']))
+        .code
+    ).toBe(0);
+    expect((await studio.run('history', ['restore', 'ui/home.tsx', '@last-good'])).code).toBe(0);
+    expect(writes(studio.seen).map((w) => w.body)).toEqual([
+      { path: '.design/ui/home.tsx', at: 'r11', artboard: 'hero' },
+      { path: '.design/ui/home.tsx', at: 'r11', element: 'hero/title' },
+      { path: '.design/ui/home.tsx', at: '@last-good' },
+    ]);
+    const both = await studio.run('history', [
+      'restore',
+      'ui/home.tsx',
+      'r11',
+      '--artboard',
+      'hero',
+      '--element',
+      'hero/title',
+    ]);
+    expect(both.code).toBe(2);
+    studio = fakeStudio(
+      writer(
+        {
+          ok: false,
+          reason: 'family',
+          line: "Can't restore only Disc — restore the whole canvas instead.",
+        },
+        409
+      )
+    );
+    const r = await studio.run('history', [
+      'restore',
+      'ui/home.tsx',
+      'r11',
+      '--artboard',
+      'disc-a',
+    ]);
+    expect(r.code).toBe(1);
+    expect(r.stderr.trim()).toBe(
+      "maude design history: Can't restore only Disc — restore the whole canvas instead."
+    );
   });
 
   test('a local project has no restore: one clear line, exit 1, no git fallback', async () => {
@@ -257,5 +305,45 @@ describe('maude design history restore / undo (prompt tier)', () => {
     const r = await studio.run('history', ['undo', '--chat', 'c1']);
     expect(r.code).toBe(1);
     expect(r.stderr).toContain('Undo this chat needs the team server to be updated');
+  });
+});
+
+describe('maude design history name (S1.12b, V2-1.9 §5.4 — shared tier)', () => {
+  const namer =
+    (answer: Record<string, unknown>, status = 200) =>
+    (s: Seen) => {
+      if (s.path === '/_api/project/name') return json(answer, status);
+      return synced(s);
+    };
+
+  test('name <canvas> <ref> "<name>" posts { path, at, name }; --clear posts name null', async () => {
+    studio = fakeStudio(namer({ ok: true, actionId: 'a_30' }));
+    expect((await studio.run('history', ['name', 'ui/home.tsx', 'r11', 'Final hero'])).code).toBe(
+      0
+    );
+    expect((await studio.run('history', ['name', 'ui/home.tsx', 'now', '--clear'])).code).toBe(0);
+    expect(writes(studio.seen).map((s) => [s.path, s.body])).toEqual([
+      ['/_api/project/name', { path: '.design/ui/home.tsx', at: 'r11', name: 'Final hero' }],
+      ['/_api/project/name', { path: '.design/ui/home.tsx', at: 'now', name: null }],
+    ]);
+  });
+
+  test('a hub without naming says so in one line; a bad ref is usage (exit 2) before any request', async () => {
+    studio = fakeStudio(
+      namer(
+        {
+          ok: false,
+          reason: 'hub-too-old',
+          line: 'Naming versions needs the team server to be updated',
+        },
+        409
+      )
+    );
+    const r = await studio.run('history', ['name', 'ui/home.tsx', 'r11', 'x']);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain('Naming versions needs the team server to be updated');
+    const bad = await studio.run('history', ['name', 'ui/home.tsx', 'yesterday', 'x']);
+    expect(bad.code).toBe(2);
+    expect(writes(studio.seen)).toHaveLength(1);
   });
 });

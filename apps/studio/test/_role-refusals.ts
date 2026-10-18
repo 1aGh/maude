@@ -15,7 +15,7 @@
 // enforces — V2-1.7 §5.7): no action declares `server` yet, so these rows are the server
 // half that the actions will point at. Roles are the registry's (`view` = Can view =
 // wire `observer`, `comment` = viewer, `edit` = member).
-// S1.7b: `trash.clear` (owner) adds a row; test/acl-l18-trash.test.ts consumes the table.
+// S1.7b: `trash.clear` (owner) is also a row; test/acl-l18-trash.test.ts consumes the table.
 
 import type { ActionDefAI, Role } from '../actions/types.ts';
 
@@ -61,6 +61,15 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S1.13 — history.restore / restore-artboard / restore-object / go-back (test/restore-artboard.test.ts).
+  { method: 'POST', route: '/_api/project/restore', refused: ['view', 'comment'] },
+  // S1.17 — trash.restore: the Trash row's Restore (an edit; test/acl-l18-trash.test.ts consumes it).
+  {
+    method: 'POST',
+    route: '/_api/trash/restore',
+    refused: ['view', 'comment'],
+    body: { id: 'canvas:n_a' },
+  },
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },

@@ -177,7 +177,13 @@ describe('L18 — the registry’s refusal rows hold on the server (rule 7)', ()
         for (const role of roles) {
           const { runtime, calls } = fakeRuntime();
           const specs = cellRoutes(runtime);
-          const r = await call(specs, row.method as 'POST', row.route, claim({ v: 1, role }), {});
+          const r = await call(
+            specs,
+            row.method as 'POST',
+            row.route,
+            claim({ v: 1, role }),
+            row.body ?? {}
+          );
           expect(r.status).toBe(403);
           expect(calls).toEqual([]);
         }
