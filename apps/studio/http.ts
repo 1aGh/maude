@@ -154,7 +154,7 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs, heldByAiRefusal } from './routes/index.ts';
+import { allSpecs, canvasPathsOfIndex, heldByAiRefusal } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -1572,6 +1572,15 @@ export function createHttp(
   void outbox.drain.wake().catch(() => null);
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    // S11.4 — what is on this Mac vs still coming: the runtime's in-memory listing against the
+    // index's own disk scan (never a hub request); filtered by the request's access.
+    availability: {
+      source: () => ctx.syncControl?.current?.()?.availability?.() ?? null,
+      local: async () => canvasPathsOfIndex(await api.buildIndexData()),
+      designRel: ctx.paths.designRel,
+      access: (req) => accessOf(req),
+      project: () => ctx.cfg.name ?? null,
+    },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
     projectUndo: {
       control: () => ctx.syncControl?.current?.() ?? null,

@@ -17,6 +17,7 @@
 import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
+import { type AvailabilityRouteDeps, createAvailabilityRoutes } from './availability.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
@@ -30,6 +31,8 @@ import type { RouteSpec } from './table.ts';
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S11.4 — the index payload's canvas paths, the availability route's `local` (the panel's own scan).
+export { canvasPathsOfIndex } from './availability.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -48,6 +51,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S11.4 — `GET /_api/sync/availability`: listed ∖ on disk, a read over the runtime's state */
+  availability?: AvailabilityRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -69,5 +74,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
     ...createPresentRoutes(deps.present),
+    ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
   ];
 }
