@@ -73,6 +73,30 @@ const GENERATION_KEY_CUSTODY_RE = /^MAUDE_GEN_KEY/i;
 const SHELL_SECRET_RE = /^MAUDE_(TOKEN|SHELL|HOME)_/i;
 
 /**
+ * V2-1.15 §5.4 — the per-chat run binding. `MAUDE_CHAT_ID` names the chat whose `claude` this
+ * is; `maude design hook` sends it as `chat`, so the hook's run is that chat's run. An inherited
+ * value (a studio started from inside another chat's terminal) would bind this process's agents
+ * to a chat that is not theirs, so the scrub always drops it — and `MAUDE_AGENT_ACTOR` with it —
+ * and only the bridge sets them again, for its own chat (`chatSpawnEnv`).
+ */
+const RUN_BINDING_KEYS: ReadonlySet<string> = new Set(['MAUDE_CHAT_ID', 'MAUDE_AGENT_ACTOR']);
+/** A chat id as `acp/index.ts` keys its files (`sanitizeChatId`): what MAUDE_CHAT_ID may carry. */
+export const SPAWN_CHAT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * `env` plus `MAUDE_CHAT_ID=<chatId>` for the adapter the bridge spawns for one chat. A chat id
+ * that is not plain (or none) adds nothing: the hook then binds by session alone. Pure.
+ */
+export function chatSpawnEnv(
+  env: Record<string, string>,
+  chatId: string | null | undefined
+): Record<string, string> {
+  const { MAUDE_CHAT_ID: _stale, ...out } = env;
+  if (typeof chatId === 'string' && SPAWN_CHAT_ID_RE.test(chatId)) out.MAUDE_CHAT_ID = chatId;
+  return out;
+}
+
+/**
  * Return a copy of `source` with the billing/provider-redirect keys removed and
  * any `undefined` values dropped (Bun.spawn's `env` wants Record<string,string>).
  * Pure — never mutates the input, so `process.env` stays intact for the parent.
@@ -92,6 +116,8 @@ export function scrubAgentEnv(
     // The profile env (MAUDE_PROFILE_ID, MAUDE_CLOUD_CONFIG, HUBS_CONFIG_PATH) deliberately
     // passes: a tab's agent runs as the tab.
     if (SHELL_SECRET_RE.test(key)) continue;
+    // V2-1.15 §5.4 — a run binding is the bridge's to set, per chat (chatSpawnEnv)
+    if (RUN_BINDING_KEYS.has(key)) continue;
     out[key] = value;
   }
   return out;

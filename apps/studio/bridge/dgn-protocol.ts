@@ -242,6 +242,10 @@ export interface ShellToCanvas {
   // S4.4: a Templates-panel pick (`id` is an annotations/templates.ts id); the canvas expands the same
   // spec `annotate --board <id>` does and, with `follow`, the ghost trails the pointer until a click (S4.13)
   'insert-template': { id: string; follow?: boolean };
+  // S1.3: the Canvases panel's artboard jump list — ease (glide) or cut the camera to an artboard and
+  // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
+  // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
+  'reveal-artboard': { artboardId: Id; glide: boolean; flash: boolean };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -778,10 +782,12 @@ const c2s: C2S = {
     owner: 'shell ZoomUndo (V2-4.x)',
     parse: p({ zoom: num }),
   },
+  // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
+  // the shell's mode store keeps it (use-canvas-mode-lane).
   'present-position': {
     gate: 'active',
-    status: 'proposed',
-    owner: 'S3 present',
+    status: 'live',
+    owner: 'v2/shell/use-canvas-mode-lane (S3.1)',
     parse: p({ index: num, total: num, artboardId: str }),
   },
 };
@@ -922,6 +928,14 @@ const s2c: S2C = {
       follow: opt(bool),
       sticker: opt(shape({ pack: str, id: str, flip: opt(bool) })),
     }),
+  },
+  'reveal-artboard': {
+    gate: 'parent',
+    status: 'live',
+    // S1.3 sends it from the jump list once REVEAL_ARTBOARD_LIVE flips; canvas-lib's handler (L1) is pending
+    orphan: 'no-handler',
+    owner: 'canvas-lib',
+    parse: p({ artboardId: str, glide: bool, flash: bool }),
   },
   'insert-template': {
     gate: 'parent',
@@ -1069,10 +1083,11 @@ const s2c: S2C = {
     owner: 'bridge/canvas-mode-store',
     parse: p({ seq: num, insets }),
   },
+  // S3.1 — live: the shell lane's `step` sends it; canvas-mode-store keeps it for the Present stage.
   'present-step': {
     gate: 'parent',
-    status: 'proposed',
-    owner: 'S3 present',
+    status: 'live',
+    owner: 'bridge/canvas-mode-store (S3.1)',
     parse: p({ to: (v) => (v === 'next' || v === 'prev' ? v : num(v)) }),
   },
   'key-prefs': {

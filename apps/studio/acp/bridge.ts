@@ -29,7 +29,7 @@ import {
 } from '@agentclientprotocol/sdk';
 
 import { autoAllowRules } from '../actions/verbs.ts';
-import { scrubAgentEnv } from './env.ts';
+import { chatSpawnEnv, scrubAgentEnv } from './env.ts';
 import type { SdkPluginConfig } from './plugin-bootstrap.ts';
 import {
   resolveAdapterEntry,
@@ -56,6 +56,12 @@ export interface AcpBridgeOptions {
    * Absent → no injection (tests / non-studio embedders).
    */
   studioBrief?: string;
+  /**
+   * The chat this bridge runs (V2-1.15 §5.4, S5.4): the adapter is spawned with
+   * `MAUDE_CHAT_ID=<chatId>` (`chatSpawnEnv`), so `maude design hook` binds the
+   * run to this chat. Absent / not a plain id → no binding (by session alone).
+   */
+  chatId?: string;
   /**
    * Session-scoped local plugins auto-loaded into every new session via
    * `_meta.claudeCode.options.plugins` (DDR-143; resolved by
@@ -1118,7 +1124,8 @@ export class AcpBridge {
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
-      env,
+      // V2-1.15 §5.4 — this chat's id and no other's (a stale MAUDE_CHAT_ID is dropped).
+      env: chatSpawnEnv(env, this.opts.chatId),
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',

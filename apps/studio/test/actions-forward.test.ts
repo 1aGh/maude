@@ -18,6 +18,10 @@ const V1_HAND_LIST = {
   '⌘\\': 'view.panels',
   // V2-4 gate approved delta (rule 13): Version history moved ⇧⌘G → ⌥⌘H (CONTRACT §1).
   '⌥⌘H': 'history.open',
+  // S3.1 approved delta (CONTRACT §2 [A7]): Present ⌥⌘↵ / Present from the start ⇧⌥⌘↵, from the
+  // canvas too — the shell owns the mode.
+  '⌥⌘↵': 'present.from-selection',
+  '⌥⇧⌘↵': 'present.from-start',
 };
 
 test('the generated forward table is exactly v1’s hand list', () => {
@@ -45,11 +49,14 @@ describe('the injected chord normaliser agrees with chordFromEvent', () => {
     ev('\\', 'Backslash', { metaKey: true }), // V2-4.1 ⌘\
     ev('\\', 'Backslash', { ctrlKey: true }),
     ev('«', 'Backslash', { metaKey: true }), // a layout whose backslash key types something else → e.code
+    ev('Enter', 'Enter', { metaKey: true, altKey: true }), // S3.1 ⌥⌘↵
+    ev('Enter', 'Enter', { metaKey: true, altKey: true, shiftKey: true }), // S3.1 ⇧⌥⌘↵ keeps its ⇧
+    ev('Enter', 'NumpadEnter', { metaKey: true, altKey: true }),
   ];
   for (const e of rows)
     test(`${JSON.stringify(e)} → ${chordFromEvent(e)}`, () =>
       expect(chordOf(e)).toBe(chordFromEvent(e)));
-  test('every forwarded chord is ⌘ + modifiers + a letter or the backslash (the normaliser’s domain)', () => {
-    for (const c of Object.keys(canvasForwards())) expect(c).toMatch(/^[⌥⇧]*⌘([A-Z]|\\)$/);
+  test('every forwarded chord is ⌘ + modifiers + a letter, the backslash or ↵ (the normaliser’s domain)', () => {
+    for (const c of Object.keys(canvasForwards())) expect(c).toMatch(/^[⌥⇧]*⌘([A-Z]|\\|↵)$/);
   });
 });
