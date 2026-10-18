@@ -252,6 +252,19 @@ export const VIEW_ACTIONS: ActionDef[] = [
     search: { keywords: ['presentation', 'slides', 'speaker notes', 'skip', 'reorder'] },
   },
   {
+    // S3.6b (04 md-present-menu, md-presenter): Present ⌄ › "Presenter view on another display ✓ (<name>)". A
+    // toggle the person sets; with it on, Present · Artboards shows the Mac the presenter's screen and the
+    // audience window follows on the other display. Desktop only, and the row is absent (not greyed) with one
+    // display — the shell's Present ⌄ menu and the controls' button read the display list; this action is the
+    // one registry home both call. Only a person's click turns it on: no canvas message can.
+    id: 'present.presenter-view',
+    label: 'Presenter view on another display',
+    kind: 'toggle',
+    exec: 'shell',
+    visible: { shell: ['desktop'], facts: ['native'] },
+    search: { keywords: ['presentation', 'second screen', 'audience', 'notes', 'projector'] },
+  },
+  {
     id: 'settings.theme',
     label: 'Theme',
     kind: 'toggle',

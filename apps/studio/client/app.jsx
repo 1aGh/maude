@@ -237,6 +237,7 @@ import { Viewport } from './shell/viewport.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { ShellCallouts } from './v2/shell/callouts-host.jsx';
 import { ShellPresentChrome } from './v2/present/present-chrome-host.jsx';
+import { PresenterViewHost } from './v2/present/presenter-host.jsx';
 import {
   CSS_ALIGN_SELF,
   CSS_ASPECT_RATIO,
@@ -2977,6 +2978,8 @@ function ShellTree() {
       {/* S3.2b — the only chrome Present shows: the controls (Artboards) or the pill (the canvas). It replaces
           the v1 `st-present-exit` button; the pill keeps that class. */}
       {presentMode && <ShellPresentChrome />}
+      {/* S3.6b — Presenter view on the Mac (only when the person turned it on and another display exists). */}
+      {presentMode && <PresenterViewHost />}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}

@@ -62,6 +62,7 @@
 @import url("../v2/settings/settings.css");
 /* S3.5 — Present ⌄ › Order and notes…: the order, the skipped artboards and the speaker notes. */
 @import url("../v2/present/order-notes.css");
+@import url("../v2/present/presenter-view.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */

@@ -211,6 +211,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json'
     ),
   },
+  // S3.6b — needs a person and a second display; an agent can't open a window on one.
+  'present.presenter-view': {
+    effect: 'none',
+    agent: human('native-window', 'needs a person and a second display'),
+  },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
