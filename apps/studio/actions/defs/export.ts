@@ -66,4 +66,43 @@ export const EXPORT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     legacy: { palette: 'Copy share link' },
   },
+  // S9.19 (10 co-share-sheet · co-share-roles): who has access is the OWNER's to change. Each opens
+  // the Share sheet, where the row lives (an invite needs an address, a role a person); the sheet
+  // sends it through routes/share.ts to the linked hub, which decides. Hidden below owner and on a
+  // project with no hub — and refused there too (test/_role-refusals.ts).
+  {
+    id: 'share.invite',
+    label: 'Invite people…',
+    kind: 'command',
+    icon: 'people',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: { keywords: ['invite', 'add people', 'collaborator', 'email'] },
+  },
+  {
+    id: 'share.set-role',
+    label: 'Change what someone can do…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: {
+      keywords: ['role', 'permission', 'can edit', 'can comment', 'can view', 'make owner'],
+    },
+  },
+  {
+    id: 'share.remove',
+    label: 'Remove someone…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: { keywords: ['remove', 'revoke', 'access'] },
+  },
+  {
+    id: 'share.resend',
+    label: 'Resend an invite…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'owner', facts: ['linkedHub'] },
+    search: { keywords: ['resend', 'invitation', 'pending'] },
+  },
 ];

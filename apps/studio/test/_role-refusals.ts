@@ -55,6 +55,17 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
   // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
   { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
+  // S9.19 — who has access is the owner's (`invite`, V2-1.7 §5.5): routes/share.ts refuses every
+  // session without it before the linked hub hears anything (test/share-route.test.ts).
+  { method: 'POST', route: '/_api/share/invites', refused: ['view', 'comment', 'edit'] },
+  {
+    method: 'PATCH',
+    route: '/_api/share/people/:id',
+    refused: ['view', 'comment', 'edit'],
+    body: { role: 'viewer' },
+  },
+  { method: 'POST', route: '/_api/share/people/:id/remove', refused: ['view', 'comment', 'edit'] },
+  { method: 'POST', route: '/_api/share/invites/:id/resend', refused: ['view', 'comment', 'edit'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

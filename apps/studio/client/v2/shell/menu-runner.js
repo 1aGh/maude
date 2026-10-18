@@ -214,6 +214,11 @@ export function createMenuHandlers(d) {
     // ── top level ──
     'history.open': () => d.toggleRightPanel('changes'),
     'share.open': () => d.onShare(),
+    // S9.19 — the owner's rows live in the Share sheet: each opens it on Invite
+    'share.invite': () => d.onShare(),
+    'share.set-role': () => d.onShare(),
+    'share.remove': () => d.onShare(),
+    'share.resend': () => d.onShare(),
     'settings.open': () => d.setSettingsOpen(true),
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──
