@@ -12,10 +12,17 @@ import { createHash } from 'node:crypto';
 
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
+import { alignOps } from './align.ts';
+import { objectConstrain } from './constraints.ts';
+import { distributeOps } from './distribute.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
+import { objectPlaceFreely } from './place-freely.ts';
+import { reorderOps } from './reorder.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
+import { objectRotate } from './rotate.ts';
+import { layoutSetGap } from './set-gap.ts';
 import {
   EDIT_OP_STATUS,
   type EditOp,
@@ -44,6 +51,16 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSendBack,
   objectLock,
   objectHide,
+  // S2.7 — the align bar and the rotate handle
+  ...alignOps,
+  ...distributeOps,
+  objectRotate,
+  // S2.11 — Place freely, constraints, reorder (earlier / later / to a slot)
+  objectPlaceFreely,
+  objectConstrain,
+  ...reorderOps,
+  // S2.11c — ⌥ "every gap at once": one gap value over several auto layouts, one write
+  layoutSetGap,
 ];
 
 export interface AiHoldHit {

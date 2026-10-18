@@ -108,6 +108,8 @@ export interface CanvasToShell {
   'edit-text': { id: Id; file: string; text: string; occurrence?: number; before?: string };
   'apply-edit': ApplyEditMessage & { requestId: string };
   'undo-barrier': { requestId: string };
+  /** S2.20b — ⌘Z (`redo: false`) / ⇧⌘Z pressed in an op-log canvas: the shell's projection runs it */
+  'undo-key': { redo: boolean };
   /** S2.1 — one structural edit; the shell pins `file` to the active canvas (S2-edit-ops.md §6) */
   'edit-op': {
     requestId: string;
@@ -117,6 +119,12 @@ export interface CanvasToShell {
     expectRev?: string;
   };
   'active-artboard': { id: Id | null };
+  /**
+   * S2.11b — the slot a lifted card would land in, for Layers to draw the same numbered place
+   * (ed-lay-reorder). `index` is 1-based among `total` siblings of the frame `parentId`; `index: 0`
+   * = the drag ended (no slot). A frame with no `data-cd-id` has no `parentId` and Layers draws none.
+   */
+  'reorder-slot': { index: number; total: number; parentId?: Id };
   'layers-tree': { artboardId: Id | null; tree: LayerNode[] };
   'open-inspector': { tab?: string };
   'copy-style': Empty;
@@ -354,6 +362,11 @@ export interface ShellToCanvas {
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
+  'undo-preview': { artboards: string[]; tag: string | null };
+  // S2.20b — state, not an event: `opLog: true` → the shell owns ⌘Z (the op log) and the canvas
+  // keeps no durable stack; sent on every change and to a frame on `loaded` / `canvas-rendered`.
+  'undo-mode': { opLog: boolean };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -489,16 +502,18 @@ const shape =
     }
     return out;
   };
+/** A whole number in [min, max]. */
+const intIn =
+  (min: number, max: number): V =>
+  (v) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : BAD;
+/** The `data-cd-id` grammar the writers accept (api.ts CD_ID_RE): word characters and dashes, 1–64. */
+const cdId: V = (v) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : BAD);
 const rect = shape({ x: num, y: num, w: num, h: num });
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
 const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
-/** S3.7a — bounded ints, like the awareness `present` field (S3-present-session §2). */
-const intIn =
-  (lo: number, hi: number): V =>
-  (v) =>
-    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : BAD;
 const PRESENT_SID = /^[a-z0-9]{8,32}$/;
 const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
@@ -611,6 +626,12 @@ const c2s: C2S = {
     }),
   },
   'undo-barrier': { gate: 'active', status: 'live', owner: BR, parse: p({ requestId: str }) },
+  'undo-key': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/undo/use-undo-mode-lane (S2.20b)',
+    parse: p({ redo: bool }),
+  },
   'edit-op': {
     gate: 'active',
     status: 'live',
@@ -624,6 +645,22 @@ const c2s: C2S = {
     }),
   },
   'active-artboard': { gate: 'active', status: 'live', owner: BR, parse: p({ id: nul(str) }) },
+  'reorder-slot': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing/reorder-slot',
+    parse: (raw) => {
+      const r = p<CanvasToShell['reorder-slot']>({
+        index: intIn(0, MAX_ARR),
+        total: intIn(0, MAX_ARR),
+        parentId: opt(cdId),
+      })(raw);
+      // a slot lies inside its total and names its frame; index 0 is "the drag ended"
+      if (!r || r.index > r.total) return null;
+      if (r.index > 0 && r.parentId === undefined) return null;
+      return r;
+    },
+  },
   'layers-tree': {
     gate: 'active',
     status: 'live',
@@ -1276,6 +1313,18 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
+  },
+  'undo-preview': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-preview (S2.20)',
+    parse: p({ artboards: arrOf(str), tag: nul(str) }),
+  },
+  'undo-mode': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-mode (S2.20b)',
+    parse: p({ opLog: bool }),
   },
 };
 

@@ -16,3 +16,22 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
   want this changed". Do not edit a locked element, and never remove the attribute.
 - **Hide** is `display: none` plus `data-cd-hidden="<previous display>"`; it stays in the file and in Layers.
 - In **Preview**, the same chords belong to the whiteboard (`annotation.*`): ⌘G groups, ⇧⌘L locks annotations.
+
+## Several objects: align, distribute, rotate (S2.7)
+
+- The **align bar** appears over two or more objects ("3 objects") or artboards ("4 artboards"). **Align** sets
+  `left` (or `top`) in px on each object's inline `style` so the edges or middles match the selection's own
+  bounds; **Distribute** (three or more) keeps the outer two and spaces the rest evenly. Only objects placed
+  freely (`position: absolute`) can be aligned. Artboards: change `x` / `y` in `.meta.json`.
+- **Rotate** is `rotate(<n>deg)` in `style.transform` (the handle outside a corner, ⇧ snaps to 15°; also the
+  Rotation row). Keep other transform functions; 0° removes the rotate.
+
+## Layout: auto layout, reorder, free placement (S2.11)
+
+- **Gap and padding** are `style.gap` / `style.padding*` on the frame (a Design-system space token when the system
+  has the stop). **Reorder** is moving the card's JSX among its siblings — in an auto layout the order in the code
+  is the order on the canvas; a copy (⌥-drag) is a duplicate without `data-cd-id` / `data-cd-locked`.
+- **Place freely** = `position: "absolute"` plus `left`, `top`, `width`, `height` in px on the card (and
+  `position: "relative"` on a static frame). Plain CSS, never a `data-cd-*` attribute. **Constraints** keep edges:
+  `right` / `bottom` carry the distance to the frame's edge instead of `left` / `top`; both edges drop `width`.
+  Datum with `right: 64px; top: 64px` stays 64 from the corner at every artboard size.

@@ -20,6 +20,8 @@ import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.j
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { dispatchCanvasOp, requestCanvasesOp, requestTrash } from '../left-panel/left-panel-bus.js';
+import { undoHistoryOpen } from '../undo/undo-history.jsx';
+import { runUndoKey } from '../undo/use-undo-projection.jsx';
 import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
@@ -133,7 +135,16 @@ export function createMenuHandlers(d) {
     'handoff.open': () => d.setExportDialog({ mode: 'handoff' }),
     'canvas.close': () => d.onCloseCanvas(),
     'account.switch': () => d.onSwitchAccount(),
-    // ── Edit ── (undo / redo / select / properties ride the canvas lane; artboards the shell's)
+    // ── Edit ── (select / properties ride the canvas lane; artboards the shell's)
+    // S2.20 — Undo / Redo run the ⌘Z projection over the op log; a project not on it falls back to
+    // the canvas stack (the run-action lane, V2-1.2 feed). Undo history… opens the popover.
+    'edit.undo': () =>
+      runUndoKey(d.activePath, false, () => d.postToActiveCanvas(runActionMessage('edit.undo'))),
+    'edit.redo': () =>
+      runUndoKey(d.activePath, true, () => d.postToActiveCanvas(runActionMessage('edit.redo'))),
+    'edit.undo-history': () => {
+      if (d.activePath) undoHistoryOpen.open();
+    },
     'edit.cut': () => d.onCutPaste('cut'),
     'edit.copy': () => d.onCutPaste('copy'),
     'edit.paste': () => d.onCutPaste('paste'),

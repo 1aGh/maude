@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
-import { C2S_ACTIVE } from '../../bridge/dgn-protocol.ts';
+import { C2S_ACTIVE, DGN_TABLE } from '../../bridge/dgn-protocol.ts';
+import { layersSlot } from '../v2/inspector/layers-slot.jsx';
 import { notifyCanvasText } from '../../notifications.tsx';
 import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
@@ -367,6 +368,11 @@ export function useCanvasBridge({
                 })
               )
           );
+      } else if (m.dgn === 'reorder-slot') {
+        // S2.11b — the slot a lifted card would land in; Layers draws the same numbered place.
+        // The row is parsed through the typed table (a planted canvas sends whatever it likes).
+        const slot = DGN_TABLE.c2s['reorder-slot'].parse(m);
+        layersSlot.set(slot);
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.
         setLayersTree({ artboardId: m.artboardId, nodes: Array.isArray(m.tree) ? m.tree : [] });

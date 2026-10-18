@@ -377,7 +377,10 @@
         "action": null,
         "testid": "canvas-row-unsaved",
         "where": "Canvases — a changed canvas or file row carries an M / A / D / U badge until its version is saved (a project under git, local shells)",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -391,7 +394,9 @@
         "action": null,
         "testid": "repo-switcher-trigger",
         "where": "Canvases panel foot (desktop) — the project / draft switcher; a browser tab shows a read-only “branch: X” badge; a project somebody else saves keeps only the project half",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -405,7 +410,9 @@
         "action": "project.pull-copy",
         "testid": "project-menu-row-project.pull-copy",
         "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -419,7 +426,9 @@
         "action": null,
         "testid": "switcher-resume",
         "where": "Canvases panel foot (desktop) — on the shared version, with a draft you worked on, a “Continue on <draft>?” strip sits above the switcher (Dismiss hides it for the session)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -459,7 +468,13 @@
         "action": null,
         "testid": "settings-open-dashboard",
         "where": "Settings › General › Account › Open the cloud dashboard",
-        "reach": ["desktop", "browser", "cloud-owner", "cloud-member", "cloud-viewer"],
+        "reach": [
+          "desktop",
+          "browser",
+          "cloud-owner",
+          "cloud-member",
+          "cloud-viewer"
+        ],
         "reachNote": "V2-4.9: the local read-only link (viewer) has no account row — it is the Mac owner’s account, and that link is somebody else’s Mac. A cloud viewer keeps it (its hub told the tab where the dashboard is)."
       }
     },
@@ -536,9 +551,9 @@
       "home": "insp",
       "drawnAt": "ad-inspector",
       "v2": {
-        "action": null,
+        "action": "layout.convert-to-absolute",
         "testid": "canvas-menu-item-convert-to-absolute",
-        "where": "Right-click an element in the canvas › Convert layout to absolute… (an artboard’s menu has the same row; until S2)"
+        "where": "Inspector › Layout › Advanced › Convert children to absolute position (S2.11); the right-click row on an element stays (an artboard’s menu has the same row; S2.10)"
       }
     },
     {
@@ -825,7 +840,9 @@
         "action": null,
         "testid": "switcher-new-branch",
         "where": "Canvases panel foot (desktop) › switcher › New draft… (name it, Create); drafts list by name",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -839,7 +856,10 @@
         "action": null,
         "testid": ".gp-version",
         "where": "Menu › Version history › History — every saved version reads “author · short sha” (until S1)",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -853,7 +873,9 @@
         "action": null,
         "testid": "switcher-fetch",
         "where": "Canvases panel foot (desktop) › switcher › Refresh (fetches the remote drafts)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -867,7 +889,9 @@
         "action": null,
         "testid": "switcher-merge",
         "where": "Canvases panel foot (desktop) › switcher, on a draft › Add to shared (a GitHub project opens a pull request)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -881,7 +905,9 @@
         "action": null,
         "testid": "git-commit-message",
         "where": "Menu › Version history ⇧⌘G › Changes — describe what changed, then Save version / Save all (desktop; until S1)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -895,7 +921,9 @@
         "action": null,
         "testid": "git-publish",
         "where": "Menu › Version history ⇧⌘G › Changes › Publish changes (desktop, shown with saved versions to send; until S1)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -909,7 +937,9 @@
         "action": null,
         "testid": "git-discard",
         "where": "Menu › Version history ⇧⌘G › Changes › the discard button on a changed file (desktop; until S1)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -923,7 +953,10 @@
         "action": null,
         "testid": "diag-get-latest",
         "where": "Menu > Diagnostics > Sync > Get latest (shown while the team has new versions)",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1054,7 +1087,12 @@
         "action": "view.trash",
         "testid": "canvases-trash-clear",
         "where": "Canvases › Trash (the last row; ⌘K “Trash”) › Clear out… — removes what has been in the trash 30 days or more; Restore brings a thing back",
-        "reach": ["desktop", "browser", "cloud-owner", "cloud-member"]
+        "reach": [
+          "desktop",
+          "browser",
+          "cloud-owner",
+          "cloud-member"
+        ]
       }
     },
     {
@@ -1120,7 +1158,10 @@
         "action": null,
         "testid": "share-local-url",
         "where": "Share cluster › Share… › Local link (this Mac only), with Copy",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1134,7 +1175,10 @@
         "action": null,
         "testid": "share-app-url",
         "where": "Share cluster › Share… › Open in Maude app, with Copy",
-        "reach": ["desktop", "browser"]
+        "reach": [
+          "desktop",
+          "browser"
+        ]
       }
     },
     {
@@ -1148,7 +1192,9 @@
         "action": "project.share-github",
         "testid": "project-menu-row-project.share-github",
         "where": "Menu › File › Share on GitHub… (desktop) — invite by GitHub username; the Share sheet takes it over with S9",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1162,7 +1208,9 @@
         "action": null,
         "testid": "chat-caps-bar",
         "where": "AI chat (⇧⌘A) › Advanced › Model, Effort, Fast mode — the pickers left the field's toolbar for the fold (S5.12); ⌘K finds each as \"AI chat panel › Advanced\"",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1176,7 +1224,9 @@
         "action": null,
         "testid": "chat-mode-picker",
         "where": "AI chat (⇧⌘A) › Advanced › Ask before — the permission mode in plain words, the agent's own name in grey (S5.12)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1190,7 +1240,9 @@
         "action": null,
         "testid": "chat-transcript-menu",
         "where": "AI chat (⇧⌘A) › Advanced › Show in chat — normal, thinking, verbose (S5.12)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1204,7 +1256,9 @@
         "action": null,
         "testid": "chat-foot-info-btn",
         "where": "AI chat (⇧⌘A) › Advanced › Context used, with the ⓘ for the token counts (S5.12)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1218,7 +1272,9 @@
         "action": null,
         "testid": "chat-cmd-menu",
         "where": "AI chat (⇧⌘A) › type “/” in the composer — the slash-command list (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1232,7 +1288,9 @@
         "action": null,
         "testid": "chat-tool-group",
         "where": "AI chat (⇧⌘A) › the feed — one card per group of tool calls (until S5)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -1725,8 +1783,8 @@
       "drawnAt": null,
       "v2": {
         "action": null,
-        "testid": ".dc-elem-ctx-tb / [data-on]",
-        "where": "Select an element — the contextual toolbar floats beside it (copy selector / id, inspect, align, Tidy up); a multi-selection gets the align bar (until S2)"
+        "testid": "edit-align-bar",
+        "where": "Select two or more objects — the align bar floats above them (align, distribute; S2.7). Copy CSS, Copy ID, Inspect and Add comment are in the object menu, Advanced ▸; Tidy up is the artboard bar's (S2.9)"
       }
     },
     {
@@ -1753,7 +1811,9 @@
         "action": "ai.chat",
         "testid": "chat-overflow-menu",
         "where": "AI chat (⇧⌘A) › the title ⌄ opens the chat list; a row's ⋯ menu: Open, Rename…, Copy transcript, Archive, Move to trash (Delete is Move to trash — Trash keeps it until cleared out); the suggest-only banner's Allow changes is the old ModeBanner; the empty state’s buttons and “Implement N comments” sit in the feed (S5.12)",
-        "reach": ["desktop"]
+        "reach": [
+          "desktop"
+        ]
       }
     },
     {
@@ -3300,7 +3360,7 @@
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/comment-edit-save": "testid:comment-edit-save",
     "testid:studio/context-menu.tsx#canvas iframe chrome/canvas-menu-item-id": "testid:canvas-menu-item-<id>",
     "testid:studio/context-menu.tsx#canvas iframe chrome/dc-context-menu-data-action": "D6",
-    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "D7",
+    "testid:studio/contextual-toolbar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "testid:.dc-elem-ctx-tb / [data-on]",
     "testid:studio/cursors-overlay.tsx#canvas iframe chrome/dc-cursor-dc-peer-selection-data-peer-gesture": "testid:.dc-cursor / .dc-peer-selection / [data-peer-gesture]",
     "testid:studio/figma/to-artboard.ts#canvas iframe chrome/data-dc-element": "testid:[data-dc-element]",
     "testid:studio/measure-overlay.tsx#canvas iframe chrome/dc-cv-measure-line-dc-cv-measure-pill": "testid:.dc-cv-measure-line / .dc-cv-measure-pill",
@@ -3393,12 +3453,41 @@
     "testid:studio/client/testids.json#menubar/menubar-file": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#sidebar/tree/data-canvas-row": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#viewport/st-skel-cap": "historical hook: no live element in v1",
+    "testid:studio/editing/align-bar.tsx#canvas iframe chrome/dc-elem-ctx-tb-data-on": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas iframe chrome/dc-multi-artboard-tb": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas/edit-align-bar": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas/edit-align-chip": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas/edit-align-count": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas/edit-align-edge": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas/edit-align-guide": "v2 code (added after the freeze)",
+    "testid:studio/editing/align-bar.tsx#canvas/edit-distribute-axis": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-band": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-bands": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-gap-chip": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-pad-band": "v2 code (added after the freeze)",
+    "testid:studio/editing/gap-bands.tsx#canvas/edit-pad-chip": "v2 code (added after the freeze)",
     "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-badge": "v2 code (added after the freeze)",
     "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-tip": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-gap-side": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-gaps": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-freely.tsx#canvas/edit-pin-chip-edge": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guide-edge": "v2 code (added after the freeze)",
+    "testid:studio/editing/place-freely.tsx#canvas/edit-pin-guides": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot-layer": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-slot-n": "v2 code (added after the freeze)",
+    "testid:studio/editing/reorder-slot.tsx#canvas/edit-reorder-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-angle": "v2 code (added after the freeze)",
+    "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-handle": "v2 code (added after the freeze)",
+    "testid:studio/editing/rotate-handle.tsx#canvas/edit-rotate-hint": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
-    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)"
+    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-free": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-hint": "v2 code (added after the freeze)",
+    "testid:studio/editing/token-ruler.tsx#canvas/edit-token-ruler-stop-px": "v2 code (added after the freeze)",
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview": "v2 code (added after the freeze)",
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview-tag": "v2 code (added after the freeze)"
   }
 }

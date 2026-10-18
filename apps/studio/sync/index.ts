@@ -118,6 +118,7 @@ import {
 } from './remote-docs.ts';
 import { createRevisionBarrier } from './revision-barrier.ts';
 import { computeSeedProgress } from './seed-progress.ts';
+import { mergeSource } from './source-merge.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
@@ -653,9 +654,33 @@ export interface SyncRuntime {
     key: string,
     outcome: 'done' | 'failed' | 'stopped',
     o?: { fence?: RunFence }
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    actionId?: string;
+    /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+    touched?: Record<string, string[]>;
+  } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /**
+   * S2.20c (V2-1.5 §5.4) — this person's edits to canvas `repoRel` waiting behind an AI run, oldest
+   * first (an inverse ⌘Z queued names the edit it `undoes`). Null when no hub answers.
+   */
+  pendingEdits?(repoRel: string): Array<{
+    transactionId: string;
+    label: string;
+    madeAt: number;
+    undoes?: string;
+  }> | null;
+  /**
+   * S2.20c — ⌘Z on a waiting edit: the disk loses it now, and its inverse waits behind the same
+   * run, landing as that edit's undo right after it. Never touches the run's staged writes.
+   */
+  undoPendingEdit?(
+    repoRel: string,
+    transactionId: string
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; transactionId?: string } | null>;
   /**
    * T19 — make the whole project available offline now: file-plane passes
    * back to back (no pacing floor) until nothing is left to pull, or a pass
@@ -687,6 +712,8 @@ export interface SyncRuntime {
     status: 'accepted' | 'rejected' | 'discarded';
     code?: string;
     canvases?: number;
+    actionId?: string;
+    touched?: Record<string, string[]>;
   } | null>;
 }
 
@@ -710,6 +737,8 @@ export interface AcceptedHistoryRow {
   chatId?: string;
   madeAt?: number;
   partial?: true;
+  /** S2.20c — the proposal's transaction id: a pending ⌘Z entry finds the action it became. */
+  transactionId?: string;
 }
 
 export { originFields } from './undo-target.ts';
@@ -5555,6 +5584,7 @@ export function createSyncRuntime(
           undoes: a.undoes,
           canvases: [...canvases].sort(),
           ...originFields(a.origin),
+          ...(typeof a.tx === 'string' ? { transactionId: a.tx } : {}),
         };
       });
     },
@@ -5655,12 +5685,14 @@ export function createSyncRuntime(
       // returns; let it land in the stage before the stage closes.
       await new Promise((r) => setTimeout(r, AI_ACTION_SETTLE_MS));
       await (discoveryRescan?.flush() ?? Promise.resolve()).catch(() => {});
+      const touched = acceptedLink.stage.summaryOf(key)?.touched;
       const r = await acceptedLink.stage.end(key, outcome, o);
       return r
         ? {
             status: r.status,
             ...(r.code ? { code: r.code } : {}),
             ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+            ...(touched && Object.keys(touched).length ? { touched } : {}),
           }
         : null;
     },
@@ -5668,14 +5700,71 @@ export function createSyncRuntime(
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
     },
+    pendingEdits: (repoRel) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return [];
+      return acceptedLink.stage.waiting(slug).map((e) => ({
+        transactionId: e.transactionId,
+        label: e.label,
+        madeAt: e.madeAt,
+        ...(e.undoes ? { undoes: e.undoes } : {}),
+      }));
+    },
+    undoPendingEdit: async (repoRel, transactionId) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const stage = acceptedLink.stage;
+      const slug = slugForRepoRel(repoRel);
+      const edit = stage.waitingEdit(transactionId);
+      // Gone out already (the run ended meanwhile): the caller undoes the action it became.
+      if (!slug || !edit || edit.slug !== slug || edit.undoes)
+        return { status: 'rejected', code: 'not-pending' };
+      if (stage.waiting(slug).some((w) => w.undoes === transactionId))
+        return { status: 'rejected', code: 'already-undone' };
+      // A layout move / board stroke waiting behind a run has no inverse here yet (html only).
+      if (edit.lane !== 'html') return { status: 'rejected', code: 'unsupported' };
+      const projection = projections.get(slug);
+      const html = descriptors.get(slug)?.html;
+      if (!projection || !html) return { status: 'rejected', code: 'not-pending' };
+      let disk: string;
+      try {
+        disk = readFileSync(html, 'utf8');
+      } catch {
+        return { status: 'rejected', code: 'not-pending' };
+      }
+      // The disk without THIS edit: the run's later writes and the person's later edits stay.
+      const inverse = mergeSource(edit.content, edit.baseContent, disk);
+      if (!inverse.ok) return { status: 'rejected', code: 'undo-conflict' };
+      const answer = projection.proposeInverse(inverse.merged, transactionId);
+      if (!answer) return null;
+      const queued = stage.waiting(slug).find((w) => w.undoes === transactionId);
+      if (!queued) {
+        const o = await answer;
+        return { status: o.status, ...(o.code ? { code: o.code } : {}) };
+      }
+      return { status: 'accepted', transactionId: queued.transactionId };
+    },
     resolveAiAction: async (choice, runId) => {
       if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;
       if (choice === 'discard') {
         const canvases = acceptedLink.stage.discard(runId);
         return { status: 'discarded', canvases };
       }
+      // S5.5b — the touched artboards of what Keep publishes, for `project:action`.
+      const touched: Record<string, string[]> = {};
+      for (const run of acceptedLink.stage.runs())
+        if (run.state === 'held' && (!runId || run.runId === runId))
+          for (const [c, ids] of Object.entries(run.touched))
+            touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
       const r = await acceptedLink.stage.publish(runId);
-      return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
+      return r
+        ? {
+            status: r.status,
+            ...(r.code ? { code: r.code } : {}),
+            ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+            ...(Object.keys(touched).length ? { touched } : {}),
+          }
+        : null;
     },
   };
 }

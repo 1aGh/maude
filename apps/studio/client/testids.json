@@ -7887,10 +7887,10 @@
     "hook": ".dc-elem-ctx-tb / [data-on]",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Element contextual toolbar (\"Tidy up into a grid\", …) and its toggled-on state attribute.",
+    "meaning": "The align bar over two or more selected objects (\"3 objects\", align and distribute) and its toggled-on state attribute. The v1 ContextualToolbar rows (Copy CSS, Copy ID, Inspect, Comment) are in the object menu, Advanced ▸.",
     "producer": {
-      "file": "apps/studio/contextual-toolbar.tsx",
-      "symbol": "ContextualToolbar"
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
     },
     "region": "canvas iframe chrome",
     "consumers": [
@@ -7903,10 +7903,10 @@
     "hook": ".dc-multi-artboard-tb",
     "kind": "selector",
     "pattern": false,
-    "meaning": "Multi-artboard toolbar (\"Align top\", \"Distribute horizontally\").",
+    "meaning": "The align bar over two or more selected artboards (\"4 artboards\", align and distribute).",
     "producer": {
-      "file": "apps/studio/canvas-shell.tsx",
-      "symbol": "MultiArtboardToolbar"
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
     },
     "region": "canvas iframe chrome",
     "consumers": [
@@ -12279,6 +12279,531 @@
     "region": "inspector",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the align bar over a multi-selection (`data-kind` is objects or artboards).",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the first word of the bar, \"3 objects\" / \"4 artboards\".",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-<edge>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one align button of the bar; `<edge>` is left, hcentre, right, top, vmiddle or bottom. The tooltip is `data-tip`.",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-distribute-<axis>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: a distribute button of the bar; `<axis>` is h or v. Off below three objects.",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-guide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the guide-colour line an align leaves for a moment on the edge the objects now share.",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-align-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the chip on that guide with its place in the artboard (\"X 64\", \"Y 230\").",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBar"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-rotate-handle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the rotate handle outside the bottom-right corner of the selection.",
+    "producer": {
+      "file": "apps/studio/editing/rotate-handle.tsx",
+      "symbol": "RotateHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-multi-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-rotate-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the hint beside the rotate handle on hover, \"Rotate · ⇧ 15°\".",
+    "producer": {
+      "file": "apps/studio/editing/rotate-handle.tsx",
+      "symbol": "RotateHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-rotate-angle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the angle beside the rotate handle while it is dragged (whole degrees; ⇧ snaps to 15°).",
+    "producer": {
+      "file": "apps/studio/editing/rotate-handle.tsx",
+      "symbol": "RotateHandle"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-gap-bands",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer of bands over a selected auto-layout frame (a row or column of two or more children).",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-gap-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one band over a gap between two children, tinted in the guide colour; `data-hot` marks the gap being dragged.",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pad-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one band along an edge of the frame's padding (`data-key` is top, right, bottom or left).",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-gap-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the chip on a gap band with its size in world px (\"24\").",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pad-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the chip on the top and left padding bands (\"24\").",
+    "producer": {
+      "file": "apps/studio/editing/gap-bands.tsx",
+      "symbol": "GapBands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the ruler beside the pointer while a gap is dragged; `data-free` while ⌘ makes it any number.",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler-stop-<px>",
+    "kind": "testid (pattern)",
+    "pattern": true,
+    "meaning": "Canvas iframe: one stop of the ruler (the design system's space scale, five around the current value); `data-on` is the lit one.",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler-free",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the number the gap would be while ⌘ ignores the stops.",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-token-ruler-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the hint under the ruler, \"⌘ any number · ⌥ every gap at once\".",
+    "producer": {
+      "file": "apps/studio/editing/token-ruler.tsx",
+      "symbol": "TokenRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-slot-layer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer drawn while a card is lifted to be reordered.",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-slot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the empty, numbered slot where the lifted card will land (`data-n` is its place).",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-slot-n",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the number in the slot.",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-slot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers: the empty, numbered row where a lifted card will land, among its frame's rows (`data-n` is its place) \u2014 the same slot the canvas draws.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/layers-slot.jsx",
+      "symbol": "LayerSlotRow"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-reorder-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the tag that follows the lifted card (\"Small apps · moves to 1 of 3\"; `data-copy` while ⌥ is held, `data-out` outside the frame).",
+    "producer": {
+      "file": "apps/studio/editing/reorder-slot.tsx",
+      "symbol": "ReorderSlot"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pin-guides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer of pin guides for a freely placed object that keeps edges of its frame.",
+    "producer": {
+      "file": "apps/studio/editing/place-freely.tsx",
+      "symbol": "PinGuides"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pin-guide-<edge>",
+    "kind": "testid (pattern)",
+    "pattern": true,
+    "meaning": "Canvas iframe: the guide from a pinned edge to the frame's edge; `<edge>` is top, right, bottom or left.",
+    "producer": {
+      "file": "apps/studio/editing/place-freely.tsx",
+      "symbol": "PinGuides"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-pin-chip-<edge>",
+    "kind": "testid (pattern)",
+    "pattern": true,
+    "meaning": "Canvas iframe: the distance on that guide in world px (\"64\").",
+    "producer": {
+      "file": "apps/studio/editing/place-freely.tsx",
+      "symbol": "PinGuides"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-place-freely",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Position: the Place freely button of an object that sits in an auto layout (runs `object.place-freely`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "PlaceFreelyBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-reorder-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Position: \"In auto layout, ← → move it earlier or later.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "PlaceFreelyBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-layout-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Layout: the \"Advanced\" subhead above Convert.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "ConvertBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-layout-convert",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Layout › Advanced: Convert children to absolute position (runs `layout.convert-to-absolute`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "ConvertBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-layout-convert-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inspector › Layout › Advanced: what Convert does, and that ⌘Z brings the layout back.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/frame.jsx",
+      "symbol": "ConvertBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-layout-frame.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Menu › Edit › Undo history…: the popover (your changes and your AI's on this canvas, newest first).",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-row-<i>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Undo history row, 0 = newest; `data-who` you|ai, `data-state` done|stale|undone, `data-top=\"true\"` on the row ⌘Z undoes next. A click undoes rows 0..i as one step.",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo history with nothing to undo on this canvas yet.",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-foot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The foot line naming the other people who changed this canvas (\"Tereza's changes are theirs to undo.\").",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "undo-history-version",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo history's Version history ⌥⌘H row.",
+    "producer": {
+      "file": "apps/studio/client/v2/undo/undo-history.jsx",
+      "symbol": "UndoHistory"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-undo-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the outline on an artboard an Undo history row would undo (`data-artboard`).",
+    "producer": {
+      "file": "apps/studio/editing/undo-preview.tsx",
+      "symbol": "UndoPreview"
+    },
+    "region": "canvas",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-undo-preview-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"Would undo · 14 changes\" tag on the first lit artboard.",
+    "producer": {
+      "file": "apps/studio/editing/undo-preview.tsx",
+      "symbol": "UndoPreview"
+    },
+    "region": "canvas",
+    "consumers": ["apps/studio/test/undo-history.test.tsx"],
     "v2": "new"
   }
 ]

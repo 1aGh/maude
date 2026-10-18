@@ -11,10 +11,10 @@
 // (before the write) and edit/touched (after it).
 
 import { parseSync } from 'oxc-parser';
-
 import { createLocalLeaseHome } from './ai/lease-home.ts';
 import type { RunRecord } from './ai/run-lifecycle.ts';
 import { createRunRegistry, type RunRegistry } from './ai/runs.ts';
+import { walkIdElements } from './element-ids.ts';
 
 export const RUN_ACTORS = ['maude-chat', 'claude-code'] as const;
 export const RUN_OUTCOMES = ['done', 'stopped', 'failed', 'warnings'] as const;
@@ -284,9 +284,20 @@ export function createAgentRuns(
     if (r && artboard !== WHOLE) reg.noteBusy(r.runId, { canvas: reg.canvasKey(canvas), artboard });
   }
 
-  function touch(session: string, path: string, artboards: string[], chat?: string | null) {
+  function touch(
+    session: string,
+    path: string,
+    artboards: string[],
+    chat?: string | null,
+    /** S5.5b — the elements the edit changed: the run holds them until it ends */
+    elements: Array<{ artboard: string; element: string }> = []
+  ) {
     const r = ensure(session, chat);
-    const rec = reg.hookEvent(r.run, { touched: [path, artboards] });
+    const key = reg.canvasKey(path);
+    const rec = reg.hookEvent(r.run, {
+      touched: [path, artboards],
+      ...(elements.length ? { objects: elements.map((e) => ({ canvas: key, ...e })) } : {}),
+    });
     if (rec) safe(() => bracket.touch?.(asAgentRun(rec), path));
   }
 
@@ -329,6 +340,49 @@ export function createAgentRuns(
     openRuns,
     registry: reg,
   };
+}
+
+// ── which elements an edit changed (S5.5b) ──────────────────────────────────────────────────
+
+/** The most elements one edit hands its run (a rewrite of a whole canvas holds no more). */
+export const MAX_CHANGED_ELEMENTS = 50;
+
+/**
+ * The innermost `data-cd-id` elements whose source changed (or appeared) from `before` to
+ * `after`, inside an artboard — an ancestor whose only change is a changed child is not one.
+ * Either side not parsing = none (the artboard lease already covers it). Pure.
+ */
+export function changedElements(
+  before: string | null,
+  after: string
+): Array<{ artboard: string; element: string }> {
+  if (before === null) return [];
+  const a = walkIdElements(after);
+  const b = walkIdElements(before);
+  if (!a.ok || !b.ok) return [];
+  const was = new Map<string, string>();
+  for (const e of b.elements) if (e.id) was.set(e.id, before.slice(e.start, e.end));
+  const changed = new Set<number>();
+  for (const e of a.elements)
+    if (e.id && e.artboard && was.get(e.id) !== after.slice(e.start, e.end)) changed.add(e.i);
+  const byIndex = new Map(a.elements.map((e) => [e.i, e]));
+  const hasChangedChild = new Set<number>();
+  for (const i of changed) {
+    let p = byIndex.get(i)?.parent ?? -1;
+    while (p >= 0 && !hasChangedChild.has(p)) {
+      hasChangedChild.add(p);
+      p = byIndex.get(p)?.parent ?? -1;
+    }
+  }
+  const out: Array<{ artboard: string; element: string }> = [];
+  for (const i of changed) {
+    const e = byIndex.get(i);
+    if (!e?.id || !e.artboard || hasChangedChild.has(i)) continue;
+    if (e.id === e.artboard) continue; // the artboard itself is a lease, not an object
+    out.push({ artboard: e.artboard, element: e.id });
+    if (out.length >= MAX_CHANGED_ELEMENTS) break;
+  }
+  return out;
 }
 
 // ── which artboards an edit reaches ──────────────────────────────────────────────────────────

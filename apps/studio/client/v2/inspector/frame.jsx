@@ -71,6 +71,7 @@ export function InspectorFrame({
   canvasFile,
   onOptimistic,
   onRecordEdit,
+  onRunAction,
   onReplaceMedia,
   onUndoRedo,
   onRenameElementId,
@@ -122,6 +123,7 @@ export function InspectorFrame({
     editable: !!el.id,
     onOptimistic,
     onRecordEdit,
+    onRunAction,
     onUndoRedo,
     onReplaceMedia,
   };

@@ -70,7 +70,6 @@ import {
   type MenuItem,
   useContextMenu,
 } from './context-menu.tsx';
-import { ContextualToolbar } from './contextual-toolbar.tsx';
 import { CursorsOverlay } from './cursors-overlay.tsx';
 import {
   buildComposeSelection,
@@ -83,9 +82,12 @@ import {
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
 import { EditingLayer } from './editing/index.tsx';
+// S2.11 — the reorder slot's state + the ⌥-copy / drag-out drops (editing/reorder-slot.tsx)
+import { panelMotion, reorderSlot, takeOver } from './editing/reorder-slot.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
 import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
+import { forwardUndoKey } from './editing/undo-mode.ts';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import { ExportDialogProvider } from './export-dialog.tsx';
 import {
@@ -1880,6 +1882,12 @@ function buildRegistry(deps: {
     }
     await runSubtreeConvert(containerEl, containerId, artboardId);
   };
+  // S2.11 — the registry action `layout.convert-to-absolute` (⌘K, Layout › Advanced) runs this same
+  // function: editing/layout-actions.ts calls it through the window.
+  if (typeof window !== 'undefined')
+    (
+      window as unknown as { __maudeConvertToAbsolute?: (el: HTMLElement) => Promise<void> }
+    ).__maudeConvertToAbsolute = postConvertToAbsolute;
   // Artboard-level (context menu + kind switch).
   const postConvertArtboardToAbsolute = async (
     artboardId: string,
@@ -2537,6 +2545,14 @@ function CanvasRouter({
   // without making them a hook dependency — avoids re-binding on every undo op.
   const undoStackRef = useRef(undoStack);
   undoStackRef.current = undoStack;
+  // S2.20b — ⌘Z / ⇧⌘Z from this canvas (its keys, or the shell's `run-action edit.undo`): after the
+  // shell's pending writes settle, the op log's projection runs it (`undo-key` to the shell) or, on a
+  // legacy project, the canvas stack does.
+  const canvasUndoKey = (redo: boolean) =>
+    void afterShellRecords().then(() => {
+      if (forwardUndoKey(redo)) return;
+      void (redo ? undoStackRef.current.redo() : undoStackRef.current.undo());
+    });
   // Selection readback can refresh while the user is typing (e.g. the shell's
   // post-HMR halo restore). Keep the editor's lifetime tied to its host, not
   // the changing selection snapshot, or effect cleanup silently ends typing.
@@ -2775,11 +2791,10 @@ function CanvasRouter({
           selSet.clear();
           annotSel.clear();
           setHoverEl(null);
-        } else if (id === 'edit.undo') {
-          // Plan C — Edit menu (shell) bridges to the in-canvas undo stack.
-          void afterShellRecords().then(() => undoStackRef.current.undo());
-        } else if (id === 'edit.redo') {
-          void afterShellRecords().then(() => undoStackRef.current.redo());
+        } else if (id === 'edit.undo' || id === 'edit.redo') {
+          // Plan C — Edit menu (shell) bridges to the in-canvas undo stack. S2.20b — on the op log
+          // the iframe keeps no stack: the key goes back to the shell's projection.
+          canvasUndoKey(id === 'edit.redo');
         } else if (replayToolKey(id, params)) {
           // V2-4.5b — a toolbar key pressed with the shell focused; the router decides.
         } else if (replayActionKey(id)) {
@@ -3467,12 +3482,8 @@ function CanvasRouter({
         ctxMenu.open(ctxTarget);
       },
       onTool: ({ tool: t }) => setTool(t),
-      onUndo: () => {
-        void afterShellRecords().then(() => undoStackRef.current.undo());
-      },
-      onRedo: () => {
-        void afterShellRecords().then(() => undoStackRef.current.redo());
-      },
+      onUndo: () => canvasUndoKey(false),
+      onRedo: () => canvasUndoKey(true),
       onEscape: () => {
         // T21 — abort any mid-stroke draw FIRST. The annotations layer
         // listens for `maude:cancel-stroke` and drops the in-progress
@@ -3526,13 +3537,7 @@ function CanvasRouter({
       <GroupBbox />
       {!readOnly && <EqualSpacingHandles />}
       <MeasureOverlay />
-      {!readOnly && <ContextualToolbar />}
-      {!readOnly && (
-        <MultiArtboardToolbar
-          distributeArtboards={distributeArtboards}
-          alignArtboards={alignArtboards}
-        />
-      )}
+      {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); MultiArtboardToolbar below is retired, S2.9 deletes it */}
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
       <UndoHud />
@@ -4070,6 +4075,8 @@ function ReorderDrag() {
       settleKey: string | null;
       /** The last PREVIEWED (already reflowed) drop, committed on release. */
       applied: { refId: string; position: 'before' | 'after' | 'inside-end' } | null;
+      /** S2.11 — the neighbour element `applied` names (⌥ copy needs the node, not the id). */
+      appliedRef: HTMLElement | null;
       /** Stamped [data-cd-id] nodes in their ORIGINAL order — for computing a
        *  reused instance's occurrence index even after the DOM reflowed. */
       snapshot: Element[] | null;
@@ -4204,7 +4211,7 @@ function ReorderDrag() {
     // its own cursor-following transform. Deltas divide by each element's own
     // zoom (screen px → world px), same math as the float. Respects
     // prefers-reduced-motion (skips straight to the end state).
-    const REFLOW_MS = 180;
+    // S2.11 — neighbours slide on --dur-panel / --ease-out (panelMotion), not a private 180 ms.
     const animateReflow = (moved: HTMLElement, act: () => void) => {
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         act();
@@ -4236,8 +4243,9 @@ function ReorderDrag() {
       }
       if (!anims.length) return;
       void document.body.offsetWidth; // flush the inverted state
+      const motion = panelMotion();
       for (const a of anims) {
-        a.el.style.transition = `transform ${REFLOW_MS}ms ease`;
+        a.el.style.transition = `transform ${motion.ms}ms ${motion.easing}`;
         a.el.style.transform = 'translate(0px, 0px)';
       }
       setTimeout(() => {
@@ -4246,7 +4254,7 @@ function ReorderDrag() {
           a.el.style.transition = a.prevTransition;
           a.el.style.transform = a.prevTransform;
         }
-      }, REFLOW_MS + 40);
+      }, motion.ms + 40);
     };
 
     // Move the node to match the target (used by the settle preview AND the
@@ -4296,6 +4304,7 @@ function ReorderDrag() {
       if (!drop) return;
       animateReflow(d.el, () => applyDrop(d.el, t));
       d.applied = drop;
+      d.appliedRef = t.kind === 'inside' ? t.container : t.el;
       d.el.style.transform = 'none';
       const rect = d.el.getBoundingClientRect();
       d.zoom = d.el.offsetWidth ? rect.width / d.el.offsetWidth : 1;
@@ -4325,6 +4334,7 @@ function ReorderDrag() {
       else d.el.setAttribute('style', d.prevStyle);
       setHighlight(null);
       hideDivider();
+      reorderSlot.end();
       suppressNextCanvasClick();
       drag = null;
       setElementDragActive(false);
@@ -4372,6 +4382,7 @@ function ReorderDrag() {
         settle: null,
         settleKey: null,
         applied: null,
+        appliedRef: null,
         snapshot: null,
         outOfFlow: outOfFlowPos === 'absolute' || outOfFlowPos === 'fixed',
         originLeft: 0,
@@ -4401,6 +4412,7 @@ function ReorderDrag() {
         // reflect the pre-drag layout, not the reflowed one.
         d.snapshot = [...document.querySelectorAll('[data-cd-id]')];
         d.prevStyle = d.el.getAttribute('style');
+        if (!d.outOfFlow) reorderSlot.begin(d.el, d.origin?.parent ?? null);
         if (d.outOfFlow) {
           // Resolved (used) value in px — matches the unit space `left`/`top`
           // are written back in, regardless of an ancestor's zoom transform
@@ -4436,6 +4448,7 @@ function ReorderDrag() {
       const target = computeTarget(e.clientX, e.clientY, d);
       const current = target ? isCurrentPosition(target, d) : false;
       d.target = target && !current ? target : null;
+      reorderSlot.move(e.clientX, e.clientY, e.altKey, !!target);
       if (!d.target) {
         clearSettle(d);
         setHighlight(null);
@@ -4466,9 +4479,12 @@ function ReorderDrag() {
       setElementDragActive(false);
       setHighlight(null);
       hideDivider();
+      const slot = reorderSlot.end();
       if (!d || e.pointerId !== d.pointerId) return;
       if (!d.dragging) return; // a plain click — leave it to native handlers
       clearSettle(d);
+      // S2.11 — where the float was when the pointer let go (screen px), before it is un-floated
+      const floatRect = d.el.getBoundingClientRect();
       // Occurrence index of a node among its like-id siblings, read from the
       // PRE-drag snapshot (the live DOM already reflowed for an in-flow drop). For
       // a reused component (many DOM nodes share one internal id) the server maps
@@ -4519,6 +4535,43 @@ function ReorderDrag() {
       // Un-float: restore the element's exact original inline style.
       if (d.prevStyle == null) d.el.removeAttribute('style');
       else d.el.setAttribute('style', d.prevStyle);
+      // S2.11 — a drop outside the frame places the card freely; ⌥ drops a copy in the slot. Both
+      // are edit-ops (editing/reorder-slot.tsx); the card goes back to where it was lifted from so
+      // the canvas shows what the file has until the remount.
+      if (slot && (slot.out || e.altKey)) {
+        const fresh = d.target ? targetToDrop(d.target) : null;
+        const drop = fresh ?? d.applied;
+        const refEl = fresh
+          ? d.target?.kind === 'inside'
+            ? d.target.container
+            : (d.target?.el ?? null)
+          : d.appliedRef;
+        if (d.applied && d.origin) {
+          try {
+            d.origin.parent.insertBefore(d.el, d.origin.next);
+          } catch {
+            /* origin gone — remount re-syncs */
+          }
+        }
+        if (
+          takeOver({
+            el: d.el,
+            floatRect: {
+              left: floatRect.left,
+              top: floatRect.top,
+              width: floatRect.width,
+              height: floatRect.height,
+            },
+            ref: refEl,
+            position: drop?.position ?? null,
+            altKey: e.altKey,
+            out: slot.out,
+          })
+        ) {
+          suppressNextCanvasClick();
+          return;
+        }
+      }
       // Commit priority: a fresh (un-settled) target under the cursor wins;
       // otherwise the last settled preview (the layout the user is LOOKING at).
       let drop = d.target ? targetToDrop(d.target) : null;

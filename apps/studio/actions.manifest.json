@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "1c4835c64f17",
   "actions": [
     {
       "id": "search.open",
@@ -340,6 +340,18 @@
       }
     },
     {
+      "id": "edit.undo-history",
+      "label": "Undo history…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack, shown; an agent reads history with `maude design history list`"
+      }
+    },
+    {
       "id": "edit.copy",
       "label": "Copy",
       "kind": "command",
@@ -641,6 +653,214 @@
         "path": "human",
         "because": "view-pref",
         "note": "a selection in the person’s window; an agent greps the canvas for the same className and style"
+      }
+    },
+    {
+      "id": "align.left",
+      "label": "Align left",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.hcentre",
+      "label": "Align horizontal centres",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.right",
+      "label": "Align right",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.top",
+      "label": "Align top",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.vmiddle",
+      "label": "Align vertical middles",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "align.bottom",
+      "label": "Align bottom",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.h",
+      "label": "Distribute horizontally",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.v",
+      "label": "Distribute vertically",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "object.rotate",
+      "label": "Rotate 90°",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions"
+      }
+    },
+    {
+      "id": "object.place-freely",
+      "label": "Place freely",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give the element style position: \"absolute\" with left, top, width and height (px) as it sits now; if its parent is static, give the parent position: \"relative\""
+      }
+    },
+    {
+      "id": "object.reorder-earlier",
+      "label": "Move earlier",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX one place earlier among its siblings (in an auto layout the order in the code is the order on the canvas)"
+      }
+    },
+    {
+      "id": "object.reorder-later",
+      "label": "Move later",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX one place later among its siblings (in an auto layout the order in the code is the order on the canvas)"
+      }
+    },
+    {
+      "id": "object.reorder-to",
+      "label": "Move next to…",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Move the element’s JSX before, after or inside another element; for a copy, duplicate it first (a copy keeps no data-cd-id)"
+      }
+    },
+    {
+      "id": "object.constrain",
+      "label": "Constraints",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages"
+      }
+    },
+    {
+      "id": "layout.set-gap",
+      "label": "Set gap",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set style.gap on each frame to the same value: var(--space-N) when the system names that stop, else px; one edit for all the frames. Over HTTP: POST /_api/edit-op {file, op: \"layout.set-gap\", targets: [{artboard, element}…], params: {gap: {token: \"--space-N\"} | {px: n}}} — one write, one undo step, a locked or non-layout target refuses the whole request"
+      }
+    },
+    {
+      "id": "layout.convert-to-absolute",
+      "label": "Convert children to absolute position",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give each child position: \"absolute\" with left/top/width/height as rendered, and a static parent position: \"relative\" with its own width/height fixed if it would collapse; the children then no longer take part in the layout"
       }
     },
     {
@@ -2436,6 +2656,18 @@
         "because": "ai-chat"
       },
       "minRole": "edit"
+    },
+    {
+      "id": "chat.undo",
+      "label": "Undo this chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history undo --chat <id>"
+      }
     },
     {
       "id": "chat.copy-transcript",

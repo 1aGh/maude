@@ -227,6 +227,8 @@ import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
+import { ShellUndoHistory } from './v2/undo/undo-history.jsx';
+import { undoProjection } from './v2/undo/use-undo-projection.jsx';
 import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/use-panel-layout.js';
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
@@ -827,6 +829,9 @@ function ShellState({ children }) {
             // is installed once, by an effect that must not re-subscribe the
             // socket every time the posture flips.
             if (!savingIsManagedRef.current) setGitStatus(m.payload);
+          } else if (m.type === 'project:action' && m.action) {
+            // S2.20 — an accepted action: the ⌘Z projection of every open canvas it touched.
+            undoProjection.onAction(m.action);
           } else if (m.type === 'git-lifecycle' && m.payload) {
             // Phase 8 Task 7 — branch switch / pull mid-session. Server has
             // already flushed every dirty Y.Doc to JSON; just prompt the user.
@@ -2898,6 +2903,8 @@ function ShellTree() {
           <DiagnosticsHost toast={shellToast} />
           {/* V2-4.3a — the Share cluster, top-right: faces, status word, comments, Exports, Hide panels, Share. */}
           <ShellShareCluster />
+          {/* S2.20 — Menu › Edit › Undo history… (the ⌘Z projection's popover). */}
+          <ShellUndoHistory />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a
               tab strip in the panel's OWN header; the AI chat, when docked here, is a separate island under it
               (always mounted, so its stream survives — DDR-123). Folded, the corner icon below is the way back. */}

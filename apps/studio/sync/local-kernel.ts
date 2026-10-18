@@ -49,10 +49,14 @@ import { MIGRATION_ACTOR } from '../../hub/src/project-transactions/baseline.mjs
 import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transactions/kernel.mjs';
 import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
+import { attributeArtboards } from '../attribute-artboards.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { createActionStage, type RunFence, type RunStageSummary } from './action-stage.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
+import { hashBytes } from './echo-guard.ts';
+import { mergeSource } from './source-merge.ts';
 import {
   asTarget,
   chatActionIds,
@@ -65,6 +69,18 @@ import {
 
 export const STORE_FILE = 'project-store.sqlite';
 export const LOCK_FILE = 'project-store.lock';
+/** S5.5b — this home's held AI runs (V2-1.5 §5.5), apart from the hub link's `ai-stage.json`. */
+export const AI_STAGE_FILE = 'ai-stage-local.json';
+/** S5.5b — how long a studio write's content note waits for the watcher to read it. */
+export const WRITE_NOTE_MS = 30_000;
+/** The label a person's studio edit carries (the hub link's `LANE_LABEL.html`). */
+export const STUDIO_EDIT_LABEL = 'Edit canvas';
+/** S2.20b (U20) — the hub link's `LANE_LABEL` per local lane: a layout move, an annotation stroke. */
+export const STUDIO_LANE_LABEL = {
+  html: STUDIO_EDIT_LABEL,
+  meta: 'Edit layout',
+  annotations: 'Edit annotations',
+} as const;
 /** A foreign machine's store, kept read-only (C1). */
 export const FOREIGN_STORE = /^project-store\.([A-Za-z0-9_-]{1,64})\.sqlite$/;
 const SQLITE_SIDECARS = ['', '-wal', '-shm'] as const;
@@ -418,6 +434,43 @@ export interface LocalRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /** S5.5b (U21) — the same run-stage surface the hub runtime has (sync/index.ts). */
+  beginAiAction(
+    key: string,
+    label: string,
+    meta?: { runId?: string; chatId?: string; actor?: string }
+  ): void;
+  claimAiWrite(key: string, repoRel: string, hash?: string | null): void;
+  /**
+   * S2.20b (U20) — server.ts calls this right after the studio wrote a canvas's layout
+   * (`onMetaChanged`) or its board (`onAnnotationsChanged`). The local home only NOTES the content —
+   * the disk already holds it, and the watcher records it as the person's `edit` — and answers null,
+   * so the caller keeps its room bridge exactly as before.
+   */
+  proposeLane(
+    slug: string,
+    lane: 'comments' | 'annotations' | 'meta',
+    text: string,
+    opts?: { baseText?: string; writeId?: string }
+  ): null;
+  endAiAction(
+    key: string,
+    outcome: 'done' | 'failed' | 'stopped',
+    o?: { fence?: RunFence }
+  ): Promise<AiActionOutcome | null>;
+  resolveAiAction(
+    choice: 'publish' | 'discard',
+    runId?: string
+  ): Promise<(AiActionOutcome & { canvases?: number }) | null>;
+}
+
+/** What a run's end answers: the action it landed as and the artboards it touched. */
+export interface AiActionOutcome {
+  status: 'accepted' | 'rejected' | 'discarded';
+  code?: string;
+  actionId?: string;
+  /** design-root-relative canvas → artboards (V2-1.5 §5.7). */
+  touched?: Record<string, string[]>;
 }
 
 export interface LocalHomeOptions {
@@ -434,6 +487,8 @@ export interface LocalHomeOptions {
   settleMs?: number;
   /** Retry the lock this often while read-only; 0 = never (tests). */
   lockRetryMs?: number;
+  /** S5.5b — how long a run's last tool write gets to reach the watcher before the run ends. */
+  aiSettleMs?: number;
   log?: Pick<Console, 'warn' | 'error'>;
 }
 
@@ -452,6 +507,14 @@ export interface LocalHome {
   runtime: LocalRuntime;
   /** The fs watcher feed: a design-root-relative path changed. */
   observe(rel: string): void;
+  /**
+   * S5.5b — the studio itself wrote `content` to canvas `rel` (api.ts `source-written`): when
+   * the watcher reads exactly that content it is the person's `edit`, never `outside` and never
+   * an AI run's.
+   */
+  noteWritten(rel: string, content: string): void;
+  /** S5.5b — the runs this home stages (open and held), no bytes. */
+  aiRuns(): RunStageSummary[];
   /** A canvas moved on disk (the studio's own move). */
   observeMove(fromRel: string, toRel: string): void;
   /** Propose every pending observation now. */
@@ -512,6 +575,105 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   let retryTimer: ReturnType<typeof setInterval> | null = null;
   let closed = false;
   const foreignOpen = new Map<string, OpenedStore>();
+  const aiSettleMs = opts.aiSettleMs ?? 250;
+
+  /* ------------------------------------------------------- S5.5b — AI runs */
+
+  // A run's tool writes are STAGED here (sync/action-stage.ts — the same stage the hub link
+  // uses), so the watcher never records a canvas a run covers as `outside`: the run lands as
+  // ONE `ai` action when it ends (V2-1.5 §5.5, U21). The disk stays the working copy, so it may
+  // hold staged bytes the store has not accepted; `seen` remembers what each lane held when the
+  // watcher last read it — the `d0` a change is composed from (`R.mine = merge3(d0, d1, mine)`)
+  // and the base a person's edit made on top of staged bytes is proposed from.
+  /** `${rel}|${lane}` → the lane's value on disk when last read (or written) here. */
+  const seen = new Map<string, string>();
+  /**
+   * `${canvas}|${lane}` → the studio's own write of that lane (api.ts `source-written` for the
+   * source, server.ts `proposeLane` for layout and board — S2.20b), until the watcher reads it.
+   */
+  const notes = new Map<string, { hash: string; at: number }>();
+  /** canvas slug → its design-root-relative path (the board file is named by the slug). */
+  const slugs = new Map<string, string>();
+  /** >0 while a proposal made FROM the disk is accepted: the disk already holds it. */
+  let fromDisk = 0;
+  let runTx = 0;
+  const stage = createActionStage({
+    designRoot: opts.designRoot,
+    stateFile: path.join(stateDir, AI_STAGE_FILE),
+    propose: async (a) => {
+      // The local store has no lease rows (the run registry's lease home is in process), so a
+      // fence would only ever mismatch: the publish goes without it.
+      const r = await serial(() =>
+        submit(a.operations, { kind: a.kind, label: a.label }, actor, a.origin ?? {}, true)
+      );
+      return {
+        protocol: PROTOCOL,
+        status: r.status,
+        transactionId: a.transactionId,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+        ...(r.revision !== undefined ? { revision: r.revision } : {}),
+      };
+    },
+    newTransactionId: () => `lt_run_${now().toString(36)}_${(++runTx).toString(36)}`,
+    attribute: (slug, before, after) =>
+      /\.tsx$/i.test(slug)
+        ? { canvas: slug, artboards: attributeArtboards(slug, before, after).artboards }
+        : null,
+    log: { log() {}, warn: (m: string) => log.warn(m) },
+    now,
+  });
+
+  function noteWritten(rel: string, content: string): void {
+    const canvas = canvasOfRel(rel);
+    if (!canvas || canvas !== rel.replace(/\\/g, '/').replace(/^\/+/, '')) return;
+    notes.set(`${canvas}|html`, { hash: hashBytes(content), at: now() });
+  }
+
+  /** S2.20b — the studio wrote lane `lane` of the canvas named `slug` (server.ts `proposeLane`). */
+  function noteLane(slug: string, lane: string, text: string): void {
+    if (lane !== 'meta' && lane !== 'annotations') return;
+    const canvas = canvasForSlug(slug);
+    const value = canvas ? laneValueFromFile(lane, text) : null;
+    if (!canvas || value === null) return;
+    notes.set(`${canvas}|${lane}`, { hash: hashBytes(value), at: now() });
+  }
+
+  /** The studio's note for this lane value, consumed (null when the content is not the studio's). */
+  function takeNote(
+    rel: string,
+    lane: LocalLane,
+    value: string | undefined
+  ): { at: number } | null {
+    const k = `${rel}|${lane}`;
+    const n = notes.get(k);
+    if (!n) return null;
+    if (now() - n.at > WRITE_NOTE_MS) {
+      notes.delete(k);
+      return null;
+    }
+    if (value === undefined || hashBytes(value) !== n.hash) return null;
+    notes.delete(k);
+    return { at: n.at };
+  }
+
+  /** The canvas a slug names: the ones seen so far, else a walk of the disk. */
+  function canvasForSlug(slug: string): string | null {
+    const hit = slugs.get(slug);
+    if (hit) return hit;
+    for (const rel of diskCanvases()) slugs.set(canvasSlugFromRel(rel, designRel), rel);
+    return slugs.get(slug) ?? null;
+  }
+
+  /** The canvas a changed path belongs to — the board is `<designRoot>/<slug>.annotations.json`. */
+  function canvasOfPath(rel: string): string | null {
+    const p = rel.replace(/\\/g, '/').replace(/^\/+/, '');
+    const board = /^([^/]+)\.annotations\.json$/i.exec(p);
+    if (board && !board[1].startsWith('_') && !board[1].startsWith('.')) {
+      return canvasForSlug(board[1].toLowerCase()) ?? canvasOfRel(p);
+    }
+    return canvasOfRel(p);
+  }
 
   /* ---------------------------------------------------------------- open */
 
@@ -554,6 +716,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       now,
       log,
     });
+    // S5.5b (U14) — a run the last session left comes back HELD, before the boot reconcile
+    // reads the disk: its bytes are its stage's, never an `outside` row.
+    stage.restore();
   }
 
   function openReadOnly(): void {
@@ -595,7 +760,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     operations: unknown[],
     action: { kind: string; label: string | null },
     as: string = actor,
-    origin: Record<string, unknown> = {}
+    origin: Record<string, unknown> = {},
+    /** The proposal IS what the disk holds: its acceptance writes nothing back. */
+    disk = false
   ): Promise<LocalOutcome> {
     if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
     const { epoch } = await opened.store.state();
@@ -607,9 +774,15 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       origin: { deviceId: machine.id, client: 'studio-local', madeAt: now(), ...origin },
       action: { kind: action.kind, label: action.label, operations },
     });
-    // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
-    // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
-    const { body } = await kernel.submit(bytes, { actor: as, can: () => true });
+    if (disk) fromDisk += 1;
+    let body: any;
+    try {
+      // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
+      // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
+      ({ body } = await kernel.submit(bytes, { actor: as, can: () => true }));
+    } finally {
+      if (disk) fromDisk -= 1;
+    }
     if (body?.status === 'accepted') {
       return {
         status: 'accepted',
@@ -627,10 +800,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   /* ------------------------------------------------------------ disk ⇄ lanes */
 
   const abs = (rel: string) => path.join(opts.designRoot, ...rel.split('/'));
+  // The layout sits beside the source; the board at the design root under the canvas slug
+  // (api.ts `canvasMetaPath` / `annotationsPath`).
   const sibling = (rel: string, lane: LocalLane) =>
     lane === 'html'
       ? rel
-      : rel.replace(/\.tsx$/i, lane === 'meta' ? '.meta.json' : '.annotations.json');
+      : lane === 'meta'
+        ? rel.replace(/\.tsx$/i, '.meta.json')
+        : `${canvasSlugFromRel(rel, designRel)}.annotations.json`;
   const readText = (rel: string): string | null => {
     try {
       return readFileSync(abs(rel), 'utf8');
@@ -674,6 +851,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const live: string | null = await store.docByPath(rel);
     const onDisk = existsSync(abs(rel));
     if (!onDisk) {
+      for (const lane of LOCAL_LANES) seen.delete(`${rel}|${lane}`);
       if (!live) return null;
       const st = (await store.heads([live]))[live];
       return submit(
@@ -683,6 +861,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       );
     }
     if (!inGroups(rel)) return null;
+    slugs.set(canvasSlugFromRel(rel, designRel), rel);
     const values: Partial<Record<LocalLane, string>> = {};
     for (const lane of LOCAL_LANES) {
       const v = diskLane(rel, lane);
@@ -700,16 +879,60 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     const head = (await store.heads([live]))[live] as {
       lanes: Record<string, { hash: string | null }>;
     };
-    const ops: unknown[] = [];
+    // S5.5b — the studio's own write is the person's edit; a write a run claims (or a run
+    // covers) joins that run's stage; anything else is outside, as before. S2.20b (U20) — per
+    // lane: a layout move or an annotation stroke the studio wrote is an `edit` too, labelled by
+    // its lane like the hub link's `LANE_LABEL`, and a lane nobody noted in the same read stays
+    // `outside` in its own action.
+    type Group = { ops: unknown[]; seen: Array<[string, string]>; lanes: LocalLane[]; at: number };
+    const edit: Group = { ops: [], seen: [], lanes: [], at: Number.POSITIVE_INFINITY };
+    const other: Group = { ops: [], seen: [], lanes: [], at: 0 };
     for (const lane of LOCAL_LANES) {
       const v = values[lane];
       if (v === undefined) continue;
+      const k = `${rel}|${lane}`;
       const headHash = hashOr(head?.lanes?.[lane]?.hash);
-      if (laneHash(v) === headHash) continue;
-      ops.push({ op: 'lane.replace', doc: live, lane, content: v, base: headHash });
+      const prev = seen.get(k);
+      if (prev !== undefined ? prev === v : laneHash(v) === headHash) continue;
+      const base =
+        prev ?? (headHash === EMPTY_HASH ? '' : (((await store.blob(headHash)) as string) ?? ''));
+      const noted = action.kind === OUTSIDE_KIND ? takeNote(rel, lane, v) : null;
+      if (!noted && action.kind === OUTSIDE_KIND && stage.captures(rel, true, v)) {
+        seen.set(k, v);
+        void stage
+          .capture(rel, live, {
+            lane,
+            content: v,
+            baseContent: base,
+            transactionId: `lt_stage_${now().toString(36)}_${(++runTx).toString(36)}`,
+            stageable: true,
+          })
+          .catch(() => null);
+        continue;
+      }
+      const g = noted ? edit : other;
+      if (noted) g.at = Math.min(g.at, noted.at);
+      g.ops.push(
+        laneHash(base) === headHash
+          ? { op: 'lane.replace', doc: live, lane, content: v, base: headHash }
+          : { op: 'lane.replace', doc: live, lane, content: v, baseContent: base }
+      );
+      g.seen.push([k, v]);
+      g.lanes.push(lane);
     }
-    if (!ops.length) return null;
-    return submit(ops, { ...action, label: action.label ?? NAME(rel) }, as);
+    let r: LocalOutcome | null = null;
+    if (edit.ops.length) {
+      const label = edit.lanes.includes('html')
+        ? STUDIO_LANE_LABEL.html
+        : STUDIO_LANE_LABEL[edit.lanes[0]];
+      r = await submit(edit.ops, { kind: 'edit', label }, as, { madeAt: edit.at }, true);
+      if (r.status === 'accepted') for (const [k, v] of edit.seen) seen.set(k, v);
+    }
+    if (other.ops.length) {
+      r = await submit(other.ops, { ...action, label: action.label ?? NAME(rel) }, as, {}, true);
+      if (r.status === 'accepted') for (const [k, v] of other.seen) seen.set(k, v);
+    }
+    return r;
   }
 
   /** Every canvas on disk under the groups, design-root-relative. */
@@ -790,6 +1013,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   }): Promise<void> {
     const store = opened?.store;
     if (!store) return;
+    // S5.5b — a proposal made from the disk (a watched write, a run landing): nothing to write.
+    if (fromDisk > 0) return;
     // What the store held before this action, per lane — the disk must still
     // say that, or it carries a byte the store never accepted.
     const before = async (doc: string, lane: LocalLane) =>
@@ -840,26 +1065,62 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         const l = lane as LocalLane;
         const rel = sibling(c.path, l);
         const current = diskLane(c.path, l);
-        if (current !== null && laneHash(current) === laneHash(value)) continue;
+        if (current !== null && laneHash(current) === laneHash(value)) {
+          seen.set(`${c.path}|${l}`, current);
+          continue;
+        }
         if (!c.created && !c.revived && !(await diskMatches(c.path, c.doc, l))) {
           log.warn(`[local-kernel] ${rel} changed on disk since — left as it is`);
           continue;
         }
-        if (value === '') {
-          if (l !== 'html') {
-            try {
-              unlinkSync(abs(rel));
-            } catch {
-              /* absent */
-            }
-          }
-          continue;
-        }
-        const text = l === 'meta' ? mergeSharedMetaIntoLocal(readText(rel), value) : value;
-        if (text === null) continue;
-        atomicWrite(abs(rel), text);
+        writeLane(c.path, l, value);
       }
     }
+  }
+
+  /** Write one lane's value to its file (an empty side lane removes the file). */
+  function writeLane(canvasRel: string, l: LocalLane, value: string): void {
+    const rel = sibling(canvasRel, l);
+    if (value === '') {
+      if (l !== 'html') {
+        try {
+          unlinkSync(abs(rel));
+        } catch {
+          /* absent */
+        }
+        seen.set(`${canvasRel}|${l}`, '');
+      }
+      return;
+    }
+    const text = l === 'meta' ? mergeSharedMetaIntoLocal(readText(rel), value) : value;
+    if (text === null) return;
+    atomicWrite(abs(rel), text);
+    seen.set(`${canvasRel}|${l}`, value);
+  }
+
+  /**
+   * A discarded run's bytes leave the disk: its deltas are taken back out of what the disk holds
+   * now (three-way — a person's edit made since stays). A lane that cannot be untangled is left
+   * as it is, and the next watched change records it.
+   */
+  function unstage(l: { slug: string; lane: string; base: string; mine: string }): void {
+    if (!(LOCAL_LANES as readonly string[]).includes(l.lane)) return;
+    const lane = l.lane as LocalLane;
+    const disk = diskLane(l.slug, lane);
+    if (disk === null) return;
+    let next: string | null = null;
+    if (disk === l.mine) next = l.base;
+    else if (lane === 'html') {
+      const m = mergeSource(l.mine, l.base, disk);
+      next = m.ok ? m.merged : null;
+    }
+    if (next === null) {
+      log.warn(
+        `[local-kernel] ${l.slug}: the discarded AI changes could not be taken out — left as it is`
+      );
+      return;
+    }
+    if (next !== disk) writeLane(l.slug, lane, next);
   }
 
   /* -------------------------------------------------------------- watcher */
@@ -892,7 +1153,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   function observe(rel: string): void {
     if (closed || !lock) return;
-    const canvas = canvasOfRel(rel);
+    const canvas = canvasOfPath(rel);
     if (!canvas) return;
     pending.add(canvas);
     if (timer) clearTimeout(timer);
@@ -994,9 +1255,19 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     return (await o.store.docByPath(rel)) ?? canvasSlugFromRel(rel, designRel);
   }
 
-  /** Before answering, every observation already made is in the log. */
+  /**
+   * Before answering, every observation already made is in the log — and so is every write the
+   * studio NOTED whose fs event has not arrived yet (S2.20b: the write landed before its route
+   * answered, so a ⌘Z the instant after it must undo it, never the edit before it).
+   */
   async function settled(): Promise<void> {
     await readyP;
+    if (lock && !closed) {
+      for (const [k, n] of notes) {
+        if (now() - n.at > WRITE_NOTE_MS) notes.delete(k);
+        else pending.add(k.slice(0, k.lastIndexOf('|')));
+      }
+    }
     if (pending.size) await drain();
     else await serial(async () => {});
   }
@@ -1064,7 +1335,61 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         })
       );
     },
+    beginAiAction(key, label, meta) {
+      if (!kernel) return;
+      stage.begin(key, label, meta ?? {});
+    },
+    proposeLane(slug, lane, text) {
+      if (lock && !closed) noteLane(slug, lane, text);
+      return null;
+    },
+    claimAiWrite(key, repoRel, hash) {
+      const rel = designRelOf(repoRel, designRel) ?? String(repoRel).replace(/^\/+/, '');
+      const canvas = rel ? canvasOfRel(rel) : null;
+      if (canvas) stage.claim(key, canvas, hash ?? null);
+    },
+    async endAiAction(key, outcome) {
+      if (!kernel) return null;
+      // The watcher delivers the run's last tool write a beat after the tool returns.
+      if (aiSettleMs > 0) await new Promise((r) => setTimeout(r, aiSettleMs));
+      await settled();
+      const touched = stage.summaryOf(key)?.touched;
+      const r = await stage.end(key, outcome);
+      return r ? aiOutcome(r, touched) : null;
+    },
+    async resolveAiAction(choice, runId) {
+      if (!kernel) return null;
+      await settled();
+      const held = stage.runs().filter((r) => r.state === 'held' && (!runId || r.runId === runId));
+      if (!held.length) return null;
+      if (choice === 'discard') {
+        const lanes = held.flatMap((r) => stage.lanesOf(r.runId));
+        const canvases = stage.discard(runId);
+        await serial(async () => {
+          for (const l of lanes) unstage(l);
+        });
+        return { status: 'discarded', canvases };
+      }
+      const touched: Record<string, string[]> = {};
+      for (const r of held)
+        for (const [c, ids] of Object.entries(r.touched))
+          touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
+      const r = await stage.publish(runId);
+      return r ? aiOutcome(r, touched) : null;
+    },
   };
+
+  function aiOutcome(
+    r: { status: 'accepted' | 'rejected'; code?: string; actionId?: unknown },
+    touched: Record<string, string[]> | undefined
+  ): AiActionOutcome {
+    return {
+      status: r.status,
+      ...(r.code ? { code: r.code } : {}),
+      ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+      ...(touched && Object.keys(touched).length ? { touched } : {}),
+    };
+  }
 
   /* -------------------------------------------------------------- foreign */
 
@@ -1120,6 +1445,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     runtime,
     observe,
     observeMove,
+    noteWritten,
+    aiRuns: () => stage.runs(),
     flush: () => drain(),
     foreignStores,
     foreignHistory,
@@ -1224,6 +1551,16 @@ export function attachLocalHome<S extends SupervisorLike>(
   };
   ctx.bus.on('fs:any', (rel: string) => {
     if (isLocal()) get()?.observe(rel);
+  });
+  // S5.5b — the studio's own write (api.ts, after it landed): the person's edit, by content.
+  ctx.bus.on('source-written', (p: { rel?: unknown; content?: unknown } | null) => {
+    if (!isLocal() || typeof p?.rel !== 'string' || typeof p.content !== 'string') return;
+    get()?.noteWritten(p.rel, p.content);
+  });
+  // S2.20b (U20) — a collab room projecting its board (collab/index.ts): the person's strokes.
+  ctx.bus.on('annotations-projected', (p: { slug?: unknown; board?: unknown } | null) => {
+    if (!isLocal() || typeof p?.slug !== 'string' || typeof p.board !== 'string') return;
+    get()?.runtime.proposeLane(p.slug, 'annotations', p.board);
   });
   ctx.bus.on(
     'canvas-list-update',

@@ -143,6 +143,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── edit / select / object ──
   'edit.undo': UNDO_KEYS,
   'edit.redo': UNDO_KEYS,
+  'edit.undo-history': {
+    effect: 'none',
+    agent: human(
+      'keys',
+      'the person’s own undo stack, shown; an agent reads history with `maude design history list`'
+    ),
+  },
   'edit.cut': PREF('the clipboard is the user’s; remove the content from the source instead'),
   'edit.paste': PREF('the clipboard is the user’s; write the content into the source instead'),
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),
@@ -193,6 +200,58 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'object.select-matching': PREF(
     'a selection in the person’s window; an agent greps the canvas for the same className and style'
+  ),
+  // S2.7 — the align bar and the rotate handle. Objects: set left / top on the element's inline style
+  // (the same result by hand); artboards: set x / y in the canvas's .meta.json layout.
+  'align.left': TSX(
+    'Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards'
+  ),
+  'align.hcentre': TSX(
+    'Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json'
+  ),
+  'align.right': TSX(
+    'Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json'
+  ),
+  'align.top': TSX(
+    'Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards'
+  ),
+  'align.vmiddle': TSX(
+    'Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json'
+  ),
+  'align.bottom': TSX(
+    'Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json'
+  ),
+  'distribute.h': TSX(
+    'Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json'
+  ),
+  'distribute.v': TSX(
+    'Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json'
+  ),
+  'object.rotate': TSX(
+    'Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions'
+  ),
+  // S2.11 — layout. Place freely / constraints are inline CSS on the element; reordering is moving the
+  // element's JSX among its siblings (their order IS the layout order).
+  'object.place-freely': TSX(
+    'Give the element style position: "absolute" with left, top, width and height (px) as it sits now; if its parent is static, give the parent position: "relative"'
+  ),
+  'object.reorder-earlier': TSX(
+    'Move the element’s JSX one place earlier among its siblings (in an auto layout the order in the code is the order on the canvas)'
+  ),
+  'object.reorder-later': TSX(
+    'Move the element’s JSX one place later among its siblings (in an auto layout the order in the code is the order on the canvas)'
+  ),
+  'object.reorder-to': TSX(
+    'Move the element’s JSX before, after or inside another element; for a copy, duplicate it first (a copy keeps no data-cd-id)'
+  ),
+  'object.constrain': TSX(
+    'On an element placed freely, keep the pinned edges: right/bottom instead of left/top (distance to the frame edge), both edges instead of a width; centre is calc(50% ± Npx); scale is percentages'
+  ),
+  'layout.set-gap': TSX(
+    'Set style.gap on each frame to the same value: var(--space-N) when the system names that stop, else px; one edit for all the frames. Over HTTP: POST /_api/edit-op {file, op: "layout.set-gap", targets: [{artboard, element}…], params: {gap: {token: "--space-N"} | {px: n}}} — one write, one undo step, a locked or non-layout target refuses the whole request'
+  ),
+  'layout.convert-to-absolute': TSX(
+    'Give each child position: "absolute" with left/top/width/height as rendered, and a static parent position: "relative" with its own width/height fixed if it would collapse; the children then no longer take part in the layout'
   ),
   // ── view ──
   'view.panels': PREF(),
@@ -420,6 +479,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       (r) => [`chat.advanced.${r}`, { effect: 'none', agent: human('ai-chat') }]
     )
   ),
+  // S5.5b — undoes accepted actions for everyone on a synced project: the `history undo` verb's
+  // permission card (tier shared).
+  'chat.undo': {
+    effect: 'shared',
+    minRole: 'edit',
+    agent: cli('maude design history undo --chat <id>'),
+  },
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {

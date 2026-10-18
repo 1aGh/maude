@@ -21,6 +21,7 @@ import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
+import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { presentFrom, presentStep } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
 import { keyOutcome } from '../v2/shell/role-gate.js';
@@ -82,7 +83,11 @@ function undoRedo(d, e, redo) {
     return;
   }
   e.preventDefault();
-  d.postToActiveCanvas(runActionMessage(redo ? 'edit.redo' : 'edit.undo'));
+  // S2.20 — the ⌘Z projection over the op log first; the canvas stack only off it (V2-1.2 feed).
+  const canvas = d.activePath && d.activePath !== SYSTEM_TAB ? d.activePath : null;
+  void runUndoKey(canvas, redo, () =>
+    d.postToActiveCanvas(runActionMessage(redo ? 'edit.redo' : 'edit.undo'))
+  );
 }
 
 const focusSearch = () => {

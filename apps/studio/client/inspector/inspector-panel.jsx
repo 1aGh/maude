@@ -8,6 +8,7 @@ import { PhotoKnobs } from '../photo-knobs.jsx';
 import { ColorPicker } from './color-picker.jsx';
 import { renameElementId } from '../v2/inspector/element-id.js';
 import { InspectorFrame } from '../v2/inspector/frame.jsx';
+import { useLayersSlot, withSlot } from '../v2/inspector/layers-slot.jsx';
 import '../v2/inspector/sections/index.js'; // S2.3: the Position · Size · Layout bodies register themselves
 
 // feature-photo-editor (Task 13/14) — derive the content-addressed photo asset a
@@ -78,6 +79,7 @@ export function InspectorPanel({
   cfg,
   onOptimistic,
   onRecordEdit,
+  onRunAction,
   onReplaceMedia,
   onResizeArtboard,
   onSetArtboardHug,
@@ -297,6 +299,8 @@ export function InspectorPanel({
   // release. Same-origin shell, so it's all local (no dgn bus).
   const layerDragRef = useRef(null);
   const layerTreeRef = useRef(null);
+  // S2.11b — the slot a lifted card would land in, drawn in the tree too
+  const layersSlot = useLayersSlot();
   const startLayerDrag = (e, node, key) => {
     if (!handleReorder || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
       return;
@@ -648,7 +652,7 @@ export function InspectorPanel({
                   ref={layerTreeRef}
                   onKeyDown={onTreeKeyDown}
                 >
-                  {layersTree.nodes.map((n, ni) => (
+                  {withSlot(layersTree.nodes, layersSlot).map((n, ni) => (
                     <LayerRow
                       key={`${n.id}:${n.index}`}
                       node={n}
@@ -714,6 +718,7 @@ export function InspectorPanel({
             canvasFile={canvasFile}
             onOptimistic={onOptimistic}
             onRecordEdit={onRecordEdit}
+            onRunAction={onRunAction}
             onReplaceMedia={onReplaceMedia}
             onUndoRedo={onUndoRedo}
             onRenameElementId={onRenameElementId}
