@@ -14,8 +14,9 @@ import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { AlignBar } from './align-bar.tsx';
+import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
+import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
-import { ARRANGE_ACTIONS } from './arrange.ts';
 import { LockBadge } from './lock-badge.tsx';
 import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
@@ -25,6 +26,7 @@ import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './obje
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stepOut } from './selection.tsx';
 import { StickyName } from './sticky-name.tsx';
+import { TidyPreview } from './tidy-preview.tsx';
 
 /** S2.8 — the shell asks the canvas to pin an artboard's theme; canvas-shell listens (it owns the pins). */
 export const SET_ARTBOARD_THEME_EVENT = 'maude:set-artboard-theme';
@@ -37,6 +39,8 @@ export const EDITING_ACTIONS = [
   // S2.7 — run by align-bar.tsx / rotate-handle.tsx (each listens for its own run-action ids)
   ...ARRANGE_ACTIONS,
   'object.rotate',
+  // S2.9 — Tidy up over 2+ artboards (run by align-bar.tsx)
+  TIDY_ACTION,
 ] as const;
 
 export function EditingLayer() {
@@ -116,6 +120,9 @@ export function EditingLayer() {
       {/* S2.7 — the align bar over a multi-selection, the rotate handle at its corner */}
       <AlignBar readOnly={isReadOnlyCanvas()} />
       <RotateHandle readOnly={isReadOnlyCanvas()} />
+      {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}
+      <ArtboardGuides readOnly={isReadOnlyCanvas()} />
+      <TidyPreview />
       {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
       <ArtboardHandles />
       {editChrome ? <StickyName /> : null}

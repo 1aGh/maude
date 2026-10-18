@@ -11532,5 +11532,103 @@
     "consumers": [],
     "sourceConsumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "edit-tidy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"Tidy up\" button on the align bar over 2+ artboards (tooltip \"One row, even gaps\"; the pointer on it shows the dashed preview).",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tidy-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed outlines of the row Tidy up would make; there while the pointer is on the button, gone after.",
+    "producer": {
+      "file": "apps/studio/editing/tidy-preview.tsx",
+      "symbol": "TidyGhosts"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tidy-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one dashed outline of that preview, where an artboard would sit (`data-id` is the artboard).",
+    "producer": {
+      "file": "apps/studio/editing/tidy-preview.tsx",
+      "symbol": "TidyGhosts"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-guides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer of measurements while one artboard is dragged (soft guide, equal gaps, position bubble).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-guide-soft",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: an edge that also lines up with another artboard besides the one snapped to, in the guide colour at half strength (`data-axis`).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-gap",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one of three or more equal gaps between artboards, with its chip (\"80\") in the guide colour (`data-gap`, `data-axis`).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-bubble",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the words beside the pointer while an artboard is dragged, \"X 3480 · Y 0\" (world px).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
   }
 ]

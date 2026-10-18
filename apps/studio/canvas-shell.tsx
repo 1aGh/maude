@@ -239,6 +239,10 @@ const HALO_CSS = `
 .dc-cv-group-bbox .tick-tr { top: -3px; right: -3px; }
 .dc-cv-group-bbox .tick-bl { bottom: -3px; left: -3px; }
 .dc-cv-group-bbox .tick-br { bottom: -3px; right: -3px; }
+.dc-cv-group-bbox .tick-t { top: -3px; left: calc(50% - 3px); }
+.dc-cv-group-bbox .tick-b { bottom: -3px; left: calc(50% - 3px); }
+.dc-cv-group-bbox .tick-l { left: -3px; top: calc(50% - 3px); }
+.dc-cv-group-bbox .tick-r { right: -3px; top: calc(50% - 3px); }
 /*
  * Active-artboard indicator — the artboard whose center sits closest to the
  * viewport midpoint after pan settles is "active" (DesignCanvas tracks this
@@ -1061,8 +1065,8 @@ function CanvasCore({
     [controller, selSet, distributeArtboards, alignArtboards, focusArtboard, objectOps]
   );
 
-  // Distribute is reached via the MultiArtboardToolbar (floating chrome
-  // anchored above the group bbox) + context menu. No keyboard shortcut —
+  // Distribute is reached via the align bar (editing/align-bar.tsx, above the
+  // group bbox) + context menu. No keyboard shortcut —
   // user feedback (post-Wave-2) preferred the toolbar over global hotkeys.
 
   return (
@@ -2256,7 +2260,7 @@ function buildRegistry(deps: {
       [
         // G7 — align commands. Six modes; gated on ≥ 2 selected artboards
         // (alignment is well-defined with 2). Primary surface is the
-        // MultiArtboardToolbar; menu entries are discoverability backup.
+        // align bar; menu entries are discoverability backup.
         {
           id: 'align-left',
           label: 'Align left',
@@ -2296,7 +2300,7 @@ function buildRegistry(deps: {
       ],
       [
         // T24 — distribute commands. Primary surface is the floating
-        // MultiArtboardToolbar above the group bbox; the menu entries are
+        // align bar above the group bbox; the menu entries are
         // a discoverability backup. Disabled when fewer than 3 artboards
         // are selected.
         {
@@ -3553,7 +3557,7 @@ function CanvasRouter({
       <GroupBbox />
       {!readOnly && <EqualSpacingHandles />}
       <MeasureOverlay />
-      {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); MultiArtboardToolbar below is retired, S2.9 deletes it */}
+      {/* S2.7 — align / distribute for objects AND artboards is editing/align-bar.tsx (mounted by EditingLayer); the v1 MultiArtboardToolbar is deleted (S2.9) */}
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
       <UndoHud />
@@ -3564,304 +3568,6 @@ function CanvasRouter({
       {!isEmbedCanvas() && <AiBanner />}
       {!isEmbedCanvas() && <ParticipantsChrome />}
     </>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MultiArtboardToolbar — floating chrome anchored above the group bbox when
-// ≥ 2 artboards are multi-selected. Primary surface for the distribute
-// commands (post-Wave-2 feedback preferred this over global ⌘⌥H / ⌘⌥V
-// hotkeys). Disabled state when fewer than 3 artboards are selected — the
-// math is undefined for 2.
-
-const MULTI_TOOLBAR_CSS = `
-.dc-multi-artboard-tb {
-  position: fixed;
-  pointer-events: auto;
-  z-index: 6;
-  display: none;
-  align-items: stretch;
-  gap: 2px;
-  padding: 4px;
-  background: var(--maude-chrome-bg-0, #ffffff);
-  border: 1px solid var(--maude-chrome-fg-0, #1c1917);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px var(--maude-chrome-shadow, color-mix(in oklab, #1c1917 10%, transparent));
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: var(--maude-chrome-fg-0, #1a1a1a);
-  user-select: none;
-}
-.dc-multi-artboard-tb button {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font: inherit;
-  cursor: pointer;
-  color: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 80ms linear;
-}
-.dc-multi-artboard-tb button:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 8%, transparent);
-}
-.dc-multi-artboard-tb button:disabled {
-  cursor: default;
-  opacity: 0.4;
-}
-.dc-multi-artboard-tb .dc-mab-count {
-  padding: 4px 8px 4px 10px;
-  color: var(--maude-chrome-fg-1, rgba(40,30,20,0.7));
-  border-right: 1px solid var(--maude-chrome-border, rgba(0,0,0,0.08));
-  margin-right: 2px;
-  font-variant-numeric: tabular-nums;
-}
-.dc-multi-artboard-tb .dc-mab-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.dc-multi-artboard-tb .dc-mab-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--maude-chrome-border, rgba(0,0,0,0.10));
-  margin: 0 4px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dc-multi-artboard-tb button { transition: none; }
-}
-`.trim();
-
-function ensureMultiToolbarStyles(): void {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('dc-multi-artboard-tb-css')) return;
-  const s = document.createElement('style');
-  s.id = 'dc-multi-artboard-tb-css';
-  s.textContent = MULTI_TOOLBAR_CSS;
-  document.head.appendChild(s);
-}
-
-function MultiArtboardToolbar({
-  distributeArtboards,
-  alignArtboards,
-}: {
-  distributeArtboards: (axis: 'x' | 'y') => void;
-  alignArtboards: (mode: 'left' | 'right' | 'center-x' | 'top' | 'bottom' | 'center-y') => void;
-}) {
-  ensureMultiToolbarStyles();
-  const { selected } = useSelectionSet();
-  const ref = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-
-  const artboardSelections = useMemo(() => selected.filter((s) => !!s.artboardId), [selected]);
-  const artboardCount = artboardSelections.length;
-  const distributeOk = artboardCount >= 3;
-  const alignOk = artboardCount >= 2;
-
-  useEffect(() => {
-    const div = ref.current;
-    if (!div) return;
-    if (artboardCount < 2) {
-      div.style.display = 'none';
-      return;
-    }
-    // Track the screen-coord union bbox of all selected artboards each
-    // frame. Anchor toolbar centered horizontally above the bbox top
-    // edge with a 14 px gap; flip BELOW if the top edge is < 60 px from
-    // the viewport top.
-    const tick = () => {
-      rafRef.current = null;
-      let xMin = Number.POSITIVE_INFINITY;
-      let yMin = Number.POSITIVE_INFINITY;
-      let xMax = Number.NEGATIVE_INFINITY;
-      let yMax = Number.NEGATIVE_INFINITY;
-      let any = false;
-      for (const sel of artboardSelections) {
-        const el = document.querySelector(`[data-dc-screen="${sel.artboardId}"]`);
-        if (!el) continue;
-        const r = (el as HTMLElement).getBoundingClientRect();
-        if (r.width === 0 && r.height === 0) continue;
-        any = true;
-        if (r.left < xMin) xMin = r.left;
-        if (r.top < yMin) yMin = r.top;
-        if (r.right > xMax) xMax = r.right;
-        if (r.bottom > yMax) yMax = r.bottom;
-      }
-      if (!any) {
-        div.style.display = 'none';
-        rafRef.current = requestAnimationFrame(tick);
-        return;
-      }
-      // Make the toolbar visible OFFSCREEN first to measure its own
-      // width, then move it to the anchor. (Cheap: only re-anchors on
-      // every frame after the first.)
-      div.style.display = 'flex';
-      const tw = div.offsetWidth || 0;
-      const centerX = (xMin + xMax) / 2;
-      const top = yMin;
-      const gap = 14;
-      let anchorY = top - div.offsetHeight - gap;
-      if (anchorY < 60) anchorY = yMax + gap; // flip below
-      div.style.left = `${Math.round(centerX - tw / 2)}px`;
-      div.style.top = `${Math.round(anchorY)}px`;
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [artboardCount, artboardSelections]);
-
-  if (artboardCount < 2) {
-    return <div ref={ref} className="dc-multi-artboard-tb" aria-hidden="true" />;
-  }
-
-  return (
-    <div
-      ref={ref}
-      className="dc-multi-artboard-tb"
-      role="toolbar"
-      aria-label="Multi-artboard actions"
-    >
-      <span className="dc-mab-count">{artboardCount} artboards</span>
-      {/* G7 — align cluster. Icon-only to keep the toolbar narrow; full
-          label lives in the tooltip + the right-click menu. Enabled at ≥ 2
-          artboards (alignment is well-defined with 2). */}
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align left' : 'Select at least 2 artboards to align'}
-        aria-label="Align left"
-        onClick={() => alignArtboards('left')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="0.5" x2="0.5" y2="13.5" stroke="currentColor" />
-            <rect x="1" y="2" width="7" height="3" fill="currentColor" />
-            <rect x="1" y="9" width="11" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align center (horizontal)' : 'Select at least 2 artboards to align'}
-        aria-label="Align center horizontally"
-        onClick={() => alignArtboards('center-x')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="7" y1="0.5" x2="7" y2="13.5" stroke="currentColor" />
-            <rect x="3.5" y="2" width="7" height="3" fill="currentColor" />
-            <rect x="1.5" y="9" width="11" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align right' : 'Select at least 2 artboards to align'}
-        aria-label="Align right"
-        onClick={() => alignArtboards('right')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="13.5" y1="0.5" x2="13.5" y2="13.5" stroke="currentColor" />
-            <rect x="6" y="2" width="7" height="3" fill="currentColor" />
-            <rect x="2" y="9" width="11" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align top' : 'Select at least 2 artboards to align'}
-        aria-label="Align top"
-        onClick={() => alignArtboards('top')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="0.5" x2="13.5" y2="0.5" stroke="currentColor" />
-            <rect x="2" y="1" width="3" height="7" fill="currentColor" />
-            <rect x="9" y="1" width="3" height="11" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align center (vertical)' : 'Select at least 2 artboards to align'}
-        aria-label="Align center vertically"
-        onClick={() => alignArtboards('center-y')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="7" x2="13.5" y2="7" stroke="currentColor" />
-            <rect x="2" y="3.5" width="3" height="7" fill="currentColor" />
-            <rect x="9" y="1.5" width="3" height="11" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!alignOk}
-        title={alignOk ? 'Align bottom' : 'Select at least 2 artboards to align'}
-        aria-label="Align bottom"
-        onClick={() => alignArtboards('bottom')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="0.5" y1="13.5" x2="13.5" y2="13.5" stroke="currentColor" />
-            <rect x="2" y="6" width="3" height="7" fill="currentColor" />
-            <rect x="9" y="2" width="3" height="11" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <span className="dc-mab-divider" aria-hidden="true" />
-      <button
-        type="button"
-        disabled={!distributeOk}
-        title={
-          distributeOk
-            ? 'Distribute horizontally — equal gaps between artboards'
-            : 'Select at least 3 artboards to distribute'
-        }
-        aria-label="Distribute horizontally"
-        onClick={() => distributeArtboards('x')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <rect x="0.5" y="3" width="3" height="8" fill="currentColor" />
-            <rect x="5.5" y="3" width="3" height="8" fill="currentColor" />
-            <rect x="10.5" y="3" width="3" height="8" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-      <button
-        type="button"
-        disabled={!distributeOk}
-        title={
-          distributeOk
-            ? 'Distribute vertically — equal gaps between artboards'
-            : 'Select at least 3 artboards to distribute'
-        }
-        aria-label="Distribute vertically"
-        onClick={() => distributeArtboards('y')}
-      >
-        <span className="dc-mab-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <rect x="3" y="0.5" width="8" height="3" fill="currentColor" />
-            <rect x="3" y="5.5" width="8" height="3" fill="currentColor" />
-            <rect x="3" y="10.5" width="8" height="3" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-    </div>
   );
 }
 
@@ -3919,6 +3625,8 @@ function HoverHalo({ el }: { el: Element | null }) {
 // the lighter 1px tinted outline (no ticks). The GroupBbox renders the loud
 // signal when selected.length > 1.
 const TICK_CLASSES = ['tick-tl', 'tick-tr', 'tick-bl', 'tick-br'] as const;
+// S2.9 — the parent box of a multi-selection carries eight marks: the four corners and four edge midpoints
+const GROUP_TICK_CLASSES = [...TICK_CLASSES, 'tick-t', 'tick-r', 'tick-b', 'tick-l'] as const;
 
 function makeSelectedNode(withTicks: boolean): HTMLDivElement {
   const child = document.createElement('div');
@@ -4676,7 +4384,7 @@ function GroupBbox() {
   if (selected.length < 2) return null;
   return (
     <div ref={ref} className="dc-cv-group-bbox" aria-hidden="true">
-      {TICK_CLASSES.map((cls) => (
+      {GROUP_TICK_CLASSES.map((cls) => (
         <i key={cls} className={`tick ${cls}`} />
       ))}
     </div>
