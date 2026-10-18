@@ -12,6 +12,7 @@ import {
 } from '../src/render-token.mjs';
 import {
   createStudioProxy,
+  encodeAccessClaim,
   INJECTED_HEADER_PREFIX,
   isAssetWriteCompletion,
   isNavigationRequest,
@@ -392,7 +393,9 @@ test('the canvas lane is capability-gated, and a bare write is refused', async (
     verifyToken: () => ({ ok: true }),
   });
   assert.equal(forwarded.length, 1);
-  assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}role`], 'viewer');
+  // S9.3 — a capability without a role claim floors to Can view (FLOOR_ROLE),
+  // never to a role that downloads.
+  assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}role`], 'observer');
 });
 
 test('the canvas lane strips the prefix its ORIGIN carries, and refuses another', async () => {
@@ -486,35 +489,52 @@ test('an owner capability writes the canvas-authored lanes at its own role', asy
   }
 });
 
-test('a roleless capability stays on the viewer floor: comment yes, annotate no', async () => {
+test('a roleless capability falls to the floor, Can view: no comment, no annotation (S9.3)', async () => {
+  // V2-1.7 §5.4 — a missing role floors to `observer` (FLOOR_ROLE), which holds
+  // no comment. (Was the viewer floor: comment yes.) `verifyRenderToken` floors
+  // a real token itself; this is the proxy's own fallback.
   const { proxy, forwarded } = makeWriteProxy();
-  // The single write a viewer holds — a comment reply — passes, read-only.
+  for (const [pathname, method] of [
+    ['/_api/comments/abc123/reply', 'POST'],
+    ['/_api/annotations', 'PUT'],
+  ]) {
+    const r = fakeResponse();
+    await proxy.handleCanvas({
+      request: {
+        headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=cap' },
+        url: `${pathname}?t=cap`,
+      },
+      response: r,
+      pathname,
+      method,
+      verifyToken: writeVerify,
+    });
+    assert.equal(r.statusCode, 403, pathname);
+    assert.equal(JSON.parse(r.body).error, 'You can look at this project, not change it.');
+  }
+  assert.equal(forwarded.length, 0);
+
+  // A viewer's capability keeps the one write it holds, and today's sentence.
+  const viewer = makeWriteProxy();
+  const vVerify = (t) =>
+    t === 'v' ? { ok: true, role: 'viewer', subject: 'v@b.c' } : { ok: false };
   const reply = fakeResponse();
-  await proxy.handleCanvas({
-    request: {
-      headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=cap' },
-      url: '/_api/comments/abc123/reply?t=cap',
-    },
+  await viewer.proxy.handleCanvas({
+    request: { headers: { origin: CANVAS_ORIGIN }, url: '/_api/comments/abc123/reply?t=v' },
     response: reply,
     pathname: '/_api/comments/abc123/reply',
     method: 'POST',
-    verifyToken: writeVerify,
+    verifyToken: vVerify,
   });
   assert.equal(reply.statusCode, 200);
-  assert.equal(forwarded.at(-1).headers[`${INJECTED_HEADER_PREFIX}readonly`], '1');
-
-  // An annotation is versioned with the design — the role matrix files it with
-  // edit, and this door gives the same 403 sentence the shell door does.
+  assert.equal(viewer.forwarded.at(-1).headers[`${INJECTED_HEADER_PREFIX}readonly`], '1');
   const annotate = fakeResponse();
-  await proxy.handleCanvas({
-    request: {
-      headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=cap' },
-      url: '/_api/annotations?t=cap',
-    },
+  await viewer.proxy.handleCanvas({
+    request: { headers: { origin: CANVAS_ORIGIN }, url: '/_api/annotations?t=v' },
     response: annotate,
     pathname: '/_api/annotations',
     method: 'PUT',
-    verifyToken: writeVerify,
+    verifyToken: vVerify,
   });
   assert.equal(annotate.statusCode, 403);
   assert.match(JSON.parse(annotate.body).error, /look at this project, comment and download/);
@@ -1321,7 +1341,7 @@ test('the capability cookie alone opens NO socket — the shell appends ?t= (DDR
   assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}readonly`], '1');
 });
 
-test('a token without a role claim opens at the viewer floor', () => {
+test('a token without a role claim opens at the floor — Can view (S9.3)', () => {
   const { proxy, forwarded } = makeProxy();
   proxy.handleCanvasUpgrade({
     request: { headers: { upgrade: 'websocket' }, url: '/_ws/collab/ui-home?t=old' },
@@ -1330,7 +1350,7 @@ test('a token without a role claim opens at the viewer floor', () => {
     // An older token — verifyRenderToken yields role: null for it.
     verifyToken: () => ({ ok: true, subject: 'm@b.c', role: null }),
   });
-  assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}role`], 'viewer');
+  assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}role`], 'observer');
   assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}readonly`], '1');
 });
 
@@ -1673,5 +1693,68 @@ test('the tokens lane forwards css and nothing else — and never a write', asyn
       session: { email: 'o@b.c', role: 'owner' },
     });
     assert.equal(forwarded.length, 0, `${method} ${pathname}`);
+  }
+});
+
+// ------------------------------------------------- S9.3: x-maude-access (V2-1.7 §5.4)
+
+const decodeAccess = (v) => JSON.parse(Buffer.from(String(v), 'base64url').toString('utf8'));
+
+test('the proxy injects the access claim, and a client cannot speak it', () => {
+  const out = upstreamHeaders(
+    { 'x-maude-access': encodeAccessClaim({ v: 1, role: 'owner' }), accept: 'text/html' },
+    { role: 'viewer', user: 'v@b.c', publicUrl: null }
+  );
+  // No access passed: the role's legacy claim — never the inbound value.
+  assert.deepEqual(decodeAccess(out['x-maude-access']), { v: 1, role: 'viewer' });
+  const withClaim = upstreamHeaders(
+    {},
+    {
+      role: 'viewer',
+      access: { v: 1, role: 'viewer', grants: [{ c: 'ui/a.tsx', r: 'member' }] },
+      publicUrl: null,
+    }
+  );
+  assert.deepEqual(decodeAccess(withClaim['x-maude-access']).grants, [
+    { c: 'ui/a.tsx', r: 'member' },
+  ]);
+  // INTERIM, FAIL CLOSED: the role + readonly headers stay the PROJECT role's
+  // until the studio reads the claim (S9.9) — a grant widens nothing yet.
+  assert.equal(withClaim['x-maude-role'], 'viewer');
+  assert.equal(withClaim['x-maude-readonly'], '1');
+});
+
+test('the canvas lane states the render capability’s grants in the claim', () => {
+  const { proxy, forwarded } = makeProxy();
+  proxy.handleCanvasUpgrade({
+    request: { headers: { upgrade: 'websocket' }, url: '/_ws/collab/ui-home?t=g' },
+    socket: fakeSocket(),
+    head: null,
+    verifyToken: () => ({
+      ok: true,
+      subject: 'g@b.c',
+      role: 'observer',
+      grants: [{ c: 'ui/a.tsx', r: 'viewer' }],
+    }),
+  });
+  assert.deepEqual(decodeAccess(forwarded[0].headers['x-maude-access']), {
+    v: 1,
+    role: 'observer',
+    grants: [{ c: 'ui/a.tsx', r: 'viewer' }],
+  });
+});
+
+test('every role the shell door serves carries its claim upstream', async () => {
+  for (const role of ['owner', 'member', 'viewer', 'observer']) {
+    const { proxy, forwarded } = makeProxy();
+    await proxy.handle({
+      request: { headers: {}, url: '/_config' },
+      response: fakeResponse(),
+      pathname: '/_config',
+      method: 'GET',
+      session: { role, email: `${role}@b.c`, sessionKey: 'k' },
+    });
+    assert.equal(forwarded.length, 1, role);
+    assert.deepEqual(decodeAccess(forwarded[0].headers['x-maude-access']), { v: 1, role });
   }
 });

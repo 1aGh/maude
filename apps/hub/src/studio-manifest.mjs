@@ -53,7 +53,10 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_system-data': { safe: 'read', unsafe: null },
   '/_sync-status': { safe: 'read', unsafe: null },
   '/_comments-all': { safe: 'read', unsafe: null },
-  '/_api/canvas-source': { safe: 'read', unsafe: null },
+  // A19 (V2-1.7 §5.5): the raw source / code view hands the canvas away as a
+  // file — `export`, so Can view (`observer`) is refused it. The rendered canvas
+  // is still theirs to look at.
+  '/_api/canvas-source': { safe: 'export', unsafe: null },
   '/_api/component-map': { safe: 'read', unsafe: null },
   '/_api/preflight': { safe: 'read', unsafe: null },
   '/_api/setup-readiness': { safe: 'read', unsafe: null },
@@ -181,7 +184,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // take work, exactly like the export lane on the hub.
   '/_api/git/status': { safe: 'read', unsafe: 'read' },
   '/_api/git/log': { safe: 'read', unsafe: 'read' },
-  '/_api/git/diff': { safe: 'read', unsafe: 'read' },
+  // Raw patches are the project's bytes as text (A19): `export`, not `read`.
+  '/_api/git/diff': { safe: 'export', unsafe: 'export' },
   '/_api/git/branches': { safe: 'read', unsafe: 'read' },
   // Fetching moves remote-tracking refs and nothing else — no working tree, no
   // index. It stays a read.
