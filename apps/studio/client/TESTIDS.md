@@ -776,6 +776,24 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-suggest-why` | testid | The one quiet line that says why the suggestions are there ("Because 3 comments are open on this canvas"). | `client/v2/ai/Suggest.jsx` · `SuggestStrip` | — | stable |
 | `ai-hint` | testid | The empty chat's hint line ("Ask for a change, a few variants, or an answer."). | `client/v2/ai/Suggest.jsx` · `ChatEmpty` | — | stable |
 | `ai-canvas-unchanged` | testid | The note that ends an answer which touched nothing: "The canvas didn't change." | `client/v2/ai/Feed.jsx` · `AssistantMessage` | — | stable |
+| `ai-working` | testid | The working line (03 `ai-working`): one line in the feed — spark, "AI is …", the step under it, Stop. Shown while a run is on a turn; gone when it ends. | `client/v2/ai/Working.jsx` · `WorkingLine` | — | new |
+| `ai-working-text` | testid | The words of the working line ("AI is making it greener") — the same words as the artboard tag. | `client/v2/ai/Working.jsx` · `WorkingLine` | — | new |
+| `ai-stop` | testid | Stop in the working line: the registry's `POST /_api/ai/runs/:id/stop` for the chat's run (cancels the thread when the server has no run for it). | `client/v2/ai/Working.jsx` · `WorkingLine` | — | new |
+| `ai-live` | testid | The panel's one polite live region (`role=status`): each state of a run — working, Needs you, Done, Stopped — is read once. | `client/v2/ai/Working.jsx` · `RunLiveRegion` | — | new |
+| `ai-result` | testid | The result card under a finished run (03 `ai-done`). `data-status` = idle | busy | undone | kept. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-undo` | testid | Undo on the result card: takes the run's whole change back (`POST /_api/project/undo` for the run's own action). First verb. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-redo` | testid | Redo on the result card, shown in place of the verbs after Undo. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-keep-going` | testid | Keep going on the result card: carries a cut-short run on (`POST /_api/ai/runs/:id/keep-going`); after a finished run it puts focus in the composer. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-keep-copy` | testid | Keep the copy, on the result of a run made on a copy. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-compare` | testid | Compare, on a result that has a before/after to show. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-state` | testid | The word that replaces the verbs once one is used: "Undone." or "Kept the copy." | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-result-note` | testid | The one line under the result when a verb did not happen (someone changed it since, undo not available, could not reach the project). | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-steps` | testid | The folded "What AI did · N steps · T" under a result; the steps are behind it. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-followups` | testid | The follow-up chip row under a result ("Same on Story 9:16"). | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-followup-chip` | testid | One follow-up chip: fills the composer with its words, never sends. | `client/v2/ai/Result.jsx` · `ResultCard` | — | new |
+| `ai-jump` | testid | The "Jump to latest" pill at the foot of a long chat, shown while you read earlier turns; click scrolls to the newest. | `client/v2/ai/BigChat.jsx` · `JumpPill` | — | new |
+| `ai-jump-count` | testid | The "N new" beside Jump to latest: messages that arrived since you left the bottom. | `client/v2/ai/BigChat.jsx` · `JumpPill` | — | new |
+| `ai-chat-pin` | testid | The AI chat header's pin: Pin to the side / Unpin (`aria-pressed`). The shell's pin model — View › Advanced › Pin panels to the side. | `client/v2/ai/BigChat.jsx` · `PinButton` | — | new |
 | `shell-prompt-input` | testid | Input of the shell's own prompt dialog (`.st-prompt`, replaces `window.prompt`). | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `shell-prompt-ok` | testid | OK button of the shell prompt dialog. | `client/app.jsx` · `App` | e2e-mp:surface | stable — re-emit |
 | `embed-view` | testid | Root of the embed shell (`?embed` location). | `client/embed-view.jsx` · `EmbedView` | — | stable — re-emit |

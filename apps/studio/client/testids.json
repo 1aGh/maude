@@ -5083,6 +5083,258 @@
     "v2": "stable"
   },
   {
+    "hook": "ai-working",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The working line (03 `ai-working`): one line in the feed — spark, \"AI is …\", the step under it, Stop. Shown while a run is on a turn; gone when it ends.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "WorkingLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-working-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The words of the working line (\"AI is making it greener\") — the same words as the artboard tag.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "WorkingLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-stop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stop in the working line: the registry's `POST /_api/ai/runs/:id/stop` for the chat's run (cancels the thread when the server has no run for it).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "WorkingLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The panel's one polite live region (`role=status`): each state of a run — working, Needs you, Done, Stopped — is read once.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "RunLiveRegion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The result card under a finished run (03 `ai-done`). `data-status` = idle | busy | undone | kept.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-undo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo on the result card: takes the run's whole change back (`POST /_api/project/undo` for the run's own action). First verb.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-redo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Redo on the result card, shown in place of the verbs after Undo.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-keep-going",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep going on the result card: carries a cut-short run on (`POST /_api/ai/runs/:id/keep-going`); after a finished run it puts focus in the composer.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-keep-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep the copy, on the result of a run made on a copy.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-compare",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare, on a result that has a before/after to show.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-state",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The word that replaces the verbs once one is used: \"Undone.\" or \"Kept the copy.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one line under the result when a verb did not happen (someone changed it since, undo not available, could not reach the project).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-steps",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The folded \"What AI did · N steps · T\" under a result; the steps are behind it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-followups",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The follow-up chip row under a result (\"Same on Story 9:16\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-followup-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One follow-up chip: fills the composer with its words, never sends.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-jump",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Jump to latest\" pill at the foot of a long chat, shown while you read earlier turns; click scrolls to the newest.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BigChat.jsx",
+      "symbol": "JumpPill"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-jump-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"N new\" beside Jump to latest: messages that arrived since you left the bottom.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BigChat.jsx",
+      "symbol": "JumpPill"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-chat-pin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat header's pin: Pin to the side / Unpin (`aria-pressed`). The shell's pin model — View › Advanced › Pin panels to the side.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BigChat.jsx",
+      "symbol": "PinButton"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "dock-slot-<side>",
     "kind": "testid",
     "pattern": true,

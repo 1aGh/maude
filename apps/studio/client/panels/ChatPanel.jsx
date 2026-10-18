@@ -30,9 +30,9 @@ import {
 import ElicitationPrompt from './ElicitationPrompt.jsx';
 import { ChatHeader } from './chat-header.jsx';
 import { AiChatIsland } from '../v2/ai/AiChatIsland.jsx';
+import { JumpToLatest, PinButtonHost } from '../v2/ai/BigChat.jsx';
 import { Composer } from '../v2/ai/Composer.jsx';
 import {
-  ActivityBar,
   AssistantMessage,
   ChatLightbox,
   ChatMediaContext,
@@ -42,6 +42,7 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
+import { RunSurface } from '../v2/ai/RunSurface.jsx';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
 import { readSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
@@ -444,8 +445,16 @@ function ChatThread({
               {/* Background work that outlived the turn — streamed here so it's not
                 dropped (RCA F2). */}
               <ContinuationBubble parts={bgParts} viewMode={transcriptView} />
-              {/* "still working" indicator under the latest message */}
-              <ActivityBar tools={activeTools} />
+              {/* S5.9 — the run's tail: the working line with Stop, then the result card (replaces the v1
+                  ActivityBar), and the long chat's Jump to latest */}
+              <RunSurface
+                conn={conn}
+                chatId={chatId}
+                tools={activeTools}
+                artboards={aiScope.artboards}
+                designRel={designRel}
+              />
+              <JumpToLatest hidden={hidden} />
             </ThreadPrimitive.Viewport>
             {activePermission ? (
               <PermissionPrompt
@@ -878,6 +887,7 @@ export default function ChatPanel({
           setMenuOpen(false);
         }}
         onHide={onClose}
+        pin={<PinButtonHost />}
       >
         <div className="chat-switch">
           <button
