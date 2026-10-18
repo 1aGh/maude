@@ -14,33 +14,20 @@
 import { type JSX, useEffect, useRef } from 'react';
 import { canvasModeStore } from '../bridge/canvas-mode-store.ts';
 import { useCollab, useForeignAwareness } from '../use-collab.tsx';
+import { sanitizePointer, type WorldPoint } from './pointer-point.ts';
+
+export { sanitizePointer, type WorldPoint };
 
 /** A trail point lives this long. */
 export const TRAIL_MS = 420;
 /** Awareness cadence (~30 Hz, as the cursors). */
 export const PUBLISH_MS = 33;
-/** Awareness is untrusted input (DDR-054): a peer's point must sit inside any plausible canvas. */
-const WORLD_LIMIT = 1_000_000;
 const MAX_TRAIL_POINTS = 64;
 
-export interface WorldPoint {
-  x: number;
-  y: number;
-}
 export interface TrailPoint {
   x: number;
   y: number;
   t: number;
-}
-
-/** A peer's `pointer`, or null. Finite numbers inside ±1e6 only; extra keys are dropped. */
-export function sanitizePointer(raw: unknown): WorldPoint | null {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const { x, y } = raw as { x?: unknown; y?: unknown };
-  if (typeof x !== 'number' || typeof y !== 'number') return null;
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (Math.abs(x) > WORLD_LIMIT || Math.abs(y) > WORLD_LIMIT) return null;
-  return { x, y };
 }
 
 /** The trail points still alive at `now`. */
