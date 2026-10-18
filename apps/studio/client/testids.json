@@ -12180,7 +12180,7 @@
   {
     "hook": "insp-ctl-click",
     "kind": "testid",
-    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). Read-only until the link writer (S3 through S2.1's edit-op) is wired; the select is disabled.",
+    "meaning": "Interaction › On click: what the object's `data-cd-link` does, in words (\"Open cal.com/studio\", \"Go to Pricing\", \"None\"). The select is disabled when there is no link to change; "None" clears it (element.clear-link through /_api/edit-op).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/interaction.jsx",
       "symbol": "InteractionBody"

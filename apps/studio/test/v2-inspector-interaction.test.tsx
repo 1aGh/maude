@@ -321,14 +321,33 @@ describe('On hover', () => {
   });
 });
 
-describe('On click (S3 owns the write; the row reads the link and says so)', () => {
-  test('an external link reads "Open cal.com/studio" and cannot be changed from here yet', async () => {
+describe('On click (the row says what the link does; "None" clears it through /_api/edit-op)', () => {
+  test('an external link reads "Open cal.com/studio"; None clears it with one element.clear-link write', async () => {
     const host = await one();
     const sel = q(host, 'insp-ctl-click') as HTMLSelectElement;
     expect(shown(sel)).toBe('Open cal.com/studio');
-    expect(sel.disabled).toBe(true);
-    expect(q(host, 'insp-click-pending')?.textContent).toContain('isn’t available yet');
+    expect(sel.disabled).toBe(false);
+    expect(optionLabels(sel)).toEqual(['Open cal.com/studio', 'None']);
+    expect(q(host, 'insp-click-pending')).toBeNull();
     await pick(sel, 'none');
+    expect(posts.map((p) => [p.url, p.body])).toEqual([
+      [
+        '/_api/edit-op',
+        {
+          file: FILE,
+          op: 'element.clear-link',
+          targets: [{ artboard: 'desktop', element: 'book-call' }],
+        },
+      ],
+    ]);
+  });
+
+  test('no link: the row says None and has nothing to change; an object with no id writes nothing', async () => {
+    const none = await one({ attrs: {} });
+    expect((q(none, 'insp-ctl-click') as HTMLSelectElement).disabled).toBe(true);
+    const noId = await one({ id: undefined, artboardId: null });
+    expect((q(noId, 'insp-ctl-click') as HTMLSelectElement).disabled).toBe(true);
+    await pick(q(noId, 'insp-ctl-click'), 'none');
     expect(posts).toEqual([]);
   });
 
