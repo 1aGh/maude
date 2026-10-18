@@ -81,6 +81,12 @@ export type OpenExportDetail = Record<string, unknown>;
 export type TimelineComp = Record<string, unknown>;
 export type RecordEditPayload = Record<string, unknown>;
 export type GitLifecycleEvent = Record<string, unknown>;
+/** S9.22 — the overlay's request id (`cm<n>`), echoed back so it can match the answer. */
+export type ReqId = string | number;
+/** S9.22 — one comment op as the overlay asks it; `op` is one of COMMENT_OPS, the rest the door's. */
+export type CommentOpRequest = { op: string } & Record<string, unknown>;
+/** S9.22 — a mention row as the popover shows it (comments/people.ts `MentionRow`). */
+export type MentionPerson = { id: string; name: string; role?: string };
 type Empty = Record<string, never>;
 
 /** canvas → shell (posted to window.parent) */
@@ -174,6 +180,10 @@ export interface CanvasToShell {
   'comment-patch': { id: Id; patch: CommentPatch };
   'comment-delete': { id: Id };
   'comment-click': { id: Id };
+  // S9.22 — the overlay asks the shell to run a comment op through `POST /_api/comments/op` (the op
+  // is the door's to judge, comments/ops.ts) and for the mention people; the shell answers the asker.
+  'comment-op': { reqId: ReqId; op: CommentOpRequest };
+  'comment-people-request': { reqId: ReqId };
   // export
   'export-request': { id: Id; payload: ExportPayload };
   'export-history-request': { id: Id };
@@ -344,6 +354,19 @@ export interface ShellToCanvas {
   // comments
   'comments-set': { comments: CommentThread[] };
   'comment-focus': { id: Id | null };
+  // S9.22 — the shell's answers to `comment-op` / `comment-people-request`, to the frame that asked.
+  'comment-op-ack': { reqId: ReqId | null };
+  'comment-op-result': {
+    reqId: ReqId | null;
+    ok: boolean;
+    comment?: CommentThread | null;
+    status?: number;
+    error?: string;
+  };
+  'comment-people': { reqId: ReqId | null; people: MentionPerson[] | null };
+  // S4.17 — the Preview annotation list selects / filters on the canvas (handler: S4.9)
+  'annotation-select': { v: 1; ids: string[] };
+  'annotation-filter': { v: 1; authors: string[] };
   // export
   'export-capture': { id: Id; format: string; artboardIds: Id[]; scale: number };
   'export-selection-query': { id: Id };
@@ -618,6 +641,20 @@ const aiHoldList: V = (v) =>
       )(v)
     : BAD;
 
+/** S9.22 — the comment bridge. The op names the door takes (comments/ops.ts `parseCommentOp`). */
+export const COMMENT_OPS = ['add', 'reply', 'resolve', 'reopen', 'edit-own', 'delete-own'] as const;
+const reqIdV: V = (v) =>
+  (typeof v === 'string' && v.length > 0 && v.length <= 64) ||
+  (typeof v === 'number' && Number.isSafeInteger(v))
+    ? v
+    : BAD;
+/** The op body: a plain object with a known `op`, every value under the JSON caps. */
+const commentOpV: V = (v) => {
+  if (!isPlain(v) || !(COMMENT_OPS as readonly unknown[]).includes(v.op)) return BAD;
+  return json(v);
+};
+const mentionPerson = shape({ id: shortStr(200), name: shortStr(120), role: opt(shortStr(40)) });
+
 /** A top-level parser over exactly the interface's keys (the type pins the key set). */
 function p<T>(
   fields: NoInfer<{ [K in keyof Required<T>]: V }>
@@ -882,6 +919,20 @@ const c2s: C2S = {
   },
   'comment-delete': { gate: 'active', status: 'live', owner: BR, parse: p({ id: str }) },
   'comment-click': { gate: 'active', status: 'live', owner: BR, parse: p({ id: str }) },
+  // S9.22 — the shell runs the op as the session (the door judges it); an `add` is pinned to the
+  // active canvas in the handler (client/v2/comments/comment-bridge.js), the iframe's `file` ignored.
+  'comment-op': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/comments/comment-bridge (S9.22)',
+    parse: p({ reqId: reqIdV, op: commentOpV }),
+  },
+  'comment-people-request': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/comments/comment-bridge (S9.22)',
+    parse: p({ reqId: reqIdV }),
+  },
   'export-request': {
     gate: 'active',
     status: 'live',
@@ -1309,6 +1360,46 @@ const s2c: S2C = {
     owner: 'comments-overlay',
     parse: p({ id: nul(str) }),
   },
+  'comment-op-ack': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'comments-overlay (S9.22)',
+    parse: p({ reqId: nul(reqIdV) }),
+  },
+  'comment-op-result': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'comments-overlay (S9.22)',
+    parse: p({
+      reqId: nul(reqIdV),
+      ok: bool,
+      comment: opt(nul(jsonObj)),
+      status: opt(num),
+      error: opt(str),
+    }),
+  },
+  'comment-people': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'comments-overlay (S9.22)',
+    parse: p({ reqId: nul(reqIdV), people: nul(arrOf(mentionPerson)) }),
+  },
+  // S4.17 sends them (client/v2/annotations/annotation-list-model.js); the annotations layer's
+  // handler lands with S4.9 (rows added by S9.22b: the coverage gate named them unlisted)
+  'annotation-select': {
+    gate: 'parent',
+    status: 'live',
+    orphan: 'no-handler',
+    owner: 'annotations-layer (S4.9)',
+    parse: p({ v: lit(1), ids: arrOf(shortStr(200)) }),
+  },
+  'annotation-filter': {
+    gate: 'parent',
+    status: 'live',
+    orphan: 'no-handler',
+    owner: 'annotations-layer (S4.9)',
+    parse: p({ v: lit(1), authors: arrOf(shortStr(200)) }),
+  },
   'export-capture': {
     gate: 'parent',
     status: 'live',
@@ -1440,10 +1531,11 @@ const s2c: S2C = {
     owner: 'editing/hold-rings (S2.18)',
     parse: p({ field: bool, app: bool, gesture: opt(bool) }),
   },
-  // the handler lands first; the sender is the shell's run list (S5.11 runs-store) at integration
+  // S9.22b — sent by the shell's run list (S5.11 runs-store → v2/ai/ring-relay.js `holdsFor`):
+  // neutral tags from the state and the holder's name only, never the run's prompt
   'ai-holds': {
     gate: 'parent',
-    status: 'new',
+    status: 'live',
     owner: 'editing/hold-rings (S2.18)',
     parse: p({ holds: aiHoldList }),
   },
