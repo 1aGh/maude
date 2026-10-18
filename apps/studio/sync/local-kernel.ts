@@ -465,6 +465,16 @@ export interface LocalRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /**
+   * S10.2 — an app gesture that changes several canvas files (a design-system publish: metas +
+   * TSX) as ONE action. Each file's lane value is proposed against the store head; nothing is
+   * written here — on acceptance `publish` writes the files, exactly as for an undo. Files that
+   * already hold the value add nothing; none left → accepted with no action.
+   */
+  proposeFiles(
+    files: { rel: string; text: string }[],
+    action: { kind: string; label: string | null }
+  ): Promise<LocalOutcome>;
   /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
   acceptedTrash(): Promise<TrashListing | null>;
   acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
@@ -1549,6 +1559,33 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           label,
         })
       );
+    },
+    async proposeFiles(files, action) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const o = opened;
+      return serial(async (): Promise<LocalOutcome> => {
+        const ops: unknown[] = [];
+        for (const f of files) {
+          const rel = String(f.rel).replace(/\\/g, '/').replace(/^\/+/, '');
+          const canvas = canvasOfRel(rel);
+          if (!canvas || typeof f.text !== 'string') return { status: 'rejected', code: 'invalid' };
+          const lane: LocalLane =
+            rel === canvas ? 'html' : /\.meta\.json$/i.test(rel) ? 'meta' : 'annotations';
+          const value = laneValueFromFile(lane, f.text);
+          if (value === null) return { status: 'rejected', code: 'invalid' };
+          const doc = await o.store.docByPath(canvas);
+          if (!doc) return { status: 'rejected', code: 'unknown-canvas' };
+          const head = (await o.store.heads([doc]))[doc] as {
+            lanes?: Record<string, { hash: string | null }>;
+          };
+          const base = hashOr(head?.lanes?.[lane]?.hash);
+          if (laneHash(value) === base) continue;
+          ops.push({ op: 'lane.replace', doc, lane, content: value, base });
+        }
+        if (!ops.length) return { status: 'accepted' };
+        return submit(ops, action);
+      });
     },
     // S1.7 — the shared Trash over the store's readers (S1-trash.md §1). A local
     // project is its owner's, so `submit` passes every cap (S1.6).

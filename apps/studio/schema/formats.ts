@@ -93,6 +93,31 @@ export const FORMAT_SCHEMAS: readonly FormatSchema[] = [
     check: 'ds-check <ds> structure, as warnings (V2-1.13)',
     skill: 'design:design-system',
   },
+  // S10.2 (decision v2-lead-ds-revision-formats-rows): versioned Plane-B files the DS engine
+  // writes; agents READ them and reach them only through `maude design ds …` (the hook refuses a
+  // hand edit, V2-1.18), so they stay out of the "Files Claude edits" table (`runtime`).
+  {
+    format: 'ds-revision',
+    files: '<designRoot>/system/<ds>/revisions/<64 hex>.json (+ <id>.tokens.css / .components.css)',
+    schema: 'schema/ds-revision-v1.schema.json',
+    id: 'https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-revision-v1.schema.json',
+    source: 'hand',
+    check:
+      'verifyRevision (ds/revision.ts): the id names the canonical body, every sha256 its text; immutable, app-written',
+    skill: 'design:design-system',
+    runtime: true,
+  },
+  {
+    format: 'ds-head',
+    files: '<designRoot>/system/<ds>/revisions/head.json',
+    schema: 'schema/ds-head-v1.schema.json',
+    id: 'https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-head-v1.schema.json',
+    source: 'hand',
+    check:
+      'headShapeError (ds/head.ts); written only by the DS engine (ds/head.ts writeHead), last',
+    skill: 'design:design-system',
+    runtime: true,
+  },
   {
     format: 'design-config',
     files: '.design/config.json',

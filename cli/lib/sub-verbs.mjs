@@ -28,6 +28,9 @@ export const SUB_VERBS = {
   exports: { list: NATIVE, again: NATIVE },
   // S5.4 (V2-1.15 §5.10): the AI runs — `list` reads, `stop` stops one of your own runs.
   runs: { list: NATIVE, stop: NATIVE },
+  // S10.3 (S10 §2.4): the design-system reads; the helper (ds/ds-verb.ts) refuses a write flag
+  // after them. Every other `ds` sub-verb falls to the `ds` entry and prompts.
+  ds: { status: NATIVE, usage: NATIVE, revisions: NATIVE },
 };
 
 const STEP_FLAGS = {

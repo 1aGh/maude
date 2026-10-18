@@ -253,6 +253,21 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/trash': { safe: 'read', unsafe: null },
   '/_api/trash/restore': { safe: null, unsafe: 'trash' },
   '/_api/trash/clear': { safe: null, unsafe: 'delete' },
+  // S10.3 — a converted design system's reviews (apps/studio/routes/ds.ts). The studio judges
+  // each session's vouched claim itself (Q15): pending needs edit on the DS canvas, the other
+  // writes edit on the whole project, clearing a token out of the trash the owner (`delete`).
+  '/_api/ds/state': { safe: 'read', unsafe: null },
+  '/_api/ds/revision': { safe: 'read', unsafe: null },
+  '/_api/ds/revisions': { safe: 'read', unsafe: null },
+  '/_api/ds/usage': { safe: 'read', unsafe: null },
+  '/_api/ds/publish': { safe: null, unsafe: 'edit' },
+  '/_api/ds/pending': { safe: null, unsafe: 'edit' },
+  '/_api/ds/outside': { safe: null, unsafe: 'edit' },
+  '/_api/ds/pick': { safe: null, unsafe: 'edit' },
+  '/_api/ds/canvas': { safe: null, unsafe: 'edit' },
+  '/_api/ds/trash': { safe: null, unsafe: 'edit' },
+  '/_api/ds/restore': { safe: null, unsafe: 'edit' },
+  '/_api/ds/clear': { safe: null, unsafe: 'delete' },
   // S1.18 — entry → path. The studio reads each session's claim per request (S9.9, http.ts
   // `links.scope`): a canvas-only visitor resolves only its granted canvases, every other entry is
   // `unknown` (history/links.ts — no existence oracle). A read: anyone who may view may follow a link.
