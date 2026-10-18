@@ -1649,6 +1649,8 @@ export function createHttp(
     // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
     shell: { outbox, exportJobs, generateJobs },
     pins: { designRoot: ctx.paths.designRoot },
+    // S3.10a — where an on-click link goes, read from the versioned TSX (routes/links.ts)
+    links: { designRoot: ctx.paths.designRoot, designRel: ctx.paths.designRel },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
     chat: {
       designRoot: ctx.paths.designRoot,

@@ -102,6 +102,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
+  '/_api/links': { class: 'read' }, // S3.10a routes/links.ts: where on-click links go, parsed from the TSX
   '/_api/project/restore': {
     class: 'lane',
     rows: 'X15',
