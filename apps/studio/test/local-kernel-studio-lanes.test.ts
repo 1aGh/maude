@@ -94,9 +94,22 @@ function open(designRoot: string) {
 
 type P = ReturnType<typeof project>;
 /** server.ts `onMetaChanged` / `onAnnotationsChanged` — the studio's lane write, after it landed. */
-function studioLane(h: LocalHome, p: P, lane: 'meta' | 'annotations', rel: string, text: string) {
+function studioLane(
+  h: LocalHome,
+  p: P,
+  lane: 'meta' | 'annotations',
+  rel: string,
+  text: string,
+  withBase = true
+) {
+  const base = p.read(rel); // api.ts hands the board it replaced to onAnnotationsChanged
   p.write(rel, text);
-  const proposed = h.runtime.proposeLane?.(SLUG, lane, text);
+  const proposed = h.runtime.proposeLane?.(
+    SLUG,
+    lane,
+    text,
+    withBase && base !== null ? { baseText: base } : undefined
+  );
   // A local home never takes the write over: the room bridge keeps working (server.ts falls through).
   expect(proposed ?? null).toBeNull();
 }
@@ -124,8 +137,8 @@ describe('U20 — studio layout and annotation writes are the person’s edits o
     const p = project();
     const h = open(p.designRoot);
     await h.ready();
+    // The board is an explicit lane (S4.7, A6a): no file event reaches it — the stroke is proposed.
     studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2'));
-    h.observe(BOARD_REL);
     await h.flush();
     const [row] = await mineRows(h);
     expect([row.kind, row.label]).toEqual(['edit', 'Edit annotations']);
@@ -136,7 +149,47 @@ describe('U20 — studio layout and annotation writes are the person’s edits o
     expect(p.read(BOARD_REL)).toBe(board('s1'));
   });
 
-  test('a board written by something else (git, an editor) is still `outside`', async () => {
+  test('a stroke of unknown base on a never-recorded board is recorded, never wiped by ⌘Z', async () => {
+    const p = project();
+    const h = open(p.designRoot);
+    await h.ready();
+    studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2'), false);
+    await h.flush();
+    const rows = (await mineRows(h)).filter((r) => r.kind === 'edit');
+    expect(rows).toEqual([]); // the board is on the record now (`outside`), not undoable
+    studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2', 's3'), false);
+    const [top] = await mineRows(h);
+    const u = await h.runtime.acceptedUndo(top.actionId, false, { via: 'keys' });
+    expect(u.status).toBe('accepted');
+    expect(p.read(BOARD_REL)).toBe(board('s1', 's2'));
+  });
+
+  test('a ⌘Z the instant after a stroke sees that stroke (history waits for the proposal)', async () => {
+    const p = project();
+    const h = open(p.designRoot);
+    await h.ready();
+    studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2'));
+    const [top] = await mineRows(h); // no flush
+    expect([top.kind, top.label]).toEqual(['edit', 'Edit annotations']);
+  });
+
+  test('two strokes are two edits; the same board repeated (PUT + room projection) is one', async () => {
+    const p = project();
+    const h = open(p.designRoot);
+    await h.ready();
+    studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2'));
+    studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2')); // the room repeats the PUT
+    studioLane(h, p, 'annotations', BOARD_REL, board('s1', 's2', 's3'));
+    await h.flush();
+    const rows = (await mineRows(h)).filter((r) => r.label === 'Edit annotations');
+    expect(rows.map((r) => r.kind)).toEqual(['edit', 'edit']);
+
+    const u = await h.runtime.acceptedUndo(rows[0].actionId, false, { via: 'keys' });
+    expect(u.status).toBe('accepted');
+    expect(p.read(BOARD_REL)).toBe(board('s1', 's2')); // only the last stroke went
+  });
+
+  test('a board written by something else is NOT recorded by the watcher (A6a explicit lane)', async () => {
     const p = project();
     const h = open(p.designRoot);
     await h.ready();
@@ -144,7 +197,8 @@ describe('U20 — studio layout and annotation writes are the person’s edits o
     h.observe(BOARD_REL);
     await h.flush();
     const rows = await h.runtime.acceptedHistory({ path: REPO_REL, limit: 50 });
-    expect(rows[0].kind).toBe(OUTSIDE_KIND);
+    expect(rows.map((r) => r.kind)).not.toContain(OUTSIDE_KIND);
+    expect(rows.map((r) => r.kind)).not.toContain('edit');
   });
 });
 
