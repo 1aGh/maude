@@ -76,6 +76,20 @@ export function registerElementType(def: ElementDef): void {
   extCache.delete(def.type);
 }
 
+/**
+ * Drop a type `registerElementType` added — a plugin unloading, or a test that registered one and must
+ * not leave it in the process-wide registry (it would land in `annotationsJsonSchema()` for every later
+ * file). A built-in type cannot be removed.
+ */
+export function unregisterElementType(type: string): void {
+  const cur = TYPES.get(type);
+  if (!cur) return;
+  if (DEFS.includes(cur)) throw new Error(`"${type}" is a built-in element type`);
+  TYPES.delete(type);
+  specCache.delete(type);
+  extCache.delete(type);
+}
+
 export const TYPE_RE = /^[a-z][a-z0-9-]{0,31}$/;
 
 /** Fields every element carries first, in canonical order. */

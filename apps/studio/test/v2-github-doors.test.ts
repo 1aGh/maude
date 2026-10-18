@@ -24,7 +24,7 @@ describe('File › Pull a local copy… / Share on GitHub…', () => {
   test('the runner hands them to IdentityBar on desktop and says where they live elsewhere', () => {
     const seen: string[] = [];
     const toasts: string[] = [];
-    const prev = globalThis.window;
+    const prev = Object.getOwnPropertyDescriptor(globalThis, 'window');
     const target = new EventTarget();
     (globalThis as unknown as { window: unknown }).window = Object.assign(target, {
       dispatchEvent: (e: CustomEvent) => {
@@ -39,7 +39,9 @@ describe('File › Pull a local copy… / Share on GitHub…', () => {
       const b = createMenuHandlers({ native: false, toast: (t: string) => toasts.push(t) });
       b['project.pull-copy']();
     } finally {
-      (globalThis as unknown as { window: unknown }).window = prev;
+      // Exactly as found: assigning `prev` back would leave an own `window: undefined` key.
+      if (prev) Object.defineProperty(globalThis, 'window', prev);
+      else Reflect.deleteProperty(globalThis, 'window');
     }
     expect(seen).toEqual(['project.pull-copy', 'project.share-github']);
     expect(toasts).toEqual(['Pull a local copy… is in the Maude desktop app.']);
