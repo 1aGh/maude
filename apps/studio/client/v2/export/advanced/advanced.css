@@ -1,0 +1,212 @@
+/* client/v2/export/advanced/advanced.css — S8.3: the Export sheet's many-at-once groups and its
+ * Advanced fold (09 ex-batch · ex-huge · ex-advanced). Tokens only — no hex, no raw durations.
+ * Mono (`--font-mono`) is set ONLY by `.ex-mono`, and `.ex-mono` is only ever rendered inside the
+ * fold: Advanced is where raw words are allowed (CONTRACT §3). */
+
+@layer shell {
+  /* ── many at once: one group per kind ─────────────────────────────────────────────────────── */
+  .ex-groups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
+  .ex-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-2);
+  }
+  .ex-group-t {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: var(--type-sm, 13px);
+    color: var(--fg-0);
+  }
+  .ex-group-t strong {
+    font-weight: var(--w-medium, 500);
+    font-variant-numeric: tabular-nums;
+  }
+  .ex-group-s {
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+
+  /* ── the small controls ───────────────────────────────────────────────────────────────────── */
+  .ex-select {
+    height: 28px;
+    padding: 0 var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+  }
+  .ex-select:focus-visible,
+  .ex-field:focus-visible,
+  .ex-switch:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent));
+    outline-offset: 1px;
+  }
+  .ex-num {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1, 4px);
+  }
+  .ex-num-u {
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-2);
+  }
+  .ex-field {
+    width: 72px;
+    height: 28px;
+    padding: 0 var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm, 6px);
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--fg-0);
+    font: inherit;
+    font-size: var(--type-sm, 13px);
+    font-variant-numeric: tabular-nums;
+  }
+  .ex-field[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1px var(--danger, var(--border-strong));
+  }
+  .ex-field--wide {
+    width: 100%;
+  }
+  .ex-switch {
+    position: relative;
+    flex: none;
+    width: 34px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    cursor: pointer;
+  }
+  .ex-switch[data-on] {
+    background: var(--accent);
+    box-shadow: none;
+  }
+  .ex-switch-k {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-1);
+    box-shadow: var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 0.2));
+    transition: transform var(--dur-fast, 120ms) var(--ease-out, ease);
+  }
+  .ex-switch[data-on] .ex-switch-k {
+    transform: translateX(14px);
+  }
+
+  /* ── the fold ─────────────────────────────────────────────────────────────────────────────── */
+  .ex-adv.v2-fold {
+    margin: 0;
+  }
+  .ex-adv-body.v2-fold-body {
+    gap: var(--space-3, 12px);
+    max-height: 46vh;
+  }
+  .ex-adv-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-3, 12px);
+  }
+  .ex-advp {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    min-width: 0;
+    padding: var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-2);
+  }
+  .ex-advp .ex-row-k {
+    width: 96px;
+  }
+  .ex-advp-h {
+    margin: 0;
+    font-size: var(--type-xs, 11px);
+    font-weight: var(--w-semibold, 600);
+    color: var(--fg-2);
+  }
+  .ex-advp-n {
+    margin: 0;
+    font-size: var(--type-xs, 11px);
+    line-height: var(--lh-xs, 1.36);
+    color: var(--fg-2);
+  }
+  .ex-adv-foot {
+    display: grid;
+    gap: var(--space-3, 12px);
+  }
+  .ex-kv {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-1);
+  }
+  .ex-state {
+    color: var(--fg-1);
+  }
+  .ex-state--ok {
+    color: var(--success, var(--fg-0));
+  }
+  .ex-tokens,
+  .ex-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1, 4px);
+  }
+  .ex-files {
+    flex-direction: column;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-1);
+  }
+  .ex-cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 8px);
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--bg-3);
+  }
+  .ex-cmd-t {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: var(--type-xs, 11px);
+    color: var(--fg-0);
+  }
+  .ex-cmd-a {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2, 8px);
+  }
+
+  /* mono — inside the fold only */
+  .ex-mono {
+    font-family: var(--font-mono);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ex-switch-k {
+      transition-duration: 1ms;
+    }
+  }
+}

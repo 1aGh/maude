@@ -11,6 +11,7 @@ import path from 'node:path';
 import * as canva from './canva.ts';
 import type { ExportDegradation } from './degraded.ts';
 import * as html from './html.ts';
+import * as jpg from './jpg.ts';
 import * as pdf from './pdf.ts';
 import * as png from './png.ts';
 import * as pptx from './pptx.ts';
@@ -22,6 +23,7 @@ import * as zip from './zip.ts';
 
 export type Format =
   | 'png'
+  | 'jpg'
   | 'pdf'
   | 'svg'
   | 'html'
@@ -34,6 +36,7 @@ export type Format =
 
 export const FORMATS: readonly Format[] = [
   'png',
+  'jpg',
   'pdf',
   'svg',
   'html',
@@ -96,6 +99,7 @@ export interface Adapter {
 
 const REGISTRY: Record<Format, Adapter> = {
   png,
+  jpg,
   pdf,
   svg,
   html,

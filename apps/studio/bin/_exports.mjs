@@ -12,7 +12,7 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { outputViolation, violationMessage } from '../../../cli/lib/confine-out.mjs';
-import { replayExportJob } from '../exporters/replay.ts';
+import { replayExportBody } from '../exporters/replay.ts';
 import {
   call,
   clean,
@@ -94,7 +94,8 @@ async function again(words) {
     );
     return 1;
   }
-  const job = replayExportJob(entry);
+  // S8.1 — a v2 row replays its stored spec ({v:2, spec}); a v1 row the v1 job, unchanged
+  const job = replayExportBody(entry);
   const posted = await call(c.studio, '/_api/export-jobs', { method: 'POST', json: job });
   if (posted?.status !== 202 || !posted.body?.jobId) {
     process.stderr.write(

@@ -2,14 +2,14 @@
 name: export
 category: daily
 description: "Export a canvas to images, documents, slides, video or a handoff bundle."
-argument-hint: "<png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw] [--out <path>] [--option key=value]"
+argument-hint: "<png|jpg|pdf|svg|html|pptx|mp4|gif|webm|canva|zip|audio> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--kind <kind>=<format>[:k=v,k=v]] [--name <template>] [--estimate] [--out <path>] [--option key=value]"
 ---
 
 # /design:export — export active canvas
 
 Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
-Sends a request to the running dev-server (`POST /_api/export`) with the same payload the ⌘E dialog inside the canvas sends. The server writes the file and this slash command pulls it down to disk (default cwd, or `--out <path>`).
+Sends one export spec to the running dev-server (`POST /_api/export`), the same spec the Export sheet sends. The server writes the file and this slash command pulls it down to disk (default cwd, or `--out <path>`).
 
 **Prerequisite:** the dev-server is running (`maude design serve` or `/design:new` brings it up). The slash command reads the port from `.design/_server.json`.
 
@@ -17,8 +17,14 @@ Sends a request to the running dev-server (`POST /_api/export`) with the same pa
 
 | Flag | Meaning |
 |---|---|
-| `<format>` (required) | `png` / `pdf` / `svg` / `html` / `pptx` / `mp4` / `gif` / `webm` / `canva` / `zip` |
-| `--scope <s>` | `selection` / `artboard` / `canvas-as-separate` / `canvas-whole` / `selection-bounds` / `project-raw`. `canvas-whole` (PNG/PDF) = the whole canvas as ONE image/page, layout between artboards kept; `selection-bounds` (PNG/PDF) = one image of the bounding box around everything selected (no selection → whole canvas). Default = `canvas-as-separate` for element-shape formats, `artboard` for the temporal formats (`mp4`/`gif`/`webm`), `project-raw` for `zip`. |
+| `<format>` (required) | `png` / `jpg` / `pdf` / `svg` / `html` / `pptx` / `mp4` / `gif` / `webm` / `canva` / `zip` / `audio` |
+| `--scope <s>` | `selection` / `canvas` / `folder` / `project`: Selection, This canvas, Folder, Whole project. `--canvas <rel>` names the canvas (default: the open one), `--folder <rel>` the folder, `--artboard <id>` / `--element <id>` (repeatable) the selection. |
+| `--region x,y,w,h` / `--unit each\|one` | A world rectangle of the canvas; `one` makes one file of everything in scope. |
+| `--kind <kind>=<format>[:k=v,k=v]` (repeatable) | Each artboard kind its own format: `--kind digital=png:scale=1 --kind print=pdf:bleed=true,marks=crop --kind video=mp4`. What the Export sheet's groups by kind send as `byKind`; the options after `:` are `--option` items for that kind alone. The positional format is the default for a kind not named. |
+| `--name '<template>'` | File names, with `{project} {folder} {canvas} {artboard} {kind} {size} {scale} {date}`. |
+| `--estimate` | Print the number of files, size and time for the spec, and export nothing. |
+| `--at <sha>` / `--wait ai` | A past version / wait for the AI. The server answers "not available yet" until they are built, and the CLI prints that sentence. |
+| `--scope <s>` (older spellings, same request as before) | `selection` / `artboard` / `canvas-as-separate` / `canvas-whole` / `selection-bounds` / `project-raw`. `canvas-whole` (PNG/PDF) = the whole canvas as ONE image/page, layout between artboards kept; `selection-bounds` (PNG/PDF) = one image of the bounding box around everything selected (no selection → whole canvas). Default = `canvas-as-separate` for element-shape formats, `artboard` for the temporal formats (`mp4`/`gif`/`webm`), `project-raw` for `zip`. |
 | `--out <path>` | Where to write. Default = cwd + the filename the server returns in `Content-Disposition`. |
 | `--option key=value` | Per-format option. Can be repeated. Examples: `--option pageFit=a4` (PDF), `--option mode=raster` (Canva → legacy raster bundle), `--option include=system` (ZIP filter), `--option fps=30` / `--option durationMs=4000` / `--option gifColors=128` (MP4/GIF/WebM), `--option dpi=300` (PNG — feature-2-print-artboards T4), `--option marks=crop,registration` / `--option includeBleed=true` (PDF — T5), `--option text=outline` (PDF — issue #116), `--option includeAnnotations=true` (`canvas-whole` / `selection-bounds` — paint the annotation layer in; comment pins never export — issue #125). |
 
@@ -79,6 +85,12 @@ Sends a request to the running dev-server (`POST /_api/export`) with the same pa
 # 300 DPI PNG (print-ready raster) of the active artboard
 /design:export png --scope artboard --option dpi=300
 
+# Every canvas under ui/2026 as JPG, named by canvas and size
+/design:export jpg --scope folder --folder ui/2026 --name '{canvas} {size}'
+
+# How big would that be?
+/design:export jpg --scope folder --folder ui/2026 --estimate
+
 # Print-ready PDF — bleed included, crop + registration marks
 /design:export pdf --scope artboard --option includeBleed=true --option marks=crop,registration
 
@@ -97,9 +109,9 @@ Sends a request to the running dev-server (`POST /_api/export`) with the same pa
 ## What the command does
 
 1. **Detects the port** from `.design/_server.json` (or a `--port N` override).
-2. **Resolve scope:** if the user didn't pass `--scope`, use the plan-defined default (`canvas-as-separate` for element formats, `project-raw` for `zip`).
-3. **POST** `http://localhost:<port>/_api/export` with body `{ format, scope, options }`.
-4. **Writes the bytes** to the `--out` path (or cwd + the server-supplied filename).
+2. **Resolve scope:** if the user didn't pass `--scope`, use the plan-defined default (`canvas-as-separate` for element formats, `project-raw` for `zip`); `jpg`, `audio` and the spec flags (`--folder`, `--region`, `--name` …) mean `--scope canvas`.
+3. **POST** `http://localhost:<port>/_api/export` with body `{ v: 2, spec }` for the new scopes (`/_api/export-estimate` with `{ spec }` for `--estimate`), or `{ format, scope, options }` for the older ones.
+4. **Writes the bytes** to the `--out` path (or cwd + the server-supplied filename, `filename*` first).
 5. **Stdout:** `wrote <abs-path> (<bytes> bytes)`. Stderr on error.
 
 No network calls outside localhost. No OAuth / token storage — the Canva handoff returns a PPTX + markdown with a prompt block for your MCP (see `plugins/design/docs/canva-handoff.md`).

@@ -167,8 +167,9 @@ quickExport(spec: ExportSpecV2): Promise<{jobId}>   // no sheet; lands in the Ex
 Registry `export.open` params: `{scope?, format?, canvas?, folder?, region?, at?}` (S8.1 adds them; agent
 `cli('maude design export')`). CLI flags (S8.1/S8.3, round-trip tested against `validateSpecV2`):
 `maude design export <format> --scope selection|canvas|folder|project [--folder <rel>] [--canvas <rel>]
-[--region x,y,w,h] [--unit each|one] [--at <sha>] [--name '<template>'] [--option k=v]…`; the v1 `--scope artboard|…`
-spellings keep working.
+[--region x,y,w,h] [--unit each|one] [--at <sha>] [--kind <kind>=<format>[:k=v,k=v]]… [--name '<template>']
+[--option k=v]…`; the v1 `--scope artboard|…` spellings keep working. S8.3 added `--kind` (the spec's `byKind`, one
+flag per kind) so a batch with a format per kind has an exact command line.
 
 ### 5.8 Annotations
 

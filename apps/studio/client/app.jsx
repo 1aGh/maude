@@ -303,7 +303,7 @@ import { useWebSocket } from './hooks/use-web-socket.jsx';
 import { useProjectData } from './hooks/use-project-data.jsx';
 import { usePhotoAndTimeline } from './hooks/use-photo-and-timeline.jsx';
 import { useShellCore } from './hooks/use-shell-core.jsx';
-import { exportSelectionFor, isOwnSelectEcho } from './selection-scope.js';
+import { exportSelectionFor, exportSelectionV2, isOwnSelectEcho } from './selection-scope.js';
 import { ShellStoreContext, useShellStore } from './stores/shell-store.jsx';
 
 // ---------- App ----------
@@ -3163,6 +3163,9 @@ function ShellTree() {
         <ExportDialog
           mode={exportDialog.mode}
           initialScope={exportDialog.scope}
+          request={exportDialog}
+          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+          {...exportSelectionV2(selected, activePath)}
           activePath={activePath}
           hasComps={activeComps.length > 0}
           comps={activeComps}

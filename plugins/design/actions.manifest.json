@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9d28f9ad5a0a",
+  "manifestVersion": "1d660b7ae755",
   "actions": [
     {
       "id": "search.open",
@@ -2399,7 +2399,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design export"
+        "verb": "maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]"
       }
     },
     {
@@ -2412,17 +2412,6 @@
       "agent": {
         "path": "cli",
         "verb": "maude design handoff"
-      }
-    },
-    {
-      "id": "export.canvas-dialog",
-      "label": "Export from the canvas",
-      "kind": "command",
-      "exec": "canvas",
-      "effect": "none",
-      "agent": {
-        "path": "cli",
-        "verb": "maude design export"
       }
     },
     {

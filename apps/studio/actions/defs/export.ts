@@ -28,15 +28,6 @@ export const EXPORT_ACTIONS: ActionDef[] = [
       sheet: 'Handoff to production',
     },
   },
-  // The canvas palette's own export dialog (export-dialog.tsx, a window listener in the iframe
-  // that never checked focus). v2 (D3): ⇧⌘E is the one export sheet and ⌘E is unbound — the key
-  // died with V2-4.5b, whose toolbars replaced the palette (rule 13; help.ts MOVED_KEYS).
-  {
-    id: 'export.canvas-dialog',
-    label: 'Export from the canvas',
-    kind: 'command',
-    exec: 'canvas',
-  },
   // "Export again" (D3, decision:maude/v2-2.8-shift-cmd-e-one-sheet). v1 bound ⇧⌘E to the iframe's
   // `rerunLast()`, which ran next to the forwarded `export.open` and silently re-submitted the
   // last export (V2-1.3 defect 2). It now lives on every Recent row of the shell's Export sheet

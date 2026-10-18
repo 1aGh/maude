@@ -33,6 +33,7 @@ import { useWhatsNew } from '../whats-new.jsx';
 import { shouldCloseOnDeselect, shouldOpenOnSelect } from '../v2/shell/inspector-follow.js';
 import { modeShows } from '../../bridge/mode-shows.ts';
 import { useExportCenter } from '../export-center.jsx';
+import { registerExportOpener } from '../v2/export/use-export-spec.js';
 import { canvasTokenRefreshDelay, setLiveCanvasToken, withCanvasToken } from '../canvas-url.js';
 
 export function useShellCore({}) {
@@ -632,6 +633,8 @@ export function useShellCore({}) {
   // The palette (T4) drives them; the dialog (T5) + panel (T6) consume them.
   const [shareDialog, setShareDialog] = useState(null);
   const [exportDialog, setExportDialog] = useState(null); // null | { mode: 'export'|'handoff', scope? }
+  // S8.2 — `openExport(spec)` (client/v2/export/use-export-spec.js) mounts the sheet through this state.
+  useEffect(() => registerExportOpener(setExportDialog), []);
   // feature-ai-media-generation (DDR-16x) — BYOK provider-key Settings modal +
   // the AI generate action.
   const [settingsOpen, setSettingsOpen] = useState(false);

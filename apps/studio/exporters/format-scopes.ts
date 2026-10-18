@@ -25,6 +25,7 @@
 /** Every format the export pipeline knows. Mirrors `index.ts`'s `Format`. */
 export type ExportFormatName =
   | 'png'
+  | 'jpg'
   | 'pdf'
   | 'svg'
   | 'html'
@@ -61,6 +62,8 @@ export const VALID_SCOPES_BY_FORMAT: Readonly<
   Record<ExportFormatName, readonly ExportScopeName[]>
 > = Object.freeze({
   png: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
+  // S8.1 — JPG captures exactly what PNG does (same shim, `--type jpeg`).
+  jpg: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
   pdf: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
   svg: ['selection', 'artboard', 'canvas-as-separate'],
   html: ['artboard', 'canvas-as-separate'],

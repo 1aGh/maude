@@ -19,6 +19,7 @@ import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { askToEdit } from './ask-to-edit.js';
+import { setExportPeople } from '../export/use-export-spec.js';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
@@ -140,6 +141,8 @@ export function ShellShareCluster() {
     () => facesOf({ you: gitUser, agentActive, peers: lane.peers }),
     [gitUser, agentActive, lane.peers]
   );
+  // S8.2 — the Export sheet's one-time "Copy link" line needs to know who else is here (names only).
+  useEffect(() => setExportPeople(lane.peers.map((p) => p?.name)), [lane.peers]);
   const ex = useMemo(() => exportsRing(exportCenter?.jobs), [exportCenter?.jobs]);
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const ctx = useMemo(

@@ -29,6 +29,7 @@ import { type CloudMoveDeps, createCloudMoveRoutes } from './cloud-move.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createElementLinksRoutes, type ElementLinksRouteDeps } from './element-links.ts';
 import { createHistoryRoutes, type HistoryRouteDeps } from './history.ts';
+import { createExportRoutes, type ExportRouteDeps } from './export.ts';
 import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
@@ -53,6 +54,8 @@ export { canvasPathsOfIndex } from './availability.ts';
 export { riderPatch } from './canvas-meta-rider.ts';
 // S8.19 — the asset-state service, built once by http.ts over the live sync runtime.
 export { assetStateDepsFor } from './asset-state.ts';
+// S8.1 — the v2 half of http.ts's legacy `/_api/export(-jobs)` routes shares the estimate's gate.
+export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
 
@@ -77,6 +80,8 @@ export interface RouteDeps {
   present: PresentRouteDeps;
   /** S11.6 — `GET /_api/canvas-source` + `GET /_api/canvas-errors` (main origin, `export`) */
   canvasSource: CanvasSourceRouteDeps;
+  /** S8.1 — `POST /_api/export-estimate` (ExportSpec v2); optional so stub tables need not build it */
+  export?: ExportRouteDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
   trash?: TrashRouteDeps;
   /** S1.12b — Version history: `/_api/project/{history,restore,versions,changes,source,name,aside}` */
@@ -123,6 +128,7 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ),
     ...createPresentRoutes(deps.present),
     ...createCanvasSourceRoutes(deps.canvasSource),
+    ...(deps.export ? createExportRoutes(deps.export) : []),
     ...createTrashRoutes(
       deps.trash ?? {
         control: () => null,

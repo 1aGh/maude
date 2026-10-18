@@ -234,7 +234,7 @@ describe('registry: the toolbar keys per mode (rule 13)', () => {
     const keysOf = (id: string) => ACTIONS.find((a) => a.id === id)?.keys ?? [];
     expect(keysOf('tool.highlighter')).toEqual([]);
     expect(keysOf('tool.eraser')).toEqual([]);
-    expect(keysOf('export.canvas-dialog')).toEqual([]); // D3: ⌘E unbound
+    expect(ACTIONS.some((a) => a.id === 'export.canvas-dialog')).toBe(false); // D3: ⌘E unbound, S8.2: retired
     for (const [key, to] of [...dead, ['I', 'tool.highlighter'], ['E', 'tool.eraser']])
       expect(MOVED_KEYS.some((m) => m.to === to && m.was.endsWith(key))).toBe(true);
   });

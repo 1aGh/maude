@@ -57,6 +57,9 @@
 @import url("../v2/shell/share-cluster.css");
 /* S3.9 - Preview's own islands: the PreviewBar and the zoom readout. */
 @import url("../v2/preview/preview.css");
+/* S8.2 — the Export sheet (client/v2/export/). */
+@import url("../v2/export/export.css");
+@import url("../v2/export/advanced/advanced.css");
 @import url("../v2/inspect/inspect.css");
 /* V2-4.5c — tool panels the canvas toolbar opens (Stickers), pinned next to the toolbar island. */
 @import url("../v2/shell/tool-panels.css");
