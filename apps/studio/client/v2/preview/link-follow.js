@@ -6,18 +6,16 @@
 //   artboard  → `view.zoom-to-artboard` on the active canvas, push a back entry
 //   canvas    → open that canvas in this window (the mode stays Preview), frame its artboard, push a back entry
 //   dangling  → stay put, say so
-//   external  → S3.10b's trusted confirmation; until it lands the link is shown, not opened
+//   external  → S3.10b's trusted confirmation (external-link-confirm.jsx); the URL is re-checked there
 // Dropped silently: not the active canvas's frame (the dgn gate), the shell is not in Preview, a modal is
 // open, more than 4 follows a second, no entry for the element, an invalid entry.
+
+import { parseLinkTarget } from '../../../bridge/link-target.ts';
 
 export const FOLLOWS_PER_SECOND = 4;
 
 export const DANGLING_CANVAS = "That link goes to a canvas that isn't here any more.";
 export const DANGLING_ARTBOARD = "That link goes to an artboard that isn't here any more.";
-/** S3.10b opens websites (DDR-054 opener); this build only names them. */
-export const externalNotYet = (display) =>
-  `That link goes to ${display}. Opening websites from Preview isn't available yet.`;
-
 /** The entry a follow addresses: by element id, and by artboard when the id is on two artboards. */
 export function entryFor(links, elementId, artboardId) {
   const hits = (Array.isArray(links) ? links : []).filter((l) => l && l.id === elementId);
@@ -34,8 +32,12 @@ export function followPlan(entry) {
     return { kind: 'artboard', artboard: entry.toArtboard };
   if (entry.kind === 'canvas' && typeof entry.canvas === 'string')
     return { kind: 'canvas', canvas: entry.canvas, artboard: entry.toArtboard ?? null };
-  if (entry.kind === 'external' && typeof entry.label === 'string')
-    return { kind: 'toast', text: externalNotYet(entry.label.replace(/^Opens /, '')) };
+  if (entry.kind === 'external') {
+    // The shell re-parses the URL itself: a body that says "external" about a `javascript:` value
+    // (a forged or stale read) is dropped here, before any sheet.
+    const t = parseLinkTarget(entry.url);
+    return t && t.kind === 'external' ? { kind: 'external', url: t.url, host: t.host } : null;
+  }
   return null;
 }
 
@@ -50,6 +52,7 @@ export function followPlan(entry) {
  *   openCanvas(designRootRel, artboard)   open another canvas in this window and frame the artboard
  *   openTab(tabPath, artboard)            the same, for a tab path (going back)
  *   toast(text)
+ *   external(url)          S3.10b: the trusted confirmation (external-link-confirm.jsx) — never an open
  *   history                preview-history.js
  *   nameOf(path)           the canvas display name for the back button
  * `follow(msg)` takes a message `acceptFromCanvas` already validated (`{elementId, artboardId}`).
@@ -77,6 +80,11 @@ export function createLinkFollow(deps) {
       if (!plan) return null;
       if (plan.kind === 'toast') {
         deps.toast(plan.text);
+        return plan;
+      }
+      if (plan.kind === 'external') {
+        // No back entry: the website opens outside this window (or not at all).
+        deps.external(plan.url);
         return plan;
       }
       deps.history.push({

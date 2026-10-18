@@ -17,6 +17,7 @@ import { basename, displayName } from '../../shell/util.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { capsFor } from '../shell/canvas-mode.js';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
+import { ExternalLinkConfirmHost, externalLinks } from './external-link-confirm.jsx';
 import { createLinkFollow } from './link-follow.js';
 import { PreviewBar, previewHint } from './preview-bar.jsx';
 import { clearPreviewBack, runPreviewBack, setPreviewBack } from './preview-back.js';
@@ -95,7 +96,10 @@ function useLinkFollow({ live, previewing, cfg }) {
     previewHistory.get
   );
   useEffect(() => {
-    if (!previewing) previewHistory.clear();
+    if (!previewing) {
+      previewHistory.clear();
+      externalLinks.cancel(); // S3.10b: leaving Preview closes the website sheet
+    }
   }, [previewing]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: everything live is read through `live`
   useEffect(() => {
@@ -135,6 +139,8 @@ function useLinkFollow({ live, previewing, cfg }) {
         open(tabPathFor(live.current.activePath, designRel, canvas), artboard),
       openTab: open,
       toast: (title) => notify({ title, kind: 'info' }),
+      // S3.10b: a website goes to the shell's own confirmation; it opens from a human click only.
+      external: (url) => externalLinks.request(url),
       history: previewHistory,
       nameOf: (path) => displayName(basename(path)),
     });
@@ -181,14 +187,17 @@ export function ShellPreviewChrome() {
   if (!canvasOpen || (!previewing && !leaving)) return null;
   const caps = capsFor({ canEdit: !viewerMode, role: cfg?.cloud?.role });
   return (
-    <PreviewChrome
-      mode="preview"
-      caps={caps}
-      name={displayName(basename(activePath))}
-      zoom={zoom}
-      back={link.backName}
-      onBack={link.onBack}
-      state={previewing ? 'in' : 'out'}
-    />
+    <>
+      <PreviewChrome
+        mode="preview"
+        caps={caps}
+        name={displayName(basename(activePath))}
+        zoom={zoom}
+        back={link.backName}
+        onBack={link.onBack}
+        state={previewing ? 'in' : 'out'}
+      />
+      <ExternalLinkConfirmHost active={previewing} />
+    </>
   );
 }

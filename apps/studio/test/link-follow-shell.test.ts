@@ -14,7 +14,6 @@ import {
   DANGLING_ARTBOARD,
   DANGLING_CANVAS,
   entryFor,
-  externalNotYet,
 } from '../client/v2/preview/link-follow.js';
 import { BACK_MAX, createPreviewHistory } from '../client/v2/preview/preview-history.js';
 import { linkFollowOf } from '../input-router.tsx';
@@ -125,6 +124,7 @@ function rig(over: Partial<Record<string, unknown>> = {}) {
       active = p;
     },
     toast: (s: string) => log.push(['toast', s]),
+    external: (u: string) => log.push(['external', u]),
     history,
     nameOf: (p: string) => (p.endsWith('Home.tsx') ? 'Homepage' : 'Pricing'),
     ...over,
@@ -218,10 +218,10 @@ describe('the shell plays it', () => {
     expect(r.history.size()).toBe(0);
   });
 
-  test('external: named, not opened (S3.10b opens it)', async () => {
+  test('external: handed to the shell confirmation (S3.10b), no back entry', async () => {
     const r = rig();
     await r.lf.follow({ elementId: 'book', artboardId: 'desktop' });
-    expect(r.log.at(-1)).toEqual(['toast', externalNotYet('cal.com/studio')]);
+    expect(r.log.at(-1)).toEqual(['external', 'https://cal.com/studio']);
     expect(r.history.size()).toBe(0);
   });
 

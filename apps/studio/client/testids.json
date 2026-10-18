@@ -12359,5 +12359,116 @@
     "region": "other",
     "consumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "ext-link-scrim",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The backdrop behind \"Open a website?\" (S3.10b), trusted shell chrome over the canvas.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open a website?\" — the shell's own confirmation before a canvas link opens a website (`role=dialog`, `aria-modal`; esc cancels). Shown once per host per window session; `data-fallback=\"true\"` on the desktop when the opener refused or is missing.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-host",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The website's host, in bold (punycode for an IDN host — what opens is what shows).",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-display",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Host + path beneath the host (`externalDisplay`); absent in the fallback.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-url",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Desktop fallback: the full URL as selectable text, with \"Paste it in your browser.\" Nothing opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Open (primary): browser `window.open(url, '_blank', 'noopener,noreferrer')` inside the click; desktop `open_link_external`. Absent in the fallback.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy link — primary in the desktop fallback; the label flips to \"Copied\".",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ext-link-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel: closes the sheet; nothing opens and the host is not remembered.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/external-link-confirm.jsx",
+      "symbol": "ExternalLinkConfirm"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/external-link.test.tsx"],
+    "v2": "new"
   }
 ]
