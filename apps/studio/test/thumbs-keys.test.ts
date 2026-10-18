@@ -11,7 +11,7 @@ import { join, relative } from 'node:path';
 
 import { gitShowFile } from '../git/service.ts';
 import { pidOf } from '../index/snapshot.ts';
-import { KEY_RE, thumbKey } from '../thumbs/keys.ts';
+import { KEY_RE, RENDERER, thumbKey } from '../thumbs/keys.ts';
 import { createThumbService, type ShimHandle, type ThumbService } from '../thumbs/service.ts';
 import { makeSandbox } from './_helpers.ts';
 import { freshDepsFor, indexFor, writeFiles } from './_thumbs-helpers.ts';
@@ -46,8 +46,11 @@ afterAll(() => {
   for (const s of services) s.stop();
 });
 
-function setup() {
+function setup(opts: { lanes?: boolean } = {}) {
   const { root, designRoot } = makeSandbox();
+  const sent: Array<Record<string, unknown>> = [];
+  const recordingShim = (): ShimHandle => ({ ...silentShim(), send: (m) => void sent.push(m) });
+  const atRel = (rel: string) => relative(root, join(designRoot, rel));
   writeFiles(designRoot, {
     'ui/A.tsx': CANVAS('#e4572e'),
     'ui/_parts.tsx': PART(4),
@@ -63,12 +66,20 @@ function setup() {
     config: () => ({ theme: 'dark', tokensCssRel: 'system/demo/tokens.css' }),
     serverOrigin: () => 'http://localhost:1',
     captureOrigin: () => 'http://localhost:2',
-    spawnShim: silentShim,
+    spawnShim: recordingShim,
     freshDepsHash: freshDepsFor(root, designRoot),
     readVersion: (rel, at) =>
-      'sha' in at
-        ? gitShowFile(root, at.sha, relative(root, join(designRoot, rel)))
-        : Promise.resolve(null),
+      'sha' in at ? gitShowFile(root, at.sha, atRel(rel)) : Promise.resolve(null),
+    // what http.ts wires together with the historical build's CSS / meta overlay (S1.11)
+    ...(opts.lanes === false
+      ? {}
+      : {
+          readVersionLane: (
+            rel: string,
+            _lane: 'css' | 'meta',
+            at: { rev: number } | { sha: string }
+          ) => ('sha' in at ? gitShowFile(root, at.sha, atRel(rel)) : Promise.resolve(null)),
+        }),
   });
   services.push(svc);
   const keyOf = async (
@@ -90,7 +101,12 @@ function setup() {
     writeFileSync(join(designRoot, rel), text);
     index.update([rel]);
   };
-  return { root, designRoot, index, svc, keyOf, edit };
+  /** the `&sha=` of every render the service asked the shim for (null = a live build) */
+  const renderedAt = () =>
+    sent
+      .filter((m) => m.op === 'render' && typeof m.url === 'string')
+      .map((m) => new URL(m.url as string).searchParams.get('sha'));
+  return { root, designRoot, index, svc, keyOf, edit, renderedAt };
 }
 
 async function git(root: string, ...args: string[]) {
@@ -126,10 +142,12 @@ describe('thumbnail keys (V2-2.17)', () => {
       canvas: 'ui/A.tsx',
       artboard: null,
       srcHash: 'a',
+      cssHash: null,
       metaHash: 'b',
       depsHash: 'c',
     } as const;
     expect(thumbKey({ ...base, theme: 'light' })).not.toBe(thumbKey(base));
+    expect(thumbKey({ ...base, cssHash: 'd' })).not.toBe(thumbKey(base));
     expect(thumbKey({ ...base, canvas: 'ui/B.tsx' })).not.toBe(thumbKey(base));
   });
 
@@ -184,6 +202,74 @@ describe('thumbnail keys (V2-2.17)', () => {
     expect(await keyOf('ui/A.tsx', { at: { sha: c3 } })).toBe(now2);
     // the old version is still the old picture (same source, today's meta / deps / DS CSS)
     expect(await keyOf('ui/A.tsx', { at: { sha: c1 } })).toBe(now);
+  });
+
+  // S1.11 — the collision `thumb/1` had: a version whose TSX matched today's but whose CSS / meta
+  // lane did not got today's key AND a live build, so the history row showed the live canvas.
+  const visibleKey = async (svc: ThumbService, at?: { sha: string }): Promise<string> => {
+    const r = await svc.thumb({
+      canvas: 'ui/A.tsx',
+      artboard: null,
+      size: 'row',
+      at,
+      priority: 'visible',
+    });
+    if (r.status !== 'pending') throw new Error(`expected pending, got ${JSON.stringify(r)}`);
+    return r.key;
+  };
+  const settle = () => new Promise((r) => setTimeout(r, 20));
+
+  test('the key names the renderer thumb/2 and the canvas CSS lane', async () => {
+    expect(RENDERER).toBe('thumb/2');
+    const { keyOf, edit } = setup();
+    const k0 = await keyOf();
+    edit('ui/A.css', '.x { --lane: today; }\n'); // the same-name lane re-keys today's picture
+    expect(await keyOf()).not.toBe(k0);
+  });
+
+  test('a version that differs only in its CSS lane is a version, never the live picture', async () => {
+    const { root, svc, edit, renderedAt } = setup();
+    edit('ui/A.css', '.x { --lane: then; }\n');
+    await git(root, 'init', '-q');
+    await git(root, 'add', '-A');
+    await git(root, 'commit', '-qm', 'one');
+    const c1 = await git(root, 'rev-parse', 'HEAD');
+    edit('ui/A.css', '.x { --lane: now; }\n'); // TSX and meta unchanged
+
+    const now = await visibleKey(svc);
+    const then = await visibleKey(svc, { sha: c1 });
+    expect(then).not.toBe(now);
+    await settle();
+    // the version is BUILT as the version (`&sha=`), the live one without
+    expect(renderedAt()).toEqual([null, c1]);
+  });
+
+  test('a version that differs only in its meta lane is a version too', async () => {
+    const { root, svc, edit, renderedAt } = setup();
+    await git(root, 'init', '-q');
+    await git(root, 'add', '-A');
+    await git(root, 'commit', '-qm', 'one');
+    const c1 = await git(root, 'rev-parse', 'HEAD');
+    edit('ui/A.meta.json', JSON.stringify({ layout: { artboards: [{ id: 'one', x: 40, y: 0 }] } }));
+
+    const now = await visibleKey(svc);
+    expect(await visibleKey(svc, { sha: c1 })).not.toBe(now);
+    await settle();
+    expect(renderedAt()).toEqual([null, c1]);
+  });
+
+  test("without the lane overlay wired, a version keys the lanes the build uses — today's", async () => {
+    const { root, svc, edit, renderedAt } = setup({ lanes: false });
+    edit('ui/A.css', '.x { --lane: then; }\n');
+    await git(root, 'init', '-q');
+    await git(root, 'add', '-A');
+    await git(root, 'commit', '-qm', 'one');
+    const c1 = await git(root, 'rev-parse', 'HEAD');
+    edit('ui/A.css', '.x { --lane: now; }\n');
+    const now = await visibleKey(svc);
+    expect(await visibleKey(svc, { sha: c1 })).toBe(now);
+    await settle();
+    expect(renderedAt().filter((s) => s !== null)).toEqual([]); // no version build
   });
 
   test('an unreadable version is unavailable, never a guess', async () => {
