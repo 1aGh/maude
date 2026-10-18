@@ -556,6 +556,23 @@ export function isArtboardDragChrome(t: EventTarget | null): boolean {
   return !!el.closest('[data-dc-screen]') && !el.closest('.dc-artboard-body');
 }
 
+/** S3.9 — is the target inside an artboard's design surface (`.dc-artboard-body`)? The label strip and
+ *  the bare canvas are not. */
+export function isDesignSurface(t: EventTarget | null): boolean {
+  if (!t || typeof (t as Element).closest !== 'function') return false;
+  return !!(t as Element).closest('.dc-artboard-body');
+}
+
+/**
+ * S3.9 (V2-1.2 Q3) — does a bare left-button drag pan the canvas? Hand always does; Preview's Hand rests on
+ * `browse`, where a click uses the design, so a drag pans only when it starts OFF the design (empty canvas,
+ * an artboard's label) — a drag on the design goes to the design (sliders, scroll areas, text selection).
+ * Space-drag and middle-button pan everywhere, ahead of this.
+ */
+export function dragPansCanvas(tool: Tool, onDesign: boolean): boolean {
+  return tool === 'hand' || (tool === 'browse' && !onDesign);
+}
+
 /**
  * Should the router's pointerdown/mousedown handler skip
  * `stopImmediatePropagation` so the event still reaches use-artboard-drag.tsx?

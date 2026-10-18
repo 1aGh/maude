@@ -1004,11 +1004,13 @@ const c2s: C2S = {
       replace: opt(str),
     }),
   },
-  // S3.2b — live: Present the canvas posts its zoom for the pill (present/present-zoom.ts).
+  // S3.2b — Present: the canvas posts its zoom for the pill (present/present-zoom.ts). S3.9 — canvas-lib's
+  // ViewportZoomReporter posts it too; the shell's ZoomOnly readout (Preview) listens.
   'viewport-zoom': {
     gate: 'active',
     status: 'live',
-    owner: 'present/present-zoom.ts',
+    owner:
+      'present/present-zoom.ts (S3.2b) + v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
     parse: p({ zoom: num }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
