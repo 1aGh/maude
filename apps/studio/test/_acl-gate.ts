@@ -627,22 +627,32 @@ function unsend(text: string, sent: string | undefined, as: string | undefined):
   return t;
 }
 
-/** Volatile bytes two identical requests may differ in (clocks, ids, ports). */
-export const normalize = (t: string, cell: GateCell) =>
-  t
+/**
+ * Volatile bytes two requests may differ in — clocks, mtimes, ports, the sandbox path and
+ * the ids derived from it (`rootId`, the index `pid`), run / ask ids, etags. `across` (two
+ * boots, acl-u7-parity) also masks 12–16-hex ids, which are per-boot by construction.
+ */
+export const normalize = (t: string, cell: GateCell, across = false) => {
+  let out = t
     .split(cell.root)
     .join('<root>')
-    .split(String(cell.base.split(':').pop()))
-    .join('<port>')
-    .split(String(cell.canvasBase.split(':').pop()))
-    .join('<cport>')
-    .split(cell.base.replace('http://', ''))
-    .join('<main>')
-    .split(cell.canvasBase.replace('http://', ''))
-    .join('<canvas>')
+    .split(`:${cell.base.split(':').pop()}`)
+    .join(':<port>')
+    .split(`:${cell.canvasBase.split(':').pop()}`)
+    .join(':<cport>')
     .replace(/\d{4}-\d\d-\d\dT[\d:.]+Z?/g, '<t>')
-    .replace(/\b\d{9,}\b/g, '<n>')
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>');
+    .replace(/\b\d{9,}(\.\d+)?\b/g, '<n>')
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
+    .replace(/^etag: .*$/m, 'etag: <etag>');
+  if (across)
+    out = out
+      .replace(/\b[a-z]?_?[0-9a-f]{12,16}\b/g, '<id>')
+      .replace(/"pid":\d+/g, '"pid":<pid>')
+      // render timings (/_health) and the index's mtime-derived hash differ per boot
+      .replace(/("[A-Za-z0-9]*Ms[A-Za-z]*"):\d+(\.\d+)?/g, '$1:<ms>')
+      .replace(/"hash":"[0-9a-f]{16,64}"/g, '"hash":"<hash>"');
+  return out;
+};
 
 export interface SweepResult {
   probes: number;

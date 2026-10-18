@@ -7,7 +7,8 @@
 //      byte-identically to the live server;
 //   2. the v1 hub's request — `x-maude-role` + `x-maude-readonly` and no `x-maude-access`
 //      (what a 1.9.1 hub's proxy sends) — answers byte-identically to the v2 claim of the
-//      same role. An observer has no v1 spelling; it reads what a v1 viewer reads.
+//      same role. An observer has no v1 spelling (it is new in v2, and holds less than a
+//      viewer: no export, so no diff) — its bar is (1) alone.
 // Volatile bytes (clocks, ids, ports, the sandbox path) are normalised; nothing else is.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
@@ -39,11 +40,17 @@ afterAll(async () => {
 /** The read half of the sweep: GETs only, so two boots stay in step (nothing is written). */
 const reads = (cell: GateCell): Probe[] => buildProbes(cell).filter((p) => p.method === 'GET');
 
-async function answers(cell: GateCell, headers: Headers_, probes: Probe[]): Promise<string[]> {
+async function answers(
+  cell: GateCell,
+  headers: Headers_,
+  probes: Probe[],
+  across = false
+): Promise<string[]> {
   const out: string[] = [];
   for (let i = 0; i < probes.length; i += 12) {
     const got = await Promise.all(probes.slice(i, i + 12).map((p) => ask(cell, p, headers)));
-    for (const a of got) out.push(normalize(`${a.status} ${a.type}\n${a.heads}\n${a.text}`, cell));
+    for (const a of got)
+      out.push(normalize(`${a.status} ${a.type}\n${a.heads}\n${a.text}`, cell, across));
   }
   return out;
 }
@@ -51,8 +58,14 @@ async function answers(cell: GateCell, headers: Headers_, probes: Probe[]): Prom
 function differences(a: string[], b: string[], probes: Probe[]): string[] {
   const out: string[] = [];
   probes.forEach((p, i) => {
-    if (a[i] !== b[i])
-      out.push(`${p.origin} ${p.url}: ${a[i]?.slice(0, 120)} ≠ ${b[i]?.slice(0, 120)}`);
+    const x = a[i] ?? '';
+    const y = b[i] ?? '';
+    if (x === y) return;
+    let at = 0;
+    while (at < x.length && x[at] === y[at]) at += 1;
+    out.push(
+      `${p.origin} ${p.url} @${at}: ${JSON.stringify(x.slice(Math.max(0, at - 30), at + 50))} ≠ ${JSON.stringify(y.slice(Math.max(0, at - 30), at + 50))}`
+    );
   });
   return out;
 }
@@ -61,8 +74,8 @@ describe('U7 — owner, member, viewer and observer get today’s bytes', () => 
   for (const role of ['owner', 'member', 'viewer', 'observer'] as const) {
     test(`${role}: the live server answers like the server with every canvas-only check off`, async () => {
       const probes = reads(live);
-      const a = await answers(live, roleSession(role), probes);
-      const b = await answers(off, roleSession(role), reads(off));
+      const a = await answers(live, roleSession(role), probes, true);
+      const b = await answers(off, roleSession(role), reads(off), true);
       expect(differences(a, b, probes)).toEqual([]);
     }, 600000);
   }
@@ -71,7 +84,6 @@ describe('U7 — owner, member, viewer and observer get today’s bytes', () => 
     ['owner', 'owner'],
     ['member', 'member'],
     ['viewer', 'viewer'],
-    ['observer', 'viewer'],
   ] as const) {
     test(`${role}: the v2 claim answers like the v1 hub's ${v1} projection`, async () => {
       const probes = reads(live);
