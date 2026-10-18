@@ -537,3 +537,46 @@ test('cellEnv turns the materializer on only for an allowlisted tenant', async (
   });
   assert.equal(fleet.MAUDE_CELL_MATERIALIZE, '1');
 });
+
+// ------------------------------------------------- S9.15b: a paused project
+
+test('a paused project starts its cell with MAUDE_PLAN_STATE=paused, and only then', async () => {
+  const at = (planState) =>
+    cellEnv({
+      tenantId: 'alligators',
+      env: baseEnv,
+      hostname: 'alligators.cloud.maude.sh',
+      config: { projectName: 'Brno Alligators', seedRepo: null, adminEmail: null, planState },
+    });
+  assert.equal((await at('paused')).MAUDE_PLAN_STATE, 'paused');
+  for (const other of ['trial', 'paid', 'none', undefined, 'PAUSED']) {
+    assert.equal((await at(other)).MAUDE_PLAN_STATE, undefined, String(other));
+  }
+});
+
+test('fetchTenantConfig carries the plan state, and its offline cache keeps it', async () => {
+  const storage = memoryStorage();
+  const online = await fetchTenantConfig({
+    tenantId: 'alligators',
+    env: baseEnv,
+    storage,
+    fetchImpl: async () => Response.json({ projectName: 'A', seedRepo: 'r', planState: 'paused' }),
+  });
+  assert.equal(online.planState, 'paused');
+  const offline = await fetchTenantConfig({
+    tenantId: 'alligators',
+    env: baseEnv,
+    storage,
+    fetchImpl: async () => {
+      throw new Error('control plane is down');
+    },
+  });
+  assert.equal(offline.planState, 'paused');
+  // An answer with no plan (a control plane older than S9.15b) is today's shape.
+  const old = await fetchTenantConfig({
+    tenantId: 'alligators',
+    env: baseEnv,
+    fetchImpl: async () => Response.json({ projectName: 'A', seedRepo: 'r', adminEmail: null }),
+  });
+  assert.deepEqual(old, { projectName: 'A', seedRepo: 'r', adminEmail: null });
+});

@@ -73,6 +73,24 @@ export function planPausedFromEnv(env = process.env) {
 }
 
 /**
+ * The pause's answer for a capability the caller ALREADY holds, or null.
+ *
+ * One rule for every door (S9.15b): the hub's route table (`hubAccessRefusal`),
+ * the browser studio's shell and canvas doors (`studio-proxy.mjs`). Ask only
+ * after the role check — a role that could not write anyway keeps its 403.
+ *
+ * @param {{ capability: string | null, role?: string | null, paused?: boolean }} args
+ * @returns {{ status: 402, body: object } | null}
+ */
+export function planPauseRefusal({ capability, role = null, paused = planPausedFromEnv() }) {
+  if (!paused || !capability || PAUSE_KEEPS.has(capability)) return null;
+  return {
+    status: 402,
+    body: { ...(role === 'owner' ? PLAN_OWNER_REFUSAL : PLAN_PAUSED_REFUSAL) },
+  };
+}
+
+/**
  * Capabilities the `read_only` projection on a peer token can never hold. A token
  * stored read-only stays read-only whatever its role column says — the bit is what
  * every pre-v2 door reads, so the gate must never be wider than it.
@@ -188,13 +206,7 @@ export function hubAccessRefusal({
   const claimDecides = access.canvasOnly && canvasDoor;
   const allowed = held && (claimDecides || !(peer.readOnly && WRITE_CAPABILITIES.has(capability)));
   if (allowed) {
-    if (plan === 'paused' && !PAUSE_KEEPS.has(capability)) {
-      return {
-        status: 402,
-        body: { ...(access.role === 'owner' ? PLAN_OWNER_REFUSAL : PLAN_PAUSED_REFUSAL) },
-      };
-    }
-    return null;
+    return planPauseRefusal({ capability, role: access.role, paused: plan === 'paused' });
   }
   if (access.role === 'observer') return { status: 403, body: { ...OBSERVER_REFUSAL } };
   return { status: 403, body: { ...READ_ONLY_REFUSAL } };

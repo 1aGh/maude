@@ -27,7 +27,7 @@ import { createHash } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
 import { legacyClaim } from '../../studio/access/scope.ts';
-import { OBSERVER_REFUSAL } from './access-gate.mjs';
+import { OBSERVER_REFUSAL, planPausedFromEnv, planPauseRefusal } from './access-gate.mjs';
 import { RENDER_TOKEN_TTL_MS } from './render-token.mjs';
 import { FLOOR_ROLE, isReadOnlyRole } from './role-matrix.mjs';
 import { servicePage } from './studio-door.mjs';
@@ -218,7 +218,18 @@ export function encodeAccessClaim(claim) {
  */
 export function upstreamHeaders(
   incoming,
-  { role, access, grants, user, sessionKey, publicUrl, canvasToken, renderToken, collabRealm }
+  {
+    role,
+    access,
+    grants,
+    user,
+    sessionKey,
+    publicUrl,
+    canvasToken,
+    renderToken,
+    collabRealm,
+    paused = false,
+  }
 ) {
   const out = {};
   for (const [k, v] of Object.entries(incoming ?? {})) {
@@ -248,7 +259,13 @@ export function upstreamHeaders(
   // what `viewer` means — that would be a second copy of the role model, in
   // another language, in a package that ships to end users on npm. One table
   // (`role-matrix.mjs`), one authority; everything else mirrors its answer.
-  out[`${INJECTED_HEADER_PREFIX}readonly`] = isReadOnlyRole(role) ? '1' : '0';
+  //
+  // `paused` (A3, S9.15b) — a socket on a paused project opens READ-ONLY at
+  // the member's real role: the studio's existing read-only socket gates then
+  // drop its Yjs body writes and its inspector mutations, while it keeps
+  // receiving everything. Only the socket lanes pass it; an HTTP write on a
+  // paused project never gets this far (402 plan above).
+  out[`${INJECTED_HEADER_PREFIX}readonly`] = paused || isReadOnlyRole(role) ? '1' : '0';
   // V2-1.7 §5.4 — the whole ACCESS CLAIM (project role + canvas grants), which
   // the studio's `withSession` reads into `currentAccess()` (S9.9). The role and
   // readonly headers above stay what they were — the PROJECT role and its
@@ -469,6 +486,18 @@ export function createStudioProxy({
         reason: 'read-only',
         capability: verdict.capability,
       });
+      return true;
+    }
+    // A3 (S9.15b) — a paused project: the browser studio's writes answer the
+    // same 402 plan as the hub's own routes, AFTER the role check, so a role
+    // that could not write keeps its 403. Reads and keeping your place pass.
+    const paused = planPauseRefusal({
+      capability: verdict.capability,
+      role: session.role,
+      paused: planPausedFromEnv(env),
+    });
+    if (paused) {
+      refuse(response, paused.status, paused.body);
       return true;
     }
 
@@ -701,6 +730,17 @@ export function createStudioProxy({
         });
         return true;
       }
+      // A3 (S9.15b) — the same pause as the shell door, at the role the
+      // capability vouches.
+      const paused = planPauseRefusal({
+        capability: writeVerdict.capability,
+        role,
+        paused: planPausedFromEnv(env),
+      });
+      if (paused) {
+        refuse(response, paused.status, paused.body);
+        return true;
+      }
     }
     // Plant it on the shell document, and only there. Every other response on
     // this origin is a subresource of a shell that already carries one, so a
@@ -882,6 +922,7 @@ export function createStudioProxy({
         sessionKey: null,
         publicUrl: env.MAUDE_PUBLIC_CANVAS_ORIGIN ?? null,
         collabRealm: 'canvas',
+        paused: planPausedFromEnv(env),
       }),
     });
     return true;
@@ -963,6 +1004,7 @@ export function createStudioProxy({
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
+        paused: planPausedFromEnv(env),
       }),
     });
     return true;

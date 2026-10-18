@@ -274,6 +274,9 @@ export async function fetchTenantConfig({ tenantId, env, storage = null, fetchIm
       projectName: body?.projectName ?? null,
       seedRepo: body?.seedRepo ?? null,
       adminEmail: body?.adminEmail ?? null,
+      // A3 (Maude v2 S9.15b) — present only when the control plane said it
+      // (one older than S9.15b answers the three fields above, unchanged).
+      ...(typeof body?.planState === 'string' ? { planState: body.planState } : {}),
     };
     // Cached against the NEXT cold start, which may happen during an outage —
     // and a cell that cannot learn its seed repo on first boot comes up empty
@@ -831,6 +834,12 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // operator placeholder a customer should never meet, and (since B1) never
     // to another tenant's name.
     ...(config.projectName ? { MAUDE_PROJECT_NAME: config.projectName } : {}),
+    // A paused project (A3, Maude v2 S9.15b): the trial ended with no plan.
+    // The hub refuses writes with 402 plan on exactly this value
+    // (`planPausedFromEnv`, apps/hub/src/access-gate.mjs) — reads and exports
+    // keep working. The control plane restarts a running cell when the state
+    // flips, because env applies only at container start.
+    ...(config.planState === 'paused' ? { MAUDE_PLAN_STATE: 'paused' } : {}),
     // Object storage — PER-TENANT credentials ONLY (Cloud Phase 25 A-1).
     //
     // `s3Creds` are temporary credentials the control plane minted for THIS

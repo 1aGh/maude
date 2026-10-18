@@ -48,7 +48,12 @@ import { personalTokenAccount } from './device-auth.mjs';
 import pricingCatalog from './pricing.json' with { type: 'json' };
 import { priceIdFor, publicPricing, stripeMode } from './pricing-core.mjs';
 import { ACCESS_MESSAGES, can, decideAccess, planState } from './project-access.mjs';
-import { ensureCellDomain, ensureProjectCanvasDomain, probeCell } from './provision.mjs';
+import {
+  ensureCellDomain,
+  ensureProjectCanvasDomain,
+  probeCell,
+  restartCell,
+} from './provision.mjs';
 import { decideCheckout, decideTrialProvision, waitingRoom } from './provisioning.mjs';
 
 export { allCheckoutHtml, pricingCatalog };
@@ -821,6 +826,15 @@ async function choosePlan(env, { request, url, account, project, pricing, ctx })
 /** The Checkout return for Choose a plan: attach the subscription to the row. */
 async function convertTrialProject(env, { account, projectId, session, sessionId, now, ctx }) {
   const subscriptionId = String(session.subscription);
+  // Read BEFORE the update: whether the cell is running paused right now
+  // (S9.15b). Only a paused → paid flip needs a restart; a plan chosen inside
+  // the trial changes nothing the cell was started with.
+  const before = await env.DB.prepare(
+    'SELECT subscription_id, trial_ends_at, state FROM projects WHERE id = ? AND account_id = ?'
+  )
+    .bind(projectId, account.id)
+    .first();
+  const wasPaused = before?.state === 'active' && planState(before, { now }) === 'paused';
   const updated = await env.DB.prepare(
     `UPDATE projects SET subscription_id = ?, plan = ?
       WHERE id = ? AND account_id = ? AND subscription_id IS NULL AND trial_ends_at IS NOT NULL`
@@ -865,6 +879,18 @@ async function convertTrialProject(env, { account, projectId, session, sessionId
     projectId,
     props: { plan: session.metadata.plan === 'dedicated' ? 'dedicated' : 'project' },
   });
+  // Paused → paid (S9.15b): the cell was started with MAUDE_PLAN_STATE=paused
+  // and env applies only at start, so restart it now — once, here, on the
+  // UPDATE that actually attached the subscription (a refreshed return page
+  // takes the `!changes` branch above and restarts nothing). Best-effort: a
+  // cell that misses it picks `paid` up on its next start.
+  if (wasPaused) {
+    const restart = restartCell(env, projectId).then((r) => {
+      if (!r.ok) console.warn(`[plan] ${projectId}: restart after Choose a plan did not land`);
+    });
+    if (ctx?.waitUntil) ctx.waitUntil(restart);
+    else await restart;
+  }
   return redirect(`/projects/${projectId}/billing`);
 }
 

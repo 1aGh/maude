@@ -23,13 +23,15 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 
 import { sha256Hex } from './accounts.mjs';
 import { TRIAL_DAYS, TRIALS_PER_VERIFIED_EMAIL, trialView } from './billing.mjs';
+import { deriveCellSecret } from './cell-token.mjs';
 import { checkoutSessionParams } from './checkout.mjs';
-import { d1FromSqlite } from './db.mjs';
+import { d1FromSqlite, tenantFromRow } from './db.mjs';
 import { applySchema } from './migrate.mjs';
 import { ACCESS_MESSAGES, decideAccess, planRefusal, planState } from './project-access.mjs';
 import { decideTrialProvision } from './provisioning.mjs';
+import { reconcile } from './reconcile.mjs';
 import { SCHEMA_SQL } from './schema.mjs';
-import worker from './worker.mjs';
+import worker, { reconcileSweep } from './worker.mjs';
 
 const DAY = 86_400_000;
 const PASSWORD = 'a-long-enough-password';
@@ -126,6 +128,41 @@ function cloudflareOk() {
     },
   ]);
   return calls;
+}
+
+/** Stripe for one "Choose a plan" round trip: customer, session, completed return. */
+function fakeChooseAPlanStripe() {
+  const asked = [];
+  network.unshift([
+    'api.stripe.com',
+    async (url, init) => {
+      const body = Object.fromEntries(new URLSearchParams(init.body ?? ''));
+      asked.push({ url, method: init.method ?? 'GET', body });
+      if (url.endsWith('/v1/customers')) return Response.json({ id: 'cus_1' });
+      if (url.endsWith('/v1/checkout/sessions')) {
+        return Response.json({
+          id: 'cs_test_9',
+          url: 'https://checkout.stripe.com/pay/cs_test_9',
+        });
+      }
+      if (url.includes('/v1/checkout/sessions/cs_test_9')) {
+        return Response.json({
+          id: 'cs_test_9',
+          status: 'complete',
+          customer: 'cus_1',
+          subscription: 'sub_9',
+          metadata: {
+            project_id: 'zkusebni-tym',
+            project_name: 'Zkušební tým',
+            plan: 'project',
+            convert: '1',
+          },
+        });
+      }
+      return Response.json({ error: { message: `unexpected ${url}` } }, { status: 500 });
+    },
+  ]);
+  return asked;
 }
 
 // ------------------------------------------------------------- the pure half
@@ -456,36 +493,7 @@ describe('at expiry: paused, not deleted; Choose a plan converts the same projec
 
   test('Choose a plan: Checkout with no trial, then the SAME project carries the subscription', async () => {
     const { env, sqlite, session } = await expiredTrialProject();
-    const asked = [];
-    network.unshift([
-      'api.stripe.com',
-      async (url, init) => {
-        const body = Object.fromEntries(new URLSearchParams(init.body ?? ''));
-        asked.push({ url, method: init.method ?? 'GET', body });
-        if (url.endsWith('/v1/customers')) return Response.json({ id: 'cus_1' });
-        if (url.endsWith('/v1/checkout/sessions')) {
-          return Response.json({
-            id: 'cs_test_9',
-            url: 'https://checkout.stripe.com/pay/cs_test_9',
-          });
-        }
-        if (url.includes('/v1/checkout/sessions/cs_test_9')) {
-          return Response.json({
-            id: 'cs_test_9',
-            status: 'complete',
-            customer: 'cus_1',
-            subscription: 'sub_9',
-            metadata: {
-              project_id: 'zkusebni-tym',
-              project_name: 'Zkušební tým',
-              plan: 'project',
-              convert: '1',
-            },
-          });
-        }
-        return Response.json({ error: { message: `unexpected ${url}` } }, { status: 500 });
-      },
-    ]);
+    const asked = fakeChooseAPlanStripe();
     const chosen = await worker.fetch(
       new Request('https://cloud.test/projects/zkusebni-tym/billing/plan', {
         method: 'POST',
@@ -545,5 +553,178 @@ describe('at expiry: paused, not deleted; Choose a plan converts the same projec
     );
     assert.equal(res.status, 404);
     assert.equal(stripeCalls.length, 0);
+  });
+});
+
+// ------------------------------------------------- S9.15b: the cell learns it
+//
+// Env applies only at container START, so the control plane tells the cell its
+// plan state in `/internal/cell-config` and restarts a running cell exactly
+// when that state flips (trial → paused at expiry, paused → paid on Choose a
+// plan). A restart of a sleeping cell is a no-op on the data plane.
+
+describe('S9.15b: the cell is told, and restarted only on a flip', () => {
+  const MASTER = 'a-cell-master';
+  const ZONE = 'cells.test';
+
+  /** The project's own cell, faked: records restarts, answers health. */
+  function fakeCell() {
+    const restarts = [];
+    network.unshift([
+      `.${ZONE}/`,
+      async (url, init) => {
+        if (url.endsWith('/_cell/restart')) {
+          restarts.push({ url, auth: init.headers?.authorization ?? null });
+          return Response.json({ restarted: true });
+        }
+        return Response.json({ ok: true });
+      },
+    ]);
+    return restarts;
+  }
+
+  async function trialProject({ expired }) {
+    const { env, sqlite } = await freshEnv();
+    Object.assign(env, { CELL_SECRET_MASTER: MASTER, CELL_ZONE: ZONE });
+    const session = await signUp(env);
+    verify(sqlite, 'founder@example.com');
+    const token = await deviceToken(sqlite, 'founder@example.com');
+    cloudflareOk();
+    const restarts = fakeCell();
+    await worker.fetch(createProject(token, { name: 'Zkušební tým' }, 'req-0200'), env);
+    if (expired) sqlite.prepare('UPDATE projects SET trial_ends_at = ?').run(Date.now() - 1);
+    restarts.length = 0; // provisioning's own traffic is not under test
+    return { env, sqlite, session, restarts };
+  }
+
+  async function cellConfig(env, tenant = 'zkusebni-tym') {
+    const res = await worker.fetch(
+      new Request(`https://cloud.test/internal/cell-config?tenant=${tenant}`, {
+        headers: { authorization: `Bearer ${await deriveCellSecret(MASTER, tenant)}` },
+      }),
+      env
+    );
+    return res.json();
+  }
+
+  test('/internal/cell-config carries planState: trial, then paused', async () => {
+    const live = await trialProject({ expired: false });
+    assert.equal((await cellConfig(live.env)).planState, 'trial');
+    const over = await trialProject({ expired: true });
+    const config = await cellConfig(over.env);
+    assert.equal(config.planState, 'paused');
+    assert.equal(config.projectName, 'Zkušební tým', 'the rest of the answer is unchanged');
+  });
+
+  test('a pre-v19 D1 still hands the cell its seed repo (the plan read is its own query)', async () => {
+    const { env, sqlite } = await trialProject({ expired: false });
+    sqlite.prepare("UPDATE projects SET seed_repo = 'https://example.test/seed.git'").run();
+    sqlite.exec('ALTER TABLE projects DROP COLUMN trial_ends_at');
+    const config = await cellConfig(env);
+    assert.equal(config.seedRepo, 'https://example.test/seed.git');
+    assert.equal(config.projectName, 'Zkušební tým');
+    assert.equal(config.planState, 'none');
+  });
+
+  test('a trial project is not an illegal transition — no hourly customer-visible alert', async () => {
+    const { env, sqlite } = await trialProject({ expired: false });
+    const row = sqlite.prepare('SELECT * FROM projects').get();
+    assert.equal(typeof tenantFromRow(row).trialEndsAt, 'number');
+    const result = reconcile(tenantFromRow(row), null);
+    assert.deepEqual(result.actions, []);
+    assert.equal(result.desiredState, 'active');
+    await reconcileSweep(env);
+    await reconcileSweep(env);
+    const alerts = sqlite
+      .prepare("SELECT * FROM audit_log WHERE detail LIKE '%illegal-transition%'")
+      .all();
+    assert.deepEqual(alerts, []);
+    assert.equal(sqlite.prepare('SELECT state FROM projects').get().state, 'active');
+  });
+
+  test('a non-trial row with no subscription keeps today’s reconcile answer', () => {
+    const tenant = tenantFromRow({ id: 'p', state: 'active', state_since: 0 });
+    assert.equal(tenant.trialEndsAt, null);
+    const result = reconcile(tenant, null);
+    assert.ok(result.actions.some((a) => a.reason === 'illegal-transition'));
+    // A converted trial whose subscription vanished at Stripe still alerts.
+    const converted = tenantFromRow({
+      id: 'p',
+      state: 'active',
+      state_since: 0,
+      trial_ends_at: 1,
+      subscription_id: 'sub_gone',
+    });
+    assert.ok(
+      reconcile(converted, null).actions.some((a) => a.reason === 'illegal-transition'),
+      'the trial exemption ends at Choose a plan'
+    );
+  });
+
+  test('the sweep restarts the cell once when its trial runs out — no storm', async () => {
+    const { env, sqlite, restarts } = await trialProject({ expired: true });
+    await reconcileSweep(env);
+    assert.equal(restarts.length, 1, 'restarted at the flip');
+    assert.equal(restarts[0].url, `https://zkusebni-tym.${ZONE}/_cell/restart`);
+    assert.equal(restarts[0].auth, `Bearer ${await deriveCellSecret(MASTER, 'zkusebni-tym')}`);
+    await reconcileSweep(env);
+    await reconcileSweep(env);
+    assert.equal(restarts.length, 1, 'the next hours do nothing');
+    const audited = sqlite
+      .prepare("SELECT action FROM audit_log WHERE action = 'do.plan-paused'")
+      .all();
+    assert.equal(audited.length, 1);
+  });
+
+  test('inside the trial the sweep restarts nothing', async () => {
+    const live = await trialProject({ expired: false });
+    await reconcileSweep(live.env);
+    assert.equal(live.restarts.length, 0);
+  });
+
+  test('a restart that fails is tried again next hour, and recorded only once it lands', async () => {
+    const { env, sqlite, restarts } = await trialProject({ expired: true });
+    network.unshift([`.${ZONE}/_cell/restart`, async () => new Response('busy', { status: 503 })]);
+    await reconcileSweep(env);
+    assert.equal(restarts.length, 0);
+    const count = () =>
+      sqlite.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'do.plan-paused'").get().n;
+    assert.equal(count(), 0);
+    network.shift();
+    await reconcileSweep(env);
+    assert.equal(restarts.length, 1);
+    assert.equal(count(), 1);
+  });
+
+  test('Choose a plan on a paused project restarts its cell; inside the trial it does not', async () => {
+    for (const expired of [true, false]) {
+      const { env, session, restarts } = await trialProject({ expired });
+      fakeChooseAPlanStripe();
+      await worker.fetch(
+        new Request('https://cloud.test/projects/zkusebni-tym/billing/plan', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            cookie: `maude_session=${session}`,
+          },
+          body: form({ plan: 'project', interval: 'monthly' }),
+        }),
+        env
+      );
+      const back = () =>
+        worker.fetch(
+          new Request(
+            'https://cloud.test/checkout/return?project=zkusebni-tym&session_id=cs_test_9',
+            { headers: { cookie: `maude_session=${session}` } }
+          ),
+          env
+        );
+      assert.equal((await back()).status, 303);
+      assert.equal(restarts.length, expired ? 1 : 0, `expired=${expired}`);
+      // A refreshed return page converts nothing twice and restarts nothing twice.
+      await back();
+      assert.equal(restarts.length, expired ? 1 : 0, `refresh, expired=${expired}`);
+      assert.equal((await cellConfig(env)).planState, 'paid');
+    }
   });
 });

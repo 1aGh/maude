@@ -49,7 +49,7 @@ import { handleLinkRoutes, sweepExpiredLinks } from './links.mjs';
 import { applySchema } from './migrate.mjs';
 import { statsDatapoints } from './operator.mjs';
 import { handleOperatorRoutes } from './operator-routes.mjs';
-import { ACCESS_MESSAGES } from './project-access.mjs';
+import { ACCESS_MESSAGES, planState } from './project-access.mjs';
 import { handleProjectAdminRoutes } from './project-admin.mjs';
 import { handleProjectRoutes } from './project-routes.mjs';
 import {
@@ -58,6 +58,7 @@ import {
   ensureProjectCanvasDomain,
   probeCellBody,
   removeCellDomain,
+  restartCell,
 } from './provision.mjs';
 import { purgeTenantObjects } from './purge.mjs';
 import { mintingConfigured, mintTenantCredentials } from './r2-creds.mjs';
@@ -395,6 +396,22 @@ export default {
       } catch {
         /* an unreadable row is "no per-tenant config", never another tenant's */
       }
+      // The plan (A3, Maude v2 S9.15b) — its OWN query, so a D1 that has not
+      // run v19 yet (no `trial_ends_at`) still hands the cell its seed repo.
+      // The cell starts with MAUDE_PLAN_STATE=paused exactly when this says
+      // `paused`; anything else, including "could not tell", is not paused.
+      let plan = null;
+      if (row && row.state !== 'purged') {
+        try {
+          plan = await env.DB.prepare(
+            'SELECT subscription_id, trial_ends_at FROM projects WHERE id = ?'
+          )
+            .bind(tenant)
+            .first();
+        } catch {
+          /* pre-v19: no trial column, so no trial — and nothing to pause */
+        }
+      }
       // Absent is a real answer, and the cell's fail-closed default. It must
       // never be filled in from a shared value — that is the bug this exists
       // to close.
@@ -404,12 +421,13 @@ export default {
       // out that project's name, seed repository and owner address afterwards
       // makes it not quite true (attacker review, 2026-08-01).
       if (row?.state === 'purged') {
-        return json({ projectName: null, seedRepo: null, adminEmail: null });
+        return json({ projectName: null, seedRepo: null, adminEmail: null, planState: 'none' });
       }
       return json({
         projectName: row?.name ?? null,
         seedRepo: row?.seed_repo ?? null,
         adminEmail: row?.owner_email ?? null,
+        planState: planState(plan),
       });
     }
 
@@ -755,6 +773,7 @@ async function runOne(env, projectId, { jobId = null, now }) {
     // must leave a state we can re-derive on the next sweep, not a state we
     // never wrote down.
     const performed = await performActions(env, projectId, row, actions, { now });
+    await applyPlanPause(env, projectId, row, { now });
     const detail = actions.length ? JSON.stringify({ actions, performed }) : null;
     if (jobId) await finishJob(env.DB, jobId, 'ok', detail, { now });
     if (actions.length) {
@@ -1025,15 +1044,51 @@ async function notifyOwner(env, projectId, row, which, { deletesAt }) {
  */
 async function stopCell(env, projectId) {
   if (!env.CELL_SECRET_MASTER) return;
+  const stopped = await restartCell(env, projectId);
+  if (!stopped.ok) {
+    console.warn(
+      `[reconcile] ${projectId}: could not stop the cell — ${stopped.reason ?? `HTTP ${stopped.status}`}`
+    );
+  }
+}
+
+/**
+ * A trial that just ran out (A3, Maude v2 S9.15b): restart the cell ONCE, so
+ * its next start reads `planState: paused` from `/internal/cell-config` and
+ * the hub refuses writes with 402 plan. Env applies only at container start,
+ * so without this a running cell keeps editing until it next sleeps.
+ *
+ * Once per expiry, and the audit log is the idempotence — the same device the
+ * deletion warning uses: a `do.plan-paused` row at or after `trial_ends_at`
+ * means this flip was already applied. Recorded only when the restart LANDED,
+ * so an unreachable data plane is retried next hour (one call an hour, never a
+ * storm). Only an `active` project: a suspended or purged one has no cell to
+ * pause. Best-effort — never fails the sweep.
+ */
+async function applyPlanPause(env, projectId, row, { now }) {
+  if (row.state !== 'active' || planState(row, { now }) !== 'paused') return;
   try {
-    const secret = await deriveCellSecret(env.CELL_SECRET_MASTER, projectId);
-    await fetch(`https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}/_cell/restart`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${secret}` },
-      signal: AbortSignal.timeout(30_000),
-    });
+    const already = await env.DB.prepare(
+      `SELECT 1 AS x FROM audit_log
+        WHERE project_id = ? AND action = 'do.plan-paused' AND at >= ?`
+    )
+      .bind(projectId, Number(row.trial_ends_at))
+      .first();
+    if (already) return;
+    const restarted = await restartCell(env, projectId);
+    if (!restarted.ok) {
+      console.warn(
+        `[plan] ${projectId}: restart for the pause did not land — ${restarted.reason ?? `HTTP ${restarted.status}`}`
+      );
+      return;
+    }
+    await audit(
+      env.DB,
+      { projectId, actor: 'system', action: 'do.plan-paused', detail: 'trial ended' },
+      { now }
+    );
   } catch (err) {
-    console.warn(`[reconcile] ${projectId}: could not stop the cell — ${err.message}`);
+    console.error(`[plan] ${projectId}: ${err.message}`);
   }
 }
 
