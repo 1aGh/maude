@@ -362,6 +362,32 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['object'] },
     search: { keywords: ['remove auto layout', 'absolute', 'free', 'unlayout', 'convert layout'] },
   },
+  // S2.13 (ed-shape) — the Frame / Shape tools' drag and the corner dot's drag. Gestures like `object.reorder-to`:
+  // the tool (F, R, More) is how a person starts them, so they are not offered in ⌘K.
+  {
+    id: 'object.insert-shape',
+    label: 'Draw a shape',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.draw',
+    label: 'Draw an artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'object.set-corner-radius',
+    label: 'Round a corner',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
   // S2.12 (ed-text-edit · ed-text-style) — text in place, styles and the Czech ties. The home of every
   // one is the text's inspector (Type: Style · Case · Language) and the caret on the canvas; ⌘K offers the
   // two that need no choice. The rest take a value (a style, a case, a language, the typed copy), so they

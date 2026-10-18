@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "50acb912950f",
+  "manifestVersion": "664ea2aab43e",
   "actions": [
     {
       "id": "search.open",
@@ -864,6 +864,45 @@
       }
     },
     {
+      "id": "object.insert-shape",
+      "label": "Draw a shape",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div> (data-shape=\"rectangle|ellipse|line|polygon\" for a shape) as the last child of the frame or artboard, position: \"absolute\" with left / top / width / height in px; give a static parent position: \"relative\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "artboard.draw",
+      "label": "Draw an artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add <DCArtboard id=\"artboard-N\" label=\"Artboard N\" kind=\"digital\" width={w} height={h} fixed> and its x / y in layout.artboards[] of the .meta.json — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "object.set-corner-radius",
+      "label": "Round a corner",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius"
+      }
+    },
+    {
       "id": "text.set",
       "label": "Set text",
       "kind": "command",
@@ -1554,7 +1593,20 @@
         "path": "file",
         "format": "canvas-tsx",
         "skill": "design:design",
-        "how": "Add a frame (a <div>) to the artboard in the canvas .tsx"
+        "how": "Add a frame (a <div> with position: \"absolute\", left / top / width / height in px, background: \"var(--bg-1)\") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind=\"digital\" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.el-shape",
+      "label": "Shape",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"rectangle\"> with position: \"absolute\", left / top / width / height in px and background: \"var(--accent)\" — see canvas-tsx.md § Draw a frame or a shape"
       }
     },
     {
@@ -1780,9 +1832,46 @@
       "effect": "project",
       "agent": {
         "path": "file",
-        "format": "annotations",
-        "skill": "design:whiteboard",
-        "how": "Add an ellipse shape element to the canvas’s .annotations.json"
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"ellipse\"> with position: \"absolute\", left / top / width / height in px, borderRadius: \"50%\" and background: \"var(--accent)\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.line",
+      "label": "Line",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"line\"> with position: \"absolute\", left / top at the first point, width = the length, height: 0, borderTop: \"2px solid var(--fg-0)\", transform: rotate(<deg>) and transformOrigin: \"0 0\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.polygon",
+      "label": "Polygon",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a <div data-shape=\"polygon\"> with position: \"absolute\", left / top / width / height in px, background: \"var(--accent)\" and clipPath: \"polygon(…%)\" — see canvas-tsx.md § Draw a frame or a shape"
+      }
+    },
+    {
+      "id": "tool.slice",
+      "label": "Export area",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export"
       }
     },
     {

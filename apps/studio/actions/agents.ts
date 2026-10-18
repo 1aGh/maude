@@ -385,9 +385,34 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.eraser': BOARD('Remove the elements from the canvas’s .annotations.json'),
   'tool.browse': PREF('a pointer mode'),
   'tool.rect': BOARD('Add a rect shape element to the canvas’s .annotations.json'),
-  'tool.ellipse': BOARD('Add an ellipse shape element to the canvas’s .annotations.json'),
+  // S2.13 — Edit's Ellipse (More) draws a design shape in the TSX; Preview's Shape (`tool.shape`) stays the board's.
+  'tool.ellipse': TSX(
+    'Add a <div data-shape="ellipse"> with position: "absolute", left / top / width / height in px, borderRadius: "50%" and background: "var(--accent)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
   // V2-4.5b — the toolbar slots derived from MODE_TOOLS (defs/tool.ts)
-  'tool.frame': TSX('Add a frame (a <div>) to the artboard in the canvas .tsx'),
+  'tool.frame': TSX(
+    'Add a frame (a <div> with position: "absolute", left / top / width / height in px, background: "var(--bg-1)") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind="digital" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.el-shape': TSX(
+    'Add a <div data-shape="rectangle"> with position: "absolute", left / top / width / height in px and background: "var(--accent)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.line': TSX(
+    'Add a <div data-shape="line"> with position: "absolute", left / top at the first point, width = the length, height: 0, borderTop: "2px solid var(--fg-0)", transform: rotate(<deg>) and transformOrigin: "0 0" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.polygon': TSX(
+    'Add a <div data-shape="polygon"> with position: "absolute", left / top / width / height in px, background: "var(--accent)" and clipPath: "polygon(…%)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  // Export area writes nothing to the file; an agent exports a region with the export verb.
+  'tool.slice': { effect: 'none', agent: cli('maude design export') },
+  'object.insert-shape': TSX(
+    'Add a <div> (data-shape="rectangle|ellipse|line|polygon" for a shape) as the last child of the frame or artboard, position: "absolute" with left / top / width / height in px; give a static parent position: "relative" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'artboard.draw': TSX(
+    'Add <DCArtboard id="artboard-N" label="Artboard N" kind="digital" width={w} height={h} fixed> and its x / y in layout.artboards[] of the .meta.json — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'object.set-corner-radius': TSX(
+    'Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius'
+  ),
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),
