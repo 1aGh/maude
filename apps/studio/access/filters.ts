@@ -56,6 +56,40 @@ import { currentAccess, diskProjectReader, toDesignRel } from './request.ts';
 import { type Access, sees } from './scope.ts';
 
 // ===========================================================================
+// S9.12 — the revert-guard seam (V2-1.16 §7 `acl-revert-guard`, rule 10)
+// ===========================================================================
+
+/**
+ * The checks `test/acl-revert-guard.test.ts` reverts one at a time to prove the canary
+ * sweep goes red without each. Every listed check asks `aclCheckOn` on its live path,
+ * so a check that is moved off that path (a dead copy) turns the guard red too.
+ */
+export const ACL_CHECKS = Object.freeze([
+  'canvasScopeRefusal', // access/request.ts — any target outside the grants + closure
+  'frameFor', // socket frames (L11/L12)
+  'pathFirst', // the design root's files judged on their path (L15)
+  'commentsAll', // `loadAllComments` and every comment id lookup (L10)
+  'runs', // the AI run view (L13)
+  'indexData', // the Files tree (L8)
+] as const);
+export type AclCheck = (typeof ACL_CHECKS)[number];
+
+const revertedForTest = new Set<AclCheck>();
+
+/**
+ * TEST ONLY — behave as if `check`'s line were reverted (it becomes the identity). Nothing
+ * in the product calls this and no env var or request reaches it: the guard's server is
+ * started with `bun --preload test/_acl-seam-preload.ts`, which is the only caller.
+ */
+export function revertAclCheckForTest(check: AclCheck): void {
+  if (!ACL_CHECKS.includes(check)) throw new Error(`unknown ACL check: ${check}`);
+  revertedForTest.add(check);
+}
+
+/** Is `check` live? Always true outside the revert guard. */
+export const aclCheckOn = (check: AclCheck): boolean => !revertedForTest.has(check);
+
+// ===========================================================================
 // S9.11 — socket frames + canvas origin
 // ===========================================================================
 
@@ -188,7 +222,7 @@ export function frameFor(
   designRel: string,
   audience: FrameAudience = {}
 ): Frame | null {
-  if (see === null) return frame;
+  if (see === null || !aclCheckOn('frameFor')) return frame;
   const type = str(frame.type) ?? '';
   const cls = (WS_FRAME_CLASSES as Record<string, string>)[type];
   if (cls === undefined || cls === 'project') return null;
@@ -440,7 +474,7 @@ const LIVE_STATES = new Set(['waiting', 'starting', 'running', 'needs-you']);
 export function filterRunsView<
   V extends { mine: unknown[]; others: unknown[]; needsYou: number; live: number },
 >(view: V, see: Seer | null, designRel: string): V {
-  if (see === null) return view;
+  if (see === null || !aclCheckOn('runs')) return view;
   const mine = (view.mine as RunLike[])
     .map((r) => runFor(r, see, designRel))
     .filter((r): r is RunLike => r !== null);
@@ -467,6 +501,7 @@ export function filterRunsView<
  * redirects the judgement to another canvas. `undefined` = not a file of the design root.
  */
 export function canvasOriginTarget(pathname: string, designRel: string): string | null | undefined {
+  if (!aclCheckOn('pathFirst')) return undefined;
   const base = `/${designRel.replace(/^\/+|\/+$/g, '')}/`;
   if (pathname.startsWith(base)) return toDesignRel(pathname, designRel);
   if (pathname.startsWith('/assets/')) return toDesignRel(pathname.slice(1), designRel);
@@ -587,7 +622,7 @@ export function filterIndexData<T extends IndexDataShape>(
   designRel: string,
   designSystems: ReadonlyArray<{ name: string; path: string }> = []
 ): T {
-  if (vis.full) return data;
+  if (vis.full || !aclCheckOn('indexData')) return data;
   const seen = (p: string) => {
     const r = rel(p, designRel);
     return r !== null && vis.sees(r);
@@ -801,7 +836,7 @@ export function filterCommentsAll<C>(
   vis: Visibility,
   designRel: string
 ): Record<string, C> {
-  if (vis.full) return all;
+  if (vis.full || !aclCheckOn('commentsAll')) return all;
   const out: Record<string, C> = {};
   for (const [file, list] of Object.entries(all)) {
     const r = rel(file, designRel);
@@ -985,4 +1020,52 @@ export function exportTargetVerdict(
     if (!a.can('export', r)) verdict = 'capability';
   }
   return verdict;
+}
+
+// ===========================================================================
+// S9.12 — rows the gate sweep found unfiltered (V2-1.16 L6, L8)
+// ===========================================================================
+
+interface GitStatusShape {
+  branch?: string | null;
+  files?: Array<{ path: string }>;
+  clean?: boolean;
+  unpushed?: number;
+  ahead?: number;
+  behind?: number;
+  remoteAhead?: boolean;
+}
+
+/**
+ * GET /_api/git/status (L6). A canvas-only session's changed files are the ones it sees;
+ * `clean` is derived from them (U5). The branch name is free text that can name another
+ * canvas (U4) and the unpublished / remote counts are project aggregates (U5): dropped.
+ */
+export function filterGitStatus<T>(json: T, vis: Visibility, designRel: string): T {
+  if (vis.full || !json || typeof json !== 'object') return json;
+  const s = json as T & GitStatusShape;
+  const files = (Array.isArray(s.files) ? s.files : []).filter((f) => {
+    const r = typeof f?.path === 'string' ? rel(f.path, designRel) : null;
+    return r !== null && vis.sees(r);
+  });
+  const { ahead: _a, behind: _b, remoteAhead: _r, ...rest } = s;
+  return { ...rest, branch: null, files, clean: files.length === 0, unpushed: 0 } as T;
+}
+
+/** GET /_api/git/branches (L6). Draft names are free text (U4): a canvas-only session lists none. */
+export function filterGitBranches<T>(json: T, vis: Visibility): T {
+  if (vis.full || !json || typeof json !== 'object') return json;
+  return { ...(json as object), branches: [] } as T;
+}
+
+/** GET /_api/assets (L8). A canvas-only session lists the assets its canvases' closure reads. */
+export function filterAssetListing<A extends { path: string }>(
+  assets: readonly A[],
+  vis: Visibility
+): A[] {
+  if (vis.full) return [...assets];
+  return assets.filter((a) => {
+    const r = typeof a?.path === 'string' ? toDesignRel(a.path, '') : null;
+    return r !== null && vis.sees(r);
+  });
 }
