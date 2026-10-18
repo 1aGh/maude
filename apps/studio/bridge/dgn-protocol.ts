@@ -776,10 +776,11 @@ const c2s: C2S = {
       replace: opt(str),
     }),
   },
+  // S3.9 — live: canvas-lib's ViewportZoomReporter posts it; the shell's ZoomOnly readout (Preview) listens.
   'viewport-zoom': {
     gate: 'active',
-    status: 'new',
-    owner: 'shell ZoomUndo (V2-4.x)',
+    status: 'live',
+    owner: 'v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
     parse: p({ zoom: num }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
