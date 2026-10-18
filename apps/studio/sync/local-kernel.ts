@@ -50,6 +50,7 @@ import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transa
 import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import type { TrashListing } from '../history/trash.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
@@ -295,7 +296,10 @@ type AsyncStore = Record<string, (...args: unknown[]) => Promise<any>>;
 
 /** The kernel as this module drives it (the `.mjs` carries no types). */
 interface KernelLike {
-  submit(bytes: string, auth: { actor: string }): Promise<{ status: number; body: any }>;
+  submit(
+    bytes: string,
+    auth: { actor: string; can?: (cap: string) => boolean }
+  ): Promise<{ status: number; body: any }>;
 }
 const makeKernel = createKernel as unknown as (o: Record<string, unknown>) => KernelLike;
 
@@ -394,7 +398,16 @@ export type LocalOutcome = {
   actionId?: string;
   revision?: number;
   undoes?: string | string[];
-  skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
+  skipped?: Array<{
+    doc?: string;
+    lane?: string;
+    id?: string;
+    reason: string;
+    conflictWith?: string;
+  }>;
+  /** S1.7 — trash.restore: where the canvas came back; trash.clear: the ids cleared. */
+  path?: string;
+  cleared?: string[];
 };
 
 /** The `ctx.syncControl.current()` surface a local project answers through. */
@@ -415,6 +428,10 @@ export interface LocalRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
+  acceptedTrash(): Promise<TrashListing | null>;
+  acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
+  acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
 }
 
 export interface LocalHomeOptions {
@@ -604,7 +621,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       origin: { deviceId: machine.id, client: 'studio-local', madeAt: now(), ...origin },
       action: { kind: action.kind, label: action.label, operations },
     });
-    const { body } = await kernel.submit(bytes, { actor: as });
+    // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
+    // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
+    const { body } = await kernel.submit(bytes, { actor: as, can: () => true });
     if (body?.status === 'accepted') {
       return {
         status: 'accepted',
@@ -614,6 +633,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           ? { undoes: body.undoes }
           : {}),
         ...(Array.isArray(body.skipped) && body.skipped.length ? { skipped: body.skipped } : {}),
+        ...(Array.isArray(body.cleared) ? { cleared: body.cleared } : {}),
       };
     }
     return { status: 'rejected', code: String(body?.code ?? 'retryable') };
@@ -1056,6 +1076,47 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         submit([{ op: redo ? 'history.redo' : 'history.undo', ...ids }], {
           kind: redo ? 'redo' : 'undo',
           label,
+        })
+      );
+    },
+    // S1.7 — the shared Trash over the store's readers (S1-trash.md §1). A local
+    // project is its owner's, so `submit` passes every cap (S1.6).
+    async acceptedTrash() {
+      await settled();
+      const o = opened;
+      if (!o || typeof o.store.trash !== 'function') return null;
+      const { canvases, artboards } = await o.store.trash({});
+      const live: TrashListing['live'] = {};
+      for (const entry of new Set((artboards as { entry: string }[]).map((a) => a.entry))) {
+        const doc = await o.store.liveDocByEntry(entry);
+        const h = doc ? (await o.store.heads([doc]))[doc] : null;
+        if (doc && h?.path) live[entry] = { doc, path: h.path };
+      }
+      return { canvases, artboards, live };
+    },
+    async acceptedTrashRestore(entry) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const o = opened;
+      const [item] = (await o.store.trash({ entry })).canvases as { path: string }[];
+      const r = await serial(() =>
+        submit([{ op: 'trash.restore', entry }], {
+          kind: 'restore',
+          label: item ? `Restored “${NAME(item.path)}” from the trash` : 'Restored from the trash',
+        })
+      );
+      if (r.status !== 'accepted') return r;
+      const doc = await o.store.liveDocByEntry(entry);
+      const h = doc ? (await o.store.heads([doc]))[doc] : null;
+      return h?.path ? { ...r, path: h.path } : r;
+    },
+    async acceptedTrashClear(items) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      return serial(() =>
+        submit([{ op: 'trash.clear', ...(items ? { items } : {}) }], {
+          kind: 'trash.clear',
+          label: 'Cleared out the trash',
         })
       );
     },

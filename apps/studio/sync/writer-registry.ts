@@ -127,6 +127,18 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     test: 'test/project-undo-routes.test.ts',
   },
   '/_api/project/undo-stack': { class: 'read' },
+  // S1.7 routes/trash.ts — the shared Trash over the one op log (S1-trash.md)
+  '/_api/trash': { class: 'read' },
+  '/_api/trash/restore': {
+    class: 'structural',
+    via: 'trash.restore { entry } — the canvas comes back with the same entry, in place or at "<name> 2"',
+    test: 'test/trash-derive.test.ts',
+  },
+  '/_api/trash/clear': {
+    class: 'structural',
+    via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
+    test: 'test/acl-l18-trash.test.ts',
+  },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',
