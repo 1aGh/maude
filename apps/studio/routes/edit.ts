@@ -18,11 +18,20 @@
 //   - the local home: the ordinary writes, then the proposal records both lanes as one action.
 // An op that writes no layout keeps the ordinary source path (watcher / source-written import). Elsewhere
 // (a legacy link, no link) nothing changes: one write, one legacy revert record.
+//
+// S2.10c — an artboard moved to the trash takes its annotations with it (S1-trash.md §2): the board's
+// members (annotations/artboard-members.ts) are the action's THIRD lane, so ⌘Z brings them back with
+// the board and the Trash's Restore (the S1.13 splice) does too. Only where the trash is one action:
+// on a legacy link they stay where they are, as the layout entry does (a member left behind is inert).
 
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
+import { artboardMembers } from '../annotations/artboard-members.ts';
+import { canonicalAnnotations } from '../annotations/board-text.ts';
+import { type Op as AnnotationOp, applyOps } from '../annotations/ops.ts';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import type { LaneChange, LanesOutcome } from '../api.ts';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
 import {
@@ -97,6 +106,16 @@ export interface EditRouteDeps {
   };
   /** S2.10b — `ctx.syncControl.current()`: the hub runtime, the local home, or null. */
   control?: () => EditLanesRuntime | null | undefined;
+  /**
+   * S2.10c — the canvas's annotation board (`api.readBoard` / `api.applyAnnotationOps`): an artboard
+   * moved to the trash takes its members along. `apply` with `hooks: false` writes the file only (an
+   * accepted-mode action already carries the lane); `hooks: true` is the canvas op path (a live room's
+   * replica, the change hooks). Absent: the board file beside the canvas, read and written directly.
+   */
+  board?: {
+    read(file: string): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
+    apply(file: string, ops: readonly AnnotationOp[], o: { hooks: boolean }): Promise<unknown>;
+  };
   /** tests only: the clock `last_modified` is stamped with */
   now?: () => Date;
   /** tests only: an op table instead of `EDIT_OPS` */
@@ -175,6 +194,47 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       /* snapshot best-effort */
     }
   };
+  // S2.10c — the board (header). Without `deps.board`: `<designRoot>/<slug>.annotations.json` directly.
+  const boardAbs = (slug: string) => path.join(deps.designRoot, `${slug}.annotations.json`);
+  const readBoard = async (
+    file: string,
+    slug: string
+  ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }> => {
+    if (deps.board) return deps.board.read(file);
+    let raw: string;
+    try {
+      raw = readFileSync(boardAbs(slug), 'utf8');
+    } catch {
+      return { ok: true, text: null };
+    }
+    const text = canonicalAnnotations(raw);
+    return text === null ? { ok: false, error: 'not a board' } : { ok: true, text };
+  };
+  const applyBoard = async (
+    file: string,
+    slug: string,
+    ops: readonly AnnotationOp[],
+    hooks: boolean
+  ) => {
+    if (deps.board) return void (await deps.board.apply(file, ops, { hooks }));
+    const read = await readBoard(file, slug);
+    if (!read.ok) return;
+    const els = read.text ? parseBoard(read.text).elements : [];
+    const r = applyOps(new Map(els.map((e) => [e.id, e])), ops);
+    if (r.touched.size) await Bun.write(boardAbs(slug), serializeBoard([...r.state.values()]));
+  };
+  /** The members of the trashed artboards out of the board: the lane, and the ops that make it. */
+  const boardWithout = async (file: string, slug: string, artboards: string[]) => {
+    const read = await readBoard(file, slug);
+    // An unreadable board is never rewritten (it would erase it): its members stay behind.
+    if (!read.ok || !read.text) return null;
+    const els = parseBoard(read.text).elements;
+    const gone = artboardMembers(els, artboards);
+    if (!gone.size) return null;
+    const ops: AnnotationOp[] = [...gone].map((id) => ({ op: 'delete', id }));
+    const r = applyOps(new Map(els.map((e) => [e.id, e])), ops);
+    return { before: read.text, after: serializeBoard([...r.state.values()]), ops };
+  };
   /** S2.10b — one action on an op-log home (header); null = no such home, the legacy path runs. */
   const land = async (p: LandPlan): Promise<LandOutcome | null> => {
     const rt = deps.control?.();
@@ -207,6 +267,19 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       if (deps.meta?.writeText) await deps.meta.writeText(file, metaAfter, metaBefore, { hooks });
       else await Bun.write(abs(metaRel), metaAfter);
     };
+    // S2.10c — a trashed artboard's annotations leave in the same action.
+    const board =
+      action.kind === 'trash' && action.trashed?.length
+        ? await boardWithout(
+            file,
+            slug,
+            action.trashed.map((t) => t.artboard)
+          )
+        : null;
+    if (board) lanes.push({ lane: 'annotations', text: board.after, baseText: board.before });
+    const writeBoard = async (hooks: boolean) => {
+      if (board) await applyBoard(file, slug, board.ops, hooks);
+    };
     if (accepted === true) {
       // The project decides first: a refused action leaves both files as they are.
       const pending = rt.proposeLanes(slug, lanes, o);
@@ -219,6 +292,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
       ]);
       if (answer.status !== 'accepted') return refusalOf(answer.code);
       await writeMeta(false);
+      await writeBoard(false);
       await writeSource(p.rel, p.before, p.after, p.reason);
       // The write is complete: the projection reads these bytes now (they ARE the accepted
       // source, so nothing is proposed again) instead of holding its doc→file writer for a
@@ -231,6 +305,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
     }
     // The local home records what the disk became; the watcher's echo then finds it recorded.
     await writeMeta(true);
+    await writeBoard(true);
     await writeSource(p.rel, p.before, p.after, p.reason);
     const answer = await rt.proposeLanes(slug, lanes, o);
     // Written either way: an unrecorded write is an ordinary write with its legacy revert record.

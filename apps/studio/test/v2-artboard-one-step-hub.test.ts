@@ -6,6 +6,10 @@
 // place; Carol's one ⌘Z takes both back on Bob's disk, redo re-applies both. Bob (member) moves an
 // artboard to the trash: Carol's Trash lists it, her disk loses it; Bob's one ⌘Z brings the board and its
 // place back on Carol's disk. The oracle is always the OTHER peer's disk / runtime.
+//
+// S2.10c — the artboard's annotations go with it, in the SAME action: Bob's ⌫ takes Mobile's two stickies
+// and the arrow between them off Carol's board (Desktop's lines byte-identical), his ⌘Z brings them back
+// there; Carol's ⌫ takes them off Bob's board, and Bob's Restore from the Trash brings them back on hers.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
@@ -14,12 +18,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { type AccessClaim, resolveAccess } from '../access/scope.ts';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
+import { trashArtboardRestorer } from '../history/restore-artboard-action.ts';
 import { createEditRoutes } from '../routes/edit.ts';
 import type { RouteSpec } from '../routes/table.ts';
+import { createTrashRoutes } from '../routes/trash.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
@@ -49,6 +58,45 @@ const PLACES0 = [
   { id: 'mobile', x: 1520, y: 0 },
 ];
 const META0 = `${JSON.stringify({ title: 'Home', layout: { artboards: PLACES0 } }, null, 2)}\n`;
+// S2.10c — Mobile's two stickies + the arrow between them; Desktop's sticky + its own arrow.
+const SLUG = 'ui-home';
+const BOARD = `${SLUG}.annotations.json`;
+const sticky = (id: string, index: string, x: number, parentArtboard: string) =>
+  ({
+    id,
+    type: 'sticky',
+    index,
+    x,
+    y: 40,
+    w: 160,
+    h: 160,
+    text: id,
+    parentArtboard,
+  }) as AnnotationElement;
+const BOARD0 = serializeBoard(
+  parseBoard(
+    serializeBoard([
+      sticky('m-one', 'a0', 1560, 'mobile'),
+      sticky('m-two', 'a1', 1760, 'mobile'),
+      { id: 'm-arrow', type: 'arrow', index: 'a2', start: { el: 'm-one' }, end: { el: 'm-two' } },
+      sticky('d-one', 'a3', 40, 'desktop'),
+      {
+        id: 'd-arrow',
+        type: 'arrow',
+        index: 'a4',
+        parentArtboard: 'desktop',
+        start: { el: 'd-one' },
+        end: { x: 900, y: 120 },
+      },
+    ])
+  ).elements
+);
+const MOBILE_NOTES = ['m-one', 'm-two', 'm-arrow'];
+const boardIds = (board: string | null) =>
+  board ? parseBoard(board).elements.map((e) => e.id) : [];
+const lineOf = (board: string | null, id: string) =>
+  (board ?? '').split('\n').find((l) => l.includes(`"id":"${id}"`)) ?? null;
+const MEMBER = resolveAccess({ v: 1, role: 'member' } as AccessClaim);
 
 async function waitFor<T>(
   fn: () => T | null | undefined | false | Promise<T | null | undefined | false>,
@@ -184,6 +232,10 @@ interface Peer {
   runtime: SyncRuntime;
   read: (rel: string) => string | null;
   op: (name: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  /** S2.10c — the Trash, as http.ts wires it (S1.13b's splice seam included) */
+  trashList: () => Promise<Record<string, unknown>[]>;
+  trashRestore: (id: string) => Promise<Record<string, unknown>>;
+  board: () => Promise<string | null>;
 }
 
 async function startPeer(repoRoot: string, url: string): Promise<Peer> {
@@ -230,7 +282,38 @@ async function startPeer(repoRoot: string, url: string): Promise<Peer> {
     );
     return { status: res.status, ...((await res.json()) as Record<string, unknown>) };
   };
-  return { ctx, runtime, read, op };
+  const trash = createTrashRoutes({
+    control: () => runtime as object,
+    access: () => MEMBER,
+    readSource: (rel) => read(rel),
+    restoreArtboard: trashArtboardRestorer({
+      control: () => runtime as object,
+      designRel: 'design',
+    }),
+  });
+  const call = async (method: string, p: string, body?: unknown) => {
+    const t = trash.find((s) => s.method === method && s.path === p) as RouteSpec;
+    const res = await t.handle(
+      new Request(`http://localhost${p}`, {
+        method,
+        headers: { 'content-type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }),
+      {}
+    );
+    return { status: res.status, ...((await res.json()) as Record<string, unknown>) };
+  };
+  const trashList = async () =>
+    ((await call('GET', '/_api/trash')).items ?? []) as Record<string, unknown>[];
+  const trashRestore = (id: string) => call('POST', '/_api/trash/restore', { id });
+  // S2.10c — the board as the project carries it at its newest revision (this harness's rooms persist
+  // nothing to disk, and the room — not the projection — owns the board's doc → file)
+  const board = async () => {
+    const rev = ((await runtime.acceptedHistory?.({ limit: 1 })) ?? [])[0]?.revision;
+    if (!rev) return null;
+    return (await runtime.acceptedVersion?.(`design/${FILE}`, rev, 'annotations')) ?? null;
+  };
+  return { ctx, runtime, read, op, trashList, trashRestore, board };
 }
 
 const ids = (src: string | null) =>
@@ -293,6 +376,19 @@ describe.skipIf(!HUB_READY)('S2.10b — one step on a linked op-log project, rea
       return ids(bob.read(FILE)).length === 2 && placeIds(bob.read(META)).length === 2;
     }, "bob's copy of the canvas and its layout");
     await waitFor(() => carol.runtime.acceptedMode?.() === true, 'accepted mode');
+    // S2.10c — the board joins the project as a lane (as the room's projection leaves the disk)
+    const seeded = await waitFor(
+      () => carol.runtime.proposeLane?.(SLUG, 'annotations', BOARD0, { baseText: '' }) ?? null,
+      'the board on the hub'
+    );
+    expect(seeded.status).toBe('accepted');
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      const b = await bob.board();
+      if (b !== BOARD0) throw new Error(`bob reads ${JSON.stringify(b)?.slice(0, 120)}`);
+      return true;
+    }, "bob's copy of the board");
+    for (const who of ['carol', 'bob']) writeFileSync(join(root, who, 'design', BOARD), BOARD0);
   }, 90_000);
 
   afterAll(async () => {
@@ -364,9 +460,14 @@ describe.skipIf(!HUB_READY)('S2.10b — one step on a linked op-log project, rea
     await waitFor(async () => {
       await carol.runtime.pullRemoteNow();
       return (
-        !ids(carol.read(FILE)).includes('mobile') && !placeIds(carol.read(META)).includes('mobile')
+        !ids(carol.read(FILE)).includes('mobile') &&
+        !placeIds(carol.read(META)).includes('mobile') &&
+        boardIds(await carol.board()).join() === 'd-one,d-arrow'
       );
-    }, "the board and its place gone from carol's disk");
+    }, "the board, its place and its annotations gone from carol's disk");
+    // S2.10c — Desktop's annotations are byte-identical
+    for (const id of ['d-one', 'd-arrow'])
+      expect(lineOf(await carol.board(), id)).toBe(lineOf(BOARD0, id));
     const listing = await waitFor(async () => {
       const l = await carol.runtime.acceptedTrash?.();
       return l?.artboards.some((a) => a.artboard === 'mobile') ? l : null;
@@ -385,13 +486,52 @@ describe.skipIf(!HUB_READY)('S2.10b — one step on a linked op-log project, rea
     await waitFor(async () => {
       await carol.runtime.pullRemoteNow();
       return (
-        ids(carol.read(FILE)).includes('mobile') && placeIds(carol.read(META)).includes('mobile')
+        ids(carol.read(FILE)).includes('mobile') &&
+        placeIds(carol.read(META)).includes('mobile') &&
+        (await carol.board()) === BOARD0
       );
-    }, "the board and its place back on carol's disk");
+    }, "the board, its place and its annotations back on carol's disk");
     expect(places(carol.read(META)).find((p) => p.id === 'mobile')).toEqual({
       id: 'mobile',
       x: 1520,
       y: 0,
     });
+  }, 90_000);
+
+  test("S2.10c — Carol's ⌫ takes Mobile's annotations off Bob's board; Bob's Restore from the Trash brings them back on hers", async () => {
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return ids(bob.read(FILE)).includes('mobile') && (await bob.board()) === BOARD0;
+    }, 'bob caught up with the board');
+    const rev0 = await head();
+    const r = await carol.op('artboard.trash', { artboards: ['mobile'] });
+    expect(r).toMatchObject({ status: 200, ok: true, writeId: '' });
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return (
+        !ids(bob.read(FILE)).includes('mobile') &&
+        boardIds(await bob.board()).join() === 'd-one,d-arrow'
+      );
+    }, "the board and its annotations gone from bob's disk");
+    for (const id of ['d-one', 'd-arrow'])
+      expect(lineOf(await bob.board(), id)).toBe(lineOf(BOARD0, id));
+    await new Promise((res) => setTimeout(res, 1500));
+    await carol.runtime.pullRemoteNow();
+    // ONE action: the board's raw write on Carol's Mac recorded nothing a second time
+    expect((await newer(rev0)).map((a) => [a.kind, a.actionId])).toEqual([['trash', r.actionId]]);
+
+    const item = await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return (await bob.trashList()).find((i) => i.kind === 'artboard' && i.artboard === 'mobile');
+    }, "the artboard in bob's Trash");
+    const back = await bob.trashRestore(item.id as string);
+    expect(back).toMatchObject({ status: 200, ok: true });
+    await waitFor(async () => {
+      await carol.runtime.pullRemoteNow();
+      return ids(carol.read(FILE)).includes('mobile') && boardIds(await carol.board()).length === 5;
+    }, "the artboard and its annotations back on carol's disk");
+    const board = await carol.board();
+    for (const id of [...MOBILE_NOTES, 'd-one', 'd-arrow'])
+      expect(lineOf(board, id)).toBe(lineOf(BOARD0, id));
   }, 90_000);
 });

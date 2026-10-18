@@ -2,7 +2,8 @@
 // actions, the ⌥-drag drop and the menu's "Custom width…" field (14 Editing: ed-ab-menu).
 //
 //   ⌘D                          artboard.duplicate over an ARTBOARD selection (registry chord, Edit mode)
-//   run-action artboard.*       ⌘K, menus: duplicate · duplicate-at-width {width} · rename · reset-position
+//   run-action artboard.*       ⌘K, menus: duplicate · duplicate-at-width {width} · rename · reset-position ·
+//                               trash (S2.10c: asks the shell, as ⌫ does — `delete-artboard-request` per board)
 //   maude:duplicate-…-on-drop   canvas-lib's drop of an ⌥-drag: a copy lands at the drop, the originals stay
 //   "Custom width…"             a small field beside the pointer: a number, ↵ copies, esc closes
 //
@@ -28,6 +29,7 @@ export const ARTBOARD_ACTIONS = [
   'artboard.duplicate-at-width',
   'artboard.rename',
   'artboard.reset-position',
+  'artboard.trash',
 ] as const;
 export type ArtboardAction = (typeof ARTBOARD_ACTIONS)[number];
 export const isArtboardAction = (id: unknown): id is ArtboardAction =>
@@ -111,7 +113,16 @@ export function ArtboardCommands({ readOnly = false }: { readOnly?: boolean }) {
       const a = live.current.actions;
       const p = (m.params ?? {}) as { width?: unknown; artboard?: unknown };
       const ids = typeof p.artboard === 'string' ? [p.artboard] : undefined;
-      if (m.id === 'artboard.duplicate') void a.duplicate(ids);
+      if (m.id === 'artboard.trash') {
+        // The write is the shell's (main origin only, DDR-054): the same ask ⌫ posts.
+        const boards =
+          ids ??
+          live.current.selSet.selected
+            .filter((s) => !s.id && s.artboardId)
+            .map((s) => s.artboardId as string);
+        for (const artboardId of boards)
+          window.parent.postMessage({ dgn: 'delete-artboard-request', artboardId }, '*');
+      } else if (m.id === 'artboard.duplicate') void a.duplicate(ids);
       else if (m.id === 'artboard.rename') a.rename(ids?.[0]);
       else if (m.id === 'artboard.reset-position') a.resetPosition(ids);
       else if (typeof p.width === 'number') void a.duplicateAtWidth(ids, p.width);

@@ -613,7 +613,10 @@ export interface Api {
   applyAnnotationOps(
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
+    actionId?: string,
+    /** S2.10c — `hooks: false`: the file only (no live room, no change hook) — an accepted-mode
+     *  action already carries the annotations lane (routes/edit.ts, an artboard moved to the trash) */
+    opts?: { hooks?: boolean }
   ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
@@ -2523,8 +2526,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function applyAnnotationOps(
     file: string,
     ops: readonly AnnotationOp[],
-    actionId?: string
+    actionId?: string,
+    opts?: { hooks?: boolean }
   ): Promise<AnnotationOpsResult> {
+    const withHooks = opts?.hooks !== false;
     return onAnnotationChain(file, async () => {
       const rejectedOf = (r: ApplyResult) =>
         r.rejected.map((x) => ({
@@ -2534,7 +2539,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         }));
       // A live room is ahead of the file (its flush is debounced): the batch
       // goes to its replica, or it would revert a peer's unflushed edit (H1).
-      const live = hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null;
+      const live = withHooks ? (hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null) : null;
       if (live === 'too-large') {
         return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
       }
@@ -2553,7 +2558,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
       }
       await writeBoardFile(file, text);
-      onAnnotationsChanged?.(file, text, actionId, beforeText);
+      if (withHooks) onAnnotationsChanged?.(file, text, actionId, beforeText);
       return { ok: true, changed: true, rejected };
     });
   }
