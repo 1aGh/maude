@@ -22,12 +22,15 @@ import { createEditRoutes, type EditRouteDeps } from './edit.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
+import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
 
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
+export { announceAction, runStageHooks } from './project-undo.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -42,6 +45,8 @@ export interface RouteDeps {
   chat: ChatRouteDeps;
   /** S2.1 — `POST /_api/edit-op`, the one dispatch route for structural edits (main origin only) */
   edit: Omit<EditRouteDeps, 'runs'>;
+  /** S5.5 — `POST /_api/project/undo` (one id, several, a chat) + `GET …/undo-stack` */
+  projectUndo?: ProjectUndoDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -59,5 +64,8 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createChatRoutes(deps.chat),
     // S2.1 — AI holds read THE run registry (V2-1.15 §4 #13)
     ...createEditRoutes({ ...deps.edit, runs: deps.ai.registry }),
+    ...createProjectUndoRoutes(
+      deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
+    ),
   ];
 }

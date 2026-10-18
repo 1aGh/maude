@@ -12,6 +12,13 @@ const NONE = Object.freeze({
   /** (path, artboardId|null) => void — open a canvas (and select an artboard in it) */
   openCanvas: () => {},
   designRel: '.design',
+  /** S1.5, desktop only (search-projects.js `desktopProjectsEnv`): (q, {signal}) => Promise<{groups}|null>.
+   *  Null here — a browser tab has no other projects to ask, so ⌘K groups nothing by project. */
+  searchProjects: null,
+  /** (row) => void — ↵ on another project's row: the shell switches to (or opens) its tab */
+  openSearchResult: () => {},
+  /** { pid, name } of this tab's project — the "this tab" group's header */
+  ownProject: null,
 });
 
 let current = NONE;

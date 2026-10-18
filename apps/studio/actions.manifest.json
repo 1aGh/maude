@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "5f7755e3ffb4",
+  "manifestVersion": "7ad0e622b54d",
   "actions": [
     {
       "id": "search.open",
@@ -2383,6 +2383,18 @@
         "because": "ai-chat"
       },
       "minRole": "edit"
+    },
+    {
+      "id": "chat.undo",
+      "label": "Undo this chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history undo --chat <id>"
+      }
     },
     {
       "id": "chat.copy-transcript",

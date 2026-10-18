@@ -27,14 +27,14 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
        maude design history show <ref> [<canvas>] [--json] [--root <project>]
        maude design history diff [<canvas>] [--from <ref>] [--json] [--root <project>]
        maude design history restore <canvas> <ref> [--json] [--root <project>]
-       maude design history undo --action <id> [--redo] [--json] [--root <project>]
+       maude design history undo --action <id> | --chat <id> [--redo] [--json] [--root <project>]
   <canvas>  design-root-relative (ui/home.tsx), .design/…, or absolute
   <ref>     r<n> (a synced project's version) or a commit sha (a local project's)
   list      the versions, newest first
   show      one version: who, when, what it was, the canvases it touched
   diff      what changed since <ref> (default: the last commit) — local projects
   restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced
-  undo      undo (or --redo) one action, as a new version — synced
+  undo      undo (or --redo) one action, or every action your AI made in a chat (--chat), as ONE new version
 list / show / diff read only; restore / undo change the project and ask first.
 Exit 0 ok · 1 not found / refused / not available · 2 usage · 3 no studio running.
 `;
@@ -214,33 +214,39 @@ async function restore(words) {
   });
 }
 
-/** `undo --action <id> [--redo]` — undo (or redo) one accepted action as a new version
- *  (V2-1.5 §5.3; V2-1.9 §5.11 spelling). `--chat <id>` needs the chat-undo route V2-1.5 adds. */
+/** A chat id (V2-1.5 §5.1 `chatId`). */
+const CHAT_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** `undo --action <id> | --chat <id> [--redo]` — undo (or redo) one accepted action, or every
+ *  action this person's AI made in one chat, as ONE new version (V2-1.5 §5.3; V2-1.9 §5.11). */
 async function undo(words) {
   const { flags, pos } = parseWords(words, {
     bool: ['--json', '--redo'],
     value: ['--action', '--chat', '--root'],
   });
-  if (pos.length) throw new UsageError('undo takes --action <id>');
-  if (flags['--chat'] !== undefined) {
-    process.stderr.write(
-      'maude design history undo: undoing a whole chat is not available yet — undo its actions one by one with --action <id>\n'
-    );
-    return 1;
-  }
+  if (pos.length) throw new UsageError('undo takes --action <id> or --chat <id>');
   const actionId = flags['--action'];
-  if (!actionId) throw new UsageError('undo takes --action <id>');
+  const chatId = flags['--chat'];
+  if ((actionId === undefined) === (chatId === undefined))
+    throw new UsageError('undo takes --action <id> or --chat <id>');
+  if (chatId !== undefined && !CHAT_ID.test(chatId))
+    throw new UsageError('--chat takes a chat id ([A-Za-z0-9_-], ≤ 64)');
   const c = await connect('history', flags['--root']);
   if (c.exit) return c.exit;
   const redo = flags['--redo'] === true;
   const r = await call(c.studio, '/_api/project/undo', {
     method: 'POST',
-    json: { actionId, redo },
+    json: chatId !== undefined ? { chatId, redo, via: 'panel' } : { actionId, redo },
   });
+  // An old team server has no multi-target undo: the route answers 409 with the line.
+  if (r?.status === 409 && r.body?.reason === 'needs-hub-update') {
+    process.stderr.write(`maude design history: ${clean(r.body.line ?? 'needs-hub-update')}\n`);
+    return 1;
+  }
   return landed(r, flags['--json'], {
-    legacy: 'undoing an action needs a synced project',
+    legacy: 'undoing an action needs the project’s version history',
     ok: (b) =>
-      `→ ${redo ? 'redid' : 'undid'} ${clean(actionId)}${b.actionId ? ` (new version ${clean(b.actionId)})` : ''}`,
+      `→ ${redo ? 'redid' : 'undid'} ${chatId !== undefined ? `chat ${clean(chatId)}` : clean(actionId)}${b.actionId ? ` (new version ${clean(b.actionId)})` : ''}`,
   });
 }
 

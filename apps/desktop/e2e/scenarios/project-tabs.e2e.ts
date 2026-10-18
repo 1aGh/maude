@@ -288,6 +288,41 @@ describe('project-tabs (native-desktop)', () => {
     await capture('4-open-once-focused-b');
   });
 
+  // S1.5 (11 · pn-k-across): ⌘K in tab A reaches B's canvases through the shell, and ↵ on one of
+  // B's rows switches to B's tab (open once) — ids only, scoped to index_scope(A).
+  it('⌘K across projects: A finds B, and ↵ on B’s row switches to B’s tab, never a third', async () => {
+    await focusTab(tabA);
+    const pidA = tabA.slice(2);
+    const pidB = tabB.slice(2);
+    const found = await invokeTauri<{
+      groups: { pid: string; place: string; rows: { key: string }[] }[];
+    }>('index_search', { q: 'a', limit: 50 }).catch((e: unknown) => ({
+      groups: [],
+      error: String(e),
+    }));
+    console.log(`[tabs] index_search from A → ${JSON.stringify(found).slice(0, 400)}`);
+    expect(found.groups.some((g) => g.pid === pidA)).toBe(false); // never the caller's own
+    const b = found.groups.find((g) => g.pid === pidB);
+    if (b) expect(b.place).toBe('tab');
+    const canvas = b?.rows[0]?.key.split('#')[0] ?? 'ui/does-not-matter.tsx';
+    const opened = await invokeTauri('open_search_result', { pid: pidB, canvas, artboard: null });
+    console.log(`[tabs] open_search_result → ${JSON.stringify(opened)}`);
+    expect(opened).toEqual({ label: tabB, opened: 'existing' });
+    expect(await labels()).toHaveLength(2);
+    expect(await activeTab()).toBe(tabB);
+    await capture('4b-search-across-switched-to-b');
+    // Its own project, and a pid outside its scope, are refused.
+    await focusTab(tabA);
+    for (const pid of [pidA, `l${'0'.repeat(16)}`]) {
+      const refused = await invokeTauri('open_search_result', { pid, canvas, artboard: null }).then(
+        () => 'opened',
+        (e: unknown) => String(e)
+      );
+      expect(refused).not.toBe('opened');
+    }
+    expect(await activeTab()).toBe(tabA);
+  });
+
   // V2-3.9 T5: the Window menu's tab items (⌘1…⌘8 / ⌘9 since V2-3.11, ⌃Tab / ⌃⇧Tab) walk the strip,
   // then Home, wrapping.
   it('the tab menu jumps to tab 1 and the last tab, and Next / Previous wrap through Home', async () => {

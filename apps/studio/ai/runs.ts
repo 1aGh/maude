@@ -31,6 +31,7 @@ import { type Busy, type Granted, type LeaseHome, leaseKeyId } from './lease-hom
 import {
   ASK_ID_RE,
   cleanLabel,
+  type ElementRef,
   isLive,
   type LeaseKey,
   publicRun,
@@ -54,6 +55,8 @@ export const TURN_SETTLE_MS = 2_000;
 export const END_BUDGET_MS = 1_000;
 export const RETAIN_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAX_RECORDS = 500;
+/** S5.5b — the most elements one run holds (the oldest go first). */
+export const MAX_OBJECTS = 200;
 
 export interface RunsView {
   seq: number;
@@ -916,7 +919,13 @@ export function createRunRegistry(opts: RegistryOptions) {
     endNow,
     hookEvent(
       runId: string,
-      patch: { sessionId?: string; touched?: [string, string[]]; scope?: RunScope | null }
+      patch: {
+        sessionId?: string;
+        touched?: [string, string[]];
+        scope?: RunScope | null;
+        /** S5.5b — elements this run changed: AI's until the run ends (the 409 held-by-ai backstop) */
+        objects?: ElementRef[];
+      }
     ) {
       const r0 = mineLive(runId);
       if (!r0) return null;
@@ -926,9 +935,17 @@ export function createRunRegistry(opts: RegistryOptions) {
         const [canvas, ids] = patch.touched;
         touched[canvas] = [...new Set([...(touched[canvas] ?? []), ...ids])];
       }
+      let objects = r.objects;
+      if (patch.objects?.length) {
+        const key = (o: ElementRef) => `${o.canvas}#${o.artboard}#${o.element}`;
+        const have = new Set(objects.map(key));
+        const add = patch.objects.filter((o) => !have.has(key(o)) && have.add(key(o)));
+        objects = [...objects, ...add].slice(-MAX_OBJECTS);
+      }
       const next = {
         ...r,
         touched,
+        objects,
         hookAt: now(),
         ...(patch.sessionId && !r.sessionId ? { sessionId: patch.sessionId } : {}),
       };

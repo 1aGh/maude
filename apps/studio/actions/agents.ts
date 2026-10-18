@@ -392,6 +392,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'chat.archive': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.trash': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.copy-transcript': { effect: 'none', agent: human('ai-chat') },
+  // S5.5b — undoes accepted actions for everyone on a synced project: the `history undo` verb's
+  // permission card (tier shared).
+  'chat.undo': {
+    effect: 'shared',
+    minRole: 'edit',
+    agent: cli('maude design history undo --chat <id>'),
+  },
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {

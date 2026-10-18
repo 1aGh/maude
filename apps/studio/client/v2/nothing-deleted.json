@@ -2999,6 +2999,7 @@
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-group-id": "testid:palette-group-<id>",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-input": "A-generate-with-ai-provider-model-aspect",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-list": "testid:palette-list",
+    "testid:studio/client/dialogs/command-palette.jsx#palette/palette-project-square": "testid:palette-project-square",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-recent-empty": "testid:palette-recent-empty",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-row-id": "testid:palette-row-<id>",
     "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-marks": "A-crop-and-registration-marks",
