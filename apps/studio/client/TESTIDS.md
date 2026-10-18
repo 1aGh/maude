@@ -1107,6 +1107,10 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `empty-confetti` | testid | The sticky-confetti tile behind Comments "All done." — the one celebration; decorative. | `client/v2/empty/confetti.jsx` · `Confetti` | test:v2-empty-kit | new |
 | `arriving-row` | testid | One canvas or folder still coming down to this Mac: always named, dimmed and quietly pulsing. | `client/v2/empty/skeleton.jsx` · `ArrivingRow` | test:v2-empty-kit | new |
 | `skeleton-artboard` | testid | An artboard whose content has not arrived: its label and its exact rectangle, page-shaped placeholder. | `client/v2/empty/skeleton.jsx` · `SkeletonArtboard` | test:v2-empty-kit | new |
+| `ds-section-<kind>` | testid | One section of the Design system canvas (`<kind>` = brand, colour, type, space, motion, components, patterns): the system's own themed frame. Lives inside the canvas iframe. | `ds/board/parts.tsx` · `Frame` | test:ds-board-render | new |
+| `ds-bar` | testid | The Design system canvas's bar: system name, Light \| Dark, changes waiting. Portalled into the canvas document body. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
+| `ds-bar-mode-<mode>` | testid | The bar's Light / Dark button (`<mode>` = light \| dark); `aria-pressed` is the previewed mode. It never changes the app theme. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
+| `ds-bar-pending` | testid | The bar's "N changes waiting" line, present only while `dsPending` holds entries. | `ds/board/ds-bar.tsx` · `DsBarView` | test:ds-board-render | new |
 
 ## What's New spotlights
 

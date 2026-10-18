@@ -13596,5 +13596,61 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "ds-section-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One section of the Design system canvas (`<kind>` = brand, colour, type, space, motion, components, patterns): the system's own themed frame. Lives inside the canvas iframe.",
+    "producer": {
+      "file": "apps/studio/ds/board/parts.tsx",
+      "symbol": "Frame"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/ds-board-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Design system canvas's bar: system name, Light | Dark, changes waiting. Portalled into the canvas document body.",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/ds-board-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-bar-mode-<mode>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The bar's Light / Dark button (`<mode>` = light | dark); `aria-pressed` is the previewed mode. It never changes the app theme.",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/ds-board-render.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ds-bar-pending",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The bar's \"N changes waiting\" line, present only while `dsPending` holds entries.",
+    "producer": {
+      "file": "apps/studio/ds/board/ds-bar.tsx",
+      "symbol": "DsBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/ds-board-render.test.tsx"],
+    "v2": "new"
   }
 ]
