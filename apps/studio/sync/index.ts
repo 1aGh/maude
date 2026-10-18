@@ -40,6 +40,7 @@ import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
 import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '../context.ts';
+import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
 import { acceptedColdStart } from './accepted-cold-start.ts';
@@ -121,6 +122,7 @@ import { computeSeedProgress } from './seed-progress.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
+import { createTrashWatch } from './trash-watch.ts';
 import {
   asTarget,
   chatActionIds,
@@ -637,6 +639,15 @@ export interface SyncRuntime {
     undoes?: string | string[];
     skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
   } | null>;
+  /**
+   * S1.7b — the shared Trash of a linked project (history/trash.ts
+   * `TrashRuntime`). Null while the project is legacy or its hub does not
+   * advertise `trash.restore` / `trash.clear`: the view then falls back to
+   * this Mac's own list.
+   */
+  acceptedTrash?(): Promise<TrashListing | null>;
+  acceptedTrashRestore?(entry: string): Promise<TrashOutcome | null>;
+  acceptedTrashClear?(items?: string[]): Promise<TrashOutcome | null>;
   /**
    * T16 — an AI run begins: file changes its tools make until it ends are
    * published together as one action (see action-stage.ts). `key` names the
@@ -1159,6 +1170,15 @@ export function createSyncRuntime(
           // synced, until a restart. Knowing the mode, hand it back now.
           if (b.mode === 'transactions') for (const p of projections.values()) p.retryDeferred();
         },
+      })
+    : null;
+  const trashWatch = acceptedLink
+    ? createTrashWatch({
+        link: acceptedLink,
+        designRoot: ctx.paths.designRoot,
+        designRel: ctx.paths.designRel,
+        emit: (e, p) => ctx.bus.emit(e, p),
+        log: (line) => console.log(line),
       })
     : null;
   /**
@@ -4481,6 +4501,10 @@ export function createSyncRuntime(
       if (acceptedLink) {
         await acceptedLink.refresh();
         if (acceptedOn()) applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
+        // S1.7b — someone else's delete / restore / clear-out reaches this
+        // Mac's Trash view, and a clear-out removes this Mac's copies.
+        if (acceptedOn() && acceptedLink.manifest)
+          void trashWatch?.noteRevision(acceptedLink.manifest.revision);
       }
       const listing = withAcceptedDocs(rawListing);
       // null = unreachable, refused, or a hub without the route. Not an error
@@ -4492,6 +4516,17 @@ export function createSyncRuntime(
       // immediately pulled back — the resurrection this lane exists to end,
       // reintroduced inside one tick.
       await applyTombstones(listing.tombstones);
+      // S1.7b — a canvas restored from the Trash (or a ⌘Z of its delete) is
+      // live in the accepted manifest again and its tombstone is gone: this
+      // run's memory of the delete must not keep it from coming back.
+      if (acceptedOn() && acceptedLink?.manifest && tombstoned.size) {
+        const stoned = new Set(listing.tombstones.map((t) => t.name));
+        for (const d of acceptedLink.manifest.docs) {
+          if (d.retired || stoned.has(d.doc)) continue;
+          const slug = slugFromDocName(d.doc);
+          if (slug) tombstoned.delete(slug);
+        }
+      }
       noteHubListing(listing.documents);
       const diff = diffRemoteDocs(
         [...descriptors.keys()].map((slug) => docNameFor(slug)),
@@ -5599,6 +5634,39 @@ export function createSyncRuntime(
         return acceptedLink.undo({ actionIds: ids.actionIds }, false, label);
       }
       return acceptedLink.undo(target, redo, label);
+    },
+    acceptedTrash: async () => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!acceptedLink.manifest) await acceptedLink.refresh().catch(() => null);
+      if (!acceptedLink.trashOps()) return null;
+      const listing = await acceptedLink.trash();
+      return { ...listing, you: acceptedLink.manifest?.you?.actor ?? null };
+    },
+    acceptedTrashRestore: async (entry) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!acceptedLink.manifest) await acceptedLink.refresh().catch(() => null);
+      if (!acceptedLink.trashOps()) return null;
+      const before = (await acceptedLink.trash().catch(() => null))?.canvases.find(
+        (c) => c.entry === entry
+      );
+      const name = before ? path.posix.basename(before.path).replace(/\.(tsx|html)$/i, '') : null;
+      const r = await acceptedLink.trashRestore(
+        entry,
+        name ? `Restored “${name}” from the trash` : 'Restored from the trash'
+      );
+      if (r.status !== 'accepted' || r.queued) return r;
+      // Where it came back: in place, or at `<name> 2` when the path was taken.
+      const manifest = await acceptedLink.refresh().catch(() => null);
+      const doc = manifest?.docs.find((d) => d.entry === entry && !d.retired);
+      return doc?.path ? { ...r, path: doc.path } : r;
+    },
+    acceptedTrashClear: async (items) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!acceptedLink.manifest) await acceptedLink.refresh().catch(() => null);
+      if (!acceptedLink.trashOps()) return null;
+      const r = await acceptedLink.trashClear(items, 'Cleared out the trash');
+      if (r.status === 'accepted' && !r.queued) await trashWatch?.cleanup();
+      return r;
     },
     prepareOffline: async () => {
       if (!filePlane) return null;

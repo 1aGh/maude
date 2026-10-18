@@ -237,6 +237,13 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/undo': REFUSED,
   // S5.5 — "your ⌘Z stack" is the same per-person question as undo itself.
   '/_api/project/undo-stack': REFUSED,
+  // S1.7 — the shared Trash. The studio judges each session's vouched claim
+  // itself (L18: a canvas-only session lists only its canvases, restore needs
+  // `trash` on the canvas, clear-out the project owner's `delete`), because its
+  // own link to the hub is the cell's, which the kernel takes for the owner.
+  '/_api/trash': { safe: 'read', unsafe: null },
+  '/_api/trash/restore': { safe: null, unsafe: 'trash' },
+  '/_api/trash/clear': { safe: null, unsafe: 'delete' },
   // Signs in and stores a credential on the machine that serves it — that is
   // the desktop's own copy-making step, never something a cell does for a
   // visitor (plan T21).

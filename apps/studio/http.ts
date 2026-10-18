@@ -154,7 +154,7 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs, heldByAiRefusal } from './routes/index.ts';
+import { allSpecs, heldByAiRefusal, trashAccess } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -1573,6 +1573,30 @@ export function createHttp(
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S5.5 — undo over the one op log (V2-1.5 §5.3); the home answers, the bus hears it
+    // S1.7 — the shared Trash (routes/trash.ts). The access: in a cell the proxy's vouched
+    // `x-maude-access` claim (fail closed); on a desktop the person at the keyboard — a local
+    // project's owner, or the role the hub vouched at sign-in (the hub re-checks every op).
+    trash: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      access: (req) =>
+        trashAccess({
+          workspace: isWorkspaceMode(),
+          header: req.headers.get('x-maude-access'),
+          localRole: ctx.cfg.linkedHub
+            ? (getHubRecord(ctx.cfg.linkedHub.url)?.role ?? null)
+            : 'owner',
+        }),
+      readSource: (rel) => {
+        if (!rel || rel.startsWith('/') || rel.split('/').some((s) => s === '..' || s === ''))
+          return null;
+        try {
+          return readFileSync(join(ctx.paths.designRoot, ...rel.split('/')), 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     projectUndo: {
       control: () => ctx.syncControl?.current?.() ?? null,
       designRel: ctx.paths.designRel,

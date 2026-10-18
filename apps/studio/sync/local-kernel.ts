@@ -50,9 +50,11 @@ import { createKernel, EMPTY_HASH, PROTOCOL } from '../../hub/src/project-transa
 import { laneHash } from '../../hub/src/project-transactions/lanes.mjs';
 import { createStoreCore } from '../../hub/src/project-transactions/store-core.mjs';
 import { canvasSlugFromRel } from '../canvas-slug.ts';
+import { bumpTrashSeq, type TrashListing } from '../history/trash.ts';
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
+import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
   asTarget,
   chatActionIds,
@@ -397,7 +399,16 @@ export type LocalOutcome = {
   actionId?: string;
   revision?: number;
   undoes?: string | string[];
-  skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
+  skipped?: Array<{
+    doc?: string;
+    lane?: string;
+    id?: string;
+    reason: string;
+    conflictWith?: string;
+  }>;
+  /** S1.7 — trash.restore: where the canvas came back; trash.clear: the ids cleared. */
+  path?: string;
+  cleared?: string[];
 };
 
 /** The `ctx.syncControl.current()` surface a local project answers through. */
@@ -418,6 +429,10 @@ export interface LocalRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<LocalOutcome>;
+  /** S1.7 — the shared Trash (history/trash.ts `TrashRuntime`). */
+  acceptedTrash(): Promise<TrashListing | null>;
+  acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
+  acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
 }
 
 export interface LocalHomeOptions {
@@ -435,6 +450,8 @@ export interface LocalHomeOptions {
   /** Retry the lock this often while read-only; 0 = never (tests). */
   lockRetryMs?: number;
   log?: Pick<Console, 'warn' | 'error'>;
+  /** S1.7b — ctx.bus.emit: `trash:changed` when an accepted action changed the Trash. */
+  emit?: (event: string, payload: unknown) => void;
 }
 
 export interface ForeignStore {
@@ -619,6 +636,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           ? { undoes: body.undoes }
           : {}),
         ...(Array.isArray(body.skipped) && body.skipped.length ? { skipped: body.skipped } : {}),
+        ...(Array.isArray(body.cleared) ? { cleared: body.cleared } : {}),
       };
     }
     return { status: 'rejected', code: String(body?.code ?? 'retryable') };
@@ -787,9 +805,73 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
       retiredFor: string | null;
       movedFrom: string | null;
     }[];
+    /** S1.6 — what a clear-out removed (kernel `extra.cleared`). */
+    trashCleared?: {
+      entry: string;
+      artboard: string;
+      rev: number;
+      doc?: string;
+      path?: string | null;
+    }[];
   }): Promise<void> {
     const store = opened?.store;
     if (!store) return;
+    try {
+      await publishChanges(store, p);
+    } finally {
+      if (p.trashCleared?.length) await clearCopies(store, p.trashCleared);
+      if (
+        p.trashCleared?.length ||
+        p.changes.some((c) => (c.deleted && !c.retiredFor) || c.revived)
+      )
+        bumpTrashSeq(opts.emit);
+    }
+  }
+
+  /**
+   * S1.7b — the owner cleared items out (S1 Q4): this machine's own parked
+   * copies of exactly those canvases go (sync/trash-clear-copies.ts). The
+   * bytes compared are the canvas as the store held it when it was trashed.
+   */
+  async function clearCopies(
+    store: NonNullable<typeof opened>['store'],
+    cleared: NonNullable<Parameters<typeof publish>[0]['trashCleared']>
+  ): Promise<void> {
+    try {
+      const bodyAt = async (doc: string, rev: number) => {
+        const h = await store.laneAt(doc, 'html', Math.max(rev - 1, 0));
+        return h ? ((await store.blob(h)) ?? '') : '';
+      };
+      const items: ParkedCanvas[] = [];
+      for (const c of cleared)
+        if (c.artboard === '' && c.doc && c.path)
+          items.push({ path: c.path, body: await bodyAt(c.doc, c.rev) });
+      if (!items.length) return;
+      const paths = new Set(items.map((i) => i.path));
+      const remaining: ParkedCanvas[] = [];
+      if (typeof store.trash === 'function')
+        for (const c of (await store.trash({})).canvases as {
+          doc: string;
+          path: string;
+          rev: number;
+        }[])
+          if (paths.has(c.path)) remaining.push({ path: c.path, body: await bodyAt(c.doc, c.rev) });
+      removeClearedCopies({
+        designRoot: opts.designRoot,
+        designRel,
+        cleared: items,
+        remaining,
+        log: (line) => log.warn(line),
+      });
+    } catch (err) {
+      log.warn(`[local-kernel] clear-out cleanup failed: ${(err as Error).message}`);
+    }
+  }
+
+  async function publishChanges(
+    store: NonNullable<typeof opened>['store'],
+    p: Parameters<typeof publish>[0]
+  ): Promise<void> {
     // What the store held before this action, per lane — the disk must still
     // say that, or it carries a byte the store never accepted.
     const before = async (doc: string, lane: LocalLane) =>
@@ -1064,6 +1146,47 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         })
       );
     },
+    // S1.7 — the shared Trash over the store's readers (S1-trash.md §1). A local
+    // project is its owner's, so `submit` passes every cap (S1.6).
+    async acceptedTrash() {
+      await settled();
+      const o = opened;
+      if (!o || typeof o.store.trash !== 'function') return null;
+      const { canvases, artboards } = await o.store.trash({});
+      const live: TrashListing['live'] = {};
+      for (const entry of new Set((artboards as { entry: string }[]).map((a) => a.entry))) {
+        const doc = await o.store.liveDocByEntry(entry);
+        const h = doc ? (await o.store.heads([doc]))[doc] : null;
+        if (doc && h?.path) live[entry] = { doc, path: h.path };
+      }
+      return { canvases, artboards, live, you: actor };
+    },
+    async acceptedTrashRestore(entry) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      const o = opened;
+      const [item] = (await o.store.trash({ entry })).canvases as { path: string }[];
+      const r = await serial(() =>
+        submit([{ op: 'trash.restore', entry }], {
+          kind: 'restore',
+          label: item ? `Restored “${NAME(item.path)}” from the trash` : 'Restored from the trash',
+        })
+      );
+      if (r.status !== 'accepted') return r;
+      const doc = await o.store.liveDocByEntry(entry);
+      const h = doc ? (await o.store.heads([doc]))[doc] : null;
+      return h?.path ? { ...r, path: h.path } : r;
+    },
+    async acceptedTrashClear(items) {
+      await settled();
+      if (!kernel || !opened) return { status: 'rejected', code: 'store-locked' };
+      return serial(() =>
+        submit([{ op: 'trash.clear', ...(items ? { items } : {}) }], {
+          kind: 'trash.clear',
+          label: 'Cleared out the trash',
+        })
+      );
+    },
   };
 
   /* -------------------------------------------------------------- foreign */
@@ -1186,7 +1309,10 @@ export function withLocalHome<S extends SupervisorLike>(
 interface StudioLike {
   cfg: { linkedHub?: unknown; canvasGroups?: { path: string }[] };
   paths: { designRoot: string; designRel: string };
-  bus: { on(event: string, fn: (payload: any) => void): unknown };
+  bus: {
+    on(event: string, fn: (payload: any) => void): unknown;
+    emit?(e: string, p: unknown): void;
+  };
 }
 
 /**
@@ -1212,6 +1338,7 @@ export function attachLocalHome<S extends SupervisorLike>(
           designRoot: ctx.paths.designRoot,
           designRel: ctx.paths.designRel,
           canvasGroups: () => ctx.cfg.canvasGroups ?? null,
+          ...(ctx.bus.emit ? { emit: (e, p) => ctx.bus.emit?.(e, p) } : {}),
         });
       } catch (err) {
         // Never take the studio down: the project keeps working without
