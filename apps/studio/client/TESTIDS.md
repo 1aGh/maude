@@ -896,6 +896,8 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `share-cluster-panels` | testid | Hide panels / Show panels (`view.panels`, ⌘\); the label flips and there is no `aria-pressed` (V2-4.gate). | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-share` | testid | Share (primary, editors): runs `share.open`; `aria-disabled` with no canvas open. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
 | `share-cluster-ask` | testid | Ask to edit (primary, people without edit rights) — in place of Share. | `client/v2/shell/share-cluster.jsx` · `ShareCluster` | — | new in v2 (V2-4.3a) |
+| `mode-present-from-selection` | testid | Present ⌄ › Present (⌥⌘↵): Present · Artboards from the selected artboard (else the one in view, else the start). Reads Present from “<label>” when the artboard's label is known. | `client/v2/shell/mode-switch.jsx` · `ModeSwitch` | test:mode-toggle | new in v2 (S3.1) |
+| `mode-present-from-start` | testid | Present ⌄ › Present from the start (⇧⌥⌘↵): Present · Artboards from the first artboard in canvas order. | `client/v2/shell/mode-switch.jsx` · `ModeSwitch` | test:mode-toggle | new in v2 (S3.1) |
 | `.maude[data-theme]` | selector | The shell root `div.maude` and its `data-theme="light\|dark"` (mirrored on `<html data-theme>`). The token blocks in `styles/1-tokens-maude.css` are scoped to `.maude[data-theme=…]`. *`team-project` reads `<html data-theme>`; `shell-text-contrast` reads the CSS token blocks.* | `client/app.jsx` · `App` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e:team-project, test:shell-text-contrast | stable — re-emit |
 
 ## What's New spotlights

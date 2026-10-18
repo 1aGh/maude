@@ -257,7 +257,15 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
       slot({ key: 'C', label: 'Comment', tool: 'comment', minRole: 'comment' }),
     ]),
   }),
-  present: Object.freeze({ rest: 'browse' as const, hidden: true, slots: Object.freeze([]) }),
+  // Present has no toolbar; its one tool is the Pointer (L), data here so the key table knows it.
+  // Pending until S3.2b builds the dot (rule 13: no key before its tool).
+  present: Object.freeze({
+    rest: 'browse' as const,
+    hidden: true,
+    slots: Object.freeze([
+      slot({ key: 'L', label: 'Pointer', tool: 'pointer', minRole: 'view', pending: 'S3' }),
+    ]),
+  }),
 });
 
 /** Until a v2 tool has a descriptor, its slot arms this v1 tool instead (S3 retires the entry). */
@@ -461,6 +469,30 @@ export function homeModeOfTool(
   if (t === 'move') return caps.edit ? 'edit' : 'viewing';
   for (const m of ['preview', 'edit'] as const) if (barHas(m, t)) return m;
   return null;
+}
+
+// ─── the A8 hold (§5.4; S3.1) ─────────────────────────────────────────────────────────────────────
+//
+// AI changes show live in Edit, Preview (under the pointer too), Present · Canvas and Viewing. In
+// Present · Artboards a canvas write is held until the presenter moves on (`present-position`
+// changes) or leaves Present, so the audience never sees an artboard change under them.
+// `_shell.html`'s HMR applier carries an inline copy (it imports nothing); a parity test pins it.
+
+/** Is a canvas write held right now? */
+export function holdsModuleUpdates(
+  snap: { mode: CanvasModeV2 | null; present: PresentSpec | null } | null | undefined
+): boolean {
+  return !!snap && snap.mode === 'present' && snap.present?.kind === 'artboards';
+}
+
+/** A well-formed Present spec (the shell's own, or one a `mode-request` asked for): `artboards`
+ *  keeps its `from` (an id or 'start'); anything else is Present · Canvas. */
+export function presentSpec(raw: unknown): PresentSpec {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { kind?: unknown; from?: unknown };
+  if (r.kind !== 'artboards') return { kind: 'canvas' };
+  return typeof r.from === 'string' && r.from && r.from.length <= 200
+    ? { kind: 'artboards', from: r.from }
+    : { kind: 'artboards', from: 'start' };
 }
 
 /** One esc press, after the canvas's own handler dropped the stroke, the menu and the selection. */
