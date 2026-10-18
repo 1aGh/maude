@@ -13,12 +13,23 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
-import { pathTestIdSlug } from '../../shell/util.js';
+import { pathTestIdSlug, shellToast } from '../../shell/util.js';
+import { requestViewCode } from '../code/code-bus.js';
+import { useFold } from '../fold/use-fold.js';
+import { nativeDoors } from '../shell/native-doors.js';
 import {
   CANVASES_OP_EVENT,
   dispatchArtboardJump,
   takeCanvasesOps,
 } from '../left-panel/left-panel-bus.js';
+import {
+  CANVASES_FOLD,
+  copyText,
+  fileMenuItems,
+  panelRole,
+  runFileMenuItem,
+} from '../left-panel/canvas-file-menu.js';
+import { useViewPref, VIEW_PREF_KEYS } from '../left-panel/view-prefs.js';
 import {
   CommentIcon,
   EyeIcon,
@@ -81,6 +92,7 @@ export function CanvasesPanel({
   drag,
   menu,
   readOnly = false,
+  role = null, // S11.9 — 'view' | 'comment' | 'edit' | 'owner' (Advanced › file rows); omitted: edit, or view when read-only
   onMove,
   onRename,
   onDuplicate,
@@ -102,6 +114,8 @@ export function CanvasesPanel({
   const meta = useMemo(() => indexMeta(snapshot, designRel), [snapshot, designRel]);
   // T-S1a — the words other slices publish (row-slots.js): meta / sub / dim per canvas, the foot, ghost rows
   const slots = useRowSlots();
+  // S11.9 — Canvases › Advanced › Show file names: each canvas row grows a second mono line
+  const [showFileNames] = useViewPref(VIEW_PREF_KEYS.fileNames);
   const tree = useMemo(
     () => buildTree({ groups, meta, designRel, opened: pins.opened, ghosts: slots.ghosts }),
     [groups, meta, designRel, pins.opened, slots.ghosts]
@@ -127,6 +141,7 @@ export function CanvasesPanel({
         activePath,
         jumpOpen,
         activeArtboard: currentBoard,
+        fileNames: showFileNames,
       }),
     [
       tree,
@@ -139,6 +154,7 @@ export function CanvasesPanel({
       activePath,
       jumpOpen,
       currentBoard,
+      showFileNames,
     ]
   );
   const layout = useMemo(() => layoutRows(rows), [rows]);
@@ -381,7 +397,15 @@ export function CanvasesPanel({
   }, []);
 
   const menuRow = rowOps.menu?.row;
-  const menuItems = menuRow ? canvasMenuItems(menuRow, { edit }) : [];
+  const doors = useMemo(() => nativeDoors(), []);
+  // S11.9 — the Advanced group joins the menu only while Canvases › Advanced is open
+  const [advancedOpen] = useFold(CANVASES_FOLD);
+  const fileMenu = useMemo(() => {
+    if (!advancedOpen || !menuRow) return [];
+    const items = fileMenuItems({ role: panelRole({ role, edit }), native: doors.available });
+    return items.map((it, i) => (i === 0 ? { ...it, sepBefore: true } : it));
+  }, [advancedOpen, menuRow, role, edit, doors]);
+  const menuItems = menuRow ? canvasMenuItems(menuRow, { edit, extra: fileMenu }) : [];
   const targets = useMemo(
     () => (menuRow ? moveTargets(tree, { fromDir: menuRow.dir, projectLabel }) : []),
     [tree, menuRow, projectLabel]
@@ -400,6 +424,15 @@ export function CanvasesPanel({
     else if (id === 'duplicate') onDuplicate?.(row.path);
     else if (id === 'copy-link') onCopyLink?.(row.path);
     else if (id === 'trash') onTrash?.(row.path, row.name);
+    else if (fileMenu.some((it) => it.id === id))
+      runFileMenuItem(id, row, {
+        designRel,
+        doors,
+        write: copyText,
+        toast: (m) => shellToast(m, false),
+        requestViewCode,
+        startRename: rowOps.startRename,
+      });
   };
   const onMovePick = (target) => {
     const row = rowOps.menu?.row;
@@ -428,6 +461,7 @@ export function CanvasesPanel({
     sortOpen: !!sortMenu,
     searching,
     slotFor: slots.slotFor,
+    showFileNames,
   };
 
   const shown = rows.filter((r) => r.type === 'canvas').length;
@@ -894,9 +928,20 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
             {...src}
           >
             {thumb}
-            <span className="cv-name">
-              <Marked text={label} marks={row.nameMarks} />
-            </span>
+            {row.fileName ? (
+              <span className="cv-names">
+                <span className="cv-name">
+                  <Marked text={label} marks={row.nameMarks} />
+                </span>
+                <span className="cv-file" data-testid={`${idPrefix}-file-${slug}`}>
+                  {row.fileName}
+                </span>
+              </span>
+            ) : (
+              <span className="cv-name">
+                <Marked text={label} marks={row.nameMarks} />
+              </span>
+            )}
             {row.sub ? (
               <span className="cv-sub">
                 <Marked text={row.sub} marks={row.subMarks} />

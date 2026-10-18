@@ -11842,7 +11842,7 @@
     "hook": "canvas-menu-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash. `move` drills into the folder list.",
+    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash; with Canvases > Advanced open also reveal, open-editor, open-mac-app, view-code, copy-path or rename-file (S11.9). `move` drills into the folder list.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/row-menu.jsx",
       "symbol": "CanvasRowMenu"
@@ -14059,6 +14059,278 @@
     "region": "empty",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-empty-kit.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-show-file-names",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Show file names\" switch in Canvases > Advanced (`role=\"switch\"`): every canvas row grows a second mono line with its file name. A view preference kept on this Mac.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Folder: the project folder on this Mac (mono). Absent where there is none (the cloud).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-folder-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Folder: the Copy button.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Design system: the system folder (`system/<name>`, mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Design system: the Open button (same as the pinned Design system row).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-updated",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced foot: \"updated just now\" after the shown / total count.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-file-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A canvas row's file name line while Show file names is on; `<slug>` as `canvas-row-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-file-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The file name line on a canvas's Pinned copy while Show file names is on; `<slug>` as `canvas-row-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers > Advanced fold button (the one quiet row at the foot of the Layers panel; key `left.layers`).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-advanced-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers > Advanced fold container (`data-open` while open).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-show-tags",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Show tags and ids\" switch in Layers > Advanced (`role=\"switch\"`): each layer prints its tag and id after its name.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-counts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > On this canvas: \"N artboards · M layers\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-selector",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > Select by selector: the mono field; ↵ selects every match inside the artboards (capped at 500, scoped on the canvas).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-selector-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inline refusal under the selector field (invalid or over-long); nothing is sent.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-element-id",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > Element id: the selected element's id (mono). Absent with nothing selected.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-element-id-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > Element id: the Copy button.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layer-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A layer row's \"tag · id\" text while Show tags and ids is on.",
+    "producer": {
+      "file": "apps/studio/client/inspector/layers.jsx",
+      "symbol": "LayerRow"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
     "v2": "new"
   }
 ]

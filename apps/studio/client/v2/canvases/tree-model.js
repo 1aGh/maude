@@ -19,6 +19,8 @@ const TSX_EXT = /\.tsx$/i;
 
 /** One row's height; the empty-folder card is taller. Fixed heights are what make the window cheap. */
 export const ROW_H = 30;
+/** S11.9 — a canvas row that also shows its file name (Canvases › Advanced › Show file names): two lines. */
+export const ROW_H_FILE = 42;
 export const EMPTY_H = 104;
 /** Rows drawn beyond the viewport on each side, and the most rows the panel ever puts in the DOM. */
 export const OVERSCAN = 6;
@@ -251,6 +253,7 @@ export function visibleRows(
     activePath = null,
     jumpOpen = new Map(), // S1.3 — path → boolean: the canvases whose artboard list the person opened/closed
     activeArtboard = null, // S1.3 — the artboard in view on the open canvas
+    fileNames = false, // S11.9 — Show file names: each canvas row carries `fileName` (a second mono line)
   } = {}
 ) {
   const s = normaliseSort(sort);
@@ -259,6 +262,7 @@ export function visibleRows(
     ...c,
     pinned: pins.has(c.rel),
     current: c.path === activePath,
+    ...(fileNames && c.type === 'canvas' ? { fileName: basename(c.path) } : null),
     ...extra,
   });
 
@@ -523,12 +527,13 @@ export function layoutRows(rows) {
   let y = 0;
   for (let i = 0; i < rows.length; i++) {
     tops[i] = y;
-    y += rows[i].type === 'empty' ? EMPTY_H : ROW_H;
+    y += rowHeight(rows[i]);
   }
   return { tops, height: y };
 }
 
-export const rowHeight = (row) => (row.type === 'empty' ? EMPTY_H : ROW_H);
+export const rowHeight = (row) =>
+  row.type === 'empty' ? EMPTY_H : row.fileName ? ROW_H_FILE : ROW_H;
 
 /**
  * The slice of rows to put in the DOM: what the viewport shows plus OVERSCAN either side, never more than
