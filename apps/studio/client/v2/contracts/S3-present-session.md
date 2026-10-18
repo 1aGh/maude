@@ -106,6 +106,19 @@ presenterViewOn)`. The relay strip (§2) is what enforces D11. The cap only keep
 | `sid` | optional `/^[a-z0-9]{8,32}$/`, otherwise ignored. Absent → the first presenter seen on that canvas; a later presenter does not take over |
 | `audience=1` | lock: no follow bar, no keys, no cursor, sound on. It only removes chrome, so it grants nothing if typed by hand |
 
+**S3.7a, after the S3.6a security review** (the audience window on a second display):
+
+- **Audience URLs never reach the editor.** `isFollowLocation` is true for `present=follow` **and for any URL
+  that carries `audience`**. Without `present=follow` (or with an `audience` other than exactly `1`) the follower
+  root refuses before it fetches anything: the audience window stays blank, other viewers get "Nothing to
+  follow".
+- **`open` is decoded once** (URLSearchParams) and the decoded value is re-checked by `followOpenRel`: no empty,
+  `.` or `..` segment, no segment starting `_` (runtime dirs), no `%`, `?`, `#`, `\`, `:` or control character,
+  ≤ 1024 characters, ending `.tsx`. Anything else → "Nothing to follow".
+- **Capability marker.** `client/v2/present/follow-location.js` exports `supportsAudienceLock = true`. S3.6a's
+  audience-window seam (`client/v2/present/audience-window.js`) checks it before it opens a window; a build
+  without the marker has no follower root that honours the lock, so no audience window is opened.
+
 - **The canvas frame** is built with `canvasShellUrl` opts `{ ro: true, comments: false, follow: true }` →
   `ro=1&comments=0&follow=1`. It is seeded like the embed: `set-mode { mode: 'present', present: { kind:
   'artboards', from: 'start' }, caps: NO_CAPS }`, then `present-follow`.

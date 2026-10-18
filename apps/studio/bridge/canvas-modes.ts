@@ -21,6 +21,10 @@ export interface ModeCaps {
   edit: boolean;
   annotate: boolean;
   comment: boolean;
+  /** S3.7a — this canvas may publish its Present · Artboards position on awareness (S3-present-session
+   *  §3). Absent = false (a v1 shell never sends it). Only keeps honest clients quiet: the relay strip
+   *  is what enforces who may broadcast. */
+  present?: boolean;
 }
 
 /** minRole per tool row (the V2-1.3 condition). */

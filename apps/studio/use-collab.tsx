@@ -125,6 +125,15 @@ export interface CollabAwarenessState {
    */
   editing?: { since: number } | null;
   /**
+   * S3.7a (S3-present-session §2) — this peer is presenting artboards: where it is in its run, so
+   * followers (the audience window, presentation-link viewers) show the same artboard. Published by the
+   * canvas only while the shell's `set-mode` grants `caps.present`; null / absent = not presenting.
+   * Untrusted on the way in: `sanitizePresent` drops a bad one WHOLE.
+   */
+  present?: PresentAwareness | null;
+  /** S3.7a — the `sid` of the presentation this peer follows (null / absent = not following). */
+  watching?: string | null;
+  /**
    * Server-side `disconnect` matches awareness states to outgoing peers by
    * this token (must equal the ws.data.id the server assigns at upgrade).
    * Until the server pushes the assigned id back to the client, we use a
@@ -337,6 +346,85 @@ function sanitizeEditingState(raw: unknown): { since: number } | null {
   return { since: e.since };
 }
 
+// ── S3.7a — the presenter's position (S3-present-session §2) ──────────────────────────────────────
+// A planted canvas can only lie about its OWN artboards (S3-slices §5 risk 2); what it must not do is
+// hand a follower a malformed state that half-applies. So every member is checked for value, the
+// object is rebuilt from the known keys only, and ANY bad member drops the whole `present` (null) —
+// never a partial object a follower would act on.
+
+export interface PresentMediaAwareness {
+  playing: boolean;
+  t: number;
+  duration: number;
+  muted: boolean;
+}
+
+export interface PresentAwareness {
+  v: 1;
+  /** One presentation session (new per Present start). */
+  sid: string;
+  index: number;
+  /** Presented artboards only (skip excluded). */
+  total: number;
+  artboardId: string;
+  /** +1 per step; a follower ignores a lower one for the same sid. */
+  seq: number;
+  media: PresentMediaAwareness | null;
+}
+
+export const PRESENT_SID_RE = /^[a-z0-9]{8,32}$/;
+const PRESENT_ARTBOARD_RE = /^[A-Za-z0-9_-]{1,64}$/;
+export const PRESENT_TOTAL_MAX = 2000;
+const PRESENT_SEQ_MAX = 2 ** 31 - 1;
+const PRESENT_MEDIA_T_MAX = 86400;
+const PRESENT_KEYS = ['v', 'sid', 'index', 'total', 'artboardId', 'seq', 'media'];
+const MEDIA_KEYS = ['playing', 't', 'duration', 'muted'];
+
+const isIntIn = (v: unknown, lo: number, hi: number): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi;
+const isPlainObj = (v: unknown): v is Record<string, unknown> =>
+  !!v &&
+  typeof v === 'object' &&
+  !Array.isArray(v) &&
+  Object.getPrototypeOf(v) === Object.prototype;
+
+function sanitizePresentMedia(raw: unknown): PresentMediaAwareness | null | undefined {
+  if (raw === null) return null;
+  if (!isPlainObj(raw)) return undefined; // bad
+  if (Object.keys(raw).some((k) => !MEDIA_KEYS.includes(k))) return undefined;
+  const { playing, t, duration, muted } = raw;
+  if (typeof playing !== 'boolean' || typeof muted !== 'boolean') return undefined;
+  const inRange = (n: unknown): n is number => isFiniteNum(n) && n >= 0 && n <= PRESENT_MEDIA_T_MAX;
+  if (!inRange(t) || !inRange(duration)) return undefined;
+  return { playing, t, duration, muted };
+}
+
+/**
+ * The awareness `present` field, validated whole. Unknown keys, a non-integer or out-of-range number,
+ * an id outside its grammar, `index ≥ total`, a bad `media` — each one returns null, so a follower
+ * acts on a complete state or on nothing.
+ */
+export function sanitizePresent(raw: unknown): PresentAwareness | null {
+  if (!isPlainObj(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.length > PRESENT_KEYS.length || keys.some((k) => !PRESENT_KEYS.includes(k))) return null;
+  const { v, sid, index, total, artboardId, seq, media } = raw;
+  if (v !== 1) return null;
+  if (typeof sid !== 'string' || !PRESENT_SID_RE.test(sid)) return null;
+  if (!isIntIn(total, 1, PRESENT_TOTAL_MAX)) return null;
+  if (!isIntIn(index, 0, total - 1)) return null;
+  if (typeof artboardId !== 'string' || !PRESENT_ARTBOARD_RE.test(artboardId)) return null;
+  if (!isIntIn(seq, 0, PRESENT_SEQ_MAX)) return null;
+  const m = media === undefined ? null : sanitizePresentMedia(media);
+  if (m === undefined) return null;
+  return { v: 1, sid, index, total, artboardId, seq, media: m };
+}
+
+/** The awareness `watching` field: a presenter's sid, or null. */
+export function sanitizeWatching(raw: unknown): string | null {
+  return typeof raw === 'string' && PRESENT_SID_RE.test(raw) ? raw : null;
+}
+
 /**
  * Validate + normalize one foreign awareness state at the trust boundary.
  * Returns null for states that can't be a peer (no usable name). `color` is
@@ -359,7 +447,26 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     annotationGesture: sanitizeAnnotationGesture(s.annotationGesture),
     viewport: sanitizeViewport(s.viewport),
     editing: sanitizeEditingState(s.editing),
+    present: sanitizePresent(s.present),
+    watching: sanitizeWatching(s.watching),
   };
+}
+
+/**
+ * Every foreign peer of `awareness` through the trust boundary (`sanitizeForeignState`), capped at
+ * MAX_FOREIGN_PEERS. The one loop `useForeignAwareness` and the Present follower (S3.7a) both read,
+ * so no consumer reads `getStates()` raw.
+ */
+export function readForeignPeers(awareness: Awareness): ForeignAwareness[] {
+  const out: ForeignAwareness[] = [];
+  const myId = awareness.clientID;
+  for (const [clientID, state] of awareness.getStates() as Map<number, unknown>) {
+    if (clientID === myId) continue;
+    if (out.length >= MAX_FOREIGN_PEERS) break; // bound DoS via unbounded peers
+    const peer = sanitizeForeignState(clientID, state);
+    if (peer) out.push(peer);
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -432,18 +539,8 @@ export function useForeignAwareness(): ForeignAwareness[] {
       return;
     }
     const { awareness } = collab;
-    function compute(): ForeignAwareness[] {
-      const out: ForeignAwareness[] = [];
-      const myId = awareness.clientID;
-      for (const [clientID, state] of awareness.getStates() as Map<number, unknown>) {
-        if (clientID === myId) continue;
-        if (out.length >= MAX_FOREIGN_PEERS) break; // bound DoS via unbounded peers
-        // Sanitize every now-remote field at this trust boundary (Task 5).
-        const peer = sanitizeForeignState(clientID, state);
-        if (peer) out.push(peer);
-      }
-      return out;
-    }
+    // Sanitize every now-remote field at this trust boundary (Task 5).
+    const compute = () => readForeignPeers(awareness);
     setPeers(compute());
     // Issue #131 — `change` fires for OUR OWN publishes too (the 30 Hz cursor),
     // and each one rebuilt every peer object and re-rendered every consumer.
@@ -662,6 +759,8 @@ function createSession(slug: string): CollabSession {
       annotationGesture: null,
       viewport: cur.viewport ?? { x: 0, y: 0, zoom: 1 },
       editing: cur.editing ?? null,
+      present: cur.present ?? null,
+      watching: cur.watching ?? null,
       __connId: connId,
     } satisfies CollabAwarenessState);
   };
@@ -972,6 +1071,9 @@ export function CollabProvider({ slug, children }: CollabProviderProps): JSX.Ele
           annotationGesture: current.annotationGesture ?? null,
           viewport: current.viewport ?? { x: 0, y: 0, zoom: 1 },
           editing: current.editing ?? null,
+          // S3.7a — a cursor publish must not drop the presenter's position (or a follower's watch).
+          present: current.present ?? null,
+          watching: current.watching ?? null,
           __connId: myConnId,
           ...next,
         } satisfies CollabAwarenessState);
