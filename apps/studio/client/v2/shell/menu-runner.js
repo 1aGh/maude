@@ -16,6 +16,7 @@ import { runActionMessage } from '../../actions/shell-key-handlers.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
 import { requestTrash } from '../left-panel/left-panel-bus.js';
+import { presentFrom, togglePresentCanvas } from './use-canvas-mode-lane.js';
 import { panelLayout } from './use-panel-layout.js';
 
 /** Edit ▸ Advanced ▸ New artboard → the preset `onInsertArtboard` takes. */
@@ -146,7 +147,10 @@ export function createMenuHandlers(d) {
     'view.zoom-controls': () => d.onToggleZoomCtl(),
     'view.print-guides': () => d.onTogglePrintGuides(),
     'view.hidden-files': () => d.onToggleShowHidden(),
-    'present.canvas': () => d.onTogglePresent(),
+    // S3.1 — every way into Present goes through the one mode owner (use-canvas-mode-lane).
+    'present.from-selection': () => presentFrom('selection'),
+    'present.from-start': () => presentFrom('start'),
+    'present.canvas': () => togglePresentCanvas(),
     // ── Help ──
     'help.shortcuts': () => d.setShortcutsOpen(true),
     'help.guides': () => d.setHelpOpen(true),

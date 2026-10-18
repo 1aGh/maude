@@ -151,6 +151,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.zoom-controls': PREF(),
   'view.print-guides': PREF(),
   'present.canvas': NAV('<canvas> --mode present'),
+  'present.from-selection': NAV('<canvas> --mode present'),
+  'present.from-start': NAV('<canvas> --mode present'),
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9ea92eb9a01f",
+  "manifestVersion": "1e09af6fa83a",
   "actions": [
     {
       "id": "search.open",
@@ -659,6 +659,30 @@
       "agent": {
         "path": "human",
         "because": "view-pref"
+      }
+    },
+    {
+      "id": "present.from-selection",
+      "label": "Present",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
+      }
+    },
+    {
+      "id": "present.from-start",
+      "label": "Present from the start",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
       }
     },
     {
