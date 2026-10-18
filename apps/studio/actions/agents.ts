@@ -167,6 +167,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: file('canvas-tsx', 'design:design', 'Read the element’s data-cd-id in the .tsx'),
   },
+  // S8.19c — one edit-op; an agent edits the same string literals by hand.
+  'asset.relink': TSX(
+    'Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./'
+  ),
   'element.set-id': TSX(
     'Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case'
   ),

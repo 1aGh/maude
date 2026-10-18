@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "f6153a011061",
+  "manifestVersion": "2bb5ecdbef56",
   "actions": [
     {
       "id": "search.open",
@@ -680,6 +680,19 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
+      }
+    },
+    {
+      "id": "asset.relink",
+      "label": "Relink…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Replace every string literal that names the missing file with the copy’s assets/<sha8>.<ext> path (import it first with the asset import); keep each reference’s leading / or ./"
       }
     },
     {
