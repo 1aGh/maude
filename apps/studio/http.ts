@@ -20,6 +20,7 @@ import {
   canvasOnlyLogPaths,
   canvasOriginTarget,
   diffRefusal,
+  diffShaVisible,
   exportTargetVerdict,
   filterAcceptedHistory,
   filterAssetListing,
@@ -156,7 +157,7 @@ import {
 } from './generation/whisper-models.ts';
 import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
-import { gitShowFile } from './git/service.ts';
+import { gitCommitFiles, gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
 import { createHistory } from './history.ts';
 import { extractCanvas } from './index/extract.ts';
@@ -3077,7 +3078,17 @@ export function createHttp(
       // holds only the files its canvases own.
       const vis = visOf(req);
       if (diffRefusal(vis)) return readOnlyRefusalResponse();
-      const result = await gitApi.diff(new URL(req.url).searchParams.get('sha'));
+      const sha = new URL(req.url).searchParams.get('sha');
+      // S9.12b (U1) — a named sha whose own change touched nothing it may diff answers like
+      // a missing one (no sha = the dirty set, which every session may ask for).
+      if (
+        !vis.full &&
+        sha !== null &&
+        sha !== 'HEAD' &&
+        !diffShaVisible(await gitCommitFiles(ctx.paths.repoRoot, sha), vis, ctx.paths.designRel)
+      )
+        return gitJson({ status: 200, json: { entries: [] } });
+      const result = await gitApi.diff(sha);
       if (vis.full || result.status !== 200) return gitJson(result);
       const entries = (result.json as { entries?: Array<{ file: string }> }).entries ?? [];
       return gitJson({
