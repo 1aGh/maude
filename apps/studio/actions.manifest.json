@@ -2647,6 +2647,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/publish",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds publish <ds> [--leave-out <canvas>…]"
@@ -2660,6 +2664,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/pending",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds pending <ds> --cancel"
@@ -2673,6 +2681,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "version",
+      "server": {
+        "route": "/_api/ds/outside",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds keep <ds>"
@@ -2686,6 +2698,10 @@
       "effect": "destructive",
       "minRole": "edit",
       "undo": "none",
+      "server": {
+        "route": "/_api/ds/outside",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds undo <ds>"
@@ -2699,6 +2715,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/pick",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds pick <ds> <css> --use canvas|file"
@@ -2712,6 +2732,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/canvas",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds canvas update <canvas>"
@@ -2725,6 +2749,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/canvas",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds canvas leave <canvas>"
@@ -2738,6 +2766,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/trash",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds trash <ds> <css> --replacement <css>"
@@ -2751,6 +2783,10 @@
       "effect": "project",
       "minRole": "edit",
       "undo": "step",
+      "server": {
+        "route": "/_api/ds/restore",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds restore <ds> <css>"
@@ -2764,6 +2800,10 @@
       "effect": "destructive",
       "minRole": "owner",
       "undo": "version",
+      "server": {
+        "route": "/_api/ds/clear",
+        "method": "POST"
+      },
       "agent": {
         "path": "cli",
         "verb": "maude design ds clear <ds> <css>"

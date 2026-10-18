@@ -470,65 +470,76 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ),
   },
   // ── design system (S10.2 engine, V2-1.6 §5.11). The verbs are S10.3's `maude design ds …`
-  // (S10 §2.4); until that verb lands, ai-parity-coverage test 6 names them missing. ──
+  // (S10 §2.4); the routes are routes/ds.ts (S10.3), whose Q15 gates test/_role-refusals.ts
+  // rows hold (S10.3b). ──
   'ds.publish': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/publish', method: 'POST' },
     agent: cli('maude design ds publish <ds> [--leave-out <canvas>…]'),
   },
   'ds.cancel-pending': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/pending', method: 'POST' },
     agent: cli('maude design ds pending <ds> --cancel'),
   },
   'ds.keep-outside': {
     effect: 'project',
     minRole: 'edit',
     undo: 'version',
+    server: { route: '/_api/ds/outside', method: 'POST' },
     agent: cli('maude design ds keep <ds>'),
   },
   'ds.undo-outside': {
     effect: 'destructive',
     minRole: 'edit',
     undo: 'none',
+    server: { route: '/_api/ds/outside', method: 'POST' },
     agent: cli('maude design ds undo <ds>'),
   },
   'ds.pick': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/pick', method: 'POST' },
     agent: cli('maude design ds pick <ds> <css> --use canvas|file'),
   },
   'ds.canvas-update': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/canvas', method: 'POST' },
     agent: cli('maude design ds canvas update <canvas>'),
   },
   'ds.canvas-leave': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/canvas', method: 'POST' },
     agent: cli('maude design ds canvas leave <canvas>'),
   },
   'ds.trash-token': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/trash', method: 'POST' },
     agent: cli('maude design ds trash <ds> <css> --replacement <css>'),
   },
   'ds.restore-token': {
     effect: 'project',
     minRole: 'edit',
     undo: 'step',
+    server: { route: '/_api/ds/restore', method: 'POST' },
     agent: cli('maude design ds restore <ds> <css>'),
   },
   'ds.clear-token': {
     effect: 'destructive',
     minRole: 'owner',
     undo: 'version',
+    server: { route: '/_api/ds/clear', method: 'POST' },
     agent: cli('maude design ds clear <ds> <css>'),
   },
 };

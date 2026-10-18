@@ -64,6 +64,18 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   // delete — Clear-out is the project owner's (V2-1.7 §5.2 `delete`, decision:maude/v2-lead-trash-clear-human-only);
   // `writeCapability` classes it `delete` (test/access-local-gate.test.ts).
   { method: 'POST', route: '/_api/trash/clear', refused: ['view', 'comment', 'edit'] },
+  // S10.3b — the design-system writes (routes/ds.ts, Q15): every one is a project edit; a token's
+  // clear-out is the owner's (`writeCapability` classes /_api/ds/clear `delete`).
+  ...[
+    '/_api/ds/publish',
+    '/_api/ds/pending',
+    '/_api/ds/outside',
+    '/_api/ds/pick',
+    '/_api/ds/canvas',
+    '/_api/ds/trash',
+    '/_api/ds/restore',
+  ].map((route) => ({ method: 'POST' as const, route, refused: ['view', 'comment'] as const })),
+  { method: 'POST', route: '/_api/ds/clear', refused: ['view', 'comment', 'edit'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

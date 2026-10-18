@@ -1620,6 +1620,10 @@ export function createHttp(
     onChange: (system) => ctx.bus.emit('ds:outside', { system }),
   });
   ctx.bus.on('fs:any', (rel: string) => dsOutside.notify(rel));
+  // S10.3b — a file the file plane delivered is a peer's change, not an unknown outside edit
+  ctx.bus.on('file-plane:delivered', (p: { rel?: unknown }) => {
+    if (typeof p?.rel === 'string') dsOutside.notify(p.rel, { kind: 'peer' });
+  });
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S10.3 — `/_api/ds/*` (routes/ds.ts): Q15 gates on the session's access, the person by
