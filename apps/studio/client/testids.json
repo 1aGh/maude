@@ -4550,6 +4550,32 @@
     "v2": "new"
   },
   {
+    "hook": "mode-present-from-selection",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Present (⌥⌘↵): Present · Artboards from the selected artboard (else the one in view, else the start).",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-from-start",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Present from the start (⇧⌥⌘↵): Present · Artboards from the first artboard in canvas order.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "artboard-rename-<id>",
     "kind": "testid",
     "pattern": true,
