@@ -156,6 +156,7 @@ import { uploadAsset } from '../asset-upload.ts';
 import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
+import { QuitDialog } from './v2/ai/QuitDialog.jsx';
 import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
 import {
   collectDirPaths,
@@ -3173,6 +3174,8 @@ function ShellTree() {
         activeCanvas={activePath}
         onClose={() => setReportBugOpen(false)}
       />
+      {/* S5.14: the shell's "Quit while AI is working?" (quit://ask) — desktop only. */}
+      <QuitDialog />
       <WhatsNewPanel wn={whatsNew} onStartTour={startTour} />
       <ExportPanel center={exportCenter} />
       <ReadinessDialog open={readinessOpen} onClose={() => setReadinessOpen(false)} />

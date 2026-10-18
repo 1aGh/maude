@@ -5033,6 +5033,71 @@
     "v2": "stable"
   },
   {
+    "hook": "ai-quit-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: \"Quit while AI is working?\" — the shell's quit:// ask shown in the project tab with AI (03 ai-quit). Desktop only.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
+      "symbol": "QuitDialog"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-quit-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: the quit dialog's Quit button — every chat stops, what AI finished is kept as a version, then the app quits.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
+      "symbol": "QuitDialog"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-quit-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: the quit dialog's Cancel — nothing stops, the app stays open.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/QuitDialog.jsx",
+      "symbol": "QuitDialog"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-stopped-divider",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: the end-of-chat line \"Stopped when the app quit · <time>\" (or Stopped / when the tab closed / when Maude quit unexpectedly) for a chat whose last run stopped. `data-run` = the run id.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/StoppedDivider.jsx",
+      "symbol": "StoppedDivider"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-keep-going",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S5.14: Keep going under the Stopped line — a new ask in the same chat resuming the stopped run (registry action ai.keep-going).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/StoppedDivider.jsx",
+      "symbol": "StoppedDivider"
+    },
+    "region": "other",
+    "consumers": ["apps/desktop/e2e/scenarios/ai-quit.e2e.ts"],
+    "v2": "stable"
+  },
+  {
     "hook": "ai-chat-island",
     "kind": "testid",
     "pattern": false,

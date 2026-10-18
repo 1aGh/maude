@@ -48,6 +48,7 @@ import { RunsCount } from '../v2/ai/RunList.jsx';
 import NeedsYouSlot from '../v2/ai/NeedsYouSlot.jsx';
 import { QuotaLine } from '../v2/ai/NotReady.jsx';
 import { doneNotice, OPEN_AI_EVENT, openAiChat } from '../v2/ai/needs-you-toast.js';
+import { StoppedDivider } from '../v2/ai/StoppedDivider.jsx';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
 import { readSuggestPref, writeSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
@@ -456,6 +457,8 @@ function ChatThread({
                 artboards={aiScope.artboards}
                 designRel={designRel}
               />
+              {/* S5.14: "Stopped when the app quit · …" + Keep going (03 ai-quit). */}
+              <StoppedDivider chatId={chatId} hidden={hidden} />
               <JumpToLatest hidden={hidden} />
             </ThreadPrimitive.Viewport>
             <WaitingCards chatId={chatId} designRel={designRel} />

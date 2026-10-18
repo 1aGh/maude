@@ -34,6 +34,8 @@ mod prefs;
 mod present;
 mod profiles;
 mod project_resolve;
+// S5.14: ⌘Q asks first while AI is working, then stops and keeps what AI finished.
+mod quit;
 mod server_json;
 mod sidecar;
 mod tabs;
@@ -646,6 +648,7 @@ pub fn run() {
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
+            notify::e2e_dock_badge,
             open_project_folder,
             home::shell_state,
             home::home_session,
@@ -685,6 +688,8 @@ pub fn run() {
             deep_link::e2e_deliver_deep_link,
             project_resolve::resolve_project_for_link,
             notify::send_notification,
+            // S5.14: the asked tab's answer to the quit dialog.
+            quit::quit_answer,
             managed::managed_project_open,
             managed::managed_projects_list,
             profiles::profiles_list,
@@ -850,6 +855,12 @@ pub fn run() {
                     api.prevent_close();
                     let _ = window.hide();
                 }
+                // S5.14: elsewhere closing the shell quits — the same ask-first round trip.
+                #[cfg(not(target_os = "macos"))]
+                WindowEvent::CloseRequested { api, .. } if !quit::approved() => {
+                    api.prevent_close();
+                    quit::request(window.app_handle());
+                }
                 WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                     tabs::layout(window.app_handle());
                 }
@@ -905,8 +916,10 @@ pub fn run() {
         } => {
             api.prevent_exit();
         }
-        // Kill every sidecar on Cmd+Q / app termination.
+        // Kill every sidecar on Cmd+Q / app termination. S5.14: an exit that skipped the quit
+        // dialog (the Dock's Quit, logout, an update restart) stops the runs first, bounded.
         RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+            quit::last_chance(app_handle);
             sidecar::kill_server(app_handle);
             home::kill(app_handle);
         }
@@ -935,6 +948,11 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
             menu::action_target(&s.windows.lock().unwrap_or_else(|e| e.into_inner()))
         })
     };
+    // S5.14: Maude ▸ Quit ⌘Q is a native item (menu.rs) — ask first while AI is working.
+    if id == quit::MENU_QUIT {
+        quit::request(app);
+        return;
+    }
     let Some(route) = menu::route(id) else {
         return; // a predefined item: AppKit handled it
     };

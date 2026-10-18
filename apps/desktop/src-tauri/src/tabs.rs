@@ -52,11 +52,54 @@ const CHANGED_DEBOUNCE: Duration = Duration::from_millis(16);
 
 /// The AI dot of a background tab: the activity poller (notify.rs, V2-3.9 T6) sets it when
 /// the tab's AI finishes or needs you; activating the tab clears it. Live only.
+/// S5.14 (03 `ai-other-tab`, `ai-needs-tab`): `working` is the tab's spark while a run is
+/// live there, and `needs-you` draws as the azure question mark — both LEVELS read from that
+/// project's runs each tick (`mark_for`), so they clear by themselves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Dot {
     Done,
     NeedsYou,
+    Working,
+}
+
+/// S5.14 — the mark a background tab shows after one poll tick: `level` is what its runs say
+/// now (`RunsSnapshot::level`: needs you › working › nothing), `current` what the tab shows,
+/// `finished` whether a run ended `done` this tick. Needs you and working are levels; done
+/// stays until the tab is activated (V2-3.7 §6) and gives way to a new level.
+pub fn mark_for(level: Option<Dot>, current: Option<Dot>, finished: bool) -> Option<Dot> {
+    match level {
+        Some(l) => Some(l),
+        None if finished || current == Some(Dot::Done) => Some(Dot::Done),
+        None => None,
+    }
+}
+
+/// S5.14 — put `mark` on `root`'s tab exactly (the level path; `set_dot` keeps the old
+/// transition rule for its e2e helper). The active tab takes none (`WindowBook::set_dot`).
+/// True when the strip state changed.
+pub fn set_mark(app: &AppHandle, root: &str, level: Option<Dot>, finished: bool) -> bool {
+    let changed_now = app.try_state::<SidecarState>().is_some_and(|s| {
+        let mut book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+        set_mark_in(&mut book, root, level, finished)
+    });
+    if changed_now {
+        changed(app);
+    }
+    changed_now
+}
+
+/// Pure half of `set_mark`.
+pub fn set_mark_in(book: &mut WindowBook, root: &str, level: Option<Dot>, finished: bool) -> bool {
+    let Some(label) = book.label_for_root(root) else {
+        return false;
+    };
+    let current = book.entry(&label).and_then(|e| e.dot);
+    let next = mark_for(level, current, finished);
+    if next == current {
+        return false;
+    }
+    book.set_dot(&label, next)
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -1034,10 +1077,37 @@ mod tests {
     fn the_poller_sets_the_dot_before_the_notification_cooldown() {
         let src = include_str!("notify.rs");
         let body = &src[src.find("async fn poll_one(").unwrap()..];
-        let dot = body.find("mark_tab(app, project_root, &fired);").expect("poll_one marks the tab");
+        // S5.14: the mark is a level, set every tick — before the "nothing fired" return.
+        let dot = body.find("mark_tab(app, project_root, &snapshot, &fired);").expect("poll_one marks the tab");
         let cooldown = body.find("NOTIFY_COOLDOWN_MS").unwrap();
         let empty = body.find("if fired.is_empty()").unwrap();
-        assert!(empty < dot && dot < cooldown, "dot after any transition, before the cooldown");
+        assert!(dot < empty && dot < cooldown, "the mark every tick, before the cooldown");
+    }
+
+    // S5.14 — 03 `ai-other-tab` (a spark while working) and `ai-needs-tab` (the azure ?).
+    #[test]
+    fn the_tab_mark_is_the_runs_level_and_done_stays_until_the_tab_is_seen() {
+        use Dot::*;
+        assert_eq!(mark_for(Some(Working), None, false), Some(Working));
+        assert_eq!(mark_for(Some(NeedsYou), Some(Working), false), Some(NeedsYou));
+        assert_eq!(mark_for(Some(Working), Some(NeedsYou), false), Some(Working), "answered: back to the spark");
+        assert_eq!(mark_for(None, Some(Working), true), Some(Done), "the run finished");
+        assert_eq!(mark_for(None, Some(Working), false), None, "stopped / cancelled: no mark");
+        assert_eq!(mark_for(None, Some(NeedsYou), false), None, "the question went away");
+        assert_eq!(mark_for(None, Some(Done), false), Some(Done), "done stays until activated");
+        assert_eq!(mark_for(Some(Working), Some(Done), false), Some(Working), "a new run takes over");
+
+        let mut b = book_abc();
+        b.focus("p-a", 5);
+        assert!(set_mark_in(&mut b, B, Some(Working), false));
+        assert!(!set_mark_in(&mut b, B, Some(Working), false), "no change, no push");
+        assert_eq!(b.entry("p-b").unwrap().dot, Some(Working));
+        assert!(set_mark_in(&mut b, B, Some(NeedsYou), false));
+        assert!(set_mark_in(&mut b, B, None, true));
+        assert_eq!(b.entry("p-b").unwrap().dot, Some(Done));
+        assert!(!set_mark_in(&mut b, A, Some(Working), false), "the active tab takes no mark");
+        // The strip reads the value as a kebab-case string.
+        assert_eq!(serde_json::to_value(Working).unwrap(), "working");
     }
 
     #[test]
