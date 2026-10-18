@@ -164,6 +164,9 @@ const BIN_VERBS = new Set([
   // V2-2.4b (§5.3, V2-1.9 §5.11). `history` lists / shows / diffs this project's versions (the
   // studio's accepted rows, or its git log for a local project). Sub-verbs are tiered one by one.
   'history',
+  // S1.17 (S1-trash.md, V2-1.11 §5.3). `trash list` / `trash restore <id>` read and bring back from the
+  // shared Trash; `trash clear` is the project OWNER's delete-for-good (human tier, asks first).
+  'trash',
   // V2-2.4b (§5.3). `comments list` reads this project's comment threads. Read-only here; replying
   // and resolving (S9) will be their own prompt-tier sub-verbs.
   'comments',
@@ -408,6 +411,12 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
   history restore <canvas> <ref> · history undo --action <id> | --chat <id> [--redo]
   history name <canvas> <ref> "<name>" | --clear
         Restore a canvas / undo an action, each as a NEW version; name a version (synced projects). Asks first.
+  history restore <canvas> <ref> --artboard <id> | --element <artboard>/<id> · history restore <canvas> @last-good
+        Put back only one artboard or object, or the last version that drew without an error.
+  trash list [--json] · trash restore <id | canvas path>
+        What is in the Trash; bring one item back.
+  trash clear [--item <id>]... [--yes]
+        Delete for good — the project owner's, at a terminal; asks first.
   comments list [<canvas>] [--open | --all] [--mine] [--json]
         This project's comment threads. Read-only.
   exports list · exports again <id|index> [--out <file|folder/>] [--no-wait]

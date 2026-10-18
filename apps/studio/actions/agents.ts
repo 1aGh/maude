@@ -243,7 +243,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.
   'view.assets': { effect: 'none', agent: cli('maude design asset-sweep') },
   'view.layers-panel': PREF('puts Layers in the left panel or in the Inspector'),
-  'view.trash': PREF('shows the Trash list; the parked files are under <designRoot>/_trash/'),
+  // S1.17 — the Trash list is `trash list` (GET /_api/trash, the route the Trash view reads); restoring
+  // one item is `trash restore <id>` (POST /_api/trash/restore, the Restore button's route and body).
+  'view.trash': { effect: 'none', agent: cli('maude design trash list') },
+  'trash.restore': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/trash/restore', method: 'POST' },
+    agent: cli('maude design trash restore <id>'),
+  },
   // S1.7b — clearing out deletes for good what the whole team could still restore: the OWNER
   // confirms it, never an agent (decision:maude/v2-lead-trash-clear-human-only). The server
   // refuses every role below owner (test/_role-refusals.ts).

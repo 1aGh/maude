@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3c03f450ffd5",
+  "manifestVersion": "1ade062db596",
   "actions": [
     {
       "id": "search.open",
@@ -769,9 +769,25 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "shows the Trash list; the parked files are under <designRoot>/_trash/"
+        "path": "cli",
+        "verb": "maude design trash list"
+      }
+    },
+    {
+      "id": "trash.restore",
+      "label": "Restore",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/trash/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design trash restore <id>"
       }
     },
     {
@@ -2938,6 +2954,12 @@
     },
     {
       "scope": "design",
+      "verb": "design trash list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design comments list",
       "effect": "none",
       "tier": "auto"
@@ -3127,6 +3149,24 @@
       "scope": "design",
       "verb": "design history restore",
       "effect": "destructive",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash restore",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash clear",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "design",
+      "verb": "design trash",
+      "effect": "shared",
       "tier": "prompt"
     },
     {

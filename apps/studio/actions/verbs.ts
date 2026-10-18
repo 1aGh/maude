@@ -85,6 +85,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history list', 'none'),
   d('history show', 'none'),
   d('history diff', 'none'),
+  // S1.17 (S1-trash.md). `trash list` reads; `trash restore` brings one item back (V2-1.11 §5.3: project
+  // → auto); `trash clear` deletes for good and is the OWNER's, at a terminal — human tier, never the AI
+  // chat (decision:maude/v2-lead-trash-clear-human-only); the studio refuses non-owners whatever is sent.
+  d('trash list', 'none'),
   // `comments list` reads threads. Replying / resolving / adding as the AI are S9's sub-verbs and
   // fall to `comments` below (shared → prompt).
   d('comments list', 'none'),
@@ -133,6 +137,13 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history restore', 'destructive', {
     note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
   }),
+  d('trash restore', 'project', {
+    note: 'brings one canvas or artboard back for everyone; a taken name gets a new one',
+  }),
+  d('trash clear', 'human', {
+    note: 'deletes for good what the team could still restore — the owner’s, with a question first',
+  }),
+  d('trash', 'shared', { note: 'any other trash sub-verb prompts until it gets its own entry' }),
   d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
   d('history name', 'shared', {
     note: 'names a version everyone in the project sees (V2-1.9 §5.4)',
