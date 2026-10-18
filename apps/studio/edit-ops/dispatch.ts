@@ -15,6 +15,7 @@ import { walkIdElements } from '../element-ids.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
+import { assetRelink } from './relink.ts';
 import { revertSource, WRITE_ID_RE, type WriteLog } from './revert.ts';
 import {
   EDIT_OP_STATUS,
@@ -44,6 +45,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   objectSendBack,
   objectLock,
   objectHide,
+  // S8.19c — Relink… on a missing picture: every reference to the old file, one write
+  assetRelink,
 ];
 
 export interface AiHoldHit {
@@ -61,6 +64,8 @@ export interface DispatchDeps {
   heldByAi(rel: string, element: string): AiHoldHit | null;
   /** the kernel action a write became, when the runtime already knows it */
   actionFor?(rel: string, after: string): string | null;
+  /** is there a regular file at this designRoot-relative path (S8.19c — the relink target must exist) */
+  exists?(rel: string): boolean;
   log: WriteLog;
   /** the op table (tests pass their own); default `EDIT_OPS` */
   ops?: readonly EditOp[];
@@ -161,6 +166,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
       op: req.op,
       targets: refs,
       params: req.params ?? {},
+      ...(deps.exists ? { exists: deps.exists } : {}),
     });
   } catch (e) {
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);

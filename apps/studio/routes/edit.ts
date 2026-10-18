@@ -9,7 +9,7 @@
 //
 // One request = one file write = one kernel action (V2-1.5). Writes to one file are serialized.
 
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
@@ -122,6 +122,17 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
                 await deps.snapshot?.(rel, before, label);
               } catch {
                 /* snapshot best-effort */
+              }
+            },
+            exists: (rel) => {
+              // a regular file inside the design root (a symlink is not one — `to` is a copy, not a pointer)
+              try {
+                const target = abs(rel);
+                const back = path.relative(deps.designRoot, target);
+                if (back.startsWith('..') || path.isAbsolute(back)) return false;
+                return lstatSync(target).isFile();
+              } catch {
+                return false;
               }
             },
             heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),

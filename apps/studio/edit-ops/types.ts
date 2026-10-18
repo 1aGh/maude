@@ -51,6 +51,8 @@ export interface ResolvedEditOp {
   op: EditOpId;
   targets: ElementRef[];
   params: Record<string, unknown>;
+  /** Is there a regular file at this designRoot-relative path? Only ops that name a file (S8.19c `asset.relink`) ask. */
+  exists?: (rel: string) => boolean;
 }
 
 /** One writer. Pure: bytes in, bytes out; throw `CanvasEditError` to refuse with `invalid`. */
