@@ -1,0 +1,352 @@
+/* client/v2/share/share.css — S9.19: the Share sheet (10 co-share-sheet · co-share-roles). It hangs
+ * under the Share cluster on the popover plane, as the canvas draws `.co-pop`. Every class is
+ * namespaced `v2sh-` (V2-4.3 hit a collision on a bare v1 name). Tokens only; motion is `--dur-*`,
+ * which the reduced-motion collapse already shortens to 1 ms. */
+
+@layer shell {
+  .v2sh-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: transparent;
+  }
+  .v2sh-sheet {
+    position: absolute;
+    right: var(--space-4);
+    top: 56px;
+    width: min(440px, calc(100vw - 2 * var(--space-4)));
+    max-height: calc(100vh - 72px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--island-edge, var(--border-subtle));
+    color: var(--fg-0);
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    animation: st-pop var(--dur-route) var(--ease-out);
+  }
+  .v2sh-sheet:focus {
+    outline: none;
+  }
+  .v2sh-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2sh-t {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+    font-weight: var(--w-semibold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .v2sh-x {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    font-size: var(--type-md);
+    cursor: pointer;
+  }
+  .v2sh-x:hover {
+    background: var(--bg-3);
+    color: var(--fg-0);
+  }
+  .v2sh-hint {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-err {
+    margin: 0;
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--status-error-text, var(--fg-0));
+  }
+
+  /* Scope segment: This canvas · Whole project */
+  .v2sh-seg {
+    display: flex;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+  }
+  .v2sh-seg-b {
+    flex: 1;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    cursor: pointer;
+  }
+  .v2sh-seg-b[aria-pressed="true"] {
+    background: var(--bg-3);
+    color: var(--fg-0);
+    font-weight: var(--w-medium);
+  }
+
+  /* Invite row */
+  .v2sh-inv {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2sh-inv-in {
+    flex: 1;
+    min-width: 0;
+  }
+  .v2sh-inv-role {
+    flex: none;
+    max-width: 132px;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    color: var(--fg-0);
+    font: inherit;
+  }
+
+  /* People */
+  .v2sh-ppl {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .v2sh-ppl-h {
+    margin: 0;
+    padding-bottom: var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .v2sh-ppl-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .v2sh-pp {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 36px;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+  }
+  .v2sh-pp[data-hl] {
+    background: var(--bg-3);
+  }
+  .v2sh-av {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+  }
+  .v2sh-pp-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-pp-n,
+  .v2sh-pp-s {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .v2sh-pp-s {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-pp-act {
+    flex: none;
+    color: var(--accent-text);
+  }
+  .v2sh-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+    padding: 2px var(--space-1);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-1);
+    font: inherit;
+    font-size: var(--type-xs);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .v2sh-role:hover {
+    background: var(--bg-3);
+  }
+  .v2sh-role--quiet {
+    color: var(--fg-2);
+    cursor: default;
+  }
+  .v2sh-role--quiet:hover {
+    background: transparent;
+  }
+  .v2sh-role-ch {
+    color: var(--fg-2);
+  }
+
+  /* Role menu (co-rolemenu) */
+  .v2sh-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--space-1));
+    z-index: 2;
+    width: 296px;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-1);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow:
+      var(--shadow-lg),
+      inset 0 0 0 0.5px var(--border-subtle);
+  }
+  .v2sh-mi {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-0);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .v2sh-mi:hover,
+  .v2sh-mi:focus-visible,
+  .v2sh-mi[aria-checked="true"] {
+    background: var(--bg-3);
+  }
+  .v2sh-mi-ic {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    flex: none;
+    color: var(--accent-text);
+  }
+  .v2sh-mi-t {
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-mi-t span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-mi--danger {
+    color: var(--status-error-text, var(--fg-0));
+  }
+  .v2sh-msep {
+    height: 0.5px;
+    margin: var(--space-1) 0;
+    border: 0;
+    background: var(--border-subtle);
+  }
+
+  /* Link row + "Other ways in" */
+  .v2sh-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+    box-shadow: inset 0 0.5px 0 var(--border-subtle);
+  }
+  .v2sh-link-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .v2sh-link-t span {
+    font-size: var(--type-xs);
+    line-height: var(--lh-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-arow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+  }
+  .v2sh-arow-k {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .v2sh-arow-v {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .v2sh-arow-v .input {
+    flex: 1;
+    min-width: 0;
+  }
+  .v2sh-mono {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+
+  /* Remove dialog */
+  .v2sh-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 9001;
+    display: grid;
+    place-items: center;
+    padding: var(--space-6);
+    background: color-mix(in oklab, var(--bg-0) 62%, transparent);
+  }
+  .v2sh-confirm {
+    width: min(380px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--bg-1);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-lg);
+  }
+  .v2sh-confirm-t {
+    margin: 0;
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+  }
+  .v2sh-confirm-b {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+}

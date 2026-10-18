@@ -687,11 +687,19 @@ export const OPENERS = [
   { id: 'palette', steps: [{ palette: true }] },
   { id: 'shortcuts', steps: [{ key: 'Shift+Slash' }] },
   { id: 'export', steps: [{ key: 'Shift+Meta+E' }] },
-  { id: 'share', steps: [{ click: tid('share-cluster-share') }] },
+  // S9.19 — the Share sheet: the web / app / this-Mac links live under its › Advanced · Other ways in
+  {
+    id: 'share',
+    steps: [{ click: tid('share-cluster-share') }, { ensureOpen: tid('share-other-ways-toggle') }],
+  },
   // Share… from the menu: a viewer has no Share button in the cluster, but the menu row is there
   {
     id: 'share-menu',
-    steps: [{ click: tid('project-pill') }, { click: tid('project-menu-row-share.open') }],
+    steps: [
+      { click: tid('project-pill') },
+      { click: tid('project-menu-row-share.open') },
+      { ensureOpen: tid('share-other-ways-toggle') },
+    ],
   },
   { id: 'comments', steps: [{ click: tid('share-cluster-comments') }] },
   { id: 'ai-chat', steps: [{ key: 'Meta+Slash' }] },

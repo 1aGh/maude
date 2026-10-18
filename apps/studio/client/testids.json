@@ -4235,10 +4235,10 @@
     "hook": "share-dialog",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The share-link dialog (`role=\"dialog\"`).",
+    "meaning": "The Share sheet (`role=\"dialog\"`) — Invite first, people and roles (10 co-share-sheet). Was the share-link dialog; re-emitted S9.19 on the sheet root.",
     "producer": {
-      "file": "apps/studio/client/share-dialog.jsx",
-      "symbol": "ShareDialog"
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
     },
     "region": "share",
     "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
@@ -4248,10 +4248,10 @@
     "hook": "share-<kind>-url",
     "kind": "testid",
     "pattern": true,
-    "meaning": "Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render).",
+    "meaning": "Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). Under the Share sheet's › Advanced · Other ways in (S9.19).",
     "producer": {
-      "file": "apps/studio/client/share-dialog.jsx",
-      "symbol": "ShareDialog"
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
     },
     "region": "share",
     "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
@@ -4263,8 +4263,8 @@
     "pattern": true,
     "meaning": "Copy button for that link.",
     "producer": {
-      "file": "apps/studio/client/share-dialog.jsx",
-      "symbol": "ShareDialog"
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
     },
     "region": "share",
     "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
@@ -4276,12 +4276,389 @@
     "pattern": false,
     "meaning": "\"Open in app\" link (not in the native shell).",
     "producer": {
-      "file": "apps/studio/client/share-dialog.jsx",
-      "symbol": "ShareDialog"
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
     },
     "region": "share",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "share-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Share sheet's close button (`aria-label=\"Close share dialog\"`).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-scope",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scope segment (This canvas · Whole project). Drawn only when `/health.access.scopes` holds `canvas` (S9-slices Q13).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-scope-<scope>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One scope button, `<scope>` ∈ canvas, project; `aria-pressed` = current.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The invite form: e-mail, role, Invite (rule share-opens-on-invite). Absent for a person without `invite`.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/invite-row.jsx",
+      "symbol": "InviteRow"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite-email",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The invite e-mail field; focused when the sheet opens.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/invite-row.jsx",
+      "symbol": "InviteRow"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite-role",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The invite role select — only the roles `/health.access.roles` holds (no Can view before the roles-v2 flip).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/invite-row.jsx",
+      "symbol": "InviteRow"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite-submit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Invite (the primary button).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/invite-row.jsx",
+      "symbol": "InviteRow"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite-sent",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The status line after an invite the hub accepted.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite-queued",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The status line of an invite that waits in the outbox: \"Invites send when this Mac is online.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-invite-link",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A self-hosted hub sends no mail: the invitation link to pass on, with Copy.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hub's refusal, in its own words (`role=\"alert\"`).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-owner-only",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line a person without `invite` sees instead of the invite form.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-local-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A local (unlinked) project: no invite, one line about the cloud.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-unreachable",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The hub cannot be asked right now; invites wait.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-people",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The people list with its count line (\"3 people · 1 invited\").",
+    "producer": {
+      "file": "apps/studio/client/v2/share/people-list.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-people-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The people list when nobody else has access.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/people-list.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-person-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One person or pending invitation (`data-state=\"invited\"`); `<id>` = the hub's id, non `[A-Za-z0-9_-]` → `-`.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/people-list.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-person-role-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "That row's role in words — a button with the role menu for a person who may change it, a quiet label otherwise.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/people-list.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-person-resend-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Resend on a pending invitation.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/people-list.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-role-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The role menu (`role=\"menu\"`, 10 co-share-roles).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/role-menu.jsx",
+      "symbol": "RoleMenu"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-role-<role>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A role row, `<role>` = wire id (member, viewer, observer); `aria-checked` = current.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/role-menu.jsx",
+      "symbol": "RoleMenu"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-role-make-owner",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Make owner (whole project only).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/role-menu.jsx",
+      "symbol": "RoleMenu"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-role-remove",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Remove from <scope>\" — opens the Remove dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/role-menu.jsx",
+      "symbol": "RoleMenu"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-remove-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Remove dialog (`role=\"alertdialog\"`).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-remove-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Remove (or Take back, for a pending invitation) in that dialog.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-row",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The link row — only when `/health.access.links` (S9.20 fills in its rules).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-link-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy link in the link row.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-other-ways",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's › Advanced fold, hint \"Other ways in\": the web / app / this-Mac links.",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "share-other-ways-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "That fold's toggle (`aria-expanded`).",
+    "producer": {
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
+    },
+    "region": "share",
+    "consumers": ["apps/studio/test/share-sheet.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "report-bug-dialog",
@@ -6926,8 +7303,8 @@
     "pattern": false,
     "meaning": "Close button of the share dialog.",
     "producer": {
-      "file": "apps/studio/client/share-dialog.jsx",
-      "symbol": "ShareDialog"
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
     },
     "region": "share",
     "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
@@ -6939,8 +7316,8 @@
     "pattern": false,
     "meaning": "Any testid ending in `-dialog`, used with `[role=\"dialog\"]` to assert that no dialog is open. Matches today: share-dialog, report-bug-dialog, cloud-deeplink-dialog, cloud-device-dialog, file-deeplink-dialog, team-projects-dialog.",
     "producer": {
-      "file": "apps/studio/client/share-dialog.jsx",
-      "symbol": "ShareDialog"
+      "file": "apps/studio/client/v2/share/share-sheet.jsx",
+      "symbol": "ShareSheet"
     },
     "alsoProducedBy": [
       {

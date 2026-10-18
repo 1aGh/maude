@@ -13,7 +13,7 @@
 // No hashes, epochs or lane names: "Your version" / "The project's version".
 
 import { useEffect, useMemo, useState } from 'react';
-import { useLinkDialogFocus } from '../share-dialog.jsx';
+import { useLinkDialogFocus } from '../v2/share/link-dialog.js';
 
 /** Line diff by longest common subsequence — bounded, for a canvas source. */
 export function lineDiff(a, b, max = 2000) {
