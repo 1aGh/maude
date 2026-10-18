@@ -740,6 +740,10 @@ export function InspectorPanel({
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
             onDuplicateArtboard={onDuplicateArtboard}
+            // S2.1 — a crumb selects that level (ref null = the artboard) through the Layers path
+            onSelectCrumb={(ref) =>
+              onSelectLayer?.({ id: ref?.element, index: ref?.occurrence ?? 0 })
+            }
           />
         )}
       </div>
