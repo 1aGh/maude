@@ -176,6 +176,11 @@ export default function FollowView() {
         canvasOrigin: data.canvasOrigin,
         canvasToken: data.canvasToken,
         canvasDesignSystems: index.canvasDesignSystems ?? {},
+        // S10.4 — a follower sees the revision the presenter's canvas renders
+        canvasDsRevs: index.canvasDsRevs ?? {},
+        systemHeads: index.systemHeads ?? {},
+        dsConverted: index.dsConverted ?? {},
+        dsRevGaps: index.dsRevGaps ?? {},
       };
       setView({
         phase: 'canvas',

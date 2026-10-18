@@ -140,6 +140,11 @@ export default function EmbedView() {
         canvasOrigin: data.canvasOrigin,
         canvasToken: data.canvasToken,
         canvasDesignSystems: index.canvasDesignSystems ?? {},
+        // S10.4 — an embed renders the revision the canvas is on
+        canvasDsRevs: index.canvasDsRevs ?? {},
+        systemHeads: index.systemHeads ?? {},
+        dsConverted: index.dsConverted ?? {},
+        dsRevGaps: index.dsRevGaps ?? {},
       };
       setView({
         phase: 'canvas',

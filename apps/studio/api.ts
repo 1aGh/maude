@@ -53,6 +53,8 @@ import {
   type OpActor,
   type OpResult,
 } from './comments/ops.ts';
+import { readHead } from './ds/head.ts';
+import { dsRenderIndex } from './ds/render-rev.ts';
 import { dropPin, rekeyUserState } from './home/user-state.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
@@ -7075,6 +7077,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // instead of unconditionally designSystems[0]. Populated from the canvas
     // groups below; returned on the payload and folded into the client cfg.
     const canvasDesignSystems: Record<string, string> = {};
+    // S10.4 (V2-1.6 §5.8) — the revision a canvas was left on (`dsRev`), for the converted systems only:
+    // an unconverted project builds none of this, and its payload is what it always was.
+    const convertedDs = new Set(
+      (cfg.designSystems ?? [])
+        .filter((d) => readHead(path.join(paths.designRoot, d.path)).state === 'ok')
+        .map((d) => d.name)
+    );
+    const canvasRevs: Record<string, { system: string; dsRev: string }> = {};
     // DDR-174 (T15) — surface a canvas's `.meta.json` `kind` in the file tree
     // when it's a value the user should notice at a glance (today: only
     // `reconstructed-experimental`, so this map stays empty on every project
@@ -7178,14 +7188,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       for (const fp of filePaths) {
         if (!fp.endsWith('.tsx')) continue;
         let dsName = ownerDsName(fp);
+        let meta: Record<string, unknown> | null = null;
         if (!dsName) {
-          const meta = await loadCanvasMeta(fp);
+          meta = await loadCanvasMeta(fp);
           const declared = meta?.designSystem;
           dsName = typeof declared === 'string' && declared.trim() ? declared : defaultDs;
           const kind = meta?.kind;
           if (typeof kind === 'string' && NOTABLE_KINDS.has(kind)) canvasKinds[fp] = kind;
         }
         canvasDesignSystems[fp] = dsName;
+        if (convertedDs.has(dsName)) {
+          // a canvas inside the system's own folder carries no sidecar read above
+          meta ??= await loadCanvasMeta(fp);
+          const dsRev = meta?.dsRev;
+          if (typeof dsRev === 'string' && dsRev) canvasRevs[fp] = { system: dsName, dsRev };
+        }
       }
       // Strip down to `g.path` so per-DS folders (`project`, `beta`, …) show
       // up as the top-level dirs inside the DS section. Single-DS configs get
@@ -7257,6 +7274,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
+    // S10.4 — which revision each canvas renders. Present only once a system is converted: a project that
+    // has none gets the payload it always had.
+    const dsRender =
+      convertedDs.size > 0
+        ? dsRenderIndex(paths.designRoot, cfg.designSystems ?? [], canvasRevs)
+        : null;
+
     // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
     return filterIndexData(
       {
@@ -7266,6 +7290,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         groups,
         canvasDesignSystems,
         canvasKinds,
+        ...(dsRender
+          ? {
+              canvasDsRevs: Object.fromEntries(
+                Object.entries(canvasRevs).map(([fp, r]) => [fp, r.dsRev])
+              ),
+              systemHeads: dsRender.systemHeads,
+              dsConverted: dsRender.dsConverted,
+              dsRevGaps: dsRender.dsRevGaps,
+            }
+          : {}),
       },
       projectVisibility(ctx).current(),
       paths.designRel,

@@ -604,6 +604,11 @@ interface IndexDataShape {
   groups: IndexGroupShape[];
   canvasDesignSystems: Record<string, string>;
   canvasKinds: Record<string, string>;
+  // S10.4 — present once a system is converted (api.ts buildIndexData)
+  canvasDsRevs?: Record<string, string>;
+  systemHeads?: Record<string, string | null>;
+  dsConverted?: Record<string, boolean>;
+  dsRevGaps?: Record<string, string | null>;
 }
 
 /** Repo-relative `.design/ui/x/y.tsx` → every ancestor dir (`.design/ui`, `.design/ui/x`). */
@@ -650,12 +655,26 @@ export function filterIndexData<T extends IndexDataShape>(
   }
   const pick = (m: Record<string, string>) =>
     Object.fromEntries(Object.entries(m).filter(([k]) => seen(k)));
-  return {
+  const out: T = {
     ...data,
     groups,
     canvasDesignSystems: pick(data.canvasDesignSystems),
     canvasKinds: pick(data.canvasKinds),
   };
+  // S10.4 — the revision fields name systems and revisions: a session sees the ones it renders with.
+  if (data.dsConverted) {
+    const byName = <V>(m: Record<string, V> | undefined) =>
+      Object.fromEntries(Object.entries(m ?? {}).filter(([k]) => dsNames.has(k)));
+    out.dsConverted = byName(data.dsConverted);
+    out.systemHeads = byName(data.systemHeads);
+    out.canvasDsRevs = pick(data.canvasDsRevs ?? {});
+    const referenced = new Set<string>(Object.values(out.canvasDsRevs));
+    for (const h of Object.values(out.systemHeads)) if (h) referenced.add(h);
+    out.dsRevGaps = Object.fromEntries(
+      Object.entries(data.dsRevGaps ?? {}).filter(([id]) => referenced.has(id))
+    );
+  }
+  return out;
 }
 
 /**
