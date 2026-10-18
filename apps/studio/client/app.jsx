@@ -299,6 +299,7 @@ import { InspectorPanel, PHOTO_ASSET_RE } from './inspector/inspector-panel.jsx'
 import { usePaletteAndPanels } from './hooks/use-palette-and-panels.jsx';
 import { useActionKeys } from './hooks/use-action-keys.jsx';
 import { useCanvasBridge } from './hooks/use-canvas-bridge.jsx';
+import { useDsFrames } from './v2/ds/use-ds-frames.js';
 import { useTabs } from './hooks/use-tabs.jsx';
 import { useGitActions } from './hooks/use-git-actions.jsx';
 import { useWebSocket } from './hooks/use-web-socket.jsx';
@@ -1122,6 +1123,9 @@ function ShellState({ children }) {
     reloadActive,
     gitUser,
   });
+  // S10.4 — a design system's revision per canvas frame: element pins answered into the frame that asked,
+  // and the follower swap (a head that moved is applied at the NEXT LOOK; Present holds it).
+  useDsFrames({ cfg, iframesRef, activePath, presentMode, canvasActiveArtboard });
 
   // Jump from right-sidebar list to a comment: open file tab if needed, focus pin.
   // The iframe may be freshly mounted; the loaded handler also re-sends focus if focusedCommentId matches.

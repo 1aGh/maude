@@ -156,6 +156,28 @@ export function canvasDsRender(p, cfg, opts) {
   return dsRenderFor(p, rel, entry || cfg?.designSystems?.[0], cfg, opts);
 }
 
+/** The design system a canvas follows (its `designSystems` entry), as `canvasDsRender` resolves it. */
+export function canvasDsSystem(p, cfg, opts) {
+  if (!p.endsWith('.tsx')) return null;
+  const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');
+  let rel = p;
+  if (rel.startsWith(designRel + '/')) rel = rel.slice(designRel.length + 1);
+  if (/^system\/[^/]+\/preview\//.test(rel)) return null;
+  const name = opts?.ds ?? dsLookup(cfg?.canvasDesignSystems, p, rel, designRel);
+  const entry = name ? cfg?.designSystems?.find((d) => d.name === name) : null;
+  return entry || cfg?.designSystems?.[0] || null;
+}
+
+/**
+ * The config an OPEN canvas frame's identity is computed from (shell/viewport.jsx `stableSrc`). The head
+ * and the revisions-we-wait-for are left out on purpose: a head that moves is a SWAP at the next look
+ * (client/v2/ds/follower-swap.js), never a reload of every open canvas under the viewer's eyes. A frame
+ * that is (re)created is built with the live values.
+ */
+export function canvasFrameCfg(cfg) {
+  return { ...cfg, canvasToken: undefined, systemHeads: undefined, dsRevGaps: undefined };
+}
+
 export function canvasUrl(p, cfg, opts) {
   if (!p.endsWith('.tsx')) return urlOf(p);
   const designRel = (cfg?.designRel || '.design').replace(/^\/+|\/+$/g, '');

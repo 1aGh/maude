@@ -1,7 +1,7 @@
 // shell/viewport.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { canvasUrl } from '../canvas-url.js';
+import { canvasFrameCfg, canvasUrl } from '../canvas-url.js';
 import { CompareHost } from '../v2/history/compare-view.jsx';
 import { useViewing } from '../v2/history/history-host.jsx';
 import { SYSTEM_TAB } from './constants.js';
@@ -96,7 +96,9 @@ export function Viewport({
     // built afresh, so it carries the capability that is live THEN, not the one of the first open.
     for (const [k, e] of srcCache.current)
       if (e.path === path && !!e.viewing !== !!opts) srcCache.current.delete(k);
-    const bare = canvasUrl(path, { ...cfg, canvasToken: undefined }, opts);
+    // A head that moves is a swap at the next look (v2/ds/use-ds-frames.js), not a new frame:
+    // `canvasFrameCfg` leaves the head out of the identity.
+    const bare = canvasUrl(path, canvasFrameCfg(cfg), opts);
     const key = `${path}#${canvasReloadNonce}|${bare}`;
     let entry = srcCache.current.get(key);
     if (!entry) {
