@@ -18,12 +18,20 @@
 // Guessing is not a lane: 32 random bytes; the exchange burns the row on
 // first use, win or lose downstream.
 
-import { declaredAccessOf, legacyClaim, peerTokenDoor } from '../studio/access/scope.ts';
+import { declaredAccessOf, peerTokenDoor } from '../studio/access/scope.ts';
+import {
+  accessOf,
+  cellSupportsRolesV2,
+  loadClaim,
+  SERVER_UPDATE,
+  validCanvasPath,
+} from './access-forward.mjs';
 import { DESKTOP_DOWNLOAD_URL } from './brand.mjs';
 import { mintProjectToken } from './cell-token.mjs';
 import { audit } from './db.mjs';
 import { personalTokenAccount } from './device-auth.mjs';
-import { ACCESS_MESSAGES, decideAccess } from './project-access.mjs';
+import { landingForInvite } from './invites.mjs';
+import { ACCESS_MESSAGES } from './project-access.mjs';
 
 const CODE_TTL_MS = 2 * 60 * 1000;
 
@@ -52,22 +60,12 @@ function json(body, status = 200) {
  */
 export async function mintHandoffCode(
   env,
-  { account, projectId, now = Date.now(), surface = 'app', declaredAccess = 1 }
+  { account, projectId, now = Date.now(), surface = 'app', declaredAccess = 1, canvas = null }
 ) {
-  let project = null;
-  let members = [];
-  try {
-    project = await env.DB.prepare('SELECT * FROM projects WHERE id = ?').bind(projectId).first();
-    const rows = await env.DB.prepare(
-      'SELECT account_id, role FROM project_members WHERE project_id = ?'
-    )
-      .bind(projectId)
-      .all();
-    members = rows?.results ?? [];
-  } catch {
-    /* unreadable membership is not access */
-  }
-  const verdict = decideAccess({ accountId: account?.id ?? null, project, members });
+  // The CLAIM, not only the project role (V2-1.7 §5.3): a canvas-only person
+  // holds no membership row but does hold grants, and the browser lane is
+  // exactly where they open their canvas.
+  const { verdict } = await loadClaim(env.DB, projectId, account?.id ?? null);
   if (!verdict.ok) return { ok: false, reason: verdict.reason };
   // The APP lane still refuses viewers — a desktop session is an editing
   // credential, and handing one to a viewer would be the silent escalation the
@@ -85,22 +83,66 @@ export async function mintHandoffCode(
     return { ok: false, reason: 'viewer-not-supported' };
   }
 
+  // Where the app (or the browser lane) should land once the code is traded
+  // (S9 Q6): a canvas the claim can see, else an invitation this person
+  // redeemed in the last half hour. Never a place the claim cannot see.
+  const access = accessOf(verdict);
+  let landing = null;
+  if (canvas && validCanvasPath(canvas) && access.seesCanvas(canvas)) {
+    landing = { project: projectId, canvas };
+  } else {
+    landing = await landingForInvite(env.DB, { email: account.email, projectId, now });
+    if (landing?.canvas && !access.seesCanvas(landing.canvas)) landing = { project: projectId };
+  }
+
   const code = `mhc_${b64hex(crypto.getRandomValues(new Uint8Array(32)))}`;
-  await env.DB.prepare(
-    `INSERT INTO handoff_codes (id, project_id, account_id, role, created_at, expires_at, surface)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
-      await sha256Hex(code),
-      projectId,
-      account.id,
-      verdict.role,
-      now,
-      now + CODE_TTL_MS,
-      surface
+  const id = await sha256Hex(code);
+  // NOT NULL since v9; a canvas-only claim has no project role to name.
+  const role = verdict.role ?? '';
+  try {
+    await env.DB.prepare(
+      `INSERT INTO handoff_codes (id, project_id, account_id, role, created_at, expires_at, surface, access, landing)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run();
+      .bind(
+        id,
+        projectId,
+        account.id,
+        role,
+        now,
+        now + CODE_TTL_MS,
+        surface,
+        // The claim captured at mint — a record; the exchange re-decides it.
+        JSON.stringify({ v: 1, role: verdict.role, grants: verdict.grants }),
+        landing ? JSON.stringify(landing) : null
+      )
+      .run();
+  } catch {
+    // A deploy meets its schema within the hour (the cron migrates), so for
+    // that hour D1 may still be v16: no `access` / `landing` columns. The code
+    // still works; only the record and the landing wait for the migration.
+    await env.DB.prepare(
+      `INSERT INTO handoff_codes (id, project_id, account_id, role, created_at, expires_at, surface)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(id, projectId, account.id, role, now, now + CODE_TTL_MS, surface)
+      .run();
+  }
   return { ok: true, code, role: verdict.role, expiresIn: CODE_TTL_MS / 1000 };
+}
+
+/** A stored landing, re-checked against the claim decided at exchange. */
+function landingFrom(raw, projectId, access) {
+  try {
+    const l = JSON.parse(raw ?? 'null');
+    if (!l || l.project !== projectId) return null;
+    if (l.canvas && !(validCanvasPath(l.canvas) && access.seesCanvas(l.canvas))) {
+      return { project: projectId };
+    }
+    return { project: projectId, ...(l.canvas ? { canvas: l.canvas } : {}) };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -144,7 +186,15 @@ export async function handleHandoff(request, env, { account }) {
         headers: { location: `/login?next=${next}`, 'cache-control': 'no-store' },
       });
     }
-    const minted = await mintHandoffCode(env, { account, projectId, now, surface: 'browser' });
+    const minted = await mintHandoffCode(env, {
+      account,
+      projectId,
+      now,
+      surface: 'browser',
+      // A link redeem may name the canvas to land on. A location, re-checked
+      // against the claim — never a grant.
+      canvas: url.searchParams.get('canvas'),
+    });
     if (!minted.ok) {
       // ONE answer for "no access" and "no such project" — a distinct 404
       // would be a project-existence oracle for anyone with an account.
@@ -258,23 +308,9 @@ export async function handleHandoff(request, env, { account }) {
       .first();
 
     // Re-decide access at exchange time: a code must not outlive a removal
-    // that happened in its two-minute window.
-    let project = null;
-    let members = [];
-    try {
-      project = await env.DB.prepare('SELECT * FROM projects WHERE id = ?')
-        .bind(row.project_id)
-        .first();
-      const rows = await env.DB.prepare(
-        'SELECT account_id, role FROM project_members WHERE project_id = ?'
-      )
-        .bind(row.project_id)
-        .all();
-      members = rows?.results ?? [];
-    } catch {
-      /* unreadable membership is not access */
-    }
-    const verdict = decideAccess({ accountId: row.account_id, project, members });
+    // that happened in its two-minute window. The CLAIM (role + grants) is
+    // read again; the one captured at mint is a record, not a ticket.
+    const { verdict } = await loadClaim(env.DB, row.project_id, row.account_id);
     // Re-decided at exchange, and the surface decides the viewer rule (Phase
     // 25 B1) — the same asymmetry as the mint, applied to a code that may have
     // been minted two minutes ago and to a membership that may have changed
@@ -291,16 +327,25 @@ export async function handleHandoff(request, env, { account }) {
     ) {
       return json({ error: 'that code is not valid or has expired' }, 400);
     }
-    const door = peerTokenDoor(legacyClaim(verdict.role), {
-      declaredAccess,
-      doorUrl: `https://${row.project_id}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
-      browserLane,
-    });
+    const door = peerTokenDoor(
+      { v: 1, role: verdict.role, grants: verdict.grants },
+      {
+        declaredAccess,
+        doorUrl: `https://${row.project_id}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
+        browserLane,
+      }
+    );
     if (door.outcome === 'update' || door.outcome === 'browser-door') {
       return json(door.body, door.status);
     }
     if (door.outcome !== 'mint') {
       return json({ error: 'that code is not valid or has expired' }, 400);
+    }
+    // A v2 credential only for a cell that can hold it (V2-1.7 §5.8 step 4).
+    // An older cell would read `m2.` as malformed anyway; saying why is what
+    // lets the app tell the person instead of looping on a sign-in.
+    if (door.v2 && !(await cellSupportsRolesV2(env, row.project_id))) {
+      return json(SERVER_UPDATE, 409);
     }
 
     if (!env.CELL_SECRET_MASTER) {
@@ -314,12 +359,15 @@ export async function handleHandoff(request, env, { account }) {
       role: door.claim.role,
       grants: door.claim.grants,
     });
+    // Where to land (S9 Q6) — additive, so a v1 app ignores the key.
+    const landing = landingFrom(row.landing, row.project_id, accessOf(verdict));
     return json({
       token,
       role: door.claim.role,
       project: row.project_id,
       url: `https://${row.project_id}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
       expiresAt: claims.exp,
+      ...(landing ? { landing } : {}),
     });
   }
 

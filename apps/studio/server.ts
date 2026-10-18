@@ -16,7 +16,8 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createAcp } from './acp/index.ts';
+import type { AskQueue } from './acp/ask-queue.ts';
+import { type Acp, createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
 import { registerLiveRuns } from './acp/running.ts';
 import { createActivity } from './activity.ts';
@@ -37,6 +38,7 @@ import { installLogRing } from './debug-bundle.ts';
 import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
+import { formatGate, STAGED_FORMAT_GATE_OPTS } from './format.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';
@@ -49,7 +51,7 @@ import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
-import { getHubRecord } from './sync/hubs-config.ts';
+import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
 import { hubHealth } from './sync/journal-client.ts';
 import { attachLocalHome } from './sync/local-kernel.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
@@ -232,7 +234,14 @@ const aiActivity = createAiActivity(ctx);
 // terminal Claude Code, a v1 `/design:edit` — with its per-artboard leases. Records live in
 // `_state/runs/` (runtime state); boot() ends what a crash left live as `interrupted`. The lease
 // home starts per-Mac and moves to the linked hub once its `/health` says `runs-v1` (below).
+// S5.6 — the registry sends a chat run's turn through the ACP manager (built below, after the
+// registry boots: boot only ends crashed runs, it never sends a turn).
+let acpTurns: Pick<Acp, 'sendTurn' | 'cancelTurn'> | null = null;
 const runRegistry = createRunRegistry({
+  turns: {
+    send: (rec, text) => acpTurns?.sendTurn(rec, text),
+    cancel: (rec) => acpTurns?.cancelTurn(rec),
+  },
   designRoot: ctx.paths.designRoot,
   designRel: ctx.paths.designRel,
   home: createLocalLeaseHome({ actor: 'you' }),
@@ -287,7 +296,20 @@ const activity = createActivity(ctx);
 // Gets the ai-activity registry so agent edits raise the same "Claude is
 // editing" banner + presence as /design:edit (RC5,
 // rca/issue-canvas-hmr-optimistic-update-consistency).
-const acp = createAcp(ctx, aiActivity);
+// S5.6 — chat turns run on the run registry (V2-1.15 §5.4), and every state-changing frame is
+// gated PER FRAME on the live read-only predicate: the role (hubs.json, re-read each call — a
+// workspace sign-in or an A6 removal lands on the next frame) + the format gate, the same pair
+// http.ts's `projectReadOnly` reads. `/_ws/acp` never runs in a cell, so no per-request role.
+const acp = createAcp(ctx, aiActivity, {
+  runs: runRegistry,
+  queue: () => askQueue,
+  readOnly: () =>
+    (ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false) ||
+    formatGate(ctx, STAGED_FORMAT_GATE_OPTS) !== null,
+});
+acpTurns = acp;
+// V2-1.14 — the outbox lives in createHttp (below); the chat reaches its door lazily.
+let askQueue: AskQueue | null = null;
 const ws = createWs(ctx, api, inspects, collab, activity, acp);
 const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
@@ -296,6 +318,7 @@ const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs
   shellCount: () => ws.shellCount(),
   runs: runRegistry,
 });
+askQueue = http.askQueue;
 const fsWatch = createFsWatch(ctx);
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.

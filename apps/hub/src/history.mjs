@@ -36,6 +36,13 @@
 import { basename, dirname, relative, resolve, sep } from 'node:path';
 
 import { gitLogArgs, gitLogEnv, parseGitLog } from '../../studio/git/log-format.ts';
+import {
+  changedSubject,
+  historyAllows,
+  NOT_IN_SCOPE_REFUSAL,
+  pathScope,
+  peerAccess,
+} from './access-docs.mjs';
 import { readCanvasGroups } from './file-manifest.mjs';
 import { classifyProjectFile } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
@@ -160,8 +167,26 @@ async function handleLog(ctx, match, repoDir, designRoot, run) {
   const limit = clampLimit(query?.limit);
 
   const rawPath = typeof query?.path === 'string' && query.path !== '' ? query.path : null;
+  // V2-1.16 L6 (S9.5): a canvas-only session must name a VISIBLE path. No
+  // path, an invisible one and a missing one all get the one U1 answer.
+  const peer = peerAccess(match);
+  const canvasOnly = peer?.access.role === null;
   let repoRel;
-  if (rawPath === null) {
+  let visibleRel = null;
+  if (canvasOnly) {
+    const admitted =
+      rawPath === null ? null : admitDesignPath(rawPath, designRoot, { requireText: false });
+    if (
+      !admitted ||
+      !matchesScope(match.scope, admitted.rel) ||
+      !historyAllows(peer, admitted.rel, 'read')
+    ) {
+      respondJson(403, { ...NOT_IN_SCOPE_REFUSAL });
+      return true;
+    }
+    visibleRel = admitted.rel;
+    repoRel = toRepoRel(repoDir, designRoot, admitted.rel);
+  } else if (rawPath === null) {
     // The repo-wide log carries commits touching paths this token may not be
     // allowed to name, and unlike the journal there is no per-row filter that
     // could make it safe. Only an unscoped token reads it.
@@ -190,9 +215,15 @@ async function handleLog(ctx, match, repoDir, designRoot, run) {
   // `email` is deliberately dropped. The row renderer shows `author` and the
   // short sha and nothing else, and a member's address is not needed to draw a
   // row — so it does not leave the cell.
+  //
+  // U4 (canvas-only): the subject can name other canvases ("design: update 2
+  // canvases", a manual message), so it is rewritten from the visible path.
+  const scopedSubject = visibleRel
+    ? changedSubject([pathScope(peer, visibleRel).canvas ?? visibleRel])
+    : null;
   const entries = parsed.map((e) => ({
     sha: e.sha,
-    message: e.message,
+    message: scopedSubject ?? e.message,
     author: e.author,
     date: e.date,
   }));
@@ -215,6 +246,12 @@ async function handleFile(ctx, match, repoDir, designRoot, run) {
 
   const admitted = admitDesignPath(query?.path, designRoot, { requireText: true });
   if (!admitted || !matchesScope(match.scope, admitted.rel)) return refuse();
+  // V2-1.16 L6 (S9.5): raw bytes at a commit are the `export` class, for a path
+  // the session sees against the CURRENT closure. Same refusal as missing (U1).
+  const peer = peerAccess(match);
+  if (peer?.access.role === null && !historyAllows(peer, admitted.rel, 'export')) {
+    return refuse();
+  }
   const repoRel = toRepoRel(repoDir, designRoot, admitted.rel);
 
   // Size BEFORE bytes. `cat-file -s` is a cheap object-header read, and it is

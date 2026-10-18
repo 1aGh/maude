@@ -257,21 +257,24 @@ export function claimOf(result) {
 /**
  * The `addToken` fields for a session the mint door (`peerTokenDoor`) allowed.
  *
- * INTERIM, FAIL CLOSED (S9.2 → S9.4/S9.5): no door on this hub reads `access`
- * yet, so the stored fields must not let an old door widen a v2 claim.
  *  - `readOnly` is the PROJECT role's projection only — a grant never lifts it
- *    here, because every existing door reads `read_only` for every document.
- *  - A canvas-only session (`role: null`) gets no wildcard `scope` (DDR-053's
- *    label-bound default), so every scope-checking door refuses it until
- *    `access-files` / `access-docs` answer from the claim.
+ *    here: it stays the fail-closed floor for any door that does not read the claim.
+ *  - A canvas-only session (`role: null` + canvas grants) is stored with scope
+ *    `*` (V2-5 A3): every door that serves it reads the claim now (S9.4 files,
+ *    S9.5 documents), so the CLAIM does the canvas narrowing — a label scope
+ *    (DDR-053's default) refused even its own canvas's document. A claim with
+ *    no grant keeps the label-bound default (fail closed).
+ *  - A project-role session keeps the scope the caller passed.
  * Unreachable until the control plane mints `m2.` for this cell (`roles-v2`).
  */
 export function peerSessionFields(door, { scope = '*' } = {}) {
   const role = door.claim.role;
+  const grants = door.claim.grants;
+  const canvasOnly = role === null && Array.isArray(grants) && grants.length > 0;
   return {
     role,
     readOnly: isReadOnlyRole(role),
-    ...(role === null ? {} : { scope }),
+    ...(role !== null ? { scope } : canvasOnly ? { scope: '*' } : {}),
     ...(door.v2 ? { access: door.claim } : {}),
   };
 }
