@@ -341,4 +341,47 @@ describe('one write, one undo step (the writeId record path)', () => {
       expect(readFileSync(abs, 'utf8')).toBe(SRC);
     }
   });
+  test('a held artboard refuses a clip op — the one lease check (v2-lead-artboard-hold-one-check)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'maude-video-hold-'));
+    dirs.push(root);
+    const designRoot = join(root, '.design');
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    const abs = join(designRoot, 'ui', 'Reel.tsx');
+    writeFileSync(abs, SRC);
+    // A live run holds the "reel" artboard; holderOf is the one lease lookup the dispatcher uses.
+    const runs = {
+      canvasKey: (rel: string) => rel,
+      holderOf: (k: { canvas: string; artboard: string }) =>
+        k.artboard === 'reel' ? { runId: 'r1' } : null,
+      live: () => [{ runId: 'r1' }],
+    } as never;
+    const editOp = createEditRoutes({
+      designRoot,
+      designRel: '.design',
+      repoRoot: root,
+      emit: () => {},
+      runs,
+    }).find((s) => s.path === '/_api/edit-op') as {
+      handle: (r: Request, c: never) => Promise<Response> | Response;
+    };
+    const post = async (params: Record<string, unknown>) =>
+      (
+        await editOp.handle(
+          new Request('http://localhost/_api/edit-op', {
+            method: 'POST',
+            body: JSON.stringify({ file: FILE, op: 'video.fit', targets: [], params }),
+          }),
+          {} as never
+        )
+      ).json() as Promise<{ ok: boolean; code?: string; message?: string }>;
+    // named artboard, and the artboard-less form (every artboard of the file) — both refuse
+    for (const params of [
+      { artboard: 'reel', stableId: 'name:one', fit: 'fit' },
+      { stableId: 'name:one', fit: 'fit' },
+    ]) {
+      const r = await post(params);
+      expect({ ok: r.ok, code: r.code }).toEqual({ ok: false, code: 'held-by-ai' });
+    }
+    expect(readFileSync(abs, 'utf8')).toBe(SRC);
+  });
 });
