@@ -17,6 +17,7 @@ export const FOLD_PANELS = Object.freeze([
   'diagnostics',
   'help',
   'inspector',
+  'ai.chat',
 ]);
 
 /**

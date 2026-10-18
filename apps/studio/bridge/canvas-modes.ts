@@ -21,6 +21,10 @@ export interface ModeCaps {
   edit: boolean;
   annotate: boolean;
   comment: boolean;
+  /** S3.7a — this canvas may publish its Present · Artboards position on awareness (S3-present-session
+   *  §3). Absent = false (a v1 shell never sends it). Only keeps honest clients quiet: the relay strip
+   *  is what enforces who may broadcast. */
+  present?: boolean;
 }
 
 /** minRole per tool row (the V2-1.3 condition). */
@@ -258,13 +262,12 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
     ]),
   }),
   // Present has no toolbar; its one tool is the Pointer (L), data here so the key table knows it.
-  // Pending until S3.2b builds the dot (rule 13: no key before its tool).
+  // S3.2b builds the dot (present/pointer-dot.tsx): the canvas owns the key while presenting, the
+  // registry derives `tool.pointer` from this slot. Any role may point (`minRole: 'view'`).
   present: Object.freeze({
     rest: 'browse' as const,
     hidden: true,
-    slots: Object.freeze([
-      slot({ key: 'L', label: 'Pointer', tool: 'pointer', minRole: 'view', pending: 'S3' }),
-    ]),
+    slots: Object.freeze([slot({ key: 'L', label: 'Pointer', tool: 'pointer', minRole: 'view' })]),
   }),
 });
 

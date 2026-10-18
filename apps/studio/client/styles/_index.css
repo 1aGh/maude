@@ -37,9 +37,16 @@
 @import url("./6-acp-chat.css");
 /* S5.8 — the AI chat panel host: scope chip + menu, suggestion strip, answer note, azure send. */
 @import url("../v2/ai/ai.css");
+/* S5.9 — the AI chat's run surface: working line, result card, Jump to latest, full height. */
+@import url("../v2/ai/ai-run.css");
+/* S5.11 — the ✦ N run list and the waiting card. */
+@import url("../v2/ai/runs.css");
+@import url("../v2/ai/ai-list-advanced.css");
 /* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
 @import url("../v2/shell/floating-panels.css");
 @import url("../v2/shell/project-pill.css");
+/* S3.2b — the Present chrome: the controls (Present · Artboards) and the canvas pill. */
+@import url("../v2/present/present.css");
 /* V2-4.3a — the Share cluster, top-right. */
 @import url("../v2/shell/share-cluster.css");
 /* S3.9 - Preview's own islands: the PreviewBar and the zoom readout. */
@@ -60,6 +67,8 @@
 @import url("../v2/diagnostics/diagnostics.css");
 /* V2-4.7a — Settings: General · Connections · Advanced. */
 @import url("../v2/settings/settings.css");
+/* S3.5 — Present ⌄ › Order and notes…: the order, the skipped artboards and the speaker notes. */
+@import url("../v2/present/order-notes.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
@@ -73,3 +82,5 @@
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
 @import url("../home/home.css");
 @import url("./5-utilities.css");
+/* S3.7a — the Present follower page (follow bar, Live, watching; the audience window has no chrome). */
+@import url("../v2/present/follow.css");

@@ -189,7 +189,7 @@ import {
   SNAP_THRESHOLD_PX,
   type SnapGuide,
 } from './annotations-snap.ts';
-import { canvasSingleKeys } from './bridge/canvas-mode-store.ts';
+import { canvasModeStore, canvasSingleKeys } from './bridge/canvas-mode-store.ts';
 import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
 import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
 import {
@@ -738,6 +738,13 @@ export interface StrokesStoreValue {
   setResizeInfo?: (
     info: { box: { x: number; y: number; w: number; h: number }; matchIds: string[] } | null
   ) => void;
+}
+
+/** V2-5 A4 (S2.6) — the board's own document-capture chords (⌘G group, ⇧⌘L lock, ⌘D, ] [ order, ⌘C/⌘X,
+ *  ⌘Enter) are Preview's: in Edit the same chords are the OBJECT's (editing/object-keys.ts), so this
+ *  listener stands down there. A canvas that never got a `set-mode` (null) keeps v1's behaviour. */
+export function boardChordsLive(win: Window): boolean {
+  return canvasModeStore(win).get().mode !== 'edit';
 }
 
 export const StrokesStoreContext = createContext<StrokesStoreValue | null>(null);
@@ -3535,6 +3542,7 @@ export function AnnotationsLayer() {
     if (typeof document === 'undefined') return;
     if (!annotSel) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!boardChordsLive(window)) return;
       if (isEditable(e.target)) return;
       const store = strokesStoreRef.current;
       const sel = annotSel.selectedIds;

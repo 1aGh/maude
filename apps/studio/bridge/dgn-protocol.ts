@@ -20,6 +20,7 @@
 
 import type { ApplyEditMessage } from '../client/apply-edit-request.ts';
 import type { AiActivityEntry } from '../collab/ai-activity.ts';
+import type { EditOpCode, ElementRef } from '../edit-ops/types.ts';
 import type { PhotoEdit } from '../photo/schema.ts';
 import type { Selection } from '../use-selection-set.tsx';
 import {
@@ -39,6 +40,20 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 // Payload shapes still private to their modules (names fixed by the contract). Opaque here; each is
 // lifted beside its builder when its listener is routed through the accept helpers (V2-2.10b).
+/** S2.1 — one rung of the selection's breadcrumb (S2-edit-ops.md §7). */
+export type SelectionCrumb = { label: string; ref: ElementRef | null };
+export const SELECTION_KINDS = [
+  'frame',
+  'text',
+  'image',
+  'path',
+  'shape',
+  'instance',
+  'artboard',
+  'multi',
+] as const;
+export type SelectionKind = (typeof SELECTION_KINDS)[number];
+
 export type InsertAnchor = {
   refId?: string;
   refIndex?: number;
@@ -82,10 +97,25 @@ export interface CanvasToShell {
   };
   'embed-escape': Empty;
   // selection + inline edit
-  'select-set': { selection: Selection | Selection[] | null };
+  'select-set': {
+    selection: Selection | Selection[] | null;
+    /** S2.1 (S2-edit-ops.md §7) — the selection as refs; computed ids stay transient */
+    refs?: ElementRef[];
+    /** artboard › … › selected, outermost first; `ref: null` = the artboard */
+    crumbs?: SelectionCrumb[];
+    kind?: SelectionKind;
+  };
   'edit-text': { id: Id; file: string; text: string; occurrence?: number; before?: string };
   'apply-edit': ApplyEditMessage & { requestId: string };
   'undo-barrier': { requestId: string };
+  /** S2.1 — one structural edit; the shell pins `file` to the active canvas (S2-edit-ops.md §6) */
+  'edit-op': {
+    requestId: string;
+    op: string;
+    targets: ElementRef[];
+    params?: Record<string, unknown>;
+    expectRev?: string;
+  };
   'active-artboard': { id: Id | null };
   'layers-tree': { artboardId: Id | null; tree: LayerNode[] };
   'open-inspector': { tab?: string };
@@ -184,7 +214,20 @@ export interface CanvasToShell {
     replace?: Id;
   };
   'viewport-zoom': { zoom: number };
-  'present-position': { index: number; total: number; artboardId: Id };
+  // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
+  'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
+  // S3.7a — a follower canvas tells its follower page (client/v2/present/follow-view.jsx) what it shows.
+  // Untrusted: `presenterName` is rendered as text only and re-clamped by the page.
+  'present-follow-state': {
+    live: boolean;
+    sid: string | null;
+    presenterName: string;
+    presenterIndex: number;
+    index: number;
+    total: number;
+    watchers: number;
+    ended: boolean;
+  };
   /** S3.10a — a plain click in Preview on an element with `data-cd-link` + `data-cd-id`. Never the target:
    *  the shell reads it from the TSX (`GET /_api/links`, S3-links-format §1.3). */
   'link-follow': { elementId: Id; artboardId: Id | null };
@@ -221,6 +264,18 @@ export interface ShellToCanvas {
   'record-edit': { payload: RecordEditPayload };
   'apply-edit-result': { requestId: string; ok: boolean; error?: string; conflict?: boolean };
   'undo-barrier-ok': { requestId: string };
+  /** S2.1 — the route's answer (`EditOpResult`, flattened) */
+  'edit-op-result': {
+    requestId: string;
+    ok: boolean;
+    actionId?: string | null;
+    writeId?: string;
+    rev?: string;
+    refs?: ElementRef[];
+    created?: ElementRef[];
+    code?: EditOpCode;
+    message?: string;
+  };
   'edit-reverted': { op: string; id?: Id; reason?: string };
   'reorder-failed': Empty;
   'reposition-failed': Empty;
@@ -249,6 +304,15 @@ export interface ShellToCanvas {
   // optionally flash its outline. The shell decides glide (reduced motion = cut); a repeat to the same
   // artboard while gliding is a no-op. canvas-lib's handler lands with the L1 slice that owns it.
   'reveal-artboard': { artboardId: Id; glide: boolean; flash: boolean };
+  // S5.11 (V2-1.15 §5.8, P3): which artboards an AI is on, for the ring + tag the canvas draws. A state, a
+  // name and a count per artboard — never a prompt, a question or a progress line (the canvas is untrusted).
+  // `done` is the settled ring after a run (driven by the V2-1.5 action event, not the registry).
+  'ai-runs': {
+    artboards: Record<
+      Id,
+      { state: 'running' | 'needs-you' | 'done'; who: string; tag: string; waiting: number }
+    >;
+  };
   'insert-annotation-media': { paths: string[] };
   'replace-annotation-media': { id: Id; path: string };
   'photo-preview': { asset: string; edit: PhotoEdit | null };
@@ -286,6 +350,9 @@ export interface ShellToCanvas {
   };
   'occluded-insets': { seq: number; insets: Insets };
   'present-step': { to: number | 'next' | 'prev' };
+  // S3.7a — the follower page tells its canvas which session to follow (`sid: null` = the first
+  // presenter seen), whether it is live, and whether it is the locked audience window.
+  'present-follow': { sid: string | null; live: boolean; locked: boolean };
   // V2-4 gate (WCAG 2.1.4) — the per-Mac "Single-key shortcuts" switch: `false` → the canvas resolves no
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
@@ -399,6 +466,30 @@ const strMap: V = (v) => {
   }
   return out;
 };
+/** A map of validated values with a bounded key count; `__proto__`/`constructor`/`prototype` keys are REJECTED. */
+export const RING_KEYS_MAX = 256;
+const recOf =
+  (f: V, max = RING_KEYS_MAX): V =>
+  (v) => {
+    if (!isPlain(v)) return BAD;
+    const keys = Object.keys(v);
+    if (keys.length > max) return BAD;
+    const out: Record<string, unknown> = Object.create(null);
+    for (const k of keys) {
+      if (k.length > 200 || k === '__proto__' || k === 'constructor' || k === 'prototype')
+        return BAD;
+      const r = f(v[k]);
+      if (r === BAD) return BAD;
+      out[k] = r;
+    }
+    return out;
+  };
+const shortStr =
+  (max: number): V =>
+  (v) =>
+    typeof v === 'string' && v.length <= max ? v : BAD;
+const count: V = (v) =>
+  typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 9999 ? v : BAD;
 const shape =
   (fields: Record<string, V>): V =>
   (v) => {
@@ -415,7 +506,16 @@ const rect = shape({ x: num, y: num, w: num, h: num });
 const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
-const caps = shape({ edit: bool, annotate: bool, comment: bool });
+const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
+/** S3.7a — bounded ints, like the awareness `present` field (S3-present-session §2). */
+const intIn =
+  (lo: number, hi: number): V =>
+  (v) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : BAD;
+const PRESENT_SID = /^[a-z0-9]{8,32}$/;
+const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
+export const PRESENT_NAME_MAX = 64;
+const presenterName: V = (v) => (typeof v === 'string' && v.length <= PRESENT_NAME_MAX ? v : BAD);
 const insets: V = (v) => clampInsets(v) ?? BAD;
 /** `peers` (V2-4.3b): a planted or oversized list is REJECTED whole, never trimmed. */
 export const PEERS_MAX = 32;
@@ -461,6 +561,9 @@ const anchor = {
   position: opt(str),
 };
 const tlId = { id: opt(str) };
+const elementRef = shape({ artboard: str, element: str, occurrence: opt(num) });
+const crumb = shape({ label: str, ref: nul(elementRef) });
+const EDIT_OP_CODES = ['held-by-ai', 'locked', 'stale', 'invalid', 'forbidden'] as const;
 
 // ─── the table ────────────────────────────────────────────────────────────────
 
@@ -492,7 +595,12 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: BR,
-    parse: p({ selection: nul((v) => (Array.isArray(v) ? arrOf(jsonObj)(v) : jsonObj(v))) }),
+    parse: p({
+      selection: nul((v) => (Array.isArray(v) ? arrOf(jsonObj)(v) : jsonObj(v))),
+      refs: opt(arrOf(elementRef)),
+      crumbs: opt(arrOf(crumb)),
+      kind: opt(lit(...SELECTION_KINDS)),
+    }),
   },
   'edit-text': {
     gate: 'active',
@@ -516,6 +624,18 @@ const c2s: C2S = {
     }),
   },
   'undo-barrier': { gate: 'active', status: 'live', owner: BR, parse: p({ requestId: str }) },
+  'edit-op': {
+    gate: 'active',
+    status: 'live',
+    owner: 'editing (S2.1)',
+    parse: p({
+      requestId: str,
+      op: str,
+      targets: arrOf(elementRef),
+      params: opt(jsonObj),
+      expectRev: opt(str),
+    }),
+  },
   'active-artboard': { gate: 'active', status: 'live', owner: BR, parse: p({ id: nul(str) }) },
   'layers-tree': {
     gate: 'active',
@@ -789,11 +909,12 @@ const c2s: C2S = {
       replace: opt(str),
     }),
   },
-  // S3.9 — live: canvas-lib's ViewportZoomReporter posts it; the shell's ZoomOnly readout (Preview) listens.
+  // S3.2b / S3.9 — live: Present's pill and Preview's ZoomOnly readout both read it.
   'viewport-zoom': {
     gate: 'active',
     status: 'live',
-    owner: 'v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
+    owner:
+      'present/present-zoom.ts + v2/preview/zoom-only (S3.9) ← canvas-lib ViewportZoomReporter',
     parse: p({ zoom: num }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
@@ -802,7 +923,29 @@ const c2s: C2S = {
     gate: 'active',
     status: 'live',
     owner: 'v2/shell/use-canvas-mode-lane (S3.1)',
-    parse: p({ index: num, total: num, artboardId: str }),
+    parse: p({
+      index: num,
+      total: num,
+      artboardId: str,
+      sid: opt(sid),
+      seq: opt(intIn(0, 2 ** 31 - 1)),
+    }),
+  },
+  // S3.7a — the follower canvas (present-stage.tsx `usePresentFollow`) → its follower page.
+  'present-follow-state': {
+    gate: 'active',
+    status: 'live',
+    owner: 'v2/present/follow-view (S3.7a)',
+    parse: p({
+      live: bool,
+      sid: nul(sid),
+      presenterName,
+      presenterIndex: intIn(0, 2000),
+      index: intIn(0, 2000),
+      total: intIn(0, 2000),
+      watchers: intIn(0, 100000),
+      ended: bool,
+    }),
   },
   // S3.10a — live: input-router's Preview branch posts it; the shell's link-follow plays it. Extra keys
   // (`target`, `url`, …) are dropped by `p`, so a planted canvas cannot hand the shell a destination.
@@ -904,6 +1047,22 @@ const s2c: S2C = {
     parse: p({ requestId: str, ok: bool, error: opt(str), conflict: opt(bool) }),
   },
   'undo-barrier-ok': { gate: 'parent', status: 'live', owner: CS, parse: p({ requestId: str }) },
+  'edit-op-result': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing (S2.1)',
+    parse: p({
+      requestId: str,
+      ok: bool,
+      actionId: opt(nul(str)),
+      writeId: opt(str),
+      rev: opt(str),
+      refs: opt(arrOf(elementRef)),
+      created: opt(arrOf(elementRef)),
+      code: opt(lit(...EDIT_OP_CODES)),
+      message: opt(str),
+    }),
+  },
   'edit-reverted': {
     gate: 'parent',
     status: 'live',
@@ -958,6 +1117,21 @@ const s2c: S2C = {
     orphan: 'no-handler',
     owner: 'canvas-lib',
     parse: p({ artboardId: str, glide: bool, flash: bool }),
+  },
+  'ai-runs': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'artboard-activity-overlay',
+    parse: p({
+      artboards: recOf(
+        shape({
+          state: lit('running', 'needs-you', 'done'),
+          who: shortStr(200),
+          tag: shortStr(120),
+          waiting: count,
+        })
+      ),
+    }),
   },
   'insert-template': {
     gate: 'parent',
@@ -1111,6 +1285,13 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (S3.1)',
     parse: p({ to: (v) => (v === 'next' || v === 'prev' ? v : num(v)) }),
+  },
+  // S3.7a — honoured only by a follower canvas (`follow=1`, present/follow.ts `isFollowCanvas`).
+  'present-follow': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'bridge/canvas-mode-store (S3.7a)',
+    parse: p({ sid: nul(sid), live: bool, locked: bool }),
   },
   'key-prefs': {
     gate: 'parent',

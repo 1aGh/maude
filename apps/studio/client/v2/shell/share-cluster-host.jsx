@@ -186,7 +186,10 @@ export function ShellShareCluster() {
           mode={lane.mode}
           caps={lane.caps}
           onSelect={lane.select}
-          onPresent={lane.present}
+          // S3.5 — Order and notes… is a registry action (minRole edit), not a way into Present.
+          onPresent={(kind) =>
+            kind === 'order-notes' ? menuRunner.run('present.order-notes') : lane.present(kind)
+          }
           presentFromLabel={fromLabel}
           canPresent={canvasOpen}
         />

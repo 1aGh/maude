@@ -1,0 +1,231 @@
+// apps/studio/present/meta-schema.ts — S3.5: the `present` and `artboardMeta.<id>.notes` fields of a
+// canvas `.meta.json` (V2-1.12 §5.1 R1/R2/R6; contract S3-present-session §7).
+//
+// PURE, two halves on purpose:
+//   - STRICT for our own writers. `parsePresentPatch` takes the body of `PATCH /_api/present-meta` and
+//     refuses anything that is not exactly the documented shape (an unknown key is a 400, never
+//     ignored). `applyPresentPatch` writes only the members the patch names, and checks that every id
+//     it writes is an artboard of the canvas (422 otherwise). What it writes always passes
+//     `schema/canvas-meta.v2.schema.json` — test/present-meta-schema.test.ts holds the two together.
+//   - TOLERANT for whatever a peer wrote. `readPresentState` never throws: a malformed member is
+//     dropped, an id of an artboard that no longer exists is kept for the reader that knows the canvas
+//     (present/order.ts drops it there). `applyPresentPatch` keeps every key it was not asked to change
+//     — every other top-level key, `layout`, every other `artboardMeta[id]` field, and any `present`
+//     member a newer peer added — in its place and with its value.
+//
+// The file carries no version (V2-1.12 §5.3): absence of `present` = canvas order, nothing skipped;
+// absence of `notes` = no note. A v1 peer keeps both top-level keys on its own rewrites (fixtures H/I/J).
+
+/** The schema's `$defs/artboardId` — what an id must look like to be stored here. */
+export const PRESENT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+export const MAX_IDS = 2000;
+export const MAX_NOTE = 20000;
+/** The route body's whole vocabulary. */
+export const PATCH_KEYS: readonly string[] = ['file', 'present', 'notes', 'expected'];
+const PRESENT_KEYS: readonly string[] = ['order', 'skip'];
+
+export interface PresentState {
+  /** The stored order, or null = canvas order. */
+  order: string[] | null;
+  skip: string[];
+  /** artboardId → note; only non-empty strings. */
+  notes: Record<string, string>;
+}
+
+export interface PresentPatch {
+  file: string;
+  present?: { order?: string[] | null; skip?: string[] | null } | null;
+  notes?: Record<string, string | null>;
+  expected?: string;
+}
+
+export type ParseResult =
+  | { ok: true; patch: PresentPatch }
+  | { ok: false; error: 'bad-body' | 'unknown-key' | 'bad-field'; field: string };
+
+export type ApplyResult =
+  | { ok: true; next: Record<string, unknown>; changed: boolean }
+  | { ok: false; error: 'unknown-artboard' | 'duplicate'; ids: string[] };
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+const isId = (v: unknown): v is string => typeof v === 'string' && PRESENT_ID_RE.test(v);
+
+/** Ids of an unknown value: strings of the id grammar, once each, in order. */
+function idList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of value.slice(0, MAX_IDS)) {
+    if (!isId(v) || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+}
+
+/** What a `.meta.json` (any writer, any version) says about Present. Never throws. */
+export function readPresentState(meta: unknown): PresentState {
+  const m = isObj(meta) ? meta : {};
+  const p = isObj(m.present) ? m.present : {};
+  const order = idList(p.order);
+  const notes: Record<string, string> = {};
+  if (isObj(m.artboardMeta))
+    for (const [id, entry] of Object.entries(m.artboardMeta)) {
+      if (!isId(id) || !isObj(entry)) continue;
+      const n = entry.notes;
+      if (typeof n === 'string' && n !== '' && n.length <= MAX_NOTE) notes[id] = n;
+    }
+  return { order: order.length ? order : null, skip: idList(p.skip), notes };
+}
+
+/** An id array as the route accepts it: every member an id, at most MAX_IDS. Duplicates are the
+ *  apply step's 422, so the caller can name them. */
+function strictIds(v: unknown): v is string[] {
+  return Array.isArray(v) && v.length <= MAX_IDS && v.every(isId);
+}
+
+/** The body of `PATCH /_api/present-meta`, checked exactly. */
+export function parsePresentPatch(body: unknown): ParseResult {
+  if (!isObj(body)) return { ok: false, error: 'bad-body', field: '' };
+  for (const k of Object.keys(body))
+    if (!PATCH_KEYS.includes(k)) return { ok: false, error: 'unknown-key', field: k };
+  if (typeof body.file !== 'string' || !body.file || body.file.length > 1024)
+    return { ok: false, error: 'bad-field', field: 'file' };
+  const patch: PresentPatch = { file: body.file };
+  if (body.expected !== undefined) {
+    if (typeof body.expected !== 'string' || body.expected.length > 128)
+      return { ok: false, error: 'bad-field', field: 'expected' };
+    patch.expected = body.expected;
+  }
+  if (body.present !== undefined) {
+    if (body.present === null) patch.present = null;
+    else if (!isObj(body.present)) return { ok: false, error: 'bad-field', field: 'present' };
+    else {
+      const out: NonNullable<PresentPatch['present']> = {};
+      for (const k of Object.keys(body.present)) {
+        if (!PRESENT_KEYS.includes(k))
+          return { ok: false, error: 'unknown-key', field: `present.${k}` };
+        const v = body.present[k];
+        if (v !== null && !strictIds(v))
+          return { ok: false, error: 'bad-field', field: `present.${k}` };
+        out[k as 'order' | 'skip'] = v as string[] | null;
+      }
+      patch.present = out;
+    }
+  }
+  if (body.notes !== undefined) {
+    if (!isObj(body.notes) || Object.keys(body.notes).length > MAX_IDS)
+      return { ok: false, error: 'bad-field', field: 'notes' };
+    const out: Record<string, string | null> = {};
+    for (const [id, v] of Object.entries(body.notes)) {
+      if (!isId(id)) return { ok: false, error: 'bad-field', field: 'notes' };
+      if (v !== null && (typeof v !== 'string' || v.length > MAX_NOTE))
+        return { ok: false, error: 'bad-field', field: `notes.${id}` };
+      out[id] = v as string | null;
+    }
+    patch.notes = out;
+  }
+  return { ok: true, patch };
+}
+
+const dupes = (ids: readonly string[]): string[] => {
+  const seen = new Set<string>();
+  const out = new Set<string>();
+  for (const id of ids) (seen.has(id) ? out : seen).add(id);
+  return [...out];
+};
+
+/** `obj` with `key` set to `value` in place (or appended), or removed when `value` is undefined. */
+function withKey(
+  obj: Record<string, unknown>,
+  key: string,
+  value: unknown
+): Record<string, unknown> {
+  if (value === undefined) {
+    if (!Object.hasOwn(obj, key)) return obj;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) if (k !== key) out[k] = v;
+    return out;
+  }
+  return { ...obj, [key]: value };
+}
+
+/**
+ * Apply a parsed patch to the current meta object. `known` = the canvas's artboard ids, or null when
+ * the canvas renders artboards a parse cannot list (then only the id grammar is checked). Pure: the
+ * input is never mutated.
+ */
+export function applyPresentPatch(
+  current: Record<string, unknown>,
+  patch: PresentPatch,
+  known: ReadonlySet<string> | null
+): ApplyResult {
+  const written: string[] = [];
+  const dup: string[] = [];
+  if (patch.present)
+    for (const k of PRESENT_KEYS) {
+      const v = patch.present[k as 'order' | 'skip'];
+      if (!Array.isArray(v)) continue;
+      written.push(...v);
+      dup.push(...dupes(v));
+    }
+  if (dup.length) return { ok: false, error: 'duplicate', ids: [...new Set(dup)] };
+  for (const [id, v] of Object.entries(patch.notes ?? {})) if (v) written.push(id);
+  if (known) {
+    const unknown = [...new Set(written.filter((id) => !known.has(id)))];
+    if (unknown.length) return { ok: false, error: 'unknown-artboard', ids: unknown };
+  }
+
+  let next = current;
+  if (patch.present === null) next = withKey(next, 'present', undefined);
+  else if (patch.present) {
+    let p: Record<string, unknown> = isObj(current.present) ? current.present : {};
+    for (const k of PRESENT_KEYS) {
+      if (!Object.hasOwn(patch.present, k)) continue;
+      const v = patch.present[k as 'order' | 'skip'];
+      p = withKey(p, k, v?.length ? [...v] : undefined);
+    }
+    next = withKey(next, 'present', Object.keys(p).length ? p : undefined);
+  }
+  if (patch.notes && Object.keys(patch.notes).length) {
+    let map: Record<string, unknown> = isObj(current.artboardMeta) ? current.artboardMeta : {};
+    for (const [id, v] of Object.entries(patch.notes)) {
+      const entry: Record<string, unknown> = isObj(map[id])
+        ? (map[id] as Record<string, unknown>)
+        : {};
+      const e = withKey(entry, 'notes', v ? v : undefined);
+      map = withKey(map, id, Object.keys(e).length ? e : undefined);
+    }
+    next = withKey(next, 'artboardMeta', Object.keys(map).length ? map : undefined);
+  }
+  return { ok: true, next, changed: JSON.stringify(next) !== JSON.stringify(current) };
+}
+
+export interface PresentIdIssues {
+  duplicates: { list: 'order' | 'skip'; id: string }[];
+  unknown: { where: string; id: string }[];
+}
+
+/** What `maude design check` reports about a sidecar's Present ids (raw, before any tolerant drop):
+ *  ids listed twice in `present.order` / `present.skip`, and ids — in those lists or carrying a note
+ *  — that are not artboards of the canvas (`known` null = the canvas lists artboards a parse can't). */
+export function presentIdIssues(meta: unknown, known: ReadonlySet<string> | null): PresentIdIssues {
+  const m = isObj(meta) ? meta : {};
+  const p = isObj(m.present) ? m.present : {};
+  const out: PresentIdIssues = { duplicates: [], unknown: [] };
+  for (const list of ['order', 'skip'] as const) {
+    const v = p[list];
+    if (!Array.isArray(v)) continue;
+    const ids = v.filter((x): x is string => typeof x === 'string');
+    for (const id of dupes(ids)) out.duplicates.push({ list, id });
+    if (known)
+      for (const id of new Set(ids))
+        if (!known.has(id)) out.unknown.push({ where: `present.${list}`, id });
+  }
+  if (known && isObj(m.artboardMeta))
+    for (const [id, entry] of Object.entries(m.artboardMeta))
+      if (isObj(entry) && typeof entry.notes === 'string' && entry.notes && !known.has(id))
+        out.unknown.push({ where: `artboardMeta.${id}.notes`, id });
+  return out;
+}

@@ -142,7 +142,7 @@ describe('toolKeyAction (T8)', () => {
       'F',
       'I',
     ]);
-    expect(modeKeys('present')).toEqual([]);
+    expect(modeKeys('present')).toEqual(['L']); // S3.2b: the presenter's Pointer, nothing else
   });
 });
 
@@ -207,7 +207,7 @@ describe('registry: the toolbar keys per mode (rule 13)', () => {
       }
   });
 
-  test('a key resolves in exactly the modes that answer it (no Present letter, no pending key)', () => {
+  test('a key resolves in exactly the modes that answer it (Present answers only L, no pending key)', () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     for (const mode of ['edit', 'preview', 'viewing', 'present'] as const)
       for (const l of [...letters, ...letters.map((x) => `⇧${x}`)]) {

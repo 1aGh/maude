@@ -903,6 +903,13 @@ export function registerElementView(type: string, view: (p: ElementNodeProps) =>
   VIEWS.set(type, view);
 }
 
+/** The counterpart of `registerElementView` (a runtime type going away with `unregisterElementType`). */
+export function unregisterElementView(type: string): void {
+  if (BUILTIN_VIEWS.has(type)) throw new Error(`"${type}" is a built-in element view`);
+  VIEWS.delete(type);
+}
+const BUILTIN_VIEWS = new Set(VIEWS.keys());
+
 export { Node as ElementBox };
 
 /**

@@ -305,3 +305,31 @@ test('hubsConfigPath agrees with the studio server resolver (sync/hubs-config.ts
     );
   }
 });
+
+// V2-5 A4 (S9.9) — `access` is the hub's real claim, cached at sign-in by the studio's
+// saveHubCredential. A relink from the CLI has no fresher answer, so it carries the claim across the
+// way it carries `role` — dropping it would fall a canvas-grant session back to the v1 projection.
+test('addHub keeps the cached access claim across a relink', () => {
+  withTmpConfig(() => {
+    const access = { role: 'commenter', grants: [{ canvas: 'ui/a.tsx', role: 'editor' }] };
+    saveHubsConfig({
+      hubs: { 'https://h.example': { token: 'mau_old', linkedAt: 1, role: 'viewer', access } },
+    });
+    const rec = addHub('https://h.example', 'mau_new');
+    assert.deepEqual(rec.access, access);
+    assert.equal(rec.role, 'viewer');
+    assert.deepEqual(loadHubsConfig().hubs['https://h.example'].access, access);
+    // …and a fresher one (the sign-in path's `extra`) still wins.
+    const fresh = { role: 'editor' };
+    assert.deepEqual(addHub('https://h.example', 'mau_new', { access: fresh }).access, fresh);
+  });
+});
+
+test('addHub drops a malformed cached access value', () => {
+  withTmpConfig(() => {
+    saveHubsConfig({
+      hubs: { 'https://h.example': { token: 'mau_old', linkedAt: 1, access: 'x' } },
+    });
+    assert.equal('access' in addHub('https://h.example', 'mau_new'), false);
+  });
+});

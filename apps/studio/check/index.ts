@@ -36,9 +36,11 @@ import { parseSync } from 'oxc-parser';
 
 import { cleanFinding, cleanText, fileText, findingLine } from '../../../cli/lib/finding-text.mjs';
 import { validateHandoff } from '../../../cli/lib/handoff.mjs';
+import { jsonEq } from '../annotations/fields.ts';
 import { validateBoard } from '../annotations/validate-board.ts';
 import { isValidElementId } from '../element-ids.ts';
 import { validateEdl, validateFootageAnalysis } from '../footage/schema.ts';
+import { presentIdIssues } from '../present/meta-schema.ts';
 import { checkIdsAdapter } from './ids.ts';
 import { validateMeta } from './meta.ts';
 
@@ -83,6 +85,9 @@ export interface CheckOptions {
   strict?: boolean;
   /** S3.10a: another canvas's artboard ids (null = not in the project) — judges `link-dangling` */
   canvasArtboards?: (canvas: string) => readonly string[] | null;
+  /** S3.5 — a `.meta.json`'s canvas artboards (`artboardIdsOfSource` of the sibling `.tsx`), for the
+   *  Present id rule; absent = only the duplicate half runs. */
+  artboards?: { ids: readonly string[]; complete: boolean } | null;
 }
 
 /** The check kind of a designRoot-relative POSIX path (V2-1.18 §5.3 "Kind (by path)"). Pure. */
@@ -153,6 +158,25 @@ function artboardsOf(program: unknown): { id: string | null; start: number; dyna
     }
   }
   return out.sort((a, b) => a.start - b.start);
+}
+
+/** S3.5 — the artboard ids a canvas source declares, for a sibling `.meta.json`'s Present rule.
+ *  `complete: false` when an artboard's id is not a literal (a parse cannot list it). Null = no parse. */
+export function artboardIdsOfSource(
+  rel: string,
+  text: string
+): { ids: string[]; complete: boolean } | null {
+  try {
+    const parsed = parseSync(rel, text, { sourceType: 'module', lang: 'tsx' });
+    if (parsed.errors.length) return null;
+    const abs = artboardsOf(parsed.program);
+    return {
+      ids: abs.flatMap((a) => (a.id ? [a.id] : [])),
+      complete: abs.every((a) => a.id !== null),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckResult) {
@@ -287,6 +311,7 @@ function checkMeta(rel: string, text: string, opts: CheckOptions, r: CheckResult
         'remove `viewport`'
       )
     );
+  checkPresentIds(rel, doc as Record<string, unknown>, opts, r);
   if (!opts.strict) return;
   let before: unknown = null;
   try {
@@ -296,6 +321,49 @@ function checkMeta(rel: string, text: string, opts: CheckOptions, r: CheckResult
   }
   for (const i of validateMeta(doc as Record<string, unknown>, isObj(before) ? before : null))
     r.errors.push(finding(i.code, `${rel} › ${fileText(i.field.slice(1) || '/')}`, i.what, i.fix));
+}
+
+/** S3.5 (V2-1.12 R6, S3-present-session §7) — Present ids: a duplicate in `present.order` /
+ *  `present.skip`, and an id (there or carrying a note) that is not an artboard of the canvas. A
+ *  dangling id is legal on disk (the artboard was deleted; Present drops it), so it is a warning —
+ *  an error only for a strict (AI) write that changed that key. A strict duplicate is the schema's
+ *  `uniqueItems` error, so it is not reported twice. */
+function checkPresentIds(
+  rel: string,
+  doc: Record<string, unknown>,
+  opts: CheckOptions,
+  r: CheckResult
+) {
+  const ab = opts.artboards;
+  const issues = presentIdIssues(doc, ab?.complete ? new Set(ab.ids) : null);
+  let before: Record<string, unknown> | null = null;
+  try {
+    const b = typeof opts.against === 'string' ? JSON.parse(opts.against) : null;
+    before = isObj(b) ? b : null;
+  } catch {
+    before = null;
+  }
+  const changed = (key: string) => !before || !jsonEq(before[key], doc[key]);
+  if (!opts.strict)
+    for (const d of issues.duplicates)
+      r.warnings.push(
+        finding(
+          'present-duplicate',
+          `${rel} › present.${d.list}`,
+          `${fileText(d.id)} is listed twice`,
+          'list each artboard once'
+        )
+      );
+  for (const u of issues.unknown) {
+    const f = finding(
+      'present-unknown-artboard',
+      `${rel} › ${fileText(u.where)}`,
+      `${fileText(u.id)} is not an artboard of this canvas`,
+      'use the id of a <DCArtboard> in the .tsx, or remove it (skill design:design _guide-17)'
+    );
+    const key = u.where.startsWith('present.') ? 'present' : 'artboardMeta';
+    (opts.strict && changed(key) ? r.errors : r.warnings).push(f);
+  }
 }
 
 function checkHandoff(rel: string, text: string, r: CheckResult) {

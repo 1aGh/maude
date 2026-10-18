@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-present-audience-close"
+description = "Enables the present_audience_close command without any pre-configured scope."
+commands.allow = ["present_audience_close"]
+
+[[permission]]
+identifier = "deny-present-audience-close"
+description = "Denies the present_audience_close command without any pre-configured scope."
+commands.deny = ["present_audience_close"]
