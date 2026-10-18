@@ -6705,7 +6705,9 @@ export function createHttp(
   const canvasRoutes: Http['canvasRoutes'] = {
     // T-S4.5b — the same op path, minus the `run:` tag (refused 400 here). A write: it keeps the
     // read-only refusal every `routes` entry carries (guardedRoutes).
-    '/_api/annotations/ops': (req: Request) => readOnlyRefusal(req) ?? annotationOps(req, 'canvas'),
+    // S9.9 made the gate async: await it, or the pending Promise short-circuits `??`.
+    '/_api/annotations/ops': async (req: Request) =>
+      (await readOnlyRefusal(req)) ?? annotationOps(req, 'canvas'),
     // V2-2.8 S6 — the @mention feed without e-mails (see canvasCommitters).
     '/_api/git-committers': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
