@@ -306,6 +306,12 @@ export interface Context {
         mine?: boolean;
       }): Promise<unknown[] | null>;
       acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+      acceptedLinkDocs?(): Promise<
+        { entry: string; path: string | null; retired: boolean }[] | null
+      >;
+      /** S1.18 — the shared Trash, where the home knows it (the local op log). */
+      acceptedTrashed?(entry: string): Promise<boolean>;
       acceptedRestore?(
         repoRel: string,
         revision: number
