@@ -50,7 +50,7 @@ export interface AiRouteDeps {
    */
   control?: () => {
     acceptedCanvas?(repoRel: string): string | null;
-    beginAiAction?(key: string, label: string, meta?: { chatId?: string }): void;
+    beginAiAction?(key: string, label: string, meta?: { runId?: string; chatId?: string }): void;
     claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
   } | null;
   /** the canvas write behind Run on a copy — injectable for the race tests */
@@ -142,12 +142,18 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
   type Answer = { status: number; body: Record<string, unknown> };
   const copying = new Map<string, Promise<Answer>>();
 
-  /** The stage key the waiting run's own turn writes under (acp/index.ts; the v1 start below). */
-  const stageKey = (r: RunRecord): string | null =>
-    r.origin === 'maude-chat' && r.chatId
-      ? `acp:${r.chatId}`
+  /**
+   * The stage the waiting run's own turn writes into. A chat run's stage IS the run (V2-1.5 §5.5:
+   * the tracker begins `acp:<chat>` with `{runId}` and the registry ends it — published with the
+   * run whether or not the turn edits); a v1 `/design:edit` keeps its `edit:<file>` key.
+   */
+  const stageOf = (
+    r: RunRecord
+  ): { key: string; meta: { runId?: string; chatId?: string } } | null =>
+    r.origin === 'maude-chat'
+      ? { key: r.runId, meta: { runId: r.runId, ...(r.chatId ? { chatId: r.chatId } : {}) } }
       : r.origin === 'design-edit' && r.scope
-        ? `edit:${path.posix.join(deps.designRel, r.scope.canvas)}`
+        ? { key: `edit:${path.posix.join(deps.designRel, r.scope.canvas)}`, meta: {} }
         : null;
 
   const copyIdFor = (r: RunRecord, artboard: string) =>
@@ -188,7 +194,7 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
       return refuse(409, 'state', 'this ask is not waiting for an artboard');
     const repoRel = path.posix.join(deps.designRel, canvas);
     const control = deps.control?.() ?? null;
-    const key = stageKey(was);
+    const stage = stageOf(was);
     try {
       await (deps.copyOnDisk ?? copyArtboard)(
         path.join(designRoot(), canvas),
@@ -198,13 +204,9 @@ export function createAiRoutes(deps: AiRouteDeps): RouteSpec[] {
           accepted: control?.acceptedCanvas?.(repoRel) ?? null,
           // the copy is the WAITING run's write: claimed for its stage before it lands
           beforeWrite: (next) => {
-            if (!key || !control) return;
-            control.beginAiAction?.(
-              key,
-              `Claude: ${was.label}`,
-              was.chatId ? { chatId: was.chatId } : {}
-            );
-            control.claimAiWrite?.(key, repoRel, hashBytes(next));
+            if (!stage || !control) return;
+            control.beginAiAction?.(stage.key, `Claude: ${was.label}`, stage.meta);
+            control.claimAiWrite?.(stage.key, repoRel, hashBytes(next));
           },
         }
       );
