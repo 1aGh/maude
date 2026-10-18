@@ -109,7 +109,12 @@ export function PresenterView({
               Try again
             </button>
           ) : null}
-          <button type="button" className="btn btn--sm" data-testid="presenter-end" onClick={() => onEnd?.()}>
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid="presenter-end"
+            onClick={() => onEnd?.()}
+          >
             End<kbd className="kbd">esc</kbd>
           </button>
         </span>
@@ -147,8 +152,8 @@ export function PresenterView({
             <span className="pv-hint">
               <kbd className="kbd">←</kbd>
               <kbd className="kbd">→</kbd>
-              <kbd className="kbd">space</kbd> or a clicker · <kbd className="kbd">L</kbd> pointer · only
-              you see this screen
+              <kbd className="kbd">space</kbd> or a clicker · <kbd className="kbd">L</kbd> pointer ·
+              only you see this screen
             </span>
           </div>
         </div>

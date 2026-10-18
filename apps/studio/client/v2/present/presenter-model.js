@@ -30,7 +30,8 @@ export function wallText(date) {
   return `${two(date.getHours())}:${two(date.getMinutes())}`;
 }
 
-const hasRect = (a) => finite(a?.x) && finite(a?.y) && finite(a?.w) && finite(a?.h) && a.w > 0 && a.h > 0;
+const hasRect = (a) =>
+  finite(a?.x) && finite(a?.y) && finite(a?.w) && finite(a?.h) && a.w > 0 && a.h > 0;
 
 /** A canvas that reported no layout (or a broken one): a plain grid, 16:10 cells, in canvas order. */
 function gridRects(list) {
@@ -131,7 +132,8 @@ export function noteParagraphs(text) {
  * @returns {{ present: object | null, notes: Record<string, string> }}
  */
 export function savedFromMeta(meta) {
-  const present = meta && typeof meta.present === 'object' && !Array.isArray(meta.present) ? meta.present : null;
+  const present =
+    meta && typeof meta.present === 'object' && !Array.isArray(meta.present) ? meta.present : null;
   const notes = {};
   const am = meta?.artboardMeta;
   if (am && typeof am === 'object')

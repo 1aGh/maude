@@ -50,7 +50,9 @@ export function createPresenterStore() {
       const displays = Array.isArray(list) ? list : [];
       const same =
         displays.length === s.get().displays.length &&
-        displays.every((d, i) => d.id === s.get().displays[i].id && d.current === s.get().displays[i].current);
+        displays.every(
+          (d, i) => d.id === s.get().displays[i].id && d.current === s.get().displays[i].current
+        );
       if (!same) s.set((st) => ({ ...st, displays }));
     },
     pickDisplay(displayId) {

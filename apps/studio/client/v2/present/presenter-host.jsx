@@ -37,7 +37,9 @@ import { PresenterView } from './presenter-view.jsx';
 
 /** What the shell said no to, in the canvas's words. */
 function openFailure(err) {
-  const raw = String(err?.message ?? '').replace(/^not-ready:?\s*/i, '').trim();
+  const raw = String(err?.message ?? '')
+    .replace(/^not-ready:?\s*/i, '')
+    .trim();
   return raw && raw.length <= 140 ? raw : 'Couldn’t open the audience screen.';
 }
 

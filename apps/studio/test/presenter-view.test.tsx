@@ -172,7 +172,11 @@ describe('<PresenterView> now, next, notes, clock, audience, End', () => {
 
   test('an audience screen that would not open says so, with a way to try again', () => {
     const calls = view({
-      audience: { status: 'failed', displayName: 'LG UltraFine', message: 'That display went away.' },
+      audience: {
+        status: 'failed',
+        displayName: 'LG UltraFine',
+        message: 'That display went away.',
+      },
     });
     expect(q('presenter-audience')?.textContent).toContain('That display went away.');
     act(() => q('presenter-audience-retry')?.click());
@@ -275,7 +279,12 @@ describe('<PresenterViewHost>', () => {
       {
         cmd: 'present_audience_open',
         // the display this window is NOT on; the canvas without the design root; the canvas's own session
-        args: { displayId: 'bbbbbbbbbbbbbbbb', canvas: 'ui/campaign.tsx', sid: 'abcd1234', lock: AUDIENCE_LOCK },
+        args: {
+          displayId: 'bbbbbbbbbbbbbbbb',
+          canvas: 'ui/campaign.tsx',
+          sid: 'abcd1234',
+          lock: AUDIENCE_LOCK,
+        },
       },
     ]);
     expect(AUDIENCE_LOCK).toBe(1);
@@ -354,12 +363,18 @@ describe('<PresenterViewHost>', () => {
 
 describe('the audience lock', () => {
   test('the host takes the lock from the follower root, never a literal; only the host calls openAudience', () => {
-    const src = (f: string) => readFileSync(join(import.meta.dir, '..', 'client/v2/present', f), 'utf8');
+    const src = (f: string) =>
+      readFileSync(join(import.meta.dir, '..', 'client/v2/present', f), 'utf8');
     const host = src('presenter-host.jsx');
     expect(host).toMatch(/import \{ AUDIENCE_LOCK \} from '\.\/follow-location\.js'/);
     expect(host).toMatch(/lock: AUDIENCE_LOCK/);
     expect(host).not.toMatch(/lock:\s*\d/);
-    for (const f of ['presenter-view.jsx', 'order-map.jsx', 'presenter-button.jsx', 'presenter-store.js'])
+    for (const f of [
+      'presenter-view.jsx',
+      'order-map.jsx',
+      'presenter-button.jsx',
+      'presenter-store.js',
+    ])
       expect(src(f)).not.toMatch(/openAudience\s*\(/);
   });
 });

@@ -232,57 +232,58 @@ export function ModeSwitch({
           aria-label="Present"
           data-testid="mode-present-list"
         >
-          {(presenterView ? [...PRESENT_ROWS, { sep: true }, PRESENTER_ROW] : PRESENT_ROWS).map((row, i) =>
-            row.sep ? (
-              <hr key="sep" className="st-pm-sep" />
-            ) : row.kind === 'presenter' ? (
-              <div key={row.kind} role="none" className="st-pm-li">
-                <button
-                  type="button"
-                  role="menuitemcheckbox"
-                  aria-checked={!!presenterView?.on}
-                  className="st-pm-row"
-                  data-testid={row.testid}
-                  onClick={() => {
-                    setMenu(false);
-                    onPresenterView?.();
-                  }}
-                >
-                  <span className="st-pm-ic" aria-hidden="true">
-                    {presenterView?.on ? <StIcon name="check" size={13} /> : null}
-                  </span>
-                  <span className="st-pm-lab">{row.label}</span>
-                  <span className="st-mode-menu-note">{presenterView?.name ?? ''}</span>
-                </button>
-              </div>
-            ) : row.group ? (
-              <div key={row.group} className="st-mode-menu-hd" role="presentation">
-                {row.group}
-              </div>
-            ) : (
-              <div key={row.kind} role="none" className="st-pm-li">
-                <button
-                  ref={i === 1 ? firstRowRef : undefined}
-                  type="button"
-                  role="menuitem"
-                  className="st-pm-row"
-                  data-testid={row.testid}
-                  aria-keyshortcuts={row.keys ? ariaKeys(row.keys) : undefined}
-                  onClick={() => {
-                    setMenu(false);
-                    run(row.kind);
-                  }}
-                >
-                  <span className="st-pm-ic" aria-hidden="true" />
-                  <span className="st-pm-lab">
-                    {row.kind === 'selection' && presentFromLabel
-                      ? `Present from “${presentFromLabel}”`
-                      : row.label}
-                  </span>
-                  <span className="st-mode-menu-note">{row.keys ?? row.note}</span>
-                </button>
-              </div>
-            )
+          {(presenterView ? [...PRESENT_ROWS, { sep: true }, PRESENTER_ROW] : PRESENT_ROWS).map(
+            (row, i) =>
+              row.sep ? (
+                <hr key="sep" className="st-pm-sep" />
+              ) : row.kind === 'presenter' ? (
+                <div key={row.kind} role="none" className="st-pm-li">
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={!!presenterView?.on}
+                    className="st-pm-row"
+                    data-testid={row.testid}
+                    onClick={() => {
+                      setMenu(false);
+                      onPresenterView?.();
+                    }}
+                  >
+                    <span className="st-pm-ic" aria-hidden="true">
+                      {presenterView?.on ? <StIcon name="check" size={13} /> : null}
+                    </span>
+                    <span className="st-pm-lab">{row.label}</span>
+                    <span className="st-mode-menu-note">{presenterView?.name ?? ''}</span>
+                  </button>
+                </div>
+              ) : row.group ? (
+                <div key={row.group} className="st-mode-menu-hd" role="presentation">
+                  {row.group}
+                </div>
+              ) : (
+                <div key={row.kind} role="none" className="st-pm-li">
+                  <button
+                    ref={i === 1 ? firstRowRef : undefined}
+                    type="button"
+                    role="menuitem"
+                    className="st-pm-row"
+                    data-testid={row.testid}
+                    aria-keyshortcuts={row.keys ? ariaKeys(row.keys) : undefined}
+                    onClick={() => {
+                      setMenu(false);
+                      run(row.kind);
+                    }}
+                  >
+                    <span className="st-pm-ic" aria-hidden="true" />
+                    <span className="st-pm-lab">
+                      {row.kind === 'selection' && presentFromLabel
+                        ? `Present from “${presentFromLabel}”`
+                        : row.label}
+                    </span>
+                    <span className="st-mode-menu-note">{row.keys ?? row.note}</span>
+                  </button>
+                </div>
+              )
           )}
         </div>
       ) : null}

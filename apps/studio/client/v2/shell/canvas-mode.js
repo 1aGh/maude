@@ -113,7 +113,12 @@ export function createShellMode(caps = ALL_CAPS) {
       )
         return;
       emit({
-        position: { index: pos.index, total: pos.total, artboardId: pos.artboardId, ...(sid ? { sid } : {}) },
+        position: {
+          index: pos.index,
+          total: pos.total,
+          artboardId: pos.artboardId,
+          ...(sid ? { sid } : {}),
+        },
       });
     },
     /** The canvas clamped us (a `mode-changed` with cause `clamp`): adopt it without re-sending. */
@@ -230,19 +235,29 @@ export function createModeLane({ frames, active, flushInsets = () => {} }) {
   };
   return {
     /** A mode transition (or a role change): insets first, then every frame. */
-    broadcast({ mode, caps, tool = null, present = null }) {
+    broadcast({ mode, caps, tool = null, present = null, presenterView = false }) {
       flushInsets();
       const act = active();
       for (const win of frames()) {
         seq += 1;
-        post(win, setModeMessage({ seq, mode, caps, present, tool: win === act ? tool : null }));
+        post(
+          win,
+          setModeMessage({
+            seq,
+            mode,
+            caps,
+            present,
+            presenterView,
+            tool: win === act ? tool : null,
+          })
+        );
       }
     },
     /** Tell ONE frame the current mode (a freshly loaded or newly active canvas). No tool: a seed never
      *  re-arms a tool the canvas already holds. */
-    seed(win, { mode, caps, present = null }) {
+    seed(win, { mode, caps, present = null, presenterView = false }) {
       seq += 1;
-      post(win, setModeMessage({ seq, mode, caps, present, tool: null }));
+      post(win, setModeMessage({ seq, mode, caps, present, presenterView, tool: null }));
     },
     /** Present · Artboards: step the active canvas (shell controls, presenter view — S3.2b). */
     step(win, to) {
