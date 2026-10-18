@@ -147,6 +147,12 @@
           attempt += 1;
           invoke('resolve_dev_server_url').then(
             function (answer) {
+              // S1.19: this tab's folder is gone (moved or renamed) — the card says so.
+              if (answer && typeof answer === 'object' && answer.missing) {
+                inFlight = false;
+                window.location.replace('root-missing.html');
+                return;
+              }
               if (answer && typeof answer === 'object' && answer.resting) {
                 inFlight = false;
                 showResting(String(answer.name || ''));

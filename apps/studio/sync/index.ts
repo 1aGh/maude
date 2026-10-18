@@ -580,6 +580,16 @@ export interface SyncRuntime {
     opts?: { baseText?: string; writeId?: string; stageable?: boolean }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
+   * S4.7 — several lanes of one synced canvas as ONE proposal (a sticky ↔
+   * comment conversion). `null` when the project is not in accepted mode or
+   * this runtime does not carry the canvas.
+   */
+  proposeLanes?(
+    slug: string,
+    lanes: Array<{ lane: 'comments' | 'annotations' | 'meta'; text: string; baseText: string }>,
+    opts: { kind: string; label: string; writeId?: string }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string }> | null;
+  /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
    * when the project is not in that mode; otherwise the (possibly queued)
    * outcome. Canvases inside are moved/deleted by the hub, not one by one.
@@ -628,6 +638,8 @@ export interface SyncRuntime {
     /** S1.13 — the body a `history.aside` at exactly `revision` kept for that lane. */
     o?: { aside?: boolean }
   ): Promise<string | null>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
+  acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
   /**
    * S1.12b — name a version of a canvas (`history.name`, V2-1.9 §5.4): the kernel snaps
    * `revision` to the newest one at or before it that changed the canvas; `null` clears.
@@ -710,9 +722,17 @@ export interface SyncRuntime {
     key: string,
     outcome: 'done' | 'failed' | 'stopped',
     o?: { fence?: RunFence }
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    actionId?: string;
+    /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+    touched?: Record<string, string[]>;
+  } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+  acceptedCanvas?(repoRel: string): string | null;
   /**
    * T19 — make the whole project available offline now: file-plane passes
    * back to back (no pacing floor) until nothing is left to pull, or a pass
@@ -744,6 +764,8 @@ export interface SyncRuntime {
     status: 'accepted' | 'rejected' | 'discarded';
     code?: string;
     canvases?: number;
+    actionId?: string;
+    touched?: Record<string, string[]>;
   } | null>;
 }
 
@@ -5594,6 +5616,26 @@ export function createSyncRuntime(
         ...(o?.stageable === true ? { stageable: true } : {}),
       });
     },
+    proposeLanes: (slug, lanes, o) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      if (!projections.has(slug)) return null;
+      const out: Array<{
+        lane: 'comments' | 'annotations' | 'meta';
+        content: string;
+        baseContent: string;
+      }> = [];
+      for (const l of lanes) {
+        const content = laneValueFromFile(l.lane, l.text);
+        const baseContent = laneValueFromFile(l.lane, l.baseText);
+        if (content === null || baseContent === null) return null;
+        out.push({ lane: l.lane, content, baseContent });
+      }
+      return acceptedLink.lanesEdit(slug, out, o).then((r) => ({
+        status: r.status,
+        ...(r.code ? { code: r.code } : {}),
+        ...(r.actionId ? { actionId: r.actionId } : {}),
+      }));
+    },
     proposeFolder,
     acceptedMode: acceptedOn,
     commentsConfirmedOnHub: (slug) => {
@@ -5671,6 +5713,15 @@ export function createSyncRuntime(
       if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
       if (!hubOffers('history.aside')) return { status: 'rejected', code: 'hub-too-old' };
       return acceptedLink.aside(slug, lane, content, label);
+    },
+    // S1.18 — a stable link's entry → path, over a FRESH manifest (a canvas moved since the last
+    // bootstrap must resolve to where it is now). No cleared set here: history/links.ts reads a
+    // retired entry with no live document as trashed.
+    acceptedLinkDocs: async () => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const manifest = (await acceptedLink.refresh().catch(() => null)) ?? acceptedLink.manifest;
+      if (!manifest) return null;
+      return manifest.docs.map((d) => ({ entry: d.entry, path: d.path, retired: !!d.retired }));
     },
     acceptedVersion: async (repoRel, revision, lane = 'html', o) => {
       if (!acceptedOn() || !acceptedLink) return null;
@@ -5811,12 +5862,14 @@ export function createSyncRuntime(
       // returns; let it land in the stage before the stage closes.
       await new Promise((r) => setTimeout(r, AI_ACTION_SETTLE_MS));
       await (discoveryRescan?.flush() ?? Promise.resolve()).catch(() => {});
+      const touched = acceptedLink.stage.summaryOf(key)?.touched;
       const r = await acceptedLink.stage.end(key, outcome, o);
       return r
         ? {
             status: r.status,
             ...(r.code ? { code: r.code } : {}),
             ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+            ...(touched && Object.keys(touched).length ? { touched } : {}),
           }
         : null;
     },
@@ -5824,14 +5877,32 @@ export function createSyncRuntime(
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
     },
+    // S5.11b — Run on a copy builds the copy from this, never from a busy run's staged bytes
+    acceptedCanvas: (repoRel) => {
+      const slug = slugForRepoRel(repoRel);
+      return slug && acceptedLink ? acceptedLink.stage.accepted(slug, 'html') : null;
+    },
     resolveAiAction: async (choice, runId) => {
       if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;
       if (choice === 'discard') {
         const canvases = acceptedLink.stage.discard(runId);
         return { status: 'discarded', canvases };
       }
+      // S5.5b — the touched artboards of what Keep publishes, for `project:action`.
+      const touched: Record<string, string[]> = {};
+      for (const run of acceptedLink.stage.runs())
+        if (run.state === 'held' && (!runId || run.runId === runId))
+          for (const [c, ids] of Object.entries(run.touched))
+            touched[c] = [...new Set([...(touched[c] ?? []), ...ids])].sort();
       const r = await acceptedLink.stage.publish(runId);
-      return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
+      return r
+        ? {
+            status: r.status,
+            ...(r.code ? { code: r.code } : {}),
+            ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+            ...(Object.keys(touched).length ? { touched } : {}),
+          }
+        : null;
     },
   };
 }

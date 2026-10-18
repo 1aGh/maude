@@ -126,3 +126,38 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
     b.off('update', bToA);
   };
 }
+
+/**
+ * Awareness fields a connection may publish only while holding a capability (V2-1.7 §5.5,
+ * S9 Q9): `summon` (Bring everyone here) needs `summon` — owner and member. The hub strips
+ * it in `beforeHandleAwareness`; the studio room strips the same field here.
+ */
+export const CAPABILITY_FIELDS: Readonly<Record<string, string>> = Object.freeze({
+  summon: 'summon',
+});
+
+/**
+ * Drop every capability field `held` lacks from the states `clients` published, IN PLACE,
+ * before the room re-encodes them for its peers (and before `bridgeAwareness` relays them
+ * to the hub — the room's own listener is registered first, so it runs first). Returns how
+ * many fields were dropped.
+ */
+export function stripUnheldFields(
+  awareness: Awareness,
+  clients: readonly number[],
+  held: (capability: string) => boolean
+): number {
+  let dropped = 0;
+  const states = awareness.getStates();
+  for (const id of clients) {
+    const state = states.get(id) as Record<string, unknown> | undefined;
+    if (!state || typeof state !== 'object') continue;
+    for (const [field, cap] of Object.entries(CAPABILITY_FIELDS)) {
+      if (field in state && !held(cap)) {
+        delete state[field];
+        dropped++;
+      }
+    }
+  }
+  return dropped;
+}

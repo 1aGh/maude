@@ -51,6 +51,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { contentAddressedAsset, isAssetCreate } from '../../studio/access/scope.ts';
 import { fileAccessFor, NOT_IN_SCOPE_REFUSAL } from './access-files.mjs';
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
@@ -296,8 +297,13 @@ function authorize(ctx) {
   return { match, access };
 }
 
-/** Admission for a path — the file door's rules, judged on the landing path. */
-function admit(ctx, match, rel, access) {
+/**
+ * Admission for a path — the file door's rules, judged on the landing path.
+ * `sha256` is the session's declared hash: a canvas-only session's new asset
+ * must be named by it (`assets/<sha8>.<ext>`); completion checks the assembled
+ * bytes against that same hash.
+ */
+function admit(ctx, match, rel, access, sha256 = null) {
   const target = resolveCheckoutFileWrite(ctx.designRoot, rel);
   // U1 for a canvas-only session: the class half of admission reads the
   // checkout, so a 400 would tell it which other canvases exist.
@@ -311,7 +317,10 @@ function admit(ctx, match, rel, access) {
     const exists =
       existsSync(target.abs) ||
       (ctx.journal ? currentHashFor(ctx.journal, landing) !== null : false);
-    if (!access.writes(landing, { exists })) {
+    if (
+      !access.writes(landing, { exists }) ||
+      (isAssetCreate(landing, { exists }) && !contentAddressedAsset(landing, sha256 ?? ''))
+    ) {
       return { status: 403, body: { ...NOT_IN_SCOPE_REFUSAL } };
     }
   } else if (!matchesScope(match.scope, landing)) {
@@ -382,7 +391,7 @@ export async function handleUploadSessions(ctx) {
       });
       return true;
     }
-    const ad = admit(ctx, match, rel, access);
+    const ad = admit(ctx, match, rel, access, sha256);
     if (!ad.landing) {
       respondJson(response, ad.status, ad.body ?? { error: ad.error });
       return true;
@@ -553,7 +562,7 @@ export async function handleUploadSessions(ctx) {
         }
       }
     }
-    const ad = admit(ctx, match, s.path, access);
+    const ad = admit(ctx, match, s.path, access, s.sha256);
     if (!ad.landing) {
       respondJson(response, ad.status, ad.body ?? { error: ad.error });
       return true;

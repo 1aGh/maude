@@ -408,9 +408,9 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Show it in the user's Maude window. Exit 3 when no window shows this project.
   history list|show|diff [<canvas>] [--json]
         This project's versions (a synced project's, or its git log). Read-only.
-  history restore <canvas> <ref> · history undo --action <id> [--redo]
+  history restore <canvas> <ref> · history undo --action <id> | --chat <id> [--redo]
   history name <canvas> <ref> "<name>" | --clear
-        Restore a canvas / undo an action, each as a NEW version; name a version (synced projects). Asks first.
+        Restore a canvas / undo an action or a whole AI chat, each as ONE new version; name a version (synced projects). Asks first.
   history restore <canvas> <ref> --artboard <id> | --element <artboard>/<id> · history restore <canvas> @last-good
         Put back only one artboard or object, or the last version that drew without an error.
   trash list [--json] · trash restore <id | canvas path>

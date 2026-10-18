@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b03b02e2be1f",
+  "manifestVersion": "1ade062db596",
   "actions": [
     {
       "id": "search.open",
@@ -1012,6 +1012,30 @@
       }
     },
     {
+      "id": "present.presenter-view",
+      "label": "Presenter view on another display",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "needs a person and a second display"
+      }
+    },
+    {
+      "id": "present.copy-link",
+      "label": "Copy presentation link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
+      },
+      "minRole": "edit"
+    },
+    {
       "id": "settings.theme",
       "label": "Theme",
       "kind": "toggle",
@@ -1208,7 +1232,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design comments list"
+        "verb": "maude design comments add --as-ai"
       }
     },
     {
@@ -1539,7 +1563,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design comments list"
+        "verb": "maude design comments add --as-ai"
       }
     },
     {
@@ -2472,6 +2496,18 @@
       "minRole": "edit"
     },
     {
+      "id": "chat.undo",
+      "label": "Undo this chat",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history undo --chat <id>"
+      }
+    },
+    {
       "id": "chat.copy-transcript",
       "label": "Copy transcript",
       "kind": "command",
@@ -2566,6 +2602,54 @@
       "kind": "command",
       "exec": "shell",
       "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-files",
+      "label": "Attach files…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-folder",
+      "label": "Choose a folder…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-assets",
+      "label": "From Assets",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.attach-screenshot",
+      "label": "Paste a screenshot",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
       "agent": {
         "path": "human",
         "because": "ai-chat"
@@ -3111,6 +3195,30 @@
     },
     {
       "scope": "design",
+      "verb": "design comments reply",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments resolve",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments reopen",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design comments add",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
       "verb": "design comments",
       "effect": "shared",
       "tier": "prompt"
@@ -3320,6 +3428,14 @@
       "id": "https://maude.sh/schema/canvas-meta/v2",
       "source": "hand",
       "skill": "design:design#_guide-17"
+    },
+    {
+      "format": "comments",
+      "schema": "apps/studio/schema/comments.v2.schema.json",
+      "id": "https://maude.sh/schema/comments/v2",
+      "source": "hand",
+      "skill": "design:design#_guide-05",
+      "runtime": true
     },
     {
       "format": "edl",

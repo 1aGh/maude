@@ -216,6 +216,11 @@ export interface CanvasToShell {
   'viewport-zoom': { zoom: number };
   // S3.7a — `sid` / `seq` (S3-present-session §3): the presenting session, and its step count.
   'present-position': { index: number; total: number; artboardId: Id; sid?: string; seq?: number };
+  // S3.6b — the Present run's artboards with their world rects and labels, in canvas order: the presenter
+  // view's order map (the live layout exists only in the canvas). Untrusted: labels render as text only.
+  'present-run': {
+    artboards: Array<{ id: Id; label: string; x: number; y: number; w: number; h: number }>;
+  };
   // S3.7a — a follower canvas tells its follower page (client/v2/present/follow-view.jsx) what it shows.
   // Untrusted: `presenterName` is rendered as text only and re-clamped by the page.
   'present-follow-state': {
@@ -504,6 +509,18 @@ const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
 const presenterName: V = (v) => (typeof v === 'string' && v.length <= PRESENT_NAME_MAX ? v : BAD);
 const insets: V = (v) => clampInsets(v) ?? BAD;
+/** S3.6b — `present-run`: at most this many artboards (the follow fields' 0..2000 index range). */
+export const PRESENT_RUN_MAX = 2000;
+const presentRunCell = shape({
+  id: shortStr(200),
+  label: shortStr(200),
+  x: num,
+  y: num,
+  w: num,
+  h: num,
+});
+const presentRunList: V = (v) =>
+  Array.isArray(v) && v.length <= PRESENT_RUN_MAX ? arrOf(presentRunCell)(v) : BAD;
 /** `peers` (V2-4.3b): a planted or oversized list is REJECTED whole, never trimmed. */
 export const PEERS_MAX = 32;
 export const PEER_NAME_MAX = 64;
@@ -915,6 +932,17 @@ const c2s: C2S = {
       artboardId: str,
       sid: opt(sid),
       seq: opt(intIn(0, 2 ** 31 - 1)),
+    }),
+  },
+  // S3.6b — the Present stage (present-stage.tsx `reportPresentRun`) → the presenter view's order map
+  // (client/v2/present/presenter-host.jsx through use-canvas-mode-lane). A planted or oversized list is
+  // refused whole.
+  'present-run': {
+    gate: 'active',
+    status: 'live',
+    owner: 'present/present-stage.tsx (S3.6b)',
+    parse: p({
+      artboards: presentRunList,
     }),
   },
   // S3.7a — the follower canvas (present-stage.tsx `usePresentFollow`) → its follower page.

@@ -16,6 +16,7 @@
 //
 // No Node, Bun or Worker globals. No I/O but `sql`.
 
+import { createVotesCore, VOTES_DDL } from '../votes.mjs';
 import { createRunsCore, RUNS_DDL } from './runs-core.mjs';
 
 export const STORE_SCHEMA_VERSION = 1;
@@ -101,6 +102,8 @@ const DDL = [
      entry TEXT NOT NULL, artboard TEXT NOT NULL, rev INTEGER NOT NULL, by TEXT NOT NULL,
      at INTEGER NOT NULL, cleared_rev INTEGER NOT NULL, PRIMARY KEY (entry, artboard, rev))`,
   `CREATE INDEX IF NOT EXISTS actions_kind ON actions(kind)`,
+  // Gate 0 A18 (S4.6) — formal votes and hub-held ballots (additive, as runs).
+  ...VOTES_DDL,
 ];
 
 function one(rows) {
@@ -149,7 +152,10 @@ export const IDENTITY_CODEC = Object.freeze({ encode: (text) => text, decode: (s
 /** Meta flag: the additive `run_id` / `chat_id` action columns exist (S5.1a). */
 const RUN_CHAT_COLUMNS = 'actionsRunChat';
 
-export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_CODEC } = {}) {
+export function createStoreCore(
+  sql,
+  { now = () => Date.now(), codec = IDENTITY_CODEC, onBallotsDeleted = null } = {}
+) {
   const encode = (text) => codec.encode(text);
   const decode = (stored) => codec.decode(stored);
   function meta(k, fallback = null) {
@@ -165,6 +171,7 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
   }
 
   const runs = createRunsCore(sql, { now, meta, setMeta });
+  const votes = createVotesCore(sql, { now, onBallotsDeleted });
 
   function migrate() {
     sql.transaction(() => {
@@ -815,5 +822,10 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
     runsRenew: runs.runsRenew,
     runsEnd: runs.runsEnd,
     runsList: runs.runsList,
+    votesStart: votes.votesStart,
+    votesCast: votes.votesCast,
+    votesEnd: votes.votesEnd,
+    votesGet: votes.votesGet,
+    votesList: votes.votesList,
   };
 }
