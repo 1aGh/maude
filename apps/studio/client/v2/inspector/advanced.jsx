@@ -3,18 +3,18 @@
 // Closed, the inspector speaks designer. Open, it adds what the code says: the selector, the element id,
 // the tokens the element uses, Copy CSS, the facts the old Inspect tab showed — and UNDER them the v1 raw
 // editor exactly as it was (CssKnobs in its Advanced vocabulary: ~33 properties, custom CSS property rows,
-// HTML attribute rows, the grid tracks editor, the token popover). An artboard keeps its own editor
-// (ArtboardKnobs). Nothing is retyped here: when a control has no designer home yet it is still here.
+// HTML attribute rows, the grid tracks editor, the token popover). An artboard has its own sections
+// (kinds/artboard.jsx, S2.8) and only its Theme here. Nothing is retyped here: when a control has no designer home yet it is still here.
 //
 // The Designer/Advanced vocabulary switch is gone (rule 13): the frame is the designer vocabulary, this
 // fold is the raw one; the switch "became this fold" (06 Advanced, ad-inspector).
 
 import { useEffect, useRef, useState } from 'react';
-import { ArtboardKnobs } from '../../inspector/artboard-knobs.jsx';
 import { CssKnobs } from '../../inspector/css-knobs.jsx';
 import { InspectComputed } from '../../inspector/inspect-computed.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import { useFold } from '../fold/use-fold.js';
+import { ArtboardAdvanced } from './kinds/artboard-advanced.jsx';
 import { isArtboardSelection } from './kinds/index.js';
 import {
   COMPUTED_ID_RE,
@@ -241,7 +241,7 @@ export function InspectorAdvanced({
   return (
     <AdvancedFold panel="inspector" hint={hint} open={open} onToggle={onToggle}>
       {isArtboard ? (
-        <ArtboardKnobs el={el} cfg={cfg} {...artboard} />
+        <ArtboardAdvanced el={el} ctx={{ cfg, canvasFile, artboard }} />
       ) : (
         <div className="insp-adv">
           {many ? null : (

@@ -475,10 +475,27 @@ export type ReorderRevertResult =
 
 /** S4.7 — one lane of a two-lane action, as file text (the runtime canonicalizes). */
 export interface LaneChange {
-  lane: 'annotations' | 'comments';
+  /** S2.9b adds `meta`: an artboard move and its annotation riders (one action). */
+  lane: 'annotations' | 'comments' | 'meta';
   text: string;
   baseText: string;
 }
+
+/** S2.9b — the `annotations` rider of an artboard move (routes/canvas-meta-rider.ts). */
+export interface RiderMove {
+  ops: readonly AnnotationOp[];
+  /** The bus's `undoGroup`: the write id the layout and its riders share. */
+  actionId: string;
+  /** The move-delta rule over the board and the layout the meta holds now; a refusal writes nothing. */
+  check(
+    board: readonly AnnotationElement[],
+    layoutBefore: unknown
+  ): { status: number; body: Record<string, unknown> } | null;
+}
+
+export type RiderMoveResult =
+  | { ok: true; meta: Record<string, unknown>; actionId?: string; queued?: boolean }
+  | { ok: false; status: number; body: Record<string, unknown> };
 
 export interface LanesOutcome {
   status: 'accepted' | 'rejected';
@@ -601,6 +618,13 @@ export interface Api {
   ): Promise<ConvertResult<T>>;
   /** S4.7 — the no-home undo of a conversion (refused `stale` once a lane moved on). */
   restoreConversion(s: ConvertSnapshot): Promise<{ ok: boolean; reason?: string }>;
+  /** S2.9b — an artboard move + its annotation riders as ONE project action. */
+  moveArtboardsWithRider(
+    file: string,
+    layout: unknown,
+    rider: RiderMove,
+    proposer: LanesProposer | null
+  ): Promise<RiderMoveResult>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -2637,6 +2661,98 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ...(a.status === 'accepted' && a.actionId ? { actionId: a.actionId } : {}),
     ...(a.queued ? { queued: true } : {}),
   });
+
+  /**
+   * S2.9b — an artboard move and the annotations riding with it as ONE project
+   * action (contract S2-S4-artboard-motion-ids §2): the layout lane of the
+   * versioned `.meta.json` and the board, then one `proposer.send` with both
+   * lanes. Same three homes as `convertLanes`: accepted mode decides first and
+   * writes raw (no per-lane hooks, which would propose each lane on its own); the
+   * local home and no home take the ordinary write paths, the local home then
+   * records both lanes as one action. `rider.check` refuses before anything is
+   * written; a rejected op (gone / stale) refuses the whole move.
+   */
+  async function moveArtboardsWithRider(
+    file: string,
+    layout: unknown,
+    rider: RiderMove,
+    proposer: LanesProposer | null
+  ): Promise<RiderMoveResult> {
+    const metaAbs = canvasMetaPath(file);
+    const srcAbs = canvasSourceAbs(file);
+    if (!metaAbs || !srcAbs || !(await Bun.file(srcAbs).exists()))
+      return { ok: false, status: 404, body: { ok: false, reason: 'not-found' } };
+    const raw = layout as Record<string, unknown> | null;
+    const artboards =
+      raw && typeof raw === 'object' && !Array.isArray(raw) && 'artboards' in raw
+        ? normalizeLayoutArtboards(raw.artboards)
+        : null;
+    if (!raw || !artboards)
+      return { ok: false, status: 400, body: { ok: false, reason: 'layout.artboards required' } };
+    return onAnnotationChain(file, async (): Promise<RiderMoveResult> => {
+      let currentText: string | null = null;
+      let current: Record<string, unknown> = {};
+      try {
+        currentText = await Bun.file(metaAbs).text();
+        const parsed = JSON.parse(currentText);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+          current = parsed as Record<string, unknown>;
+      } catch {
+        currentText = null;
+      }
+      const read = await readBoard(file);
+      if (!read.ok) return { ok: false, status: 409, body: { ok: false, reason: 'unreadable' } };
+      const elements = read.text ? parseBoard(read.text).elements : [];
+      const boardBefore = read.text ?? '';
+      const refused = rider.check(elements, current.layout);
+      if (refused) return { ok: false, ...refused };
+      const r = applyAnnotationOpsPure(new Map(elements.map((e) => [e.id, e])), rider.ops);
+      if (r.rejected.length)
+        return { ok: false, status: 409, body: { ok: false, reason: 'stale' } };
+      const boardAfter = r.touched.size ? serializeBoard([...r.state.values()]) : boardBefore;
+      if (boardAfter.length > MAX_ANNOTATIONS_BYTES)
+        return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+      const next: Record<string, unknown> = { ...current, layout: { ...raw, artboards } };
+      next.viewport = undefined;
+      next.last_modified = new Date().toISOString();
+      const nextText = `${JSON.stringify(next, null, 2)}\n`;
+      const metaRel = path.relative(paths.designRoot, metaAbs);
+      const lanes: LaneChange[] = [
+        { lane: 'meta', text: nextText, baseText: currentText ?? '{}' },
+        ...(boardAfter !== boardBefore
+          ? [{ lane: 'annotations' as const, text: boardAfter, baseText: boardBefore }]
+          : []),
+      ];
+      if (proposer?.accepted) {
+        const answer = await proposer.send(lanes);
+        if (answer.status !== 'accepted')
+          return { ok: false, status: 409, body: { ok: false, reason: answer.code ?? 'rejected' } };
+        await Bun.write(metaAbs, nextText);
+        announceWritten(metaRel);
+        if (boardAfter !== boardBefore) await writeBoardFile(file, boardAfter);
+        return { ok: true, meta: (await loadCanvasMeta(file)) ?? {}, ...actionOf(answer) };
+      }
+      if (boardAfter !== boardBefore) {
+        const live = hooks.applyAnnotationOpsLive?.(file, rider.ops, rider.actionId) ?? null;
+        if (live === 'too-large')
+          return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
+        if (!live) {
+          await writeBoardFile(file, boardAfter);
+          onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore);
+        }
+      }
+      await Bun.write(metaAbs, nextText);
+      hooks.onMetaChanged?.(
+        file,
+        nextText,
+        Object.keys(current).length ? JSON.stringify(current) : null
+      );
+      announceWritten(metaRel);
+      const meta = (await loadCanvasMeta(file)) ?? {};
+      if (!proposer) return { ok: true, meta };
+      return { ok: true, meta, ...actionOf(await proposer.send(lanes)) };
+    });
+  }
 
   /**
    * S4.7 — put a conversion's two lanes back as they were (the no-home undo
@@ -7492,6 +7608,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     applyAnnotationOps,
     projectAnnotations,
     convertLanes,
+    moveArtboardsWithRider,
     restoreConversion,
     saveAsset,
     listAssets,

@@ -91,7 +91,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/canvas-meta': {
     class: 'lane',
     rows: 'S19',
-    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base; camera/overlays/locked stay local',
+    // S2.9b — a PATCH with an `annotations` rider is ONE action: proposeLanes, meta + annotations.
+    via: 'onMetaChanged hook → meta lane.replace with the replaced file as base; camera/overlays/locked stay local; with an annotations rider → proposeLanes, meta + annotations as one action',
     test: 'test/sync-accepted-runtime.test.ts',
   },
   '/_api/annotations': {

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "204fb6c9df58",
+  "manifestVersion": "75412133e673",
   "actions": [
     {
       "id": "search.open",
@@ -644,6 +644,123 @@
       }
     },
     {
+      "id": "align.left",
+      "label": "Align left",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same left (the leftmost one’s); for artboards set the same x in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.hcentre",
+      "label": "Align horizontal centres",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s horizontal extent (left = middle − width/2); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.right",
+      "label": "Align right",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same right edge (left = rightmost edge − width); artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "align.top",
+      "label": "Align top",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same top (the highest one’s); artboards: y in .meta.json layout.artboards"
+      }
+    },
+    {
+      "id": "align.vmiddle",
+      "label": "Align vertical middles",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Centre every selected element on the middle of the selection’s vertical extent (top = middle − height/2); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "align.bottom",
+      "label": "Align bottom",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Give every selected element the same bottom edge (top = lowest edge − height); artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.h",
+      "label": "Distribute horizontally",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the leftmost and rightmost element; set left on those between so the gaps are equal; artboards: x in .meta.json"
+      }
+    },
+    {
+      "id": "distribute.v",
+      "label": "Distribute vertically",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Keep the top and bottom element; set top on those between so the gaps are equal; artboards: y in .meta.json"
+      }
+    },
+    {
+      "id": "object.rotate",
+      "label": "Rotate 90°",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set rotate(<deg>) in the element’s style.transform, keeping any other transform functions"
+      }
+    },
+    {
       "id": "inspector.copy-css",
       "label": "Copy CSS",
       "kind": "command",
@@ -680,6 +797,108 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Change the data-cd-id literal on the element and every place that refers to it; ids stay unique and kebab-case"
+      }
+    },
+    {
+      "id": "artboard.resize",
+      "label": "Resize artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the DCArtboard’s width and height props (64–8192); add the bare `fixed` prop to make the height exact. Its position is layout.artboards[] in the .meta.json, not a prop"
+      }
+    },
+    {
+      "id": "artboard.add-width",
+      "label": "Add a width",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX beside it with a new id, a label that names the width, and that width prop; add its layout.artboards[] position in the .meta.json"
+      }
+    },
+    {
+      "id": "artboard.tidy",
+      "label": "Tidy up artboards",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Sort the selected artboards left to right by x; give them all the largest y; keep the first x and set each next x = previous x + width + gap (gap = the mean of today’s edge-to-edge gaps, 80 when boards overlap), in layout.artboards[] of the .meta.json — see canvas-tsx.md § Tidy up artboards"
+      }
+    },
+    {
+      "id": "artboard.duplicate",
+      "label": "Duplicate artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop → desktop-2), a new label (Desktop → Desktop 2) and no data-cd-id or data-cd-locked inside; put it at the source’s right edge + the row’s gap in layout.artboards[] of the .meta.json — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.duplicate-at-width",
+      "label": "Duplicate at another width",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the DCArtboard’s JSX right after it with a new id (desktop-390), the label “<label> (390px)”, that width prop and no data-cd-id or data-cd-locked inside; add its layout.artboards[] position beside the source — see canvas-tsx.md § Duplicate an artboard"
+      }
+    },
+    {
+      "id": "artboard.rename",
+      "label": "Rename artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Set the DCArtboard’s label prop (up to 80 characters; accents are kept)"
+      }
+    },
+    {
+      "id": "artboard.reset-position",
+      "label": "Reset artboard position",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Remove the artboard’s entry from layout.artboards[] in the .meta.json; it returns to its default-grid slot"
+      }
+    },
+    {
+      "id": "artboard.ask-ai",
+      "label": "Ask AI about this artboard",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
       }
     },
     {
