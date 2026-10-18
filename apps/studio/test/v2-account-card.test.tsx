@@ -108,6 +108,18 @@ describe('accountCard — the words', () => {
       },
     ]);
   });
+  // S1.22c: `accounts_list` (S1.22b option B) names only the caller's own projects; every other
+  // account arrives as a label and a COUNT — `projects: 3`, never a name list.
+  test('another account with a numeric project count reads "N projects"', () => {
+    const accounts = [
+      { id: 'work', label: 'Work', email, projects: ['Alligators brand'] },
+      { id: 'personal', label: 'Personal', projects: 3 },
+      { id: 'side', label: 'Side', projects: 1 },
+      { id: 'empty', label: 'Empty', projects: 0 },
+    ];
+    const c = accountCard({ project: 'Alligators brand', profile: work, email, accounts });
+    expect(c.others.map((o) => o.sub)).toEqual(['3 projects', '1 project', '0 projects']);
+  });
   test('the confirm asks with the verb its button carries (CONTRACT §4)', () => {
     const c = accountCard({ project: 'P', profile: work, email });
     expect(c.signOut.confirm).toEqual({
