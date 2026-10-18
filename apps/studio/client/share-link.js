@@ -1,3 +1,5 @@
+import { parseCanvasLink } from './v2/canvases/open-link.js';
+
 // Shell addresses use the same design-root-relative file identity as canvas URLs.
 // RETURN_RULES twin: apps/hub/src/return-to.mjs; native: project_resolve.rs.
 const PROJECT_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
@@ -148,5 +150,8 @@ export function parseMaudeLink(url) {
   const connect = parseDeepLink(url);
   if (connect) return { ...connect, kind: 'connect' };
   const file = parseFileDeepLink(url);
-  return file ? { ...file, kind: 'file' } : null;
+  if (file) return { ...file, kind: 'file' };
+  // S1.18 — a stable canvas link (entry ids only; v2/canvases/open-link.js).
+  const canvas = parseCanvasLink(url);
+  return canvas ? { ...canvas, kind: 'canvas' } : null;
 }
