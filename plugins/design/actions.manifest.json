@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9ea92eb9a01f",
+  "manifestVersion": "74833dc5ecc2",
   "actions": [
     {
       "id": "search.open",
@@ -1710,6 +1710,94 @@
         "format": "annotations",
         "skill": "design:whiteboard",
         "how": "Remove the elements from the board file"
+      }
+    },
+    {
+      "id": "annotation.template-kanban",
+      "label": "Kanban template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board kanban"
+      }
+    },
+    {
+      "id": "annotation.template-retro",
+      "label": "Retro template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board retro"
+      }
+    },
+    {
+      "id": "annotation.template-flow",
+      "label": "Flowchart template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board flow"
+      }
+    },
+    {
+      "id": "annotation.template-calendar",
+      "label": "Content calendar template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board calendar"
+      }
+    },
+    {
+      "id": "annotation.template-roadmap",
+      "label": "Roadmap template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board roadmap"
+      }
+    },
+    {
+      "id": "annotation.template-brainstorm",
+      "label": "Brainstorm template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board brainstorm"
+      }
+    },
+    {
+      "id": "annotation.template-checklist",
+      "label": "Checklist template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board checklist"
+      }
+    },
+    {
+      "id": "annotation.template-blank",
+      "label": "Blank section template",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design annotate <canvas> --board blank"
       }
     },
     {

@@ -13,6 +13,7 @@
 // Kept beside the registry (keyed by id) rather than on each ActionDef: 115 definitions across 12
 // files, three of them factories. The manifest is the merged view either way.
 
+import { TEMPLATES } from '../annotations/templates.ts';
 import type { ActionDefAI, ActionId, AgentPath, HumanReason } from './types.ts';
 
 const file = (
@@ -180,6 +181,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),
   'tool.stickers': BOARD('Add a sticker element to the canvas’s .annotations.json'),
+  // S4.4: a template is a --board spec; the verb is the agent's door to the same expansion
+  ...Object.fromEntries(
+    TEMPLATES.map((t) => [
+      `annotation.template-${t.id}`,
+      {
+        effect: 'project',
+        agent: cli(`maude design annotate <canvas> --board ${t.id}`),
+      } satisfies ActionDefAI,
+    ])
+  ),
   'mode.preview': NAV('<canvas> --mode preview'),
   // ── ui / timeline ──
   'ui.step-back': PREF('the user’s navigation history'),
