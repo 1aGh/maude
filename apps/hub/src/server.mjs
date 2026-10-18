@@ -66,6 +66,7 @@ import {
   peerAccess,
   stripSummon,
 } from './access-docs.mjs';
+import { createPokeVisibility } from './access-files.mjs';
 import { claimForMatch } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
@@ -1513,12 +1514,12 @@ export function createHub(config = {}) {
           matchesScope,
           deleteDocument: (name) => {
             deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
-            documentEvents.changed();
+            documentEvents.changed({ documentName: name });
           },
           reviveDocument: (name) => {
             try {
               clearTombstone(dataDir, name);
-              documentEvents.changed();
+              documentEvents.changed({ documentName: name });
             } catch {
               /* an unwritable store degrades to today's behaviour */
             }
@@ -2107,8 +2108,15 @@ export function createHub(config = {}) {
   // says so loudly if it can find neither; passing the wrong one used to be a
   // silent no-op, because "no document" is also what an unattached project
   // legitimately looks like. See `documentMap` in files-ctl.mjs.
-  const filesPoke = createFilesPoke({ instance: server });
-  const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
+  // V2-1.16 L3 (S9.4): a canvas-only ctl connection is told only what it sees.
+  const pokeVisibility = createPokeVisibility({ designRoot: journalDesignRoot, journal });
+  const filesPoke = createFilesPoke({ instance: server, visibility: pokeVisibility });
+  const documentsPoke = createFilesPoke({
+    instance: server,
+    documentsOnly: true,
+    coalesceMs: 50,
+    visibility: pokeVisibility,
+  });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
   // Keeps an idle peer's sockets — control AND canvas — from recycling every
   // ~33 s (and re-running discovery each time). See `createSocketKeepalive`.
@@ -2258,7 +2266,13 @@ export function createHub(config = {}) {
         /* the revived document is recreated either way */
       }
     },
-    onAccepted: () => documentEvents.changed(),
+    // Each accepted document named, so the poke can be scoped (L3); a
+    // structure-only action (dirs) names none and reaches project sessions.
+    onAccepted: ({ changes } = {}) => {
+      const names = (changes ?? []).map((ch) => ch?.doc).filter((d) => typeof d === 'string');
+      if (names.length === 0) documentEvents.changed();
+      for (const documentName of names) documentEvents.changed({ documentName });
+    },
     // Baseline import (T30): the storage listing, the project's deletions,
     // and — in workspace mode — the checkout as the path/folder authority.
     listDocuments: () => listCanvases(sqlitePath, peers),
