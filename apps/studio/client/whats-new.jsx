@@ -10,9 +10,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { dismissNotice, notify } from '../notifications.tsx';
-import { bestSeenVersion, computeUnseen } from './whats-new-seen.js';
+import {
+  bestSeenVersion,
+  computeUnseen,
+  LEGACY_SEEN_KEY,
+  resolveSeen,
+  SEEN_PREF,
+} from './whats-new-seen.js';
 
-const WN_SEEN = 'mdcc-whatsnew-seen';
+// S6.6 / Q11: the seen mark of record is ui-prefs `whatsNewSeen` (one per Mac, shared with Home);
+// the per-origin key is still written for a 1.x build on this origin and seeds the first migration.
+const WN_SEEN = LEGACY_SEEN_KEY;
 const WN_TOAST = 'mdcc-whatsnew-toast-dismissed';
 
 // learnMore renders as <a href> in the privileged main origin. Only bind an
@@ -22,16 +30,50 @@ function isSafeHref(url) {
   return typeof url === 'string' && /^https?:\/\//i.test(url);
 }
 
-function readSeen(currentVersion) {
+function readLegacySeen() {
   try {
-    const v = localStorage.getItem(WN_SEEN);
-    if (v) return v;
-    // First ever run: acknowledge the current version silently so a brand-new
-    // user isn't greeted with the entire backlog as "new". Only true upgrades
-    // (and pending dev entries) surface after this.
-    localStorage.setItem(WN_SEEN, currentVersion);
-  } catch {}
-  return currentVersion;
+    return localStorage.getItem(WN_SEEN);
+  } catch {
+    return null;
+  }
+}
+
+/** The first paint's mark, before ui-prefs answers: this origin's old key, else the current version. */
+function readSeen(currentVersion) {
+  return readLegacySeen() || currentVersion;
+}
+
+function storeSeen(version) {
+  fetch('/_api/ui-prefs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [SEEN_PREF]: version }),
+  }).catch(() => {
+    /* offline / restart — the next refresh re-reads the stored mark */
+  });
+}
+
+/**
+ * The shared mark (ui-prefs): stored → use it; else migrate this origin's old key once; else a
+ * first-ever run acknowledges the current version silently, so a brand-new user isn't greeted with
+ * the entire backlog as "new" (only true upgrades and pending dev entries surface after this).
+ */
+async function syncSeen(currentVersion) {
+  const r = await fetch('/_api/ui-prefs');
+  const prefs = await r.json();
+  const legacy = readLegacySeen();
+  const { seen, write } = resolveSeen({
+    stored: prefs?.[SEEN_PREF],
+    legacy,
+    current: currentVersion,
+  });
+  if (write) {
+    storeSeen(write);
+    try {
+      if (!legacy) localStorage.setItem(WN_SEEN, write);
+    } catch {}
+  }
+  return seen;
 }
 
 function readToastDismissed() {
@@ -56,6 +98,13 @@ export function useWhatsNew(currentVersion) {
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
+      syncSeen(currentVersion)
+        .then((seen) => {
+          if (!cancelled && seen) setSeenVersion(seen);
+        })
+        .catch(() => {
+          /* prefs unreadable — keep this origin's mark */
+        });
       fetch('/_api/whats-new')
         .then((r) => r.json())
         .then((j) => {
@@ -79,7 +128,7 @@ export function useWhatsNew(currentVersion) {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [currentVersion]);
 
   const unseen = computeUnseen(entries, seenVersion);
   const showToast = unseen.length > 0 && toastDismissed !== feedVersion && !panelOpen;
@@ -89,6 +138,7 @@ export function useWhatsNew(currentVersion) {
     const next = bestSeenVersion(entries, feedVersion);
     setSeenVersion(next);
     setToastDismissed(feedVersion);
+    storeSeen(next);
     try {
       localStorage.setItem(WN_SEEN, next);
       localStorage.setItem(WN_TOAST, feedVersion);

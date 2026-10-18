@@ -25,6 +25,7 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import { verGt } from './client/whats-new-seen.js';
 import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
 /** The dockable shell panels the Layout tab can move between the two sides. */
@@ -74,6 +75,11 @@ export interface UiPrefs {
   experimentalTeams?: boolean;
   /** S11.13: Privacy › "Logs in bug reports". Absent = ask each time. */
   reportLogs?: 'ask' | 'always' | 'never';
+  /**
+   * S6.6 / Q11: the What's New "seen" version, one per Mac — Home and every project tab read and
+   * write this one mark (localStorage was per port origin). Only ever moves forward.
+   */
+  whatsNewSeen?: string;
   migratedFrom?: number;
   /**
    * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
@@ -170,6 +176,8 @@ export type UiPrefsPatchResult =
   | { ok: false; error: string };
 
 const MAP_KEY = /^[A-Za-z0-9._:/-]{1,128}$/;
+/** A What's New mark: a release version (semver, optional prerelease / build). */
+export const SEEN_VERSION_RE = /^\d{1,6}\.\d{1,6}\.\d{1,6}(?:[-+][0-9A-Za-z.+-]{1,40})?$/;
 const MAP_MAX = 256;
 const WIDTH_MAX = 4000;
 
@@ -264,6 +272,12 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
     if (body.reportLogs !== 'ask' && body.reportLogs !== 'always' && body.reportLogs !== 'never')
       return fail('reportLogs must be ask|always|never');
     patch.reportLogs = body.reportLogs;
+  }
+  if ('whatsNewSeen' in body) {
+    const v = body.whatsNewSeen;
+    if (typeof v !== 'string' || !SEEN_VERSION_RE.test(v))
+      return fail('whatsNewSeen must be a version like 1.9.1');
+    patch.whatsNewSeen = v;
   }
   if ('canvases' in body) {
     const c = body.canvases;
@@ -412,6 +426,15 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
       pin.widths = { ...plain(c.widths), ...plain(p.widths) };
     }
     merged.pin = pin as never;
+  }
+  // the What's New mark only moves forward: a stale tab cannot bring back what was already seen
+  if (
+    typeof patch.whatsNewSeen === 'string' &&
+    typeof cur.whatsNewSeen === 'string' &&
+    SEEN_VERSION_RE.test(cur.whatsNewSeen) &&
+    !verGt(patch.whatsNewSeen, cur.whatsNewSeen)
+  ) {
+    merged.whatsNewSeen = cur.whatsNewSeen;
   }
   if (typeof patch.version === 'number') {
     merged.version = Math.max(patch.version, typeof cur.version === 'number' ? cur.version : 0);
