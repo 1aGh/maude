@@ -165,6 +165,25 @@ describe('the L key', () => {
     void fakeParent;
     expect(r.eng.isOn()).toBe(true);
   });
+
+  test('V2-5 A4 — a run-action is the shell’s v1 lane only: another window, or no v:1, toggles nothing', () => {
+    const r = rig();
+    const send = (data: unknown, source: unknown) =>
+      window.dispatchEvent(
+        new window.MessageEvent('message', {
+          data,
+          source: source as MessageEventSource,
+        })
+      );
+    // a sibling frame (not the parent) says it
+    send({ dgn: 'run-action', v: 1, id: 'tool.key', params: { key: 'L' } }, { postMessage() {} });
+    expect(r.eng.isOn()).toBe(false);
+    // the parent, without the lane's version
+    send({ dgn: 'run-action', id: 'tool.key', params: { key: 'L' } }, window.parent);
+    expect(r.eng.isOn()).toBe(false);
+    send({ dgn: 'run-action', v: 2, id: 'tool.key', params: { key: 'L' } }, window.parent);
+    expect(r.eng.isOn()).toBe(false);
+  });
 });
 
 describe('following the mouse', () => {

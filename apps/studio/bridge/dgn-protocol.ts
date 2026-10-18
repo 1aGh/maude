@@ -896,10 +896,11 @@ const c2s: C2S = {
       replace: opt(str),
     }),
   },
+  // S3.2b — live: Present the canvas posts its zoom for the pill (present/present-zoom.ts).
   'viewport-zoom': {
     gate: 'active',
-    status: 'new',
-    owner: 'shell ZoomUndo (V2-4.x)',
+    status: 'live',
+    owner: 'present/present-zoom.ts',
     parse: p({ zoom: num }),
   },
   // S3.1 — live: the Present stage (S3.2a) reports through canvas-mode-store `reportPresentPosition`;
