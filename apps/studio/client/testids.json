@@ -996,10 +996,10 @@
     "hook": "chat-mode-banner",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan).",
+    "meaning": "\"AI is set to suggest only\" banner above the thread while the mode blocks edits (plan / dontAsk).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "ModeBanner"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "SuggestOnlyBanner"
     },
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"],
@@ -1009,10 +1009,10 @@
     "hook": "chat-mode-banner-switch",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Button on that alert that switches to the least-privilege mode that can edit.",
+    "meaning": "\"Allow changes\" on that banner: switches to the least-privilege mode that can edit.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "ModeBanner"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "SuggestOnlyBanner"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1068,10 +1068,10 @@
     "hook": "chat-transcript-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The transcript menu button in the chat status row.",
+    "meaning": "The \"Show in chat\" select in Advanced (transcript view: normal, thinking, verbose, summary).",
     "producer": {
-      "file": "apps/studio/client/v2/ai/Feed.jsx",
-      "symbol": "StatusRow"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1172,10 +1172,10 @@
     "hook": "chat-overflow-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The chat panel overflow (⋯) menu.",
+    "meaning": "A chat row's ⋯ menu in the chat list: Open · Rename… · Copy transcript · Archive · Move to trash.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "ChatPanel"
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "RowMenu"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1185,10 +1185,10 @@
     "hook": "chat-caps-connecting",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Capability bar placeholder while the agent connects.",
+    "meaning": "Advanced placeholder while the agent connects.",
     "producer": {
-      "file": "apps/studio/client/panels/CapabilityBar.jsx",
-      "symbol": "CapabilityBar"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1198,10 +1198,10 @@
     "hook": "chat-caps-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The capability bar (live model/mode/effort pickers).",
+    "meaning": "The Advanced fold's picker rows (live model / effort / fast mode / Ask before), under the AI chat panel's Advanced.",
     "producer": {
-      "file": "apps/studio/client/panels/CapabilityBar.jsx",
-      "symbol": "CapabilityBar"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1211,10 +1211,10 @@
     "hook": "chat-mode-picker",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The permission-mode picker in the capability bar.",
+    "meaning": "The \"Ask before\" picker in Advanced (the permission mode, in plain words).",
     "producer": {
-      "file": "apps/studio/client/panels/CapabilityBar.jsx",
-      "symbol": "CapabilityBar"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [
@@ -4791,6 +4791,214 @@
     "producer": {
       "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
       "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"‹ Chats\": back from the chat list to the chat.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chat list's search field (words inside chats, not just titles).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A chat row in the chat list. `<id>` = the chat id. `data-state` = working | needs | idle.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-trash-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Move … to the trash?\" dialog; names a queued prompt that will not send.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-trash-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dialog's \"Move to trash\" button (absent while the chat is still working).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat panel's \"› Advanced\" fold toggle (remembered per Mac under fold key `ai.chat`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-advanced-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced fold's root element.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-advanced-root",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Wrapper around one chat's Advanced fold (⌘K rows are found inside it).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-suggestions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Suggestions On / Off.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-context-pct",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Context used: the percent (used / size).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-session",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Session: the Claude Code session id behind the chat.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-raw-log",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Raw log button (opens the raw tool-log island).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-copy-transcript",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Copy transcript button.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-open-terminal",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Open in terminal button (desktop app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-raw-log",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The raw tool-log island under Advanced: one line per tool call.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RawLog.jsx",
+      "symbol": "RawLog"
     },
     "region": "other",
     "consumers": [],
