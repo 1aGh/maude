@@ -15,6 +15,7 @@ import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName, openCount, shellToast } from '../shell/util.js';
+import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
 import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
@@ -168,8 +169,19 @@ export function usePaletteAndPanels({
     if (link) copyShareLink(link);
   };
   const canvasOpRef = useRef(null);
-  canvasOpRef.current = ({ op, path, label }) => {
+  canvasOpRef.current = ({ op, path, label, artboardId }) => {
     if (!path) return;
+    if (op === 'jump') {
+      // S1.3 — a click in the Canvases panel's jump list: open the canvas if it is not the open one, then take
+      // the camera to the artboard (glide + flash when the bridge has `reveal-artboard`, else today's jump).
+      // A fresh frame mounts its listener late, so the post repeats on the ladder; every message is idempotent.
+      const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      const plan = planJump({ activePath, path, artboardId, reducedMotion: reduced });
+      if (plan.open) openTab(path);
+      for (const delay of plan.open ? JUMP_LADDER_MS : JUMP_NOW_MS)
+        for (const msg of plan.messages) setTimeout(() => postToActiveCanvas(msg), delay);
+      return;
+    }
     if (op === 'copy-link') copyCanvasLink(path);
     else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
   };
@@ -442,6 +454,11 @@ export function usePaletteAndPanels({
           onDuplicateCanvas={duplicateCanvasReq}
           onDeleteFile={deleteFileReq}
           onCopyLink={copyCanvasLink}
+          // S1.3 — the artboard in view on the open canvas, so the jump list can highlight it
+          activeArtboard={(() => {
+            const sel = Array.isArray(selected) ? selected[0] : selected;
+            return sel && sel.file === activePath ? (sel.artboardId ?? null) : null;
+          })()}
           onRefresh={refreshTree}
           onToggleShowHidden={() => menuRunner.run('view.hidden-files')}
           refreshing={treeRefreshing}

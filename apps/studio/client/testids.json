@@ -9827,5 +9827,44 @@
     "region": "sidebar/tree",
     "consumers": [],
     "v2": "new"
+  },
+  {
+    "hook": "canvas-jump-toggle-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The disclosure twisty on a canvas row of the Canvases panel (`aria-expanded`): opens the canvas's artboards underneath (the jump list). Right arrow also opens it, left arrow closes it. A canvas with no artboards written out and not dynamic has none.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/jump-list.jsx",
+      "symbol": "JumpToggle"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "jump-artboard-<slug>-<artboardId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard in a canvas's jump list (`data-kind` web|digital|print|video; `aria-current` on the one in view). Click or Enter jumps there: opens the canvas if needed, then glides + flashes (`reveal-artboard`), or frames it with today's jump until the bridge has the message. While searching, the artboards that matched.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/jump-list.jsx",
+      "symbol": "JumpBoardRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "jump-dynamic-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The line under a dynamic canvas's artboards: \"Its artboards are made when it runs.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/jump-list.jsx",
+      "symbol": "JumpNoteRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
   }
 ]

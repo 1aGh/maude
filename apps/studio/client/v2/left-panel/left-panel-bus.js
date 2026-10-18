@@ -50,3 +50,14 @@ export const CANVAS_OP_EVENT = 'maude:canvas-op';
 export function dispatchCanvasOp(op, path, label, target = globalThis.window) {
   target?.dispatchEvent?.(new CustomEvent(CANVAS_OP_EVENT, { detail: { op, path, label } }));
 }
+
+/**
+ * S1.3 — a click on an artboard in the Canvases panel's jump list: open `path` if it is not the open canvas,
+ * then take the camera to `artboardId` (the glide, `reveal-artboard`, once the bridge has it; today's jump
+ * until then — `jump-model.js` `planJump` decides which). The shell's tab hook holds the closures for both.
+ */
+export function dispatchArtboardJump(path, artboardId, target = globalThis.window) {
+  target?.dispatchEvent?.(
+    new CustomEvent(CANVAS_OP_EVENT, { detail: { op: 'jump', path, artboardId } })
+  );
+}

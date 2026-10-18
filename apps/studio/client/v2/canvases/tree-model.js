@@ -10,6 +10,8 @@
 // last touched — is the project index (`/_api/index`, V2-1.17), joined on the designRoot-relative path.
 // A canvas the index has not seen yet is still a row; it just has no badges.
 
+import { DYNAMIC_NOTE, hasJumpList, jumpFoot, jumpIsOpen, normaliseKind } from './jump-model.js';
+import { searchCanvases } from './panel-search.js';
 import { DEFAULT_SORT, fold, normaliseSort, sortItems } from './sort.js';
 
 const CANVAS_EXT = /\.(tsx|html?)$/i;
@@ -68,6 +70,10 @@ export function indexMeta(snapshot, designRel) {
       allKinds,
       kinds: allKinds.filter((k) => k === 'print' || k === 'video'),
       artboards: boards.length,
+      // the jump list and the panel search read these (id, label, kind) — nothing else of an artboard
+      boards: boards
+        .filter((a) => a && typeof a.id === 'string')
+        .map((a) => ({ id: a.id, label: a.label || a.id, kind: normaliseKind(a.kind) || 'web' })),
       ai: !!c.madeByAi,
       dynamic: !!c.dynamic,
       cover: c.cover?.key || null,
@@ -121,6 +127,7 @@ export function buildTree({ groups, meta = new Map(), designRel = '', opened = {
         kinds: m?.kinds || [],
         sortKinds: m?.allKinds || [],
         artboards: m?.artboards || 0,
+        boards: m?.boards || [],
         ai: !!m?.ai,
         dynamic: !!m?.dynamic,
         cover: m?.cover || null,
@@ -212,6 +219,8 @@ export function visibleRows(
     query = '',
     projectLabel = '',
     activePath = null,
+    jumpOpen = new Map(), // S1.3 — path → boolean: the canvases whose artboard list the person opened/closed
+    activeArtboard = null, // S1.3 — the artboard in view on the open canvas
   } = {}
 ) {
   const s = normaliseSort(sort);
@@ -223,12 +232,46 @@ export function visibleRows(
     ...extra,
   });
 
+  // S1.3 — the artboards a canvas lists under its row: `list` = [{ id, label, kind, marks? }]
+  const boardRows = (c, list, { depth, level, activeBoard }) => {
+    const out = list.map((b, i) => ({
+      key: `board:${c.path}#${b.id}`,
+      type: 'board',
+      path: c.path,
+      artboardId: b.id,
+      name: b.label || b.id,
+      kind: normaliseKind(b.kind) || 'web',
+      nameMarks: b.marks || [],
+      current: c.path === activePath && activeBoard != null && b.id === activeBoard,
+      depth,
+      level,
+      posinset: i + 1,
+      setsize: list.length,
+    }));
+    if (c.dynamic)
+      out.push({
+        key: `note:${c.path}`,
+        type: 'note',
+        path: c.path,
+        text: DYNAMIC_NOTE,
+        depth,
+        level,
+      });
+    return out;
+  };
+
   if (query.trim()) {
-    const hits = sortItems(
-      allCanvases(tree).filter((c) => matchesQuery(c, query, tree)),
-      s
-    );
-    hits.forEach((c, i) => {
+    const ordered = sortItems(allCanvases(tree), s);
+    const hits = searchCanvases(ordered, query, {
+      folderOf: (c) => folderLabel(c, tree),
+      order: ordered,
+    });
+    hits.forEach((h, i) => {
+      const c = h.canvas;
+      const jumpable = hasJumpList(c);
+      const open = jumpable && jumpIsOpen(jumpOpen, c, { viaBoards: h.viaBoards });
+      // collapsed, an artboard hit says which artboard it was; open, the artboards say it themselves
+      const quoted = h.viaBoards && !open && h.boardSub;
       rows.push(
         decorate(c, {
           key: `hit:${c.path}`,
@@ -236,9 +279,23 @@ export function visibleRows(
           level: 1,
           posinset: i + 1,
           setsize: hits.length,
-          sub: folderLabel(c, tree),
+          sub: quoted ? h.boardSub.text : h.folder,
+          subMarks: quoted ? h.boardSub.marks : h.folderMarks,
+          nameMarks: h.nameMarks,
+          jumpable,
+          jumpOpen: open,
+          boardCount: c.boards.length,
         })
       );
+      if (open) {
+        // the person opened it: every artboard; it opened itself: the ones that matched
+        const all = jumpOpen.get(c.path) === true;
+        const byId = new Map(h.matched.map((m) => [m.id, m]));
+        const list = all
+          ? c.boards.map((b) => ({ ...b, marks: byId.get(b.id)?.marks || [] }))
+          : h.matched;
+        rows.push(...boardRows(c, list, { depth: 1, level: 2, activeBoard: activeArtboard }));
+      }
     });
     return rows;
   }
@@ -325,7 +382,25 @@ export function visibleRows(
           } else walk(n, depth + 1);
         }
       } else {
-        rows.push(decorate(n, { key: `row:${n.path}`, ...place }));
+        const jumpable = hasJumpList(n);
+        const open = jumpable && jumpIsOpen(jumpOpen, n);
+        rows.push(
+          decorate(n, {
+            key: `row:${n.path}`,
+            ...place,
+            jumpable,
+            jumpOpen: open,
+            boardCount: n.boards.length,
+          })
+        );
+        if (open)
+          rows.push(
+            ...boardRows(n, n.boards, {
+              depth: depth + 1,
+              level: depth + 2,
+              activeBoard: activeArtboard,
+            })
+          );
       }
     });
   };
@@ -354,7 +429,9 @@ export function visibleRows(
 }
 
 /** The words under the list: "93 canvases · ⌘K searches every project" / "3 results · …". */
-export function panelFoot({ total, shown, searching }) {
+export function panelFoot({ total, shown, searching, jump = null }) {
+  // S1.3 — while a canvas's artboards are listed, the foot counts them (11 · pn-jump)
+  if (jump) return jumpFoot(jump.boards, { dynamic: jump.dynamic });
   const n = searching ? plural(shown, 'result', 'results') : plural(total, 'canvas', 'canvases');
   return `${n} · ⌘K searches every project`;
 }
@@ -426,11 +503,12 @@ export function scrollToReveal(rows, layout, index, scrollTop, viewport) {
 
 // ── keyboard ────────────────────────────────────────────────────────────────────────────────────────
 
-const isItem = (r) => r && (r.type === 'folder' || r.type === 'canvas');
+const isItem = (r) => r && (r.type === 'folder' || r.type === 'canvas' || r.type === 'board');
 
 /**
  * The tree keys the old FileTree answered, on the flat list. Returns what to do:
- *   { focus: index } | { toggle: index } | { activate: index } | null (not a tree key).
+ *   { focus: index } | { toggle: index } | { toggleJump: index } | { jump: index } | { activate: index } | null
+ * (not a tree key). S1.3: → / ← open and close a canvas's artboard list; ↵ on an artboard jumps to it.
  * ↑ ↓ Home End move; → opens a closed folder, else steps into it; ← closes an open folder, else goes to its
  * parent; ↵ and Space open a canvas or toggle a folder; a letter jumps to the next row starting with it.
  */
@@ -457,9 +535,18 @@ export function navigate(rows, index, key) {
         const next = rows[index + 1];
         return isItem(next) && next.depth > cur.depth ? { focus: index + 1 } : null;
       }
+      // S1.3 — → opens a canvas's artboard list, then steps into it
+      if (cur?.type === 'canvas' && cur.jumpable && !cur.inPinned) {
+        if (!cur.jumpOpen) return { toggleJump: index };
+        return rows[index + 1]?.type === 'board' ? { focus: index + 1 } : null;
+      }
       return null;
     case 'ArrowLeft': {
       if (cur?.type === 'folder' && cur.open) return { toggle: index };
+      if (cur?.type === 'canvas' && cur.jumpOpen && !cur.inPinned) return { toggleJump: index };
+      if (cur?.type === 'board') {
+        for (let i = index - 1; i >= 0; i--) if (rows[i].type === 'canvas') return { focus: i };
+      }
       if (cur?.inPinned) return null;
       for (let i = index - 1; i >= 0; i--) {
         if (rows[i].type === 'folder' && rows[i].depth < (cur?.depth ?? 0)) return { focus: i };
@@ -468,6 +555,7 @@ export function navigate(rows, index, key) {
     }
     case 'Enter':
     case ' ':
+      if (cur?.type === 'board') return { jump: index };
       return cur?.type === 'folder' ? { toggle: index } : cur ? { activate: index } : null;
     default: {
       if (key.length !== 1) return null;

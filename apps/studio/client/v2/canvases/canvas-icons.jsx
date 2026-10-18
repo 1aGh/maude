@@ -48,6 +48,21 @@ export const VideoIcon = ({ size }) => (
   </Svg>
 );
 
+// S1.3 — the artboard kind glyphs of the jump list (web and digital; print and video are above).
+export const WebIcon = ({ size }) => (
+  <Svg size={size}>
+    <rect x="2" y="3" width="12" height="10" rx="1.2" />
+    <path d="M2 6h12" />
+  </Svg>
+);
+
+export const DigitalIcon = ({ size }) => (
+  <Svg size={size}>
+    <rect x="4.5" y="1.8" width="7" height="12.4" rx="1.4" />
+    <path d="M7 12.2h2" />
+  </Svg>
+);
+
 export const SparkIcon = ({ size }) => (
   <Svg size={size} filled>
     <path d="M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z" stroke="none" />

@@ -845,6 +845,8 @@ export function Sidebar({
   onDeleteFile,
   // S1.2 — a canvas row's "Copy link" (the Canvases panel's row menu).
   onCopyLink,
+  // S1.3 — the artboard in view on the open canvas (the jump list highlights it).
+  activeArtboard,
   // Passed through to CloudBar only — the live `sync:status` payload that makes
   // the connect note follow the link instead of freezing at attach time.
   syncStatus,
@@ -1373,6 +1375,7 @@ export function Sidebar({
                 onDuplicate={onDuplicateCanvas}
                 onTrash={onDeleteBoard}
                 onCopyLink={onCopyLink}
+                activeArtboard={activeArtboard}
                 commentsByFile={commentsByFile}
                 dirtyByPath={dirtyByPath}
                 canvasKinds={canvasKinds}

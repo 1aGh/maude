@@ -14,9 +14,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { pathTestIdSlug } from '../../shell/util.js';
-import { CANVASES_OP_EVENT, takeCanvasesOps } from '../left-panel/left-panel-bus.js';
+import {
+  CANVASES_OP_EVENT,
+  dispatchArtboardJump,
+  takeCanvasesOps,
+} from '../left-panel/left-panel-bus.js';
 import { MoreIcon, PinIcon, PrintIcon, SparkIcon, VideoIcon } from './canvas-icons.jsx';
 import { InlineRename } from './inline-rename.jsx';
+import { JumpBoardRow, JumpNoteRow, JumpToggle, Marked } from './jump-list.jsx';
 import { moveTargets } from './move-model.js';
 import { siblingNames } from './rename-model.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
@@ -44,6 +49,10 @@ import { usePins } from './use-pins.js';
 const INDENT_BASE = 8;
 const INDENT_STEP = 16;
 const pad = (depth) => ({ paddingLeft: `${INDENT_BASE + depth * INDENT_STEP}px` });
+// S1.3 — a canvas row keeps a gutter for its artboard twisty: the column under its folder's own chevron
+// (or, at the top level, 20px in). The twisty is positioned in that gutter.
+const canvasPad = (depth) => (depth === 0 ? { paddingLeft: '20px' } : pad(depth));
+const twistyLeft = (depth) => (depth === 0 ? 3 : INDENT_BASE + (depth - 1) * INDENT_STEP + 1);
 
 /** A canvas dragged over the folder it already sits in has nowhere to go — no "Move here". */
 const isOwnFolder = (draggedPath, folderPath) =>
@@ -67,6 +76,8 @@ export function CanvasesPanel({
   onDuplicate,
   onTrash,
   onCopyLink,
+  onJumpArtboard, // (path, artboardId) — default: the shell's tab hook, over the left-panel bus
+  activeArtboard = null, // the artboard in view on the open canvas
   onNewCanvasIn,
   commentsByFile = {},
   dirtyByPath,
@@ -84,6 +95,14 @@ export function CanvasesPanel({
     [groups, meta, designRel, pins.opened]
   );
   const isOpen = expansion?.isOpen;
+  // S1.3 — which canvases show their artboards: path → boolean, the person's own choice (this session)
+  const [jumpOpen, setJumpOpen] = useState(() => new Map());
+  // the artboard the person just jumped to counts as "in view" until the selection says otherwise
+  const [lastJump, setLastJump] = useState(null);
+  const currentBoard =
+    lastJump && lastJump.base === activeArtboard && lastJump.path === activePath
+      ? lastJump.artboardId
+      : activeArtboard;
   const rows = useMemo(
     () =>
       visibleRows(tree, {
@@ -94,8 +113,21 @@ export function CanvasesPanel({
         query: search,
         projectLabel,
         activePath,
+        jumpOpen,
+        activeArtboard: currentBoard,
       }),
-    [tree, sort, pins.pinSet, pins.pinOrder, isOpen, search, projectLabel, activePath]
+    [
+      tree,
+      sort,
+      pins.pinSet,
+      pins.pinOrder,
+      isOpen,
+      search,
+      projectLabel,
+      activePath,
+      jumpOpen,
+      currentBoard,
+    ]
   );
   const layout = useMemo(() => layoutRows(rows), [rows]);
   const searching = !!search.trim();
@@ -165,6 +197,20 @@ export function CanvasesPanel({
   }, [activePath, rows, layout]);
 
   const setOpen = useCallback((path, v) => expansion?.setOpen(path, v), [expansion]);
+  const toggleJump = useCallback((row) => {
+    setJumpOpen((m) => new Map(m).set(row.path, !row.jumpOpen));
+  }, []);
+  const doJump = useCallback(
+    (row) => {
+      setLastJump({
+        path: row.path,
+        artboardId: row.artboardId,
+        base: activeArtboard,
+      });
+      (onJumpArtboard || dispatchArtboardJump)(row.path, row.artboardId);
+    },
+    [onJumpArtboard, activeArtboard]
+  );
   const toggleRow = useCallback(
     (r) => {
       if (!search.trim()) setOpen(r.path, !r.open);
@@ -205,6 +251,8 @@ export function CanvasesPanel({
     e.stopPropagation();
     if (act.focus !== undefined) focusRow(act.focus);
     else if (act.toggle !== undefined) toggleRow(rows[act.toggle]);
+    else if (act.toggleJump !== undefined) toggleJump(rows[act.toggleJump]);
+    else if (act.jump !== undefined) doJump(rows[act.jump]);
     else if (act.activate !== undefined) onOpen(rows[act.activate].path);
   };
   const onFocusIn = (e) => {
@@ -353,6 +401,8 @@ export function CanvasesPanel({
     dirtyByPath,
     canvasKinds,
     togglePin: pins.toggle,
+    toggleJump,
+    doJump,
     onNewCanvasIn: readOnly ? undefined : onNewCanvasIn,
     setOpen,
     openSortMenu,
@@ -362,6 +412,21 @@ export function CanvasesPanel({
   };
 
   const shown = rows.filter((r) => r.type === 'canvas').length;
+  // while artboards are listed, the foot counts them: "21 artboards · 19 digital, 2 print"
+  // (a search that opened a canvas by itself keeps its "N results" foot — only a person's own open counts)
+  const listed = rows.filter(
+    (r) =>
+      r.type === 'canvas' &&
+      r.jumpOpen &&
+      !r.inPinned &&
+      (!searching || jumpOpen.get(r.path) === true)
+  );
+  const jumpFootArgs = listed.length
+    ? {
+        boards: listed.flatMap((r) => r.boards ?? []),
+        dynamic: listed.some((r) => r.dynamic),
+      }
+    : null;
   const slice = [];
   for (let i = range.start; i < range.end; i++) slice.push(i);
   if (focusIndex >= 0 && (focusIndex < range.start || focusIndex >= range.end))
@@ -405,7 +470,7 @@ export function CanvasesPanel({
       </div>
       {children}
       <p className="cv-foot" data-testid="canvases-foot">
-        {panelFoot({ total: tree.total, shown, searching })}
+        {panelFoot({ total: tree.total, shown, searching, jump: jumpFootArgs })}
       </p>
       {sortMenu ? (
         <div
@@ -486,6 +551,29 @@ function PanelRow({ row, index, top, tabStop, ctx, toggleRow }) {
         tabStop={tabStop}
         ctx={ctx}
         toggleRow={toggleRow}
+      />
+    );
+  if (row.type === 'board') {
+    const slug = pathTestIdSlug(row.path);
+    return (
+      <JumpBoardRow
+        row={row}
+        index={index}
+        style={style}
+        tabStop={tabStop}
+        slug={slug}
+        padStyle={pad(row.depth)}
+        onJump={ctx.doJump}
+      />
+    );
+  }
+  if (row.type === 'note')
+    return (
+      <JumpNoteRow
+        row={row}
+        style={style}
+        slug={pathTestIdSlug(row.path)}
+        padStyle={pad(row.depth)}
       />
     );
   return <PanelCanvasRow row={row} index={index} style={style} tabStop={tabStop} ctx={ctx} />;
@@ -651,6 +739,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
       aria-posinset={row.posinset}
       aria-setsize={row.setsize}
       aria-selected={row.current}
+      aria-expanded={row.jumpable && !pinnedCopy ? !!row.jumpOpen : undefined}
       aria-label={label}
       aria-busy={busy || undefined}
       data-index={index}
@@ -660,8 +749,17 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
       <div
         className={`cv-row cv-row--canvas${row.current ? ' is-sel' : ''}${dragging ? ' is-dragging' : ''}${busy ? ' is-busy' : ''}${row.pinned ? ' is-pinned' : ''}`}
       >
+        {row.jumpable && !pinnedCopy && !renaming ? (
+          <JumpToggle
+            open={!!row.jumpOpen}
+            slug={slug}
+            name={label}
+            left={twistyLeft(row.depth)}
+            onToggle={() => ctx.toggleJump(row)}
+          />
+        ) : null}
         {renaming ? (
-          <div className="cv-main cv-main--edit" style={pad(row.depth)}>
+          <div className="cv-main cv-main--edit" style={canvasPad(row.depth)}>
             {thumb}
             <InlineRename
               slug={slug}
@@ -678,7 +776,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
             data-tree-primary=""
             data-testid={mainId}
             tabIndex={-1}
-            style={pad(row.depth)}
+            style={canvasPad(row.depth)}
             title={tip}
             onClick={() => ctx.onOpen(row.path)}
             onDoubleClick={ctx.edit && ctx.onRename ? () => rowOps.startRename(row.key) : undefined}
@@ -686,8 +784,14 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
             {...src}
           >
             {thumb}
-            <span className="cv-name">{label}</span>
-            {row.sub ? <span className="cv-sub">{row.sub}</span> : null}
+            <span className="cv-name">
+              <Marked text={label} marks={row.nameMarks} />
+            </span>
+            {row.sub ? (
+              <span className="cv-sub">
+                <Marked text={row.sub} marks={row.subMarks} />
+              </span>
+            ) : null}
             <span className="cv-badges">
               {row.ai ? (
                 <span
