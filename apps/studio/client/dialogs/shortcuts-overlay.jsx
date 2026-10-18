@@ -6,7 +6,7 @@
 // Diagnostics keys with their path, then "Keys and tools that moved" (old → new). A key is read from
 // the registry here, never typed, so a re-binding shows up on the next "?".
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isNativeApp } from '../github.js';
 import { Kbd, StIcon } from '../shell/icons.jsx';
 import { AdvancedFold } from '../v2/fold/advanced-fold.jsx';
@@ -36,10 +36,11 @@ export function ShortcutCombo({ keys, alt = [], path }) {
         <Kbd key={k}>{k}</Kbd>
       ))}
       {alt.map((a) => (
-        <Fragment key={a}>
+        // "or" stays with the key it introduces, so a wrapped row never ends on a dangling "or".
+        <span key={a} className="so-alt">
           <span className="so-or">or</span>
           <Kbd>{a}</Kbd>
-        </Fragment>
+        </span>
       ))}
     </span>
   );

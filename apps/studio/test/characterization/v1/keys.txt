@@ -348,7 +348,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +578 -1 #31358d34ef
+  shell: +581 -1 #39eafb0e56
     - @focus body
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
@@ -365,7 +365,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +578 -1 #31358d34ef
+  shell: +581 -1 #39eafb0e56
     - @focus body
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"
@@ -1118,7 +1118,7 @@
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: +578 -1 #a18452c927
+  shell: +581 -1 #6435fc5db8
     - @focus select
     + @focus input[data-testid="shortcuts-find"][aria-label="Find a shortcut"][placeholder="Find a shortcut"]
     + button .so-adv-btn [data-testid="shortcuts-advanced-toggle"] [aria-expanded="true"] [type="button"] "Advanced"

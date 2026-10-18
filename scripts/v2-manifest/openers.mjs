@@ -695,13 +695,13 @@ export const OPENERS = [
   },
   { id: 'comments', steps: [{ click: tid('share-cluster-comments') }] },
   { id: 'ai-chat', steps: [{ key: 'Meta+Slash' }] },
-  { id: 'history', steps: [{ key: 'Shift+Meta+G' }] },
+  { id: 'history', steps: [{ key: 'Alt+Meta+H' }] },
   // the project's history: the rows, then one previewed (the version bar, Restore)
   {
     id: 'history-project',
     state: 'project-history',
     steps: [
-      { key: 'Shift+Meta+G' },
+      { key: 'Alt+Meta+H' },
       { wait: 600 },
       { click: '.gp-tabs [role="tab"]:nth-child(2)', optional: true },
       { wait: 1200 },
@@ -711,7 +711,7 @@ export const OPENERS = [
     id: 'history-project-preview',
     state: 'project-history',
     steps: [
-      { key: 'Shift+Meta+G' },
+      { key: 'Alt+Meta+H' },
       { wait: 600 },
       { click: '.gp-tabs [role="tab"]:nth-child(2)', optional: true },
       { wait: 1200 },
@@ -723,7 +723,7 @@ export const OPENERS = [
     id: 'history-cloud-down',
     state: 'cloud-history-down',
     steps: [
-      { key: 'Shift+Meta+G' },
+      { key: 'Alt+Meta+H' },
       { wait: 600 },
       { click: '.gp-tabs [role="tab"]:nth-child(2)', optional: true },
       { wait: 1200 },
@@ -732,14 +732,14 @@ export const OPENERS = [
   {
     id: 'history-clean',
     state: 'git-clean-behind',
-    steps: [{ key: 'Shift+Meta+G' }, { wait: 1500 }],
+    steps: [{ key: 'Alt+Meta+H' }, { wait: 1500 }],
   },
-  { id: 'history-dirty', state: 'git-dirty', steps: [{ key: 'Shift+Meta+G' }, { wait: 1500 }] },
+  { id: 'history-dirty', state: 'git-dirty', steps: [{ key: 'Alt+Meta+H' }, { wait: 1500 }] },
   // Version history on a repo with changes: the unsaved list, then the saved versions (a short sha each)
   {
     id: 'history-saved',
     state: 'git-dirty',
-    steps: [{ key: 'Shift+Meta+G' }, { click: '.gp-tabs [role="tab"]:nth-child(2)' }],
+    steps: [{ key: 'Alt+Meta+H' }, { click: '.gp-tabs [role="tab"]:nth-child(2)' }],
   },
   // the draft switcher at the foot of Canvases (desktop): its menu, then a draft checked out
   {
@@ -980,7 +980,7 @@ export const OPENERS = [
     id: 'history-compare',
     state: 'git-dirty',
     steps: [
-      { key: 'Shift+Meta+G' },
+      { key: 'Alt+Meta+H' },
       { wait: 1200 },
       { click: tid('git-compare'), optional: true },
       { wait: 2500 },
