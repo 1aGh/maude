@@ -322,3 +322,47 @@ test('S12.6: reconstruct-critic’s envelope result carries converged/score in r
   assert.equal(typeof out.result.verdict.converged, 'boolean');
   assert.deepEqual(out.findings, []);
 });
+
+// ── S12.7: the bounded writers as their agent files document them ─────────────────────────────
+// A writer owns its NEW file(s) by literal path (no glob outside its run folder), plus its result.
+
+const WRITER_OWNS = {
+  'draw-agent': /\.svg$/,
+  'footage-director': /\.edl\.json$/,
+  'reconstruct-agent': /\.(?:tsx|meta\.json)$/,
+};
+
+for (const [agent, newFile] of Object.entries(WRITER_OWNS)) {
+  test(`S12.7: ${agent}’s documented hand-off owns only its new file(s) and its result`, () => {
+    const RUN_DIR = '.design/_runs/<session>/';
+    const doc = sampleAfter(`agents/${agent}.md`, /^#+ Sample hand-off/m);
+    assert.deepEqual(validateHandoff(doc, { role: 'in', runDir: RUN_DIR }).errors, []);
+    assert.equal(doc.agent, `design:${agent}`);
+    assert.ok(ownsPath(doc, doc.output), 'it owns its own result');
+    const outside = doc.owns.filter((g) => !g.startsWith(RUN_DIR));
+    assert.ok(outside.length >= 1, 'it owns at least one new file outside its run folder');
+    for (const g of outside) {
+      assert.doesNotMatch(g, /[*?]/, `${g}: a new file is named exactly, never by a glob`);
+      assert.match(g, newFile, `${g}: not the kind of file ${agent} creates`);
+    }
+    if (doc.scope?.canvas)
+      assert.equal(
+        ownsPath(doc, doc.scope.canvas),
+        false,
+        'a writer never owns the canvas it reads'
+      );
+    assert.ok(
+      doc.checks?.includes(`maude design check ${doc.output}`),
+      'the hand-off names the check the writer runs on its result'
+    );
+    // the result it hands back is a valid "out" naming the new file(s) as kind new-file
+    const out = sampleAfter(`agents/${agent}.md`, /^#+ Sample result/m);
+    assert.deepEqual(validateHandoff(out, { role: 'out' }).errors, []);
+    assert.equal(out.agent, doc.agent);
+    for (const g of outside)
+      assert.ok(
+        out.changed.some((c) => c.file === g && c.kind === 'new-file'),
+        `the result lists ${g} as a new-file`
+      );
+  });
+}

@@ -58,14 +58,14 @@ acts on.
 
 ## Read the rubric first
 
-Read **`_draw-design-rules.md`** (resolve via `$CLAUDE_PLUGIN_ROOT/agents/_draw-design-rules.md`,
-else Glob `**/agents/_draw-design-rules.md`). It is the single source for the
+Read **`references/draw/design-rules.md`** (resolve via `$CLAUDE_PLUGIN_ROOT/references/draw/design-rules.md`,
+else Glob `**/references/draw/design-rules.md`). It is the single source for the
 30 checks, the HARD floor, and the source-level verification rules. Score
 against it — do not invent your own bar.
 
 **If the mark is animated** (the source contains `<animate>` / `<animateTransform>`
 / a `motion.*` element, or `type`/brief says so), ALSO read
-**`_draw-motion-rules.md`** and judge the `motion` HARD floor (M1–M5): the
+**`references/draw/motion-rules.md`** and judge the `motion` HARD floor (M1–M5): the
 mechanism ladder, the live-motion proof, the reduced-motion gate. A dead
 mechanism (renders but doesn't animate over time) is a HARD fail no matter how
 good the freeze-frame looks.

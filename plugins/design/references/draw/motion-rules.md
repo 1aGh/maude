@@ -1,9 +1,9 @@
-# `_draw-motion-rules.md` — the draw MOTION rubric (single source)
+# `references/draw/motion-rules.md` — the draw MOTION rubric (single source)
 
-> Reference doc, **not** a slash command (underscore prefix). The time-companion
-> to [`_draw-design-rules.md`](./_draw-design-rules.md). Read by `draw-agent`
+> Reference doc, **not** an agent or a slash command (it lives under `references/`). The time-companion
+> to [`design-rules.md`](./design-rules.md). Read by `draw-agent`
 > (when a brief asks for animation) and `draw-critic` (the `motion` verdict
-> block). Distilled from [DDR-094](../../../.ai/archive/decisions/DDR-094-draw-animation-keyframe-ir-native-authoring-lottie-export.md)
+> block). Distilled from [DDR-094](../../../../.ai/archive/decisions/DDR-094-draw-animation-keyframe-ir-native-authoring-lottie-export.md)
 > + the studyfi-v3 fire-mascot session (~3 rounds lost to a dead mechanism) +
 > the 2026-06-05 deep-research pass + two POCs. Every check below is **yes/no or
 > measurable** — verified from the **IR / serialized SMIL / wall-clock sample**,
@@ -55,7 +55,7 @@ so an animated transform never clobbers a static one — keep it that way.
 ## The 8 conversion rules (when emitting Lottie — `/design:to-lottie`)
 
 Each was found the hard way in the POC; the skill MUST encode all 8 (full text in
-[`design-to-lottie-skill-spec.md`](../../../.ai/plans/notes/design-to-lottie-skill-spec.md)):
+[`design-to-lottie-skill-spec.md`](../../../../.ai/plans/notes/design-to-lottie-skill-spec.md)):
 
 1. **Per-segment easing from the real tokens** — every keyframe gets its own
    `o`/`i` handle; **preserve overshoot (`y>1`)** (the "snap"). Each animation

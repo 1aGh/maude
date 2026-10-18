@@ -8,7 +8,7 @@
 # (lottie-react-native) — same renderer family, 1:1 by construction. It is an
 # EMITTER from the keyframe data, NOT a converter of rendered SVG/SMIL (no reliable
 # one exists — DDR-094 research). The generator encodes the 8 conversion rules; see
-# `plugins/design/commands/to-lottie.md` + `_draw-motion-rules.md`.
+# `plugins/design/commands/to-lottie.md` + `references/draw/motion-rules.md`.
 #
 # Reached via `maude design to-lottie` (DDR-062), never a raw bin path.
 #

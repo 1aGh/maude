@@ -1,6 +1,6 @@
-# `_draw-design-rules.md` — the draw rubric (single source)
+# `references/draw/design-rules.md` — the draw rubric (single source)
 
-> Reference doc, **not** a slash command (underscore prefix). Read by both
+> Reference doc, **not** an agent or a slash command (it lives under `references/`). Read by both
 > `draw-agent` (generation + self-verify) and `draw-critic` (independent judge).
 > Distilled from the Phase 25 + Phase 25.1 deep research (DDR-070; the 25.1
 > "what makes good design objectively good" pass is cited inline). Every check

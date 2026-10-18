@@ -4,9 +4,11 @@
 //   prompt      UserPromptSubmit  POST /_api/agent/run/begin; names the run folder once per session
 //                                                                                 → additionalContext or nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
+//                                 (a sub-agent: its hand-off `owns`, outside .design/ too; S12.7)
 //   post-edit   PostToolUse       check (studio, else local) · rollback · touched · `ds` warnings
 //                                 (ds-check --hook, S12.4/D9)  → block, or additionalContext, or nothing
 //   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · out-of-project (bash-guard)
+//                                 · an untrusted-content reader has no shell (S12.7)
 //                                                                                     → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
@@ -369,6 +371,45 @@ const parseOr = (text) => {
 const isSubagent = (input) => Boolean(input.agent_id || input.agent_type);
 
 /**
+ * S12.7 — the agents that read untrusted content (a source image, a clip's frames, an asset;
+ * DDR-174 Decision 1, DDR-183 F2). Their frontmatter already has no Bash/Web*; the hooks hold
+ * them to it at run time as well (an override, a widened copy): no Bash at all, and no write
+ * outside the design root — the DDR-174 Addendum gap (`.claude/settings.json`, a CLAUDE.md, a
+ * shell rc) that a tool list alone cannot close. `plugin-name-namespace.test.mjs` keeps this set
+ * equal to the agents it selects as readers.
+ */
+export const UNTRUSTED_READERS = new Set([
+  'footage-analyst',
+  'reconstruct-agent',
+  'reconstruct-critic',
+  'asset-describer',
+]);
+const isUntrustedReader = (input) =>
+  isSubagent(input) && UNTRUSTED_READERS.has(bareAgent(input.agent_type));
+
+/**
+ * A sub-agent's write OUTSIDE the design root (`d` = null): an untrusted-content reader never
+ * makes one; an agent held to a hand-off makes one only into a path its `owns` names (repo-
+ * relative, so nothing outside the project ever qualifies). Anything else is not ours to judge.
+ */
+function outsideGuard(ctx, input, fenceOf) {
+  if (!isSubagent(input)) return null;
+  const p = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+  if (typeof p !== 'string' || !p || p.includes('\0')) return null;
+  const abs = realpathDeep(isAbsolute(p) ? p : `${ctx.cwd}${sep}${p}`);
+  const rel = relative(realpathDeep(ctx.root), abs);
+  const inRepo = rel && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+  const repoRel = inRepo ? rel.split(sep).join('/') : null;
+  const shown = repoRel ? shownPath(repoRel) : fileText(abs, 200);
+  if (isUntrustedReader(input))
+    return `out-of-scope: ${input.agent_type} reads untrusted content (DDR-174/DDR-183) — it writes nothing outside ${DESIGN_REL}/, and ${shown} is outside it. Write only the files your inputs name.`;
+  const f = fenceOf();
+  if (f.error) return fenceReason(input, f.error);
+  if (!f.hs.length || (repoRel && f.hs.some((h) => ownsPath(h.doc, repoRel)))) return null;
+  return `out-of-scope: ${input.agent_type ?? 'this agent'} writes only what its hand-off owns — ${shown} is not in it. Put the change in your hand-off result and let the main agent apply it.`;
+}
+
+/**
  * The fence a sub-agent is held to: `{ hs: [{rel, doc}], error }`. The hand-offs SubagentStart
  * recorded (path + content hash), re-read and re-hashed — one gone or changed is an `error` and
  * every write the agent makes is denied (fail closed). No record (SubagentStart did not run: an
@@ -723,12 +764,15 @@ async function prompt(ctx, input) {
 async function preEdit(ctx, input) {
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const d = designTarget(ctx, input);
-  if (!d) return null;
   let fence = null;
   const fenceOf = () => {
     fence ??= agentFence(ctx, input);
     return fence;
   };
+  if (!d) {
+    const outside = outsideGuard(ctx, input, fenceOf);
+    return outside ? deny(outside) : null;
+  }
   if (isSubagent(input) && fenceOf().error) return deny(fenceReason(input, fence.error));
   if (d.runtime) {
     const g = runtimeGuard(input, d.rel, fenceOf);
@@ -964,6 +1008,10 @@ function syncedBoardHint(ctx, rel) {
 
 function preBash(ctx, input) {
   if (input.tool_name !== 'Bash') return null;
+  if (isUntrustedReader(input))
+    return deny(
+      `out-of-scope: ${input.agent_type} reads untrusted content (DDR-174/DDR-183) — it has no shell. Do the work with Read (and Write for the files your inputs name); the orchestrator runs every command.`
+    );
   const command = input.tool_input?.command;
   let fence = null;
   const fenceOf = () => {

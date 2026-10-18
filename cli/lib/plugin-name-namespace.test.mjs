@@ -24,6 +24,8 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { UNTRUSTED_READERS } from './design-hook.mjs';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function grep(pattern, extraArgs = '') {
@@ -141,10 +143,20 @@ const agents = loadAgents();
 
 test('agents/ holds no _*.md (rule files are not agents)', () => {
   const offenders = readdirSync(AGENTS_DIR).filter((f) => f.startsWith('_') && f.endsWith('.md'));
-  assertWithKnown('Underscore rule files registered as agents', offenders, {
-    '_draw-design-rules.md': 'S12.7 moves it to references/draw/design-rules.md (D3)',
-    '_draw-motion-rules.md': 'S12.7 moves it to references/draw/motion-rules.md (D3)',
-  });
+  // S12.7 moved the draw rubrics to references/draw/ (D3): the list is empty and stays empty.
+  assertWithKnown('Underscore rule files registered as agents', offenders, {});
+  // …and the rubrics the draw agents read are where their pointers say.
+  for (const f of ['design-rules.md', 'motion-rules.md'])
+    assert.ok(
+      readdirSync(join(ROOT, 'plugins', 'design', 'references', 'draw')).includes(f),
+      `references/draw/${f} exists`
+    );
+  const stale = grep('_draw-\\(design\\|motion\\)-rules');
+  assert.deepEqual(
+    stale,
+    [],
+    `pointers to the old agents/_draw-*-rules.md:\n  ${stale.join('\n  ')}`
+  );
 });
 
 // The reshaped critics (V2-1.18 §5.5): Write stays in frontmatter (D2), so the BODY must
@@ -229,6 +241,13 @@ test('readers of untrusted content have no Bash or Web* tools', () => {
     [],
     `Untrusted-content readers must be egress-free:\n  ${offenders.join('\n  ')}`
   );
+  // S12.7: the design hook holds the same readers to it at run time (no Bash, no write outside
+  // .design/) — one list each side, so a reader added here and not there is red.
+  for (const a of readers)
+    assert.ok(
+      UNTRUSTED_READERS.has(a.name),
+      `${a.name}: missing from design-hook UNTRUSTED_READERS`
+    );
 });
 
 // Writers are bounded (new files only) and only ever spawned by a command or the main
@@ -244,13 +263,13 @@ test('bounded-writer descriptions say they are never auto-delegated', () => {
     );
   }
   const offenders = writers
-    .filter((a) => !/never auto-delegated/i.test(a.description))
+    .filter((a) => !/spawned only by [^;]+; never auto-delegated/i.test(a.description))
     .map((a) => a.name);
-  assertWithKnown('Writer descriptions without "never auto-delegated"', offenders, {
-    'draw-agent': 'S12.7',
-    'footage-director': 'S12.7',
-    'reconstruct-agent': 'S12.7',
-  });
+  assertWithKnown(
+    'Writer descriptions without "spawned only by …; never auto-delegated"',
+    offenders,
+    {}
+  );
 });
 
 // Every agent description sits in the main agent's context on every turn. Budget: today's
