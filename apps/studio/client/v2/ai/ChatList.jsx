@@ -473,7 +473,8 @@ export function ChatList({
           }}
         />
       </label>
-      <div className="ai-cl-list" aria-label={searching ? 'Search results' : 'Chats'}>
+      {/* biome-ignore lint/a11y/useSemanticElements: a labelled list of chat rows, not a form fieldset */}
+      <div className="ai-cl-list" role="group" aria-label={searching ? 'Search results' : 'Chats'}>
         {body}
       </div>
       <p className="ai-cl-foot" role="status">
