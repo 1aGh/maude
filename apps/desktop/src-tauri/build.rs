@@ -48,6 +48,12 @@ fn main() {
                 "list_crash_logs",
                 "read_crash_log",
                 "take_pending_deep_link",
+                // S6.7 (profiles.rs, deep_link.rs): Home's own Maude Cloud sign-in
+                // and the invite link parked for Home (Home-only, HOME_PERMISSIONS).
+                "home_cloud_sign_in_prepare",
+                "home_cloud_sign_in_open",
+                "home_cloud_signed_in",
+                "take_pending_invite",
                 "managed_project_open",
                 "managed_projects_list",
                 "resolve_project_for_link",
@@ -111,6 +117,8 @@ fn main() {
                 // V2-3.6 M5: e2e delivers a deep link through the shell (pages
                 // can no longer emit events).
                 "e2e_deliver_deep_link",
+                // S6.7: run a link through the real routing (debug only).
+                "e2e_route_deep_link",
                 // V2-3.6 L1: the "Opened from a link" toast of a NEW tab.
                 "take_link_opened",
                 // Finding 1d (bus.rs): every shell → page message goes through

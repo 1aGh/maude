@@ -1757,13 +1757,22 @@ pub fn claim_front<R: Runtime>(webview: &tauri::Webview<R>) -> Result<FrontClaim
     })
 }
 
-/// `target` of `open_project`: a canvas (designRoot-relative) and an artboard.
+/// `target` of `open_project`: a canvas (designRoot-relative), an artboard and
+/// (S6.7, an invite's "her comment is on the poster") a comment thread.
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, Serialize)]
 pub struct OpenTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub canvas: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artboard: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread: Option<String>,
+}
+
+/// A comment thread id as the cloud stores it on an invite
+/// (`/^[A-Za-z0-9_-]{1,64}$/`, contract S6-S9 §5.3).
+pub fn valid_thread_id(t: &str) -> bool {
+    (1..=64).contains(&t.len()) && t.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
 /// Validate a page-supplied target: the canvas through the same check as a
@@ -1784,7 +1793,17 @@ pub fn validate_target(t: OpenTarget) -> Result<OpenTarget, String> {
             }
         })
         .transpose()?;
-    Ok(OpenTarget { canvas, artboard })
+    // A thread only together with its canvas (contract S6-S9 §5.3 `bad-thread`).
+    if let Some(th) = &t.thread {
+        if canvas.is_none() || !valid_thread_id(th) {
+            return Err(bad());
+        }
+    }
+    Ok(OpenTarget {
+        canvas,
+        artboard,
+        thread: t.thread,
+    })
 }
 
 // ── One-shot values parked per window label (V2-3 patches) ──────────────────
@@ -1830,12 +1849,12 @@ pub struct TabsRestored {
 static TABS_RESTORED: Parked<TabsRestored> = Parked::new();
 static PENDING_NAVIGATE: Parked<OpenTarget> = Parked::new();
 
-/// Park `target` for a NEW window when it names an artboard — the canvas
-/// alone already rides in the first navigate's `?open=`; the artboard has no
-/// place there.
+/// Park `target` for a NEW window when it names an artboard or a thread — the
+/// canvas alone already rides in the first navigate's `?open=`; the artboard
+/// and the thread have no place there (§5.8 item 8: ids parked, not in a URL).
 pub fn park_navigate_for_new(opened: &Opened, target: Option<&OpenTarget>) {
     if let (Opened::New(label), Some(t)) = (opened, target) {
-        if t.artboard.is_some() {
+        if t.artboard.is_some() || t.thread.is_some() {
             PENDING_NAVIGATE.park(label, t.clone());
         }
     }
@@ -1946,6 +1965,7 @@ pub fn is_boot_root(path: &Path) -> bool {
 /// (N-M5: the deep link too, `?code=` and all).
 pub fn drop_parked_for(label: &str) {
     crate::home::take_intent(label);
+    crate::deep_link::PENDING_INVITES.take(label);
     TABS_RESTORED.take(label);
     PENDING_NAVIGATE.take(label);
     crate::deep_link::LINK_OPENED.take(label);
@@ -2016,6 +2036,23 @@ pub fn intent_for(
     }
 }
 
+/// What is parked once the window is known (S6.7): `moveToCloud` survives only
+/// on a NEW tab opened by folder — the create-local path, a project Home just
+/// made. On a pid open, or a tab that was already open, it is dropped (the rest
+/// of the intent stays): a registered project is moved only by the person, from
+/// its own window (S9.20 "Move to cloud…").
+pub fn intent_for_opened(
+    intent: crate::home::OpenIntent,
+    by_root: bool,
+    opened: &Opened,
+) -> crate::home::OpenIntent {
+    let fresh = by_root && matches!(opened, Opened::New(_));
+    crate::home::OpenIntent {
+        move_to_cloud: intent.move_to_cloud && fresh,
+        ..intent
+    }
+}
+
 /// `open_project({pid} | {root}, target?, intent?)` — open a project as a new
 /// tab after the calling window, or focus its tab if it is already open (open
 /// once, §5.2). From Home, the Home tab closes once the project tab is key
@@ -2057,7 +2094,7 @@ pub async fn open_project(
     let label = opened.label().to_string();
     park_navigate_for_new(&opened, target.as_ref());
     if let Some(intent) = intent {
-        crate::home::park_intent(&label, intent);
+        crate::home::park_intent(&label, intent_for_opened(intent, root.is_some(), &opened));
     }
     if let (Opened::Existing(_), Some(t)) = (&opened, &target) {
         crate::bus::send(&label, "shell://navigate", t.clone());
@@ -2332,12 +2369,62 @@ mod tests {
         st
     }
 
+    /// S6.7: `moveToCloud` rides only to a NEW tab Home opened by folder (the
+    /// project it just created); never to a pid open or an already-open tab.
+    #[test]
+    fn intent_move_to_cloud_reaches_only_a_project_home_just_made() {
+        let i = crate::home::OpenIntent {
+            kind: "create-canvas".into(),
+            prompt: "a poster".into(),
+            move_to_cloud: true,
+            ..Default::default()
+        };
+        let new = Opened::New("p-new".into());
+        let old = Opened::Existing("p-old".into());
+        assert!(intent_for_opened(i.clone(), true, &new).move_to_cloud);
+        assert!(!intent_for_opened(i.clone(), false, &new).move_to_cloud, "a pid open");
+        assert!(!intent_for_opened(i.clone(), true, &old).move_to_cloud, "an open tab");
+        let kept = intent_for_opened(i.clone(), true, &old);
+        assert_eq!((kept.kind.as_str(), kept.prompt.as_str()), ("create-canvas", "a poster"));
+        // Still Home-only (W1), whatever the flag.
+        let project = Caller::Project(CallerProject {
+            label: "p-lself".into(),
+            pid: "lself".into(),
+            root: A.into(),
+        });
+        assert!(intent_for(&project, Some(i)).is_err());
+    }
+
+    /// S6.7: `target.thread` — an id, only with its canvas; a NEW window gets it
+    /// parked (never in `?open=`), an open one in `shell://navigate`.
+    #[test]
+    fn open_target_thread_is_an_id_with_its_canvas() {
+        let t = |canvas: Option<&str>, thread: &str| OpenTarget {
+            canvas: canvas.map(str::to_string),
+            artboard: None,
+            thread: Some(thread.to_string()),
+        };
+        let ok = validate_target(t(Some("ui/Poster.tsx"), "th_01-ab")).unwrap();
+        assert_eq!(ok.thread.as_deref(), Some("th_01-ab"));
+        assert!(validate_target(t(None, "th_01")).is_err(), "a thread without its canvas");
+        for bad in ["", "a b", "../x", "x?y=1", "é", &"a".repeat(65), "a@b.cz"] {
+            assert!(validate_target(t(Some("ui/Poster.tsx"), bad)).is_err(), "{bad:?}");
+        }
+        park_navigate_for_new(&Opened::New("p-thread".into()), Some(&ok));
+        assert_eq!(PENDING_NAVIGATE.take("p-thread"), Some(ok.clone()));
+        // The wire shape is additive: no `thread` key unless there is one.
+        let plain: OpenTarget = serde_json::from_str(r#"{"canvas":"ui/a.tsx"}"#).unwrap();
+        assert_eq!(serde_json::to_string(&plain).unwrap(), r#"{"canvas":"ui/a.tsx"}"#);
+        assert!(serde_json::to_string(&ok).unwrap().contains(r#""thread":"th_01-ab""#));
+    }
+
     #[test]
     fn w1_an_intent_is_accepted_from_home_only() {
         let intent = crate::home::OpenIntent {
             kind: "create-canvas".into(),
             prompt: "make a landing page".into(),
             project_hint: None,
+            move_to_cloud: false,
         };
         let project = Caller::Project(CallerProject {
             label: "p-lself".into(),
@@ -2353,6 +2440,7 @@ mod tests {
             kind: "create-canvas".into(),
             prompt: "  ".into(),
             project_hint: None,
+            move_to_cloud: false,
         };
         assert!(intent_for(&Caller::Home, Some(empty)).is_err());
     }
@@ -2393,9 +2481,9 @@ mod tests {
         assert!(resolve_open_root(&Caller::Home, &st, Some("lwork"), Some("/x")).is_err());
         assert!(resolve_open_root(&Caller::Home, &st, None, None).is_err());
         // A target canvas goes through the deep-link path check.
-        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None }).is_err());
+        assert!(validate_target(OpenTarget { canvas: Some("../etc/x.tsx".into()), artboard: None, thread: None }).is_err());
         assert_eq!(
-            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()) })
+            validate_target(OpenTarget { canvas: Some(".design/ui/a.tsx".into()), artboard: Some("hero".into()), thread: None })
                 .unwrap()
                 .canvas
                 .as_deref(),
@@ -3334,6 +3422,7 @@ mod tests {
         let full = OpenTarget {
             canvas: Some("ui/a.tsx".into()),
             artboard: Some("hero".into()),
+            thread: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-new".into()), Some(&full));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-other"), None);
@@ -3346,6 +3435,7 @@ mod tests {
         let canvas_only = OpenTarget {
             canvas: Some("ui/a.tsx".into()),
             artboard: None,
+            thread: None,
         };
         park_navigate_for_new(&Opened::New("p-nav-canvas".into()), Some(&canvas_only));
         assert_eq!(PENDING_NAVIGATE.take("p-nav-canvas"), None);
@@ -3437,6 +3527,7 @@ mod tests {
         let t = OpenTarget {
             canvas: None,
             artboard: Some("hero".into()),
+            thread: None,
         };
         TABS_RESTORED.park("p-gone", TabsRestored { count: 2 });
         PENDING_NAVIGATE.park("p-gone", t.clone());
@@ -3446,6 +3537,7 @@ mod tests {
                 kind: "create-canvas".into(),
                 prompt: "x".into(),
                 project_hint: None,
+                move_to_cloud: false,
             },
         );
         // N-M5: a connect link (its `?code=`) parked for the window too.
