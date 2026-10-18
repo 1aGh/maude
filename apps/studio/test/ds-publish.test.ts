@@ -182,6 +182,32 @@ describe('ds publish', () => {
     expect(p.meta(`${DS_PATH}/design-system.tsx`).dsPending).toBeUndefined();
   });
 
+  test('a linked project with no home answering refuses Publish up front, before the lock and any write (v2-lead-ds-publish-offline-refuses)', async () => {
+    const p = await makeProject({ kernel: null });
+    p.write(
+      `${DS_PATH}/design-system.meta.json`,
+      `${JSON.stringify({ title: 'Design system', dsPending: { tokens: { '--accent': { light: 'oklch(0.5 0.19 255)' } } } }, null, 2)}\n`
+    );
+    const head0 = p.read(`${DS_PATH}/revisions/head.json`);
+    const revs0 = revisions(p.dsAbs);
+    let held: unknown = null;
+    try {
+      await p.engine.publish(DS, { expectHead: p.R0, by: PERSON });
+    } catch (err) {
+      held = err;
+    }
+    expect(held).toBeInstanceOf(DsEngineError);
+    expect((held as DsEngineError).code).toBe('ds-kernel-unavailable');
+    expect((held as DsEngineError).status).toBe(503);
+    expect((held as DsEngineError).message).toBe(
+      "No project home answers right now — publish when you're back online."
+    );
+    // nothing was written, not even a revision folder the refusal would have to take back
+    expect(revisions(p.dsAbs)).toEqual(revs0);
+    expect(p.read(`${DS_PATH}/revisions/head.json`)).toBe(head0);
+    expect(p.read(`${DS_PATH}/colors_and_type.css`)).toBe(TOKENS_CSS);
+  });
+
   test('nothing waiting → 409; an unconverted system → 409 ds-not-converted', async () => {
     const p = await makeProject();
     expect(await code(p.engine.publish(DS, { expectHead: p.R0, by: PERSON }))).toEqual({

@@ -992,6 +992,16 @@ export function createDsEngine(opts: EngineOptions) {
   }
 
   function publish(ds: string, inp: PublishInput): Promise<PublishResult> {
+    // A linked project whose home cannot be reached (offline, or not in accepted mode) cannot take the
+    // one publish action: refuse up front, before the lock and before any revision is written, in the
+    // person's words (decision v2-lead-ds-publish-offline-refuses). A local project's home always answers.
+    if (!kernelNow())
+      return Promise.reject(
+        fail(
+          'ds-kernel-unavailable',
+          "No project home answers right now — publish when you're back online."
+        )
+      );
     return withLock(dsAbs(system(ds)), () => publishLocked(ds, inp));
   }
 
