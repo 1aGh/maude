@@ -548,6 +548,13 @@ function forKind(spec: ExportSpecV2, kind: string | null) {
   return { format: by?.format ?? spec.format, v2: mergeOptions(spec.options, by?.options) };
 }
 
+/** The name a left-out shared-parts canvas goes by: its first `_`-named folder, else its own name. */
+function sharedPartName(rel: string): string {
+  const parts = rel.split('/');
+  const dir = parts.slice(0, -1).find((p) => p.startsWith('_'));
+  return dir ?? (parts[parts.length - 1] ?? rel).replace(/\.tsx$/i, '');
+}
+
 export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolution {
   const visible = new Map(ctx.canvases.map((c) => [c.rel, c]));
   const units: SpecUnit[] = [];
@@ -737,6 +744,19 @@ export function resolveSpecV2(spec: ExportSpecV2, ctx: SpecContext): SpecResolut
     });
     return { ok: true, units, skipped, canvases: reached };
   }
-  for (const c of inScope) asCanvas(c, undefined, spec.unit ?? 'each');
+  // S8.3: a canvas with no artboard holds shared parts, not something to export — left out, by name
+  // (the first `_`-named folder it sits in, else its own name), once per name.
+  const sharedNamed = new Set<string>();
+  for (const c of inScope) {
+    if (c.artboards.length === 0) {
+      const name = sharedPartName(c.rel);
+      if (!sharedNamed.has(name)) {
+        sharedNamed.add(name);
+        skipped.push({ name, reason: 'shared-part' });
+      }
+      continue;
+    }
+    asCanvas(c, undefined, spec.unit ?? 'each');
+  }
   return { ok: true, units, skipped, canvases: reached };
 }
