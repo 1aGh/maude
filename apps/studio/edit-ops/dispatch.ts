@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { alignOps } from './align.ts';
+import { artboardResize } from './artboard-resize.ts';
 import { distributeOps } from './distribute.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
@@ -56,6 +57,7 @@ export const EDIT_OPS: readonly EditOp[] = [
   ...alignOps,
   ...distributeOps,
   objectRotate,
+  artboardResize, // S2.8 artboard.resize
 ];
 
 export interface AiHoldHit {
