@@ -175,7 +175,7 @@ fn spawn(argv: &[String]) -> std::io::Result<()> {
     Ok(())
 }
 
-fn spawn_or_say(argv: &[String], what: &str) -> Result<(), String> {
+pub(crate) fn spawn_or_say(argv: &[String], what: &str) -> Result<(), String> {
     spawn(argv).map_err(|e| {
         crate::sidecar::log_line(&format!("[maude] {what}: {e}"));
         format!("Couldn't {what}.")
