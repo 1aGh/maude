@@ -22,9 +22,13 @@
 //     normalise to these before the check);
 //   • the `open_cloud_url` launcher refusal set (`has_unsafe_bytes`, CVE-2024-24576:
 //     whitespace, controls, `@ \ & | ^ < > " ' \` %`) on the input AND on the
-//     serialization that is launched. A URL with a query `&` or a `%` escape is
-//     therefore refused; the sheet then shows the URL with Copy link instead
-//     (the named fallback), which opens nothing;
+//     serialization that is launched — except `&` and `%` on macOS, whose
+//     launcher takes the URL as one argv element with no shell (S3.10c,
+//     `launcher_unsafe`). On Windows and Linux a URL with a query `&` or a `%`
+//     escape is refused; the sheet then shows the URL with Copy link instead
+//     (the named fallback), which opens nothing. A percent-escape the parser
+//     decodes (in a host, a dot-segment) makes the string non-canonical, so it
+//     never smuggles a refused host past the checks;
 //   • at most one open per second per window.
 //
 // It is NOT a general opener: anything it refuses, the person can still copy.
@@ -82,13 +86,27 @@ fn host_blocked(host: &str) -> bool {
     }
 }
 
+/// The launcher refusal set on this platform. macOS execs `/usr/bin/open` with
+/// the URL as one argv element (`the_launcher_shape_is_pinned`), so `&` and `%`
+/// (a query string, a percent-escape) are plain bytes there. Windows
+/// (`cmd /c start`, `%VAR%` expands) and Linux (`xdg-open`, a shell script) keep
+/// the full `has_unsafe_bytes` set. Decision
+/// maude/v2-lead-external-link-amp-percent-macos-only.
+fn launcher_unsafe(s: &str) -> bool {
+    if cfg!(target_os = "macos") {
+        crate::oauth::has_unsafe_bytes(&s.replace(['&', '%'], ""))
+    } else {
+        crate::oauth::has_unsafe_bytes(s)
+    }
+}
+
 /// The URL to launch, or None. Pure: the whole policy, unit-tested below.
 /// Returns the PARSED url so the command launches exactly what was validated.
 pub(crate) fn external_url_allowed(url: &str) -> Option<reqwest::Url> {
     if url.is_empty() || url.len() > EXTERNAL_URL_MAX || !url.is_ascii() {
         return None;
     }
-    if crate::oauth::has_unsafe_bytes(url) {
+    if launcher_unsafe(url) {
         return None;
     }
     let u = reqwest::Url::parse(url).ok()?;
@@ -98,7 +116,7 @@ pub(crate) fn external_url_allowed(url: &str) -> Option<reqwest::Url> {
     // Canonical form only: the shell sends `new URL(v).href`. A string the parser
     // rewrites (upper-case scheme, `https:host`, a missing `/`, a decimal IP) is
     // not the string the person was shown.
-    if u.as_str() != url || crate::oauth::has_unsafe_bytes(u.as_str()) {
+    if u.as_str() != url || launcher_unsafe(u.as_str()) {
         return None;
     }
     if !u.username().is_empty() || u.password().is_some() {
@@ -287,14 +305,78 @@ mod tests {
             "https://example.com/a b",
             "https://example.com/\ta",
             "https://example.com/\na",
-            "https://example.com/%TEMP%",
-            "https://example.com/?a=1&b=2",
             "https://example.com/a|b",
             "https://example.com/a^b",
             "https://example.com/a<b>",
             "https://example.com/\"x",
             "https://example.com/'x",
             "https://example.com/`x`",
+        ] {
+            assert!(!ok(u), "should refuse {u:?}");
+        }
+    }
+
+    /// S3.10c: `&` and `%` open on macOS only — its launcher is one exec with the
+    /// URL as one argv element (`the_launcher_shape_is_pinned`). Windows and Linux
+    /// launch through a shell, so the same links fall back to Copy link there.
+    #[test]
+    fn amp_and_percent_open_on_macos_only() {
+        let on_mac = cfg!(target_os = "macos");
+        for u in [
+            "https://example.com/?a=1&b=2",
+            "https://example.com/%TEMP%",
+            "https://example.com/search?q=caf%C3%A9&lang=cs",
+            "https://example.com/a%20b",
+            // An escaped `@` in the path is a path byte; the host is evil.com, and
+            // that is the host the sheet showed.
+            "https://evil.com/%40example.com",
+            // Escapes the parser keeps as they are: bytes in a path or a query.
+            "https://example.com/x%00y",
+            "https://example.com/x%0ay",
+            "https://example.com/?next=%2e%2e%2f%2e%2e%2fetc",
+            // A hostile query: the host is still example.com; the site gets the bytes.
+            "https://example.com/?u=http://127.0.0.1/&cmd=%24(id)%7C%60x%60&p=%25PATH%25",
+        ] {
+            assert_eq!(ok(u), on_mac, "{u}: opens on macOS only");
+            if on_mac {
+                assert_eq!(external_url_allowed(u).unwrap().as_str(), u);
+            }
+        }
+    }
+
+    /// Percent-escapes never smuggle a refused host, scheme or path past the
+    /// checks: the parser's canonical form is what is checked AND launched, so an
+    /// escape the parser decodes makes the string non-canonical (or unparsable).
+    #[test]
+    fn percent_escapes_never_smuggle_a_host_or_scheme() {
+        for u in [
+            // Dot-segments: the parser resolves them.
+            "https://example.com/a/%2e%2e/b",
+            "https://example.com/a/%2E%2E/b",
+            "https://example.com/%2e%2e/",
+            "https://example.com/a/.%2e/b",
+            // Escapes in the host decode before the host is parsed.
+            "https://ex%61mple.com/",
+            "https://127%2e0%2e0%2e1/",
+            "http://%6c%6fcalhost/",
+            "http://localhost%2e/",
+            "https://example.com%40evil.com/",
+            "https://exa%00mple.com/",
+            "https://exa%0ample.com/",
+            "https://%5B::1%5D/",
+            "https://example.com%2f.evil.com/",
+            // An escaped scheme is no scheme.
+            "javascript%3aalert(1)",
+            "https%3a//example.com/",
+            // A hostile query still meets every other check.
+            "https://example.com/?a=1&b=`id`",
+            "https://example.com/?a=1&b=2|sh",
+            "https://example.com/?a=1&b=<x>",
+            "https://example.com/?a=1&b=\"x",
+            "https://example.com/?a=1&b=2 c",
+            "https://user@example.com/?a=1&b=2",
+            "http://127.0.0.1/?a=1&b=%41",
+            "http://[::1]/?a=%41",
         ] {
             assert!(!ok(u), "should refuse {u:?}");
         }
