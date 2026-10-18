@@ -468,6 +468,26 @@ function styleMapsFor(el: Element | null): {
   }
 }
 
+/** World-px box of `el` and its offset parent's client size (S2.3's Position / Size rows). */
+export function worldGeometry(el: HTMLElement): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  parentW: number;
+  parentH: number;
+} {
+  const parent = el.offsetParent as HTMLElement | null;
+  return {
+    x: Math.round(el.offsetLeft),
+    y: Math.round(el.offsetTop),
+    w: Math.round(el.offsetWidth),
+    h: Math.round(el.offsetHeight),
+    parentW: Math.round(parent?.clientWidth ?? 0),
+    parentH: Math.round(parent?.clientHeight ?? 0),
+  };
+}
+
 export function hoverTargetToSelection(target: HoverTarget, file?: string): Selection {
   const el = target.el;
   const rect =
@@ -522,6 +542,9 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     // JSX-authored width/height to pre-fill correctly regardless of zoom.
     worldW: el instanceof HTMLElement ? Math.round(el.offsetWidth) : undefined,
     worldH: el instanceof HTMLElement ? Math.round(artboardWorldH(el)) : undefined,
+    // S2.3 (via S2.1) — world-px box + the offset parent's client size (Position / Size /
+    // Constraints). Layout px, so zoom-independent like worldW/worldH.
+    geometry: el instanceof HTMLElement ? worldGeometry(el) : undefined,
     html: el ? (el.outerHTML ?? '').slice(0, 4000) : '',
     // feature-photo-editor (Task 14) — flag a content-addressed artboard `<img>`
     // so the Inspector can offer the Photo tab. Only a real `assets/<sha8>.<ext>`

@@ -125,6 +125,7 @@ import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import { createHistory } from './history.ts';
 import { extractCanvas } from './index/extract.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
@@ -1573,6 +1574,8 @@ export function createHttp(
   // paths merge into `routes` below, so `readOnlyRefusal` wraps them like every legacy key; its
   // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
   // S5.3 — one run registry for the hook routes, `/_api/ai/runs*` and the v1 banner routes.
+  // S2.1 — the edit-op route's pre-op snapshots (/design:rollback), the same store api.ts writes.
+  const editOpHistory = createHistory(ctx);
   const runs =
     opts.runs ??
     createRunRegistry({
@@ -1672,6 +1675,17 @@ export function createHttp(
       designRoot: ctx.paths.designRoot,
       outbox: outbox.store,
       isRunning: (id) => runningChats().includes(id),
+    },
+    // S2.1 — POST /_api/edit-op (routes/edit.ts): one dispatch route, pure writers in edit-ops/.
+    // The write announces its base like every lane writer; AI holds read the run registry above.
+    edit: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      repoRoot: ctx.paths.repoRoot,
+      emit: (e, p) => ctx.bus.emit(e, p),
+      snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
+      actionFor: (repoRel, after) =>
+        ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
     },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);

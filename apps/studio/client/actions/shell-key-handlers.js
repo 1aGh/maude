@@ -23,6 +23,8 @@ import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
 import { presentFrom } from '../v2/shell/use-canvas-mode-lane.js';
 import { panelLayout } from '../v2/shell/use-panel-layout.js';
+import { keyOutcome } from '../v2/shell/role-gate.js';
+import { ROLE_DENIAL } from '../v2/shell/use-canvas-mode-lane.js';
 
 // ── the timeline transport (was use-photo-and-timeline.jsx, DDR-150 P3 Task 9) ─────────────
 // Gated by the registry on focus 'timeline' (timeline open + a comp, focus in the shell, not
@@ -359,17 +361,27 @@ const FORWARDED_EVENT = { preventDefault() {} };
  * (setPaletteOpen, reloadActive, toggleRightPanel, toggleTimeline, setExportDialog). The caller
  * gates the message on the active frame.
  */
-export function runForwardedKey(chord, d) {
+export function runForwardedKey(chord, d, index = FORWARDED_KEYS) {
   const ctx = {
-    role: 'owner',
+    // EH-P4-3 (S2.1) — the SESSION's role, the same derivation as the shell's own keys
+    // (actions/ctx.ts shellKeyCtx): a read-only session is Can comment. Was a hard-coded owner, so
+    // a viewer's forwarded chord resolved as the owner's.
+    role: d.readOnly ? 'comment' : 'owner',
     shell: 'browser',
     mode: 'edit',
     focus: 'canvas',
     selection: 'none',
     facts: new Set(),
   };
-  const r = resolveChord(FORWARDED_KEYS, chord, ctx);
+  const r = resolveChord(index, chord, ctx);
   if (!r) return false;
+  // A disabled winner swallows the chord; when the ROLE disabled it, the one denial line
+  // (role-gate.js keyOutcome — the same rule as a key pressed in the shell).
+  const outcome = keyOutcome(r.action, ctx);
+  if (outcome !== 'run') {
+    if (outcome === 'deny') (d.denied ?? shellToast)(ROLE_DENIAL);
+    return true;
+  }
   SHELL_KEY_HANDLERS[r.action.id](d, { event: FORWARDED_EVENT, ctx });
   return true;
 }

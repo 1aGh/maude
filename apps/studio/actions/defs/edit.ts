@@ -31,6 +31,19 @@ const EDITS = { minRole: 'edit' as const };
 // needs a selection — v1 checks kept in the handler).
 const OBJ = IN_CANVAS;
 
+// S2.6 — an object op: canvas exec, Can edit, an object selected; chords bind in Edit mode only.
+const OBJECT_EDIT = { ...OBJ, mode: ['edit' as const], selection: ['object' as const] };
+const objectKey = (spec: string, extra: { alias?: boolean } = {}) =>
+  kb(spec, 'selection', { when: OBJECT_EDIT, ...extra });
+const objectOp = (id: string, label: string, keys: ReturnType<typeof kb>[]): ActionDef => ({
+  id,
+  label,
+  kind: 'command',
+  exec: 'canvas',
+  enabled: { ...EDITS, selection: ['object'] },
+  ...(keys.length ? { keys } : {}),
+});
+
 export const EDIT_ACTIONS: ActionDef[] = [
   {
     id: 'edit.undo',
@@ -141,11 +154,29 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: mods('⌥⌘V', '⇧', 'selection', { when: { ...OBJ, selection: ['object'] } }),
   },
   {
+    // S2.1 (ed-obj-enter) — go inside the selected frame: its first object is selected and clicks
+    // now pick at that depth. ↵ here, double-click on the canvas (CanvasRouter's drill). Took ↵
+    // from `object.select-child`, which stays as the ⌘K / agent entry for the same step.
+    id: 'object.enter',
+    label: 'Go inside',
+    kind: 'command',
+    exec: 'canvas',
+    keys: [kb('↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
+  },
+  {
+    // S2.1 — one level out: the parent is selected; at the top the selection is dropped. Its key is
+    // esc, i.e. `ui.step-back`'s selection rung (one esc action, V2-1.3 §5.5) — no binding here.
+    id: 'object.step-out',
+    label: 'Step out',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { selection: ['object'] },
+  },
+  {
     id: 'object.select-child',
     label: 'Select first child',
     kind: 'command',
     exec: 'canvas',
-    keys: [kb('↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
   },
   {
     id: 'object.select-parent',
@@ -200,6 +231,28 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: ['←', '→', '↑', '↓'].flatMap((a) =>
       mods(a, '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } })
     ),
+  },
+  // S2.6 (ed-obj-order) — the object menu's rows. Edit-mode chords on an OBJECT selection (the same
+  // chords in Preview belong to the annotation board: `annotation.*` carries `mode: preview`). Each
+  // is one `edit-op` (edit-ops/{frame,unframe,z-order,lock,hide}.ts); greyed below Can edit.
+  objectOp('object.frame', 'Frame selection', [
+    objectKey('⌥⌘G'),
+    objectKey('⌘G', { alias: true }), // Figma muscle memory; in Preview ⌘G groups annotations
+  ]),
+  objectOp('object.unframe', 'Remove frame', [objectKey('⇧⌘G')]),
+  objectOp('object.bring-front', 'Bring to front', [objectKey('⌘]')]),
+  objectOp('object.bring-forward', 'Bring forward', [objectKey(']')]),
+  objectOp('object.send-backward', 'Send backward', [objectKey('[')]),
+  objectOp('object.send-back', 'Send to back', [objectKey('⌘[')]),
+  objectOp('object.lock', 'Lock', [objectKey('⇧⌘L')]),
+  objectOp('object.hide', 'Hide', []),
+  {
+    // A selection gesture, not a write: no edit-op, no role gate (a viewer may select).
+    id: 'object.select-matching',
+    label: 'Select matching',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { selection: ['object'] },
   },
   // S2.2 (D18) — the inspector's Advanced actions. Shell commands on the selected element, ⌘K only
   // (their homes are the buttons and the id field inside Inspector › Advanced, client/v2/inspector/).

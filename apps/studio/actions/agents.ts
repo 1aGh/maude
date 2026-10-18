@@ -165,11 +165,35 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
+  'object.enter': NAV('<canvas>@<element>'),
+  'object.step-out': NAV('<canvas>@<element>'),
   'object.select-child': NAV('<canvas>@<element>'),
   'object.select-parent': NAV('<canvas>@<element>'),
   'object.select-next': NAV('<canvas>@<element>'),
   'object.remove': TSX('Delete the element’s JSX (a removed DCArtboard is parked in the trash)'),
   'object.nudge': TSX('Change the element’s position props'),
+  // S2.6 — the object menu. Each is one edit-op on the canvas file; an agent edits the same JSX by hand.
+  'object.frame': TSX(
+    'Wrap the elements in a <div data-cd-id="frame" style={{display:"flex",flexDirection:"column"}}> at the first one; every element keeps its data-cd-id'
+  ),
+  'object.unframe': TSX(
+    'Replace the frame with its children, in order; the frame’s own attributes go'
+  ),
+  'object.bring-front': TSX(
+    'Move the element’s JSX after its last sibling (later siblings paint on top)'
+  ),
+  'object.bring-forward': TSX('Move the element’s JSX after the next sibling'),
+  'object.send-backward': TSX('Move the element’s JSX before the previous sibling'),
+  'object.send-back': TSX('Move the element’s JSX before its first sibling'),
+  'object.lock': TSX(
+    'Add or remove the data-cd-locked attribute on the element (shared by everyone)'
+  ),
+  'object.hide': TSX(
+    'Set style.display to "none" and add data-cd-hidden="<previous display>"; Show restores it and drops the marker'
+  ),
+  'object.select-matching': PREF(
+    'a selection in the person’s window; an agent greps the canvas for the same className and style'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
