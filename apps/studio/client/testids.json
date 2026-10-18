@@ -10961,9 +10961,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -10976,9 +10974,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -10991,9 +10987,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -11006,9 +11000,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -11021,9 +11013,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -11036,9 +11026,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -11051,9 +11039,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   },
   {
@@ -11066,9 +11052,7 @@
     },
     "region": "inspector",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/v2-inspector-interaction.test.tsx"
-    ],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
   }
 ]
