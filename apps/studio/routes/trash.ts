@@ -43,8 +43,12 @@ const json = (status: number, body: unknown) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
 export interface TrashRouteDeps {
-  /** `ctx.syncControl.current()` — null while no home answers. */
-  control: () => TrashRuntime | null | undefined;
+  /**
+   * `ctx.syncControl.current()` — null while no home answers. Any runtime: the
+   * Trash methods are optional (an older home has none), so it is read as a
+   * `TrashRuntime` here rather than every home's type naming them.
+   */
+  control: () => TrashRuntime | object | null | undefined;
   /** The access this request is judged with (history/trash.ts `trashAccess`). */
   access: (req: Request) => Access;
   /** A live canvas's source by design-root-relative path; null when unreadable. */
@@ -95,7 +99,7 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
 
   /** The items this session sees, or null when the home has no shared Trash. */
   async function itemsFor(access: Access): Promise<TrashItem[] | null | undefined> {
-    const runtime = deps.control();
+    const runtime = deps.control() as TrashRuntime | null | undefined;
     if (!runtime?.acceptedTrash) return null;
     const listing = await runtime.acceptedTrash().catch(() => undefined);
     if (!listing) return listing;
@@ -162,7 +166,7 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
           });
         }
         const entry = (CANVAS_ID.exec(id) as RegExpExecArray)[1] as string;
-        const runtime = deps.control();
+        const runtime = deps.control() as TrashRuntime | null | undefined;
         const r = runtime?.acceptedTrashRestore
           ? await runtime.acceptedTrashRestore(entry).catch(() => undefined)
           : null;
@@ -196,7 +200,7 @@ export function createTrashRoutes(deps: TrashRouteDeps): RouteSpec[] {
         if (!parsed.ok) return parsed.res;
         const items = parseClearItems(parsed.body);
         if (!items.ok) return json(400, { ok: false, reason: items.reason });
-        const runtime = deps.control();
+        const runtime = deps.control() as TrashRuntime | null | undefined;
         const r = runtime?.acceptedTrashClear
           ? await runtime.acceptedTrashClear(items.items).catch(() => undefined)
           : null;
