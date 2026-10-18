@@ -1713,7 +1713,10 @@ export function createHttp(
       meta: {
         load: (file) => api.loadCanvasMeta(file),
         patch: (file, patch) => api.patchCanvasMeta(file, patch),
+        writeText: (file, next, base, o) => api.writeCanvasMetaText(file, next, base, o),
       },
+      // S2.10b — an op-log home lands the source + the layout lane as ONE action (routes/edit.ts `land`)
+      control: () => ctx.syncControl?.current?.() ?? null,
     },
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
