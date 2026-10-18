@@ -355,6 +355,8 @@ export interface Context {
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
       /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
       claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+      /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+      acceptedCanvas?(repoRel: string): string | null;
       resolveAiAction?(
         choice: 'publish' | 'discard',
         runId?: string

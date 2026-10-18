@@ -655,6 +655,8 @@ export interface SyncRuntime {
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
   /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
   claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
+  /** S5.11b — a canvas's accepted source under the staged runs; null = the disk is accepted. */
+  acceptedCanvas?(repoRel: string): string | null;
   /**
    * T19 — make the whole project available offline now: file-plane passes
    * back to back (no pacing floor) until nothing is left to pull, or a pass
@@ -5665,6 +5667,11 @@ export function createSyncRuntime(
     claimAiWrite: (key, repoRel, hash) => {
       const slug = slugForRepoRel(repoRel);
       if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
+    },
+    // S5.11b — Run on a copy builds the copy from this, never from a busy run's staged bytes
+    acceptedCanvas: (repoRel) => {
+      const slug = slugForRepoRel(repoRel);
+      return slug && acceptedLink ? acceptedLink.stage.accepted(slug, 'html') : null;
     },
     resolveAiAction: async (choice, runId) => {
       if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;
