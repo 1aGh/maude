@@ -41,6 +41,7 @@ const fileRequests = (prefix, tg) => [
   ['GET', `${prefix}${tg.css}`],
   ['GET', `${prefix}${tg.asset}`],
   ['PUT', `${prefix}${tg.path}`, 'export default () => 0;\n'],
+  ['PUT', `${prefix}${tg.asset}`, 'png'],
   ['DELETE', `${prefix}${tg.path}`],
 ];
 
