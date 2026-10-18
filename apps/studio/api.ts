@@ -1008,9 +1008,17 @@ export interface ApiHooks {
   /**
    * Fires after every successful annotations write with the new canonical
    * board text, the action/write id and the board text it replaced (a merge
-   * base for accepted revisions).
+   * base for accepted revisions). `recordedWithLanes`: the caller sends this board to the op log in the
+   * same action as another lane (`proposer.send(lanes)` — the artboard move rider, a conversion), so the
+   * hook must not record it a second time as a stroke of its own; the room bridge still runs.
    */
-  onAnnotationsChanged?: (file: string, text: string, writeId?: string, base?: string) => void;
+  onAnnotationsChanged?: (
+    file: string,
+    text: string,
+    writeId?: string,
+    base?: string,
+    recordedWithLanes?: boolean
+  ) => void;
   /**
    * Apply an op batch to the canvas's LIVE collab room, when one holds the
    * board (code review H1). `null` = no live room / accepted mode — the batch
@@ -2646,7 +2654,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       if (!live) {
         await writeBoardFile(file, boardAfter);
-        onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore);
+        onAnnotationsChanged?.(file, boardAfter, undefined, boardBefore, !!proposer);
       }
       await publishComments(file, commentsAfter, commentsBefore);
       if (!proposer) return { ok: true, result: c.result, snapshot };
@@ -2736,7 +2744,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           return { ok: false, status: 413, body: { ok: false, reason: 'too-large' } };
         if (!live) {
           await writeBoardFile(file, boardAfter);
-          onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore);
+          onAnnotationsChanged?.(file, boardAfter, rider.actionId, boardBefore, !!proposer);
         }
       }
       await Bun.write(metaAbs, nextText);
