@@ -13,6 +13,7 @@ import path from 'node:path';
 import { Awareness, removeAwarenessStates } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
+import { stripPresenterAwareness } from '../present/relay-strip.ts';
 import { isBodyLane, rootTypesTouched } from './origins.ts';
 import {
   applySyncMessage,
@@ -244,7 +245,11 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
    */
   function receiveGated(conn: RoomConn, payload: Uint8Array): void {
     if (readMessageType(payload) !== MESSAGE_SYNC) {
-      const reply = handleMessage(payload, doc, awareness, conn);
+      // S3.7b (D11) — a read-only conn may watch, never broadcast a
+      // presentation: `present` + `pointer` are stripped before the apply.
+      const frame = conn.readOnly === true ? stripPresenterAwareness(payload) : payload;
+      if (!frame) return;
+      const reply = handleMessage(frame, doc, awareness, conn);
       if (reply) conn.send(reply);
       return;
     }
