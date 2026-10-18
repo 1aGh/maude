@@ -234,3 +234,43 @@ describe('maude design history restore / undo (prompt tier)', () => {
     expect((await studio.run('history', ['undo'])).code).toBe(2);
   });
 });
+
+describe('maude design history name (S1.12b, V2-1.9 §5.4 — shared tier)', () => {
+  const namer =
+    (answer: Record<string, unknown>, status = 200) =>
+    (s: Seen) => {
+      if (s.path === '/_api/project/name') return json(answer, status);
+      return synced(s);
+    };
+
+  test('name <canvas> <ref> "<name>" posts { path, at, name }; --clear posts name null', async () => {
+    studio = fakeStudio(namer({ ok: true, actionId: 'a_30' }));
+    expect((await studio.run('history', ['name', 'ui/home.tsx', 'r11', 'Final hero'])).code).toBe(
+      0
+    );
+    expect((await studio.run('history', ['name', 'ui/home.tsx', 'now', '--clear'])).code).toBe(0);
+    expect(writes(studio.seen).map((s) => [s.path, s.body])).toEqual([
+      ['/_api/project/name', { path: '.design/ui/home.tsx', at: 'r11', name: 'Final hero' }],
+      ['/_api/project/name', { path: '.design/ui/home.tsx', at: 'now', name: null }],
+    ]);
+  });
+
+  test('a hub without naming says so in one line; a bad ref is usage (exit 2) before any request', async () => {
+    studio = fakeStudio(
+      namer(
+        {
+          ok: false,
+          reason: 'hub-too-old',
+          line: 'Naming versions needs the team server to be updated',
+        },
+        409
+      )
+    );
+    const r = await studio.run('history', ['name', 'ui/home.tsx', 'r11', 'x']);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain('Naming versions needs the team server to be updated');
+    const bad = await studio.run('history', ['name', 'ui/home.tsx', 'yesterday', 'x']);
+    expect(bad.code).toBe(2);
+    expect(writes(studio.seen)).toHaveLength(1);
+  });
+});

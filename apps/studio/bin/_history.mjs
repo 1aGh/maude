@@ -28,6 +28,7 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
        maude design history diff [<canvas>] [--from <ref>] [--json] [--root <project>]
        maude design history restore <canvas> <ref> [--json] [--root <project>]
        maude design history undo --action <id> [--redo] [--json] [--root <project>]
+       maude design history name <canvas> <ref> "<name>" | --clear [--json] [--root <project>]
   <canvas>  design-root-relative (ui/home.tsx), .design/…, or absolute
   <ref>     r<n> (a synced project's version) or a commit sha (a local project's)
   list      the versions, newest first
@@ -35,7 +36,8 @@ export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [-
   diff      what changed since <ref> (default: the last commit) — local projects
   restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced
   undo      undo (or --redo) one action, as a new version — synced
-list / show / diff read only; restore / undo change the project and ask first.
+  name      name a version of the canvas (<ref> may be now); --clear removes its name — synced
+list / show / diff read only; restore / undo / name change the project and ask first.
 Exit 0 ok · 1 not found / refused / not available · 2 usage · 3 no studio running.
 `;
 
@@ -244,6 +246,37 @@ async function undo(words) {
   });
 }
 
+/** `name <canvas> <ref> "<name>"` · `--clear` — name a version (V2-1.9 §5.4): the studio snaps
+ *  <ref> to the newest version of the canvas at or before it; everyone in the project sees it. */
+async function name(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json', '--clear'], value: ['--root'] });
+  const clear = flags['--clear'] === true;
+  if (pos.length !== (clear ? 2 : 3))
+    throw new UsageError('name takes <canvas> <ref> "<name>", or <canvas> <ref> --clear');
+  const [canvas, ref, label] = pos;
+  const m = ref === 'now' ? null : REV.exec(ref);
+  if (ref !== 'now' && !m) throw new UsageError(`${ref} is not a version (r<n> or now)`);
+  const c = await connect('history', flags['--root']);
+  if (c.exit) return c.exit;
+  const repoRel = canvasArg(c.root, canvas);
+  const r = await call(c.studio, '/_api/project/name', {
+    method: 'POST',
+    json: { path: repoRel, at: m ? `r${m[1]}` : 'now', name: clear ? null : label },
+  });
+  if (r?.status === 409 && r.body?.reason === 'hub-too-old') {
+    process.stderr.write(
+      `maude design history: ${clean(r.body.line ?? 'the team server needs to be updated')}\n`
+    );
+    return 1;
+  }
+  if (r?.status === 409 && r.body?.reason === 'legacy') r.status = 200;
+  return landed(r, flags['--json'], {
+    legacy: 'naming versions needs a synced project — this one keeps its history in git',
+    ok: (b) =>
+      `→ ${clear ? 'cleared the name of' : 'named'} ${repoRel.replace(/^\.design\//, '')} at ${m ? `r${m[1]}` : 'now'}${b.actionId ? ` (${clean(b.actionId)})` : ''}`,
+  });
+}
+
 function landed(r, asJson, say) {
   if (!r) throw new Error('the studio did not answer');
   const b = r.body ?? {};
@@ -312,7 +345,7 @@ export function unified({ file, before, now }) {
   return s;
 }
 
-const SUBS = { list, show, diff, restore, undo };
+const SUBS = { list, show, diff, restore, undo, name };
 
 if (import.meta.main) {
   runVerb('history', USAGE, async (words) => {
