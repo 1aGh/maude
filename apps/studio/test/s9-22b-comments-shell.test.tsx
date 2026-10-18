@@ -61,7 +61,11 @@ describe('commentPanelActions — who gets Resolve / Reopen / Delete, and throug
       { op: 'reopen', id: 'c2' },
       { op: 'delete-own', id: 'c3' },
     ]);
-    expect(said).toEqual(['You can’t do that here.', 'You can’t do that here.', 'You can’t do that here.']);
+    expect(said).toEqual([
+      'You can’t do that here.',
+      'You can’t do that here.',
+      'You can’t do that here.',
+    ]);
   });
 });
 
@@ -122,7 +126,10 @@ describe('S9.17 hunks — a mention notice click opens the thread; the shell hea
     const { applyShellNavigate } = await import('../client/shell-events.js');
     const ran: unknown[][] = [];
     const opened: string[] = [];
-    const plan = applyShellNavigate({ canvas: 'ui/poster.tsx', thread: 'c_abc-1' }, deps(ran, opened));
+    const plan = applyShellNavigate(
+      { canvas: 'ui/poster.tsx', thread: 'c_abc-1' },
+      deps(ran, opened)
+    );
     expect(plan?.thread).toBe('c_abc-1');
     expect(opened).toEqual(['ui/poster.tsx']);
     expect(ran).toEqual([['comments.open-thread', { file: A, id: 'c_abc-1' }]]);

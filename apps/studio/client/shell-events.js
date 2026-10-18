@@ -22,9 +22,7 @@ import { applyUiOpen } from './ui-open.js';
 
 // The shell's one runner, loaded when a thread first needs it (it pulls the whole menu graph).
 const runShellAction = (id, params) =>
-  import('./v2/shell/menu-runner.js')
-    .then((m) => m.menuRunner.run(id, params))
-    .catch(() => false);
+  import('./v2/shell/menu-runner.js').then((m) => m.menuRunner.run(id, params)).catch(() => false);
 
 // The artboard rule Rust's `validate_target` applies: 1–128 characters, no control characters.
 const okArtboard = (a) =>

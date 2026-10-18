@@ -56,13 +56,7 @@ export async function postCommentOp(op, fetchImpl = globalThis.fetch) {
  *   neither                    no actions — and the door would refuse them anyway (hidden ≠ refused)
  * `canComment` is `/_config.canComment`, the server's answer. A refusal is said in a sentence (`notify`).
  */
-export function commentPanelActions({
-  viewerMode,
-  canComment,
-  ws,
-  notify,
-  post = postCommentOp,
-}) {
+export function commentPanelActions({ viewerMode, canComment, ws, notify, post = postCommentOp }) {
   if (!viewerMode) return { onResolve: ws.resolve, onReopen: ws.reopen, onDelete: ws.remove };
   if (!canComment) return { onResolve: undefined, onReopen: undefined, onDelete: undefined };
   const door = (op) => (id) =>

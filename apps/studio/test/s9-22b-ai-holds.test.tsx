@@ -61,7 +61,13 @@ describe('holdsFor (S9.22b)', () => {
     const holds = holdsFor(view, { activeCanvas: FILE });
     expect(holds).toEqual([
       { artboard: 'post', element: 'footer', tag: 'AI is working', mine: true },
-      { artboard: 'story', element: 'title', occurrence: 2, tag: 'Waiting for Tereza', mine: false },
+      {
+        artboard: 'story',
+        element: 'title',
+        occurrence: 2,
+        tag: 'Waiting for Tereza',
+        mine: false,
+      },
     ]);
     const wire = JSON.stringify(holds);
     expect(wire).not.toContain('SECRET');
@@ -76,7 +82,10 @@ describe('holdsFor (S9.22b)', () => {
       mine: [
         mine({ state: 'waiting' }),
         mine({ runId: 'r_3', state: 'done' }),
-        mine({ runId: 'r_4', objects: [{ canvas: KEY, artboard: 'post', element: 'e'.repeat(121) }] }),
+        mine({
+          runId: 'r_4',
+          objects: [{ canvas: KEY, artboard: 'post', element: 'e'.repeat(121) }],
+        }),
       ],
       others: [tereza({ state: 'waiting' })],
       needsYou: 0,
