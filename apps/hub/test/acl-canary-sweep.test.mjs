@@ -111,6 +111,15 @@ function assertNoLeak(where, ...texts) {
 /** Every concrete request a row stands for, B-targeted, with its twin target. */
 function requestsFor(row, tg) {
   const q = `?path=${encodeURIComponent(tg.path)}&doc=${encodeURIComponent(tg.doc)}&sha=${tg.hash}&lane=html&rev=9&since=0`;
+  // S8.19 — asset presence is asked per `rel`, B's and the twin's alike.
+  if (row.pattern?.source.includes('asset-presence')) {
+    const at = `${V1}/asset-presence`;
+    return [
+      ['GET', `${at}?rel=${encodeURIComponent(tg.path)}`],
+      ['GET', `${at}?rel=${encodeURIComponent(tg.path)}&rel=assets/${tg.slug}.png`],
+      ['POST', at, '{}'],
+    ];
+  }
   if (row.pattern) {
     const route = /v1\/([a-z]+)/.exec(row.pattern.source)?.[1];
     return [
