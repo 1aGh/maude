@@ -14,6 +14,12 @@ import {
   stat as statp,
 } from 'node:fs/promises';
 import path from 'node:path';
+import {
+  filterCommentsAll,
+  filterIndexData,
+  filterSystemData,
+  projectVisibility,
+} from './access/filters.ts';
 import { canonicalAnnotations } from './annotations/board-text.ts';
 import {
   type Op as AnnotationOp,
@@ -1480,7 +1486,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         /* ignore */
       }
     }
-    return out;
+    // S9.10 (V2-1.16 L10) — only the canvases THIS request's session sees. Every id-based
+    // mutation below scans this map, so an invisible id answers as a missing one (U1).
+    return filterCommentsAll(out, projectVisibility(ctx).current(), paths.designRel);
   }
 
   function newCommentId(): string {
@@ -7047,14 +7055,20 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       });
     }
 
-    return {
-      project: cfg.name,
-      projectLabel: ctx.projectLabel,
-      designRoot: paths.designRel,
-      groups,
-      canvasDesignSystems,
-      canvasKinds,
-    };
+    // S9.10 (V2-1.16 L8) — a canvas-only session's tree: what it sees, nothing else.
+    return filterIndexData(
+      {
+        project: cfg.name,
+        projectLabel: ctx.projectLabel,
+        designRoot: paths.designRel,
+        groups,
+        canvasDesignSystems,
+        canvasKinds,
+      },
+      projectVisibility(ctx).current(),
+      paths.designRel,
+      cfg.designSystems ?? []
+    );
   }
 
   function tokenKind(name: string, value: string): string {
@@ -7219,32 +7233,40 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       description: d.description ?? null,
     }));
 
-    return {
-      project: cfg.name,
-      designRoot: paths.designRel,
-      systemDir: sysRel,
-      ds: dsEntry
-        ? {
-            name: dsEntry.name,
-            path: dsEntry.path,
-            description: dsEntry.description ?? null,
-            rootClass: dsEntry.rootClass ?? null,
-            themeDefault: dsEntry.themeDefault ?? null,
-          }
-        : null,
-      availableDesignSystems,
-      defaultDesignSystem: cfg.defaultDesignSystem ?? availableDesignSystems[0]?.name ?? null,
-      readme,
-      readmePath,
-      tokens,
-      tokenGroups,
-      tokensPath,
-      previewGallery,
-      uiKitsGallery,
-      rootClass: dsEntry?.rootClass ?? cfg.rootClass,
-      themeDefault: dsEntry?.themeDefault ?? cfg.themeDefault,
-      teamAccentDefault: cfg.teamAccentDefault,
-    };
+    // S9.10 (V2-1.16 L8/L9) — a canvas-only session: only the DS its canvases render with
+    // (an invisible `ds` is an unknown one — null, the caller's 404), no README.
+    return filterSystemData(
+      {
+        project: cfg.name,
+        designRoot: paths.designRel,
+        systemDir: sysRel,
+        ds: dsEntry
+          ? {
+              name: dsEntry.name,
+              path: dsEntry.path,
+              description: dsEntry.description ?? null,
+              rootClass: dsEntry.rootClass ?? null,
+              themeDefault: dsEntry.themeDefault ?? null,
+            }
+          : null,
+        availableDesignSystems,
+        defaultDesignSystem: cfg.defaultDesignSystem ?? availableDesignSystems[0]?.name ?? null,
+        readme,
+        readmePath,
+        tokens,
+        tokenGroups,
+        tokensPath,
+        previewGallery,
+        uiKitsGallery,
+        rootClass: dsEntry?.rootClass ?? cfg.rootClass,
+        themeDefault: dsEntry?.themeDefault ?? cfg.themeDefault,
+        teamAccentDefault: cfg.teamAccentDefault,
+      },
+      projectVisibility(ctx).current(),
+      paths.designRel,
+      cfg.designSystems ?? [],
+      tokensCssRel
+    );
   }
 
   return {
