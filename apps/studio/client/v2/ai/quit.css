@@ -1,0 +1,58 @@
+/* @layer components — S5.14: the quit dialog (03 `ai-quit`) and the "Stopped" divider + Keep going.
+   Tokens only. The dialog rides the shared `.gi-modal` / `.gi-scrim` / `.gi-dialog` recipe. */
+@layer components {
+  .ai-quit-dialog {
+    width: min(380px, calc(100vw - 2 * var(--space-4)));
+  }
+  .ai-quit-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--type-md);
+    font-weight: 600;
+  }
+  .ai-quit-body {
+    margin: 0 0 var(--space-4);
+    color: var(--fg-1);
+  }
+  .ai-quit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  /* The divider: a rule with the line on it, then Keep going. */
+  .ai-stopped {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+  }
+  .ai-stopped-rule {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .ai-stopped-rule::before,
+  .ai-stopped-rule::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--border-subtle);
+  }
+  .ai-stopped-line {
+    flex: none;
+  }
+  .ai-stopped-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .ai-stopped-note {
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+}

@@ -543,6 +543,34 @@ describe('⌘K across projects (S1.5 · pn-k-across)', () => {
     expect(spies.closed).toBe(1);
   });
 
+  // S15-A2: a misspelling flattens everything into "Did you mean" — another project's row still says
+  // which project ↵ goes to, and where it is.
+  test('“Did you mean”: another project’s row keeps its square, name and where it is', async () => {
+    const typo = {
+      groups: [
+        across.groups[1],
+        {
+          ...across.groups[2],
+          rows: [{ ...across.groups[2].rows[0], key: 'case/Mobile-app.tsx', name: 'Mobile app' }],
+        },
+      ],
+    };
+    const { spies, actions } = setup({ index: { rows: [] }, across: typo });
+    const el = await mount(actions, spies);
+    await type(el, 'mobjle');
+    await act(async () => {
+      await sleep(250);
+    });
+    expect(el.querySelector('[data-testid="palette-group-did-you-mean"]')).not.toBeNull();
+    const labels = [...el.querySelectorAll('[data-testid="palette-project-label"]')].map(
+      (n) => n.textContent
+    );
+    expect(labels.sort()).toEqual([
+      'PPortfolio 2026 · not open — opens a tab',
+      'SStudio site · in another tab',
+    ]);
+  });
+
   test('a browser tab asks nobody: Canvases · Artboards as before', async () => {
     const { spies, actions } = setup({ index: own });
     const el = await mount(actions, spies);

@@ -14,11 +14,10 @@ import { estimateFor, waitingCopy, waitingOfChat } from './runs-model.js';
 import { useAiRuns } from './runs-store.js';
 
 /**
- * Run on a copy needs the server half (`POST /_api/ai/runs/:id/copy`: duplicate the accepted artboard beside
- * the original, re-scope the ask — V2-1.15 §5.7). It lands with its own slice; until then the button is not
- * drawn, because a button that answers 404 is worse than none. The store method and this card are ready.
+ * Run on a copy: `POST /_api/ai/runs/:id/copy` (S5.11b) duplicates the accepted artboard beside the original,
+ * re-scopes the ask to it and starts it (V2-1.15 §5.7). The flag stays so a host can hide the button.
  */
-export const RUN_ON_COPY_LIVE = false;
+export const RUN_ON_COPY_LIVE = true;
 
 export function WaitingCard({
   run,

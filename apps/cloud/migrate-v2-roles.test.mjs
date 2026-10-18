@@ -13,8 +13,8 @@ import { d1FromSqlite } from './db.mjs';
 import { applySchema, MIGRATIONS, schemaStatements } from './migrate.mjs';
 import { SCHEMA_SQL } from './schema.mjs';
 
-// v17 is no longer the newest migration (S9.14a added v18); "fully migrated"
-// is whatever the newest declared version is, so these stay about v17.
+// The newest migration, whatever lands after v17 (S9.14's v18, S9.15's v19):
+// these tests pin v17's behaviour, not that v17 stays the last one.
 const LATEST = Math.max(...MIGRATIONS.map((m) => m.version));
 
 /**

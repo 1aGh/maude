@@ -246,6 +246,8 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     '_state/runs/x.json',
     '_state/runs/r_0123456789ab.json.4242.tmp',
     '_state/outbox/intents/1760000000000-i_abcdefghij0123456789.json',
+    // S5.10 — this Mac's folder grants for the AI chat (routes/chat-attach.ts): never synced
+    '_state/ai-grants.json',
     'nested/_history/x.png',
     'nested/.kgai/y',
     '_history',

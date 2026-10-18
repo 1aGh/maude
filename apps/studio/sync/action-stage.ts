@@ -136,6 +136,8 @@ export interface ActionStageOptions {
   ) => { canvas: string; artboards: string[] } | null;
   log?: Pick<Console, 'log' | 'warn'>;
   now?: () => number;
+  /** Where held runs persist (default `_state/ai-stage.json`; the local home keeps its own). */
+  stateFile?: string;
 }
 
 const STOPPED = ' — stopped';
@@ -146,7 +148,7 @@ const originId = (v: unknown): string | undefined =>
 export function createActionStage(opts: ActionStageOptions) {
   const log = opts.log ?? console;
   const now = opts.now ?? Date.now;
-  const file = path.join(opts.designRoot, '_state', 'ai-stage.json');
+  const file = opts.stateFile ?? path.join(opts.designRoot, '_state', 'ai-stage.json');
 
   /** runId → stage, in begin order. */
   const runs = new Map<string, RunStage>();
@@ -700,6 +702,33 @@ export function createActionStage(opts: ActionStageOptions) {
     mapDeps,
     summary,
     runs: (): RunStageSummary[] => [...runs.values()].map(runSummary),
+    /** One run's summary (by its begin key or run id), null when no such run is staged. */
+    summaryOf: (keyOrRun: string): RunStageSummary | null => {
+      const r = runOf(keyOrRun);
+      return r ? runSummary(r) : null;
+    },
+    /** One run's staged lanes (no resolvers) — the local home puts a discarded run's bytes back. */
+    lanesOf: (
+      keyOrRun: string
+    ): Array<{ slug: string; lane: LaneProposal['lane']; base: string; mine: string }> => {
+      const r = runOf(keyOrRun);
+      return r
+        ? [...r.lanes.values()].map((l) => ({
+            slug: l.slug,
+            lane: l.lane,
+            base: l.base,
+            mine: l.mine,
+          }))
+        : [];
+    },
+    /** S5.11b — a lane's accepted value under the staged runs (their base); null = none staged it. */
+    accepted(slug: string, lane: LaneProposal['lane']): string | null {
+      for (const r of runs.values()) {
+        const l = r.lanes.get(`${slug}|${lane}`);
+        if (l) return l.base;
+      }
+      return null;
+    },
     /** Held wins over open; null when no run is staged. */
     get state(): StageState | null {
       if (runs.size === 0) return null;

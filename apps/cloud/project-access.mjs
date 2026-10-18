@@ -33,9 +33,15 @@ export const ROLES = MATRIX_ROLES;
  * @param {string|null} args.accountId       who is asking (null = signed out)
  * @param {object|null} args.project         the project row, or null if absent
  * @param {{account_id: string, role: string}[]} [args.members]
- * @returns {{ok: true, role: string} | {ok: false, reason: string}}
+ * @param {number} [args.now]
+ * @returns {{ok: true, role: string, paused?: true} | {ok: false, reason: string}}
+ *
+ * `paused` (A3, Maude v2 S9.15): the trial ended with no subscription. Everyone
+ * who could open the project still can — reads and exports keep working; the
+ * cell refuses writes and sync with 402 `plan` (`planRefusal`). The key is
+ * present ONLY when true, so every unpaused answer is byte-identical to v1's.
  */
-export function decideAccess({ accountId, project, members = [] }) {
+export function decideAccess({ accountId, project, members = [], now = Date.now() }) {
   // Identical answer for "no such project" and "not yours". Distinguishing
   // them turns this into an oracle for which project ids exist, and project
   // ids are guessable — they are named after the work.
@@ -46,7 +52,9 @@ export function decideAccess({ accountId, project, members = [] }) {
   // for access, which is the one thing that cannot help.
   if (project.state === 'purged') return { ok: false, reason: 'purged' };
 
-  if (project.account_id === accountId) return { ok: true, role: 'owner' };
+  const paused = planState(project, { now }) === 'paused' ? { paused: true } : {};
+
+  if (project.account_id === accountId) return { ok: true, role: 'owner', ...paused };
 
   const member = members.find((m) => m.account_id === accountId);
   if (!member) return { ok: false, reason: 'no-access' };
@@ -57,7 +65,45 @@ export function decideAccess({ accountId, project, members = [] }) {
   // not quietly keep a whole team working.
   if (project.state === 'suspended') return { ok: false, reason: 'suspended' };
 
-  return { ok: true, role: member.role };
+  return { ok: true, role: member.role, ...paused };
+}
+
+/**
+ * Where a project stands on its plan (A3). Pure.
+ *
+ *  - `paid`   — a subscription is on the row (Checkout, or Choose a plan);
+ *  - `trial`  — provisioned under the account's trial, still inside it;
+ *  - `paused` — that trial is over and no plan was chosen;
+ *  - `none`   — not a trial project and no subscription: a pending checkout,
+ *    a hand-provisioned pilot, a legacy row. NEVER paused by this — the trial
+ *    clock is not a way to stop a project that was never on it.
+ *
+ * The contract's "decideAccess marks every project the account owns paused"
+ * reads as this: with one trial workspace per address, every unpaid project an
+ * account owns past its trial is its trial project.
+ */
+export function planState(project, { now = Date.now() } = {}) {
+  if (!project) return 'none';
+  if (project.subscription_id) return 'paid';
+  const endsAt = project.trial_ends_at ?? null;
+  if (endsAt === null) return 'none';
+  return now >= endsAt ? 'paused' : 'trial';
+}
+
+/**
+ * The cell's answer to a write on a paused project (S9-slices Q11). 402, not
+ * 403: a v2 client shows the plan callout on it and never renews credentials.
+ * Only the owner — the one who can choose a plan — is told to; everyone else
+ * hears that editing is paused, and nothing about billing.
+ */
+export function planRefusal(role) {
+  return {
+    status: 402,
+    body: {
+      reason: 'plan',
+      error: role === 'owner' ? ACCESS_MESSAGES.plan : ACCESS_MESSAGES.paused,
+    },
+  };
 }
 
 /** What the person is told. One sentence, and never our vocabulary. */
@@ -66,6 +112,10 @@ export const ACCESS_MESSAGES = {
   'no-access': 'This project is not available to your account.',
   purged: 'This project was deleted. If you exported it, that copy is still yours.',
   suspended: 'This project is paused. Its owner can restart it from the dashboard.',
+  // A3 (S9.15) — the owner's sentence is the contract's; the hub's
+  // access-gate.mjs carries the same two strings (a test pins each side).
+  plan: 'Choose a plan to keep editing.',
+  paused: 'Editing is paused for this project. Its owner can turn it back on.',
 };
 
 /**

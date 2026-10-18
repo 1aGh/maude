@@ -23,10 +23,18 @@ import { ModeSwitch } from './mode-switch.jsx';
 import { menuCtx } from './project-menu-model.js';
 import { accessStatus, exportsRing, facesOf, outboxPending, saveStatus } from './save-status.js';
 import { ShareCluster } from './share-cluster.jsx';
+import { AccountChip } from './account-card.jsx';
+import { accountCard, accountChip } from './account-card-model.js';
 import { presentFromLabel } from './present-from-label.js';
+import { useAccount } from './use-account.js';
 import { useCanvasModeLane } from './use-canvas-mode-lane.js';
 import { usePanelLayout } from './use-panel-layout.js';
 import { isNativeApp } from '../../github.js';
+import {
+  chosenDisplay,
+  presenterAvailable,
+  usePresenterDisplays,
+} from '../present/presenter-store.js';
 
 const subscribeOnline = (fn) => {
   window.addEventListener('online', fn);
@@ -143,9 +151,45 @@ export function ShellShareCluster() {
     () => indexMeta(indexSnapshot, cfg?.designRel).get(activePath)?.boards ?? null,
     [indexSnapshot, cfg?.designRel, activePath]
   );
+  // S3.6b — Present ⌄ › "Presenter view on another display ✓ (<name>)": a row only where the desktop app
+  // reports another display (the same read keeps the list current).
+  const pv = usePresenterDisplays();
+  const presenterView = presenterAvailable(pv)
+    ? { name: chosenDisplay(pv)?.name ?? '', on: pv.wanted }
+    : null;
   const fromLabel = useMemo(
     () => presentFromLabel({ selected, inView: canvasActiveArtboard, boards }),
     [selected, canvasActiveArtboard, boards]
+  );
+
+  // S1.22a — the account chip (desktop): which Mac account this project tab is bound to. A cloud tab's
+  // account is the hub's, a browser tab has none: both get no chip.
+  const native = isNativeApp();
+  const acct = useAccount(native && !cfg?.cloud);
+  const projectName = cfg?.cloud?.projectName || project;
+  const chip = useMemo(
+    () =>
+      accountChip({
+        native,
+        cloud: !!cfg?.cloud,
+        connected: acct.connected,
+        profile: cfg?.profile,
+        email: acct.email,
+        accounts: acct.accounts,
+      }),
+    [native, cfg?.cloud, cfg?.profile, acct.connected, acct.email, acct.accounts]
+  );
+  const card = useMemo(
+    () =>
+      chip
+        ? accountCard({
+            project: projectName,
+            profile: cfg?.profile,
+            email: acct.email,
+            accounts: acct.accounts,
+          })
+        : null,
+    [chip, projectName, cfg?.profile, acct.email, acct.accounts]
   );
 
   const retry = useCallback(async () => {
@@ -161,6 +205,16 @@ export function ShellShareCluster() {
 
   return (
     <ShareCluster
+      accountSlot={
+        chip ? (
+          <AccountChip
+            chip={chip}
+            card={card}
+            onSwitch={() => menuRunner.run('account.switch')}
+            onSignOut={acct.signOut}
+          />
+        ) : null
+      }
       faces={faces}
       onFollow={lane.follow}
       status={shown}
@@ -191,6 +245,8 @@ export function ShellShareCluster() {
             kind === 'order-notes' ? menuRunner.run('present.order-notes') : lane.present(kind)
           }
           presentFromLabel={fromLabel}
+          presenterView={presenterView}
+          onPresenterView={() => menuRunner.run('present.presenter-view')}
           canPresent={canvasOpen}
         />
       }

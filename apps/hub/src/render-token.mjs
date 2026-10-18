@@ -21,6 +21,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { GRANT_ROLES, MAX_GRANTS } from '../../studio/access/scope.ts';
+import { followRelOf } from './follow-capability.mjs';
 import { FLOOR_ROLE, ROLES } from './role-matrix.mjs';
 
 /** How long a render capability lives. Short: it cannot be revoked. */
@@ -74,11 +75,18 @@ export function mintRenderToken({
    *  door refuses EVERY unsafe method and every collab socket carrying it,
    *  whatever `role` says — the comment lane a viewer keeps included. */
   readOnly = false,
+  /** S3.7c — a presentation follower's capability (follow-capability.mjs): the
+   *  ONE canvas (designRoot-relative) whose room it may join, receive-only.
+   *  Implies `ro` and carries no project role, so it floors to observer and
+   *  the canvas door narrows its access to that canvas. Signed like `ro`. */
+  follow = null,
   grants = [],
   now = Date.now(),
   ttlMs = RENDER_TOKEN_TTL_MS,
 }) {
   if (!secret) throw new Error('a hub secret is required to mint a render token');
+  const f = follow === null || follow === undefined ? null : followRelOf(follow);
+  if ((follow ?? null) !== null && !f) throw new Error('a follow capability names one canvas');
   const g = (grants ?? [])
     .map(({ c, r }) => ({ c, r }))
     .sort((a, b) => (a.c < b.c ? -1 : a.c > b.c ? 1 : 0));
@@ -89,9 +97,10 @@ export function mintRenderToken({
   const payload = JSON.stringify({
     p: project,
     s: subject,
-    ...(role ? { r: role } : {}),
-    ...(readOnly ? { ro: 1 } : {}),
-    ...(g.length ? { g } : {}),
+    ...(role && !f ? { r: role } : {}),
+    ...(readOnly || f ? { ro: 1 } : {}),
+    ...(f ? { f } : {}),
+    ...(g.length && !f ? { g } : {}),
     e: now + ttlMs,
   });
   return `${Buffer.from(payload).toString('base64url')}.${sign(secret, payload)}`;
@@ -135,6 +144,8 @@ export function verifyRenderToken({ secret, token, project, now = Date.now() }) 
   ) {
     return { ok: false, reason: 'malformed' };
   }
+  // S3.7c — a follow claim that does not name one canvas fails the WHOLE capability.
+  if (claims.f !== undefined && !followRelOf(claims.f)) return { ok: false, reason: 'malformed' };
   const exp = Number(claims?.e);
   if (!Number.isFinite(exp) || exp < now) return { ok: false, reason: 'expired' };
   if (project && claims?.p !== project) return { ok: false, reason: 'wrong-project' };
@@ -148,6 +159,8 @@ export function verifyRenderToken({ secret, token, project, now = Date.now() }) 
     role: ROLES.includes(claims.r) ? claims.r : FLOOR_ROLE,
     grants: (g ?? []).map(({ c, r }) => ({ c, r })),
     // DDR-247 — signed, so a holder cannot strip it to regain the role's writes.
-    readOnly: claims.ro === 1,
+    readOnly: claims.ro === 1 || claims.f !== undefined,
+    // S3.7c — the one canvas a follower's capability may watch; null for every other token.
+    follow: claims.f ?? null,
   };
 }
