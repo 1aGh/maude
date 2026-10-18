@@ -39,7 +39,7 @@ import {
   sees as seesRel,
   writes as writesRel,
 } from '../../studio/access/scope.ts';
-import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
+import { docSlugOf } from './access-docs.mjs';
 import { claimForMatch, NOT_IN_SCOPE_REFUSAL } from './access-gate.mjs';
 import { cachedJournal } from './journal.mjs';
 import { matchesScope } from './tokens.mjs';
@@ -148,8 +148,6 @@ export function projectReader({ designRoot, journal }) {
   };
 }
 
-const slugOf = (canvas) => canvasSlugFromRel(canvas, '');
-
 /**
  * The file-plane answer for one ACCESS CLAIM (V2-1.7 §5.3).
  *
@@ -227,7 +225,9 @@ export function fileAccessForClaim(
     seesDocument(documentName) {
       if (mode === 'project') return matchesScope(scope, String(documentName ?? ''));
       if (mode === 'none') return false;
-      return seesDoc(access, String(documentName ?? ''), slugOf);
+      // The document door's own slug (`ui/Plakát.tsx` → `ui-plak-t`), so the
+      // two planes name a canvas's document the same way.
+      return seesDoc(access, String(documentName ?? ''), docSlugOf);
     },
     /**
      * U5 — the journal head this session may see: the last seq of a path it

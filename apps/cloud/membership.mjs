@@ -14,14 +14,14 @@
 // recalled. So removal is only as fast as the token is short, and this module
 // is where that trade is written down rather than discovered.
 
-import { rankOf, V1_ROLES } from '../studio/access/roles.ts';
+import { ROLES as MATRIX_ROLES, rankOf } from '../studio/access/roles.ts';
 
 /**
- * Roles a person can hold here, weakest first — THE matrix's stored roles
- * (`apps/studio/access/roles.ts`, S9.1), not a local list. `observer` joins once
- * the D1 tables accept it (V2-1.7 §5.8).
+ * Roles a person can hold here, weakest first — THE matrix's roles
+ * (`apps/studio/access/roles.ts`, S9.1), not a local list. `observer` (Can
+ * view) is stored since D1 v17 (V2-1.7 §5.8).
  */
-export const ROLES = V1_ROLES;
+export const ROLES = MATRIX_ROLES;
 
 /**
  * Decide a membership change.
