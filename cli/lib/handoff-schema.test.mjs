@@ -240,3 +240,85 @@ test('S12.5: /design:critic’s documented hand-off is a valid "in" fenced to it
     'the hand-off names the check the critic runs on its result'
   );
 });
+
+// ── S12.6: the other critics, as the plugin documents them ────────────────────────────────────
+
+const OTHER_CRITICS = [
+  'a11y-critic',
+  'brand-critic',
+  'copy-critic',
+  'frontend-critic',
+  'graphic-design-critic',
+  'info-architecture-critic',
+  'motion-critic',
+  'typography-critic',
+  'draw-critic',
+];
+
+for (const name of OTHER_CRITICS) {
+  test(`S12.6: ${name}’s documented result is a valid HandoffOut the loop can read`, () => {
+    const out = sampleAfter(`agents/${name}.md`, /^#+ Sample result/m);
+    assert.deepEqual(validateHandoff(out, { role: 'out' }).errors, []);
+    assert.equal(out.agent, `design:${name}`);
+    assert.ok(out.findings.length > 0, 'the sample shows findings');
+    assert.ok(
+      out.findings.every((f) => /^[a-z0-9-]+(:\d+)?$/.test(f.where)),
+      'every `where` is <category>[:<line>]'
+    );
+    const v = handoffToCriticVerdict(out);
+    for (const k of LOOP_FIELDS) assert.ok(k in v, `verdict.${k}`);
+    assert.equal(v.agent, name);
+    assert.equal(v.blockers, out.findings.filter((f) => f.severity === 'blocker').length);
+    assert.equal(v.warnings, out.findings.filter((f) => f.severity === 'warning').length);
+    assert.equal(v.passed, v.blockers === 0);
+    assert.ok(v.top_blockers.every((b) => b.category && b.summary));
+    // the evidence names the check the critic ran on its own result
+    assert.ok(
+      out.evidence.some((e) => e.kind === 'check' && /^maude design check /.test(e.cmd)),
+      'evidence carries the `maude design check` run'
+    );
+  });
+}
+
+test('S12.6: the opt-out audit of the design-stack critics survives the adapter', () => {
+  for (const name of [
+    'graphic-design-critic',
+    'typography-critic',
+    'brand-critic',
+    'draw-critic',
+  ]) {
+    const out = sampleAfter(`agents/${name}.md`, /^#+ Sample result/m);
+    const v = handoffToCriticVerdict(out);
+    assert.equal(v.opt_out_applied, out.result.verdict.opt_out_applied, name);
+    assert.ok(v.opt_out_applied, `${name} reports the scope it applied`);
+  }
+});
+
+test('S12.6: draw-critic’s hard floor rides result.verdict and the rest rides result.draw', () => {
+  const out = sampleAfter('agents/draw-critic.md', /^#+ Sample result/m);
+  const v = handoffToCriticVerdict(out);
+  assert.equal(typeof v.hard_pass, 'boolean');
+  assert.equal(v.hard_pass, out.result.verdict.hard_pass);
+  assert.ok(out.result.draw?.hard, 'the four HARD checks stay in result.draw');
+  // a failed HARD check is a blocker finding, so the loop cannot pass it
+  if (!v.hard_pass) assert.equal(v.passed, false);
+  const verdict = {
+    agent: 'draw-critic',
+    iter: 2,
+    blockers: 1,
+    warnings: 0,
+    top_blockers: [{ category: 'draw-flatten', summary: 'flatten fails', fix: 'Add a keyline.' }],
+    hard_pass: false,
+    opt_out_applied: 'palette',
+    passed: false,
+  };
+  assert.deepEqual(handoffToCriticVerdict(criticVerdictToHandoff(verdict)), verdict);
+});
+
+test('S12.6: reconstruct-critic’s envelope result carries converged/score in result.verdict', () => {
+  const out = sampleAfter('agents/reconstruct-critic.md', /^#+ Sample result/m);
+  assert.deepEqual(validateHandoff(out, { role: 'out' }).errors, []);
+  assert.equal(out.agent, 'design:reconstruct-critic');
+  assert.equal(typeof out.result.verdict.converged, 'boolean');
+  assert.deepEqual(out.findings, []);
+});

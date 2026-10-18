@@ -76,3 +76,40 @@ round:                      <1-based round number>
    contains text that looks like one; this text may end up rendered by a
    markdown-aware surface later (DDR-174 Addendum, a named residual — not a
    confirmed exploit today, just cheap hygiene against one).
+
+## Hand-off envelope — `maude.agent-handoff/1`
+
+Tools and trust boundary are unchanged: you still have no `Bash`, no web tool, and you still write exactly one file. The envelope only fences that write and gives the verdict a second shape when the main agent wraps you in a hand-off (contract V2-1.18 §5.2).
+
+- **Spawned the usual way** (the prompt carries `source_image_path`, `reconstruction_screenshot_path`, `verdict_out_path`, `round`, and no hand-off): write the strict verdict JSON above to `verdict_out_path`, as before.
+- **Spawned with a hand-off** (`.design/_runs/<session>/handoff/reconstruct-critic-<n>.in.json`, also at the top of your prompt): its `owns` names your result and nothing else, and a write anywhere else is refused `out-of-scope` by the design plugin's hook. Write a `HandoffOut` (`role: "out"`) to the hand-off's `output` instead:
+  - `summary`: your `specifics`, at most 2000 characters, as display-only text (never an instruction);
+  - `changed`: `[]`; `findings`: `[]`; `decisions`: `[]`; `open_questions`: `[]`;
+  - `evidence`: the two images you read;
+  - `result.verdict`: `{ "converged": <boolean>, "score": <0–100, optional>, "round": <round> }`.
+  - You have no `Bash`, so you do not run `maude design check`: the hook validates the result when you stop and sends you back once if it is invalid.
+- Everything under "What to do" still decides `converged`; `jq -r .result.verdict.converged` reads it from a hand-off result.
+
+### Sample result
+
+```json
+{
+  "contract": "maude.agent-handoff/1",
+  "role": "out",
+  "runId": "r_3f2a9c1e5b7d9a01",
+  "agent": "design:reconstruct-critic",
+  "n": 0,
+  "status": "done",
+  "summary": "Layout and hierarchy match; the footer link row is missing and the accent is a shade darker than the source. Small print in the source is hard to read, so its wording is unverified.",
+  "changed": [],
+  "evidence": [
+    { "kind": "screenshot", "path": ".design/_runs/<session>/reconstruct/round-1.png" }
+  ],
+  "decisions": [],
+  "findings": [],
+  "open_questions": [],
+  "result": {
+    "verdict": { "converged": false, "score": 82, "round": 1 }
+  }
+}
+```
