@@ -19,6 +19,7 @@ import { TreeRowMenu, useRowMenu } from '../tree-row-menu.jsx';
 import RepoBranchSwitcher from '../panels/RepoBranchSwitcher.jsx';
 import CloudBar from '../panels/CloudBar.jsx';
 import IdentityBar from '../panels/IdentityBar.jsx';
+import { CanvasesPanel } from '../v2/canvases/canvases-panel.jsx';
 import { CanvasesAdvanced, useAdvancedOpen } from '../v2/left-panel/canvases-advanced.jsx';
 import { DsPinnedRows, TrashRow } from '../v2/left-panel/canvases-pinned.jsx';
 import { OPEN_TRASH_EVENT, takeTrashRequest } from '../v2/left-panel/left-panel-bus.js';
@@ -842,6 +843,10 @@ export function Sidebar({
   onRenameCanvas,
   onDuplicateCanvas,
   onDeleteFile,
+  // S1.2 — a canvas row's "Copy link" (the Canvases panel's row menu).
+  onCopyLink,
+  // S1.3 — the artboard in view on the open canvas (the jump list highlights it).
+  activeArtboard,
   // Passed through to CloudBar only — the live `sync:status` payload that makes
   // the connect note follow the link instead of freezing at attach time.
   syncStatus,
@@ -1010,6 +1015,9 @@ export function Sidebar({
   const [newName, setNewName] = useState('');
   const [newErr, setNewErr] = useState('');
   const [newBusy, setNewBusy] = useState(false);
+  // S1.1 — "New canvas in 2027" on an empty folder opens this same composer aimed at that folder: the
+  // board is created where the server puts new boards, then moved into the folder.
+  const [composerTarget, setComposerTarget] = useState(null); // { path, name } | null
 
   // Default folder-creation target: the first non-DS canvas group's root
   // (mirrors the server's own `newCanvasDir` default for board creation).
@@ -1040,14 +1048,25 @@ export function Sidebar({
       return;
     }
     const res = await onNewBoard(name);
+    if (res?.ok && composerTarget && res.file) await onMoveCanvas?.(res.file, composerTarget.path);
     setNewBusy(false);
     if (res?.ok) {
       setCreating(false);
       setNewName('');
+      setComposerTarget(null);
     } else {
       setNewErr(res?.error || 'could not create board');
     }
-  }, [newName, newBusy, onNewBoard, onNewFolder, composerMode, defaultFolderParent]);
+  }, [
+    newName,
+    newBusy,
+    onNewBoard,
+    onNewFolder,
+    onMoveCanvas,
+    composerMode,
+    composerTarget,
+    defaultFolderParent,
+  ]);
 
   // Mock uses `42 / 42` — total openable canvases, not every listed file.
   // We count canvas files (TSX Phase 3.6+ default, HTML legacy) so the counter
@@ -1199,6 +1218,7 @@ export function Sidebar({
               onClick={() => {
                 setNewErr('');
                 setComposerMode('board');
+                setComposerTarget(null);
                 setCreating((v) => (composerMode === 'board' ? !v : true));
               }}
             >
@@ -1216,6 +1236,7 @@ export function Sidebar({
               onClick={() => {
                 setNewErr('');
                 setComposerMode('folder');
+                setComposerTarget(null);
                 setCreating((v) => (composerMode === 'folder' ? !v : true));
               }}
             >
@@ -1231,7 +1252,13 @@ export function Sidebar({
             type="text"
             // biome-ignore lint/a11y/noAutofocus: deliberate — the composer opens on an explicit click.
             autoFocus
-            placeholder={composerMode === 'folder' ? 'folder name…' : 'brief board name…'}
+            placeholder={
+              composerMode === 'folder'
+                ? 'folder name…'
+                : composerTarget
+                  ? `brief board name in ${composerTarget.name}…`
+                  : 'brief board name…'
+            }
             value={newName}
             maxLength={60}
             disabled={newBusy}
@@ -1246,6 +1273,7 @@ export function Sidebar({
                 setCreating(false);
                 setNewName('');
                 setNewErr('');
+                setComposerTarget(null);
               }
             }}
           />
@@ -1317,13 +1345,60 @@ export function Sidebar({
           {!search && (
             <DsPinnedRows rows={pinnedDs} activeDsName={activeDsName} onOpen={onOpenSystem} />
           )}
-          <FileTree aria-label="Project file tree" data-testid="canvas-list">
-            {filteredGroups
-              .filter((g) => g.label !== 'Design system' || !!search)
-              .map((g) => renderSection(g))}
-          </FileTree>
-          {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
-          {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
+          {showHidden ? (
+            // Hidden files on = the file view of every group (sidecars, notes, media beside the canvases),
+            // exactly the tree it always was.
+            <>
+              <FileTree aria-label="Project file tree" data-testid="canvas-list">
+                {filteredGroups
+                  .filter((g) => g.label !== 'Design system' || !!search)
+                  .map((g) => renderSection(g))}
+              </FileTree>
+              {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
+              {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
+            </>
+          ) : (
+            <>
+              {/* S1.1 — the canvases, virtualised: Pinned, the project row with Sort, folders with counts. */}
+              <CanvasesPanel
+                groups={groups}
+                search={search}
+                projectLabel={project || cloud?.projectName || ''}
+                activePath={activePath}
+                onOpen={onOpen}
+                expansion={treeExpansion}
+                drag={treeDrag}
+                menu={rowMenu}
+                readOnly={readOnly}
+                onMove={onMoveCanvas}
+                onRename={onRenameCanvas}
+                onDuplicate={onDuplicateCanvas}
+                onTrash={onDeleteBoard}
+                onCopyLink={onCopyLink}
+                activeArtboard={activeArtboard}
+                commentsByFile={commentsByFile}
+                dirtyByPath={dirtyByPath}
+                canvasKinds={canvasKinds}
+                onNewCanvasIn={(path, name) => {
+                  setNewErr('');
+                  setComposerMode('board');
+                  setComposerTarget({ path, name });
+                  setCreating(true);
+                }}
+              >
+                {/* The panel's last row — the Trash list (C10). A viewer has no trash to open. */}
+                {!readOnly && <TrashRow trash={trash} onOpen={() => setTrashOpen(true)} />}
+              </CanvasesPanel>
+              {/* While searching, the other groups' hits (Design system, project and runtime files) follow. */}
+              {search ? (
+                <FileTree aria-label="Other project files" data-testid="canvases-other-files">
+                  {filteredGroups
+                    .filter((g) => g.kind !== 'canvas' || g.label === 'Design system')
+                    .map((g) => renderSection(g))}
+                </FileTree>
+              ) : null}
+            </>
+          )}
           <CanvasesAdvanced
             open={advancedOpen}
             onToggle={() => setAdvancedOpen((v) => !v)}

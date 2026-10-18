@@ -13,7 +13,15 @@ import {
 } from '../constants.ts';
 import { oneOf, str } from '../fields.ts';
 import type { ElementDef } from '../types.ts';
-import { BOX_FIELDS, boxOf, ROT_FIELD, resizeBox, solidBoxHit, translateBox } from './_shared.ts';
+import {
+  BOX_FIELDS,
+  boxOf,
+  ROT_FIELD,
+  resizeBox,
+  solidBoxHit,
+  stickerField,
+  translateBox,
+} from './_shared.ts';
 
 const CARD_CAPS = {
   box: true,
@@ -56,6 +64,8 @@ export const image: ElementDef = {
   ),
   // Images take arrow binds (v1 parity: isBindable included image).
   caps: { ...CARD_CAPS, bindable: true },
+  // Format 2 (R5): placed from the Stickers gallery — `{pack, id, flip?}`.
+  ext: { sticker: stickerField() },
 };
 
 export const link: ElementDef = card(

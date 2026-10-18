@@ -168,7 +168,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-selection",
-        "where": "Inspector header — the selection's selector then the element's own text (inspector-selection-text), the DOM path on hover; Esc inside the canvas clears it. Layers › Advanced select-by-selector is S2's"
+        "where": "Select an element → Inspector › Advanced — the selection's selector then the element's own text (inspector-selection-text), the DOM path on hover; Esc inside the canvas clears it. Layers › Advanced select-by-selector is S2's"
       }
     },
     {
@@ -377,10 +377,7 @@
         "action": null,
         "testid": "canvas-row-unsaved",
         "where": "Canvases — a changed canvas or file row carries an M / A / D / U badge until its version is saved (a project under git, local shells)",
-        "reach": [
-          "desktop",
-          "browser"
-        ]
+        "reach": ["desktop", "browser"]
       }
     },
     {
@@ -394,9 +391,7 @@
         "action": null,
         "testid": "repo-switcher-trigger",
         "where": "Canvases panel foot (desktop) — the project / draft switcher; a browser tab shows a read-only “branch: X” badge; a project somebody else saves keeps only the project half",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -410,9 +405,7 @@
         "action": "project.pull-copy",
         "testid": "project-menu-row-project.pull-copy",
         "where": "Menu › File › Pull a local copy… (desktop) — the GitHub \"get\" dialog; Version history picks it up from S1",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -426,9 +419,7 @@
         "action": null,
         "testid": "switcher-resume",
         "where": "Canvases panel foot (desktop) — on the shared version, with a draft you worked on, a “Continue on <draft>?” strip sits above the switcher (Dismiss hides it for the session)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -468,13 +459,7 @@
         "action": null,
         "testid": "settings-open-dashboard",
         "where": "Settings › General › Account › Open the cloud dashboard",
-        "reach": [
-          "desktop",
-          "browser",
-          "cloud-owner",
-          "cloud-member",
-          "cloud-viewer"
-        ],
+        "reach": ["desktop", "browser", "cloud-owner", "cloud-member", "cloud-viewer"],
         "reachNote": "V2-4.9: the local read-only link (viewer) has no account row — it is the Mac owner’s account, and that link is somebody else’s Mac. A cloud viewer keeps it (its hub told the tab where the dashboard is)."
       }
     },
@@ -696,7 +681,7 @@
       "v2": {
         "action": null,
         "testid": "css-panel",
-        "where": "Select an element → Inspector › the CSS panel; the Advanced vocabulary lists the raw properties (until S2)"
+        "where": "Select an element → Inspector › Advanced — the raw CSS panel, unchanged: about 33 properties in the raw vocabulary (S2.2)"
       }
     },
     {
@@ -709,7 +694,7 @@
       "v2": {
         "action": null,
         "testid": ".st-cp-idtag",
-        "where": "Select an element → Inspector › CSS panel header — the tag then its first class (until S2)"
+        "where": "Select an element → Inspector › Advanced — the raw CSS panel's header: the tag then its first class (S2.2)"
       }
     },
     {
@@ -722,7 +707,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-custom-css",
-        "where": "Select an element → Inspector › Advanced section — custom CSS properties, with a “property / value” row to add one (until S2)"
+        "where": "Select an element → Inspector › Advanced › the raw panel's Advanced section — custom CSS properties, with a “property / value” row to add one (S2.2)"
       }
     },
     {
@@ -735,7 +720,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-html-attrs",
-        "where": "Select an element → Inspector › Advanced section — custom HTML attributes, with a “data-… / value” row to add one (until S2)"
+        "where": "Select an element → Inspector › Advanced › the raw panel's Advanced section — custom HTML attributes, with a “data-… / value” row to add one (S2.2)"
       }
     },
     {
@@ -748,7 +733,7 @@
       "v2": {
         "action": null,
         "testid": ".st-cp-tokbtn",
-        "where": "Select an element → Inspector › a value’s token button opens the design system’s token list (Variables · Custom; until S2)"
+        "where": "Select an element → Inspector › Advanced › a value’s token button opens the design system’s token list (Variables · Custom; S2.2)"
       }
     },
     {
@@ -761,7 +746,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-grid-tracks",
-        "where": "Select a grid element → Inspector › Layout — the columns / rows track editor (+ Track, remove; until S2)"
+        "where": "Select a grid element → Inspector › Advanced › the raw panel's Grid section — the columns / rows track editor (+ Track, remove; S2.3 moves it under Layout)"
       }
     },
     {
@@ -774,7 +759,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-body-layout",
-        "where": "Click an artboard’s label → Inspector › the artboard’s Body layout select (until S2)"
+        "where": "Click an artboard’s label → Inspector › Advanced — the artboard’s own editor with its Body layout select (S2.8 moves it into the artboard sections)"
       }
     },
     {
@@ -840,9 +825,7 @@
         "action": null,
         "testid": "switcher-new-branch",
         "where": "Canvases panel foot (desktop) › switcher › New draft… (name it, Create); drafts list by name",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -856,10 +839,7 @@
         "action": null,
         "testid": ".gp-version",
         "where": "Menu › Version history › History — every saved version reads “author · short sha” (until S1)",
-        "reach": [
-          "desktop",
-          "browser"
-        ]
+        "reach": ["desktop", "browser"]
       }
     },
     {
@@ -873,9 +853,7 @@
         "action": null,
         "testid": "switcher-fetch",
         "where": "Canvases panel foot (desktop) › switcher › Refresh (fetches the remote drafts)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -889,9 +867,7 @@
         "action": null,
         "testid": "switcher-merge",
         "where": "Canvases panel foot (desktop) › switcher, on a draft › Add to shared (a GitHub project opens a pull request)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -905,9 +881,7 @@
         "action": null,
         "testid": "git-commit-message",
         "where": "Menu › Version history ⇧⌘G › Changes — describe what changed, then Save version / Save all (desktop; until S1)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -921,9 +895,7 @@
         "action": null,
         "testid": "git-publish",
         "where": "Menu › Version history ⇧⌘G › Changes › Publish changes (desktop, shown with saved versions to send; until S1)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -937,9 +909,7 @@
         "action": null,
         "testid": "git-discard",
         "where": "Menu › Version history ⇧⌘G › Changes › the discard button on a changed file (desktop; until S1)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -953,10 +923,7 @@
         "action": null,
         "testid": "diag-get-latest",
         "where": "Menu > Diagnostics > Sync > Get latest (shown while the team has new versions)",
-        "reach": [
-          "desktop",
-          "browser"
-        ]
+        "reach": ["desktop", "browser"]
       }
     },
     {
@@ -1087,12 +1054,7 @@
         "action": "view.trash",
         "testid": "canvases-trash-clear",
         "where": "Canvases › Trash (the last row; ⌘K “Trash”) › Clear out… — removes what has been in the trash 30 days or more; Restore brings a thing back",
-        "reach": [
-          "desktop",
-          "browser",
-          "cloud-owner",
-          "cloud-member"
-        ]
+        "reach": ["desktop", "browser", "cloud-owner", "cloud-member"]
       }
     },
     {
@@ -1158,10 +1120,7 @@
         "action": null,
         "testid": "share-local-url",
         "where": "Share cluster › Share… › Local link (this Mac only), with Copy",
-        "reach": [
-          "desktop",
-          "browser"
-        ]
+        "reach": ["desktop", "browser"]
       }
     },
     {
@@ -1175,10 +1134,7 @@
         "action": null,
         "testid": "share-app-url",
         "where": "Share cluster › Share… › Open in Maude app, with Copy",
-        "reach": [
-          "desktop",
-          "browser"
-        ]
+        "reach": ["desktop", "browser"]
       }
     },
     {
@@ -1192,9 +1148,7 @@
         "action": "project.share-github",
         "testid": "project-menu-row-project.share-github",
         "where": "Menu › File › Share on GitHub… (desktop) — invite by GitHub username; the Share sheet takes it over with S9",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1208,9 +1162,7 @@
         "action": null,
         "testid": "chat-caps-bar",
         "where": "AI chat (⇧⌘A) › the capability bar under the composer — model, effort, fast mode (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1224,9 +1176,7 @@
         "action": null,
         "testid": "chat-mode-picker",
         "where": "AI chat (⇧⌘A) › the capability bar › Permission mode (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1240,9 +1190,7 @@
         "action": null,
         "testid": "chat-transcript-menu",
         "where": "AI chat (⇧⌘A) › the transcript view menu — thinking, verbose (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1256,9 +1204,7 @@
         "action": null,
         "testid": "chat-foot-info-btn",
         "where": "AI chat (⇧⌘A) › the info button in the chat foot — context % and token counts (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1272,9 +1218,7 @@
         "action": null,
         "testid": "chat-cmd-menu",
         "where": "AI chat (⇧⌘A) › type “/” in the composer — the slash-command list (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1288,9 +1232,7 @@
         "action": null,
         "testid": "chat-tool-group",
         "where": "AI chat (⇧⌘A) › the feed — one card per group of tool calls (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1433,7 +1375,7 @@
       "v2": {
         "action": null,
         "testid": "settings-inspector-vocabulary",
-        "where": "Settings › General › Look › Inspector vocabulary (Advanced · Designer); the Inspector’s CSS panel corner toggle (cp-mode) flips it too (until S2)"
+        "where": "The switch became the Inspector's › Advanced fold (Designer is the only default; the raw editor is always in the fold, no corner toggle). Settings › General › Look › Inspector vocabulary stays until it is retired (S2.2)"
       }
     },
     {
@@ -1811,9 +1753,7 @@
         "action": "ai.chat",
         "testid": "chat-overflow-menu",
         "where": "AI chat (⇧⌘A) › the chat’s ⋯ menu: Rename, Archive, Delete, Copy transcript; the empty state’s buttons and “Implement N comments” sit in the feed (until S5)",
-        "reach": [
-          "desktop"
-        ]
+        "reach": ["desktop"]
       }
     },
     {
@@ -1930,7 +1870,7 @@
       "v2": {
         "action": null,
         "testid": "inspector-section-advanced",
-        "where": "Select an element → Inspector › the Advanced vocabulary keeps the full raw editor (about 33 properties, custom CSS rows, HTML attribute rows); Advanced section at the foot (until S2)"
+        "where": "Select an element → Inspector › Advanced (the fold at the foot) keeps the full raw editor unchanged (about 33 properties, custom CSS rows, HTML attribute rows); Designer is the only default (S2.2)"
       }
     },
     {
@@ -2951,7 +2891,7 @@
     "testid:studio/client/app.jsx#sidebar/tree/aria-expanded-on-tree-rows": "testid:[aria-expanded] on tree rows",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-create-brief-board": "testid:[aria-label=\"Create brief board\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-create-folder": "testid:[aria-label=\"Create folder\"]",
-    "testid:studio/client/app.jsx#sidebar/tree/aria-label-delete-canvas-name": "testid:[aria-label=\"Delete canvas <name>\"]",
+    "testid:studio/client/app.jsx#sidebar/tree/aria-label-delete-canvas-name": "action:canvas.trash",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-blank-brief-board": "testid:[aria-label=\"New blank brief board\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-brief-board-name": "testid:[aria-label=\"New brief board name\"]",
     "testid:studio/client/app.jsx#sidebar/tree/aria-label-new-folder-name": "testid:[aria-label=\"New folder name\"]",
@@ -3204,7 +3144,6 @@
     "testid:studio/client/panels/SourceConflictPanel.jsx#sync/cloud/source-conflict-use-theirs": "testid:source-conflict-use-theirs",
     "testid:studio/client/panels/StickerPicker.jsx#other/aria-label-stickers": "testid:[aria-label=\"Stickers\"]",
     "testid:studio/client/panels/StickerPicker.jsx#other/st-sp-body-st-sp-cell": "testid:.st-sp-body / .st-sp-cell",
-    "testid:studio/client/panels/StickerPicker.jsx#other/tool-panel-panel": "testid:tool-panel-<panel>",
     "testid:studio/client/panels/SyncConsentDialog.jsx#sync/cloud/sync-consent": "testid:sync-consent",
     "testid:studio/client/panels/SyncConsentDialog.jsx#sync/cloud/sync-consent-accept": "testid:sync-consent-accept",
     "testid:studio/client/panels/SyncConsentDialog.jsx#sync/cloud/sync-consent-limit": "testid:sync-consent-limit",
@@ -3349,6 +3288,7 @@
     "testid:studio/client/tree-row-menu.jsx#menubar/st-dd-item": "D5",
     "testid:studio/client/tree/tree.jsx#sidebar/tree/canvas-row-unsaved": "A-unsaved-badges-m-a-d-u",
     "testid:studio/client/tree/tree.jsx#sidebar/tree/canvases-ds-files": "A-design-system-folder-path",
+    "testid:studio/client/tree/tree.jsx#sidebar/tree/canvases-other-files": "testid:canvases-other-files",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/cm-composer-cm-mention-popup": "testid:.cm-composer / .cm-mention-popup",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/cm-layer-cm-pin-data-comment-pin": "testid:.cm-layer / .cm-pin / [data-comment-pin]",
     "testid:studio/comments-overlay.tsx#canvas iframe chrome/cm-thread-actions-reply-actions-cm-btn-primary-c": "testid:.cm-thread (+ __actions, __reply-actions) / .cm-btn--primary / .cm-btn--danger",

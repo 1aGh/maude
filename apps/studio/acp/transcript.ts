@@ -30,6 +30,13 @@ export interface ChatSummary {
    *  `session_info_update` (agent auto-title) from clobbering an explicit
    *  rename — see ChatPanel.jsx's `renamedChatIdsRef`. */
   renamed?: boolean;
+  /** S5.7 — the canvas this chat belongs to (design-root-relative, from the
+   *  sidecar's `canvas` key, V2-1.12 §5.3). Absent = "no canvas". */
+  canvas?: string;
+  /** S5.7 — set while the chat is in the trash (ms since epoch). */
+  trashedAt?: number;
+  /** S5.7 — only search lists archived chats; the plain list never does. */
+  archived?: boolean;
 }
 
 /**
@@ -43,6 +50,8 @@ export interface ChatSummary {
 export interface ChatMeta {
   title?: string;
   archived?: boolean;
+  /** S5.7 — set while the chat is in the trash (ms since epoch). */
+  trashedAt?: number;
 }
 
 export interface ChatMessagePart {
@@ -64,6 +73,15 @@ function metaPath(designRoot: string, chatId: string): string {
   return join(chatDir(designRoot), `${chatId}.meta.json`);
 }
 
+/** A canvas link is a plain relative path under the design root — never absolute, never `..`.
+ *  It is shown and grouped by, so a hand-edited sidecar must not smuggle a path out. */
+function plainCanvasKey(v: unknown): string | undefined {
+  if (typeof v !== 'string' || !v || v.length > 512) return undefined;
+  if (v.startsWith('/') || v.includes('\\') || v.includes('\0')) return undefined;
+  if (v.split('/').some((seg) => seg === '..' || seg === '')) return undefined;
+  return v;
+}
+
 /** Read a chat's meta sidecar. Missing/corrupt/malformed → `{}` (no override),
  *  never throws — a bad sidecar must degrade to "no rename/archive", not break
  *  the switcher. */
@@ -75,6 +93,8 @@ export function readChatMeta(designRoot: string, chatId: string): ChatMeta {
     const meta: ChatMeta = {};
     if (typeof r.title === 'string' && r.title.trim()) meta.title = r.title.trim().slice(0, 200);
     if (typeof r.archived === 'boolean') meta.archived = r.archived;
+    if (typeof r.trashedAt === 'number' && Number.isFinite(r.trashedAt))
+      meta.trashedAt = r.trashedAt;
     return meta;
   } catch {
     return {};
@@ -104,7 +124,14 @@ function readRawChatMeta(designRoot: string, chatId: string): Record<string, unk
 export function writeChatMeta(
   designRoot: string,
   chatId: string,
-  patch: { title?: string | null; archived?: boolean }
+  patch: {
+    title?: string | null;
+    archived?: boolean;
+    /** S5.7 — Move to trash stamps it, Restore clears it (`null`). */
+    trashedAt?: number | null;
+    /** S5.7 — the canvas link (`null` clears it). Only a plain relative path is stored. */
+    canvas?: string | null;
+  }
 ): ChatMeta {
   const dir = chatDir(designRoot);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -117,6 +144,16 @@ export function writeChatMeta(
   if ('archived' in patch) {
     if (patch.archived) next.archived = true;
     else delete next.archived;
+  }
+  if ('trashedAt' in patch) {
+    if (typeof patch.trashedAt === 'number' && Number.isFinite(patch.trashedAt))
+      next.trashedAt = patch.trashedAt;
+    else delete next.trashedAt;
+  }
+  if ('canvas' in patch) {
+    const c = plainCanvasKey(patch.canvas);
+    if (c) next.canvas = c;
+    else delete next.canvas;
   }
   writeFileSync(metaPath(designRoot, chatId), JSON.stringify(next));
   return readChatMeta(designRoot, chatId);
@@ -231,18 +268,35 @@ function deriveTitle(lines: Array<Record<string, unknown>>): string {
   return trimmed ? trimmed.slice(0, 60) : 'New chat';
 }
 
-/** List chats newest-first. Archived chats (Task C5) are excluded — the
- *  transcript stays on disk, it just doesn't show up in the switcher. A
- *  user-set title (readChatMeta) wins over the auto-derived first-line one. */
-export function listChats(designRoot: string): ChatSummary[] {
+/** Everything the list needs from a chat's sidecar, read from the RAW object (keys this
+ *  build does not know are ignored, never dropped on disk — `writeChatMeta` keeps them). */
+function readListMeta(
+  designRoot: string,
+  chatId: string
+): { title?: string; archived: boolean; canvas?: string; trashedAt?: number } {
+  const raw = readRawChatMeta(designRoot, chatId);
+  const out: { title?: string; archived: boolean; canvas?: string; trashedAt?: number } = {
+    archived: raw.archived === true,
+  };
+  if (typeof raw.title === 'string' && raw.title.trim()) out.title = raw.title.trim().slice(0, 200);
+  const canvas = plainCanvasKey(raw.canvas);
+  if (canvas) out.canvas = canvas;
+  if (typeof raw.trashedAt === 'number' && Number.isFinite(raw.trashedAt))
+    out.trashedAt = raw.trashedAt;
+  return out;
+}
+
+/** One pass over `_chat/`: every chat with bytes, with its sidecar facts. The filters
+ *  (`archived`, `trashed`) are the callers' — the plain list, the trash and search each
+ *  want a different cut of the same scan. */
+function scanChats(designRoot: string): ChatSummary[] {
   const dir = chatDir(designRoot);
   if (!existsSync(dir)) return [];
   const out: ChatSummary[] = [];
   for (const name of readdirSync(dir)) {
     if (!name.endsWith('.jsonl')) continue;
     const id = name.replace(/\.jsonl$/, '');
-    const meta = readChatMeta(designRoot, id);
-    if (meta.archived) continue;
+    const meta = readListMeta(designRoot, id);
     const file = join(dir, name);
     let updated = 0;
     let size = 0;
@@ -254,6 +308,10 @@ export function listChats(designRoot: string): ChatSummary[] {
       /* skip unreadable */
     }
     if (size === 0) continue;
+    const extra: Pick<ChatSummary, 'canvas' | 'trashedAt' | 'archived'> = {};
+    if (meta.canvas) extra.canvas = meta.canvas;
+    if (meta.trashedAt !== undefined) extra.trashedAt = meta.trashedAt;
+    if (meta.archived) extra.archived = true;
     // #119: this used to `readLines(file)` — the WHOLE transcript — for every
     // chat in the directory, to pull ~60 characters out of the first user
     // line, on a path the client fires at every turn end. The first user line
@@ -264,7 +322,7 @@ export function listChats(designRoot: string): ChatSummary[] {
     // A user-renamed chat needs no scan at all — the title is already in the
     // sidecar, so skip the read entirely.
     if (meta.title) {
-      out.push({ id, title: meta.title, updated, renamed: true });
+      out.push({ id, title: meta.title, updated, renamed: true, ...extra });
       continue;
     }
     const head = readHeadLines(file);
@@ -273,9 +331,110 @@ export function listChats(designRoot: string): ChatSummary[] {
     // genuinely empty one is skipped (matching the old `lines.length === 0`
     // guard, which could only be reached for an empty/blank file).
     if (lines.length === 0 && head.complete) continue;
-    out.push({ id, title: deriveTitle(lines), updated, renamed: false });
+    out.push({ id, title: deriveTitle(lines), updated, renamed: false, ...extra });
   }
-  return out.sort((a, b) => b.updated - a.updated);
+  return out;
+}
+
+/** List chats newest-first. Archived chats (Task C5) and chats in the trash (S5.7) are
+ *  excluded — the transcript stays on disk, it just doesn't show up in the switcher. A
+ *  user-set title (readChatMeta) wins over the auto-derived first-line one.
+ *
+ *  `{ trashed: true }` is the trash's own list (S1's Trash panel provider): only trashed
+ *  chats, the most recently trashed first, whether or not they were archived before. */
+export function listChats(designRoot: string, opts: { trashed?: boolean } = {}): ChatSummary[] {
+  const all = scanChats(designRoot);
+  if (opts.trashed) {
+    return all
+      .filter((c) => c.trashedAt !== undefined)
+      .sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0));
+  }
+  return all
+    .filter((c) => c.trashedAt === undefined && !c.archived)
+    .sort((a, b) => b.updated - a.updated);
+}
+
+/** Every chat search may look in: the plain list's chats plus the archived ones (an
+ *  archived chat is hidden from the list, not lost). The trash is never searched. */
+export function listSearchableChats(designRoot: string): ChatSummary[] {
+  return scanChats(designRoot).filter((c) => c.trashedAt === undefined);
+}
+
+export interface ChatGroup {
+  /** design-root-relative canvas path, or `null` for chats with no canvas link */
+  canvas: string | null;
+  chats: ChatSummary[];
+}
+
+/** Group a (newest-first) chat list by canvas: groups ordered by their newest chat, the
+ *  "no canvas" group last. Inside a group the incoming order is kept. */
+export function groupChatsByCanvas(chats: readonly ChatSummary[]): ChatGroup[] {
+  const by = new Map<string | null, ChatSummary[]>();
+  for (const c of chats) {
+    const key = c.canvas ?? null;
+    const g = by.get(key);
+    if (g) g.push(c);
+    else by.set(key, [c]);
+  }
+  const newest = (g: ChatSummary[]) => Math.max(...g.map((c) => c.updated));
+  return [...by.entries()]
+    .map(([canvas, list]) => ({ canvas, chats: list }))
+    .sort((a, b) => {
+      if (a.canvas === null) return 1;
+      if (b.canvas === null) return -1;
+      return newest(b.chats) - newest(a.chats);
+    });
+}
+
+/** Where a chat stands, for the outbox's pre-send check (G22 / G26): its transcript is
+ *  there and live, there but in the trash, or gone. */
+export function chatState(designRoot: string, chatId: string): 'live' | 'trashed' | 'missing' {
+  if (!existsSync(join(chatDir(designRoot), `${chatId}.jsonl`))) return 'missing';
+  return readListMeta(designRoot, chatId).trashedAt !== undefined ? 'trashed' : 'live';
+}
+
+/** Move a chat to the trash: `trashedAt` in its sidecar, every other key kept. `null` when
+ *  the chat has no transcript. Already in the trash keeps its first `trashedAt`. */
+export function trashChat(designRoot: string, chatId: string, now = Date.now()): ChatMeta | null {
+  const state = chatState(designRoot, chatId);
+  if (state === 'missing') return null;
+  if (state === 'trashed') return readChatMeta(designRoot, chatId);
+  return writeChatMeta(designRoot, chatId, { trashedAt: now });
+}
+
+/** Put a trashed chat back. `false` when it was not in the trash. */
+export function restoreChat(designRoot: string, chatId: string): boolean {
+  if (chatState(designRoot, chatId) !== 'trashed') return false;
+  writeChatMeta(designRoot, chatId, { trashedAt: null });
+  return true;
+}
+
+/** Clear out the trash: delete the files of trashed chats only (a live chat is never touched,
+ *  even when its id is asked for by name). `ids` limits it to those chats. Returns the ids
+ *  that were deleted. */
+export function clearTrashedChats(designRoot: string, ids?: readonly string[]): string[] {
+  const want = ids ? new Set(ids) : null;
+  const out: string[] = [];
+  for (const c of listChats(designRoot, { trashed: true })) {
+    if (want && !want.has(c.id)) continue;
+    if (deleteChat(designRoot, c.id)) out.push(c.id);
+  }
+  return out;
+}
+
+/** The ACP session id `claude --resume` takes (the `.session.json` sidecar). `null` when
+ *  there is none — or when it could not be a session id: this string is handed to a shell
+ *  command by "Open in terminal", so only the id alphabet passes. */
+export function readChatSessionId(designRoot: string, chatId: string): string | null {
+  try {
+    const raw = JSON.parse(
+      readFileSync(join(chatDir(designRoot), `${chatId}.session.json`), 'utf8')
+    ) as { sessionId?: unknown };
+    const id = raw?.sessionId;
+    return typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Delete a chat's transcript + its meta/session sidecars. Returns true if
@@ -309,7 +468,7 @@ export function deleteChat(designRoot: string, chatId: string): boolean {
  * one release window). `role:'bootstrap'` brief entries are skipped by this
  * reader by construction (only user/stop/agent roles are consumed below).
  */
-function stripContextBlock(text: string): string {
+export function stripContextBlock(text: string): string {
   let out = text;
   if (out.startsWith('<maude-context')) {
     const end = out.indexOf('</maude-context>');

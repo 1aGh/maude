@@ -12,19 +12,25 @@
  */
 
 import { MAX_ELEMENT_BYTES, MAX_GROUPS_PER_ELEMENT } from './constants.ts';
+import { artboardIdField, sourceField, timeRangeField } from './elements/_shared.ts';
 import { arrow } from './elements/arrow.model.ts';
+import { ballot } from './elements/ballot.model.ts';
 import { image, link, mediaref } from './elements/media.model.ts';
 import { pen } from './elements/pen.model.ts';
 import { section } from './elements/section.model.ts';
 import { shape } from './elements/shape.model.ts';
+import { stamp } from './elements/stamp.model.ts';
 import { sticky } from './elements/sticky.model.ts';
 import { textEl } from './elements/text.model.ts';
+import { vote } from './elements/vote.model.ts';
 import {
   bool,
   DANGEROUS_KEYS,
+  type FieldSpec,
   type FieldSpecMap,
   INDEX_RE,
   id,
+  jsonEq,
   oneOf,
   parseFields,
   record,
@@ -44,6 +50,11 @@ const DEFS: readonly ElementDef[] = [
   link,
   mediaref,
   section,
+  // Format 2 (V2-1.12 R4): new kinds are new types — a format-1 peer keeps
+  // them verbatim as unknown types (probe C).
+  stamp,
+  vote,
+  ballot,
 ];
 
 const TYPES = new Map(DEFS.map((d) => [d.type, d]));
@@ -62,6 +73,7 @@ export function registerElementType(def: ElementDef): void {
   if (cur && DEFS.includes(cur)) throw new Error(`"${def.type}" is a built-in element type`);
   TYPES.set(def.type, def);
   specCache.delete(def.type);
+  extCache.delete(def.type);
 }
 
 export const TYPE_RE = /^[a-z][a-z0-9-]{0,31}$/;
@@ -86,10 +98,79 @@ export const TAIL_FIELDS: FieldSpecMap = {
   locked: bool(),
 };
 
+/**
+ * Format-2 extension fields every known type carries (V2-1.12 R5, contract S4
+ * §2): typed here, serialized after `TAIL_FIELDS` in sorted key order. A
+ * format-1 reader keeps them as opaque extension keys in the same place, so
+ * both readers write the same bytes.
+ *
+ *  - `parentArtboard` — membership: the artboard the annotation rides with
+ *    (Q3). `x`/`y` stay WORLD coordinates (R2).
+ *  - `source` — `{kind, author?}`: where it came from (a FigJam import, a
+ *    comment turned into a sticky, a template).
+ *  - `timeRange` — `{artboard, start, end}`: a time pin on a video artboard.
+ */
+export const COMMON_EXT_FIELDS: FieldSpecMap = {
+  parentArtboard: artboardIdField(),
+  source: sourceField(),
+  timeRange: timeRangeField(),
+};
+
 const specCache = new Map<string, FieldSpecMap>();
+const extCache = new Map<string, FieldSpecMap>();
+
+/**
+ * Typed format-2 extension fields of a known type (common + its own), keys in
+ * SORTED order — the order they serialize in. Null for an unknown type. While
+ * `withFormat1Reader` runs, every type has none (the 1.x reading).
+ */
+export function extSpecOf(type: string): FieldSpecMap | null {
+  if (!isKnownType(type)) return null;
+  if (format1Depth > 0) return EMPTY_SPEC;
+  const cached = extCache.get(type);
+  if (cached) return cached;
+  const def = REGISTRY.get(type) as ElementDef;
+  const merged: Record<string, FieldSpec<unknown>> = { ...COMMON_EXT_FIELDS, ...(def.ext ?? {}) };
+  const base = specOf(type) as FieldSpecMap;
+  const out: Record<string, FieldSpec<unknown>> = {};
+  for (const k of Object.keys(merged).sort()) {
+    // R5: an extension key is field-shaped and never shadows a format-1 field.
+    if (!UNKNOWN_KEY_RE.test(k) || Object.hasOwn(base, k) || DANGEROUS_KEYS.has(k)) {
+      throw new Error(`"${type}.${k}" is not a valid extension field`);
+    }
+    out[k] = merged[k] as FieldSpec<unknown>;
+  }
+  extCache.set(type, out);
+  return out;
+}
+
+const EMPTY_SPEC: FieldSpecMap = Object.freeze({});
+let format1Depth = 0;
+
+/**
+ * Run `fn` with the FORMAT-1 reading of the registry: no typed extension
+ * fields, so every format-2 field is an opaque, preserved extension key and
+ * every format-2 type parses as an unknown type — exactly what a 1.x peer
+ * (V2-2.14 lossless readers) does with a format-2 board. For the mixed-peer
+ * tests and the migrator's `--strip` accounting; never on a product path.
+ */
+export function withFormat1Reader<T>(fn: () => T): T {
+  format1Depth++;
+  try {
+    return fn();
+  } finally {
+    format1Depth--;
+  }
+}
+
+/** True while `withFormat1Reader` runs. */
+export function readingAsFormat1(): boolean {
+  return format1Depth > 0;
+}
 
 /** Full canonical field spec (head + type fields + tail) of a known type. */
 export function specOf(type: string): FieldSpecMap | null {
+  if (format1Depth > 0 && FORMAT2_TYPES.has(type)) return null;
   const cached = specCache.get(type);
   if (cached) return cached;
   const def = REGISTRY.get(type);
@@ -100,12 +181,17 @@ export function specOf(type: string): FieldSpecMap | null {
 }
 
 export function defOf(type: string): ElementDef | null {
+  if (format1Depth > 0 && FORMAT2_TYPES.has(type)) return null;
   return REGISTRY.get(type) ?? null;
 }
 
 export function isKnownType(type: string): boolean {
+  if (format1Depth > 0 && FORMAT2_TYPES.has(type)) return false;
   return REGISTRY.has(type);
 }
+
+/** Element types format 2 added (V2-1.12 R4). A format-1 peer keeps them as unknown types. */
+export const FORMAT2_TYPES: ReadonlySet<string> = new Set([stamp.type, vote.type, ballot.type]);
 
 export type ElementResult =
   | { ok: true; el: AnnotationElement }
@@ -120,19 +206,41 @@ const MAX_UNKNOWN_KEYS = 64;
  */
 function extensionFields(
   r: Record<string, unknown>,
-  known: FieldSpecMap
+  known: FieldSpecMap,
+  typed: FieldSpecMap | null
 ): Array<[string, unknown]> {
   const out: Array<[string, unknown]> = [];
   // Field-shaped keys only, and a bounded number of them: the keys become
-  // Y.Map field names on every peer (security review, low).
+  // Y.Map field names on every peer (security review, low). Typed format-2
+  // fields and still-unknown keys share ONE sorted run and one bound — the
+  // order and the cut a format-1 reader applies (R5).
   const rest = Object.keys(r)
     .filter((k) => !Object.hasOwn(known, k) && !DANGEROUS_KEYS.has(k) && UNKNOWN_KEY_RE.test(k))
     .sort()
     .slice(0, MAX_UNKNOWN_KEYS);
   for (const k of rest) {
+    const f = typed && Object.hasOwn(typed, k) ? (typed[k] as FieldSpec<unknown>) : null;
+    if (f) {
+      // A typed extension field is parsed like any field: invalid → dropped,
+      // default → omitted (R1). Its canonical value is a sanitizeJson fixed
+      // point, so a format-1 reader keeps these exact bytes.
+      const v = f.parse(r[k]);
+      if (v === undefined) continue;
+      if (f.def !== undefined && (f.eq ? f.eq(v, f.def) : jsonEq(v, f.def))) continue;
+      out.push([k, v]);
+      continue;
+    }
     const v = sanitizeJson(r[k]);
     if (v !== undefined) out.push([k, v]);
   }
+  return out;
+}
+
+/** Head keys in head order, then every other key sorted (the unknown-type order). */
+function sortNonHead(el: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(HEAD_FIELDS)) if (Object.hasOwn(el, k)) out[k] = el[k];
+  for (const k of Object.keys(el).sort()) if (!Object.hasOwn(HEAD_FIELDS, k)) out[k] = el[k];
   return out;
 }
 
@@ -160,12 +268,13 @@ export function validateElement(raw: unknown): ElementResult {
     const res = parseFields(spec, r);
     if (!res.ok) return { ok: false, reason: res.reason, id: rawId };
     el = { ...res.value };
-    for (const [k, v] of extensionFields(r, spec)) el[k] = v;
+    for (const [k, v] of extensionFields(r, spec, extSpecOf(r.type as string))) el[k] = v;
+    if (defOf(r.type as string)?.sortedKeys) el = sortNonHead(el);
   } else {
     const head = parseFields(HEAD_FIELDS, r);
     if (!head.ok) return { ok: false, reason: head.reason, id: rawId };
     el = { ...head.value };
-    for (const [k, v] of extensionFields(r, HEAD_FIELDS)) el[k] = v;
+    for (const [k, v] of extensionFields(r, HEAD_FIELDS, null)) el[k] = v;
   }
   if (el.parent !== undefined && el.parent === el.id) {
     return { ok: false, reason: 'element is its own parent', id: rawId };

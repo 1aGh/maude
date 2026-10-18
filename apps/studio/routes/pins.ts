@@ -9,7 +9,7 @@
 import { lstatSync } from 'node:fs';
 import path from 'node:path';
 
-import { isCanvasKey, readPins, setPin } from '../home/user-state.ts';
+import { isCanvasKey, readPins, readRecent, setPin } from '../home/user-state.ts';
 import type { RouteSpec } from './table.ts';
 
 const MAX_BODY = 8 * 1024;
@@ -27,7 +27,10 @@ export function createPinsRoutes(deps: PinsRouteDeps): RouteSpec[] {
       path: '/_api/pins',
       origin: 'main',
       readOnly: 'allowed',
-      handle: () => json(200, readPins(deps.designRoot)),
+      // `opened` rides along (S1.1): when each canvas was last opened on this Mac, the panel's
+      // "Recently opened" order. The same per-Mac runtime file Home reads; nothing new is stored.
+      handle: () =>
+        json(200, { ...readPins(deps.designRoot), opened: readRecent(deps.designRoot).opened }),
     },
     {
       method: 'POST',

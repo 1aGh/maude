@@ -137,9 +137,21 @@ describe('Canvases tab', () => {
   // V2-4.gate (design-critic blockers 1 + warnings): the group count was `.st-pill`, which the project
   // pill's `position:absolute` island rule also matched — it floated over the header. The header row
   // repeated the tab name and carried a second fold control.
-  test('the group count is a plain numeral in the header row (not an `.st-pill`), the eyebrow is sentence case', async () => {
+  // S1.1: the section header became the project row (11 · pn-organise) — the project's name and its Sort,
+  // with the count in words under the list; hidden files on brings the old section headers back.
+  test('the project row replaces the section header; the count is words under the list, never an `.st-pill`', async () => {
     installFetch({ '/_api/sync/trash': TRASH });
-    const { host } = await sidebar();
+    const { host } = await sidebar({ project: 'Alligators brand' });
+    const hd = q(host, 'canvases-head-project') as HTMLElement;
+    expect(hd.querySelector('.st-pill')).toBeNull();
+    expect(hd.textContent).toContain('Alligators brand');
+    expect(q(host, 'canvases-foot')?.textContent).toBe('1 canvas · ⌘K searches every project');
+    expect(host.querySelector('.st-tree-sec-hd')).toBeNull();
+  });
+
+  test('hidden files on shows the file view: the section headers are back, with a plain numeral', async () => {
+    installFetch({ '/_api/sync/trash': TRASH });
+    const { host } = await sidebar({ showHidden: true });
     const hd = host.querySelector('.st-tree-sec-hd') as HTMLElement;
     expect(hd.querySelector('.st-pill')).toBeNull();
     expect(hd.querySelector('.st-sec-count')?.textContent).toBe('1');
