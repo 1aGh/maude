@@ -1,7 +1,7 @@
 // actions/defs/video.ts — the video tools (S7.6c; V2-1.10 §5.7 registry table + S7-slices S7.6).
 //
-// Twelve ids from V2-1.10 §5.7 plus the four S7.6 adds (`video.format.add/unlink`, `video.take.swap`,
-// `video.fit`). Each write is one edit op (`POST /_api/edit-op`, edit-ops/clip/*) or a verb that
+// Twelve ids from V2-1.10 §5.7 plus the five S7.6 adds (`video.format.add/unlink`, `video.take.swap`,
+// `video.fit`, `video.place`). Each write is one edit op (`POST /_api/edit-op`, edit-ops/clip/*) or a verb that
 // ends in one, so the server refuses every role below Can edit whatever the UI shows (hidden ≠
 // refused); the AI paths are in agents.ts. The rows are greyed below Can edit and `video.captions.
 // export` is a read Can comment may run (A6: comment can download).
@@ -46,4 +46,5 @@ export const VIDEO_ACTIONS: ActionDef[] = [
   row('video.format.unlink', 'Make an unlinked copy', 'Inspector › Formats'),
   row('video.take.swap', 'Swap a take', 'Timeline › Other takes'),
   row('video.fit', 'Fit the picture', 'Inspector › Clip'),
+  row('video.place', 'Place the title', 'Inspector › Formats'),
 ];

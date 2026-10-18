@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "23fae44075c4",
+  "manifestVersion": "3692d250cca4",
   "actions": [
     {
       "id": "search.open",
@@ -2631,6 +2631,25 @@
         "format": "canvas-tsx",
         "skill": "design:video-comp",
         "how": "Set fit=\"fit\" | \"blur\" on the clip’s <Reframe> (fill is the default)"
+      }
+    },
+    {
+      "id": "video.place",
+      "label": "Place the title",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/edit-op",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Wrap the title’s content in <Place at={[x, y]} formats={{ \"16:9\": [x, y] }}> (centre anchor, fractions of the output frame)"
       }
     },
     {
