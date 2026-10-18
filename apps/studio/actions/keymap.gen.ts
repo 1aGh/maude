@@ -79,7 +79,7 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     ],
   },
   {
-    id: 'object.select-child',
+    id: 'object.enter',
     exec: 'canvas',
     keys: [{ chord: '↵', layer: 'selection', when: { focus: ['canvas'], selection: ['object'] } }],
   },
@@ -171,6 +171,96 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
         layer: 'selection',
         when: { focus: ['canvas'], selection: ['object', 'artboard'] },
         alias: true,
+      },
+    ],
+  },
+  {
+    id: 'object.frame',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌥⌘G',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+      {
+        chord: '⌘G',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+        alias: true,
+      },
+    ],
+  },
+  {
+    id: 'object.unframe',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⇧⌘G',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'object.bring-front',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘]',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'object.bring-forward',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: ']',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'object.send-backward',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '[',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'object.send-back',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⌘[',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
+      },
+    ],
+  },
+  {
+    id: 'object.lock',
+    exec: 'canvas',
+    enabled: { minRole: 'edit', selection: ['object'] },
+    keys: [
+      {
+        chord: '⇧⌘L',
+        layer: 'selection',
+        when: { focus: ['canvas'], mode: ['edit'], selection: ['object'] },
       },
     ],
   },
@@ -585,21 +675,33 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'annotation.group',
     exec: 'canvas',
     keys: [
-      { chord: '⌘G', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '⌘G',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {
     id: 'annotation.ungroup',
     exec: 'canvas',
     keys: [
-      { chord: '⇧⌘G', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '⇧⌘G',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {
     id: 'annotation.lock',
     exec: 'canvas',
     keys: [
-      { chord: '⇧⌘L', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '⇧⌘L',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {
@@ -613,28 +715,44 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     id: 'annotation.to-front',
     exec: 'canvas',
     keys: [
-      { chord: ']', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: ']',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {
     id: 'annotation.forward',
     exec: 'canvas',
     keys: [
-      { chord: '⌘]', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '⌘]',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {
     id: 'annotation.to-back',
     exec: 'canvas',
     keys: [
-      { chord: '[', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '[',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {
     id: 'annotation.backward',
     exec: 'canvas',
     keys: [
-      { chord: '⌘[', layer: 'selection', when: { focus: ['canvas'], selection: ['annotation'] } },
+      {
+        chord: '⌘[',
+        layer: 'selection',
+        when: { focus: ['canvas'], selection: ['annotation'], mode: ['preview'] },
+      },
     ],
   },
   {

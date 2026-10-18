@@ -165,11 +165,35 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   ),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
+  'object.enter': NAV('<canvas>@<element>'),
+  'object.step-out': NAV('<canvas>@<element>'),
   'object.select-child': NAV('<canvas>@<element>'),
   'object.select-parent': NAV('<canvas>@<element>'),
   'object.select-next': NAV('<canvas>@<element>'),
   'object.remove': TSX('Delete the element’s JSX (a removed DCArtboard is parked in the trash)'),
   'object.nudge': TSX('Change the element’s position props'),
+  // S2.6 — the object menu. Each is one edit-op on the canvas file; an agent edits the same JSX by hand.
+  'object.frame': TSX(
+    'Wrap the elements in a <div data-cd-id="frame" style={{display:"flex",flexDirection:"column"}}> at the first one; every element keeps its data-cd-id'
+  ),
+  'object.unframe': TSX(
+    'Replace the frame with its children, in order; the frame’s own attributes go'
+  ),
+  'object.bring-front': TSX(
+    'Move the element’s JSX after its last sibling (later siblings paint on top)'
+  ),
+  'object.bring-forward': TSX('Move the element’s JSX after the next sibling'),
+  'object.send-backward': TSX('Move the element’s JSX before the previous sibling'),
+  'object.send-back': TSX('Move the element’s JSX before its first sibling'),
+  'object.lock': TSX(
+    'Add or remove the data-cd-locked attribute on the element (shared by everyone)'
+  ),
+  'object.hide': TSX(
+    'Set style.display to "none" and add data-cd-hidden="<previous display>"; Show restores it and drops the marker'
+  ),
+  'object.select-matching': PREF(
+    'a selection in the person’s window; an agent greps the canvas for the same className and style'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
@@ -200,6 +224,19 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'present.prev': NAV('<canvas>#<artboard> --mode present'),
   // S3.7b — in a cloud-linked project `maude design open <canvas> --mode present` also prints the link.
   'present.copy-link': { ...NAV('<canvas> --mode present'), minRole: 'edit' },
+  // S3.5 — the agent writes the same keys the sheet does, in the canvas's .meta.json (V2-1.12 R6);
+  // the studio's own writes go through PATCH /_api/present-meta, which refuses every role below edit.
+  'present.order-notes': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'step',
+    server: { route: '/_api/present-meta', method: 'PATCH' },
+    agent: file(
+      'canvas-meta',
+      'design:design',
+      'present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json'
+    ),
+  },
   'settings.theme': PREF(),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
@@ -378,6 +415,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'chat.archive': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.trash': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.copy-transcript': { effect: 'none', agent: human('ai-chat') },
+  // S5.12: the Advanced fold's rows. A row only takes the person to a setting (the settings themselves are the
+  // chat session's config, per Mac and per chat); an agent sets them through its own session — human `ai-chat`.
+  ...Object.fromEntries(
+    ['ask-before', 'model', 'effort', 'fast-mode', 'show-in-chat', 'suggestions', 'raw-log'].map(
+      (r) => [`chat.advanced.${r}`, { effect: 'none', agent: human('ai-chat') }]
+    )
+  ),
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {

@@ -236,10 +236,17 @@ export function createPointerDot(deps: PointerDeps): PointerDot {
   };
 
   // The shell can hold the focus (its controls, a click on its chrome): its L arrives as `tool.key`.
+  // Only the shell may say it (DDR-054) — the same gate as every canvas `run-action` handler: the
+  // parent window, on the lane's v1.
   const onMessage = (e: MessageEvent) => {
-    if (!presenting || e.source !== win.parent) return;
-    const d = e.data as { dgn?: unknown; id?: unknown; params?: { key?: unknown } } | null;
-    if (d?.dgn !== 'run-action' || d.id !== 'tool.key') return;
+    if (!presenting || e.source !== window.parent) return;
+    const d = e.data as {
+      dgn?: unknown;
+      v?: unknown;
+      id?: unknown;
+      params?: { key?: unknown };
+    } | null;
+    if (d?.dgn !== 'run-action' || d.v !== 1 || d.id !== 'tool.key') return;
     if (d.params?.key === 'L') toggle();
   };
 

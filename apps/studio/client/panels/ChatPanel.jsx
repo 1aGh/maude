@@ -16,7 +16,6 @@ import { AssistantRuntimeProvider, ThreadPrimitive, useLocalRuntime } from '@ass
 
 import {
   flattenSelectOptions,
-  modeBlocksEdits,
   parseConfigOptions,
   resolvePersistedPick,
 } from './acp-capabilities.js';
@@ -29,10 +28,13 @@ import {
 } from './acp-runtime.js';
 import ElicitationPrompt from './ElicitationPrompt.jsx';
 import { ChatHeader } from './chat-header.jsx';
+import { menuCtx } from '../v2/shell/project-menu-model.js';
+import { ChatAdvanced, SuggestOnlyBanner } from '../v2/ai/Advanced.jsx';
 import { AiChatIsland } from '../v2/ai/AiChatIsland.jsx';
+import { JumpToLatest, PinButtonHost } from '../v2/ai/BigChat.jsx';
+import { ChatList } from '../v2/ai/ChatList.jsx';
 import { Composer } from '../v2/ai/Composer.jsx';
 import {
-  ActivityBar,
   AssistantMessage,
   ChatLightbox,
   ChatMediaContext,
@@ -42,9 +44,12 @@ import {
   UserMessage,
 } from '../v2/ai/Feed.jsx';
 import { Check, Spark } from '../v2/ai/icons.jsx';
+import { RunSurface } from '../v2/ai/RunSurface.jsx';
+import { RunsCount } from '../v2/ai/RunList.jsx';
 import { ChatEmpty, SuggestStrip } from '../v2/ai/Suggest.jsx';
-import { readSuggestPref } from '../v2/ai/suggest-why.js';
+import { readSuggestPref, writeSuggestPref } from '../v2/ai/suggest-why.js';
 import { useAiScope } from '../v2/ai/use-ai-scope.js';
+import { WaitingCards } from '../v2/ai/WaitingCard.jsx';
 import PermissionPrompt from './PermissionPrompt.jsx';
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import { DEFAULT_TRANSCRIPT_VIEW, TRANSCRIPT_VIEWS } from './transcript-view.js';
@@ -102,44 +107,8 @@ function savePersistedPicks(picks) {
   safeStorageSet(PICKS_KEY, JSON.stringify(picks));
 }
 
-// The loud, top-of-thread alert shown ONLY while the current mode blocks edits
-// (`modeBlocksEdits`, DDR-184 #3 — the quiet composer footnote above isn't enough
-// when a user typing "change X" silently gets nothing back).
-// Offers a one-click hop to the least-privilege mode that CAN edit (Accept Edits
-// if advertised, else Manual) so the fix is right there, not buried in the picker.
-function ModeBanner({ modes, onSetMode }) {
-  if (!modeBlocksEdits(modes)) return null;
-  const current = modes.availableModes.find((m) => m.id === modes.currentModeId);
-  const name = current?.name || modes.currentModeId;
-  const isPlan = modes.currentModeId === 'plan';
-  const ids = new Set(modes.availableModes.map((m) => m.id));
-  const target = ids.has('acceptEdits') ? 'acceptEdits' : ids.has('default') ? 'default' : null;
-  const targetName = target && (modes.availableModes.find((m) => m.id === target)?.name || target);
-  return (
-    <div className="chat-mode-banner" role="alert" data-testid="chat-mode-banner">
-      <span className="chat-mode-banner-icon" aria-hidden="true">
-        ⏸
-      </span>
-      <span className="chat-mode-banner-text">
-        <b>{name}</b>
-        {' — '}
-        {isPlan
-          ? "Claude is planning and won't edit files or run tools."
-          : 'edits and tools without a standing approval are denied — nothing will change.'}
-      </span>
-      {target ? (
-        <button
-          type="button"
-          className="chat-mode-banner-cta"
-          onClick={() => onSetMode(target)}
-          data-testid="chat-mode-banner-switch"
-        >
-          Switch to {targetName}
-        </button>
-      ) : null}
-    </div>
-  );
-}
+// The suggest-only banner (DDR-184 #3, 03 `ai-adv-edges`) lives with the Advanced fold now:
+// v2/ai/Advanced.jsx `SuggestOnlyBanner` — same testids, plain words, one verb ("Allow changes").
 
 // DDR-166 T0f — the guided, button-driven cold start. Every actionable step
 // (install command, Sign in) now lives in ReadinessList itself; this shell no
@@ -231,6 +200,11 @@ function ChatThread({
   onSetTranscriptView,
   onPermissionRequest,
   onElicitationRequest,
+  chatTitle,
+  uiCtx,
+  onCopyTranscript,
+  suggestOn,
+  onSetSuggestOn,
 }) {
   // Live session capabilities (feature-acp-panel-dynamic-claude-code-
   // capabilities) — `caps` is THIS chat's own connection's mode roster +
@@ -427,14 +401,10 @@ function ChatThread({
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatMediaContext.Provider value={media}>
         <div className="chat-panel" style={hidden ? { display: 'none' } : undefined}>
-          <StatusRow
-            tools={activeTools}
-            transcriptView={transcriptView}
-            onSetTranscriptView={onSetTranscriptView}
-          />
-          {/* DDR-184 #3 — loud alert when the current mode can't edit (plan / dontAsk),
+          <StatusRow tools={activeTools} />
+          {/* DDR-184 #3 — said up front when the current mode can't edit (plan / dontAsk),
             so a user typing "change X" isn't silently ignored. Above the feed. */}
-          <ModeBanner modes={caps.modes} onSetMode={onSetMode} />
+          <SuggestOnlyBanner modes={caps.modes} onSetMode={onSetMode} />
           <ThreadPrimitive.Root className="chat-thread">
             <ThreadPrimitive.Viewport className="chat-feed" autoScroll>
               <ThreadPrimitive.Empty>
@@ -444,9 +414,18 @@ function ChatThread({
               {/* Background work that outlived the turn — streamed here so it's not
                 dropped (RCA F2). */}
               <ContinuationBubble parts={bgParts} viewMode={transcriptView} />
-              {/* "still working" indicator under the latest message */}
-              <ActivityBar tools={activeTools} />
+              {/* S5.9 — the run's tail: the working line with Stop, then the result card (replaces the v1
+                  ActivityBar), and the long chat's Jump to latest */}
+              <RunSurface
+                conn={conn}
+                chatId={chatId}
+                tools={activeTools}
+                artboards={aiScope.artboards}
+                designRel={designRel}
+              />
+              <JumpToLatest hidden={hidden} />
             </ThreadPrimitive.Viewport>
+            <WaitingCards chatId={chatId} designRel={designRel} />
             {activePermission ? (
               <PermissionPrompt
                 request={activePermission}
@@ -472,20 +451,33 @@ function ChatThread({
                     openComments={openComments}
                     selectedClips={selectedClips}
                     justShared={justShared}
-                    enabled={readSuggestPref()}
+                    enabled={suggestOn}
                   />
                 </ThreadPrimitive.If>
               }
               picksRef={picksRef}
-              caps={{ modes: caps.modes, parsedOptions }}
-              onSetMode={onSetMode}
-              onSetConfig={onSetConfig}
               conn={conn}
               chatId={chatId}
               attachmentsRef={attachmentsRef}
               usage={usage}
               showRateLimitBanner={showRateLimitBanner}
               onDismissRateLimitBanner={dismissRateLimitBanner}
+            />
+            {/* S5.12 — everything that used to sit in the field's toolbar, under one quiet row. */}
+            <ChatAdvanced
+              chatId={chatId}
+              chatTitle={chatTitle}
+              active={!hidden && !panelHidden}
+              caps={{ modes: caps.modes, parsedOptions }}
+              onSetMode={onSetMode}
+              onSetConfig={onSetConfig}
+              transcriptView={transcriptView}
+              onSetTranscriptView={onSetTranscriptView}
+              suggestOn={suggestOn}
+              onSetSuggestOn={onSetSuggestOn}
+              usage={usage}
+              ctx={uiCtx}
+              onCopyTranscript={onCopyTranscript}
             />
           </ThreadPrimitive.Root>
           {lightboxSrc ? (
@@ -514,6 +506,8 @@ export default function ChatPanel({
   onFinished,
   onPermissionRequest,
   onElicitationRequest,
+  readOnly = false,
+  projectName = '',
 }) {
   // Model/effort/mode picks — persisted across sessions per config id (never a
   // fixed model/effort pair; see loadPersistedPicks). Read live by each open
@@ -568,8 +562,17 @@ export default function ChatPanel({
     return probeStatus();
   }, [refreshReadiness, probeStatus]);
 
-  // Recents (for the switcher).
+  // Recents (for the header's title) + the open chat list's re-read trigger.
   const [chats, setChats] = useState([]);
+  const [listKey, setListKey] = useState(0);
+  // Suggestions on/off lives in Advanced; it is a per-Mac preference shared by every chat.
+  const [suggestOn, setSuggestOn] = useState(readSuggestPref);
+  const onSetSuggestOn = useCallback((on) => {
+    writeSuggestPref(on);
+    setSuggestOn(on);
+  }, []);
+  // What the chat list's ⋯ menu may offer (the registry's own predicates — the server refuses the same writes).
+  const uiCtx = useMemo(() => menuCtx({ native: true, readOnly }), [readOnly]);
   // Chat ids the server confirms have a user-set title (ChatSummary.renamed)
   // — session_info_update must never clobber those (Task C5 gotcha: "an
   // explicit rename must not be silently clobbered by an auto-generated
@@ -582,6 +585,7 @@ export default function ChatPanel({
         if (!Array.isArray(d)) return;
         setChats(d);
         renamedChatIdsRef.current = new Set(d.filter((c) => c.renamed).map((c) => c.id));
+        setListKey((k) => k + 1); // the open chat list reads again (S5.12)
       })
       .catch(() => {});
   }, []);
@@ -713,9 +717,9 @@ export default function ChatPanel({
     [activeChatId, openChat]
   );
 
-  // Delete a chat — kill its claude (close the conn), drop the transcript, and
-  // fall back to another open chat (or a fresh one) if it was active.
-  const deleteChat = useCallback(
+  // A chat moved to the trash (the list did that, server-side) — kill its claude (close the conn), forget
+  // it here, and fall back to another open chat (or a fresh one) if it was active.
+  const closeChat = useCallback(
     (id) => {
       const conn = connsRef.current.get(id);
       if (conn) conn.close();
@@ -734,9 +738,7 @@ export default function ChatPanel({
         delete next[id];
         return next;
       });
-      fetch(`/_api/acp/chat?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
-        .catch(() => {})
-        .finally(refreshChats);
+      refreshChats();
       setOpenChatIds((ids) => {
         const remaining = ids.filter((x) => x !== id);
         if (id === activeChatId) {
@@ -772,31 +774,18 @@ export default function ChatPanel({
       .catch(() => null);
   }, []);
 
-  const [overflowChatId, setOverflowChatId] = useState(null);
-  const [renamingChatId, setRenamingChatId] = useState(null);
-  const [renameValue, setRenameValue] = useState('');
-
-  const startRename = useCallback((c) => {
-    setRenamingChatId(c.id);
-    setRenameValue(c.title === 'New chat' ? '' : c.title);
-    setOverflowChatId(null);
-  }, []);
-
-  const commitRename = useCallback(
-    (id) => {
-      const value = renameValue.trim();
-      setRenamingChatId(null);
-      if (!value) return;
+  // The list hands back the new name; an explicit rename must not be clobbered by a later auto-title.
+  const renameChat = useCallback(
+    (id, value) => {
       renamedChatIdsRef.current.add(id);
       setSessionTitles((prev) => ({ ...prev, [id]: value })); // optimistic — see gotcha above
       patchChatMeta(id, { title: value }).then(refreshChats);
     },
-    [renameValue, patchChatMeta, refreshChats]
+    [patchChatMeta, refreshChats]
   );
 
   const archiveChat = useCallback(
     (id) => {
-      setOverflowChatId(null);
       patchChatMeta(id, { archived: true }).then(() => {
         refreshChats();
         // An archived chat can still be OPEN (mounted, running) — archiving
@@ -808,8 +797,7 @@ export default function ChatPanel({
   );
 
   const copyTranscript = useCallback((id) => {
-    setOverflowChatId(null);
-    fetch(`/_api/acp/chat?id=${encodeURIComponent(id)}`)
+    return fetch(`/_api/acp/chat?id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
       .then((msgs) => {
         const text = (Array.isArray(msgs) ? msgs : [])
@@ -862,8 +850,6 @@ export default function ChatPanel({
   }, [chats, openChatIds, sessionTitles]);
 
   const connected = status.available !== false;
-  // "✦ N" in the header — YOUR running chats (the busy ones), never anyone else's.
-  const runningChats = Object.values(busyChats || {}).filter(Boolean).length;
 
   return (
     <AiChatIsland hidden={hidden} resizing={resizing} width={width}>
@@ -871,20 +857,19 @@ export default function ChatPanel({
           "✦ N" YOUR running chats · New chat · Hide. Hide folds the island to its spark corner icon. */}
       <ChatHeader
         connected={connected}
-        running={runningChats}
         onToggleList={() => setMenuOpen((v) => !v)}
         onNew={() => {
           newChat();
           setMenuOpen(false);
         }}
         onHide={onClose}
+        pin={<PinButtonHost />}
       >
         <div className="chat-switch">
           <button
             type="button"
             className="chat-switch-trigger"
             onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="listbox"
             aria-expanded={menuOpen}
           >
             <span
@@ -895,104 +880,44 @@ export default function ChatPanel({
             </span>
             <span className="chat-switch-caret">▾</span>
           </button>
-          {menuOpen ? (
-            <>
-              <div
-                className="chat-menu-backdrop"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setOverflowChatId(null);
-                  setRenamingChatId(null);
-                }}
-              />
-              <div className="chat-menu" role="listbox">
-                {chatOptions.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`chat-menu-row${c.id === activeChatId ? ' is-active' : ''}`}
-                  >
-                    {renamingChatId === c.id ? (
-                      <input
-                        type="text"
-                        className="chat-menu-rename-input"
-                        value={renameValue}
-                        autoFocus
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={() => commitRename(c.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') commitRename(c.id);
-                          else if (e.key === 'Escape') setRenamingChatId(null);
-                        }}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="chat-menu-open"
-                        onClick={() => {
-                          switchTo(c.id);
-                          setMenuOpen(false);
-                        }}
-                      >
-                        <span
-                          className={`chat-dot ${busyChats[c.id] ? 'chat-dot--busy' : c.open ? 'chat-dot--idle' : 'chat-dot--off'}`}
-                          title={busyChats[c.id] ? 'Running' : c.open ? 'Open' : 'Saved'}
-                        />
-                        <span className="chat-menu-title">{c.title}</span>
-                      </button>
-                    )}
-                    <div className="chat-menu-overflow-wrap">
-                      <button
-                        type="button"
-                        className="chat-menu-more"
-                        aria-label="More options"
-                        title="More options"
-                        aria-haspopup="menu"
-                        aria-expanded={overflowChatId === c.id}
-                        onClick={() => setOverflowChatId((prev) => (prev === c.id ? null : c.id))}
-                      >
-                        ⋯
-                      </button>
-                      {overflowChatId === c.id ? (
-                        <div
-                          className="chat-menu-overflow"
-                          role="menu"
-                          data-testid="chat-overflow-menu"
-                        >
-                          <button type="button" role="menuitem" onClick={() => startRename(c)}>
-                            Rename
-                          </button>
-                          <button type="button" role="menuitem" onClick={() => archiveChat(c.id)}>
-                            Archive
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => copyTranscript(c.id)}
-                          >
-                            Copy transcript
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="chat-menu-overflow-danger"
-                            onClick={() => {
-                              setOverflowChatId(null);
-                              deleteChat(c.id);
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : null}
         </div>
+        {/* S5.11 — "✦ N": YOUR live runs (the run registry), never anyone else's; its list jumps to the artboard. */}
+        {connected ? (
+          <RunsCount
+            activeCanvas={activeCanvas}
+            designRel={designRel}
+            currentChatId={activeChatId}
+            onOpenChat={switchTo}
+          />
+        ) : null}
       </ChatHeader>
-      <div className="st-rp-body st-rp-body--chat">
+      {/* S5.12 — the chat list (03 `ai-chat-list`): the title ⌄ opens it in place of the thread. The threads
+          stay MOUNTED underneath (hidden, never unmounted) so a running chat keeps streaming. */}
+      {menuOpen && connected ? (
+        <div className="st-rp-body st-rp-body--list">
+          <ChatList
+            projectName={projectName}
+            busy={busyChats}
+            titles={sessionTitles}
+            activeChatId={activeChatId}
+            ctx={uiCtx}
+            refreshKey={listKey}
+            onOpen={(id) => {
+              switchTo(id);
+              setMenuOpen(false);
+            }}
+            onBack={() => setMenuOpen(false)}
+            onRename={renameChat}
+            onCopyTranscript={copyTranscript}
+            onArchive={archiveChat}
+            onTrashed={closeChat}
+          />
+        </div>
+      ) : null}
+      <div
+        className="st-rp-body st-rp-body--chat"
+        style={menuOpen && connected ? { display: 'none' } : undefined}
+      >
         {status.available === false ? (
           <NotConnected
             reason={status.reason}
@@ -1025,6 +950,11 @@ export default function ChatPanel({
                 onSetTranscriptView={setTranscriptView}
                 onPermissionRequest={onPermissionRequest}
                 onElicitationRequest={onElicitationRequest}
+                chatTitle={chatOptions.find((c) => c.id === id)?.title || 'New chat'}
+                uiCtx={uiCtx}
+                onCopyTranscript={copyTranscript}
+                suggestOn={suggestOn}
+                onSetSuggestOn={onSetSuggestOn}
               />
             );
           })

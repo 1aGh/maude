@@ -256,6 +256,18 @@ export const VIEW_ACTIONS: ActionDef[] = [
     },
   },
   {
+    // S3.5 (CONTRACT §6 [C31], 04 md-present-menu): the sheet that sets the Present order, the skipped
+    // artboards and the speaker notes — all in the versioned `.meta.json`, through PATCH
+    // /_api/present-meta (main origin, refused to a read-only session). Hidden below edit.
+    id: 'present.order-notes',
+    label: 'Order and notes…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+    search: { keywords: ['presentation', 'slides', 'speaker notes', 'skip', 'reorder'] },
+  },
+  {
     id: 'settings.theme',
     label: 'Theme',
     kind: 'toggle',

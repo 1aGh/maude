@@ -1207,7 +1207,7 @@
       "v2": {
         "action": null,
         "testid": "chat-caps-bar",
-        "where": "AI chat (⇧⌘A) › the capability bar under the composer — model, effort, fast mode (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Model, Effort, Fast mode — the pickers left the field's toolbar for the fold (S5.12); ⌘K finds each as \"AI chat panel › Advanced\"",
         "reach": [
           "desktop"
         ]
@@ -1223,7 +1223,7 @@
       "v2": {
         "action": null,
         "testid": "chat-mode-picker",
-        "where": "AI chat (⇧⌘A) › the capability bar › Permission mode (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Ask before — the permission mode in plain words, the agent's own name in grey (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1239,7 +1239,7 @@
       "v2": {
         "action": null,
         "testid": "chat-transcript-menu",
-        "where": "AI chat (⇧⌘A) › the transcript view menu — thinking, verbose (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Show in chat — normal, thinking, verbose (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1255,7 +1255,7 @@
       "v2": {
         "action": null,
         "testid": "chat-foot-info-btn",
-        "where": "AI chat (⇧⌘A) › the info button in the chat foot — context % and token counts (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Context used, with the ⓘ for the token counts (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1810,7 +1810,7 @@
       "v2": {
         "action": "ai.chat",
         "testid": "chat-overflow-menu",
-        "where": "AI chat (⇧⌘A) › the chat’s ⋯ menu: Rename, Archive, Delete, Copy transcript; the empty state’s buttons and “Implement N comments” sit in the feed (until S5)",
+        "where": "AI chat (⇧⌘A) › the title ⌄ opens the chat list; a row's ⋯ menu: Open, Rename…, Copy transcript, Archive, Move to trash (Delete is Move to trash — Trash keeps it until cleared out); the suggest-only banner's Allow changes is the old ModeBanner; the empty state’s buttons and “Implement N comments” sit in the feed (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -2860,6 +2860,8 @@
     "testid:studio/annotations/ui/element-node.tsx#canvas iframe chrome/data-section-chip-data-edit-notice": "testid:[data-section-chip] / [data-edit-notice]",
     "testid:studio/annotations/ui/element-node.tsx#canvas iframe chrome/dc-annot-el-dc-annot-text-data-id-data-type-data": "testid:.dc-annot-el / .dc-annot-text / [data-id] / [data-type] / [data-tool]",
     "testid:studio/annotations/ui/text-editor.tsx#canvas iframe chrome/dc-annot-editor-data-annot-editor": "testid:.dc-annot-editor / [data-annot-editor]",
+    "testid:studio/artboard-activity-overlay.tsx#other/ai-ring-artboardid": "testid:ai-ring-<artboardId>",
+    "testid:studio/artboard-activity-overlay.tsx#other/ai-rings": "testid:ai-rings",
     "testid:studio/artboard-guides-overlay.tsx#canvas iframe chrome/dc-artboard-guides": "testid:.dc-artboard-guides",
     "testid:studio/canvas-comment-mount.tsx#canvas iframe chrome/dc-hmr-holding": "testid:.dc-hmr-holding",
     "testid:studio/canvas-lib.tsx#canvas iframe chrome/artboard-rename-id": "testid:artboard-rename-<id>",
@@ -3442,7 +3444,6 @@
     "testid:studio/client/home/home-app.jsx#home/home-root": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-search": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-search-row-pid-slug-artboard": "v2 code (added after the freeze)",
-    "testid:studio/client/panels/chat-header.jsx#other/ai-chat-count": "v2 code (added after the freeze)",
     "testid:studio/client/panels/chat-header.jsx#other/ai-chat-header": "v2 code (added after the freeze)",
     "testid:studio/client/panels/chat-header.jsx#other/ai-chat-hide": "v2 code (added after the freeze)",
     "testid:studio/client/panels/chat-header.jsx#other/ai-chat-new": "v2 code (added after the freeze)",
@@ -3451,6 +3452,13 @@
     "testid:studio/client/testids.json#canvas iframe chrome/dc-error-overlay": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#menubar/menubar-file": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#sidebar/tree/data-canvas-row": "historical hook: no live element in v1",
-    "testid:studio/client/testids.json#viewport/st-skel-cap": "historical hook: no live element in v1"
+    "testid:studio/client/testids.json#viewport/st-skel-cap": "historical hook: no live element in v1",
+    "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-badge": "v2 code (added after the freeze)",
+    "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-tip": "v2 code (added after the freeze)",
+    "testid:studio/editing/nudge.tsx#canvas/edit-gap-side": "v2 code (added after the freeze)",
+    "testid:studio/editing/nudge.tsx#canvas/edit-nudge-gaps": "v2 code (added after the freeze)",
+    "testid:studio/editing/nudge.tsx#canvas/edit-nudge-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
+    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)"
   }
 }

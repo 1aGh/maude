@@ -107,6 +107,8 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         '/_api/edit-css',
         '/_api/edit-text',
         '/_api/edit-attr',
+        // S2.1 — the edit-op dispatch is a source write, MAIN-ORIGIN ONLY (routes/edit.ts).
+        '/_api/edit-op',
         // DDR-148 — raw canvas source for the Timeline parser is MAIN-ORIGIN
         // ONLY (the untrusted canvas iframe must never read project source).
         // Cloud Phase 23 C3 — the Maude Cloud lane holds the PERSONAL TOKEN
