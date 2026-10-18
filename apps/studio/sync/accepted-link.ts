@@ -735,6 +735,8 @@ export interface HistoryAction {
     op: string;
     beforePath: string | null;
     afterPath: string | null;
+    /** The lane body's hash after the effect (an `@aside` effect: the kept-aside body). */
+    afterHash?: string | null;
   }[];
 }
 

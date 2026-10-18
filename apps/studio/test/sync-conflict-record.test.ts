@@ -200,8 +200,8 @@ describe('both producers, both directions', () => {
       expect(out.objectConflicts?.map((c) => c.id)).toEqual(['s1']);
       const rec = readConflicts(r, 'ui-a');
       expect(rec.map((e) => [e.id, e.actionId])).toEqual([['s1', 'act_live']]);
-      expect((rec[0]?.mine as { text: string }).text).toBe(mine);
-      expect((rec[0]?.theirs as { text: string }).text).toBe(theirs);
+      expect((rec[0]?.mine as { text?: string } | undefined)?.text).toBe(mine);
+      expect((rec[0]?.theirs as { text?: string } | undefined)?.text).toBe(theirs);
     });
 
     test(`${who}: an outbox replay after a restart still records the card (onResult)`, async () => {
@@ -230,8 +230,8 @@ describe('both producers, both directions', () => {
       expect(hub.posts.length).toBe(1);
       const rec = readConflicts(r, 'ui-a');
       expect(rec.map((e) => [e.id, e.fields])).toEqual([['s1', ['text']]]);
-      expect((rec[0]?.mine as { text: string }).text).toBe(mine);
-      expect((rec[0]?.theirs as { text: string }).text).toBe(theirs);
+      expect((rec[0]?.mine as { text?: string } | undefined)?.text).toBe(mine);
+      expect((rec[0]?.theirs as { text?: string } | undefined)?.text).toBe(theirs);
       expect(rec[0]?.actionId).toMatch(/^act_/);
       // the record is this Mac's runtime state
       expect(readFileSync(conflictFile(r, 'ui-a') as string, 'utf8')).toContain('"v":1');
