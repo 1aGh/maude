@@ -81,6 +81,8 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { EditingLayer } from './editing/index.tsx';
+import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import { ExportDialogProvider } from './export-dialog.tsx';
 import {
@@ -3378,9 +3380,16 @@ function CanvasRouter({
           // it actually captured something.
           return;
         }
-        // feature-4 T7b — a locked layer can't be selected from the canvas
-        // (the Layers panel row still can, so it stays reachable to unlock).
-        if (isLockedElement(target.el, target.cdId)) return;
+        // feature-4 T7b + S2.1 — a click on a locked object selects its nearest unlocked parent
+        // (or the artboard); the Layers row still selects the object itself, so it stays
+        // reachable to unlock. The lock is the shared `data-cd-locked` (V2-1.4) or the v1 key.
+        const lockedAt = (el: Element) =>
+          isLockedDom(el) || isLockedElement(el, el.getAttribute('data-cd-id'));
+        if (target.el && lockedAt(target.el)) {
+          const up = lockedClickSelection(target.el, lockedAt);
+          if (up) selSet.replace(up);
+          return;
+        }
         // feature-4 escape hatch (user steer 2026-07-19) — a Cmd+click select
         // from BROWSE means "I want to edit now": flip to the Move (select)
         // tool so the follow-up gestures (drag, dblclick drill, keyboard)
@@ -3452,7 +3461,8 @@ function CanvasRouter({
         clearSticky();
         resetTool();
         ctxMenu.close();
-        selSet.clear();
+        // S2.1 — `object.step-out`, esc's selection rung: one level up; at the top, deselect.
+        if (!stepOut(selSet)) selSet.clear();
         annotSel.clear();
         setHoverEl(null);
       },
@@ -3479,6 +3489,7 @@ function CanvasRouter({
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />
+      <EditingLayer />
       {!readOnly && <ElementResizeOverlay />}
       {!readOnly && <SpacingHandlesOverlay />}
       {!readOnly && <GridTrackHandlesOverlay />}
