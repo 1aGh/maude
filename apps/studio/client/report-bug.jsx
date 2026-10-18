@@ -176,11 +176,13 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
   const [bundle, setBundle] = useState(null);
   const [shots, setShots] = useState([]); // {url, blob, source, rects:[{x,y,w,h} normalized]}
   const [crashLogs, setCrashLogs] = useState([]); // native only: {name, firstLine}
+  // The log rows start unticked — "Ask each time" is the default and the person opts in per report;
+  // Settings › Privacy › "Always" ticks them once the prefs arrive (below).
   const [consent, setConsent] = useState({
-    logTail: true,
+    logTail: false,
     activeCanvas: true,
     projectName: false,
-    crashLogs: true,
+    crashLogs: false,
   });
   // S11.13 — Settings › Privacy › Logs in bug reports (prefs.json `reportLogs`), read per open.
   const [logs, setLogs] = useState(() => reportLogsConsent('ask'));

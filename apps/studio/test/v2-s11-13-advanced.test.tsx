@@ -130,14 +130,16 @@ describe('the words', () => {
     expect(reportLogsPolicy(undefined)).toBe('ask');
   });
 
-  // A6c — what Report a bug does with the policy. Ask each time keeps today's dialog (the log
-  // rows offered, ticked — the preview IS the consent); Never offers no log row and sends none.
-  test('Report a bug reads the policy: never offers no log row; ask and always offer it ticked', () => {
-    expect(reportLogsConsent('ask')).toEqual({ offer: true, on: true });
+  // A6c — what Report a bug does with the policy (decision v2-A6c-report-logs-never-hides). Ask each
+  // time offers the log rows UNTICKED; Always offers them ticked; Never offers no log row, sends none.
+  test('Report a bug reads the policy: ask offers the logs unticked, always ticked, never not at all', () => {
+    expect(reportLogsConsent('ask')).toEqual({ offer: true, on: false });
     expect(reportLogsConsent('always')).toEqual({ offer: true, on: true });
     expect(reportLogsConsent('never')).toEqual({ offer: false, on: false });
     const src = readFileSync(join(import.meta.dir, '..', 'client', 'report-bug.jsx'), 'utf8');
     expect(src).toContain('reportLogsConsent(reportLogsPolicy(');
+    // before (or without) the prefs the dialog is the "ask" default: nothing ticked
+    expect(src).toMatch(/useState\(\{\s*logTail: false,[^}]*crashLogs: false,\s*\}\)/);
   });
 });
 

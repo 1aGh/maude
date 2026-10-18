@@ -409,12 +409,14 @@ export function reportLogsPolicy(prefs) {
 }
 /**
  * What Report a bug does with the policy (report-bug.jsx): `offer` = the log rows (server log
- * tail + memory, crash logs) are in the preview; `on` = they start ticked. Ask each time and
- * Always keep the dialog's consent-first preview (the person can still untick); Never offers no
- * log row, so nothing of the logs is sent.
+ * tail + memory, crash logs) are in the preview; `on` = they start ticked. Ask each time starts
+ * them UNTICKED (the person opts in per report; decision v2-A6c-report-logs-never-hides), Always
+ * starts them ticked (the person can still untick), Never offers no log row, so nothing of the
+ * logs is sent.
  */
 export function reportLogsConsent(policy) {
-  return policy === 'never' ? { offer: false, on: false } : { offer: true, on: true };
+  if (policy === 'never') return { offer: false, on: false };
+  return { offer: true, on: policy === 'always' };
 }
 
 /** What each fold is called in the per-fold switch list (06 ad-edge-remember "Open now, on this Mac"). */
