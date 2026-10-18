@@ -11,6 +11,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
+import { AssetAbsentBox } from '../assets/missing-frame.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
 import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
@@ -156,6 +157,8 @@ export function InspectorFrame({
           Uses {ds}
         </p>
       ) : null}
+      {/* S8.19c — a picture that is Waiting for someone's Mac or Missing says so, and offers Relink… */}
+      <AssetAbsentBox el={el1} canvas={canvasFile} />
       {SECTIONS.map((def) => {
         const entries = slotsFor(def.id, kind.id, selected);
         if (!entries.length) return null;

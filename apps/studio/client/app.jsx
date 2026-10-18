@@ -232,6 +232,7 @@ import { panelLayout, useHydratePanelLayout, usePanelLayout } from './v2/shell/u
 import { useOccludedInsets } from './v2/shell/use-occluded-insets.js';
 import { useToolPanels } from './v2/shell/use-tool-panels.js';
 import { useAssetStateLane } from './v2/assets/asset-state-lane.js';
+import { useRelinkSheet } from './v2/assets/missing-frame.jsx';
 import { HelpModal } from './dialogs/help-modal.jsx';
 import { ShortcutsOverlay } from './dialogs/shortcuts-overlay.jsx';
 import { SystemView } from './system/system-view.jsx';
@@ -2865,8 +2866,10 @@ function ShellTree() {
     },
   });
   // S8.19 — "Waiting for Jonas's Mac" vs Missing: each open canvas hears its pictures' states
-  // (dgn `asset-state`); the relink sheet hooks `onRelink` when it lands (asset-placeholder RELINK_LIVE).
+  // (dgn `asset-state`); a Missing frame's Relink… (and the Inspector's box) opens the relink sheet (S8.19c).
+  const relink = useRelinkSheet({ canEdit: !viewerMode });
   useAssetStateLane({
+    onRelink: relink.onRelink,
     syncStatus,
     wsConnected,
     canvasOrigin: () => cfg?.canvasOrigin || window.location.origin,
@@ -3089,6 +3092,7 @@ function ShellTree() {
           </div>
         </div>
       )}
+      {relink.sheet}
       {shareDialog && (
         <ShareDialog
           target={shareDialog}
