@@ -507,11 +507,6 @@ const mode: V = lit(...CANVAS_MODES);
 const tool: V = lit(...TOOL_IDS);
 const present = shape({ kind: lit(...PRESENT_KINDS), from: opt(str) });
 const caps = shape({ edit: bool, annotate: bool, comment: bool, present: opt(bool) });
-/** S3.7a — bounded ints, like the awareness `present` field (S3-present-session §2). */
-const intIn =
-  (lo: number, hi: number): V =>
-  (v) =>
-    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : BAD;
 const PRESENT_SID = /^[a-z0-9]{8,32}$/;
 const sid: V = (v) => (typeof v === 'string' && PRESENT_SID.test(v) ? v : BAD);
 export const PRESENT_NAME_MAX = 64;
