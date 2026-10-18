@@ -75,6 +75,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('serve', 'none'),
   d('status', 'none'),
   d('index', 'none'),
+  // S8.11. `assets` lists the project's assets with where each is used; `--not-used` is empty until
+  // older versions have been checked. Read-only.
+  d('assets', 'none'),
   d('help', 'none'),
   d('check', 'none', { note: 'validates bytes; writes nothing' }),
   d('hook', 'project', {
