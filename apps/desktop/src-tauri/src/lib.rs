@@ -31,6 +31,7 @@ mod notify;
 mod oauth;
 mod picked_media;
 mod prefs;
+mod present;
 mod profiles;
 mod project_resolve;
 mod server_json;
@@ -648,6 +649,9 @@ pub fn run() {
             windows::take_tabs_restored,
             windows::take_pending_navigate,
             home::index_search,
+            present::present_displays,
+            present::present_audience_open,
+            present::present_audience_close,
             home::relink_project,
             windows::window_labels,
             windows::e2e_focus_window,
