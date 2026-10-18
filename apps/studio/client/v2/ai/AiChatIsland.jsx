@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { restoreFocus } from '../shell/modal-focus.js';
+import { BigPanelProvider, useBigPanel } from './BigChat.jsx';
 import { FOCUS_AI_EVENT, focusComposer, isComposerEscape } from './panel-focus.js';
 
 export function AiChatIsland({ hidden = false, resizing = false, width, children }) {
@@ -17,6 +18,8 @@ export function AiChatIsland({ hidden = false, resizing = false, width, children
   // Where focus was when the panel took it — esc returns there (or to the canvas when it is gone).
   const returnTo = useRef(null);
   const wasHidden = useRef(hidden);
+  // S5.9 — a long chat gets the full height; `pinned` is the shell's docked layout.
+  const big = useBigPanel(ref, hidden);
 
   const remember = useCallback((el) => {
     const root = ref.current;
@@ -47,7 +50,8 @@ export function AiChatIsland({ hidden = false, resizing = false, width, children
   return (
     <aside
       ref={ref}
-      className={`st-rpanel ai-island${resizing ? ' is-resizing' : ''}`}
+      className={`st-rpanel ai-island${resizing ? ' is-resizing' : ''}${big.pinned ? ' ai-island--pinned' : ''}`}
+      data-full={big.full ? 'true' : undefined}
       style={{
         ...(width ? { width, flexBasis: width } : {}),
         ...(hidden ? { display: 'none' } : {}),
@@ -63,7 +67,7 @@ export function AiChatIsland({ hidden = false, resizing = false, width, children
         restoreFocus(returnTo.current, undefined, document);
       }}
     >
-      {children}
+      <BigPanelProvider value={big.report}>{children}</BigPanelProvider>
     </aside>
   );
 }
