@@ -213,6 +213,31 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
   'ai.draw-mark': { effect: 'external', agent: cli('maude design draw-build') },
+  // ── AI runs (S5.3, V2-1.15 §5.10). `ai.runs.list` / `ai.stop` become the cli verbs
+  // `maude design runs list|stop` with S5.4, which builds the verb; until then the ✦ N list is
+  // the person's view and Stop the person's control. Keep going / cancel are human by Q5. No
+  // `server` field yet: rule 7 wants a per-role refusal row a role suite runs (S9's
+  // access-local-gate); the routes are routes/ai.ts. ──
+  'ai.runs.list': {
+    effect: 'none',
+    minRole: 'edit',
+    agent: human('view-pref', 'S5.4 makes it `maude design runs list` (V2-1.15 §5.10)'),
+  },
+  'ai.stop': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: human('ai-chat', 'S5.4 adds `maude design runs stop <run>` for an agent’s own runs'),
+  },
+  'ai.cancel-waiting': {
+    effect: 'none',
+    minRole: 'edit',
+    agent: human('ai-chat'),
+  },
+  'ai.keep-going': {
+    effect: 'project',
+    minRole: 'edit',
+    agent: human('ai-chat'),
+  },
   'help.whats-new': HELP,
   'help.tour': HELP,
   'help.intro': HELP,
