@@ -61,3 +61,23 @@ export function dispatchArtboardJump(path, artboardId, target = globalThis.windo
     new CustomEvent(CANVAS_OP_EVENT, { detail: { op: 'jump', path, artboardId } })
   );
 }
+
+export const FOCUS_SELECTOR_EVENT = 'maude:focus-selector';
+let pendingSelector = false;
+
+/**
+ * S11.9 — `layers.select-by-selector` from ⌘K: bring up Layers › Advanced and put the cursor in its Select by
+ * selector field. The field may not be mounted yet (the fold is closed, the Layers tab is not showing), so the
+ * request is remembered until it mounts and takes it.
+ */
+export function requestFocusSelector(target = globalThis.window) {
+  pendingSelector = true;
+  target?.dispatchEvent?.(new CustomEvent(FOCUS_SELECTOR_EVENT));
+}
+
+/** The field took the request. @returns whether one was waiting. */
+export function takeFocusSelectorRequest() {
+  const was = pendingSelector;
+  pendingSelector = false;
+  return was;
+}

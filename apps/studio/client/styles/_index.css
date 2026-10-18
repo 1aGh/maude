@@ -85,6 +85,8 @@
 @import url("../v2/present/presenter-view.css");
 /* V2-4.10 — the shared › Advanced fold (client/v2/fold/advanced-fold.jsx). */
 @import url("../v2/fold/fold.css");
+/* S11.7 — the code view (read-only TSX) and the broken-canvas card (client/v2/code/). */
+@import url("../v2/code/code.css");
 /* S11.1 — the empty kit: Empty, Spot (the one spring), Ask AI, Suggestions, arriving rows (client/v2/empty/). */
 @import url("../v2/empty/empty.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */

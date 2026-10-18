@@ -93,6 +93,105 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     visible: { minRole: 'edit' },
     enabled: { facts: ['canvasOpen'] },
   },
+  // S11.7 (06 `ad-code`, `ad-edge-syntax`) — the canvas as code, read-only, and the broken-canvas card's
+  // rows. View code needs the source, which is a download (V2-1.7): Can comment and up. The server
+  // (`GET /_api/canvas-source`, Export on the canvas) refuses Can view whatever the shell draws.
+  {
+    id: 'canvas.view-code',
+    label: 'View code',
+    kind: 'command',
+    icon: 'code',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['code', 'source', 'tsx', 'developer', 'read only'],
+      where: 'Canvases panel › row menu › View code',
+    },
+  },
+  // S11.9 (06 `ad-left`, `ad-edge-where`) — the row menu's Advanced group, on the OPEN canvas from ⌘K.
+  // Reveal in Finder / Open in editor are the Mac app's native doors (S11.16: project-relative paths only,
+  // Rust confines them); they are Can edit and up and only where the shell is the desktop app — in a browser
+  // the menu swaps them for "Open in the Mac app", and Can comment never sees them. Copy file path and Rename
+  // file… are shell commands (Rename file renames the .tsx and its .meta.json together, like Rename).
+  {
+    id: 'canvas.reveal-in-finder',
+    label: 'Reveal in Finder',
+    kind: 'command',
+    icon: 'folder',
+    exec: 'native',
+    visible: { shell: ['desktop'], facts: ['native'], minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['finder', 'show', 'file', 'folder', 'explorer'],
+      where: 'Canvases panel › Advanced › row menu › Reveal in Finder',
+    },
+  },
+  {
+    id: 'canvas.open-in-editor',
+    label: 'Open in editor',
+    kind: 'command',
+    icon: 'edit',
+    exec: 'native',
+    visible: { shell: ['desktop'], facts: ['native'], minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['editor', 'code', 'vscode', 'file', 'tsx'],
+      where: 'Canvases panel › Advanced › row menu › Open in editor',
+    },
+  },
+  {
+    id: 'canvas.copy-file-path',
+    label: 'Copy file path',
+    kind: 'command',
+    icon: 'duplicate',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['path', 'file', 'copy', 'location'],
+      where: 'Canvases panel › Advanced › row menu › Copy file path',
+    },
+  },
+  {
+    id: 'canvas.rename-file',
+    label: 'Rename file…',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['rename', 'file', 'name'],
+      where: 'Canvases panel › Advanced › row menu › Rename file…',
+    },
+  },
+  // The card's own buttons: they act on the card that is showing, so they are not ⌘K rows.
+  {
+    id: 'canvas.copy-error',
+    label: 'Copy error',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'comment' },
+    search: { hidden: true },
+  },
+  {
+    // PRE-FILLS the AI chat composer; the person presses send (ask-AI rule: never sends).
+    id: 'canvas.ask-ai-fix',
+    label: 'Ask AI to fix it',
+    kind: 'command',
+    exec: 'shell',
+    visible: { shell: ['desktop'], minRole: 'edit' },
+    search: { hidden: true },
+  },
+  {
+    // "Last good version" / "Go back to 14:05" — the same restore as `history.go-back` (S1.13)
+    id: 'canvas.last-good',
+    label: 'Last good version',
+    kind: 'command',
+    exec: 'shell',
+    visible: { minRole: 'edit' },
+    search: { hidden: true },
+  },
   // Today's panels: the Figma import dialog and the brand upload panel.
   {
     id: 'import.figma',

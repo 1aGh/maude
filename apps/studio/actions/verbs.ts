@@ -60,6 +60,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('visual-sanity', 'none'),
   d('perf', 'none'),
   d('canvas-rects', 'none'),
+  // S11.6 — read-only: the canvases that can't be drawn (file:line:column) and a canvas's source / one
+  // artboard's lines. Both ask the studio, which refuses Can view (Export on the canvas).
+  d('canvas-errors', 'none'),
+  d('canvas-source', 'none'),
   d('read-annotations', 'none'),
   d('svg-optimize', 'none'),
   d('asset-sweep', 'none'),

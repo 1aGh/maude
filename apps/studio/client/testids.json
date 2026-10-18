@@ -510,7 +510,7 @@
     "hook": "canvas-load-retry",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Retry button on the canvas load-error card.",
+    "meaning": "The Retry button on the canvas load-error card (server-down card), and \"Reload canvas\" under Show details on the broken-canvas card (S11.7).",
     "producer": {
       "file": "apps/studio/client/app.jsx",
       "symbol": "Viewport"
@@ -12070,7 +12070,7 @@
     "hook": "canvas-menu-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash. `move` drills into the folder list.",
+    "meaning": "One row of the canvas row menu (`role=menuitem`); `<id>` is open, pin, rename, duplicate, move, copy-link or trash; with Canvases > Advanced open also reveal, open-editor, open-mac-app, view-code, copy-path or rename-file (S11.9). `move` drills into the folder list.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/row-menu.jsx",
       "symbol": "CanvasRowMenu"
@@ -17876,6 +17876,470 @@
     "v2": "new"
   },
   {
+    "hook": "canvas-error-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S11.7: the broken-canvas card (\"<Canvas> can't be drawn right now.\"). `data-kind` = `syntax` | `render` (S6.12 mounts the render kind).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's one sentence.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "What happened and that nothing is lost, in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-ask-ai",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Ask AI to fix it\": pre-fills the AI chat composer, never sends. Desktop, people who may edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-go-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Render kind: \"Go back to 14:05\" (S1.13 `history.go-back`).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-last-good-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Render kind: \"Last good version · 6 Oct, 14:05\".",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-wait",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card's one-line wait while the server is asked what is wrong.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasLoadFailure"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-message",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: the error message (untrusted text, mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: \"Pricing.tsx · line 212, column 19\".",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-copy-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy beside the place.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-excerpt",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: the lines around the error with a caret.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: no error was reported (or the viewer may not read it).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-open-editor",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: Open in editor (desktop app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: Copy error.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-error-last-good",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Show details: Last good version (syntax kind).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/canvas-error-card.jsx",
+      "symbol": "CanvasErrorCard"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-canvas-error-card.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "S11.7: the code view, a read-only panel over the canvas (06 ad-code). `role=\"dialog\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-path",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The canvas file path in the code view's header (mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-readonly",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Read only\" lock chip.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy the whole source.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-open-editor",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Open in editor (desktop app only; not drawn elsewhere).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-close",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Close the code view.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-door-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The editor door refused: said in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-marked",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Which artboard's lines are marked, and where.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-body",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The scrolling source. Lines carry `data-line`; the selected artboard's carry `data-marked=\"true\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-refused",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The server refused the source (Can view).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-missing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The canvas is not on this Mac.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The source could not be read.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-truncated",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A very long file is cut; the rest is in the file.",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "code-view-copy-command",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Under Advanced: Copy beside one terminal / Claude Code command (repeats).",
+    "producer": {
+      "file": "apps/studio/client/v2/code/code-view.jsx",
+      "symbol": "CodeView"
+    },
+    "region": "viewport",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-code-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
     "hook": "ai-attach-clip",
     "kind": "testid",
     "pattern": false,
@@ -18598,6 +19062,278 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-show-file-names",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Show file names\" switch in Canvases > Advanced (`role=\"switch\"`): every canvas row grows a second mono line with its file name. A view preference kept on this Mac.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Folder: the project folder on this Mac (mono). Absent where there is none (the cloud).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-folder-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Folder: the Copy button.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Design system: the system folder (`system/<name>`, mono).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-ds-open",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced > Design system: the Open button (same as the pinned Design system row).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvases-updated",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvases > Advanced foot: \"updated just now\" after the shown / total count.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/canvases-advanced.jsx",
+      "symbol": "CanvasesAdvanced"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-file-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A canvas row's file name line while Show file names is on; `<slug>` as `canvas-row-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-file-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The file name line on a canvas's Pinned copy while Show file names is on; `<slug>` as `canvas-row-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers > Advanced fold button (the one quiet row at the foot of the Layers panel; key `left.layers`).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-advanced-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Layers > Advanced fold container (`data-open` while open).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-show-tags",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Show tags and ids\" switch in Layers > Advanced (`role=\"switch\"`): each layer prints its tag and id after its name.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-counts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > On this canvas: \"N artboards · M layers\".",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-selector",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > Select by selector: the mono field; ↵ selects every match inside the artboards (capped at 500, scoped on the canvas).",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-selector-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inline refusal under the selector field (invalid or over-long); nothing is sent.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-element-id",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > Element id: the selected element's id (mono). Absent with nothing selected.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layers-element-id-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layers > Advanced > Element id: the Copy button.",
+    "producer": {
+      "file": "apps/studio/client/v2/left-panel/layers-advanced.jsx",
+      "symbol": "LayersAdvanced"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "layer-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A layer row's \"tag · id\" text while Show tags and ids is on.",
+    "producer": {
+      "file": "apps/studio/client/inspector/layers.jsx",
+      "symbol": "LayerRow"
+    },
+    "region": "sidebar/layers",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-left-advanced.test.tsx"
     ],
     "v2": "new"
   }

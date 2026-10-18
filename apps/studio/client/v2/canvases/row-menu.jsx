@@ -10,8 +10,12 @@ import { StIcon } from '../../shell/icons.jsx';
 import { placeMenu } from '../../tree-row-menu.jsx';
 import { MoveSheet } from './move-sheet.jsx';
 
-/** The rows of the menu for `row`. `edit` false (a viewer) leaves Open · Pin · Copy link. */
-export function canvasMenuItems(row, { edit = true } = {}) {
+/**
+ * The rows of the menu for `row`. `edit` false (a viewer) leaves Open · Pin · Copy link.
+ * `extra` (S11.9) is the Advanced group — Reveal in Finder … Rename file… — drawn after Copy link, before
+ * Move to trash; left-panel/canvas-file-menu.js builds it, and only while Canvases › Advanced is open.
+ */
+export function canvasMenuItems(row, { edit = true, extra = [] } = {}) {
   const items = [{ id: 'open', label: 'Open' }];
   if (row.pinnable) items.push({ id: 'pin', label: row.pinned ? 'Unpin' : 'Pin' });
   if (edit) {
@@ -20,6 +24,7 @@ export function canvasMenuItems(row, { edit = true } = {}) {
     items.push({ id: 'move', label: 'Move to…', sub: true });
   }
   items.push({ id: 'copy-link', label: 'Copy link' });
+  items.push(...extra);
   if (edit) items.push({ id: 'trash', label: 'Move to trash', danger: true, sepBefore: true });
   return items;
 }

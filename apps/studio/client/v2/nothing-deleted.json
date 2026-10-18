@@ -3045,6 +3045,7 @@
     "testid:studio/client/inspector/inspector-panel.jsx#other/inspector-selection": "A-selected-element-s-selector",
     "testid:studio/client/inspector/inspector-panel.jsx#other/inspector-selection-text": "testid:inspector-selection-text",
     "testid:studio/client/inspector/inspector-panel.jsx#other/layers-artboard-count": "A-n-artboards-count",
+    "testid:studio/client/inspector/layers.jsx#sidebar/layers/layer-tag": "testid:layer-tag",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-again": "testid:brand-up-again",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-copy-command": "testid:brand-up-copy-command",
     "testid:studio/client/panels/BrandUploadPanel.jsx#onboarding/brand-up-error": "testid:brand-up-error",

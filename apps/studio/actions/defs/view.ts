@@ -57,6 +57,34 @@ export const VIEW_ACTIONS: ActionDef[] = [
     // switch and View › Advanced, no key.
     legacy: { menu: 'Show hidden files', sheet: 'Hidden files' },
   },
+  // S11.9 (06 `ad-left`) — the two switches of the left panel's Advanced folds. Both are the person's own
+  // view (kept on this Mac, never written to the project); the select-by-selector field is the Layers
+  // panel's, and the canvas answers with a selection of what matched inside the artboards (capped, scoped).
+  {
+    id: 'canvases.show-file-names',
+    label: 'Show file names',
+    kind: 'toggle',
+    exec: 'shell',
+    search: { keywords: ['file', 'names', 'tsx', 'files'], where: 'Canvases panel › Advanced' },
+  },
+  {
+    id: 'layers.show-tags',
+    label: 'Show tags and ids',
+    kind: 'toggle',
+    exec: 'shell',
+    search: { keywords: ['tags', 'ids', 'layers', 'html'], where: 'Layers panel › Advanced' },
+  },
+  {
+    id: 'layers.select-by-selector',
+    label: 'Select by selector',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { facts: ['canvasOpen'] },
+    search: {
+      keywords: ['selector', 'css', 'query', 'select', 'matching'],
+      where: 'Layers panel › Advanced',
+    },
+  },
   {
     id: 'view.design-system',
     label: 'Design system',

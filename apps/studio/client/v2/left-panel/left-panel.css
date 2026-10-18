@@ -496,4 +496,89 @@
     padding-top: var(--space-2);
     box-shadow: inset 0 0.5px 0 var(--border-default);
   }
+
+  /* ── S11.9 · Canvases and Layers › Advanced (06 · ad-left) ── */
+  /* Show file names: the row grows a second, mono line under the name (ROW_H_FILE tall). */
+  .cv-names {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.25;
+  }
+  .cv-file {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .lp-adv-mono {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .lp-adv-copyable {
+    min-width: 0;
+    max-width: 70%;
+  }
+  .lp-adv-footl {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .lp-adv-updated {
+    color: var(--fg-2);
+  }
+  /* Select by selector: a stacked row — the label above a mono field, the refusal under it. */
+  .lp-adv-stack {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--space-1);
+    padding-block: var(--space-1);
+  }
+  .lp-selector {
+    box-sizing: border-box;
+    width: 100%;
+    height: 26px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    color: var(--fg-0);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .lp-selector::placeholder {
+    color: var(--fg-3);
+  }
+  .lp-selector:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .lp-selector[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1px var(--status-error);
+  }
+  .lp-selector-err {
+    color: var(--status-error);
+    font-size: var(--type-xs);
+  }
+  /* Show tags and ids: the tag and id after a layer's name. */
+  .st-layer-tag {
+    flex: none;
+    margin-left: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
 }

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "4946c6c441e0",
+  "manifestVersion": "39948f7fcabe",
   "actions": [
     {
       "id": "search.open",
@@ -200,6 +200,104 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Move the .tsx and its sidecars to <designRoot>/_trash/<stamp>__<slug>/ and write _trash-manifest.json {canvas, slug, trashed[]} beside them; Trash restores from it"
+      }
+    },
+    {
+      "id": "canvas.view-code",
+      "label": "View code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-source"
+      }
+    },
+    {
+      "id": "canvas.reveal-in-finder",
+      "label": "Reveal in Finder",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens Finder on the person’s Mac; an agent already holds the file"
+      }
+    },
+    {
+      "id": "canvas.open-in-editor",
+      "label": "Open in editor",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "opens the person’s editor on the file; an agent edits the .tsx itself"
+      }
+    },
+    {
+      "id": "canvas.copy-file-path",
+      "label": "Copy file path",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvas.rename-file",
+      "label": "Rename file…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Rename the .tsx and its .meta.json together"
+      }
+    },
+    {
+      "id": "canvas.copy-error",
+      "label": "Copy error",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-errors"
+      }
+    },
+    {
+      "id": "canvas.ask-ai-fix",
+      "label": "Ask AI to fix it",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design canvas-errors"
+      }
+    },
+    {
+      "id": "canvas.last-good",
+      "label": "Last good version",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "destructive",
+      "minRole": "edit",
+      "undo": "step",
+      "server": {
+        "route": "/_api/project/restore",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history restore <canvas> @last-good"
       }
     },
     {
@@ -1288,6 +1386,42 @@
       "agent": {
         "path": "human",
         "because": "view-pref"
+      }
+    },
+    {
+      "id": "canvases.show-file-names",
+      "label": "Show file names",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a second line under each canvas, in the person’s own view"
+      }
+    },
+    {
+      "id": "layers.show-tags",
+      "label": "Show tags and ids",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "tag and id after each layer’s name, in the person’s own view"
+      }
+    },
+    {
+      "id": "layers.select-by-selector",
+      "label": "Select by selector",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a selection in the person’s window; an agent finds elements with `maude design canvas-rects`"
       }
     },
     {
@@ -3705,6 +3839,18 @@
     {
       "scope": "design",
       "verb": "design canvas-rects",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-errors",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-source",
       "effect": "none",
       "tier": "auto"
     },

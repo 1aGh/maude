@@ -268,7 +268,12 @@ export function usePaletteAndPanels({
         for (const msg of plan.messages) setTimeout(() => postToActiveCanvas(msg), delay);
       return;
     }
-    if (op === 'copy-link') copyCanvasLink(path);
+    // S11.7 — the broken-canvas card's "Ask AI to fix it": open the AI chat panel and PRE-FILL its composer
+    // (`label` carries the text). It never sends: that is the person's press.
+    if (op === 'ask-ai-fix') {
+      openPanelExclusive('assistant');
+      sendToAskAI(label ?? '');
+    } else if (op === 'copy-link') copyCanvasLink(path);
     else if (op === 'trash') deleteBoard(path, label || displayName(basename(path)));
   };
   useEffect(() => {
@@ -700,6 +705,9 @@ export function usePaletteAndPanels({
           testId={id === 'layers' ? 'layers-panel' : 'inspector-panel'}
           layersOnly={id === 'layers'}
           artboardCount={id === 'layers' ? activeArtboards : undefined}
+          onSelectBySelector={(selector) =>
+            postToActiveCanvas({ dgn: 'select-by-selector', v: 1, selector })
+          }
           hideLayersTab={layersMode === 'separate'}
           selected={selected}
           cfg={cfg}
