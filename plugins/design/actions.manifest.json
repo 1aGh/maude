@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "b7af8bf95fd6",
+  "manifestVersion": "34525584bab8",
   "actions": [
     {
       "id": "search.open",
@@ -757,6 +757,30 @@
         "format": "canvas-tsx",
         "skill": "design:design",
         "how": "Copy the component definition under a new name and point this one instance at the copy; the other places keep the original"
+      }
+    },
+    {
+      "id": "inspect.copy-code",
+      "label": "Copy code",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Read the element’s JSX in the .tsx (find its data-cd-id)"
+      }
+    },
+    {
+      "id": "inspect.edit",
+      "label": "Edit",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element> --mode edit"
       }
     },
     {

@@ -12736,5 +12736,131 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-advanced.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "inspect-panel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Inspect panel (Preview ⌘-click, Viewing click): the specs of one element, right, 300 wide. Read-only — no input anywhere in it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The inspected element's name (its layer name, else its text, else its tag).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The kind chip beside the name (Button · Text · Image · Frame …).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-export-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Export button; `<id>` ∈ png-1x, png-2x, svg, handoff. Each opens the shell's Export sheet for the selection.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-copy-code",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Copy code, the primary action: the element's JSX on the clipboard. Absent for Can view (the server refuses source).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-copy-code-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one-line reason when Copy code did not copy (refused source, an element not in the file).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-edit",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Edit ↵: switch to Edit with this element selected. Drawn only for a role that can edit.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "inspect-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced › CSS fold of the Inspect panel: the element's authored declarations.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspect/inspect-panel.jsx",
+      "symbol": "InspectPanel"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-panel.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": ".dc-cv-inspect-tag",
+    "kind": "selector",
+    "pattern": false,
+    "meaning": "The size tag (\"150 × 48\", world px) under the outline of an inspected element, inside the canvas; `data-on` true/false.",
+    "producer": {
+      "file": "apps/studio/inspect-overlay.tsx",
+      "symbol": "InspectOverlay"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/inspect-overlay.test.tsx"],
+    "v2": "new"
   }
 ]

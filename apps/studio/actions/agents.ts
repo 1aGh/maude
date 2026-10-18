@@ -200,6 +200,16 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'element.detach': TSX(
     'Copy the component definition under a new name and point this one instance at the copy; the other places keep the original'
   ),
+  // S3.11 — the Inspect panel: Copy code is the clipboard (read the JSX from the .tsx instead); Edit ↵ is a view change.
+  'inspect.copy-code': {
+    effect: 'none',
+    agent: file(
+      'canvas-tsx',
+      'design:design',
+      'Read the element’s JSX in the .tsx (find its data-cd-id)'
+    ),
+  },
+  'inspect.edit': NAV('<canvas>@<element> --mode edit'),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),
   'object.enter': NAV('<canvas>@<element>'),

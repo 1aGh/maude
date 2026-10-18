@@ -161,7 +161,8 @@ export const EDIT_ACTIONS: ActionDef[] = [
     label: 'Go inside',
     kind: 'command',
     exec: 'canvas',
-    keys: [kb('↵', 'selection', { when: { ...OBJ, selection: ['object'] } })],
+    // S3.11: Edit's only — in Preview and Viewing ↵ is `inspect.edit` (one binding per chord and context).
+    keys: [kb('↵', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['object'] } })],
   },
   {
     // S2.1 — one level out: the parent is selected; at the top the selection is dropped. Its key is
@@ -318,5 +319,33 @@ export const EDIT_ACTIONS: ActionDef[] = [
     kind: 'command',
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
+  },
+  // S3.11 — the Inspect panel (Preview ⌘-click, Viewing click; 04 md-inspect). Copy code is the same download
+  // as `inspector.copy-code` (Can comment and up — the server refuses source to Can view), run from the panel
+  // that is open in these modes; Edit ↵ asks the shell for Edit with the same element selected, so it is the
+  // canvas's key (the canvas holds the selection) and the panel's Edit button replays it.
+  {
+    id: 'inspect.copy-code',
+    label: 'Copy code',
+    kind: 'command',
+    exec: 'shell',
+    enabled: {
+      minRole: 'comment' as const,
+      mode: ['preview' as const, 'viewing' as const],
+      selection: ['object'],
+    },
+  },
+  {
+    id: 'inspect.edit',
+    label: 'Edit',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, mode: ['preview' as const, 'viewing' as const], selection: ['object'] },
+    keys: [
+      kb('↵', 'selection', {
+        when: { ...OBJ, mode: ['preview', 'viewing'], selection: ['object'] },
+      }),
+    ],
+    search: { keywords: ['inspect', 'switch', 'edit mode'] },
   },
 ];
