@@ -48,6 +48,7 @@ import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
 import { atomicWrite } from './atomic-write.ts';
+import { resolveCanvasBodyRel } from './canvas-path.ts';
 import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pairing.ts';
 import {
   canvasPathFromDoc,
@@ -544,6 +545,8 @@ export interface SyncRuntime {
   agentFor(slug: string): CanvasSyncAgent | undefined;
   /** Current offline/sync status payload (Task 8), or null when unlinked. */
   status(): import('./status.ts').SyncStatusPayload | null;
+  /** S11.4 — what the availability read model folds (listed ∖ on disk); a read, never a fetch. */
+  availability?(): import('./availability.ts').AvailabilitySource;
   /**
    * Stop the asset sweep child, if one is running. `false` means there was
    * nothing to cancel — the caller reports that, rather than pretending.
@@ -1855,6 +1858,8 @@ export function createSyncRuntime(
    * on every peer. Consulted by the adopt guard in `migrateSeed`.
    */
   let hubDocIndex: ReadonlyMap<string, number> = new Map<string, number>();
+  /** S11.4 — the last listing of this boot, null until the hub has answered once. */
+  let lastListingDocs: readonly HubDocRow[] | null = null;
 
   /**
    * Slugs whose refusal has already asked for a rescan. Once per slug per
@@ -1928,6 +1933,9 @@ export function createSyncRuntime(
   const noteHubListing = (docs: readonly HubDocRow[] | null): void => {
     if (docs === null) return;
     hubDocIndex = indexHubDocs(docs);
+    // S11.4 — the same listing, kept for the availability read model (sync/availability.ts).
+    // Same rule as the index above: a failed listing never clears it.
+    lastListingDocs = docs.filter((d) => typeof d?.name === 'string' && d.name);
   };
 
   /**
@@ -5479,6 +5487,20 @@ export function createSyncRuntime(
     size: () => agents.size + projections.size,
     agentFor: (slug) => agents.get(slug),
     status: () => statusStore?.get() ?? null,
+    // S11.4 — a READ of state the pull lane already holds; never fetches, never schedules a pull.
+    availability: () => ({
+      listing: lastListingDocs,
+      gone: new Set([...tombstoned, ...retiredDocs, ...refusedPulls.keys()]),
+      docNameFor: (slug: string) => docNameFor(slug),
+      relFor: (docName: string, slug: string) =>
+        resolveCanvasBodyRel({
+          path: manifestPathFor(docName, slug),
+          slug,
+          designRel: ctx.paths.designRel,
+          canvasGroups: ctx.cfg.canvasGroups,
+        }),
+      state: statusStore?.get()?.state ?? null,
+    }),
     cancelAssetSweep: () => {
       if (!legacyPushRunning) return false;
       legacyPushCancel = true;
