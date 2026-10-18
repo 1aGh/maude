@@ -59,13 +59,14 @@ export function createShellMode(caps = ALL_CAPS) {
     present: null,
     returnTo: null,
     position: null,
+    media: null,
   });
   const subs = new Set();
   const emit = (next) => {
     snap = Object.freeze({ ...snap, ...next });
     for (const fn of subs) fn();
   };
-  const notPresenting = { present: null, returnTo: null, position: null };
+  const notPresenting = { present: null, returnTo: null, position: null, media: null };
   return {
     get: () => snap,
     subscribe(fn) {
@@ -88,6 +89,7 @@ export function createShellMode(caps = ALL_CAPS) {
         present: presentSpec(spec),
         returnTo: snap.mode,
         position: null,
+        media: null,
       });
       return true;
     },
@@ -103,7 +105,28 @@ export function createShellMode(caps = ALL_CAPS) {
       const p = snap.position;
       if (p && p.index === pos.index && p.total === pos.total && p.artboardId === pos.artboardId)
         return;
-      emit({ position: { index: pos.index, total: pos.total, artboardId: pos.artboardId } });
+      // The clip belongs to the artboard it played on: a move to another one leaves it behind.
+      emit({
+        position: { index: pos.index, total: pos.total, artboardId: pos.artboardId },
+        ...(p && p.artboardId === pos.artboardId ? {} : { media: null }),
+      });
+    },
+    /** S3.3 — the clip on the presented artboard (`present-media`): playing, time, duration, sound. */
+    media(m) {
+      if (snap.mode !== 'present' || snap.present?.kind !== 'artboards') return;
+      const sec = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 86400;
+      if (!m || typeof m.playing !== 'boolean' || typeof m.muted !== 'boolean') return;
+      if (!sec(m.t) || !sec(m.duration)) return;
+      const c = snap.media;
+      if (
+        c &&
+        c.playing === m.playing &&
+        c.muted === m.muted &&
+        c.t === m.t &&
+        c.duration === m.duration
+      )
+        return;
+      emit({ media: { playing: m.playing, t: m.t, duration: m.duration, muted: m.muted } });
     },
     /** The canvas clamped us (a `mode-changed` with cause `clamp`): adopt it without re-sending. */
     adopt(mode) {
@@ -229,6 +252,11 @@ export function createModeLane({ frames, active, flushInsets = () => {} }) {
     step(win, to) {
       if (to !== 'next' && to !== 'prev' && !(Number.isInteger(to) && to >= 0)) return;
       post(win, { dgn: 'present-step', to });
+    },
+    /** Present · Artboards: drive the clip on the presented artboard (the transport — S3.3). */
+    media(win, op) {
+      if (op !== 'play' && op !== 'pause' && op !== 'mute' && op !== 'unmute') return;
+      post(win, { dgn: 'present-media-cmd', op });
     },
     get seq() {
       return seq;

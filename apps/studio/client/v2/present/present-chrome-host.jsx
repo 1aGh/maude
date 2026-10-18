@@ -11,10 +11,10 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
-import { presentStep, shellMode } from '../shell/use-canvas-mode-lane.js';
+import { presentMediaCmd, presentStep, shellMode } from '../shell/use-canvas-mode-lane.js';
 import { CanvasPill } from './canvas-pill.jsx';
 import { labelOf } from './present-controls-model.js';
-import { PresentControls } from './present-controls.jsx';
+import { PresentControls, PresentTransport } from './present-controls.jsx';
 import { usePresentZoomValue } from './present-zoom-store.js';
 
 export function ShellPresentChrome() {
@@ -41,9 +41,11 @@ export function ShellPresentChrome() {
       onStep={presentStep}
       onLeave={exitPresent}
       // The two slots other slices fill (present-controls.jsx lists them):
-      //   transport      — S3.3: <PresentTransport /> (media pause · time · sound)
+      //   transport      — S3.3: media pause · time · sound, only while the artboard plays a clip
       //   presenterView  — S3.6b: <PresenterViewButton /> (desktop, two displays)
-      transport={null}
+      transport={
+        snap.media ? <PresentTransport media={snap.media} onCommand={presentMediaCmd} /> : null
+      }
       presenterView={null}
     />
   );
