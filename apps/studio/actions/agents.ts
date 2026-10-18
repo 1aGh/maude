@@ -358,6 +358,15 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     ])
   ),
   'tab.select-last': { effect: 'none', agent: human('native-window') },
+  // S1.22b: the strip's tab overview and the tab menu's Rename… (a machine-local display name).
+  'tab.overview': { effect: 'none', agent: human('native-window') },
+  'tab.rename': {
+    effect: 'none',
+    agent: human(
+      'native-window',
+      'the name this Mac shows for a tab; the project files never change'
+    ),
+  },
   'app.check-updates': { effect: 'none', agent: human('native-window') },
   // ── AI chat (S5.7) ──
   // The chat is Claude Code on this Mac; an agent is already the AI, so these rows are the
