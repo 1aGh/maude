@@ -493,6 +493,46 @@ export function createStudioProxy({
    *  - a canvas-only session gets no other capability: the general one would
    *    carry no project role and floor to observer of the WHOLE project.
    */
+  // S9.12b (V2-1.16 U6) — every upgrade this proxy spliced, by who opened it. The splice is
+  // a raw byte pipe, so the hub's own socket kick (`kickSessionsForLabel`, Hocuspocus peers)
+  // never reached these: a person removed from the project kept the studio's inspector,
+  // collab and canvas-HMR sockets — and every frame on them — until they closed the tab.
+  /** @type {Set<{ socket: any, email: string | null, label: string | null }>} */
+  const spliced = new Set();
+  function track(socket, { email, label = null }) {
+    const entry = {
+      socket,
+      email: typeof email === 'string' && email ? email.trim().toLowerCase() : null,
+      label: typeof label === 'string' && label ? label : null,
+    };
+    spliced.add(entry);
+    const drop = () => spliced.delete(entry);
+    if (typeof socket?.once === 'function') socket.once('close', drop);
+    else socket?.on?.('close', drop);
+  }
+
+  /**
+   * Destroy every spliced socket opened by `email` (both doors) or by the session holding
+   * token `label` (the shell door). Returns how many. Naming nobody closes nothing.
+   */
+  function closeUpgrades({ email = null, label = null } = {}) {
+    const who = typeof email === 'string' && email ? email.trim().toLowerCase() : null;
+    const tag = typeof label === 'string' && label ? label : null;
+    if (!who && !tag) return 0;
+    let n = 0;
+    for (const entry of [...spliced]) {
+      if (!((who && entry.email === who) || (tag && entry.label === tag))) continue;
+      spliced.delete(entry);
+      try {
+        entry.socket.destroy();
+      } catch {
+        /* already gone */
+      }
+      n += 1;
+    }
+    return n;
+  }
+
   function canvasTokenFor(session, request, canvasOnly) {
     const ask = followAskOf(request);
     if (ask.asked) {
@@ -967,6 +1007,7 @@ export function createStudioProxy({
         collabFollow: following,
       }),
     });
+    track(socket, { email: verdict.subject ?? null });
     return true;
   }
 
@@ -1050,10 +1091,11 @@ export function createStudioProxy({
         publicUrl,
       }),
     });
+    track(socket, { email: session.email, label: session.label ?? null });
     return true;
   }
 
-  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade };
+  return { handle, handleCanvas, handleUpgrade, handleCanvasUpgrade, closeUpgrades };
 }
 
 /** Straight byte pipe to loopback. Streams both ways — the asset lane moves
@@ -1124,4 +1166,7 @@ function defaultForwardUpgrade({ request, socket, head, port, path, headers }) {
   });
   upstreamSocket.on('error', () => socket.destroy());
   socket.on('error', () => upstreamSocket.destroy());
+  // S9.12b — a socket the proxy closes (U6) takes its studio half with it, and vice versa.
+  socket.on('close', () => upstreamSocket.destroy());
+  upstreamSocket.on('close', () => socket.destroy());
 }
