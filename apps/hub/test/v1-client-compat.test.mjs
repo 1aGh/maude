@@ -459,3 +459,52 @@ describe('S9.7 — the comment path: a 1.9.1 desktop sees today’s answers', ()
     assert.deepEqual(list.map((c) => c.id).sort(), ['c_v1member', 'c_v1owner']);
   });
 });
+
+// ------------------------------------------------------------------- S9.13
+
+describe('S9.13 — hub-held votes: a 1.9.1 desktop sees today’s answers', () => {
+  test('votes-v1 is additive; an open vote changes nothing a 1.9.1 desktop reads', async () => {
+    const health = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json();
+    assert.ok(health.capabilities.includes('votes-v1'));
+    for (const word of ['annotations-v2', 'format-v2']) {
+      assert.ok(health.capabilities.includes(word), word);
+    }
+    const tokens = {};
+    for (const role of ['owner', 'member', 'viewer']) {
+      tokens[role] = (await (await v1Login(PORT, v1ProjectToken(role))).json()).token;
+    }
+    const pull = async () =>
+      (
+        await fetch(`http://127.0.0.1:${PORT}/api/journal?since=0`, {
+          headers: { authorization: `Bearer ${tokens.member}` },
+        })
+      ).text();
+    const before = await pull();
+    // A v2 desktop (the same kind of peer token) runs a vote; a ballot is cast.
+    const V = `http://127.0.0.1:${PORT}/api/projects/current/v1/votes`;
+    const post = (token, url, body) =>
+      fetch(url, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const started = await post(tokens.owner, V, {
+      canvas: 'ui/home.tsx',
+      targets: ['ab:v1-compat-pick'],
+      title: 'v1-compat vote',
+    });
+    assert.equal(started.status, 201);
+    const { vote } = await started.json();
+    const cast = await post(tokens.viewer, `${V}/${vote.id}/ballot`, {
+      picks: { 'ab:v1-compat-pick': 1 },
+    });
+    assert.equal(cast.status, 200);
+    // The 1.9.1 reads: the journal and the canvas document carry no trace of it.
+    assert.equal(await pull(), before);
+    const seen = await v1YjsSession(PORT, tokens.viewer, 'ws/alligators/main/ui-home', (doc) =>
+      JSON.stringify(doc.toJSON())
+    );
+    assert.equal(seen.includes('v1-compat'), false);
+    assert.equal((await post(tokens.owner, `${V}/${vote.id}/end`, {})).status, 200);
+  });
+});
