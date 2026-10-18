@@ -164,8 +164,35 @@ export interface AcceptedColdStartInput {
   createDoc: (lanes: Partial<Record<ProposalLane, string>>) => Promise<{
     status: 'accepted' | 'rejected';
     code?: string;
+    /** S6.13 — the source the project accepted, when not the disk read here
+     *  (a create this Mac proposed earlier: offline Cmd+N, or a drained one). */
+    html?: string | null;
   }>;
   log?: Pick<Console, 'log' | 'warn'>;
+}
+
+/**
+ * The lanes a local canvas joins the project with (its `doc.create`), read
+ * from disk. Shared by the cold start and S6.13's offline create, which
+ * proposes the same thing before the hub has answered.
+ */
+export function localCreateLanes(
+  paths: ProjectionPaths,
+  html: string
+): Partial<Record<ProposalLane, string>> {
+  const lanes: Partial<Record<ProposalLane, string>> = { html };
+  const css = readText(paths.css);
+  if (css) lanes.css = css;
+  const metaText = readText(paths.meta);
+  const meta = metaText === null ? null : laneValueFromFile('meta', metaText);
+  if (meta && meta !== '{}') lanes.meta = meta;
+  // DDR-242 — canonical board text; a legacy sidecar arrives migrated.
+  const ann = readLocalAnnotations(paths.annotations, readText);
+  if (ann && !isEmptyAnnotationsSvg(ann)) lanes.annotations = ann;
+  const commentsText = readText(paths.comments);
+  const comments = commentsText === null ? null : laneValueFromFile('comments', commentsText);
+  if (comments) lanes.comments = comments;
+  return lanes;
 }
 
 export type AcceptedColdStartResult =
@@ -181,23 +208,12 @@ export async function acceptedColdStart(
 
   if (!i.inProject) {
     if (localHtml === null) return { kind: 'reconciled', verdicts: [] };
-    const lanes: Partial<Record<ProposalLane, string>> = { html: localHtml };
-    const css = readText(i.paths.css);
-    if (css) lanes.css = css;
-    const metaText = readText(i.paths.meta);
-    const meta = metaText === null ? null : laneValueFromFile('meta', metaText);
-    if (meta && meta !== '{}') lanes.meta = meta;
-    // DDR-242 — canonical board text; a legacy sidecar arrives migrated.
-    const ann = readLocalAnnotations(i.paths.annotations, readText);
-    if (ann && !isEmptyAnnotationsSvg(ann)) lanes.annotations = ann;
-    const commentsText = readText(i.paths.comments);
-    const comments = commentsText === null ? null : laneValueFromFile('comments', commentsText);
-    if (comments) lanes.comments = comments;
+    const lanes = localCreateLanes(i.paths, localHtml);
     const r = await i.createDoc(lanes);
     if (r.status === 'accepted') {
       // What the project now holds IS the local file: the next save is based
       // on it, even if it lands before the publication reaches this replica.
-      i.projection.adoptBase(localHtml);
+      i.projection.adoptBase(r.html ?? localHtml);
       log.log(`[sync/${i.slug}] added to the project (accepted).`);
       return { kind: 'created' };
     }
