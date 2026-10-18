@@ -413,6 +413,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'chat.archive': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.trash': { effect: 'none', agent: human('ai-chat'), minRole: 'edit' },
   'chat.copy-transcript': { effect: 'none', agent: human('ai-chat') },
+  // S5.12: the Advanced fold's rows. A row only takes the person to a setting (the settings themselves are the
+  // chat session's config, per Mac and per chat); an agent sets them through its own session — human `ai-chat`.
+  ...Object.fromEntries(
+    ['ask-before', 'model', 'effort', 'fast-mode', 'show-in-chat', 'suggestions', 'raw-log'].map(
+      (r) => [`chat.advanced.${r}`, { effect: 'none', agent: human('ai-chat') }]
+    )
+  ),
   // decision v2-S5-open-in-terminal-native: the Tauri command spawns Terminal; an agent already
   // runs in a shell and resumes a session with `claude --resume` itself.
   'chat.open-in-terminal': {

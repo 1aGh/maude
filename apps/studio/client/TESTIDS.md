@@ -344,12 +344,12 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `readiness-autosetup-where` | testid | Readiness dialog: the one line saying the Claude Code auto-setup switch lives in Settings › Advanced. | `client/panels/ReadinessList.jsx` · `ReadinessDialog` | — | new |
 | `chat-composer` | testid | The chat composer (input area). | `client/v2/ai/Composer.jsx` · `Composer` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
 | `chat-context-chip` | testid | The context chip in the composer (what the agent will see). | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable — re-emit |
-| `chat-mode-banner` | testid | Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan). | `client/panels/ChatPanel.jsx` · `ModeBanner` | e2e:acp-capability-picker | stable — re-emit |
-| `chat-mode-banner-switch` | testid | Button on that alert that switches to the least-privilege mode that can edit. | `client/panels/ChatPanel.jsx` · `ModeBanner` | — | stable — re-emit |
+| `chat-mode-banner` | testid | "AI is set to suggest only" banner above the thread while the mode blocks edits (plan / dontAsk). | `client/v2/ai/Advanced.jsx` · `SuggestOnlyBanner` | e2e:acp-capability-picker | stable — re-emit |
+| `chat-mode-banner-switch` | testid | "Allow changes" on that banner: switches to the least-privilege mode that can edit. | `client/v2/ai/Advanced.jsx` · `SuggestOnlyBanner` | — | stable — re-emit |
 | `chat-tool-row` | testid | One tool-call row inside a tool card. | `client/v2/ai/Feed.jsx` · `ChatToolCard` | — | stable — re-emit |
 | `chat-tool-group` | testid | "Ran N tools" row that folds 2+ consecutive tool calls (expands to the individual cards). | `client/panels/ToolGroup.jsx` · `ToolGroup` | — | stable — re-emit |
 | `chat-msg-actions` | testid | The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`. *Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message).* | `client/v2/ai/Feed.jsx` · `UserMessage`<br>`client/panels/ChatPanel.jsx` · `AssistantMessage` | e2e-helper:assistant | stable — re-emit |
-| `chat-transcript-menu` | testid | The transcript menu button in the chat status row. | `client/v2/ai/Feed.jsx` · `StatusRow` | — | stable — re-emit |
+| `chat-transcript-menu` | testid | The "Show in chat" select in Advanced (transcript view: normal, thinking, verbose, summary). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
 | `chat-foot-info-btn` | testid | "Chat info" button in the chat footer. | `client/v2/ai/Composer.jsx` · `ChatFootInfo` | — | stable — re-emit |
 | `chat-foot-popover` | testid | The chat info popover opened by `chat-foot-info-btn`. | `client/v2/ai/Composer.jsx` · `ChatFootInfo` | — | stable — re-emit |
 | `chat-usage-banner` | testid | Rate-limit / usage banner in the chat. | `client/v2/ai/Composer.jsx` · `RateLimitBanner` | — | stable — re-emit |
@@ -357,10 +357,10 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `chat-qa-implement-comments` | testid | Quick action "implement comments". | `client/v2/ai/Suggest.jsx` · `QuickActions` | — | stable — re-emit |
 | `chat-cmd-menu` | testid | The slash-command popover (`role="listbox"`). | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
 | `chat-cmd-item-<name>` | testid (pattern) | One slash-command item; `<name>` = command name with non-alphanumerics → `-`. | `client/v2/ai/Composer.jsx` · `CommandPopover` | — | stable — re-emit |
-| `chat-overflow-menu` | testid | The chat panel overflow (⋯) menu. | `client/panels/ChatPanel.jsx` · `ChatPanel` | — | stable — re-emit |
-| `chat-caps-connecting` | testid | Capability bar placeholder while the agent connects. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
-| `chat-caps-bar` | testid | The capability bar (live model/mode/effort pickers). | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
-| `chat-mode-picker` | testid | The permission-mode picker in the capability bar. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
+| `chat-overflow-menu` | testid | A chat row's ⋯ menu in the chat list: Open · Rename… · Copy transcript · Archive · Move to trash. | `client/v2/ai/ChatList.jsx` · `RowMenu` | — | stable — re-emit |
+| `chat-caps-connecting` | testid | Advanced placeholder while the agent connects. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
+| `chat-caps-bar` | testid | The Advanced fold's picker rows (live model / effort / fast mode / Ask before), under the AI chat panel's Advanced. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable — re-emit |
+| `chat-mode-picker` | testid | The "Ask before" picker in Advanced (the permission mode, in plain words). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
 | `chat-permission-prompt` | testid | The tool-permission prompt card. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
 | `chat-perm-queue` | testid | Queue counter on the permission prompt. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | — | stable — re-emit |
 | `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
@@ -778,6 +778,22 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `ai-rings` | testid | Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-ring-<artboardId>` | testid | Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person. | `artboard-activity-overlay.tsx` · `ArtboardRingsLayer` | — | stable |
 | `ai-scope-chip` | testid | The composer's scope chip (◆ Whole canvas · ◆ <artboard> · ◆ N artboards · No canvas). `data-scope` = whole | artboards | none. Click opens its menu. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
+| `ai-chat-list` | testid | The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-list-back` | testid | "‹ Chats": back from the chat list to the chat. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-list-search` | testid | The chat list's search field (words inside chats, not just titles). | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-row-<id>` | testid | A chat row in the chat list. `<id>` = the chat id. `data-state` = working | needs | idle. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-trash-dialog` | testid | The "Move … to the trash?" dialog; names a queued prompt that will not send. | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-chat-trash-confirm` | testid | The dialog's "Move to trash" button (absent while the chat is still working). | `client/v2/ai/ChatList.jsx` · `ChatList` | — | stable |
+| `ai-advanced` | testid | The AI chat panel's "› Advanced" fold toggle (remembered per Mac under fold key `ai.chat`). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-advanced-fold` | testid | The Advanced fold's root element. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-advanced-root` | testid | Wrapper around one chat's Advanced fold (⌘K rows are found inside it). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-suggestions` | testid | Advanced › Suggestions On / Off. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-context-pct` | testid | Advanced › Context used: the percent (used / size). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-session` | testid | Advanced › Session: the Claude Code session id behind the chat. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-raw-log` | testid | Advanced › Raw log button (opens the raw tool-log island). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-copy-transcript` | testid | Advanced › Copy transcript button. | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-adv-open-terminal` | testid | Advanced › Open in terminal button (desktop app only). | `client/v2/ai/Advanced.jsx` · `ChatAdvanced` | — | stable |
+| `ai-raw-log` | testid | The raw tool-log island under Advanced: one line per tool call. | `client/v2/ai/RawLog.jsx` · `RawLog` | — | stable |
 | `ai-scope-menu` | testid | The scope chip's menu (`role=menu`): Whole canvas · the artboard in view · Choose artboards… · No canvas — just ask. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-scope-item-<id>` | testid | One row of the scope menu. `<id>` = whole | artboard:<artboardId> | choose | none; while choosing artboards: artboard-<artboardId> and done. | `client/v2/ai/ScopeChip.jsx` · `ScopeChip` | — | stable |
 | `ai-suggest` | testid | The suggestion strip above the composer: up to three chips and one why line. `data-context` = comments | clips | shared | last-ask. | `client/v2/ai/Suggest.jsx` · `SuggestStrip` | — | stable |
