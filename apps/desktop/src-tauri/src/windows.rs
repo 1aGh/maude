@@ -677,6 +677,9 @@ pub enum NavRole {
     Project,
     /// `c-*` cell tabs (not built yet): https inside the configured cloud zone.
     Cell,
+    /// S3.6a `audience-<pid>`: a project's follower root on its recorded
+    /// origin, nothing else (`present::audience_*_allowed`).
+    Audience,
 }
 
 /// A loopback (or unspecified) host on any scheme — what an agent or another
@@ -709,6 +712,9 @@ pub fn navigation_allowed(
     origin: Option<&str>,
     canvas: Option<&str>,
 ) -> bool {
+    if role == NavRole::Audience {
+        return crate::present::audience_navigation_allowed(url, origin, canvas);
+    }
     if is_app_local(url) {
         return true;
     }
@@ -743,6 +749,7 @@ pub fn navigation_allowed(
         NavRole::Cell => {
             target.scheme() == "https" && !loopbackish(&target) && crate::oauth::in_cloud_zone(&o)
         }
+        NavRole::Audience => false,
     }
 }
 
@@ -751,6 +758,9 @@ pub fn navigation_allowed(
 /// origin. A page that took the top frame anywhere else is sent back to the
 /// splash.
 pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) -> bool {
+    if role == NavRole::Audience {
+        return crate::present::audience_top_level_allowed(url, origin);
+    }
     if is_app_local(url) || (url.scheme() == "about" && url.path() == "blank") {
         return true;
     }
@@ -766,8 +776,22 @@ pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) 
 }
 
 /// `navigation_allowed` / `top_level_allowed` against the live book. A label
-/// the book does not know (yet) may show only the splash.
-fn nav_check<R: Runtime>(app: &AppHandle<R>, label: &str, url: &tauri::Url, top: bool) -> bool {
+/// the book does not know (yet) may show only the splash. An audience window
+/// (S3.6a) is judged against the origins it was opened for, and only while
+/// its project tab still vouches for them; otherwise it may load nothing.
+pub(crate) fn nav_check<R: Runtime>(app: &AppHandle<R>, label: &str, url: &tauri::Url, top: bool) -> bool {
+    if crate::present::is_audience_label(label) {
+        let view = crate::present::nav_view(app, label);
+        let (origin, canvas) = match &view {
+            Some((o, c)) => (Some(o.as_str()), c.as_deref()),
+            None => (None, None),
+        };
+        return if top {
+            top_level_allowed(NavRole::Audience, url, origin)
+        } else {
+            navigation_allowed(NavRole::Audience, url, origin, canvas)
+        };
+    }
     let view = app
         .try_state::<SidecarState>()
         .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).nav_view(label));
