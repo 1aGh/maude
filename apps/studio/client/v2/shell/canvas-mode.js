@@ -218,7 +218,8 @@ export function decideModeRequest(req, { caps, presenting, mode, modalOpen, view
   if (!req) return null;
   if (modalOpen) return { kind: 'deny', reason: 'modal' };
   // S1.14 — a past version holds the mode: esc / `back` returns to now, nothing else moves it.
-  if (viewing) return req.mode === 'back' ? { kind: 'exit-viewing' } : { kind: 'deny', reason: 'viewing' };
+  if (viewing)
+    return req.mode === 'back' ? { kind: 'exit-viewing' } : { kind: 'deny', reason: 'viewing' };
   if (req.mode === 'back') {
     if (presenting) return { kind: 'exit-present' };
     if (mode === 'preview') return { kind: 'set', mode: baseMode(caps) };
