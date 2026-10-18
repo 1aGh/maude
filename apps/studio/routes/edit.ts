@@ -13,9 +13,10 @@ import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
-import { type AiHoldHit, dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
+import { dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
 import { type EditOp, MAX_BODY } from '../edit-ops/types.ts';
+import { heldByAi } from './agent.ts';
 import type { RouteSpec } from './table.ts';
 
 const json = (status: number, body: unknown) =>
@@ -31,36 +32,12 @@ export interface EditRouteDeps {
   /** the pre-op snapshot for /design:rollback (best effort) */
   snapshot?(rel: string, before: string, reason: string): Promise<unknown>;
   /** THE run registry — AI holds (V2-1.15 §4 #13) */
-  runs?: Pick<RunRegistry, 'live' | 'view' | 'canvasKey'>;
+  runs?: RunRegistry;
   /** accepted-revisions mode: the action a write became, by repo-relative path + bytes */
   actionFor?(repoRel: string, after: string): string | null;
   /** tests only: an op table instead of `EDIT_OPS` */
   ops?: readonly EditOp[];
   log?: WriteLog;
-}
-
-/**
- * The live AI run that holds `element` of `rel` — S5.4's `heldByAi` (routes/agent.ts) shape: a
- * running run's `objects` plus its scope elements; a waiting run holds nothing. A person's hold is
- * never here (advisory). Replace with S5.4's export when integ-a2 lands (one implementation).
- */
-export function aiHoldOf(
-  registry: Pick<RunRegistry, 'live' | 'view' | 'canvasKey'>,
-  rel: string,
-  element: string
-): AiHoldHit | null {
-  const key = registry.canvasKey(rel);
-  const on = (c: string) => c === key || c === rel;
-  for (const r of registry.live()) {
-    if (r.state === 'waiting') continue;
-    const refs = [...r.objects, ...(r.scope?.elements ?? [])];
-    if (refs.some((x) => on(x.canvas) && x.element === element)) return { mine: true };
-  }
-  for (const r of registry.view().others) {
-    if (r.state === 'waiting') continue;
-    if (r.objects.some((x) => on(x.canvas) && x.element === element)) return { mine: false };
-  }
-  return null;
 }
 
 /** designRoot-relative `.tsx` path of an existing canvas inside the design root, or null. */
@@ -147,7 +124,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
                 /* snapshot best-effort */
               }
             },
-            heldByAi: (rel, element) => (deps.runs ? aiHoldOf(deps.runs, rel, element) : null),
+            heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),
             actionFor: (rel, after) =>
               deps.actionFor?.(
                 path.relative(deps.repoRoot, abs(rel)).split(path.sep).join('/'),

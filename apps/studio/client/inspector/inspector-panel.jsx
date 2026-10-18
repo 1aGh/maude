@@ -66,6 +66,8 @@ export function InspectorPanel({
   // feature-4 T7b — locked layer keys (`"<id>:<index>"`) + toggle.
   lockedKeys,
   onToggleLock,
+  // S2.6 — the eye: `object.hide` (shared, in the TSX) run by the canvas.
+  onToggleHide,
   // feature-4 detach-component — clone-definition detach for a shared instance.
   onDetachInstance,
   canvasFile,
@@ -469,27 +471,8 @@ export function InspectorPanel({
       prop: 'display',
       value: willHide ? 'none' : null,
     });
-    if (!canvasFile || !node.id) return;
-    fetch('/_api/edit-css', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(
-        willHide
-          ? { canvas: canvasFile, id: node.id, property: 'display', value: 'none' }
-          : { canvas: canvasFile, id: node.id, property: 'display', reset: true }
-      ),
-    }).catch(() => {});
-    // Record onto the canvas undo stack (Cmd+Z), same as any other inline CSS
-    // edit — fire-and-forget alongside the POST above, mirroring CssKnobs'
-    // commit()/reset() (which don't gate the record on the fetch resolving).
-    onRecordEdit?.({
-      op: 'css',
-      canvas: canvasFile,
-      id: node.id,
-      key: 'display',
-      before: wasHidden ? 'none' : null,
-      after: willHide ? 'none' : null,
-    });
+    if (!node.id) return;
+    onToggleHide?.(node, willHide);
   };
   // `selected` may be a single element, an array (multi-select), or null.
   const el = Array.isArray(selected) ? selected[0] : selected;

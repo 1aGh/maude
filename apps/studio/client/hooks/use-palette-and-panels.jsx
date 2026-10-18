@@ -22,6 +22,7 @@ import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
 import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
+import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
 
 export function usePaletteAndPanels({
@@ -615,7 +616,20 @@ export function usePaletteAndPanels({
           layersTree={layersTree}
           componentMap={componentMap}
           lockedKeys={lockedKeys}
-          onToggleLock={toggleLockedKey}
+          // S2.6 — lock and hide are shared edits in the TSX (`object.lock` / `object.hide`), run by the
+          // canvas like the object menu's; an old per-user padlock (view.json) still unlocks the old way.
+          onToggleLock={(key, node) =>
+            !node?.locked && lockedKeys.has(key)
+              ? toggleLockedKey(key)
+              : postToActiveCanvas(
+                  layerOpMessage('object.lock', node, layersTree?.artboardId ?? '', !node.locked)
+                )
+          }
+          onToggleHide={(node, hide) =>
+            postToActiveCanvas(
+              layerOpMessage('object.hide', node, layersTree?.artboardId ?? '', hide)
+            )
+          }
           onDetachInstance={detachInstanceShell}
           canvasFile={activePath}
           onSelectLayer={(n) =>

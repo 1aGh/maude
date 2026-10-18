@@ -31,6 +31,19 @@ const EDITS = { minRole: 'edit' as const };
 // needs a selection — v1 checks kept in the handler).
 const OBJ = IN_CANVAS;
 
+// S2.6 — an object op: canvas exec, Can edit, an object selected; chords bind in Edit mode only.
+const OBJECT_EDIT = { ...OBJ, mode: ['edit' as const], selection: ['object' as const] };
+const objectKey = (spec: string, extra: { alias?: boolean } = {}) =>
+  kb(spec, 'selection', { when: OBJECT_EDIT, ...extra });
+const objectOp = (id: string, label: string, keys: ReturnType<typeof kb>[]): ActionDef => ({
+  id,
+  label,
+  kind: 'command',
+  exec: 'canvas',
+  enabled: { ...EDITS, selection: ['object'] },
+  ...(keys.length ? { keys } : {}),
+});
+
 export const EDIT_ACTIONS: ActionDef[] = [
   {
     id: 'edit.undo',
@@ -218,6 +231,28 @@ export const EDIT_ACTIONS: ActionDef[] = [
     keys: ['←', '→', '↑', '↓'].flatMap((a) =>
       mods(a, '⇧', 'selection', { when: { ...OBJ, selection: ['object', 'artboard'] } })
     ),
+  },
+  // S2.6 (ed-obj-order) — the object menu's rows. Edit-mode chords on an OBJECT selection (the same
+  // chords in Preview belong to the annotation board: `annotation.*` carries `mode: preview`). Each
+  // is one `edit-op` (edit-ops/{frame,unframe,z-order,lock,hide}.ts); greyed below Can edit.
+  objectOp('object.frame', 'Frame selection', [
+    objectKey('⌥⌘G'),
+    objectKey('⌘G', { alias: true }), // Figma muscle memory; in Preview ⌘G groups annotations
+  ]),
+  objectOp('object.unframe', 'Remove frame', [objectKey('⇧⌘G')]),
+  objectOp('object.bring-front', 'Bring to front', [objectKey('⌘]')]),
+  objectOp('object.bring-forward', 'Bring forward', [objectKey(']')]),
+  objectOp('object.send-backward', 'Send backward', [objectKey('[')]),
+  objectOp('object.send-back', 'Send to back', [objectKey('⌘[')]),
+  objectOp('object.lock', 'Lock', [objectKey('⇧⌘L')]),
+  objectOp('object.hide', 'Hide', []),
+  {
+    // A selection gesture, not a write: no edit-op, no role gate (a viewer may select).
+    id: 'object.select-matching',
+    label: 'Select matching',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { selection: ['object'] },
   },
   // S2.2 (D18) — the inspector's Advanced actions. Shell commands on the selected element, ⌘K only
   // (their homes are the buttons and the id field inside Inspector › Advanced, client/v2/inspector/).

@@ -132,8 +132,10 @@ const DEFAULT_REGISTRY: ContextRegistry = {
     ],
     [defaultExportItem('Export selection…', 'selection')],
     [
-      { id: 'hide', label: 'Hide', shortcut: '⌘⇧H', onSelect: noop('hide') },
-      { id: 'lock', label: 'Lock', shortcut: '⌘⇧L', onSelect: noop('lock') },
+      // S2.6 — the real rows are `editing/object-menu.tsx`'s; the old '⌘⇧H' hint named a chord that
+      // is Handoff's (⇧⌘H) and the lock chord is ⇧⌘L.
+      { id: 'hide', label: 'Hide', onSelect: noop('hide') },
+      { id: 'lock', label: 'Lock', shortcut: '⇧⌘L', onSelect: noop('lock') },
     ],
   ],
   'artboard-chrome': [

@@ -3447,6 +3447,11 @@
     "testid:studio/client/testids.json#menubar/menubar-file": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#sidebar/tree/data-canvas-row": "historical hook: no live element in v1",
     "testid:studio/client/testids.json#viewport/st-skel-cap": "historical hook: no live element in v1",
+    "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-badge": "v2 code (added after the freeze)",
+    "testid:studio/editing/lock-badge.tsx#canvas/edit-lock-tip": "v2 code (added after the freeze)",
+    "testid:studio/editing/nudge.tsx#canvas/edit-gap-side": "v2 code (added after the freeze)",
+    "testid:studio/editing/nudge.tsx#canvas/edit-nudge-gaps": "v2 code (added after the freeze)",
+    "testid:studio/editing/nudge.tsx#canvas/edit-nudge-tag": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)"
   }
