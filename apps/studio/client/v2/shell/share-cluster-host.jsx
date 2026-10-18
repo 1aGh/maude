@@ -17,6 +17,7 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
+import { usePresenceHost } from '../presence/use-presence-host.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { menuRunner } from './menu-runner.js';
 import { ModeSwitch } from './mode-switch.jsx';
@@ -126,7 +127,7 @@ export function ShellShareCluster() {
     role: cfg?.cloud?.role,
   });
   const faces = useMemo(
-    () => facesOf({ you: gitUser, agentActive, peers: lane.peers }),
+    () => facesOf({ you: gitUser, agentActive, peers: lane.peers, max: 40 }),
     [gitUser, agentActive, lane.peers]
   );
   const ex = useMemo(() => exportsRing(exportCenter?.jobs), [exportCenter?.jobs]);
@@ -148,6 +149,15 @@ export function ShellShareCluster() {
     [selected, canvasActiveArtboard, boards]
   );
 
+  // S9.23 — the faces' menu and people list: where people are, Follow / Go to / Bring everyone here.
+  const presence = usePresenceHost({
+    lane,
+    boards,
+    activePath,
+    canSummon: !viewerMode && lane.caps.edit,
+    commentsOpen: !!commentsPanelOpen,
+  });
+
   const retry = useCallback(async () => {
     try {
       const res = await fetch('/_api/sync/resync', { method: 'POST' });
@@ -163,6 +173,7 @@ export function ShellShareCluster() {
     <ShareCluster
       faces={faces}
       onFollow={lane.follow}
+      presence={presence}
       status={shown}
       access={access}
       commentsCount={Number(totalOpen) || 0}

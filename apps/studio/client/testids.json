@@ -5782,11 +5782,251 @@
     "pattern": false,
     "meaning": "The faces list inside the Share cluster (you, Claude while it edits, other people).",
     "producer": {
-      "file": "apps/studio/client/v2/shell/share-cluster.jsx",
-      "symbol": "Faces"
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "PresenceFaces"
     },
     "region": "other",
     "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "share-cluster-face-<clientID>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A person's face in the Share cluster: opens the face menu (Follow, Go to, Bring everyone here). `aria-label` says where they are; the ring is their tone (never coral).",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "PresenceFaces"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "share-cluster-faces-more",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"+N\" after three faces when more people are here; opens the people list.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "PresenceFaces"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-face-menu",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The face menu: who, where and their role, then Follow, Go to, Bring everyone here.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "FaceMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-face-menu-where",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The menu header line, e.g. \"On A4 · plakát · Can edit\".",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "FaceMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-face-menu-follow",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Follow <first name> / Stop following <first name>; runs `presence.follow`.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "FaceMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-face-menu-go-to",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Go to <artboard>; runs `presence.go-to`. Absent when their artboard is unknown.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "FaceMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-face-menu-bring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Bring everyone here; runs `presence.bring-everyone`. Owner / editor only (absent below Can edit).",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "FaceMenu"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-people-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The people list (\"12 on <canvas>\", \"you + 11\"): where each person is, idle ones last.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-people-row-<clientID>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One person in the people list; opens that person's face menu.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-people-bring",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Bring everyone here, at the foot of the people list. Owner / editor only.",
+    "producer": {
+      "file": "apps/studio/client/v2/presence/faces.jsx",
+      "symbol": "PeopleList"
+    },
+    "region": "other",
+    "consumers": [
+      "test:presence-faces"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The thin frame around the canvas while following someone (their tone) or leading a Bring (yellow); `data-kind` is follow or spotlight. Canvas iframe chrome.",
+    "producer": {
+      "file": "apps/studio/presence/canvas-presence.tsx",
+      "symbol": "PresenceOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test:presence-canvas"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-follow-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The pill \"Following <name> · esc\" while following. A click, a scroll or esc ends it. Canvas iframe chrome.",
+    "producer": {
+      "file": "apps/studio/presence/canvas-presence.tsx",
+      "symbol": "PresenceOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test:presence-canvas"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-spotlight-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The pill \"Everyone here is following you · N people\" while leading a Bring. Canvas iframe chrome.",
+    "producer": {
+      "file": "apps/studio/presence/canvas-presence.tsx",
+      "symbol": "PresenceOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test:presence-canvas"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-spotlight-stop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stop on the spotlight pill: clears the Bring for everyone. Canvas iframe chrome.",
+    "producer": {
+      "file": "apps/studio/presence/canvas-presence.tsx",
+      "symbol": "PresenceOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test:presence-canvas"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-bring-glide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The layer that draws the glide: every cursor takes its own curve to the leader (spring 420 ms, 40 ms apart, nearest first; reduced motion = they appear). Canvas iframe chrome.",
+    "producer": {
+      "file": "apps/studio/presence/canvas-presence.tsx",
+      "symbol": "PresenceOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test:presence-canvas"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presence-bring-ghost-<clientID>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One person's ghost cursor during the glide; `data-delay` and `data-duration` carry its timing in ms.",
+    "producer": {
+      "file": "apps/studio/presence/canvas-presence.tsx",
+      "symbol": "PresenceOverlay"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [
+      "test:presence-canvas"
+    ],
     "v2": "new"
   },
   {

@@ -135,7 +135,7 @@ const MAX_FACES = 4;
 
 /** Who is here: you first, Claude while it is editing, then other people (name only — hub-supplied,
  *  so initials are all that is drawn). */
-export function facesOf({ you, agentActive = false, peers = [] } = {}) {
+export function facesOf({ you, agentActive = false, peers = [], max = MAX_FACES } = {}) {
   const out = [
     { initials: initialsOf(you || 'you'), name: you ? `${you} (you)` : 'You', you: true },
   ];
@@ -146,6 +146,11 @@ export function facesOf({ you, agentActive = false, peers = [] } = {}) {
       name: String(p?.name ?? ''),
       clientID: p?.clientID,
       following: p?.following === true,
+      // S9.23 — where they are (the face menu and the people list say it); absent on a pre-v2 peer.
+      artboard: typeof p?.artboard === 'string' ? p.artboard : null,
+      idleSince: Number.isFinite(p?.idleSince) ? p.idleSince : null,
+      surface: p?.surface === 'browser' ? 'browser' : 'app',
+      inComments: p?.inComments === true,
     });
-  return out.slice(0, MAX_FACES);
+  return out.slice(0, max);
 }
