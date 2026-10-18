@@ -54,6 +54,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-text': { ...LANE_SOURCE, rows: 'S01' },
   '/_api/edit-css': { ...LANE_SOURCE, rows: 'S02' },
   '/_api/edit-attr': { ...LANE_SOURCE, rows: 'S03' },
+  // S2.1 — the one dispatch route for S2/S3 structural edits (routes/edit.ts, edit-ops/)
+  '/_api/edit-op': { ...LANE_SOURCE, rows: 'S2-ops' },
   '/_api/reorder': { ...LANE_SOURCE, rows: 'S04' },
   '/_api/delete-element': { ...LANE_SOURCE, rows: 'S05' },
   '/_api/insert-element': { ...LANE_SOURCE, rows: 'S06' },
