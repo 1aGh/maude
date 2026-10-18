@@ -23,6 +23,16 @@ import {
   runStatus,
   runUnlink,
 } from '../lib/design-link.mjs';
+import {
+  coerceOptionValue,
+  defaultV1Scope,
+  estimateLines,
+  filenameFromDisposition,
+  planExportRequest,
+  refusalText,
+  V1_FORMATS,
+  V2_ONLY_FORMATS,
+} from '../lib/export-spec.mjs';
 import { writeGitignoreBlock } from '../lib/gitignore-block.mjs';
 import { isCompiledBinary } from '../lib/pkg-root.mjs';
 import { subVerbArgs } from '../lib/sub-verbs.mjs';
@@ -451,16 +461,32 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
         scaffolds Core + the derived specimens deterministically (this is the
         path skill 'design-system' uses when shelling out from Claude Code).
 
-  export <format> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw]
+  export <format> [--scope selection|canvas|folder|project] [--canvas <rel>] [--folder <rel>]
+         [--artboard <id> ...] [--element <id> ...] [--region x,y,w,h] [--unit each|one]
+         [--name '<template>'] [--at <sha>] [--wait ai] [--estimate]
          [--port N] [--out <path>] [--option key=value ...]
-        Drive the same POST /_api/export endpoint the UI uses. Auto-detects
-        port from .design/_server.json; requires a running dev server. The
-        response body is written to --out (a file path, or a folder to put
-        the server-supplied filename in; default: current dir). Formats:
-        png pdf svg html pptx canva zip mp4 webm gif.
-        Default --scope: canvas-as-separate; artboard for mp4/webm/gif;
-        project-raw for zip (the only scope zip serves).
-        --option numbers arrive as numbers (scale=2, dpi=300, fps=30) and
+        Drive the same POST /_api/export endpoint the Export sheet uses, as one
+        ExportSpec (v2). Auto-detects port from .design/_server.json; requires a
+        running dev server. The response body is written to --out (a file path,
+        or a folder to put the server-supplied filename in; default: current
+        dir). Formats: png jpg pdf svg html pptx canva zip mp4 webm gif audio.
+        --scope canvas is This canvas (--canvas, else the open one); folder takes
+        --folder; project is Whole project; selection takes --artboard / --element
+        ids. --region is a world rectangle, --unit one makes one file of it,
+        --name sets the file-name template ({project} {folder} {canvas}
+        {artboard} {kind} {size} {scale} {date}). --estimate prints the file
+        count, size and time without exporting. Without --scope, a v2-only flag
+        or format (jpg, audio) means --scope canvas.
+        --option short names: scale dpi quality bleed marks back fps videoQuality
+        captions linked allowLonger codec; or the spec's dotted path (video.fps,
+        print.marks, colorProfile, background, annotations, saveTo, lane).
+        What the engine cannot run yet (--at, --wait, display-p3) comes back as
+        the server's own "not available" sentence.
+        The older scopes still work and send the older request unchanged:
+        --scope artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw
+        (and --scope selection alone, the live selection). Default: canvas-as-separate;
+        artboard for mp4/webm/gif; project-raw for zip (the only scope zip serves).
+        There --option numbers arrive as numbers (scale=2, dpi=300, fps=30) and
         true/false as booleans; anything else is a string. PDF print options:
         marks=crop,registration (crop registration colorBars pageInfo) and
         includeBleed=true|false. ZIP filters are lists: include=system,assets
@@ -749,9 +775,12 @@ function checkDevDeps({ pkgRoot }) {
 
 async function runExport({ args }) {
   // `maude design export <format> [--scope ...] [--port N] [--out <path>] [--option key=value]`
+  // v2 (S8.1c, contract S8-export-spec.md §5.7): `--scope selection|canvas|folder|project` with
+  // `--folder --canvas --artboard --element --region --unit --at --wait --name --estimate` sends
+  // `{v:2, spec}`; the v1 scope spellings send the v1 body unchanged.
   const subArgs = args.slice(args.indexOf('export') + 1);
   const { positional, flags } = parseArgs(subArgs, {
-    booleans: ['help'],
+    booleans: ['help', 'estimate'],
   });
   if (flags.help) {
     process.stdout.write(usage());
@@ -760,21 +789,9 @@ async function runExport({ args }) {
 
   const format = positional[0];
   // Includes the temporal formats (DDR-148): mp4/webm/gif render through the
-  // capture spine, same POST /_api/export the UI ⌘E dialog uses. Video export
+  // capture spine, same POST /_api/export the UI export sheet uses. Video export
   // is always artboard-scoped (the comp's registered meta drives fps/duration).
-  const VALID_FORMATS = new Set([
-    'png',
-    'pdf',
-    'svg',
-    'html',
-    'pptx',
-    'canva',
-    'zip',
-    'mp4',
-    'webm',
-    'gif',
-  ]);
-  const VIDEO_FORMATS = new Set(['mp4', 'webm', 'gif']);
+  const VALID_FORMATS = new Set([...V1_FORMATS, ...V2_ONLY_FORMATS]);
   if (!format || !VALID_FORMATS.has(format)) {
     process.stderr.write(
       `maude design export: missing or unknown <format>. Try one of: ${Array.from(VALID_FORMATS).join(', ')}\n`
@@ -782,28 +799,15 @@ async function runExport({ args }) {
     process.exit(2);
   }
 
-  // Each format defaults to a scope it can actually serve: video → artboard (the only scope video
-  // supports — scope.ts resolves the artboard under the active canvas), zip → project-raw (the
-  // only scope exporters/zip.ts serves; the default used to be canvas-as-separate, which the
-  // server refuses for zip, so a bare `export zip` always failed). Everything else keeps
-  // canvas-as-separate. An explicit --scope is sent as given — a bad pair is the server's refusal.
-  const scope =
-    flags.scope ??
-    (VIDEO_FORMATS.has(format)
-      ? 'artboard'
-      : format === 'zip'
-        ? 'project-raw'
-        : 'canvas-as-separate');
-  const VALID_SCOPES = new Set([
-    'selection',
-    'artboard',
-    'canvas-as-separate',
-    'canvas-whole',
-    'selection-bounds',
-    'project-raw',
-  ]);
-  if (!VALID_SCOPES.has(scope)) {
-    process.stderr.write(`maude design export: unknown --scope "${scope}"\n`);
+  // Collect repeatable flags: `--option key=value`, `--artboard <id>`, `--element <id>`.
+  const optionItems = collectRepeatedFlag(subArgs, '--option');
+  const plan = planExportRequest(format, flags, {
+    option: optionItems,
+    artboard: collectRepeatedFlag(subArgs, '--artboard'),
+    element: collectRepeatedFlag(subArgs, '--element'),
+  });
+  if (plan.error) {
+    process.stderr.write(`maude design export: ${plan.error}\n`);
     process.exit(2);
   }
 
@@ -824,29 +828,48 @@ async function runExport({ args }) {
     process.exit(1);
   }
 
-  // Collect `--option key=value` repeated flags into an object.
-  const parsed = parseExportOptions(collectRepeatedFlag(subArgs, '--option'));
-  if (parsed.error) {
-    process.stderr.write(`maude design export: ${parsed.error}\n`);
-    process.exit(2);
+  let route = '/_api/export';
+  let body;
+  if (plan.mode === 'v2') {
+    route = flags.estimate === true ? '/_api/export-estimate' : '/_api/export';
+    body = flags.estimate === true ? { spec: plan.spec } : { v: 2, spec: plan.spec };
+  } else {
+    // Each format defaults to a scope it can actually serve: video → artboard (the only scope video
+    // supports — scope.ts resolves the artboard under the active canvas), zip → project-raw (the
+    // only scope exporters/zip.ts serves; the default used to be canvas-as-separate, which the
+    // server refuses for zip, so a bare `export zip` always failed). Everything else keeps
+    // canvas-as-separate. An explicit --scope is sent as given — a bad pair is the server's refusal.
+    const scope = plan.scope ?? defaultV1Scope(format);
+    const parsed = parseExportOptions(optionItems);
+    if (parsed.error) {
+      process.stderr.write(`maude design export: ${parsed.error}\n`);
+      process.exit(2);
+    }
+    body = { format, scope, options: parsed.options };
   }
-  const options = parsed.options;
 
-  const url = `http://localhost:${port}/_api/export`;
-  const r = await fetch(url, {
+  const r = await fetch(`http://localhost:${port}${route}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ format, scope, options }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) {
     const text = await r.text();
-    process.stderr.write(`maude design export: server returned ${r.status}: ${text}\n`);
+    process.stderr.write(`maude design export: ${refusalText(r.status, text)}\n`);
     process.exit(1);
+  }
+
+  if (flags.estimate === true) {
+    // The server sends numbers; the words are built here (contract §5.5).
+    const est = await r.json();
+    process.stdout.write(`${estimateLines(est).join('\n')}\n`);
+    return;
   }
 
   const disp = r.headers.get('content-disposition') ?? '';
   // basename(): the name comes off a response header — never let it carry a path out of the target dir.
-  const serverFilename = basename(/filename="([^"]+)"/.exec(disp)?.[1] ?? `export.${format}`);
+  // `filename*` (RFC 6266, a non-ASCII name) wins over the ASCII `filename`.
+  const serverFilename = basename(filenameFromDisposition(disp) ?? `export.${format}`);
   let outPath = flags.out
     ? resolve(process.cwd(), flags.out)
     : resolve(process.cwd(), serverFilename);
@@ -892,16 +915,6 @@ function parseStringList(key, value) {
     }
   }
   return { list: items };
-}
-
-/** `true`/`false` → booleans; a string that IS a plain number (round-trips) → number; else as typed. */
-function coerceOptionValue(value) {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  const n = Number(value);
-  // `String(n) === value` keeps "007", "1e3", "0x10", "2.50", "" and "000000" (a hex colour) as the
-  // strings they were typed as; isFinite drops "NaN" / "Infinity".
-  return Number.isFinite(n) && String(n) === value ? n : value;
 }
 
 /**
