@@ -168,11 +168,13 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `palette-input` | testid | The ⌘K search box (placeholder “Search canvases, actions, or ask AI…”). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-list` | testid | The ⌘K result list (scroll container). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-row-<id>` | testid | One ⌘K row; <id> is `action:<registry id>`, `tool:<id>`, `setting:<section>:<testid>:<n>`, `canvas:<rel>`, `artboard:<rel>#<id>`, `ask-ai`, or a short-list action id. The active row also has `.is-active`. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
-| `palette-group-<id>` | testid | A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-group-<id>` | testid | A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`, or `did-you-mean` (typo-only hits, S1.4). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-ask-ai` | testid | The wrapper of the last row, Ask AI (desktop only; ⌘↵ runs it). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-empty` | testid | The “Nothing called …” empty state. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-did-you-mean-note` | testid | The “Nothing called …” line above the “Did you mean” group, when every hit is a typo and no word of the query was right. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-recent-empty` | testid | The “Nothing opened yet.” line under Recent when nothing was opened on this Mac (Start here follows). | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 | `palette-close-note` | testid | The “Showing close matches for …” note when every hit is a typo match. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
-| `palette-count` | testid | The ⌘K footer: “Type to search” or “N results”. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
+| `palette-count` | testid | The ⌘K footer: “Type to search”, “N results”, “N close matches”, “0 results · N close match”, or on a Mac with nothing opened “Every tool is here — type its name”. | `client/dialogs/command-palette.jsx` · `CommandPalette` | test/v2-search-ui.test.tsx | new |
 
 ### export dialog
 
