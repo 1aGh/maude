@@ -35,6 +35,7 @@ import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
 import { REPLICA_TYPE, replicaBoardText } from '../annotations/replica.ts';
+import { attributeArtboards } from '../attribute-artboards.ts';
 import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
@@ -43,6 +44,7 @@ import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
 import { acceptedColdStart } from './accepted-cold-start.ts';
 import { type AcceptedLink, createAcceptedLink } from './accepted-link.ts';
+import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
 import { atomicWrite } from './atomic-write.ts';
@@ -119,6 +121,13 @@ import { computeSeedProgress } from './seed-progress.ts';
 import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
+import {
+  asTarget,
+  chatActionIds,
+  originFields,
+  type UndoTarget,
+  undoLabel,
+} from './undo-target.ts';
 import { writeUntrustedMarkers } from './untrusted.ts';
 
 /** A minimum-surface stand-in for the HocuspocusProvider's runtime API. */
@@ -597,6 +606,11 @@ export interface SyncRuntime {
     limit?: number;
     before?: number | null;
     path?: string | null;
+    /** S5.5 — additive filters (store-core `history`, S5.1a). */
+    chat?: string | null;
+    kind?: string | null;
+    /** Only this person's actions. */
+    mine?: boolean;
   }): Promise<AcceptedHistoryRow[] | null>;
   /** A canvas source (repo-relative path) as it stood at a revision. */
   acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
@@ -605,27 +619,42 @@ export interface SyncRuntime {
     repoRel: string,
     revision: number
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
-  /** Personal undo/redo of one of this actor's accepted actions (T28). */
+  /**
+   * Personal undo/redo of this actor's accepted actions (T28). S5.5: one id,
+   * several (`actionIds` — "as if they never happened", ONE action), or a
+   * whole chat (`chatId` → this person's actions of that chat).
+   */
   acceptedUndo?(
-    actionId: string,
-    redo?: boolean
+    target: string | UndoTarget,
+    redo?: boolean,
+    o?: { via?: 'keys' | 'panel' }
   ): Promise<{
     status: 'accepted' | 'rejected';
     code?: string;
     queued?: boolean;
     actionId?: string;
+    undoes?: string | string[];
+    skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
   } | null>;
   /**
-   * T16 — an AI action begins: file changes tools make until it ends are
+   * T16 — an AI run begins: file changes its tools make until it ends are
    * published together as one action (see action-stage.ts). `key` names the
-   * participant (an agent turn, a /design:edit run).
+   * participant (an agent turn, a /design:edit run); `meta.runId` the
+   * registry's run when there is one. Each run is its own stage (V2-1.5 §5.5).
    */
-  beginAiAction?(key: string, label: string): void;
-  /** T16 — `done` publishes (when the last participant ends); `failed` holds. */
+  beginAiAction?(
+    key: string,
+    label: string,
+    meta?: { runId?: string; chatId?: string; actor?: string }
+  ): void;
+  /** `done` publishes; `stopped` publishes partial; `failed` holds. */
   endAiAction?(
     key: string,
-    outcome: 'done' | 'failed'
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
+    outcome: 'done' | 'failed' | 'stopped',
+    o?: { fence?: RunFence }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+  /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
+  claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
   /**
    * T19 — make the whole project available offline now: file-plane passes
    * back to back (no pacing floor) until nothing is left to pull, or a pass
@@ -649,13 +678,19 @@ export interface SyncRuntime {
     repoRel: string,
     choice: 'mine' | 'theirs'
   ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
-  /** T16 — the person's decision on a held (unfinished) AI action. */
-  resolveAiAction?(choice: 'publish' | 'discard'): Promise<{
+  /** T16 — the person's decision on a held (unfinished) AI run (no id: every held run). */
+  resolveAiAction?(
+    choice: 'publish' | 'discard',
+    runId?: string
+  ): Promise<{
     status: 'accepted' | 'rejected' | 'discarded';
     code?: string;
     canvases?: number;
   } | null>;
 }
+
+/** S5.5 — what `POST /_api/project/undo` names (V2-1.5 §5.3). */
+export type { UndoTarget } from './undo-target.ts';
 
 export interface AcceptedHistoryRow {
   revision: number;
@@ -665,10 +700,18 @@ export interface AcceptedHistoryRow {
   kind: string;
   label: string | null;
   committedAt: number;
-  undoes: string | null;
+  /** A single-target undo names one id; a multi-target one (S5.1a) an array. */
+  undoes: string | string[] | null;
   /** Design-root-relative canvas paths the action touched. */
   canvases: string[];
+  /** V2-1.5 §5.1 — the AI run / chat that made it, the person's clock, a stopped run. */
+  runId?: string;
+  chatId?: string;
+  madeAt?: number;
+  partial?: true;
 }
+
+export { originFields } from './undo-target.ts';
 
 export interface CreateSyncRuntimeOptions {
   /** Transaction transport override (tests) — defaults to global fetch. */
@@ -1091,6 +1134,13 @@ export function createSyncRuntime(
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
+        // S5.5 — a run's `touched` artboards, by AST reference closure (V2-1.5 §5.7)
+        attribute: (slug, before, after) => {
+          const html = descriptors.get(slug)?.html;
+          if (!html || !/\.tsx$/i.test(html)) return null;
+          const canvas = path.relative(ctx.paths.designRoot, html).split(path.sep).join('/');
+          return { canvas, artboards: attributeArtboards(canvas, before, after).artboards };
+        },
         onBootstrap: (b) => {
           noteHubFormatSeen(
             formatFromHub(b),
@@ -5476,12 +5526,16 @@ export function createSyncRuntime(
         entry = manifest.docs.find((d) => d.doc === doc)?.entry ?? null;
         if (!entry) return [];
       }
+      const you = manifest.you?.actor ?? null;
       const { history } = await acceptedLink.history({
         limit: Math.min(Math.max(q.limit ?? 50, 1), 200),
         before: q.before ?? null,
         entry,
+        // S5.5 — "this person's actions of chat X", "Made by AI" (V2-1.5 §5.3)
+        ...(q.chat ? { chat: q.chat } : {}),
+        ...(q.kind ? { kind: q.kind } : {}),
+        ...(q.mine && you ? { actor: you } : {}),
       });
-      const you = manifest.you?.actor ?? null;
       return history.map((a) => {
         const canvases = new Set<string>();
         for (const e of a.effects) {
@@ -5498,6 +5552,7 @@ export function createSyncRuntime(
           committedAt: a.committedAt,
           undoes: a.undoes,
           canvases: [...canvases].sort(),
+          ...originFields(a.origin),
         };
       });
     },
@@ -5515,9 +5570,33 @@ export function createSyncRuntime(
       const name = path.basename(repoRel).replace(/\.(tsx|html)$/i, '');
       return acceptedLink.restore([slug], revision, `Restore ${name} to version ${revision}`);
     },
-    acceptedUndo: async (actionId, redo = false) => {
+    acceptedUndo: async (raw, redo = false, o) => {
       if (!acceptedOn() || !acceptedLink) return null;
-      return acceptedLink.undo(actionId, redo);
+      const target = asTarget(raw);
+      const label = undoLabel(target, redo, o?.via);
+      if ('chatId' in target) {
+        const manifest = acceptedLink.manifest ?? (await acceptedLink.refresh().catch(() => null));
+        const you = manifest?.you?.actor ?? null;
+        if (!you) return { status: 'rejected', code: 'unreachable' };
+        const { history } = await acceptedLink.history({
+          limit: 200,
+          chat: target.chatId,
+          actor: you,
+          kind: 'ai',
+        });
+        const ids = chatActionIds(
+          history.map((a) => ({
+            actionId: a.actionId,
+            kind: a.kind,
+            mine: a.actor === you,
+            ...originFields(a.origin),
+          })),
+          target.chatId
+        );
+        if (!ids.ok) return { status: 'rejected', code: ids.code };
+        return acceptedLink.undo({ actionIds: ids.actionIds }, false, label);
+      }
+      return acceptedLink.undo(target, redo, label);
     },
     prepareOffline: async () => {
       if (!filePlane) return null;
@@ -5564,26 +5643,36 @@ export function createSyncRuntime(
       if (r.status === 'accepted') statusStore?.clearSourceConflict?.(slug);
       return { status: r.status, ...(r.code ? { code: r.code } : {}) };
     },
-    beginAiAction: (key, label) => {
+    beginAiAction: (key, label, meta) => {
       if (!acceptedOn() || !acceptedLink) return;
-      acceptedLink.stage.begin(key, label);
+      acceptedLink.stage.begin(key, label, meta);
     },
-    endAiAction: async (key, outcome) => {
+    endAiAction: async (key, outcome, o) => {
       if (!acceptedLink) return null;
       // The watcher delivers the last tool write a beat after the tool
       // returns; let it land in the stage before the stage closes.
       await new Promise((r) => setTimeout(r, AI_ACTION_SETTLE_MS));
       await (discoveryRescan?.flush() ?? Promise.resolve()).catch(() => {});
-      const r = await acceptedLink.stage.end(key, outcome);
-      return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
+      const r = await acceptedLink.stage.end(key, outcome, o);
+      return r
+        ? {
+            status: r.status,
+            ...(r.code ? { code: r.code } : {}),
+            ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
+          }
+        : null;
     },
-    resolveAiAction: async (choice) => {
+    claimAiWrite: (key, repoRel, hash) => {
+      const slug = slugForRepoRel(repoRel);
+      if (slug && acceptedLink) acceptedLink.stage.claim(key, slug, hash ?? null);
+    },
+    resolveAiAction: async (choice, runId) => {
       if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;
       if (choice === 'discard') {
-        const canvases = acceptedLink.stage.discard();
+        const canvases = acceptedLink.stage.discard(runId);
         return { status: 'discarded', canvases };
       }
-      const r = await acceptedLink.stage.publish();
+      const r = await acceptedLink.stage.publish(runId);
       return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
     },
   };

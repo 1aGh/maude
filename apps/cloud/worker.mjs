@@ -16,6 +16,13 @@
 // Queues (Phase 11 unlock) will drain the same jobs table faster; the table —
 // not the queue — is the durable record either way.
 
+import { declaredAccessOf, peerTokenDoor } from '../studio/access/scope.ts';
+import {
+  cellSupportsRolesV2,
+  handleAccessForward,
+  loadClaim,
+  SERVER_UPDATE,
+} from './access-forward.mjs';
 import { track } from './analytics.mjs';
 import { currentAccount, handleAuth } from './auth-routes.mjs';
 import { deriveCellSecret, mintProjectToken, secretsMatch } from './cell-token.mjs';
@@ -38,10 +45,11 @@ import { normalizeRoute } from './events.mjs';
 import { mintInstallationToken } from './github-app.mjs';
 import { handleHandoff } from './handoff.mjs';
 import { handleInviteRoutes } from './invites.mjs';
+import { handleLinkRoutes, sweepExpiredLinks } from './links.mjs';
 import { applySchema } from './migrate.mjs';
 import { statsDatapoints } from './operator.mjs';
 import { handleOperatorRoutes } from './operator-routes.mjs';
-import { ACCESS_MESSAGES, decideAccess } from './project-access.mjs';
+import { ACCESS_MESSAGES } from './project-access.mjs';
 import { handleProjectAdminRoutes } from './project-admin.mjs';
 import { handleProjectRoutes } from './project-routes.mjs';
 import {
@@ -86,26 +94,31 @@ async function openProject(request, env, ctx) {
   // through two doors (Phase 23 C2).
   const account =
     (await personalTokenAccount(env, request)) ?? (await currentAccount(request, env));
-  let project = null;
-  let members = [];
-  try {
-    project = await env.DB.prepare('SELECT * FROM projects WHERE id = ?').bind(projectId).first();
-    const rows = await env.DB.prepare(
-      'SELECT account_id, role FROM project_members WHERE project_id = ?'
-    )
-      .bind(projectId)
-      .all();
-    members = rows?.results ?? [];
-  } catch {
-    /* an unreadable membership list is not access — decideAccess sees [] */
-  }
-
-  const verdict = decideAccess({ accountId: account?.id ?? null, project, members });
+  // The claim (role + canvas grants), from D1 — an unreadable row is no access.
+  const { verdict } = await loadClaim(env.DB, projectId, account?.id ?? null);
   if (!verdict.ok) {
     // 404 for everything that is not "sign in", so the response never
     // distinguishes a project that exists from one that does not.
     const status = verdict.reason === 'not-signed-in' ? 401 : 404;
     return json({ error: ACCESS_MESSAGES[verdict.reason] }, status);
+  }
+  // The mint door (V2-1.7 §5.4): owner / member / viewer without grants get
+  // today's v1 token, declared or not. Can view or a canvas grant needs a
+  // client that declares `X-Maude-Access: 2` (else 426), Can view goes to the
+  // browser door (409), and a v2 credential needs a `roles-v2` cell.
+  const door = peerTokenDoor(
+    { v: 1, role: verdict.role, grants: verdict.grants },
+    {
+      declaredAccess: declaredAccessOf(request.headers.get('x-maude-access')),
+      doorUrl: `https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`,
+    }
+  );
+  if (door.outcome === 'update' || door.outcome === 'browser-door') {
+    return json(door.body, door.status);
+  }
+  if (door.outcome !== 'mint') return json({ error: ACCESS_MESSAGES['no-access'] }, 404);
+  if (door.v2 && !(await cellSupportsRolesV2(env, projectId))) {
+    return json(SERVER_UPDATE, 409);
   }
 
   if (!env.CELL_SECRET_MASTER) {
@@ -119,7 +132,8 @@ async function openProject(request, env, ctx) {
     master: env.CELL_SECRET_MASTER ?? '',
     project: projectId,
     email: account.email,
-    role: verdict.role,
+    role: door.claim.role,
+    grants: door.claim.grants,
   });
 
   // Which DOOR somebody came through is the one thing the open path knows that
@@ -307,6 +321,17 @@ export default {
     // one link signs somebody up AND lands them in the project.
     const inviteSurface = await handleInviteRoutes(request, env, { account, ctx });
     if (inviteSurface) return inviteSurface;
+
+    // Share links (Maude v2 S9.8): the redeem lives on the control plane,
+    // where sign-in is, at /l/<id>.<secret>.
+    const linkSurface = await handleLinkRoutes(request, env, { account, ctx });
+    if (linkSurface) return linkSurface;
+
+    // The access authority (Maude v2 S9.8, V2-1.7 §5.6): a cloud cell
+    // forwards /api/access/* here with its derived secret and the vouched
+    // actor; the actor's role is re-decided from D1.
+    const accessSurface = await handleAccessForward(request, env, { ctx });
+    if (accessSurface) return accessSurface;
 
     // Starting a project + billing (Cloud Phase 14 / DDR-203): the wizard,
     // the Checkout return, the waiting room that settles provision-first,
@@ -591,6 +616,13 @@ export default {
     } catch (err) {
       console.error(`[migrate] failed: ${err.message}`);
       return; // never reconcile against a schema we could not establish
+    }
+    // Share links that expired lose the grants they made (V2-1.7 §5.6) — on
+    // the same clock, and never in the way of the sweep below.
+    try {
+      await sweepExpiredLinks(env);
+    } catch (err) {
+      console.error(`[links] expiry sweep: ${err.message}`);
     }
     // Cloud Phase 25 A4 — the segregated canvas origin's hostname, ensured
     // hourly rather than at deploy time. It is idempotent and it self-heals:

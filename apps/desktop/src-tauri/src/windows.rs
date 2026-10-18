@@ -2772,6 +2772,7 @@ mod tests {
             ("home.rs", "pub async fn relink_project("),
             ("home.rs", "pub async fn new_home_tab("),
             ("windows.rs", "pub async fn open_project("),
+            ("home.rs", "pub async fn open_search_result("),
         ] {
             assert!(
                 body(&src(file), sig).contains("caller_in_front("),
