@@ -16,48 +16,8 @@
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { modeCell } from '../../../bridge/mode-shows.ts';
 import { StIcon } from '../../shell/icons.jsx';
+import { PresenceFaces } from '../presence/faces.jsx';
 import { keyHint } from './project-menu-model.js';
-
-function Faces({ faces, onFollow }) {
-  if (!faces?.length) return null;
-  return (
-    <ul className="st-faces" aria-label="People here" data-testid="share-cluster-faces">
-      {faces.map((f) => {
-        const key = `${f.you ? 'you' : f.agent ? 'agent' : `peer-${f.clientID}`}:${f.name}`;
-        // A peer's face is the Follow control (it moved here with the faces from the canvas stack).
-        if (!f.you && !f.agent && typeof f.clientID === 'number' && onFollow) {
-          const first = f.name.split(/\s+/)[0] || f.name;
-          const label = f.following ? `Stop following ${first}` : `Follow ${first}`;
-          return (
-            <li key={key} className="st-face-li">
-              <button
-                type="button"
-                className={`st-face${f.following ? ' is-following' : ''}`}
-                title={`${f.name} · ${label}`}
-                aria-label={label}
-                aria-pressed={f.following ? 'true' : 'false'}
-                data-testid={`share-cluster-face-${f.clientID}`}
-                onClick={() => onFollow(f.clientID)}
-              >
-                {f.initials}
-              </button>
-            </li>
-          );
-        }
-        return (
-          <li
-            key={key}
-            className={`st-face${f.agent ? ' is-agent' : ''}`}
-            title={f.name}
-            aria-label={f.name}
-          >
-            {f.initials}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 function Ring({ value }) {
   return (
@@ -80,7 +40,9 @@ const withKey = (label, def, ctx) => {
 };
 
 /**
- * @param faces [{ initials, name, you?, agent? }]
+ * @param faces [{ initials, name, you?, agent?, clientID?, artboard?, idleSince?, surface?, inComments? }]
+ * @param presence S9.23 — { run(id, params), labelOf, roleOf?, canSummon, canvasLabel }; absent = the
+ *   pre-S9.23 strip (a peer's face is the Follow control)
  * @param status saveStatus() — ignored when `access` is set (same slot)
  * @param access accessStatus() — { word, action } for a person without edit rights, else null
  * @param commentsCount open comments
@@ -103,6 +65,7 @@ const withKey = (label, def, ctx) => {
 export function ShareCluster({
   faces,
   onFollow,
+  presence = null,
   status,
   access = null,
   commentsCount = 0,
@@ -141,7 +104,7 @@ export function ShareCluster({
       data-cluster={cluster}
     >
       {accountSlot}
-      <Faces faces={faces} onFollow={onFollow} />
+      <PresenceFaces faces={faces} onFollow={onFollow} presence={presence} />
       {access ? (
         <span
           className="st-saved"

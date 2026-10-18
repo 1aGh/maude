@@ -256,7 +256,19 @@ describe('the field survives other fields’ publishes (kept across setLocalStat
     expect(carryLocal({ holding }).holding).toEqual(holding);
     expect(carryLocal({}).holding).toBeNull();
     expect(Object.keys(carryLocal({})).sort()).toEqual(
-      ['editing', 'holding', 'pointer', 'present', 'watching'].sort()
+      [
+        'artboard',
+        'editing',
+        'followTarget',
+        'holding',
+        'idleSince',
+        'inComments',
+        'pointer',
+        'present',
+        'summon',
+        'surface',
+        'watching',
+      ].sort()
     );
   });
 });

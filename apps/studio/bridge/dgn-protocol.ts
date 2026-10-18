@@ -203,7 +203,19 @@ export interface CanvasToShell {
   // (`present-enter` retired in V2-4.3b: Present lives in the Share cluster, shell-local)
   // V2-4.3b — who else is on the active canvas, from its Yjs awareness, for the Share cluster's faces.
   // Untrusted text: ≤ PEERS_MAX peers, names ≤ PEER_NAME_MAX, rendered as text only.
-  peers: { peers: Array<{ clientID: number; name: string; color?: string; following?: boolean }> };
+  // S9.23 — where each person is (the face menu, the people list): all optional, all checked by value.
+  peers: {
+    peers: Array<{
+      clientID: number;
+      name: string;
+      color?: string;
+      following?: boolean;
+      artboard?: string;
+      idleSince?: number;
+      surface?: 'browser';
+      inComments?: boolean;
+    }>;
+  };
   // S2.18 (A10, V2-1.15 §5.8) — the single selection's holds, for the inspector's view mode: a person
   // holding it (their name), and an AI run holding it (`held`) or another object of its artboard.
   // Untrusted text, rendered as text only; ≤ HOLD_LABEL_MAX.
@@ -651,22 +663,43 @@ const presentRunList: V = (v) =>
 export const PEERS_MAX = 32;
 export const PEER_NAME_MAX = 64;
 const PEER_COLOR = /^(#[0-9a-f]{3,8}|oklch\([0-9.%\s/-]{1,40}\))$/i;
+const PEER_ARTBOARD = /^[A-Za-z0-9_-]{1,64}$/;
+type PeerEntry = {
+  clientID: number;
+  name: string;
+  color?: string;
+  following?: boolean;
+  artboard?: string;
+  idleSince?: number;
+  surface?: 'browser';
+  inComments?: boolean;
+};
 const peerList: V = (v) => {
   if (!Array.isArray(v) || v.length > PEERS_MAX) return BAD;
-  const out: Array<{ clientID: number; name: string; color?: string; following?: boolean }> = [];
+  const out: PeerEntry[] = [];
   for (const x of v) {
     if (!isPlain(x)) return BAD;
-    const { clientID, name, color, following } = x;
+    const { clientID, name, color, following, artboard, idleSince, surface, inComments } = x;
     if (typeof clientID !== 'number' || !Number.isSafeInteger(clientID) || clientID < 0) return BAD;
     if (typeof name !== 'string' || name.length > PEER_NAME_MAX) return BAD;
     if (color !== undefined && (typeof color !== 'string' || !PEER_COLOR.test(color))) return BAD;
     if (following !== undefined && typeof following !== 'boolean') return BAD;
-    const peer: { clientID: number; name: string; color?: string; following?: boolean } = {
-      clientID,
-      name,
-    };
+    if (artboard !== undefined && (typeof artboard !== 'string' || !PEER_ARTBOARD.test(artboard)))
+      return BAD;
+    if (
+      idleSince !== undefined &&
+      (typeof idleSince !== 'number' || !Number.isSafeInteger(idleSince) || idleSince <= 0)
+    )
+      return BAD;
+    if (surface !== undefined && surface !== 'browser') return BAD;
+    if (inComments !== undefined && typeof inComments !== 'boolean') return BAD;
+    const peer: PeerEntry = { clientID, name };
     if (color !== undefined) peer.color = color;
     if (following === true) peer.following = true;
+    if (artboard !== undefined) peer.artboard = artboard;
+    if (idleSince !== undefined) peer.idleSince = idleSince;
+    if (surface === 'browser') peer.surface = 'browser';
+    if (inComments === true) peer.inComments = true;
     out.push(peer);
   }
   return out;

@@ -35,6 +35,18 @@ import { readSyncMessage, writeSyncStep1, writeUpdate } from 'y-protocols/sync';
 import * as Y from 'yjs';
 
 import { isTrustedOrigin, touchesBodyLane } from './collab/origins.ts';
+import {
+  presenceName,
+  type Summon,
+  type Surface,
+  sanitizeArtboard,
+  sanitizeFollowTarget,
+  sanitizeIdleSince,
+  sanitizeInComments,
+  sanitizeSummon,
+  sanitizeSurface,
+} from './presence/fields.ts';
+import { PERSON_TONES, TONE_COLOR } from './presence/tones.ts';
 import { sanitizePointer } from './present/pointer-point.ts';
 
 const MESSAGE_SYNC = 0;
@@ -44,27 +56,12 @@ const MESSAGE_AWARENESS = 1;
 // Color hash — stable per peer identity.
 
 /**
- * djb2 string hash → OKLCH color in a curated palette. Determinism per
- * input name is the load-bearing property: every peer hashing "Alice" must
- * land on the SAME color.
- *
- * DS contract (colors-presence specimen): the AI agent rides
- * `--presence-agent` (violet-magenta, hue 322) — "a hue no human state uses,
- * so attribution on a shared canvas is unambiguous". Human hues therefore
- * EXCLUDE the agent band (~292–352) AND the accent indigo band (~245–290,
- * reserved for selection/active). L/C match the DS presence tokens
- * (oklch ≈0.74 0.16) so every cursor reads at the same weight on both themes.
+ * djb2 string hash → one of the five person tones (S9.23 / CONTRACT §6 C32: sky · green · yellow ·
+ * lilac · grey — never coral, which belongs to the AI). Determinism per input name is the load-bearing
+ * property: every peer hashing "Alice" must land on the SAME color. The tones live in
+ * `presence/tones.ts` (the shell reads the same function for its rings).
  */
-const COLOR_PALETTE = [
-  'oklch(0.70 0.17 12)', // rose
-  'oklch(0.72 0.16 40)', // coral
-  'oklch(0.78 0.15 78)', // amber  (presence-away hue)
-  'oklch(0.76 0.16 108)', // lime
-  'oklch(0.74 0.16 145)', // green  (presence-online hue)
-  'oklch(0.75 0.14 172)', // teal
-  'oklch(0.73 0.13 200)', // cyan
-  'oklch(0.72 0.13 238)', // blue   (status-info hue)
-] as const;
+const COLOR_PALETTE = PERSON_TONES.map((t) => TONE_COLOR[t]);
 
 /** The AI agent's exclusive cursor/avatar hue — `--presence-agent`. */
 export const AGENT_COLOR = 'oklch(0.700 0.190 322)';
@@ -146,6 +143,19 @@ export interface CollabAwarenessState {
    * a receiver ignores it. Untrusted on the way in: `sanitizeHoldingState` drops a bad one WHOLE.
    */
   holding?: HoldingAwareness | null;
+  /**
+   * S9.23 (S9-slices Q9) — presence, additive (a v1 peer renders only the fields it knows). `artboard`:
+   * the artboard this person is on; `idleSince`: epoch-ms of their last input, published only once idle
+   * (3 min) and null while active; `surface`: the Mac app or a browser; `inComments`: the Comments
+   * panel has their attention; `summon`: Bring everyone here (stripped by the hub / room without the
+   * `summon` capability); `followTarget`: the clientID their camera follows. Never an e-mail address.
+   */
+  artboard?: string | null;
+  idleSince?: number | null;
+  surface?: Surface;
+  inComments?: boolean;
+  summon?: Summon | null;
+  followTarget?: number | null;
   /**
    * Server-side `disconnect` matches awareness states to outgoing peers by
    * this token (must equal the ws.data.id the server assigns at upgrade).
@@ -493,6 +503,13 @@ export function carryLocal(cur: Partial<CollabAwarenessState>): {
   watching: string | null;
   pointer: { x: number; y: number } | null;
   holding: HoldingAwareness | null;
+  // S9.23 — the presence fields: a cursor publish must not un-idle, un-summon or un-follow.
+  artboard: string | null;
+  idleSince: number | null;
+  surface: Surface;
+  inComments: boolean;
+  summon: Summon | null;
+  followTarget: number | null;
 } {
   return {
     editing: cur.editing ?? null,
@@ -500,6 +517,12 @@ export function carryLocal(cur: Partial<CollabAwarenessState>): {
     watching: cur.watching ?? null,
     pointer: cur.pointer ?? null,
     holding: cur.holding ?? null,
+    artboard: cur.artboard ?? null,
+    idleSince: cur.idleSince ?? null,
+    surface: cur.surface ?? 'app',
+    inComments: cur.inComments ?? false,
+    summon: cur.summon ?? null,
+    followTarget: cur.followTarget ?? null,
   };
 }
 
@@ -625,7 +648,8 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
   if (!state || typeof state !== 'object') return null;
   const s = state as Partial<CollabAwarenessState>;
   if (typeof s.name !== 'string') return null;
-  const name = sanitizeName(s.name);
+  // Names + colour only (S9 Q9): a v1 peer whose git name IS an address is shown by its local part.
+  const name = presenceName(sanitizeName(s.name));
   return {
     clientID,
     name,
@@ -640,6 +664,12 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     watching: sanitizeWatching(s.watching),
     pointer: sanitizePointer(s.pointer),
     holding: sanitizeHoldingState(s.holding),
+    artboard: sanitizeArtboard(s.artboard),
+    idleSince: sanitizeIdleSince(s.idleSince),
+    surface: sanitizeSurface(s.surface),
+    inComments: sanitizeInComments(s.inComments),
+    summon: sanitizeSummon(s.summon),
+    followTarget: sanitizeFollowTarget(s.followTarget),
   };
 }
 
@@ -963,7 +993,7 @@ function createSession(slug: string): CollabSession {
     .then((r) => r.json())
     .then((j) => {
       if (identityCancelled) return;
-      const n = typeof j?.name === 'string' && j.name.trim() ? j.name.trim() : null;
+      const n = typeof j?.name === 'string' && j.name.trim() ? presenceName(j.name) : null;
       const finalName = n ?? `anonymous-${connId.slice(0, 6)}`;
       session.name = finalName;
       session.color = colorForName(finalName);

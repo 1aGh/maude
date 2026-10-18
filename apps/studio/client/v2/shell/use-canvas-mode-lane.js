@@ -348,11 +348,17 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
     /** The Present spec while presenting (Artboards · Canvas), else null. */
     presentSpec: snap.present,
     peers,
-    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`peer.follow`). */
+    /** A peer's face in the cluster: Follow / Stop following on the active canvas (`presence.follow`). */
     follow(clientID) {
       const win = activeWin();
       if (!win || typeof clientID !== 'number') return;
-      postToCanvas(win, 'run-action', { v: 1, id: 'peer.follow', params: { clientID } }, '*');
+      postToCanvas(win, 'run-action', { v: 1, id: 'presence.follow', params: { clientID } }, '*');
+    },
+    /** S9.23 — a `presence.*` action (face menu, ⌘K) for the active canvas, over the `run-action` lane. */
+    presence(id, params) {
+      const win = activeWin();
+      if (!win || typeof id !== 'string' || !id.startsWith('presence.')) return;
+      postToCanvas(win, 'run-action', { v: 1, id, ...(params ? { params } : {}) }, '*');
     },
     /** The switch: a click on Present starts from the selected artboard (04 md-present-menu). */
     select(m) {

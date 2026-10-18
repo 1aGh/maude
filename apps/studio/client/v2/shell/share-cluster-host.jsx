@@ -17,6 +17,7 @@ import { SYSTEM_TAB } from '../../shell/constants.js';
 import { shellToast } from '../../shell/util.js';
 import { indexMeta } from '../canvases/tree-model.js';
 import { useCanvasIndex } from '../canvases/use-canvas-index.js';
+import { usePresenceHost } from '../presence/use-presence-host.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { askToEdit } from './ask-to-edit.js';
 import { setExportPeople } from '../export/use-export-spec.js';
@@ -138,7 +139,7 @@ export function ShellShareCluster() {
     role: cfg?.cloud?.role,
   });
   const faces = useMemo(
-    () => facesOf({ you: gitUser, agentActive, peers: lane.peers }),
+    () => facesOf({ you: gitUser, agentActive, peers: lane.peers, max: 40 }),
     [gitUser, agentActive, lane.peers]
   );
   // S8.2 — the Export sheet's one-time "Copy link" line needs to know who else is here (names only).
@@ -203,6 +204,14 @@ export function ShellShareCluster() {
         : null,
     [chip, projectName, cfg?.profile, acct.email, acct.accounts]
   );
+  // S9.23 — the faces' menu and people list: where people are, Follow / Go to / Bring everyone here.
+  const presence = usePresenceHost({
+    lane,
+    boards,
+    activePath,
+    canSummon: !viewerMode && lane.caps.edit,
+    commentsOpen: !!commentsPanelOpen,
+  });
 
   const retry = useCallback(async () => {
     try {
@@ -229,6 +238,7 @@ export function ShellShareCluster() {
       }
       faces={faces}
       onFollow={lane.follow}
+      presence={presence}
       status={shown}
       access={access}
       commentsCount={comments ? Number(comments.unreadCount) || 0 : Number(totalOpen) || 0}

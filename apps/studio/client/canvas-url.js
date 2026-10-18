@@ -105,6 +105,17 @@ export function canvasUrl(p, cfg, opts) {
   // S9.22 — a Can comment session is read-only for the design but may still reply, resolve and reopen:
   // `/_config.canComment` (a role that holds `comment`) says so, and the thread offers those buttons.
   if (cfg?.readOnly && cfg?.canComment) params.set('cm', '1');
+  // S9.23 (S9-slices Q9) — presence `surface`: a canvas open in a browser tab says so in the room
+  // ("in a browser"). Only a studio window outside the Mac app; previews / embeds / follows publish nothing.
+  if (
+    !opts?.thumbnail &&
+    !opts?.embed &&
+    !opts?.follow &&
+    typeof window !== 'undefined' &&
+    window.location &&
+    !window.__TAURI__
+  )
+    params.set('surf', 'browser');
   // DDR-247 — the chromeless `?embed=1` view another app frames. Read-only
   // whatever the viewer's role (the embed offers looking, nothing else), no
   // comment layer, and `embed=1` so the canvas keeps its camera to itself
