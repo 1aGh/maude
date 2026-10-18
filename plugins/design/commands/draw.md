@@ -69,7 +69,21 @@ is set:
    `reference_license` + `reference_mode`. Never pass a `reference` you haven't
    license-checked. Without `--reference`, set all three empty/null.
 
-### 2. Spawn `draw-agent`
+### 2. Spawn `draw-agent` on a hand-off
+
+`draw-agent` is a bounded writer: it creates **one new file** and nothing else. Before the spawn,
+write its role-"in" hand-off to `.design/_runs/<session>/handoff/draw-agent-<n>.in.json` (the
+run folder the hooks named at the first prompt) — the shape is the **Sample hand-off** in
+[`agents/draw-agent.md`](../agents/draw-agent.md):
+
+- `owns` = the new `.svg` (asset mode — if the path exists, take the next free `<slug>-N.svg`) or
+  the snippet `.design/_runs/<session>/draw/<slug>.jsx` (inline mode), plus the result file;
+- `output` = `.design/_runs/<session>/handoff/draw-agent-<n>.out.json`, and `checks` names
+  `maude design check <output>`;
+- `context.brief` = the person's brief, verbatim.
+
+Put the same JSON at the top of the prompt, above the fields below. The hooks deny the agent any
+write outside `owns` (`out-of-scope`) and hold it to its result when it stops.
 
 ```
 Agent(
@@ -96,7 +110,9 @@ EOF
 )
 ```
 
-The agent owns the whole verify loop (plan → N candidates → draw-proof ladder → pairwise-rank → keep-best → rubric critique → iterate). **Read the verdict** (the last fenced `json` block in its output).
+The agent owns the whole verify loop (plan → N candidates → draw-proof ladder → pairwise-rank → keep-best → rubric critique → iterate). **Read the verdict** (the last fenced `json` block in its output; the same verdict is `result.verdict` in its hand-off result).
+
+**Inline mode — you splice.** The agent wrote the `<svg>` block to its snippet and never touched the canvas. Insert the snippet into the target canvas yourself with Edit, at the place its first-line comment names (keep every element id; a locked or busy artboard is the hooks' deny — wait or ask).
 
 ### 3. Evaluate the verdict
 
