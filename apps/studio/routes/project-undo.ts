@@ -18,6 +18,15 @@
 // An old hub refuses `actionIds` as `invalid`: "Undo this chat" is then
 // disabled with one line, never replayed as a sequence of single undos
 // (V2-1.5 Q2 — a half-applied chat undo is worse than none).
+//
+// Undo hooks (S10.2, S10 Q1): a feature whose gesture also moved state OFF the
+// kernel lanes (a design-system publish moves `revisions/head.json` on Plane B)
+// registers `registerUndoHook(kind, fn)`. After an ACCEPTED, delivered undo or
+// redo the hooks run in registration order with the ids it undid (a redo names
+// the undo it re-applies) and may add `skipped` rows. A refused undo
+// (`forbidden`, `undo-conflict`, …) or a queued one runs none: the off-lane half
+// never moves without its kernel half. A hook that throws is logged, never fails
+// the answer — the kernel half already happened.
 
 import { fold, initialState, view } from '../client/v2/undo/projection.js';
 import type { AcceptedHistoryRow } from '../sync/index.ts';
@@ -38,6 +47,48 @@ type UndoAnswer = {
   undoes?: string | string[];
   skipped?: Array<{ doc?: string; lane?: string; reason: string; conflictWith?: string }>;
 };
+
+type UndoSkip = { doc?: string; lane?: string; reason: string; conflictWith?: string };
+
+export interface UndoHookEvent {
+  redo: boolean;
+  /** the new undo / redo action */
+  actionId: string;
+  /** what it undid; a redo names the undo it re-applies */
+  undoes: string[];
+  skipped: UndoSkip[];
+}
+
+export type UndoHook = (
+  e: UndoHookEvent
+) => void | { skipped?: UndoSkip[] } | Promise<void | { skipped?: UndoSkip[] }>;
+
+const undoHooks = new Map<string, UndoHook>();
+
+/** Register (or replace) the hook named `kind`. Returns the unregister. */
+export function registerUndoHook(kind: string, fn: UndoHook): () => void {
+  undoHooks.set(kind, fn);
+  return () => {
+    if (undoHooks.get(kind) === fn) undoHooks.delete(kind);
+  };
+}
+
+/** Run every hook for an accepted undo / redo; returns the rows they add to `skipped`. */
+export async function runUndoHooks(
+  e: UndoHookEvent,
+  log: Pick<Console, 'error'> = console
+): Promise<UndoSkip[]> {
+  const extra: UndoSkip[] = [];
+  for (const [kind, fn] of [...undoHooks]) {
+    try {
+      const r = await fn(e);
+      if (r && Array.isArray(r.skipped)) extra.push(...r.skipped);
+    } catch (err) {
+      log.error(`[project-undo] the ${kind} undo hook failed:`, err);
+    }
+  }
+  return extra;
+}
 
 export interface ProjectUndoRuntime {
   acceptedHistory?(q: {
@@ -172,12 +223,33 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
           // A hub older than S5.1a: no `actionIds`. Disabled, with the line.
           return json(409, { ok: false, reason: 'needs-hub-update', line: NEEDS_HUB_UPDATE });
         }
+        let skipped = r.skipped;
         if (r.status === 'accepted' && r.actionId && !r.queued) {
+          // a single-target answer keeps its v1 shape (no `undoes`): the target is what it undid
+          const t = parsed.target;
+          const undoes =
+            r.undoes !== undefined
+              ? Array.isArray(r.undoes)
+                ? r.undoes
+                : [r.undoes]
+              : 'actionId' in t
+                ? [t.actionId]
+                : 'actionIds' in t
+                  ? t.actionIds
+                  : [];
+          const extra = await runUndoHooks({
+            redo: parsed.redo,
+            actionId: r.actionId,
+            undoes,
+            skipped: r.skipped ?? [],
+          });
+          if (extra.length) skipped = [...(r.skipped ?? []), ...extra];
           void announceAction(deps, r.actionId).catch(() => {});
         }
         return json(r.status === 'accepted' ? 200 : 409, {
           ok: r.status === 'accepted',
           ...r,
+          ...(skipped ? { skipped } : {}),
         });
       },
     },
