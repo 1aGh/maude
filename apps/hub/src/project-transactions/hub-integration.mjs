@@ -16,6 +16,7 @@ import {
   scopeBootstrap,
   seesDocRow,
 } from '../access-docs.mjs';
+import { createPokeVisibility } from '../access-files.mjs';
 import { createRunsPoke, createRunsRoutes, RUNS_CAPABILITY, RUNS_ROUTE } from '../runs-routes.mjs';
 import { importBaseline } from './baseline.mjs';
 import { createKernel, MAX_UNDO_TARGETS } from './kernel.mjs';
@@ -221,7 +222,28 @@ export function createAcceptedRevisions({
   // may write an artboard, not how the write is stored.
   const runs = createRunsRoutes({
     store,
-    poke: runsPoke ?? (server ? createRunsPoke({ instance: server, log }) : null),
+    // Scoped like the votes poke: a canvas-only connection hears a change only
+    // when it touched a canvas its grants see (the claim decides, no closure).
+    poke:
+      runsPoke ??
+      (server
+        ? createRunsPoke({
+            instance: server,
+            visibility: createPokeVisibility({ designRoot: null, journal: null }),
+            log,
+          })
+        : null),
+    // A key's canvas → its design-root-relative path, for that poke.
+    canvasPathFor: async (canvas) => {
+      if (typeof canvas !== 'string' || !canvas) return null;
+      if (canvas.startsWith('path:') || canvas.includes('/')) {
+        const rel = canvas.startsWith('path:') ? canvas.slice(5) : canvas;
+        const prefix = `${String(designRel ?? '.design').replace(/^\/+|\/+$/g, '')}/`;
+        return rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+      }
+      const doc = await store.liveDocByEntry(canvas).catch(() => null);
+      return doc ? ((await rowsOf())(doc)?.path ?? null) : null;
+    },
     // The document name a canvas scope is written against. A lease key's
     // canvas is the kernel's stable entry, or `path:<repoRel>` before the
     // project is on the op log; an ElementRef's is the repo path. Unknown →

@@ -359,10 +359,23 @@ export function createPokeVisibility({ designRoot, journal }) {
      * grant itself decides — no closure, no journal.
      */
     votesVisible(connection, canvasPath) {
-      const claim = claimOfConnection(connection);
-      if (!claim || typeof canvasPath !== 'string' || canvasPath === '') return false;
-      const access = resolveAccess(claim);
-      return access.canvasOnly && access.can('read', canvasPath);
+      return grantSeesCanvas(connection, canvasPath);
+    },
+    /**
+     * Whether a claim-judged connection may hear that an AI run on `canvasPath`
+     * changed (V2-1.15 `{t:'runs'}`, V2-5 sweep-fix). A lease key names one
+     * canvas, so the grant decides, as for votes.
+     */
+    runsVisible(connection, canvasPath) {
+      return grantSeesCanvas(connection, canvasPath);
     },
   };
+}
+
+/** A canvas-only claim's grant reaches this canvas path (votes, runs). */
+function grantSeesCanvas(connection, canvasPath) {
+  const claim = claimOfConnection(connection);
+  if (!claim || typeof canvasPath !== 'string' || canvasPath === '') return false;
+  const access = resolveAccess(claim);
+  return access.canvasOnly && access.can('read', canvasPath);
 }
