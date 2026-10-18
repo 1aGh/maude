@@ -1,3 +1,5 @@
+import { parseCanvasLink } from './v2/canvases/open-link.js';
+
 // Shell addresses use the same design-root-relative file identity as canvas URLs.
 // RETURN_RULES twin: apps/hub/src/return-to.mjs; native: project_resolve.rs.
 const PROJECT_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
@@ -20,6 +22,30 @@ export function normalizeOpenParam(raw, designRel = '.design') {
   } catch {
     return null;
   }
+}
+
+/** S3.7b — the one suffix a return address may carry (twin of return-to.mjs FOLLOW_SUFFIX). */
+export const FOLLOW_SUFFIX = '&present=follow';
+
+/**
+ * RETURN_RULES — a sign-in return ADDRESS, the client twin of the hub's
+ * `validateReturnTo` (apps/hub/src/return-to.mjs; `test/return-to-follow.test.mjs`
+ * holds the two equal on one fixture list). Exactly `/?open=<rel>` or
+ * `/?open=<rel>&present=follow`; the canonical form, or null.
+ */
+export function normalizeReturnAddress(value) {
+  if (typeof value !== 'string' || value.length > 7 + 512 * 9 + FOLLOW_SUFFIX.length) return null;
+  const match = /^\/\?open=([^&#]+)(&present=follow)?$/.exec(value);
+  if (!match) return null;
+  let raw;
+  try {
+    raw = decodeURIComponent(match[1].replace(/\+/g, ' '));
+  } catch {
+    return null;
+  }
+  const rel = normalizeOpenPath(raw);
+  if (!rel) return null;
+  return `/?open=${encodeOpenPath(rel)}${match[2] ? FOLLOW_SUFFIX : ''}`;
 }
 
 export function readOpenParam(location, designRel = '.design') {
@@ -148,5 +174,8 @@ export function parseMaudeLink(url) {
   const connect = parseDeepLink(url);
   if (connect) return { ...connect, kind: 'connect' };
   const file = parseFileDeepLink(url);
-  return file ? { ...file, kind: 'file' } : null;
+  if (file) return { ...file, kind: 'file' };
+  // S1.18 — a stable canvas link (entry ids only; v2/canvases/open-link.js).
+  const canvas = parseCanvasLink(url);
+  return canvas ? { ...canvas, kind: 'canvas' } : null;
 }

@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { localIdentityMatches, parseMaudeLink } from '../share-link.js';
+import { requestOpenLink } from '../v2/canvases/open-link.js';
 import FileDeepLinkDialog from './file-deep-link-dialog.jsx';
 import { safeName, syncPresentation } from '../../sync/presentation.ts';
 import {
@@ -526,6 +527,8 @@ export default function CloudBar({
     const consume = (url) => {
       const parsed = parseMaudeLink(url);
       if (!parsed) return;
+      // S1.18 — a canvas link asks nothing: the shell resolves it on this window's own server.
+      if (parsed.kind === 'canvas') return requestOpenLink(parsed);
       // NEVER replace a link the person is already looking at. The dialog is a
       // single slot, so an overwrite would swap the code out from under a
       // click that was aimed at the previous one — the person confirms the
