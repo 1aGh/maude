@@ -311,7 +311,10 @@ type AsyncStore = Record<string, (...args: unknown[]) => Promise<any>>;
 
 /** The kernel as this module drives it (the `.mjs` carries no types). */
 interface KernelLike {
-  submit(bytes: string, auth: { actor: string }): Promise<{ status: number; body: any }>;
+  submit(
+    bytes: string,
+    auth: { actor: string; can?: (cap: string) => boolean }
+  ): Promise<{ status: number; body: any }>;
 }
 const makeKernel = createKernel as unknown as (o: Record<string, unknown>) => KernelLike;
 
@@ -774,7 +777,9 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
     if (disk) fromDisk += 1;
     let body: any;
     try {
-      ({ body } = await kernel.submit(bytes, { actor: as }));
+      // S1.6 — a local project is its owner's (S1 Q4): every per-op cap holds,
+      // `trash.clear` (`delete`) included, which the kernel refuses without `can`.
+      ({ body } = await kernel.submit(bytes, { actor: as, can: () => true }));
     } finally {
       if (disk) fromDisk -= 1;
     }

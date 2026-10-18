@@ -304,7 +304,8 @@ describe('nothing deleted: every v1 control the move carried is still emitted', 
     ['v2/ai/Composer.jsx', 'aria-label="Stop"'],
     ['v2/ai/Feed.jsx', 'chat-msg-actions'],
     ['v2/ai/Feed.jsx', 'chat-tool-row'],
-    ['v2/ai/Feed.jsx', 'chat-transcript-menu'],
+    // S5.12: the transcript view select moved to the Advanced fold ("Show in chat")
+    ['v2/ai/Advanced.jsx', 'chat-transcript-menu'],
     ['v2/ai/Feed.jsx', 'chat-error-card'],
     ['v2/ai/Suggest.jsx', 'chat-qa-implement-comments'],
   ];
@@ -317,15 +318,11 @@ describe('nothing deleted: every v1 control the move carried is still emitted', 
 
   test('ChatPanel keeps the ones it still owns and imports the moved parts', () => {
     const src = read('client/panels/ChatPanel.jsx');
-    for (const hook of [
-      'acp-not-connected',
-      'chat-mode-banner',
-      'chat-mode-banner-switch',
-      'chat-overflow-menu',
-    ]) {
+    // S5.12: the mode banner and the ⋯ menu moved to Advanced.jsx / ChatList.jsx (v2-ai-chat-list.test.ts)
+    for (const hook of ['acp-not-connected']) {
       expect(src).toContain(hook);
     }
-    for (const mod of ['Composer', 'Feed', 'Suggest', 'AiChatIsland'])
+    for (const mod of ['Composer', 'Feed', 'Suggest', 'AiChatIsland', 'ChatList', 'Advanced'])
       expect(src).toContain(`v2/ai/${mod}.jsx`);
   });
 

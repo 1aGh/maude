@@ -1,5 +1,6 @@
 import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
+import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
 import { serializeBoard } from './annotations/schema.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
@@ -14,7 +15,22 @@ import { existsSync, readFileSync, realpathSync, unlinkSync, watch } from 'node:
 import { basename, join, posix, relative, resolve, sep } from 'node:path';
 // Ownership mutations live with the CLI on purpose — see /_api/sync/ownership.
 import { adoptToHub, detachToRepo, ownershipState } from '../../cli/lib/design-ownership.mjs';
-import { localDepsFromSource } from './access/closure.ts';
+import { closureFor, createClosureCache, localDepsFromSource } from './access/closure.ts';
+import {
+  accessForDesktop,
+  accessFromProxy,
+  COMMENT_WRITE_PATTERNS,
+  COMMENT_WRITES,
+  canvasScopeRefusal,
+  diskProjectReader,
+  EXPORT_WRITES,
+  type GateInput,
+  localGate,
+  notInScopeResponse,
+  SESSION_WRITES,
+  toDesignRel,
+} from './access/request.ts';
+import type { Access } from './access/scope.ts';
 import { type AskQueue, createAskQueue, currentAllowanceResetsAt } from './acp/ask-queue.ts';
 import {
   cancelSignin,
@@ -155,7 +171,7 @@ import {
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
-import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
+import { accessFor, getHubRecord } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
@@ -482,60 +498,16 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
 // DDR-115, plus the two role-granted verbs the cell itself allows —
 // export ≈ `/api/export`, session management ≈ `/auth/logout`):
 const READ_ONLY_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-export const READ_ONLY_ALLOWED_WRITES = new Set([
-  '/_hmr', // build-watch rebuild hint — dev plumbing, not project state
-  '/_canvas-state', // per-user camera / view state (DDR-115: never versioned)
-  '/_api/canvas-meta', // viewport lane only — the layout lane is refused in-handler
-  '/_api/ui-prefs', // per-user UI preferences
-  '/_api/tree-state', // per-user Files-panel disclosure (issue #124)
-  '/_api/timeline-media', // per-user runtime media cache (scrub read path)
-  '/_api/export', // "look, comment and download" — the cell allows /api/export too
-  '/_api/export-jobs',
-  '/_api/export-jobs/download',
-  // DDR-231 Phase 2 T6 — the browser lane's ledger row. A viewer may already
-  // EXPORT (the two entries above), so recording that they did is the same
-  // class of write: it touches no project state, only the recent-exports list.
-  // Refusing it here while allowing the export produced exactly the reported
-  // symptom for viewers — a file downloads and nothing anywhere says so.
-  '/_api/export-history',
-  // …and the deck's composition half. The member's own browser captured the
-  // PNGs; this route only packs bytes they already hold into a .pptx and hands
-  // it back — it writes no project state. Missing from this list, a VIEWER's
-  // PPTX export captured every artboard and then died on a 403 with the dialog
-  // still saying "Capturing 10/10" (found by the T7 export E2E, which runs
-  // unauthenticated and therefore as a viewer).
-  '/_api/export-assemble',
-  '/_api/report', // bug reports are about Maude, not the project
-  '/_api/report-fallback',
-  // Cloud Phase 27 — COMMENT IS THE ONE WRITE A VIEWER HOLDS. The role matrix
-  // has said so since Phase 25 C4 (`viewer.comment === true`), the People page
-  // promises it in those words, and the cell's proxy allows it — but this list
-  // did not, so a viewer's comment was accepted by the authority and then
-  // refused by the defence-in-depth layer behind it. Found by commenting as a
-  // viewer against a real cell. A second gate that is STRICTER than the first is
-  // still a gate that is wrong.
-  '/_comments',
-  '/_api/hub/link', // link/unlink ≈ session management (cell allows /auth/logout)
-  '/_api/cloud/detach', // unlink — the same session-management class as hub/link
-  '/_api/workspace/sign-in', // signing in is how the role is (re)learned
-  '/_api/workspace/disclosure',
-  '/_api/cloud/signin/start', // account session, not project state
-  '/_api/cloud/signin/poll',
-  '/_api/cloud/signout',
-  // Fetch moves remote-tracking refs and nothing else — no working tree, no
-  // index. It stays a read.
-  '/_api/git/fetch',
-  // `pull` and `checkout` USED TO BE HERE, on the reasoning that "viewing
-  // another branch is not changing one". Cloud Phase 27 D2 retired that: both
-  // rewrite the working tree, and the tree is SHARED — in a cell by every
-  // member, and on a hub-linked desktop by whoever else has that project open.
-  // A viewer switching branches replaces the files under someone mid-edit.
-  //
-  // The proxy's manifest already refuses them, but this gate is the one the
-  // hub-linked desktop and self-host path consult (`isHubReadOnly`), where no
-  // manifest runs at all — so leaving them here would have left the hole open
-  // exactly where the proxy cannot reach. Two gates, and neither is trusted to
-  // be the last word.
+// S9.9 (V2-1.7 §5.7) — split by capability in access/request.ts: SESSION_WRITES
+// (`session`), COMMENT_WRITES (`comment`), EXPORT_WRITES (`export`). This is their
+// union — what a session WITHOUT `edit` may still write at all; which of them a given
+// role may write is `localGate`'s answer (an observer holds session, not comment or
+// export). `pull` / `checkout` stay off it (Cloud Phase 27 D2: they rewrite the shared
+// working tree).
+export const READ_ONLY_ALLOWED_WRITES = new Set<string>([
+  ...SESSION_WRITES,
+  ...COMMENT_WRITES,
+  ...EXPORT_WRITES,
 ]);
 
 /**
@@ -546,9 +518,14 @@ export const READ_ONLY_ALLOWED_WRITES = new Set([
  * the list above, so the bar for adding one is that an exact path genuinely
  * cannot express it.
  */
-export const READ_ONLY_ALLOWED_WRITE_PATTERNS: RegExp[] = [
-  /^\/_api\/comments\/[A-Za-z0-9_-]+\/reply$/,
-];
+export const READ_ONLY_ALLOWED_WRITE_PATTERNS: RegExp[] = [...COMMENT_WRITE_PATTERNS];
+
+/** The `/_api/canvas-meta` PATCH lanes that are per-user state (`_canvas-state/`, DDR-115). */
+export const CANVAS_META_SESSION_LANES: ReadonlySet<string> = new Set([
+  'viewport',
+  'overlays',
+  'locked',
+]);
 
 /** The refusal a read-only session gets for a project-mutating write. */
 export function readOnlyRefusalResponse(): Response {
@@ -1131,12 +1108,17 @@ export interface Http {
    * one at the same path, because they answer a narrower projection
    * (routes/canvas-origin.ts, the canvas server's routes map). Same path, same allowlists.
    */
-  canvasRoutes: Record<'/_api/git-committers', (req: Request) => Response | Promise<Response>>;
+  canvasRoutes: Record<
+    '/_api/git-committers' | '/_api/annotations/ops',
+    (req: Request) => Response | Promise<Response>
+  >;
   /**
    * V2-2.5 — the exact paths of the table's `origin: 'canvas'` specs. Both canvas
    * allowlists derive them: `CANVAS_SAFE_API` here and routes/canvas-origin.ts.
    */
   tableCanvasPaths: readonly string[];
+  /** S9.9 — THIS request's access (V2-1.7 §5.4); server.ts `withSession` puts it in ALS. */
+  accessOf(req?: Request): Access;
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -1686,6 +1668,40 @@ export function createHttp(
       snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
       actionFor: (repoRel, after) =>
         ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
+    },
+    // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
+    // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
+    // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot
+    // list is complete once the renderer harvested them (V2-1.17 §5.8).
+    present: {
+      repoRoot: ctx.paths.repoRoot,
+      designRoot: ctx.paths.designRoot,
+      artboards: (srcAbs) => {
+        const rel = relative(ctx.paths.designRoot, srcAbs).replace(/\\/g, '/');
+        try {
+          const row = extractCanvas(
+            {
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              groups: ctx.cfg.canvasGroups,
+              defaultDs: null,
+              designSystems: ctx.cfg.designSystems ?? [],
+            },
+            rel
+          );
+          if (row.parse !== 'ok') return null;
+          if (!row.dynamic) return { ids: row.artboards.map((a) => a.id), complete: true };
+          const live = projectIndex.canvas(rel);
+          return live?.artboardsFrom === 'runtime'
+            ? { ids: [...row.artboards, ...live.artboards].map((a) => a.id), complete: true }
+            : { ids: row.artboards.map((a) => a.id), complete: false };
+        } catch {
+          return null;
+        }
+      },
+      write: async (file, nextText, baseText) => {
+        await api.writeCanvasMetaText(file, nextText, baseText);
+      },
     },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
@@ -2542,8 +2558,20 @@ export function createHttp(
         // the api layer — DDR-115). The layout lane mutates the versioned
         // `.meta.json`, so a read-only session is refused here, in-handler,
         // where the two lanes are distinguishable.
-        if (projectReadOnly(req) && 'layout' in body.patch) {
-          return readOnlyRefusalFor(req);
+        //
+        // S9.9 — the layout lane needs `edit` ON THE TARGET canvas (a canvas grant
+        // counts, V2-1.7 G1), and a session without `edit` there may send ONLY the
+        // per-user lanes: any other key is refused rather than ignored, so a
+        // planted or stale client can never widen what this route writes.
+        const target = toDesignRel(body.file, designRel);
+        const access = accessOf(req);
+        const editsTarget =
+          !gateNow() &&
+          (access.can('edit', null) || (target !== null && access.can('edit', target)));
+        if (!editsTarget) {
+          const keys = Object.keys(body.patch);
+          if (keys.includes('layout') || keys.some((k) => !CANVAS_META_SESSION_LANES.has(k)))
+            return readOnlyRefusalFor(req);
         }
         const next = await api.patchCanvasMeta(body.file, body.patch);
         if (!next) return new Response('Not found or rejected', { status: 404 });
@@ -2844,37 +2872,9 @@ export function createHttp(
       return new Response('Method not allowed', { status: 405 });
     },
 
-    '/_api/annotations/ops': async (req: Request) => {
-      // DDR-242 §4 — the canvas write path: an op batch applied under the one
-      // merge rule. Canvas-origin reachable (inert collab data, DDR-054) — every
-      // op is validated element-by-element and the board stays capped.
-      // POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
-        req,
-        MAX_ANNOTATIONS_BYTES + 2048
-      );
-      if (!body || typeof body.file !== 'string' || !body.file) {
-        return new Response('body must include { file, actionId, ops }', { status: 400 });
-      }
-      if (body.actionId !== undefined && !validAnnotationWriteId(body.actionId)) {
-        return new Response('invalid actionId', { status: 400 });
-      }
-      if (!Array.isArray(body.ops))
-        return new Response('body.ops must be an array', { status: 400 });
-      // Bounded to what a whole board can need (select-all + delete on a full
-      // board) and REFUSED past it — never truncated, which would half-apply a
-      // gesture. Batch cost is linear in the ops (ops.ts indexes).
-      if (body.ops.length > MAX_ELEMENTS) {
-        return new Response('too many ops in one batch', { status: 413 });
-      }
-      const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
-      const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
-      return Response.json(r, {
-        status: r.ok ? 200 : r.unreadable ? 409 : 413,
-        headers: { 'Cache-Control': 'no-store' },
-      });
-    },
+    // T-S4.5b — the handler lives in annotationOps (below) so the canvas listener mounts its
+    // own variant (canvasRoutes): a `run:<id>` tag is main-origin only.
+    '/_api/annotations/ops': (req: Request) => annotationOps(req, 'main'),
 
     '/_api/canvas': async (req: Request) => {
       // Phase 22 — create + soft-delete a canvas from the browser file tree.
@@ -6591,23 +6591,46 @@ export function createHttp(
   // covers all three doors at once: the main-origin `routes` table, the
   // canvas-origin `routes` allowlist in server.ts (it references these same
   // handlers), and the dynamic-path `fetch` fall-through (comment replies).
+  //
+  // S9.9 (V2-1.7 §5.4) — the role is now an ACCESS: the project role + canvas
+  // grants, established per request by `accessOf`. A cell child reads the proxy's
+  // `x-maude-access` claim (DEFAULT CLOSED: no proven edit role = read-only); a
+  // desktop reads the linked hub's stored claim (`accessFor`, re-read each call so
+  // a sign-in lands on the next write); an unlinked project is the owner's.
+  function accessOf(req?: Request): Access {
+    if (isWorkspaceMode()) return accessFromProxy(req?.headers ?? new Headers());
+    return accessForDesktop(ctx.cfg.linkedHub?.url, accessFor);
+  }
+
+  /** May NOT edit at project level — the 1-bit projection old callers read. */
   function roleReadOnly(req?: Request): boolean {
-    // ---- Cloud Phase 27 A3/A4 (DDR-209): the role is PER SESSION ----------
-    //
-    // In a cell this process serves an owner and a viewer at the same time, so
-    // the on-disk answer below — one role per hub URL — is not merely stale, it
-    // is the wrong SHAPE. The proxy in front vouches a role per request and
-    // injects the capability it derived from the one role table.
-    //
-    // AND IT DEFAULTS CLOSED. The local path fails OPEN by design: `catch`
-    // returns false, an unset `linkedHub` returns false, and a fully writable
-    // studio is the correct answer for a tool running on your own laptop. On
-    // the internet it is the whole ballgame — so in a cloud build read-only is
-    // the default and an edit role requires positive proof.
-    if (isWorkspaceMode()) {
-      return req?.headers.get('x-maude-readonly') !== '0';
-    }
-    return ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false;
+    return !accessOf(req).can('edit', null);
+  }
+
+  // The closure of a session's grants is computed HERE, from this child's own disk
+  // (V2-1.7 G4), cached per (grants, generation); every file change bumps it.
+  const designRel = relative(ctx.paths.repoRoot, ctx.paths.designRoot).split(sep).join('/');
+  let treeGeneration = 0;
+  ctx.bus.on('fs:any', () => {
+    treeGeneration++;
+  });
+  const closureCache = createClosureCache();
+  const projectReader = diskProjectReader(ctx.paths.designRoot, () => String(treeGeneration));
+  const tableSession = {
+    exact: new Set(laneRoutes.readOnlyAllowed.exact),
+    patterns: laneRoutes.readOnlyAllowed.patterns,
+  };
+  function gateInput(access: Access): GateInput {
+    return {
+      access,
+      designRel,
+      tableSession,
+      closure:
+        access.grants.length > 0
+          ? () => closureFor(access, projectReader, closureCache)
+          : undefined,
+      exists: (rel) => existsSync(join(ctx.paths.designRoot, rel)),
+    };
   }
 
   /**
@@ -6627,11 +6650,20 @@ export function createHttp(
     return gate ? formatRefusalResponse(gate) : readOnlyRefusalResponse();
   }
 
-  function readOnlyRefusal(req: Request): Response | null {
+  // S9.9 (V2-1.7 §5.7) — the local gate. Was binary (read-only or not); now ONE
+  // capability per write (access/request.ts `writeCapability`), checked against the
+  // session's access — on the request's target canvas when the session has grants.
+  // A canvas-only session naming a target outside its grants + closure is refused
+  // with `not-in-scope` on ANY method (`canvasScopeRefusal`), the same 403 a missing
+  // file gets.
+  async function readOnlyRefusal(req: Request): Promise<Response | null> {
+    const access = accessOf(req);
+    const g = gateInput(access);
+    const scope = await canvasScopeRefusal(req, g);
+    if (scope) return scope;
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
-    const role = roleReadOnly(req);
     const gate = gateNow();
-    if (!role && !gate) return null;
+    if (!gate && access.can('edit', null)) return null;
     let pathname: string;
     try {
       pathname = new URL(req.url).pathname;
@@ -6643,27 +6675,74 @@ export function createHttp(
     // one write that leads out.
     if (gate && !formatGateAllowsWrite(pathname, readOnlyAllowed))
       return formatRefusalResponse(gate);
-    if (!role) return null;
-    if (readOnlyAllowed.exact.has(pathname)) return null;
-    // The dynamic half of the comment lane. An exact-match set cannot express
-    // it, and leaving it out would mean a viewer may leave a comment but not
-    // reply to one — a distinction nobody promised and nobody wants.
-    if (readOnlyAllowed.patterns.some((re) => re.test(pathname))) return null;
-    return readOnlyRefusalResponse();
+    const verdict = await localGate(req, pathname, g);
+    if (verdict.ok) return null;
+    return verdict.reason === 'not-in-scope' ? notInScopeResponse() : readOnlyRefusalResponse();
   }
 
   const guardedRoutes = Object.fromEntries(
     Object.entries(routes).map(([path, handler]) => [
       path,
-      (req: Request) => readOnlyRefusal(req) ?? handler(req),
+      async (req: Request) => (await readOnlyRefusal(req)) ?? handler(req),
     ])
-  ) as typeof routes;
+  ) as unknown as typeof routes;
 
   async function guardedFetch(req: Request): Promise<Response> {
-    return readOnlyRefusal(req) ?? handleFallthrough(req);
+    return (await readOnlyRefusal(req)) ?? handleFallthrough(req);
+  }
+
+  /**
+   * DDR-242 §4 — the canvas write path: an op batch applied under the one merge rule.
+   * Canvas-origin reachable (inert collab data, DDR-054) — every op is validated
+   * element-by-element and the board stays capped.
+   * POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
+   * T-S4.5b — `actionId: 'run:<runId>'` (contract S4-S5-ai-annotations §2) is accepted only on
+   * the main listener, same-origin, while that run is open (annotations/run-tag.ts); a refused
+   * tag writes nothing.
+   */
+  async function annotationOps(req: Request, listener: 'main' | 'canvas'): Promise<Response> {
+    if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+    const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
+      req,
+      MAX_ANNOTATIONS_BYTES + 2048
+    );
+    if (!body || typeof body.file !== 'string' || !body.file) {
+      return new Response('body must include { file, actionId, ops }', { status: 400 });
+    }
+    const tag = runTagGate(req, body.actionId, {
+      listener,
+      runs,
+      sameOrigin: (r) => sameOriginWrite(r) && sameOriginRead(r) && isTrustedRequestHost(r),
+    });
+    if ('refusal' in tag) return runTagRefusalResponse(tag.refusal);
+    if (
+      tag.runId === null &&
+      body.actionId !== undefined &&
+      !validAnnotationWriteId(body.actionId)
+    ) {
+      return new Response('invalid actionId', { status: 400 });
+    }
+    if (!Array.isArray(body.ops)) return new Response('body.ops must be an array', { status: 400 });
+    // Bounded to what a whole board can need (select-all + delete on a full
+    // board) and REFUSED past it — never truncated, which would half-apply a
+    // gesture. Batch cost is linear in the ops (ops.ts indexes).
+    if (body.ops.length > MAX_ELEMENTS) {
+      return new Response('too many ops in one batch', { status: 413 });
+    }
+    const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
+    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
+    return Response.json(r, {
+      status: r.ok ? 200 : r.unreadable ? 409 : 413,
+      headers: { 'Cache-Control': 'no-store' },
+    });
   }
 
   const canvasRoutes: Http['canvasRoutes'] = {
+    // T-S4.5b — the same op path, minus the `run:` tag (refused 400 here). A write: it keeps the
+    // read-only refusal every `routes` entry carries (guardedRoutes).
+    // S9.9 made the gate async: await it, or the pending Promise short-circuits `??`.
+    '/_api/annotations/ops': async (req: Request) =>
+      (await readOnlyRefusal(req)) ?? annotationOps(req, 'canvas'),
     // V2-2.8 S6 — the @mention feed without e-mails (see canvasCommitters).
     '/_api/git-committers': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
@@ -6676,6 +6755,7 @@ export function createHttp(
     routes: guardedRoutes,
     canvasRoutes,
     tableCanvasPaths: laneRoutes.canvasPaths,
+    accessOf,
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,

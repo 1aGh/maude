@@ -572,7 +572,8 @@ export interface SyncRuntime {
     slug: string,
     lane: 'comments' | 'annotations' | 'meta',
     text: string,
-    opts?: { baseText?: string; writeId?: string }
+    /** T-S4.5b — `stageable`: a run-tagged annotation batch joins its run's stage (claimed by hash). */
+    opts?: { baseText?: string; writeId?: string; stageable?: boolean }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
   /**
    * Accepted-revisions mode: a folder operation as ONE project action. `null`
@@ -5502,6 +5503,7 @@ export function createSyncRuntime(
       return projection.proposeLane(lane, value, {
         ...(base !== undefined && base !== null ? { baseContent: base } : {}),
         ...(o?.writeId ? { writeId: o.writeId } : {}),
+        ...(o?.stageable === true ? { stageable: true } : {}),
       });
     },
     proposeFolder,

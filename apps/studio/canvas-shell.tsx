@@ -38,6 +38,7 @@ import {
 
 import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
+import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
@@ -3516,6 +3517,7 @@ function CanvasRouter({
       <AnnotationsLayer />
       <ToolPalette />
       <ArtboardMarqueeOverlay />
+      <ArtboardRingsLayer />
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />

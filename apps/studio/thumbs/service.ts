@@ -28,10 +28,15 @@ import {
   fileHash,
   isSize,
   keyDepsHash,
+  type LaneHashes,
+  laneRels,
+  liveLaneHashes,
   SIZE_PX,
+  sameLanes,
   srcHashOf,
   type ThumbSize,
   thumbKey,
+  versionLaneHashes,
 } from './keys.ts';
 import { hasThumb, pruneThumbs, readThumb, writeThumb } from './store.ts';
 import { checkJpeg, jpegSize } from './validate.ts';
@@ -75,6 +80,17 @@ export interface ThumbServiceOptions {
   /** a canvas source at a version (`{sha}` git, `{rev}` accepted revision); null = unreadable */
   readVersion?: (rel: string, at: { rev: number } | { sha: string }) => Promise<string | null>;
   /**
+   * S1.11 — a canvas's same-name CSS / meta lane at a version, read from the SAME source the
+   * historical build overlays it from (`serveHistoricalCanvas`'s `cssAt` / `metaAt`); null = the
+   * version has no such lane. Wire it only together with that overlay: absent ⇒ the build uses
+   * today's lanes and the key says so.
+   */
+  readVersionLane?: (
+    rel: string,
+    lane: 'css' | 'meta',
+    at: { rev: number } | { sha: string }
+  ) => Promise<string | null>;
+  /**
    * The canvas's resolved-imports hash, read NOW (index/extract.ts `extractCanvas(..).depsHash`).
    * The index re-extracts a canvas only when the canvas itself changes, so its row's `depsHash`
    * goes stale when an imported module changes; without this, keys fall back to the row's value.
@@ -117,8 +133,12 @@ interface Job {
   /** `sha` / `r<rev>` for a version build, null for now */
   atParam: string | null;
   srcHash: string;
+  /** the same-name CSS lane the key named (canvas jobs) */
+  cssHash?: string | null;
   metaHash: string | null;
   depsHash: string;
+  /** which lanes of a version build are today's files (they can change under the render) */
+  liveLanes?: { css: boolean; meta: boolean };
   hasArtboards: boolean;
   targets: Target[];
   priority: 0 | 1;
@@ -449,9 +469,13 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     if (!row) return false;
     if (depsOf(row) !== job.depsHash) return false;
     const abs = path.join(o.designRoot, job.rel);
-    const metaAbs = abs.replace(/\.tsx$/, '.meta.json');
+    // a version's own lanes are immutable; only the lanes it took from today can move
+    const live = job.atParam === null ? { css: true, meta: true } : job.liveLanes;
+    const today = liveLaneHashes(o.designRoot, job.rel, { srcHash: '', metaHash: null });
+    if ((live?.css ?? true) && today.cssHash !== (job.cssHash ?? null)) return false;
+    const metaAbs = path.join(o.designRoot, laneRels(job.rel).meta);
     const meta = existsSync(metaAbs) ? srcHashOf(readFileSync(metaAbs, 'utf8')) : null;
-    if (meta !== job.metaHash) return false;
+    if ((live?.meta ?? true) && meta !== job.metaHash) return false;
     if (job.atParam !== null) return true; // a version's source is immutable
     try {
       return srcHashOf(readFileSync(abs, 'utf8')) === job.srcHash;
@@ -570,12 +594,13 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
   async function keyInputs(row: CanvasRow, at: ThumbAt) {
     const cfg = o.config();
     const depsHash = depsOf(row);
+    const today: LaneHashes = liveLaneHashes(o.designRoot, row.rel, row);
     if (at === 'now' || at === undefined)
       return {
-        srcHash: row.srcHash,
-        metaHash: row.metaHash,
+        ...today,
         depsHash,
         atParam: null,
+        liveLanes: undefined,
         theme: cfg.theme,
       };
     let atParam: string | null = null;
@@ -585,10 +610,32 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     if (atParam === null || !o.readVersion) return null;
     const source = await o.readVersion(row.rel, at).catch(() => null);
     if (source === null) return null;
-    const srcHash = srcHashOf(source);
-    // the same source as now builds the same picture: no version build needed
-    if (srcHash === row.srcHash) atParam = null;
-    return { srcHash, metaHash: row.metaHash, depsHash, atParam, theme: cfg.theme };
+    // S1.11: the CSS / meta lanes the historical build overlays, from the same source it reads
+    // them from. A lane read that fails is not "absent" — the build would then disagree with the
+    // key — so it is unavailable, never a guess.
+    const lane = async (name: 'css' | 'meta') => {
+      if (!o.readVersionLane) return undefined; // overlay not wired: today's lane
+      const rel = laneRels(row.rel)[name];
+      return o.readVersionLane(rel, name, at).then(
+        (t) => t,
+        () => false as const
+      );
+    };
+    const [css, meta] = await Promise.all([lane('css'), lane('meta')]);
+    if (css === false || meta === false) return null;
+    const version = versionLaneHashes({ tsx: source, css, meta }, today);
+    // every lane the build uses equals today's: the same picture, no version build needed. A
+    // version that differs ONLY in its CSS or meta is still a version — keyed and built as one.
+    if (sameLanes(version, today)) atParam = null;
+    return {
+      srcHash: version.srcHash,
+      cssHash: version.cssHash,
+      metaHash: version.metaHash,
+      depsHash,
+      atParam,
+      liveLanes: atParam === null ? undefined : version.live,
+      theme: cfg.theme,
+    };
   }
 
   const svc: ThumbService = {
@@ -609,6 +656,7 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
         canvas: row.rel,
         artboard,
         srcHash: inputs.srcHash,
+        cssHash: inputs.cssHash,
         metaHash: inputs.metaHash,
         depsHash: inputs.depsHash,
       });
@@ -620,13 +668,22 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
       const f = failures.get(key) ?? 0;
       if (f >= MAX_FAILURES) return unavailable('failed');
       enqueue({
-        id: `${row.rel}\0${inputs.atParam ?? 'now'}\0${inputs.srcHash}`,
+        // every lane in the id: a job only ever gathers targets keyed by the same inputs
+        id: [
+          row.rel,
+          inputs.atParam ?? 'now',
+          inputs.srcHash,
+          inputs.cssHash ?? '-',
+          inputs.metaHash ?? '-',
+        ].join('\0'),
         kind: 'canvas',
         rel: row.rel,
         atParam: inputs.atParam,
         srcHash: inputs.srcHash,
+        cssHash: inputs.cssHash,
         metaHash: inputs.metaHash,
         depsHash: inputs.depsHash,
+        liveLanes: inputs.liveLanes,
         hasArtboards: row.hasArtboards,
         targets: [{ key, artboard, size: req.size, px: SIZE_PX[req.size] }],
         priority: req.priority === 'visible' ? 0 : 1,

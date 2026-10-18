@@ -1207,7 +1207,7 @@
       "v2": {
         "action": null,
         "testid": "chat-caps-bar",
-        "where": "AI chat (⇧⌘A) › the capability bar under the composer — model, effort, fast mode (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Model, Effort, Fast mode — the pickers left the field's toolbar for the fold (S5.12); ⌘K finds each as \"AI chat panel › Advanced\"",
         "reach": [
           "desktop"
         ]
@@ -1223,7 +1223,7 @@
       "v2": {
         "action": null,
         "testid": "chat-mode-picker",
-        "where": "AI chat (⇧⌘A) › the capability bar › Permission mode (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Ask before — the permission mode in plain words, the agent's own name in grey (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1239,7 +1239,7 @@
       "v2": {
         "action": null,
         "testid": "chat-transcript-menu",
-        "where": "AI chat (⇧⌘A) › the transcript view menu — thinking, verbose (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Show in chat — normal, thinking, verbose (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1255,7 +1255,7 @@
       "v2": {
         "action": null,
         "testid": "chat-foot-info-btn",
-        "where": "AI chat (⇧⌘A) › the info button in the chat foot — context % and token counts (until S5)",
+        "where": "AI chat (⇧⌘A) › Advanced › Context used, with the ⓘ for the token counts (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1810,7 +1810,7 @@
       "v2": {
         "action": "ai.chat",
         "testid": "chat-overflow-menu",
-        "where": "AI chat (⇧⌘A) › the chat’s ⋯ menu: Rename, Archive, Delete, Copy transcript; the empty state’s buttons and “Implement N comments” sit in the feed (until S5)",
+        "where": "AI chat (⇧⌘A) › the title ⌄ opens the chat list; a row's ⋯ menu: Open, Rename…, Copy transcript, Archive, Move to trash (Delete is Move to trash — Trash keeps it until cleared out); the suggest-only banner's Allow changes is the old ModeBanner; the empty state’s buttons and “Implement N comments” sit in the feed (S5.12)",
         "reach": [
           "desktop"
         ]
@@ -1988,7 +1988,6 @@
     "button:studio/client/app.jsx#App/start": "D13",
     "button:studio/client/app.jsx#App/start~2": "D13",
     "button:studio/client/app.jsx#ShellTree/cancel": "D15",
-    "button:studio/client/app.jsx#ShellTree/exit-presentation-mode": "action:present.canvas",
     "button:studio/client/app.jsx#ShellTree/shell-prompt-ok": "D15",
     "button:studio/client/dialogs/asset-picker.jsx#AssetPicker/a-name-math-max-1-math-round-a-size-1024-kb": "A-asset-picker-upload-thumbnails-insert",
     "button:studio/client/dialogs/asset-picker.jsx#AssetPicker/add-as-annotation": "A-asset-picker-upload-thumbnails-insert",
@@ -2861,6 +2860,8 @@
     "testid:studio/annotations/ui/element-node.tsx#canvas iframe chrome/data-section-chip-data-edit-notice": "testid:[data-section-chip] / [data-edit-notice]",
     "testid:studio/annotations/ui/element-node.tsx#canvas iframe chrome/dc-annot-el-dc-annot-text-data-id-data-type-data": "testid:.dc-annot-el / .dc-annot-text / [data-id] / [data-type] / [data-tool]",
     "testid:studio/annotations/ui/text-editor.tsx#canvas iframe chrome/dc-annot-editor-data-annot-editor": "testid:.dc-annot-editor / [data-annot-editor]",
+    "testid:studio/artboard-activity-overlay.tsx#other/ai-ring-artboardid": "testid:ai-ring-<artboardId>",
+    "testid:studio/artboard-activity-overlay.tsx#other/ai-rings": "testid:ai-rings",
     "testid:studio/artboard-guides-overlay.tsx#canvas iframe chrome/dc-artboard-guides": "testid:.dc-artboard-guides",
     "testid:studio/canvas-comment-mount.tsx#canvas iframe chrome/dc-hmr-holding": "testid:.dc-hmr-holding",
     "testid:studio/canvas-lib.tsx#canvas iframe chrome/artboard-rename-id": "testid:artboard-rename-<id>",
@@ -3366,6 +3367,11 @@
     "testid:studio/notifications.tsx#banners/maude-notice-action-summary": "testid:.maude-notice / -action / -summary",
     "testid:studio/notifications.tsx#banners/notice-id": "testid:notice-<id>",
     "testid:studio/participants-chrome.tsx#canvas iframe chrome/dc-participants-dc-participant-agent": "testid:.dc-participants / .dc-participant(--agent)",
+    "testid:studio/present/pointer-dot.tsx#other/present-peer-pointer": "testid:present-peer-pointer",
+    "testid:studio/present/pointer-dot.tsx#other/present-peer-pointers": "testid:present-peer-pointers",
+    "testid:studio/present/pointer-dot.tsx#other/present-pointer": "testid:present-pointer",
+    "testid:studio/present/pointer-dot.tsx#other/present-pointer-dot": "testid:present-pointer-dot",
+    "testid:studio/present/pointer-dot.tsx#other/present-pointer-trail": "testid:present-pointer-trail",
     "testid:studio/scaffold-design.ts#onboarding/welcome-artboard-content": "testid:welcome-artboard-content",
     "testid:studio/text-caret.ts#canvas iframe chrome/data-maude-caret": "testid:[data-maude-caret]",
     "testid:studio/tool-palette.tsx#canvas iframe chrome/aria-pressed-aria-selected-on-canvas-tools": "testid:toolbar-slot-<toolId>",
@@ -3438,7 +3444,6 @@
     "testid:studio/client/home/home-app.jsx#home/home-root": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-search": "v2 code (added after the freeze)",
     "testid:studio/client/home/home-app.jsx#home/home-search-row-pid-slug-artboard": "v2 code (added after the freeze)",
-    "testid:studio/client/panels/chat-header.jsx#other/ai-chat-count": "v2 code (added after the freeze)",
     "testid:studio/client/panels/chat-header.jsx#other/ai-chat-header": "v2 code (added after the freeze)",
     "testid:studio/client/panels/chat-header.jsx#other/ai-chat-hide": "v2 code (added after the freeze)",
     "testid:studio/client/panels/chat-header.jsx#other/ai-chat-new": "v2 code (added after the freeze)",

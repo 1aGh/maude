@@ -102,6 +102,14 @@ export function canvasUrl(p, cfg, opts) {
     params.set('comments', '0');
     params.set('embed', '1');
   }
+  // S3.7a — the Present follower (client/v2/present/follow-view.jsx): read-only whatever the role, no
+  // comment layer, and `follow=1` so the canvas follows the presenter, persists no camera and never
+  // publishes a Present position of its own (read-only-mode.ts `isFollowCanvas`).
+  if (opts?.follow) {
+    params.set('ro', '1');
+    params.set('comments', '0');
+    params.set('follow', '1');
+  }
   // Cloud Phase 27 (DDR-209) — the canvas origin's capability. On a desktop the
   // canvas origin is loopback and needs none, so this is absent and the URL is
   // byte-identical to before. In the cloud it is a cookieless, cross-site

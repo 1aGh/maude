@@ -11,12 +11,18 @@ import * as github from '../client/github.js';
 type Msg = { kind: string; payload: unknown };
 
 const g = globalThis as unknown as { window?: Record<string, unknown> };
-const hadWindow = 'window' in g;
+// The window this file found, exactly: a real one (happy-dom) only loses the stubs; anything else —
+// no `window`, or an own `window: undefined` another file left — is put back as it was. Keeping a
+// `{}` stub here left `window` without `document` for every later file in the same bun process,
+// and their `typeof window === 'undefined'` happy-dom guards skipped registering (V2-5 suite-fix A3).
+const before = Object.getOwnPropertyDescriptor(g, 'window');
+const hadWindow = !!g.window;
 afterEach(() => {
   if (hadWindow && g.window) {
     g.window.__TAURI__ = undefined;
     g.window.__maudeShellBus = undefined;
-  } else Reflect.deleteProperty(g, 'window');
+  } else if (before) Object.defineProperty(g, 'window', before);
+  else Reflect.deleteProperty(g, 'window');
 });
 
 function shell() {

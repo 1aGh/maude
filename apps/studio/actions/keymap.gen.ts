@@ -324,6 +324,22 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⌥⇧⌘↵', layer: 'global', when: { mode: ['edit', 'viewing', 'preview'] } }],
   },
   {
+    id: 'present.next',
+    exec: 'shell',
+    keys: [
+      { chord: '→', layer: 'global', when: { mode: ['present'] } },
+      { chord: 'Space', layer: 'global', when: { mode: ['present'] } },
+    ],
+  },
+  {
+    id: 'present.prev',
+    exec: 'shell',
+    keys: [
+      { chord: '←', layer: 'global', when: { mode: ['present'] } },
+      { chord: '⇧Space', layer: 'global', when: { mode: ['present'] } },
+    ],
+  },
+  {
     id: 'view.zoom-in',
     exec: 'canvas',
     keys: [
@@ -564,6 +580,13 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     exec: 'canvas',
     keys: [
       { chord: 'H', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['viewing'] } },
+    ],
+  },
+  {
+    id: 'tool.pointer',
+    exec: 'canvas',
+    keys: [
+      { chord: 'L', layer: 'tools', when: { focus: ['canvas', 'chrome'], mode: ['present'] } },
     ],
   },
   {

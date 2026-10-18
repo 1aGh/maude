@@ -19,7 +19,13 @@ import { holds, isEnabled, isVisible } from '../../../actions/resolve.ts';
 /** Menu ids the registry does not hold yet → the task that registers them. The menu renders only
  *  what the registry has, so these rows appear the day their action lands (and the test goes red
  *  until they are taken off this list). */
-export const PENDING_MENU_IDS = Object.freeze({});
+export const PENDING_MENU_IDS = Object.freeze({
+  // S10.0 (client/v2/contracts/S10-ds-review-entry.md): not menu rows — the entries into the DS review
+  // that S2.12 / S2.17 hide their rows behind until S10 registers them.
+  'ds.review-update': 'S10 (S10.8 review update)',
+  'ds.go-to': 'S10 (S10.6 go to master)',
+  'ds.instance-update': 'S10 (S10.8 instance update)',
+});
 
 /** The label a state-dependent row shows. CONTRACT §1: "Hide panels / Show panels". */
 function labelFor(def, state) {

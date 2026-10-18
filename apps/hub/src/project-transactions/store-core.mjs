@@ -90,6 +90,17 @@ const DDL = [
   // V2-1.15 §5.2 — AI runs, leases, the waiting line (additive: CREATE IF NOT
   // EXISTS, no schema bump; an old hub opening this store ignores them).
   ...RUNS_DDL,
+  // S1.6 (V2-1.9 §5.4, S1-trash.md §4) — additive indexes of facts the log
+  // already carries (`origin.named` / `origin.cleared`). An old hub opening
+  // this store ignores both; nothing here deletes a row or a body.
+  `CREATE TABLE IF NOT EXISTS names (
+     entry TEXT NOT NULL, target_rev INTEGER NOT NULL, name TEXT NOT NULL, actor TEXT NOT NULL,
+     at INTEGER NOT NULL, rev INTEGER NOT NULL, PRIMARY KEY (entry, target_rev))`,
+  // `artboard` '' = the whole canvas; `rev` = the action that put it in the trash.
+  `CREATE TABLE IF NOT EXISTS trash_cleared (
+     entry TEXT NOT NULL, artboard TEXT NOT NULL, rev INTEGER NOT NULL, by TEXT NOT NULL,
+     at INTEGER NOT NULL, cleared_rev INTEGER NOT NULL, PRIMARY KEY (entry, artboard, rev))`,
+  `CREATE INDEX IF NOT EXISTS actions_kind ON actions(kind)`,
 ];
 
 function one(rows) {
@@ -485,6 +496,36 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
           e.afterPath ?? null
         );
       }
+      // S1.6 — `history.name` (null removes the row; the action stays logged)
+      // and `trash.clear`, in the same transaction as their action.
+      for (const n of input.names ?? []) {
+        if (n.name === null) {
+          sql.exec(`DELETE FROM names WHERE entry = ? AND target_rev = ?`, n.entry, n.targetRev);
+          continue;
+        }
+        sql.exec(
+          `INSERT INTO names (entry, target_rev, name, actor, at, rev) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(entry, target_rev) DO UPDATE SET name = excluded.name, actor = excluded.actor, at = excluded.at, rev = excluded.rev`,
+          n.entry,
+          n.targetRev,
+          n.name,
+          input.actor,
+          at,
+          rev
+        );
+      }
+      for (const c of input.cleared ?? []) {
+        sql.exec(
+          `INSERT INTO trash_cleared (entry, artboard, rev, by, at, cleared_rev) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(entry, artboard, rev) DO NOTHING`,
+          c.entry,
+          c.artboard ?? '',
+          c.rev,
+          input.actor,
+          at,
+          rev
+        );
+      }
       const res = { ...input.result, revision: rev, parentRevision: cur.revision, committedAt: at };
       sql.exec(
         `INSERT INTO results (actor, tx, proposal_hash, result, rev, at) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -624,6 +665,106 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
     return row ? row.doc : null;
   }
 
+  /** S1.6 — the names of one canvas's versions, target newest first. */
+  function names(entry) {
+    if (typeof entry !== 'string' || !entry) return [];
+    return sql
+      .exec(
+        `SELECT entry, target_rev, name, actor, at, rev FROM names WHERE entry = ? ORDER BY target_rev DESC`,
+        entry
+      )
+      .map((n) => ({
+        entry: n.entry,
+        targetRev: Number(n.target_rev),
+        name: n.name,
+        actor: n.actor,
+        at: Number(n.at),
+        rev: Number(n.rev),
+      }));
+  }
+
+  /** S1.6 — cleared trash items (S1-trash.md §4), newest clear first. */
+  function trashCleared({ entry = null } = {}) {
+    const byEntry = typeof entry === 'string' && entry;
+    return sql
+      .exec(
+        `SELECT entry, artboard, rev, by, at, cleared_rev FROM trash_cleared ${byEntry ? 'WHERE entry = ?' : ''}
+         ORDER BY cleared_rev DESC, entry, artboard`,
+        ...(byEntry ? [entry] : [])
+      )
+      .map((c) => ({
+        entry: c.entry,
+        artboard: c.artboard,
+        rev: Number(c.rev),
+        by: c.by,
+        at: Number(c.at),
+        clearedRev: Number(c.cleared_rev),
+      }));
+  }
+
+  /**
+   * S1.6 — what is in the shared Trash, derived from the log (S1 Q2,
+   * S1-trash.md §1), cleared items left out, newest first. A canvas: its
+   * entry's NEWEST `@manifest delete`, while no live doc carries the entry
+   * (the doc row alone would lose it to a new canvas at the same path). An
+   * artboard: an action of kind `trash` naming it in `origin.trashed`.
+   */
+  function trash({ entry = null } = {}) {
+    const byEntry = typeof entry === 'string' && entry;
+    const canvases = sql
+      .exec(
+        `SELECT e.entry, e.doc, e.before_path, e.rev, e.action_id, a.actor, a.committed_at
+         FROM effects e JOIN actions a ON a.rev = e.rev
+         WHERE e.lane = '@manifest' AND e.op = 'delete' AND e.entry IS NOT NULL
+           ${byEntry ? 'AND e.entry = ?' : ''}
+           AND e.rev = (SELECT MAX(x.rev) FROM effects x
+                        WHERE x.lane = '@manifest' AND x.op = 'delete' AND x.entry = e.entry)
+           AND NOT EXISTS (SELECT 1 FROM docs d WHERE d.entry = e.entry AND d.retired = 0)
+           AND NOT EXISTS (SELECT 1 FROM trash_cleared c
+                           WHERE c.entry = e.entry AND c.artboard = '' AND c.rev = e.rev)
+         ORDER BY e.rev DESC`,
+        ...(byEntry ? [entry] : [])
+      )
+      .map((c) => ({
+        id: `canvas:${c.entry}`,
+        entry: c.entry,
+        doc: c.doc,
+        path: c.before_path,
+        rev: Number(c.rev),
+        actionId: c.action_id,
+        actor: c.actor,
+        at: Number(c.committed_at),
+      }));
+    const cleared = new Set(
+      trashCleared({ entry }).map((c) => `${c.entry}\u0000${c.artboard}\u0000${c.rev}`)
+    );
+    const artboards = [];
+    for (const a of sql.exec(`SELECT * FROM actions WHERE kind = 'trash' ORDER BY rev DESC`)) {
+      const row = actionRow(a);
+      const trashed = Array.isArray(row.origin?.trashed) ? row.origin.trashed : [];
+      if (!trashed.length) continue;
+      const first = effectRows('WHERE rev = ?', a.rev).find(
+        (e) => LANES.includes(e.lane) && e.entry
+      );
+      if (!first || (byEntry && first.entry !== entry)) continue;
+      for (const t of trashed) {
+        if (cleared.has(`${first.entry}\u0000${t.artboard}\u0000${row.revision}`)) continue;
+        artboards.push({
+          id: `artboard:${row.actionId}/${t.artboard}`,
+          entry: first.entry,
+          doc: first.doc,
+          artboard: t.artboard,
+          label: typeof t.label === 'string' ? t.label : null,
+          rev: row.revision,
+          actionId: row.actionId,
+          actor: row.actor,
+          at: row.committedAt,
+        });
+      }
+    }
+    return { canvases, artboards };
+  }
+
   function manifest() {
     const docs = sql.exec(`SELECT * FROM docs ORDER BY doc`).map((row) => {
       const lanes = {};
@@ -665,6 +806,10 @@ export function createStoreCore(sql, { now = () => Date.now(), codec = IDENTITY_
     laneAt,
     effectsAfter,
     liveDocByEntry,
+    // S1.6 — additive readers (S1-trash.md §4).
+    names,
+    trash,
+    trashCleared,
     runsBegin: runs.runsBegin,
     runsClaim: runs.runsClaim,
     runsRenew: runs.runsRenew,

@@ -996,10 +996,10 @@
     "hook": "chat-mode-banner",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan).",
+    "meaning": "\"AI is set to suggest only\" banner above the thread while the mode blocks edits (plan / dontAsk).",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "ModeBanner"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "SuggestOnlyBanner"
     },
     "region": "chat/ACP",
     "consumers": ["apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"],
@@ -1009,10 +1009,10 @@
     "hook": "chat-mode-banner-switch",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Button on that alert that switches to the least-privilege mode that can edit.",
+    "meaning": "\"Allow changes\" on that banner: switches to the least-privilege mode that can edit.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "ModeBanner"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "SuggestOnlyBanner"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1068,10 +1068,10 @@
     "hook": "chat-transcript-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The transcript menu button in the chat status row.",
+    "meaning": "The \"Show in chat\" select in Advanced (transcript view: normal, thinking, verbose, summary).",
     "producer": {
-      "file": "apps/studio/client/v2/ai/Feed.jsx",
-      "symbol": "StatusRow"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1172,10 +1172,10 @@
     "hook": "chat-overflow-menu",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The chat panel overflow (⋯) menu.",
+    "meaning": "A chat row's ⋯ menu in the chat list: Open · Rename… · Copy transcript · Archive · Move to trash.",
     "producer": {
-      "file": "apps/studio/client/panels/ChatPanel.jsx",
-      "symbol": "ChatPanel"
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "RowMenu"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1185,10 +1185,10 @@
     "hook": "chat-caps-connecting",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Capability bar placeholder while the agent connects.",
+    "meaning": "Advanced placeholder while the agent connects.",
     "producer": {
-      "file": "apps/studio/client/panels/CapabilityBar.jsx",
-      "symbol": "CapabilityBar"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1198,10 +1198,10 @@
     "hook": "chat-caps-bar",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The capability bar (live model/mode/effort pickers).",
+    "meaning": "The Advanced fold's picker rows (live model / effort / fast mode / Ask before), under the AI chat panel's Advanced.",
     "producer": {
-      "file": "apps/studio/client/panels/CapabilityBar.jsx",
-      "symbol": "CapabilityBar"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [],
@@ -1211,10 +1211,10 @@
     "hook": "chat-mode-picker",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The permission-mode picker in the capability bar.",
+    "meaning": "The \"Ask before\" picker in Advanced (the permission mode, in plain words).",
     "producer": {
-      "file": "apps/studio/client/panels/CapabilityBar.jsx",
-      "symbol": "CapabilityBar"
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
     },
     "region": "chat/ACP",
     "consumers": [
@@ -4576,6 +4576,214 @@
     "v2": "new"
   },
   {
+    "hook": "mode-present-order-notes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Order and notes… (editors only, under a rule): runs `present.order-notes`, the sheet for the Present order, skips and speaker notes.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-controls",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present · Artboards controls (shell DOM, over the canvas): ‹ · 3 / 14 · › · label · slots · esc to leave. `data-shown` is false while faded; `data-motion=reduced` under Reduce motion.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-zone",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The transparent strip under the controls where a mouse move is heard (the canvas iframe's moves never reach the shell). A click on it steps to the next artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "‹ Previous artboard (disabled on the first). Posts `present-step {to:'prev'}` through the mode lane.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "› Next artboard (disabled on the last). Posts `present-step {to:'next'}` through the mode lane.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-counter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"3 / 14\" — the place in the run (`present-position`); skipped artboards are not counted.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The presented artboard's name, from the canvas index; absent when it has none.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-slot-transport",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Slot for S3.3's media transport (pause · time · sound); absent while empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-slot-presenter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Slot for S3.6b's Presenter view button (desktop, two displays); absent while empty.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-leave",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"esc to leave\" — leaves Present for where it was entered from.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/present-controls.jsx",
+      "symbol": "PresentControls"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pill",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present the canvas: \"Presenting the canvas · 21% · esc to leave\". Replaces the v1 exit button and keeps its `.st-present-exit` class and `aria-label=\"Exit presentation mode\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/canvas-pill.jsx",
+      "symbol": "CanvasPill"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/present-controls.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pointer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The presenter's Pointer layer in the canvas document (L): a fixed, click-through overlay holding the dot and its trail.",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "createPointerDot"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pointer-dot",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Pointer: a ringed dot in the presenter's presence colour (`data-hidden` while the mouse is out of the window).",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "createPointerDot"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-pointer-trail",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Pointer's short trail (empty under Reduce motion).",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "createPointerDot"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/pointer-dot.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-peer-pointers",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Layer holding other people's Pointers, drawn from awareness `pointer`.",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "PointerPeers"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-peer-pointer",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One peer's Pointer dot.",
+    "producer": {
+      "file": "apps/studio/present/pointer-dot.tsx",
+      "symbol": "PointerPeers"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "artboard-rename-<id>",
     "kind": "testid",
     "pattern": true,
@@ -4761,10 +4969,10 @@
     "hook": "ai-chat-count",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The AI chat header's \"✦ N\" chip: how many of YOUR chats are running; absent at zero. Click opens the chat list.",
+    "meaning": "The AI chat header's \"✦ N\" chip: how many of YOUR AI runs are live (a waiting ask counts; other people's AI never does); absent at zero. Click opens the run list (`ai-runs-list`).",
     "producer": {
-      "file": "apps/studio/client/panels/chat-header.jsx",
-      "symbol": "ChatHeader"
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunsCount"
     },
     "region": "other",
     "consumers": [],
@@ -4784,6 +4992,123 @@
     "v2": "stable"
   },
   {
+    "hook": "ai-runs-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The list under \"✦ N\": \"Yours\", then \"On this canvas\" (other people's runs, View only). Esc closes; a row takes you to its artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-run-<runId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the run list. `data-state` = working | waiting | needs, `data-view-only=\"true\"` on another person's run.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RunList.jsx",
+      "symbol": "RunList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-stack",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The waiting cards of the open chat (absent when nothing waits).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCards"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-card",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The card for a second ask on a busy artboard: \"Waiting for “<run>” to finish on <artboard>.\" `data-run` = the waiting run id.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The × on the waiting card: cancels the ask (no turn ran).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The waiting card's \"Run on a copy\". Not drawn until the copy route exists (`RUN_ON_COPY_LIVE`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-waiting-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one line under the waiting card when × or Run on a copy was refused.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/WaitingCard.jsx",
+      "symbol": "WaitingCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-rings",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Inside the canvas iframe: the layer that holds the AI rings (dgn `ai-runs`). Absent when no AI is on any artboard.",
+    "producer": {
+      "file": "apps/studio/artboard-activity-overlay.tsx",
+      "symbol": "ArtboardRingsLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-ring-<artboardId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Inside the canvas iframe: one artboard's ring + tag. `data-state` = running | needs-you | done, `data-who` = you or the other person.",
+    "producer": {
+      "file": "apps/studio/artboard-activity-overlay.tsx",
+      "symbol": "ArtboardRingsLayer"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
     "hook": "ai-scope-chip",
     "kind": "testid",
     "pattern": false,
@@ -4791,6 +5116,214 @@
     "producer": {
       "file": "apps/studio/client/v2/ai/ScopeChip.jsx",
       "symbol": "ScopeChip"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chat list (03 ai-chat-list) that the panel title ⌄ opens in place of the thread.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"‹ Chats\": back from the chat list to the chat.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-list-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The chat list's search field (words inside chats, not just titles).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A chat row in the chat list. `<id>` = the chat id. `data-state` = working | needs | idle.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-trash-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Move … to the trash?\" dialog; names a queued prompt that will not send.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-chat-trash-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The dialog's \"Move to trash\" button (absent while the chat is still working).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/ChatList.jsx",
+      "symbol": "ChatList"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat panel's \"› Advanced\" fold toggle (remembered per Mac under fold key `ai.chat`).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-advanced-fold",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Advanced fold's root element.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-advanced-root",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Wrapper around one chat's Advanced fold (⌘K rows are found inside it).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-suggestions",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Suggestions On / Off.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-context-pct",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Context used: the percent (used / size).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-session",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Session: the Claude Code session id behind the chat.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-raw-log",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Raw log button (opens the raw tool-log island).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-copy-transcript",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Copy transcript button.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-adv-open-terminal",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Open in terminal button (desktop app only).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Advanced.jsx",
+      "symbol": "ChatAdvanced"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "ai-raw-log",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The raw tool-log island under Advanced: one line per tool call.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/RawLog.jsx",
+      "symbol": "RawLog"
     },
     "region": "other",
     "consumers": [],
@@ -4886,6 +5419,258 @@
     "region": "other",
     "consumers": [],
     "v2": "stable"
+  },
+  {
+    "hook": "ai-working",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The working line (03 `ai-working`): one line in the feed — spark, \"AI is …\", the step under it, Stop. Shown while a run is on a turn; gone when it ends.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "WorkingLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-working-text",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The words of the working line (\"AI is making it greener\") — the same words as the artboard tag.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "WorkingLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-stop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Stop in the working line: the registry's `POST /_api/ai/runs/:id/stop` for the chat's run (cancels the thread when the server has no run for it).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "WorkingLine"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The panel's one polite live region (`role=status`): each state of a run — working, Needs you, Done, Stopped — is read once.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Working.jsx",
+      "symbol": "RunLiveRegion"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The result card under a finished run (03 `ai-done`). `data-status` = idle | busy | undone | kept.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-undo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Undo on the result card: takes the run's whole change back (`POST /_api/project/undo` for the run's own action). First verb.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-redo",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Redo on the result card, shown in place of the verbs after Undo.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-keep-going",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep going on the result card: carries a cut-short run on (`POST /_api/ai/runs/:id/keep-going`); after a finished run it puts focus in the composer.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-keep-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Keep the copy, on the result of a run made on a copy.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-compare",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Compare, on a result that has a before/after to show.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-state",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The word that replaces the verbs once one is used: \"Undone.\" or \"Kept the copy.\"",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-result-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The one line under the result when a verb did not happen (someone changed it since, undo not available, could not reach the project).",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-steps",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The folded \"What AI did · N steps · T\" under a result; the steps are behind it.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-followups",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The follow-up chip row under a result (\"Same on Story 9:16\").",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-followup-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "One follow-up chip: fills the composer with its words, never sends.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/Result.jsx",
+      "symbol": "ResultCard"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-jump",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Jump to latest\" pill at the foot of a long chat, shown while you read earlier turns; click scrolls to the newest.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BigChat.jsx",
+      "symbol": "JumpPill"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-jump-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"N new\" beside Jump to latest: messages that arrived since you left the bottom.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BigChat.jsx",
+      "symbol": "JumpPill"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ai-chat-pin",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The AI chat header's pin: Pin to the side / Unpin (`aria-pressed`). The shell's pin model — View › Advanced › Pin panels to the side.",
+    "producer": {
+      "file": "apps/studio/client/v2/ai/BigChat.jsx",
+      "symbol": "PinButton"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-ai-run-ui.test.tsx"],
+    "v2": "new"
   },
   {
     "hook": "dock-slot-<side>",
@@ -5168,6 +5953,97 @@
     "producer": {
       "file": "apps/studio/client/embed-view.jsx",
       "symbol": "EmbedView"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Root of the Present follower page (`?present=follow`; `data-audience=\"1\"` in the locked audience window).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowView"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-canvas-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The read-only canvas iframe the follower page frames (`ro=1&comments=0&follow=1`).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowView"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The follow bar: Live · presenter · \"<name> is on 6 of 14 · you're on 5\" · Catch up; or Waiting / ended. Absent with `audience=1`.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-live",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Live mark in the follow bar (`st-follow-live--off` once you looked away).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-catch-up",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Catch up: back to the presenter's artboard, Live again (only while drifted).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-open-canvas",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open the canvas\" after the presenter ended the presentation.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "stable"
+  },
+  {
+    "hook": "follow-watchers",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"N watching\" (\"99+\" above 99), this follower included.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/follow-view.jsx",
+      "symbol": "FollowBar"
     },
     "region": "other",
     "consumers": [],
@@ -10079,10 +10955,75 @@
     "hook": "canvases-foot",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The line under the Canvases list: \"93 canvases · ⌘K searches every project\" (\"3 results · …\" while searching).",
+    "meaning": "The line under the Canvases list: \"93 canvases · ⌘K searches every project\" (\"3 results · …\" while searching). `data-slot` says which fact it is: `sync` (offline), `jump` (artboard count), `access` (canvas-only) or `default`; `data-tone` warn on the offline line.",
     "producer": {
       "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
       "symbol": "CanvasesPanel"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-meta-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One short word at a canvas row's right, before its badges, published by a slice through `row-slots.js` (\"Needs you\", \"not sent\", \"sending\"). `data-tone` quiet/warn/azure, `data-source` ai/sync/access/trash. The Pinned copy uses `canvas-pinned-meta-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-meta-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The same meta word on a canvas's copy under Pinned (so a pinned canvas that goes offline says \"not sent\" in both places).",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-sub-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The second words after a canvas's name from a slot (\"Shared with you · Can view\", \"In the trash · open here\"); never drawn while a search draws its own sub. The Pinned copy uses `canvas-pinned-sub-<slug>`.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-pinned-sub-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The same slot sub on a canvas's copy under Pinned.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelCanvasRow"
+    },
+    "region": "sidebar/tree",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "canvas-row-trashed-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A ghost row: a canvas open in a tab that is not in the index any more (trashed while open), drawn dim at its last path with its provider's words; click or Enter focuses that tab. Not counted by its folder.",
+    "producer": {
+      "file": "apps/studio/client/v2/canvases/canvases-panel.jsx",
+      "symbol": "PanelGhostRow"
     },
     "region": "sidebar/tree",
     "consumers": [],
@@ -10216,6 +11157,149 @@
     },
     "region": "sidebar/tree",
     "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-notes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Order and notes…\" sheet (`role=dialog`): the Present order, the skipped artboards and the speaker notes of the open canvas (S3.5).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-row-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard in the Order and notes list, in the order Present plays it; `<id>` is the artboard id. `aria-current` on the selected row (its notes show below).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-up-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Move this artboard one place earlier in the Present order (also ⌥↑ on the row).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-down-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Move this artboard one place later in the Present order (also ⌥↓ on the row).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-skip-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Skip toggle (`aria-pressed`): the artboard stays on the canvas, out of the run and the counter.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-notes-field",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The speaker-notes field of the selected artboard (`artboardMeta.<id>.notes`).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-counts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The counter line: \"N artboards · M skipped\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Use canvas order\" — present only while a custom order is set.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-save",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Save: sends only what changed, with the ETag the sheet read (PATCH /_api/present-meta).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Cancel: closes the sheet without saving (esc does the same).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "present-order-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Why a read or a save failed (`role=alert`), e.g. a stale ETag.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-notes-sheet.jsx",
+      "symbol": "OrderNotesSheet"
+    },
+    "region": "other",
+    "consumers": ["apps/studio/test/order-notes-sheet.test.tsx"],
     "v2": "new"
   },
   {

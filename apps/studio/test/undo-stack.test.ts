@@ -225,7 +225,7 @@ describe('cross-iframe persistence (loadStackState / saveStackState)', () => {
       },
     };
     const g = globalThis as unknown as { window?: unknown };
-    const prev = g.window;
+    const prev = Object.getOwnPropertyDescriptor(g, 'window');
     g.window = { sessionStorage: fakeSS }; // no `top` → store host = this window
     try {
       _clearStackStore();
@@ -238,7 +238,9 @@ describe('cross-iframe persistence (loadStackState / saveStackState)', () => {
       expect(restored.past[0]?.label).toBe('kept');
     } finally {
       _clearStackStore();
-      g.window = prev;
+      // Exactly as found: `g.window = undefined` would leave an own `window` key behind.
+      if (prev) Object.defineProperty(g, 'window', prev);
+      else Reflect.deleteProperty(g, 'window');
     }
   });
 });

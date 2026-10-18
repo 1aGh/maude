@@ -20,7 +20,8 @@ import { facesOf, saveStatus } from '../client/v2/shell/save-status.js';
 import { ShareCluster } from '../client/v2/shell/share-cluster.jsx';
 
 beforeAll(() => {
-  if (typeof window === 'undefined') GlobalRegistrator.register();
+  // `document`, not `window`: a `window` stub another file left must not skip the DOM.
+  if (typeof document === 'undefined') GlobalRegistrator.register();
 });
 afterAll(async () => {
   if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();

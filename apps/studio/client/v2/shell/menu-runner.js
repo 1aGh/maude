@@ -14,6 +14,7 @@
 import { TEMPLATES } from '../../../annotations/templates.ts';
 import { ACTIONS_BY_ID } from '../../../actions/index.ts';
 import { runActionMessage } from '../../actions/shell-key-handlers.js';
+import { createAdvancedHandlers } from '../ai/advanced-handlers.js';
 import { aiPanelWantsFocus, requestFocusAI } from '../ai/panel-focus.js';
 import { createDiagnosticsHandlers } from '../diagnostics/diagnostics-handlers.js';
 import { foldStore } from '../fold/use-fold.js';
@@ -193,6 +194,9 @@ export function createMenuHandlers(d) {
     'present.from-selection': () => presentFrom('selection'),
     'present.from-start': () => presentFrom('start'),
     'present.canvas': () => togglePresentCanvas(),
+    // S3.5 — the Order and notes… sheet on the active canvas (the shell mounts it; the server refuses
+    // every role below edit on PATCH /_api/present-meta).
+    'present.order-notes': () => d.setOrderNotesOpen(true),
     // ── Help ──
     'help.shortcuts': () => d.setShortcutsOpen(true),
     'help.guides': () => d.setHelpOpen(true),
@@ -216,6 +220,8 @@ export function createMenuHandlers(d) {
       }
       d.toggleRightPanel('assistant');
     },
+    // ── the AI chat panel's Advanced rows (S5.12) ──
+    ...createAdvancedHandlers(d),
     // ── top level ──
     'history.open': () => d.toggleRightPanel('changes'),
     'share.open': () => d.onShare(),
