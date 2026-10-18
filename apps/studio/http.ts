@@ -125,6 +125,13 @@ import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import {
+  cssOverridesFor,
+  injectVersionMeta,
+  type LaneReaders,
+  laneAtRef,
+  type VersionSource,
+} from './history/version-lanes.ts';
 import { extractCanvas } from './index/extract.ts';
 import { createIndexService } from './index/service.ts';
 import { pidOf } from './index/snapshot.ts';
@@ -818,7 +825,12 @@ function respondWithCanvasModule(req: Request, cached: { js: string; etag: strin
 // can't grow the heap unbounded — the route is reachable from the UNTRUSTED
 // canvas origin (it's on the canvas-serve path), so a hub-pushed canvas could
 // otherwise OOM the sidecar (security review — ethical-hacker, Finding 1).
-const historicalCanvasCache = new Map<string, { js: string; etag: string }>();
+// `cssSig`: today's same-name CSS file as the build saw it — set only when the version had no CSS
+// lane of its own (the build then used today's file), so such an entry goes stale with that file.
+const historicalCanvasCache = new Map<
+  string,
+  { js: string; etag: string; cssSig: string | null }
+>();
 const HIST_MAX_CACHE = 96;
 // Rate-limit the EXPENSIVE miss path (git show + Bun.build, or a non-resolving
 // git lookup) so a distinct-sha spray from the canvas origin can't starve the
@@ -881,6 +893,30 @@ function cloudHistoryApi(ctx: Context): ReturnType<typeof createCloudEndpoints> 
   return cloudHistoryFor.api;
 }
 
+/**
+ * S1.11 / S1.12 — every reader a version's lanes come from (V2-1.9 §5.6): the project's store for
+ * `r<rev>`, git then the linked cell for a sha. One object so the build, the shell's meta and the
+ * row pictures (thumbs) all read a version the same way.
+ */
+function versionReaders(ctx: Context): LaneReaders {
+  return {
+    accepted: async (repoRel, revision, lane) =>
+      (await ctx.syncControl?.current?.()?.acceptedVersion?.(repoRel, revision, lane)) ?? null,
+    git: (sha, repoRel) => gitShowFile(ctx.paths.repoRoot, sha, repoRel),
+    cloud: async (sha, repoRel) => {
+      const r = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
+      return r.ok ? r.source : null;
+    },
+  };
+}
+
+/** Today's same-name CSS as a build would read it (mtime + size; a missing file is its own value). */
+function todayCssSig(absTsx: string): string {
+  const f = Bun.file(absTsx.replace(/\.tsx$/i, '.css'));
+  const mt = f.lastModified;
+  return Number.isFinite(mt) && mt > 0 ? `${mt}:${f.size}` : 'none';
+}
+
 function historicalBuildAllowed(): boolean {
   const now = Date.now();
   if (now - histWindowStart >= HIST_WINDOW_MS) {
@@ -900,6 +936,11 @@ async function serveHistoricalCanvas(
   const repoRel = relative(ctx.paths.repoRoot, absPath).replace(/\\/g, '/');
   const key = `${absPath}\0${sha}\0${RUNTIME_BOOT_ID}\0${CHROME_EPOCH}`;
   let cached = historicalCanvasCache.get(key);
+  // A version without its own CSS lane was built over TODAY's file: that file changed → rebuild.
+  if (cached && cached.cssSig !== null && cached.cssSig !== todayCssSig(absPath)) {
+    historicalCanvasCache.delete(key);
+    cached = undefined;
+  }
   if (cached) {
     // LRU touch — re-insert so the hot entry isn't the next eviction victim.
     historicalCanvasCache.delete(key);
@@ -932,6 +973,7 @@ async function serveHistoricalCanvas(
     // ACCEPTED REVISIONS: `r<revision>` names a project revision (T27), read
     // from the project's store — immutable, so it caches like a sha.
     const acceptedRev = /^r(\d{1,12})$/.exec(sha);
+    let from: VersionSource = acceptedRev ? 'accepted' : 'git';
     let source = acceptedRev
       ? ((await ctx.syncControl
           ?.current?.()
@@ -941,6 +983,7 @@ async function serveHistoricalCanvas(
     if (source == null && !acceptedRev) {
       const fromCloud = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
       source = fromCloud.ok ? fromCloud.source : null;
+      from = 'cloud';
       // ONLY AN AUTHORITATIVE ABSENCE IS REMEMBERED (security re-review of
       // 8134ca8f, finding F1). Two things must never be cached here:
       //
@@ -965,8 +1008,12 @@ async function serveHistoricalCanvas(
       }
     }
     if (source == null) return new Response('No saved version of this canvas', { status: 404 });
+    // The version's same-name CSS from the SAME source as its TSX (V2-1.9 §5.6); none → today's file.
+    const css = await laneAtRef(versionReaders(ctx), repoRel, sha, 'css', from);
+    const cssSig = css == null ? todayCssSig(absPath) : null;
     try {
       const result = await buildCanvasModule(absPath, source, {
+        overrides: cssOverridesFor(absPath, css),
         designRoot: ctx.paths.designRoot,
         // Same unconditional allowlist as the live build above — a HISTORICAL
         // source is still tenant/peer-authored content.
@@ -976,6 +1023,7 @@ async function serveHistoricalCanvas(
       cached = {
         js: result.js,
         etag: `${result.etag}-${sha}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
+        cssSig,
       };
       historicalCanvasCache.set(key, cached);
       if (historicalCanvasCache.size > HIST_MAX_CACHE) {
@@ -1749,6 +1797,20 @@ export function createHttp(
           ?.current?.()
           ?.acceptedVersion?.(repoRel, at.rev)
           .catch(() => null)) ?? null
+      );
+    },
+    // S1.11 — the version's own CSS / meta, from the reader the historical build overlays it from.
+    readVersionLane: (rel, lane, at) => {
+      const repoRel = relative(ctx.paths.repoRoot, join(ctx.paths.designRoot, rel)).replace(
+        /\\/g,
+        '/'
+      );
+      return laneAtRef(
+        versionReaders(ctx),
+        repoRel,
+        'sha' in at ? at.sha : `r${at.rev}`,
+        lane,
+        'sha' in at ? 'git' : 'accepted'
       );
     },
     onReady: (key) => ctx.bus.emit('thumb-ready', { key }),
@@ -6400,6 +6462,21 @@ export function createHttp(
     });
   }
 
+  /** The meta lane of the canvas a `?sha=` shell renders, or null (no sha, no such lane, bad path). */
+  async function versionMetaFor(query?: URLSearchParams): Promise<string | null> {
+    const ref = query?.get('sha');
+    const canvasParam = query?.get('canvas');
+    if (!ref || !canvasParam) return null;
+    // The shell's own normalisation (designRoot-relative OR repo-relative), confined to the design root.
+    const clean = canvasParam.replace(/^\/+/, '');
+    const designRel = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
+    const rel = clean.startsWith(`${designRel}/`) ? clean.slice(designRel.length + 1) : clean;
+    const abs = resolve(ctx.paths.designRoot, rel);
+    if (!abs.startsWith(ctx.paths.designRoot + sep) || !/\.tsx$/i.test(abs)) return null;
+    const repoRel = relative(ctx.paths.repoRoot, abs).replace(/\\/g, '/');
+    return laneAtRef(versionReaders(ctx), repoRel, ref, 'meta');
+  }
+
   async function serveCanvasShell(
     applyCsp: boolean,
     capture = false,
@@ -6420,11 +6497,16 @@ export function createHttp(
     // Inject inspector overlay — Cmd+Click selection + add-comment flow, then the canvas
     // system's schema fallbacks (V2-1.13 §5.5 P-2: only the roles/classes it never declares,
     // inline — both canvas CSPs allow inline styles, so no new route).
-    const injected = injectFallbacks(
-      inspect().injectInspector(shellHtml),
-      ctx.paths.designRoot,
-      ctx.cfg as unknown as Record<string, unknown>,
-      query
+    // S1.11 — a past version (`?sha=`) carries its own meta lane (V2-1.9 §5.6): injected here,
+    // BEFORE the CSP hashes the inline scripts, escaped for a script tag (past meta is peer-authored).
+    const injected = injectVersionMeta(
+      injectFallbacks(
+        inspect().injectInspector(shellHtml),
+        ctx.paths.designRoot,
+        ctx.cfg as unknown as Record<string, unknown>,
+        query
+      ),
+      await versionMetaFor(query)
     );
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',

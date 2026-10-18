@@ -421,7 +421,12 @@ export interface LocalRuntime {
     kind?: string | null;
     mine?: boolean;
   }): Promise<LocalHistoryRow[]>;
-  acceptedVersion(repoRel: string, revision: number): Promise<string | null>;
+  /** S1.11 — `lane`: the source (default), or its meta; the local store has no CSS lane (→ null). */
+  acceptedVersion(
+    repoRel: string,
+    revision: number,
+    lane?: 'html' | 'css' | 'meta'
+  ): Promise<string | null>;
   acceptedRestore(repoRel: string, revision: number): Promise<LocalOutcome>;
   acceptedUndo(
     target: string | UndoTarget,
@@ -1038,13 +1043,14 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         actor: q.mine ? actor : null,
       });
     },
-    async acceptedVersion(repoRel, revision) {
+    async acceptedVersion(repoRel, revision, lane = 'html') {
+      if (!(LOCAL_LANES as readonly string[]).includes(lane)) return null;
       await readyP;
       const o = opened;
       if (!o) return null;
       const doc = await docOf(o, repoRel);
       if (!doc) return null;
-      const hash = await o.store.laneAt(doc, 'html', revision);
+      const hash = await o.store.laneAt(doc, lane, revision);
       return hash ? ((await o.store.blob(hash)) as string | null) || null : null;
     },
     async acceptedRestore(repoRel, revision) {

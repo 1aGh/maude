@@ -612,8 +612,15 @@ export interface SyncRuntime {
     /** Only this person's actions. */
     mine?: boolean;
   }): Promise<AcceptedHistoryRow[] | null>;
-  /** A canvas source (repo-relative path) as it stood at a revision. */
-  acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+  /**
+   * A canvas lane (repo-relative TSX path) as it stood at a revision — its source (`html`, the
+   * default), its same-name CSS or its meta (S1.11, V2-1.9 §5.6). null = no such lane then.
+   */
+  acceptedVersion?(
+    repoRel: string,
+    revision: number,
+    lane?: 'html' | 'css' | 'meta'
+  ): Promise<string | null>;
   /** Restore a canvas to a revision as a NEW action. */
   acceptedRestore?(
     repoRel: string,
@@ -5556,11 +5563,11 @@ export function createSyncRuntime(
         };
       });
     },
-    acceptedVersion: async (repoRel, revision) => {
+    acceptedVersion: async (repoRel, revision, lane = 'html') => {
       if (!acceptedOn() || !acceptedLink) return null;
       const slug = slugForRepoRel(repoRel);
       if (!slug) return null;
-      const r = await acceptedLink.laneAt(slug, 'html', revision);
+      const r = await acceptedLink.laneAt(slug, lane, revision);
       return r.body || null;
     },
     acceptedRestore: async (repoRel, revision) => {
