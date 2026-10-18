@@ -43,8 +43,8 @@ import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '.
 import type { TrashListing, TrashOutcome } from '../history/trash.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
-import { acceptedColdStart } from './accepted-cold-start.ts';
-import { type AcceptedLink, createAcceptedLink } from './accepted-link.ts';
+import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
+import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
@@ -1156,6 +1156,9 @@ export function createSyncRuntime(
   // two-doc agent path has no proposal lane and stays legacy.
   /** Resolves once a previous run's outbox is drained: doc → own accepted html. */
   let outboxDrained: Promise<Map<string, string>> = Promise.resolve(new Map());
+  /** S6.13 — documents whose `doc.create` that drain had accepted: made BY
+   *  THIS MAC in a previous run, so they join as a create, not a reconcile. */
+  const drainedCreates = new Set<string>();
   const acceptedLink: AcceptedLink | null = useSharedDoc
     ? createAcceptedLink({
         hubUrl: linkedHub.url,
@@ -2558,6 +2561,10 @@ export function createSyncRuntime(
         outboxDrained = acceptedLink.client
           .drainOutbox((result, operations) => {
             for (const o of operations) {
+              if (o.op === 'doc.create' && typeof o.doc === 'string') {
+                if (result.status === 'accepted') drainedCreates.add(o.doc);
+                else drainedCreates.delete(o.doc);
+              }
               const html =
                 o.op === 'lane.replace' && o.lane === 'html'
                   ? o.content
@@ -3339,6 +3346,46 @@ export function createSyncRuntime(
       }
     };
 
+    /**
+     * S6.13 — a canvas made here that the project does not list yet is
+     * proposed AT ONCE, before its document's handshake: offline that
+     * handshake waits for the network, and ⌘N must still be a content-lane
+     * write (V2-1.14 §8 "S6") — durable, ordered, and the watermark a prompt
+     * queued behind it waits for. Its cold start then reuses this answer
+     * instead of creating the canvas a second time.
+     */
+    const earlyCreates = new Map<string, { html: string; answer: Promise<StructuralOutcome> }>();
+    const proposeEarlyCreate = (canvas: CanvasDescriptor): void => {
+      if (!acceptedOn() || !acceptedLink || pulledSlugs.has(canvas.slug) || !canvas.html) return;
+      if (earlyCreates.has(canvas.slug)) return;
+      const docName = docNameFor(canvas.slug);
+      if (acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired)) return;
+      let html: string;
+      try {
+        html = readFileSync(canvas.html, 'utf8');
+      } catch {
+        return;
+      }
+      const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
+      const lanes = localCreateLanes(
+        {
+          html: canvas.html,
+          comments: canvas.comments,
+          annotations: canvas.annotations,
+          meta: canvas.meta,
+          css: canvas.css,
+        },
+        html
+      );
+      const answer = acceptedLink.createDoc(canvas.slug, rel, lanes).catch(
+        (err): StructuralOutcome => ({
+          status: 'rejected',
+          code: (err as { code?: string })?.code ?? 'failed',
+        })
+      );
+      earlyCreates.set(canvas.slug, { html, answer });
+    };
+
     /** Post-handshake reconcile — shared by first connect and re-probe. */
     const handleSynced = async (
       canvas: CanvasDescriptor,
@@ -3409,17 +3456,39 @@ export function createSyncRuntime(
       const agent = agents.get(canvas.slug);
       if (projection && acceptedOn() && acceptedLink) {
         const docName = docNameFor(canvas.slug);
-        let inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
-        if (!inProject) {
+        // S6.13 — the create this run already proposed (offline ⌘N) is THE
+        // create: wait for its answer.
+        const early = earlyCreates.get(canvas.slug);
+        earlyCreates.delete(canvas.slug);
+        const earlyAnswer = early ? await early.answer : null;
+        // A save a previous run left unanswered is answered first: a disk
+        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
+        // against the older base, the save conflicted with itself). Awaited
+        // BEFORE asking whether the canvas is in the project: a create that
+        // previous run left (S6.13) has made it a member by now.
+        const drained = await outboxDrained;
+        const ownAccepted = drained.get(docName) ?? null;
+        // A canvas THIS MAC created (now, or in the run the drain finished)
+        // joins exactly as its own create did — never reconciled against a
+        // replica that may not hold that publication yet, and never created
+        // a second time. What the project holds is what the create carried
+        // (or the newest save of it the drain had accepted).
+        const createdHere =
+          early && earlyAnswer?.status === 'accepted'
+            ? early.html
+            : drainedCreates.has(docName)
+              ? ownAccepted
+              : null;
+        drainedCreates.delete(docName);
+        let inProject =
+          createdHere === null &&
+          acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
+        if (createdHere === null && !inProject) {
           // A canvas adopted after boot: ask again before creating anything.
           await acceptedLink.refresh();
           inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
         }
         const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
-        // A save a previous run left unanswered is answered first: a disk
-        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
-        // against the older base, the save conflicted with itself).
-        const ownAccepted = (await outboxDrained).get(docName) ?? null;
         await acceptedColdStart({
           slug: canvas.slug,
           doc: provider.document,
@@ -3432,7 +3501,10 @@ export function createSyncRuntime(
           commentLedger: commentLedgerFor(ctx.paths.designRoot),
           ownAccepted,
           wasAccepted: (content) => acceptedLink.client.holdsValue(content),
-          createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
+          createDoc:
+            createdHere !== null
+              ? async () => ({ status: 'accepted' as const, html: createdHere })
+              : (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
         });
         projection.reconcile();
       } else if (projection) {
@@ -4367,9 +4439,20 @@ export function createSyncRuntime(
           markUntrusted();
         }
         const incoming = added.map((slug) => bySlug.get(slug)).filter((c) => !!c);
+        // S6.13 — only a project that does not answer gets its creates now;
+        // one that answers creates them on the handshake, as it always has.
+        const offline =
+          incoming.length > 0 && acceptedOn() && acceptedLink
+            ? (await Promise.race([
+                acceptedLink.refresh(),
+                new Promise<undefined>((r) => setTimeout(r, EARLY_CREATE_PROBE_MS)),
+              ])) == null
+            : false;
         for (const canvas of incoming) {
           if (agents.has(canvas.slug) || projections.has(canvas.slug)) continue;
           if (providers.has(canvas.slug)) continue;
+          // Before the attach: offline, its handshake waits for the network.
+          if (offline) proposeEarlyCreate(canvas);
           await attachCanvas(canvas, false);
         }
         if (incoming.length > 0) {
@@ -5837,6 +5920,9 @@ export function createSyncRuntime(
  */
 /** Coalesce a burst of asset writes (dragging six images on) into one sweep. */
 const ASSET_SWEEP_DEBOUNCE_MS = 1500;
+/** S6.13 — how long a new canvas waits for the project to answer before its
+ *  create is proposed straight into the outbox (offline ⌘N). */
+const EARLY_CREATE_PROBE_MS = 1500;
 
 export const DEFAULT_MAX_PINNED_ROOMS = 500;
 

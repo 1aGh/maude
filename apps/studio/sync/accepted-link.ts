@@ -12,7 +12,16 @@
 // Nothing here writes a Y.Doc. The documents change when the hub publishes the
 // accepted revision, through the same providers that deliver a peer's edit.
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import type { TrashListing } from '../history/trash.ts';
@@ -23,6 +32,7 @@ import {
   createTransactionClient,
   type Operation,
   type ProposalResult,
+  type Reservation,
   type TransactionClient,
   TransactionError,
   type TransactionStats,
@@ -57,6 +67,17 @@ export interface AcceptedLinkOptions {
 
 export type StructuralOutcome = ProposalOutcome & { queued?: boolean };
 
+/**
+ * S6.13 (V2-1.14 fix 5.12d) — the create window's note on disk:
+ * `_state/outbox/<createdAt>-<tx>.creates.ndjson`, line 1 the reservation,
+ * then one `doc.create` per line, appended BEFORE the create is answered.
+ * Sealed into `<createdAt>-<tx>.json` (the same place in the chain) when the
+ * window closes. Not a `.json` name, so the transaction client never reads it
+ * as a proposal; `outbox/content.ts` counts it for the O4 watermark.
+ */
+export const CREATE_NOTE_RE = /^(\d+)-(tx_[A-Za-z0-9]+)\.creates\.ndjson$/;
+const TX_RE = /^tx_[A-Za-z0-9]+$/;
+
 const LANE_LABEL: Record<LaneProposal['lane'], string> = {
   html: 'Edit canvas',
   css: 'Edit styles',
@@ -82,6 +103,65 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       onResult: opts.onResult,
       retryMs: opts.retryMs,
     });
+
+  const outboxDir = path.join(opts.designRoot, '_state', 'outbox');
+  // The durable window needs a client that can hold a place in the chain
+  // (an injected test client may not).
+  const durable = typeof client.reserve === 'function' && typeof client.persist === 'function';
+  const createLabel = (n: number) => (n === 1 ? 'Create canvas' : `Add ${n} canvases`);
+
+  /**
+   * A previous process's create window, recovered at boot: a note whose seal
+   * exists is that same change (dropped); otherwise its creates are written
+   * as the proposal the window would have sealed — same transaction, same
+   * place, same link — and the drain delivers it with the rest. A torn last
+   * line is a create that was never acknowledged.
+   */
+  function recoverCreateNotes(): void {
+    if (!durable) return;
+    let names: string[] = [];
+    try {
+      names = readdirSync(outboxDir).filter((n) => CREATE_NOTE_RE.test(n));
+    } catch {
+      return;
+    }
+    for (const name of names.sort()) {
+      const file = path.join(outboxDir, name);
+      try {
+        const [head, ...rest] = readFileSync(file, 'utf8').split('\n');
+        const r = JSON.parse(head ?? '') as Partial<Reservation> & { v?: number };
+        const ops: Operation[] = [];
+        for (const line of rest) {
+          try {
+            const op = JSON.parse(line) as Operation;
+            if (op && op.op === 'doc.create') ops.push(op);
+          } catch {
+            /* the torn tail of a crash */
+          }
+        }
+        const valid =
+          r.v === 1 &&
+          typeof r.transactionId === 'string' &&
+          TX_RE.test(r.transactionId) &&
+          typeof r.createdAt === 'number' &&
+          typeof r.link === 'string' &&
+          (r.projectId === null || typeof r.projectId === 'string');
+        if (valid && ops.length && !existsSync(client.entryFile(r as Reservation))) {
+          client.persist(
+            { kind: 'canvas.create', label: createLabel(ops.length), operations: ops },
+            r as Reservation
+          );
+        }
+        rmSync(file, { force: true });
+      } catch (err) {
+        // Kept: the next boot tries again. Never deleted unread.
+        log.warn(
+          `[sync/tx] a queued canvas create could not be recovered yet: ${(err as Error).message}`
+        );
+      }
+    }
+  }
+  recoverCreateNotes();
 
   // Every proposal this link sends goes out AFTER the creates queued before it
   // (a lane edit of a canvas being added must never overtake its doc.create on
@@ -256,22 +336,46 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   let createBatch: PendingCreate[] = [];
   let createBatchBytes = 0;
   let createTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The open window's place in the chain and its note (S6.13). */
+  let createNote: { r: Reservation; file: string } | null = null;
   /** doc → the gate a batched create of it holds until settled or re-queued. */
   const createsInFlight = new Map<string, Promise<void>>();
-  const proposeCreates = (ops: Operation[]) =>
+  const proposeCreates = (ops: Operation[], reservation?: Reservation) =>
     client
       .propose({
         kind: 'canvas.create',
-        label: ops.length === 1 ? 'Create canvas' : `Add ${ops.length} canvases`,
+        label: createLabel(ops.length),
         operations: ops,
+        ...(reservation ? { reservation } : {}),
       })
       .then(outcome);
+  /** Note one create on disk before it is answered (fix 5.12d). */
+  function noteCreate(op: Operation): void {
+    if (!durable) return;
+    try {
+      let head = '';
+      if (!createNote) {
+        const r = client.reserve();
+        createNote = {
+          r,
+          file: path.join(outboxDir, `${r.createdAt}-${r.transactionId}.creates.ndjson`),
+        };
+        mkdirSync(outboxDir, { recursive: true });
+        head = `${JSON.stringify({ v: 1, ...r })}\n`;
+      }
+      appendFileSync(createNote.file, `${head}${JSON.stringify(op)}\n`);
+    } catch (err) {
+      log.warn(`[sync/tx] could not note a canvas create on disk: ${(err as Error).message}`);
+    }
+  }
   function flushCreates(): void {
     if (createTimer) clearTimeout(createTimer);
     createTimer = null;
     const batch = createBatch;
+    const note = createNote;
     createBatch = [];
     createBatchBytes = 0;
+    createNote = null;
     if (!batch.length) return;
     const docs = batch.map((c) => c.op.doc).filter((d): d is string => typeof d === 'string');
     let settled: () => void = () => {};
@@ -288,7 +392,14 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       for (const c of batch)
         c.resolve({ status: 'rejected', code: (err as TransactionError)?.code ?? 'failed' });
     };
-    void proposeCreates(batch.map((c) => c.op)).then((o) => {
+    // Sealed into the reserved place (written synchronously by `propose`);
+    // the note goes only once the proposal is on disk.
+    const sealed = proposeCreates(
+      batch.map((c) => c.op),
+      note?.r
+    );
+    if (note && existsSync(client.entryFile(note.r))) rmSync(note.file, { force: true });
+    void sealed.then((o) => {
       if (o.status === 'accepted' || batch.length === 1) {
         release();
         for (const c of batch) c.resolve(o);
@@ -308,6 +419,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       (createBatch.length >= CREATE_BATCH_MAX || createBatchBytes + bytes > CREATE_BATCH_BYTES)
     )
       flushCreates();
+    noteCreate(op);
     return new Promise((resolve) => {
       createBatch.push({ op, bytes, resolve });
       createBatchBytes += bytes;
