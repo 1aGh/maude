@@ -1871,6 +1871,7 @@ export function createHttp(
       designRoot: ctx.paths.designRoot,
       projectRoot: ctx.paths.repoRoot,
       saveAsset: (stream) => api.saveAssetFromStream(stream),
+    },
     // S11.6 — GET /_api/canvas-source + /_api/canvas-errors (routes/canvas-source.ts): main origin
     // only, `export` on the canvas (Can view refused), a canvas-only session its grants only.
     canvasSource: {
