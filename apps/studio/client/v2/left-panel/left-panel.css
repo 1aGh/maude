@@ -167,6 +167,33 @@
   .lp-trash-item {
     cursor: default;
   }
+  /* S1.8 — Today / Earlier headings; Restore (the primary) shows on hover / focus, always on touch. */
+  .lp-trash-grp {
+    margin: var(--space-2) var(--space-2) var(--space-1);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+  .lp-trash-item .lp-restore {
+    flex: none;
+    opacity: 0;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+  .lp-trash-item:hover .lp-restore,
+  .lp-trash-item:focus-within .lp-restore {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .lp-trash-item .lp-restore {
+      opacity: 1;
+    }
+  }
+  /* S1.8 — "Kept on this Mac" inside Canvases › Advanced. */
+  .lp-adv-kept .lp-kept--fold {
+    margin: var(--space-1) 0 var(--space-2);
+  }
   .lp-two {
     flex: 1;
     min-width: 0;

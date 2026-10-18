@@ -39,8 +39,10 @@ import {
   tmpDir,
   until,
 } from './_acl-docs-fixture.mjs';
+import { checkSweepTable, requestsFor, studioDefaultRequests } from './_acl-sweep-requests.mjs';
 
 const V1 = '/api/projects/local/v1';
+const hex = (s) => createHash('sha256').update(s).digest('hex');
 const CANARY_B_COMMENT = JSON.stringify([{ id: 'c1', text: 'CANARY-B-COMMENT' }]);
 
 let dataDir;
@@ -75,10 +77,61 @@ before(async () => {
   );
   assert.equal(made.status, 200, JSON.stringify(made.body));
   const bHashes = [laneHash(src('CANARY-B-SOURCE')), laneHash(CANARY_B_COMMENT)];
-  leaks = ['canary-b', ...bHashes];
-  const random = createHash('sha256').update('not a lane').digest('hex');
-  bTargets = { path: B, doc: docOf(B), hash: bHashes[0], slug: 'canary-b-zx' };
-  nopeTargets = { path: NOPE, doc: docOf(NOPE), hash: random, slug: 'nothing-here' };
+  // A B-only action (the seed above touched A too), for the transactions row.
+  const bOnly = await owner.post(
+    `${V1}/proposals`,
+    proposal(
+      epoch,
+      [
+        {
+          op: 'lane.replace',
+          doc: docOf(B),
+          lane: 'html',
+          base: bHashes[0],
+          content: src('CANARY-B-SOURCE two'),
+        },
+      ],
+      { label: 'canary-b only', transactionId: 'tx_sweep_b_only' }
+    )
+  );
+  assert.equal(bOnly.status, 200, JSON.stringify(bOnly.body));
+  const bAction = bOnly.body.actionId;
+  assert.match(bAction, /^a_/);
+  // A vote on B (the owner's), so the votes rows have a real B target.
+  const voted = await owner.post(`${V1}/votes`, {
+    canvas: B,
+    targets: ['ab:canary-b-t1', 'ab:canary-b-t2'],
+    expected: 3,
+  });
+  assert.equal(voted.status, 201, JSON.stringify(voted.body));
+  const bVote = voted.body.vote.id;
+  leaks = ['canary-b', ...bHashes, laneHash(src('CANARY-B-SOURCE two')), bVote, bAction];
+  bTargets = {
+    action: bAction,
+    path: B,
+    doc: docOf(B),
+    hash: bHashes[0],
+    commentsHash: bHashes[1],
+    slug: 'canary-b-zx',
+    vote: bVote,
+    tx: 'tx_sweep_b_only',
+    sha: hex('b commit').slice(0, 40),
+    css: 'ui/canary-b-zx.css',
+    asset: 'assets/canary-b-only.png',
+  };
+  nopeTargets = {
+    action: bAction.replace(/[0-9a-f]/g, (c) => (c === '0' ? '1' : '0')),
+    path: NOPE,
+    doc: docOf(NOPE),
+    hash: hex('not a lane'),
+    commentsHash: hex('not a comments lane'),
+    slug: 'nothing-here',
+    vote: bVote.replace(/[0-9a-f]/g, (c) => (c === '0' ? '1' : '0')),
+    tx: 'tx_sweep_seed_n',
+    sha: hex('no commit').slice(0, 40),
+    css: 'ui/nothing-here.css',
+    asset: 'assets/nothing-here.png',
+  };
 });
 
 after(async () => {
@@ -108,42 +161,6 @@ function assertNoLeak(where, ...texts) {
   }
 }
 
-/** Every concrete request a row stands for, B-targeted, with its twin target. */
-function requestsFor(row, tg) {
-  const q = `?path=${encodeURIComponent(tg.path)}&doc=${encodeURIComponent(tg.doc)}&sha=${tg.hash}&lane=html&rev=9&since=0`;
-  if (row.pattern) {
-    const route = /v1\/([a-z]+)/.exec(row.pattern.source)?.[1];
-    return [
-      ['GET', `${V1}/${route}${q}`],
-      ['GET', `${V1}/${route}/${tg.hash}`],
-      [
-        'POST',
-        `${V1}/${route}`,
-        proposal(
-          epoch,
-          [{ op: 'lane.replace', doc: tg.doc, lane: 'html', base: tg.hash, content: src('x') }],
-          { transactionId: `tx_sweep_${route}_${tg.slug.replace(/[^a-z]/g, '')}` }
-        ),
-      ],
-    ];
-  }
-  const p = row.path;
-  if (p.endsWith('*')) {
-    const base = p.slice(0, -1);
-    const sep = base.endsWith('/') ? '' : '/';
-    return [
-      ['GET', `${base}${sep}${tg.path}`],
-      ['GET', `${base}${sep}${encodeURIComponent(tg.doc)}`],
-      ['HEAD', `${base}${sep}${tg.path}`],
-      ['POST', `${base}${sep}${tg.path}`, '{}'],
-    ];
-  }
-  return [
-    ['GET', `${p}${q}`],
-    ['POST', p, JSON.stringify({ path: tg.path, doc: tg.doc, paths: [tg.path] })],
-  ];
-}
-
 async function send(token, [method, path, body]) {
   const res = await fetch(`${hub.http}${path}`, {
     method,
@@ -167,30 +184,58 @@ async function send(token, [method, path, body]) {
 const SESSION_ENDING = new Set(['/auth/logout', '/auth/browser/signout']);
 
 describe('the hub canary sweep (A-only peer token)', () => {
+  test('the sweep table reaches every row (no /v1/undefined, no unsubstituted segment)', () => {
+    const problems = checkSweepTable(HUB_ROUTE_ROWS, [bTargets, nopeTargets], { epoch });
+    assert.deepEqual(problems, []);
+  });
+
   test('every route-table row: no B byte, and B answers exactly as a missing target', async () => {
-    const rows = [
-      ...HUB_ROUTE_ROWS.filter((r) => !SESSION_ENDING.has(r.path)),
+    const rows = HUB_ROUTE_ROWS.filter((r) => !SESSION_ENDING.has(r.path));
+    const ctx = { epoch };
+    const passes = [
+      ...rows.map((row) => [
+        row,
+        requestsFor(row, bTargets, ctx),
+        requestsFor(row, nopeTargets, ctx),
+      ]),
       // A path no row names is the studio's lane (DEFAULT_ROW).
-      { path: '/_api/canvas-source' },
-      { path: '/_canvas-shell.html' },
+      [
+        { path: '(studio default)' },
+        studioDefaultRequests(bTargets),
+        studioDefaultRequests(nopeTargets),
+      ],
     ];
     let swept = 0;
-    for (const row of rows) {
-      const bReqs = requestsFor(row, bTargets);
-      const nReqs = requestsFor(row, nopeTargets);
+    const findings = [];
+    const check = (fn) => {
+      try {
+        fn();
+      } catch (err) {
+        findings.push(err.message.split('\n')[0]);
+      }
+    };
+    for (const [row, bReqs, nReqs] of passes) {
       for (let i = 0; i < bReqs.length; i++) {
-        const where = `${bReqs[i][0]} ${row.path ?? row.pattern}`;
+        const where = `${bReqs[i][0]} ${bReqs[i][1].split('?')[0]} [${row.path ?? row.pattern}]`;
         const b = await send(t.aEdit, bReqs[i]);
         const n = await send(t.aEdit, nReqs[i]);
         const bText = normalize(b.text, bTargets);
-        assertNoLeak(where, bText, b.headers.replace(/^date:.*$/m, ''));
-        assertNoLeak(`${where} (twin)`, n.text);
-        assert.equal(b.status, n.status, `${where}: status B ${b.status} ≠ missing ${n.status}`);
-        assert.equal(bText, normalize(n.text, nopeTargets), `${where}: body differs from missing`);
+        const nText = normalize(n.text, nopeTargets);
+        check(() => assertNoLeak(where, bText, b.headers.replace(/^date:.*$/m, '')));
+        check(() => assertNoLeak(`${where} (twin)`, n.text));
+        check(() =>
+          assert.equal(b.status, n.status, `${where}: status B ${b.status} ≠ missing ${n.status}`)
+        );
+        check(() =>
+          assert.equal(bText, nText, `${where}: body differs from missing — ${bText} | ${nText}`)
+        );
+        if (process.env.SWEEP_DEBUG) console.log(`SW ${b.status} ${where} ${bText.slice(0, 90)}`);
         swept += 1;
       }
     }
-    assert.ok(swept >= HUB_ROUTE_ROWS.length * 2, `swept ${swept} requests`);
+    // Every finding at once: one red run names every leaking row.
+    assert.deepEqual(findings, []);
+    assert.ok(swept >= rows.length * 2, `swept ${swept} requests`);
   });
 
   test('the project-wide reads carry no B byte (bootstrap, revisions, history, documents)', async () => {

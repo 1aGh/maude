@@ -254,7 +254,7 @@ describe('the follower page', () => {
     root = null;
   }
 
-  test('frames the canvas read-only and asks for the read-only capability', async () => {
+  test('frames the canvas read-only and asks for this canvas’s follow capability (S3.7c)', async () => {
     const frame = await boot('?open=ui/deck.tsx&present=follow&sid=k3x9q2m7p0w4');
     expect(frame).not.toBeNull();
     const q = new URL(frame.getAttribute('src') ?? '', CANVAS_ORIGIN).searchParams;
@@ -264,7 +264,9 @@ describe('the follower page', () => {
       '0',
       '1',
     ]);
-    expect(configReads.every((u) => u === '/_config?embed=1')).toBe(true);
+    // S3.7c — the follow capability of THIS canvas, never the embed's (refused on collab, DDR-247)
+    expect(configReads.length).toBeGreaterThan(0);
+    expect(configReads.every((u) => u === '/_config?follow=1&canvas=ui%2Fdeck.tsx')).toBe(true);
     // the embed's containment: scripts + same-origin, never top navigation
     expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
     // waiting until the canvas reports

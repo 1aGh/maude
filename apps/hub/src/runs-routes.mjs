@@ -19,6 +19,7 @@
 // on `maude.files`; studios pull `GET runs?after=`. Old studios drop the
 // unknown `t`. Also here: the awareness `holding` rule (§5.3 A10).
 
+import { connectionClaimDecides } from './access-files.mjs';
 import { documentMap, FILES_CTL_DOC } from './files-ctl.mjs';
 import { matchesScope } from './tokens.mjs';
 
@@ -37,10 +38,15 @@ const STATUS = { invalid: 400, forbidden: 403, ended: 409, capacity: 429 };
 /**
  * The runs poke: `{t:'runs', seq}` on the control document, coalesced to the
  * latest seq. Payload-free in the files-ctl sense — a receiver re-reads
- * `GET runs` and believes that. Never throws.
+ * `GET runs` and believes that. Project sessions hear every one; a canvas-only
+ * connection only when the change touched a canvas its grants see
+ * (`visibility.runsVisible`, V2-1.16 L3 — scoped like the votes poke). No
+ * visibility wired, or a change whose canvases are unknown (a lapse found by
+ * the store's own sweep) ⇒ such a connection hears nothing. Never throws.
  */
 export function createRunsPoke({
   instance,
+  visibility = null,
   coalesceMs = RUNS_POKE_COALESCE_MS,
   log = console,
   setTimeoutImpl = setTimeout,
@@ -49,13 +55,29 @@ export function createRunsPoke({
   let pending = 0;
   let sentSeq = 0;
   let sent = 0;
+  let canvases = new Set();
   const emit = () => {
     timer = null;
     const seq = pending;
+    const touched = canvases;
+    canvases = new Set();
     const doc = documentMap(instance)?.get(FILES_CTL_DOC);
     if (!doc) return;
+    const frame = JSON.stringify({ t: 'runs', seq });
     try {
-      doc.broadcastStateless(JSON.stringify({ t: 'runs', seq }));
+      let connections = [];
+      try {
+        connections = doc.getConnections?.() ?? [];
+      } catch {
+        connections = [];
+      }
+      doc.broadcastStateless(frame, (c) => !connectionClaimDecides(c));
+      for (const c of connections) {
+        if (!connectionClaimDecides(c) || !visibility) continue;
+        if ([...touched].some((canvas) => visibility.runsVisible(c, canvas))) {
+          c.sendStateless(frame);
+        }
+      }
       sentSeq = seq;
       sent += 1;
     } catch (err) {
@@ -63,8 +85,10 @@ export function createRunsPoke({
     }
   };
   return {
-    schedule(seq) {
+    /** `touched`: the design-root-relative canvas paths the change named. */
+    schedule(seq, touched = []) {
       if (!Number.isSafeInteger(seq) || seq <= sentSeq) return;
+      for (const c of touched) if (typeof c === 'string' && c) canvases.add(c);
       if (seq > pending) pending = seq;
       if (timer !== null) return;
       timer = setTimeoutImpl(emit, coalesceMs);
@@ -120,9 +144,17 @@ export function sanitizeHoldingAwareness({ context, connection, states }) {
  * @param {(canvas: string) => Promise<string|null>} [deps.docNameFor]
  *   a lease key's `canvas` (an entry, or `path:<repoRel>`) or an ElementRef's
  *   canvas path → the document name scopes are written against; null = unknown.
- * @param {{ schedule: (seq: number) => void } | null} [deps.poke]
+ * @param {(canvas: string) => Promise<string|null>} [deps.canvasPathFor]
+ *   a key's `canvas` → its design-root-relative canvas path (the scoped poke's
+ *   target); null = unknown, which no canvas-only connection hears.
+ * @param {{ schedule: (seq: number, canvases?: string[]) => void } | null} [deps.poke]
  */
-export function createRunsRoutes({ store, docNameFor = async () => null, poke = null }) {
+export function createRunsRoutes({
+  store,
+  docNameFor = async () => null,
+  canvasPathFor = async () => null,
+  poke = null,
+}) {
   const scoped = (who) => typeof who?.scope === 'string' && who.scope !== '*' && who.scope !== '';
 
   // One answer per canvas per request (`who` is minted per request): a GET of
@@ -189,8 +221,42 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
     return true;
   }
 
-  const noted = (r) => {
-    if (r && Number.isSafeInteger(r.seq)) poke?.schedule(r.seq);
+  /** Every canvas key a store answer (and the request's own keys) names. */
+  function keysOf(r, asked) {
+    const out = new Set();
+    const add = (list) => {
+      for (const k of Array.isArray(list) ? list : []) {
+        if (typeof k?.canvas === 'string' && k.canvas) out.add(k.canvas);
+      }
+    };
+    const addRun = (run) => {
+      if (!run || typeof run !== 'object') return;
+      add(run.artboards);
+      add(run.waitingFor);
+      add(run.objects);
+    };
+    add(asked);
+    addRun(r?.run);
+    add(r?.granted);
+    for (const b of Array.isArray(r?.busy) ? r.busy : []) {
+      if (typeof b?.canvas === 'string') out.add(b.canvas);
+      addRun(b?.heldBy);
+    }
+    for (const e of Array.isArray(r?.runs) ? r.runs : []) addRun(e?.run);
+    if (Array.isArray(r?.ended)) add(r.ended);
+    else addRun(r?.ended);
+    return [...out];
+  }
+
+  const noted = async (r, asked = []) => {
+    if (r && Number.isSafeInteger(r.seq) && poke) {
+      const paths = [];
+      for (const key of keysOf(r, asked)) {
+        const p = await canvasPathFor(key).catch(() => null);
+        if (typeof p === 'string' && p) paths.push(p);
+      }
+      poke.schedule(r.seq, paths);
+    }
     return r;
   };
 
@@ -244,7 +310,7 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
         respondJson(403, { code: 'forbidden', error: 'an artboard outside your canvases' });
         return true;
       }
-      const r = noted(
+      const r = await noted(
         await store.runsBegin({
           runId: b.runId,
           actor: who.actor,
@@ -255,7 +321,8 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
           label: b.label ?? '',
           wants: b.wants ?? [],
           enqueue: b.enqueue === true,
-        })
+        }),
+        b.wants
       );
       if (r.refused) return refusal(respondJson, r);
       respondJson(200, {
@@ -284,7 +351,12 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
           runs.push({ ...e, objects });
         }
       }
-      const r = noted(await store.runsRenew({ actor: who.actor, device: b.device, runs }));
+      const r = await noted(
+        await store.runsRenew({ actor: who.actor, device: b.device, runs }),
+        (Array.isArray(runs) ? runs : []).flatMap((e) =>
+          Array.isArray(e?.objects) ? e.objects : []
+        )
+      );
       if (r.refused) return refusal(respondJson, r);
       const out = [];
       for (const e of r.runs) {
@@ -299,14 +371,15 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
         respondJson(403, { code: 'forbidden', error: 'an artboard outside your canvases' });
         return true;
       }
-      const r = noted(
+      const r = await noted(
         await store.runsClaim({
           runId: sub,
           actor: who.actor,
           keys: b.keys ?? [],
           enqueue: b.enqueue === true,
           expectFence: b.expectFence ?? undefined,
-        })
+        }),
+        b.keys
       );
       if (r.refused) return refusal(respondJson, r);
       respondJson(200, {
@@ -318,7 +391,9 @@ export function createRunsRoutes({ store, docNameFor = async () => null, poke = 
     }
 
     // verb === 'end'
-    const r = noted(await store.runsEnd({ runId: sub, actor: who.actor, outcome: b.outcome }));
+    const r = await noted(
+      await store.runsEnd({ runId: sub, actor: who.actor, outcome: b.outcome })
+    );
     if (r.refused) return refusal(respondJson, r);
     const granted = [];
     for (const g of r.granted ?? []) if (await inScope(who, g.canvas)) granted.push(g);
