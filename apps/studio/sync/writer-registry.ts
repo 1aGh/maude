@@ -304,6 +304,16 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onMetaChanged hook → meta lane.replace with the replaced file as base (api writeCanvasMetaText, the layout lane writer)',
     test: 'test/present-meta-route.test.ts',
   },
+  // S9.19 — routes/share.ts: the desktop's door to the linked hub's /api/access/*. Who has access
+  // lives on the hub (users / invites / grants), never in the project's files: no lane carries it.
+  '/_api/share/posture': { class: 'read' },
+  '/_api/share/me': { class: 'read' },
+  '/_api/share/people': { class: 'read' },
+  '/_api/share/invites': { class: 'local' }, // the hub's invitation (or this Mac's outbox while offline)
+  '/_api/share/invites/:id/resend': { class: 'local' },
+  '/_api/share/invites/:id/revoke': { class: 'local' },
+  '/_api/share/people/:id': { class: 'local' },
+  '/_api/share/people/:id/remove': { class: 'local' },
   '/_api/project/migrate': {
     class: 'migration',
     via: 'the migrate engine rewrites files after the hub format flip (V2-1.12 §5.10 I7, all-or-nothing with its own snapshot); peers receive the rewritten files through the file plane / watcher import like any outside edit',

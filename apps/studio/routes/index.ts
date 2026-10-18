@@ -24,12 +24,15 @@ import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
+import { createShareRoutes, type ShareRouteDeps } from './share.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
 
 // S5.4 / S2.18 — the held-by-ai backstop http.ts's legacy `/_api/edit-*` routes ask before a
 // write. Re-exported here because http.ts reaches routes/ only through index + table.
 export { heldByAiRefusal } from './agent.ts';
+// S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
+export { type ShareRouteDeps, shareInviteSender } from './share.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -48,6 +51,8 @@ export interface RouteDeps {
   projectUndo?: ProjectUndoDeps;
   /** S3.5 — `PATCH /_api/present-meta`: Present order, skip and notes in the versioned meta */
   present: PresentRouteDeps;
+  /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
+  share: ShareRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -69,5 +74,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
       deps.projectUndo ?? { control: () => null, designRel: deps.ai.designRel }
     ),
     ...createPresentRoutes(deps.present),
+    ...createShareRoutes(deps.share),
   ];
 }

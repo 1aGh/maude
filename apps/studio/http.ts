@@ -173,7 +173,12 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { allSpecs, heldByAiRefusal } from './routes/index.ts';
+import {
+  allSpecs,
+  heldByAiRefusal,
+  type ShareRouteDeps,
+  shareInviteSender,
+} from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
@@ -1593,6 +1598,18 @@ export function createHttp(
     });
   const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
   outboxSenders['ai.prompt'] = askQueue.sender;
+  // S9.19 — the Share sheet's door to the linked hub (routes/share.ts). The hub is the one this
+  // project is linked to AND that this Mac holds a credential for (a committed config alone names no
+  // hub a token is sent to); an invite the hub cannot hear yet waits in the outbox and this sends it.
+  const shareDeps: ShareRouteDeps = {
+    hub: () => {
+      const url = ctx.cfg.linkedHub?.url;
+      const rec = url ? getHubRecord(url) : null;
+      return url && rec?.token ? { url, token: rec.token } : null;
+    },
+    outbox,
+  };
+  outboxSenders['share.invite'] = shareInviteSender(shareDeps);
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
   const tableSpecs = allSpecs({
@@ -1682,6 +1699,7 @@ export function createHttp(
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
     // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot
     // list is complete once the renderer harvested them (V2-1.17 §5.8).
+    share: shareDeps,
     present: {
       repoRoot: ctx.paths.repoRoot,
       designRoot: ctx.paths.designRoot,
