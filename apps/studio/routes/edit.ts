@@ -14,8 +14,9 @@ import path from 'node:path';
 
 import type { RunRegistry } from '../ai/runs.ts';
 import { dispatchEditOp, statusOf } from '../edit-ops/dispatch.ts';
+import { type LayoutEntry, mergeLayout } from '../edit-ops/layout-patch.ts';
 import { createWriteLog, type WriteLog } from '../edit-ops/revert.ts';
-import { type EditOp, MAX_BODY } from '../edit-ops/types.ts';
+import { type EditOp, type LayoutPatch, MAX_BODY } from '../edit-ops/types.ts';
 import { heldByAi } from './agent.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -35,6 +36,15 @@ export interface EditRouteDeps {
   runs?: RunRegistry;
   /** accepted-revisions mode: the action a write became, by repo-relative path + bytes */
   actionFor?(repoRel: string, after: string): string | null;
+  /**
+   * S2.10 — the layout lane's own reader / writer (`api.loadCanvasMeta` / `api.patchCanvasMeta`, which
+   * fire the `onMetaChanged` hook and the cell announce like a drag does). `file` is repo-relative
+   * (`.design/ui/Foo.tsx`). Absent: an op's positions are not written and the source still is.
+   */
+  meta?: {
+    load(file: string): Promise<Record<string, unknown> | null>;
+    patch(file: string, patch: Record<string, unknown>): Promise<unknown>;
+  };
   /** tests only: an op table instead of `EDIT_OPS` */
   ops?: readonly EditOp[];
   log?: WriteLog;
@@ -67,6 +77,24 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
   const log = deps.log ?? createWriteLog();
   const chains = new Map<string, Promise<unknown>>();
   const abs = (rel: string) => path.join(deps.designRoot, ...rel.split('/'));
+  /** An op's positions → `meta.layout.artboards[]`, merged with what is there (other layout keys stay). */
+  const writeLayout = async (rel: string, patch: LayoutPatch): Promise<void> => {
+    const meta = deps.meta;
+    if (!meta) return;
+    const file = path.posix.join(deps.designRel.replace(/\\/g, '/'), rel);
+    const layout = ((await meta.load(file)) ?? {}).layout;
+    const rec = layout && typeof layout === 'object' && !Array.isArray(layout) ? layout : {};
+    const list = Array.isArray((rec as { artboards?: unknown }).artboards)
+      ? ((rec as { artboards: unknown[] }).artboards.filter(
+          (e): e is LayoutEntry =>
+            !!e &&
+            typeof (e as LayoutEntry).id === 'string' &&
+            Number.isFinite((e as LayoutEntry).x) &&
+            Number.isFinite((e as LayoutEntry).y)
+        ) as LayoutEntry[])
+      : [];
+    await meta.patch(file, { layout: { ...rec, artboards: mergeLayout(list, patch) } });
+  };
   const serialized = <T>(key: string, run: () => Promise<T>): Promise<T> => {
     const prev = chains.get(key) ?? Promise.resolve();
     const next = prev.catch(() => {}).then(run);
@@ -124,6 +152,7 @@ export function createEditRoutes(deps: EditRouteDeps): RouteSpec[] {
                 /* snapshot best-effort */
               }
             },
+            writeLayout,
             heldByAi: (rel, element) => (deps.runs ? heldByAi(deps.runs, rel, element) : null),
             actionFor: (rel, after) =>
               deps.actionFor?.(

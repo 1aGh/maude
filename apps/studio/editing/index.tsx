@@ -12,12 +12,11 @@ import { acceptFromShell } from '../bridge/dgn-protocol.ts';
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import { resolveSelectionEl } from '../dom-selection.ts';
 import { isEditableTarget } from '../input-router.tsx';
-import { isReadOnlyCanvas } from '../read-only-mode.ts';
+import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { AlignBar } from './align-bar.tsx';
-import { ARRANGE_ACTIONS } from './arrange.ts';
 import { GapBands } from './gap-bands.tsx';
 import {
   CONSTRAIN_ACTION,
@@ -28,7 +27,12 @@ import {
   runConstrainAction,
   runLayoutAction,
 } from './layout-actions.ts';
+import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
+import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
+import { ArtboardGuides } from './artboard-guides.tsx';
+import { ArtboardHandles } from './artboard-handles.tsx';
 import { LockBadge } from './lock-badge.tsx';
+import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
 import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
@@ -47,6 +51,11 @@ import {
 import { TextInPlace } from './text-in-place.tsx';
 import { TokenRuler } from './token-ruler.tsx';
 import { UndoPreview } from './undo-preview.tsx';
+import { StickyName } from './sticky-name.tsx';
+import { TidyPreview } from './tidy-preview.tsx';
+
+/** S2.8 — the shell asks the canvas to pin an artboard's theme; canvas-shell listens (it owns the pins). */
+export const SET_ARTBOARD_THEME_EVENT = 'maude:set-artboard-theme';
 
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
 export const EDITING_ACTIONS = [
@@ -62,6 +71,10 @@ export const EDITING_ACTIONS = [
   CONSTRAIN_ACTION,
   // S2.12 — text: language, case, style (use / reset / detach); `text.set` is the caret's commit
   ...TEXT_ACTIONS,
+  // S2.9 — Tidy up over 2+ artboards (run by align-bar.tsx)
+  TIDY_ACTION,
+  // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
+  ...ARTBOARD_ACTIONS,
 ] as const;
 
 export function EditingLayer() {
@@ -89,6 +102,9 @@ export function EditingLayer() {
       record: (rec) => undoRef.current?.record(rec),
     };
   }, []);
+  // the long-page helpers are Edit chrome: Preview, Present and an embedded view show the page, not its minimap
+  const toolMode = useToolModeOptional();
+  const editChrome = (!toolMode || toolMode.mode === 'edit') && !isEmbedCanvas();
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (e: MessageEvent) => {
@@ -118,6 +134,15 @@ export function EditingLayer() {
         if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
       } else if (m.id === 'object.step-out') {
         if (!stepOut(selSet)) selSet.clear();
+      } else if (m.id === 'artboard.set-theme') {
+        // S2.8 — Inspector › Advanced › Theme; canvas-shell owns the pin (the artboard menu's Theme submenu)
+        const p = m.params as { artboard?: unknown; mode?: unknown } | undefined;
+        if (typeof p?.artboard === 'string' && typeof p.mode === 'string')
+          window.dispatchEvent(
+            new CustomEvent(SET_ARTBOARD_THEME_EVENT, {
+              detail: { artboard: p.artboard, mode: p.mode },
+            })
+          );
       } else if (m.id === 'object.enter') {
         const one = selSet.selected.length === 1 ? selSet.selected[0] : null;
         const next = one ? enterSelection(document, one) : null;
@@ -197,6 +222,15 @@ export function EditingLayer() {
       <TextInPlace readOnly={isReadOnlyCanvas()} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
+      {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}
+      <ArtboardGuides readOnly={isReadOnlyCanvas()} />
+      <TidyPreview />
+      {/* S2.10 — ⌘D, ⌥-drag copy, Duplicate at another width, Custom width…, Rename, Reset position */}
+      <ArtboardCommands readOnly={isReadOnlyCanvas()} />
+      {/* S2.8 — artboard: eight handles + preset ruler, a tall page's sticky name, the contextual minimap */}
+      <ArtboardHandles />
+      {editChrome ? <StickyName /> : null}
+      {editChrome ? <MinimapContext /> : null}
     </>
   );
 }

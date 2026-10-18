@@ -12,6 +12,7 @@
 import { alignLabel, equalSpacingLabel } from '../commands/equal-spacing-command.ts';
 import { resolveSelectionEl } from '../dom-selection.ts';
 import type { ArrangeItem } from '../edit-ops/arrange.ts';
+import { TIDY_LABEL, tidyArtboards } from '../edit-ops/tidy.ts';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import {
   type AlignAxisMode,
@@ -299,5 +300,29 @@ export function arrangeArtboards(
   bus.commitPositions(moved, {
     label: spec.align ? alignLabel(spec.align, rects.length) : equalSpacingLabel(rects.length),
   });
+  return true;
+}
+
+// ── Tidy up (S2.9) ────────────────────────────────────────────────────────────────────────────
+
+/** Registry id: the align bar's "Tidy up" over 2+ artboards (and ⌘K). One commit, one ⌘Z. */
+export const TIDY_ACTION = 'artboard.tidy';
+/** The tooltip, and the words of the dashed preview. */
+export const TIDY_TIP = 'One row, even gaps';
+export const TIDY_MINIMUM = 2;
+
+/** Where every board of the selection would sit after Tidy (all of them, moved or not — the preview shows the row). */
+export function tidyPreviewRects(rects: readonly BoardRect[]): BoardRect[] {
+  if (rects.length < TIDY_MINIMUM) return [];
+  const moves = new Map(tidyArtboards(rects).map((m) => [m.id, m]));
+  return rects.map((r) => ({ ...r, ...(moves.get(r.id) ?? {}) }));
+}
+
+/** Tidy the selected artboards through the bus's commit (annotations ride along). True when anything moved. */
+export function tidyBoards(rects: readonly BoardRect[], bus: CommitBus): boolean {
+  if (rects.length < TIDY_MINIMUM) return false;
+  const moved = tidyArtboards(rects);
+  if (moved.length === 0) return false;
+  bus.commitPositions(moved, { label: TIDY_LABEL(rects.length) });
   return true;
 }

@@ -11543,10 +11543,10 @@
     "hook": "inspector-body-layout",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The artboard body-layout select in the artboard Inspector.",
+    "meaning": "The artboard's Layout › Content select (Page flow · Top to bottom · Left to right · Grid).",
     "producer": {
-      "file": "apps/studio/client/inspector/artboard-knobs.jsx",
-      "symbol": "ArtboardKnobs"
+      "file": "apps/studio/client/v2/inspector/kinds/artboard.jsx",
+      "symbol": "ArtboardLayoutRows"
     },
     "region": "inspector",
     "consumers": [],
@@ -13052,6 +13052,216 @@
     "v2": "new"
   },
   {
+    "hook": "ed-ab-handle-<h>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one of the eight handles on a selected artboard; `<h>` ∈ nw, n, ne, e, se, s, sw, w (`data-h`). Drag resizes: ⌘ ignores presets, ⌥ from the centre, ⇧ keeps the ratio, esc gives it back.",
+    "producer": {
+      "file": "apps/studio/editing/artboard-handles.tsx",
+      "symbol": "ArtboardHandles"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-frame",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the azure frame around a selected artboard's design surface (the handles sit on it).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-handles.tsx",
+      "symbol": "ArtboardHandles"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the artboard as it was, dashed, while a handle is held.",
+    "producer": {
+      "file": "apps/studio/editing/preset-ruler.tsx",
+      "symbol": "PresetRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-ruler",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the preset ruler above the artboard while a width edge is held — Tablet 834 · Laptop 1280 · Desktop 1440 at their true width × zoom.",
+    "producer": {
+      "file": "apps/studio/editing/preset-ruler.tsx",
+      "symbol": "PresetRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-tick-<w>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: one stop on the preset ruler, `<w>` = its width in px; `data-on` = the preset the width clicked onto.",
+    "producer": {
+      "file": "apps/studio/editing/preset-ruler.tsx",
+      "symbol": "PresetRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-guide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the line down the edge being dragged, in the guide colour (`--guide`).",
+    "producer": {
+      "file": "apps/studio/editing/preset-ruler.tsx",
+      "symbol": "PresetRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-bubble",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the words beside the pointer while a handle is held — \"Laptop · 1280 × 1573\".",
+    "producer": {
+      "file": "apps/studio/editing/preset-ruler.tsx",
+      "symbol": "PresetRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-ab-hint",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"⌘ ignores presets · ⌥ from the centre\" beside the bubble.",
+    "producer": {
+      "file": "apps/studio/editing/preset-ruler.tsx",
+      "symbol": "PresetRuler"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-sticky-name",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: a tall page's name stuck to the window's top once its own label has scrolled away, with its size.",
+    "producer": {
+      "file": "apps/studio/editing/sticky-name.tsx",
+      "symbol": "StickyName"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-minimap",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the contextual minimap island of a long page (≥ 3000 px) while the window is inside it.",
+    "producer": {
+      "file": "apps/studio/editing/minimap-context.tsx",
+      "symbol": "MinimapContext"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-minimap-strip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the page as a strip of its sections; a click jumps there.",
+    "producer": {
+      "file": "apps/studio/editing/minimap-context.tsx",
+      "symbol": "MinimapContext"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-minimap-band",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the part of the page the window shows, on the minimap strip.",
+    "producer": {
+      "file": "apps/studio/editing/minimap-context.tsx",
+      "symbol": "MinimapContext"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-minimap-section",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one section row of the minimap list (the page's top-level children, named); a click pans the canvas there. `data-on` = the section the window's middle is over.",
+    "producer": {
+      "file": "apps/studio/editing/minimap-context.tsx",
+      "symbol": "MinimapContext"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "ed-minimap-sentence",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: \"You're looking at 1727–5636 of 6000.\"",
+    "producer": {
+      "file": "apps/studio/editing/minimap-context.tsx",
+      "symbol": "MinimapContext"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ab-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Artboard inspector controls: `<name>` ∈ preset (the Preset select), height (Fits content | Fixed), height-note (\"Drag the bottom edge to fix the height at a number.\"), kind (the Kind select), add-width (\"Add a width…\"), theme (Advanced › Theme), theme-note. The W / H fields are `insp-num-ab-w` / `insp-num-ab-h`; the rows `insp-row-ab-*`; Clip content `insp-ctl-ab-clip`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/artboard.jsx",
+      "symbol": "ArtboardSizeRows"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "ai-attach-clip",
     "kind": "testid",
     "pattern": false,
@@ -13721,6 +13931,146 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tidy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the \"Tidy up\" button on the align bar over 2+ artboards (tooltip \"One row, even gaps\"; the pointer on it shows the dashed preview).",
+    "producer": {
+      "file": "apps/studio/editing/align-bar.tsx",
+      "symbol": "AlignBarView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tidy-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed outlines of the row Tidy up would make; there while the pointer is on the button, gone after.",
+    "producer": {
+      "file": "apps/studio/editing/tidy-preview.tsx",
+      "symbol": "TidyGhosts"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tidy-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one dashed outline of that preview, where an artboard would sit (`data-id` is the artboard).",
+    "producer": {
+      "file": "apps/studio/editing/tidy-preview.tsx",
+      "symbol": "TidyGhosts"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ab-custom-width",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the small \"Width\" field that opens beside the pointer for the artboard menu's Duplicate at another width ▸ Custom width… (↵ copies at that width, esc closes).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-commands.tsx",
+      "symbol": "ArtboardCommands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-artboard-menu.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ab-custom-width-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the number input inside that Custom width field.",
+    "producer": {
+      "file": "apps/studio/editing/artboard-commands.tsx",
+      "symbol": "ArtboardCommands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-artboard-menu.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-guides",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the layer of measurements while one artboard is dragged (soft guide, equal gaps, position bubble).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-guide-soft",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: an edge that also lines up with another artboard besides the one snapped to, in the guide colour at half strength (`data-axis`).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-gap",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: one of three or more equal gaps between artboards, with its chip (\"80\") in the guide colour (`data-gap`, `data-axis`).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-ab-bubble",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the words beside the pointer while an artboard is dragged, \"X 3480 · Y 0\" (world px).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-guides.tsx",
+      "symbol": "ArtboardGuidesView"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/artboard-arrange-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mab-<field>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The value of one field in the inspector over several artboards; `<field>` is preset, w, h, x, y or bg. Shows what the boards share, or \"Mixed\" (`data-mixed`). Read-only: group moves go through the align bar.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi-artboard.jsx",
+      "symbol": "Value"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-multi-artboard.test.tsx"],
     "v2": "new"
   },
   {

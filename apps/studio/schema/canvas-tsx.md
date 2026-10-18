@@ -16,6 +16,7 @@ Contract V2-1.11 §5.2. A canvas is TSX, not data. Its "schema" is this conventi
 | Under `dsFidelity: strict`, colours, spacing and type use `var(--…)` tokens. | `ds-check --canvas` S-rules (warnings) | fast (warning) / stop |
 | A `kind="web"` artboard has no absolute positioning (flow layout). | `artboards-lint` | stop |
 | An artboard's size is its JSX `width`/`height`. Its position lives in `.meta.json` `layout.artboards[]`. | `canvas-rects` / meta schema | — |
+| Resize an artboard by hand: `width={N}` and `height={N}` on its `<DCArtboard>` (64–8192, whole numbers); add the bare `fixed` prop to make the height exact (leave it out and `height` is a floor — "Fits content"). Moving it is `layout.artboards[]` `{ id, x, y }` in `.meta.json`, never a prop and never `_canvas-state`. The studio's `artboard.resize` (an edge drag, the W/H fields) writes exactly this. | `edit-ops/artboard-resize.ts` · `test/v2-artboard-resize-op.test.ts` | — |
 | Edit existing canvases with `Edit`, never a whole-file `Write` (over 40 lines). | PreToolUse `whole-file-rewrite` deny | pre-edit |
 
 `errors` block the write, and the PostToolUse hook restores the file. `warnings` go back to the model and never
@@ -82,3 +83,39 @@ Over HTTP: `POST /_api/edit-op {file, op, targets, params}` with `op` one of `te
 `lang?`), `text.set-language` (`lang`), `text.set-case` (`case: "upper"|"typed"`, `explicit?`), `text.use-style`
 (`role: "t-heading"`), `text.reset-style` (`props?`), `text.detach-style` (`values: {"font-size": "var(--type-xl)", …}`). One
 request is one write and one undo step.
+
+## Tidy up artboards: the same result by hand (S2.9)
+
+"Tidy up" on the align bar over 2+ artboards (and ⌘K `artboard.tidy`) writes only positions: `x` / `y` of each
+artboard in the canvas's `.meta.json` (`layout.artboards[]`) — never a prop in the `.tsx`, never the per-user camera
+file. The arithmetic (`apps/studio/edit-ops/tidy.ts`), whole pixels:
+
+1. Sort the selected artboards left to right by `x` (ties keep the order they are listed in).
+2. Every board's `y` is the **largest** `y` of the set — the lowest board's line; nothing climbs.
+3. The first board keeps its `x`. Each next board's `x` is the previous one's `x + width + gap`.
+4. `gap` is the mean of today's edge-to-edge gaps between neighbours (rounded); if any two boards overlap or
+   stack in a column it is 80.
+5. Sizes are not touched. A board that would not move is not written.
+
+Annotations that belong to a moved artboard move with it (their `x` / `y` in the board file), as for align.
+
+## Duplicate an artboard: the same result by hand (S2.10)
+
+⌘D on a selected artboard, the ⌥-drag, the artboard menu's "Duplicate" and "Duplicate at another width ▸" (the ops
+`artboard.duplicate` / `artboard.duplicate-at-width`, `edit-ops/duplicate-at-width.ts`) write one copy:
+
+1. **The JSX.** Copy the whole `<DCArtboard …>…</DCArtboard>` and put it right after its source. The copy gets a new
+   `id` (a number appended: `desktop` → `desktop-2`; for a width copy `desktop-390`), a new `label` (`Desktop` →
+   `Desktop 2`, `Příběh` → `Příběh 2` — accents stay; a width copy is `Desktop (390px)`), and, for a width copy,
+   the new `width={N}` (64–8192). Everything else — `height`, `kind`, `fixed`, the children — is copied as it is.
+2. **No ids come along.** Delete every `data-cd-id` and `data-cd-locked` inside the copy (a copy starts unlocked and
+   its elements are named again when something first needs them). Never leave one id on two elements.
+3. **Its place** is `layout.artboards[]` `{ id, x, y }` in the canvas's `.meta.json`, not a prop. ⌘D uses the right
+   edge of the source plus the gap the source's row already uses (the gap to its left neighbour, else to its right
+   neighbour, else 80), on the source's top edge; if another board stands there, the copy goes past it at the same
+   gap. The ⌥-drag puts it where it was dropped. Boards that have no `layout.artboards[]` entry yet sit on the
+   default grid by their order in the file, so inserting a copy shifts them — give each of them an entry at the
+   place it is drawn before you insert.
+4. **Annotations are not copied** with an artboard (v2.0).
+
+"Rename" is the `label` prop (up to 80 characters). "Reset position" removes the board's `layout.artboards[]` entry.

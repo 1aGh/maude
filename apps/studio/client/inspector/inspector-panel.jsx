@@ -86,6 +86,7 @@ export function InspectorPanel({
   onSetArtboardStyle,
   onSetArtboardKind,
   onSetArtboardPrint,
+  onSetArtboardTheme,
   onDuplicateArtboard,
   onUndoRedo,
   editScope,
@@ -727,6 +728,7 @@ export function InspectorPanel({
             onSetArtboardStyle={onSetArtboardStyle}
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
+            onSetArtboardTheme={onSetArtboardTheme}
             onDuplicateArtboard={onDuplicateArtboard}
             // S2.1 — a crumb selects that level (ref null = the artboard) through the Layers path
             onSelectCrumb={(ref) =>

@@ -14,7 +14,9 @@ import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { alignOps } from './align.ts';
 import { objectConstrain } from './constraints.ts';
+import { artboardResize } from './artboard-resize.ts';
 import { distributeOps } from './distribute.ts';
+import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { objectLock } from './lock.ts';
@@ -30,8 +32,10 @@ import {
   EDIT_OP_STATUS,
   type EditOp,
   type EditOpCode,
+  type EditOpOutput,
   type EditOpResult,
   type ElementRef,
+  type LayoutPatch,
   parseEditOpRequest,
   REVERT_OP,
 } from './types.ts';
@@ -71,6 +75,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   textUseStyle,
   textResetStyle,
   textDetachStyle,
+  artboardResize, // S2.8 artboard.resize
+  // S2.10 — ⌘D / ⌥-drag / the artboard menu: a copy beside its source, in one write
+  artboardDuplicate,
+  artboardDuplicateAtWidth,
 ];
 
 export interface AiHoldHit {
@@ -86,6 +94,8 @@ export interface DispatchDeps {
   write(rel: string, before: string, after: string, label: string): Promise<void>;
   /** V2-1.15 §4 #13 — a live AI run holds this element (S5.4's `heldByAi`) */
   heldByAi(rel: string, element: string): AiHoldHit | null;
+  /** S2.10 — an op's positions into the layout lane (`meta.layout.artboards[]`); absent = not written */
+  writeLayout?(rel: string, patch: LayoutPatch): Promise<void>;
   /** the kernel action a write became, when the runtime already knows it */
   actionFor?(rel: string, after: string): string | null;
   log: WriteLog;
@@ -181,7 +191,7 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
         return refuse('locked', `${said(r.element)} is locked · ⇧⌘L unlocks`);
     }
   }
-  let out: { source: string; created?: ElementRef[] };
+  let out: EditOpOutput;
   try {
     out = (op as EditOp).apply(source, {
       file: rel,
@@ -193,6 +203,10 @@ export async function dispatchEditOp(raw: unknown, deps: DispatchDeps): Promise<
     if (e instanceof CanvasEditError) return refuse('invalid', e.message);
     throw e;
   }
+  // S2.10 — the layout lane goes first: an entry for an artboard that never got written is inert, while a
+  // written artboard with no entry would flash at its default-grid slot before it moved.
+  if (out.layout && out.source !== current && deps.writeLayout)
+    await deps.writeLayout(rel, out.layout);
   return commit(rel, current, out.source, refs, out.created, `pre-${req.op}`, deps);
 }
 

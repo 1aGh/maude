@@ -58,7 +58,24 @@ export interface EditOp {
   id: EditOpId;
   /** 'refuse' (default): a locked target refuses the op. 'allow' only for the lock op itself. */
   locked?: 'refuse' | 'allow';
-  apply(source: string, req: ResolvedEditOp): { source: string; created?: ElementRef[] };
+  apply(source: string, req: ResolvedEditOp): EditOpOutput;
+}
+
+/**
+ * Positions an op wants in the layout lane (`<canvas>.meta.json` `layout.artboards[]`, DDR-027: an artboard's
+ * x/y live there, never in the TSX). `set` always lands; `pin` only fills an id that has no entry yet (so a
+ * copy spliced into the JSX order cannot shift a board that was placed by the default grid). S2.10.
+ */
+export interface LayoutPatch {
+  set?: Array<{ id: string; x: number; y: number }>;
+  pin?: Array<{ id: string; x: number; y: number }>;
+}
+
+export interface EditOpOutput {
+  source: string;
+  created?: ElementRef[];
+  /** written to the layout lane in the same request, BEFORE the source (an orphan entry is harmless) */
+  layout?: LayoutPatch;
 }
 
 /** HTTP status per refusal code (contract §2). */

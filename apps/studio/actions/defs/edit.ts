@@ -438,4 +438,79 @@ export const EDIT_ACTIONS: ActionDef[] = [
     exec: 'shell',
     enabled: { ...EDITS, selection: ['object'] },
   },
+  // S2.8 — artboards. Both take a size, so neither is a ⌘K row: their homes are the eight handles on a
+  // selected artboard (`artboard.resize` is the edit-op id they run, S2-edit-ops.md) and the artboard
+  // inspector's "Other widths › Add a width…" (a copy of the board at another width, beside it).
+  {
+    id: 'artboard.resize',
+    label: 'Resize artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.add-width',
+    label: 'Add a width',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  // S2.9 — Tidy up: the align bar's button over 2+ artboards (one row, even gaps, on the lowest one's line). The
+  // positions go to the layout lane in ONE commit (annotations ride along, one ⌘Z). Also a ⌘K row.
+  {
+    id: 'artboard.tidy',
+    label: 'Tidy up artboards',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { keywords: ['tidy', 'row', 'even', 'gaps', 'arrange', 'line up'] },
+  },
+  // S2.10 — the artboard's own menu (14 Editing ed-ab-menu). ⌘D copies it to the right at the row's gap, selected;
+  // the same copy is one edit-op (`edit-ops/duplicate-at-width.ts`). "Duplicate at another width" takes a width, so
+  // it is the menu's flyout, not a ⌘K row; the old object-only ⌘D stays `object.duplicate` (selection 'object').
+  {
+    id: 'artboard.duplicate',
+    label: 'Duplicate artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    keys: [kb('⌘D', 'selection', { when: { ...OBJ, mode: ['edit'], selection: ['artboard'] } })],
+    search: { keywords: ['copy', 'clone', 'duplicate', 'artboard'] },
+  },
+  {
+    id: 'artboard.duplicate-at-width',
+    label: 'Duplicate at another width',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.rename',
+    label: 'Rename artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { keywords: ['name', 'label', 'artboard'] },
+  },
+  {
+    id: 'artboard.reset-position',
+    label: 'Reset artboard position',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { keywords: ['position', 'grid', 'back', 'artboard'] },
+  },
+  // S2.10 — "Ask AI about this artboard ⌘/" in the artboard menu. The composer that takes the artboard is S5's; the row
+  // is greyed with its own line until then (⌘/ stays `ai.chat`).
+  {
+    id: 'artboard.ask-ai',
+    label: 'Ask AI about this artboard',
+    kind: 'command',
+    exec: 'shell',
+    enabled: { ...EDITS, selection: ['artboard'] },
+    search: { hidden: true },
+  },
 ];
