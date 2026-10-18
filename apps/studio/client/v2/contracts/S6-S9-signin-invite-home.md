@@ -168,6 +168,8 @@ POST /_api/cloud/move {name?: string}     // name defaults to config.json projec
   200 {ok:true, project:string, state:'provisioning'|'ready'}     // idempotent per folder (repeat = same answer)
   401 {ok:false, reason:'signed-out'}
   402 {ok:false, reason:'plan', error:'Choose a plan to keep editing.'}   // S9.15 trial ended
+  403 {ok:false, reason:'window-only', error:'Move to cloud from the Share sheet in the Maude window.'}   // S6.0c: not the project window (v2-lead-cloud-move-window-only)
+  403 {ok:false, reason:'email-unverified', error:'Confirm your e-mail address first — the link is in your inbox.'}   // S9.15: cloud refuses an unverified account's project
   409 {ok:false, reason:'linked-elsewhere'}                              // already linked to another hub
   503 {ok:false, reason:'offline'}
 GET  /_api/cloud/move → 200 {state:'idle'|'provisioning'|'linking'|'uploading'|'ready'|'failed', project?, error?}
