@@ -6,7 +6,9 @@ import { offMulti } from '../kinds/multi.jsx';
 import { offBorder } from './border.jsx';
 import { offCorners } from './corners.jsx';
 import { offEffects } from './effects.jsx';
+import { offExportSlot } from './export-slot.jsx';
 import { offFill } from './fill.jsx';
+import { offInteraction } from './interaction.jsx';
 import { offLayout } from './layout.jsx';
 import { offPosition } from './position.jsx';
 import { offSize } from './size.jsx';
@@ -23,4 +25,6 @@ export function unregisterSections() {
   offBorder();
   offEffects();
   offType();
+  offInteraction();
+  offExportSlot();
 }

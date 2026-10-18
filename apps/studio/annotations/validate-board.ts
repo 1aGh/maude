@@ -31,7 +31,7 @@ import { annotationsJsonSchema, elementDefKey } from './board-schema.ts';
 import { jsonEq, parseJsonSafe } from './fields.ts';
 import { isValidOrderKey } from './fractional-index.ts';
 import { isLocked, LOCK_EXEMPT_FIELDS } from './lock.ts';
-import { defOf, REGISTRY } from './registry.ts';
+import { defOf, extSpecOf, REGISTRY } from './registry.ts';
 import { BOARD_FORMAT, BOARD_VERSION, type BoardResult, parseBoard } from './schema.ts';
 import type { AnnotationElement } from './types.ts';
 
@@ -163,7 +163,11 @@ export function validateBoard(text: string, opts: ValidateBoardOptions = {}): Va
             jsonEq(prev[key], el[key])
           )
             continue;
-          const fields = Object.keys(defOf(type)?.fields ?? {}).join(', ');
+          // The type's own fields, then the format-2 extension fields it can carry.
+          const fields = [
+            ...Object.keys(defOf(type)?.fields ?? {}),
+            ...Object.keys(extSpecOf(type) ?? {}),
+          ].join(', ');
           errors.push(
             e.keyword === 'additionalProperties'
               ? {

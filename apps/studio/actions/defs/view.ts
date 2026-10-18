@@ -183,6 +183,30 @@ export const VIEW_ACTIONS: ActionDef[] = [
     legacy: { menu: 'Show print guides' },
   },
   {
+    // S3.1 (CONTRACT §2 [A7], 04 md-present-menu): ⌥⌘↵ presents the artboards one by one from the
+    // selected artboard (else the one in view, else the start). The shell owns the mode (D1): the
+    // handler enters Present through use-canvas-mode-lane; with the canvas focused the chord is
+    // forwarded (fromCanvas). Not in Present (esc leaves first).
+    id: 'present.from-selection',
+    label: 'Present',
+    kind: 'command',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [kb('⌥⌘↵', 'global', { when: { mode: ['edit', 'viewing', 'preview'] } })],
+    search: { keywords: ['presentation', 'slideshow', 'artboards', 'selected'] },
+  },
+  {
+    // S3.1 — ⇧⌥⌘↵: the same, from the first artboard in canvas order.
+    id: 'present.from-start',
+    label: 'Present from the start',
+    kind: 'command',
+    exec: 'shell',
+    fromCanvas: true,
+    keys: [kb('⇧⌥⌘↵', 'global', { when: { mode: ['edit', 'viewing', 'preview'] } })],
+    search: { keywords: ['presentation', 'slideshow', 'beginning', 'first'] },
+  },
+  {
+    // S3.1 — re-pointed: the toggle is a call into the one mode owner (Present · Canvas, D1).
     id: 'present.canvas',
     label: 'Present the canvas',
     kind: 'toggle',

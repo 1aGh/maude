@@ -434,6 +434,131 @@
           .catch(() => fallback);
       }
 
+      // module-update:begin
+      // A `module` / `hard` change to THIS canvas (or `_lib`), applied. Called
+      // straight from the HMR socket, or — in Present · Artboards — when the
+      // held one lands (present-hold, below).
+      function applyModuleUpdate(msg) {
+        // F4 — a text-only change arrives with the new strings. Show
+        // them now; the remount below still re-renders from source and
+        // confirms (or corrects) them. Only a leaf that is exactly one
+        // text node is touched, via textContent (never markup), and
+        // never the element someone is typing in on this device.
+        if (msg.mode === 'module' && Array.isArray(msg.patches)) applyTextPatches(msg.patches);
+        // Phase 12.3 — CSS-panel echo guard. The panel applies each
+        // edit optimistically to the live DOM (dgn:'apply-style'), so a
+        // `module` reload for THIS canvas's own edit is redundant churn:
+        // it remounts the canvas, drops the selection halo, and flickers
+        // the iframe. Skip it within a short window of a self-applied
+        // optimistic style. `hard` (_lib rebuild) is global — never
+        // skipped. Mirrors the meta echo-guard below.
+        if (msg.mode === 'module') {
+          // read the parent-verified local (NOT a canvas-writable global)
+          //
+          // VIDEO-COMP EXCEPTION (DDR-150 dogfood): on a canvas with a
+          // mounted Remotion comp the optimistic DOM style CANNOT hold —
+          // the Player re-renders styles from the (old) module on every
+          // frame, wiping the edit at the next play-through. Skipping the
+          // module reload here left the OLD color playing until a manual
+          // Cmd+R even though the new value was on disk. So: skip the
+          // redundant reload only on comp-less canvases. (Reading the
+          // comp registry off `window` is canvas-influenced, but a canvas
+          // lying "I have comps" can only FORCE a reload — the safe
+          // direction; it can never suppress one.)
+          var hasComps = false;
+          try { hasComps = !!(window.__maude_comps__ && window.__maude_comps__().length); } catch (err) { hasComps = false; }
+          // …but NEVER a sync write (`remote`): it can carry a
+          // teammate's change merged under this person's own edit (a
+          // lost race re-applied onto theirs), and skipping it left
+          // their change off this canvas until a manual reload.
+          if (!hasComps && !msg.remote && Date.now() - lastCssOptimisticAt < 1500) return;
+        }
+        // Phase 30 (F4) — prefer an in-place hot-swap for ANY canvas-body
+        // (`module`) change whenever the canvas runtime is mounted: the
+        // soft-reload re-imports the module and remounts only the canvas
+        // content, KEEPING the iframe — and thus the live CollabProvider
+        // + presence cursors/avatars — mounted (the collab session is a
+        // module-level singleton that survives the remount, use-collab.tsx).
+        // This covers cross-peer SYNCED writes, which arrive as a `module`
+        // change with NO `ai-activity` entry: a teammate's edit must update
+        // seamlessly, never blink everyone's presence (and scroll / tool
+        // mode / undo survive too). It also keeps the Phase 13.1 / DDR-077
+        // hold-last-good behaviour for agent edits. (`agentEditing` is still
+        // tracked from ai-activity above but no longer gates the swap — any
+        // module change to the live canvas hot-swaps.) `hard` (_lib rebuild)
+        // is global and ALWAYS full-reloads. With no runtime (gallery
+        // thumbnails / ?comments=0) we full-reload; softReload itself also
+        // falls back to location.reload() when the re-import yields no usable
+        // default export.
+        if (msg.mode === 'module' && window.__maudeCanvasRuntime && window.__maudeCanvasRuntime.remount) {
+          softReload(msg.version);
+        } else {
+          location.reload();
+        }
+      }
+      // module-update:end
+
+      // present-hold:begin
+      // S3.1 / A8 — AI changes show live in Edit, Preview (under the pointer
+      // too), Present · Canvas and Viewing. In PRESENT · ARTBOARDS a write to
+      // this canvas is HELD until the presenter moves on (the stage reports a
+      // new `present-position`) or leaves Present — the audience never sees an
+      // artboard change under them. Only the newest held update is kept (a
+      // `hard` one keeps the merged update a full reload). Only one artboard is
+      // on screen, so a whole-module hold is the per-artboard ask.
+      //
+      // SECURITY (A1, as `lastCssOptimisticAt` above): whether to hold is this
+      // closure's own state, set ONLY from the shell's parent-gated `set-mode`
+      // — never read from a window global the canvas module could pin to
+      // suppress updates. The release is a same-document event the stage
+      // fires (canvas-mode-store `reportPresentPosition`): a canvas faking it
+      // can only make a held write land sooner, the safe direction.
+      //
+      // Mirrors bridge/canvas-modes.ts `holdsModuleUpdates` (this template
+      // imports nothing; test/present-hold.test.ts pins the parity).
+      const holdsModuleUpdates = (snap) =>
+        !!snap && snap.mode === 'present' && !!snap.present && snap.present.kind === 'artboards';
+      let presentModeSeq = -1;
+      let presentHolding = false;
+      let presentAt = null;
+      let heldUpdate = null;
+      function releaseHeldUpdate() {
+        const held = heldUpdate;
+        heldUpdate = null;
+        if (held) applyModuleUpdate(held);
+      }
+      function presentHoldSetMode(m) {
+        if (!m || m.v !== 2 || typeof m.seq !== 'number' || m.seq <= presentModeSeq) return;
+        presentModeSeq = m.seq;
+        const was = presentHolding;
+        presentHolding = holdsModuleUpdates(m);
+        if (!presentHolding) presentAt = null;
+        if (was && !presentHolding) releaseHeldUpdate();
+      }
+      function presentHoldPosition(pos) {
+        if (!pos || typeof pos !== 'object') return;
+        const at = String(pos.index) + '|' + String(pos.artboardId);
+        if (at === presentAt) return;
+        presentAt = at;
+        releaseHeldUpdate();
+      }
+      function routeModuleUpdate(msg) {
+        if (!(msg.mode === 'hard' || !msg.file || (canvasRel && msg.file === canvasRel))) return;
+        if (presentHolding) {
+          heldUpdate = heldUpdate && heldUpdate.mode === 'hard' ? Object.assign({}, msg, { mode: 'hard' }) : msg;
+          return;
+        }
+        applyModuleUpdate(msg);
+      }
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || window.parent === window) return;
+        const m = e && e.data;
+        if (!m || typeof m !== 'object' || m.dgn !== 'set-mode') return;
+        presentHoldSetMode(m);
+      });
+      document.addEventListener('maude:present-position', (e) => presentHoldPosition(e && e.detail));
+      // present-hold:end
+
       // ---------------------------------------------------------------------
       // HMR client — listens for `canvas-hmr` messages on /_ws. Three modes:
       //   - css: swap <link> href with ?v=<version> cache bust.
@@ -551,65 +676,9 @@
                 }
               }
             } else if (msg.mode === 'module' || msg.mode === 'hard') {
-              // Only reload when the change touches *this* canvas (or `_lib`).
-              if (msg.mode === 'hard' || !msg.file || (canvasRel && msg.file === canvasRel)) {
-                // F4 — a text-only change arrives with the new strings. Show
-                // them now; the remount below still re-renders from source and
-                // confirms (or corrects) them. Only a leaf that is exactly one
-                // text node is touched, via textContent (never markup), and
-                // never the element someone is typing in on this device.
-                if (msg.mode === 'module' && Array.isArray(msg.patches)) applyTextPatches(msg.patches);
-                // Phase 12.3 — CSS-panel echo guard. The panel applies each
-                // edit optimistically to the live DOM (dgn:'apply-style'), so a
-                // `module` reload for THIS canvas's own edit is redundant churn:
-                // it remounts the canvas, drops the selection halo, and flickers
-                // the iframe. Skip it within a short window of a self-applied
-                // optimistic style. `hard` (_lib rebuild) is global — never
-                // skipped. Mirrors the meta echo-guard below.
-                if (msg.mode === 'module') {
-                  // read the parent-verified local (NOT a canvas-writable global)
-                  //
-                  // VIDEO-COMP EXCEPTION (DDR-150 dogfood): on a canvas with a
-                  // mounted Remotion comp the optimistic DOM style CANNOT hold —
-                  // the Player re-renders styles from the (old) module on every
-                  // frame, wiping the edit at the next play-through. Skipping the
-                  // module reload here left the OLD color playing until a manual
-                  // Cmd+R even though the new value was on disk. So: skip the
-                  // redundant reload only on comp-less canvases. (Reading the
-                  // comp registry off `window` is canvas-influenced, but a canvas
-                  // lying "I have comps" can only FORCE a reload — the safe
-                  // direction; it can never suppress one.)
-                  var hasComps = false;
-                  try { hasComps = !!(window.__maude_comps__ && window.__maude_comps__().length); } catch (err) { hasComps = false; }
-                  // …but NEVER a sync write (`remote`): it can carry a
-                  // teammate's change merged under this person's own edit (a
-                  // lost race re-applied onto theirs), and skipping it left
-                  // their change off this canvas until a manual reload.
-                  if (!hasComps && !msg.remote && Date.now() - lastCssOptimisticAt < 1500) return;
-                }
-                // Phase 30 (F4) — prefer an in-place hot-swap for ANY canvas-body
-                // (`module`) change whenever the canvas runtime is mounted: the
-                // soft-reload re-imports the module and remounts only the canvas
-                // content, KEEPING the iframe — and thus the live CollabProvider
-                // + presence cursors/avatars — mounted (the collab session is a
-                // module-level singleton that survives the remount, use-collab.tsx).
-                // This covers cross-peer SYNCED writes, which arrive as a `module`
-                // change with NO `ai-activity` entry: a teammate's edit must update
-                // seamlessly, never blink everyone's presence (and scroll / tool
-                // mode / undo survive too). It also keeps the Phase 13.1 / DDR-077
-                // hold-last-good behaviour for agent edits. (`agentEditing` is still
-                // tracked from ai-activity above but no longer gates the swap — any
-                // module change to the live canvas hot-swaps.) `hard` (_lib rebuild)
-                // is global and ALWAYS full-reloads. With no runtime (gallery
-                // thumbnails / ?comments=0) we full-reload; softReload itself also
-                // falls back to location.reload() when the re-import yields no usable
-                // default export.
-                if (msg.mode === 'module' && window.__maudeCanvasRuntime && window.__maudeCanvasRuntime.remount) {
-                  softReload(msg.version);
-                } else {
-                  location.reload();
-                }
-              }
+              // Only reload when the change touches *this* canvas (or `_lib`) — and, in
+              // Present · Artboards, not while the audience is looking (A8, below).
+              routeModuleUpdate(msg);
             } else if (msg.mode === 'meta') {
               // Phase 8 — canvas-meta sidecar changed. Filter to our own canvas:
               // `<canvasRel>.meta.json` strip → must equal canvasRel without ext.

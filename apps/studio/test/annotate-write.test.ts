@@ -1165,3 +1165,374 @@ describe('B3 — an absolute canvas path resolves to the same board', () => {
     }
   });
 });
+
+// S4.5 — the agent surface for format 2: resolve, stickers, bound canvas ends, wrap-section, and
+// strict refusals (people's types, locked items, authors).
+describe('annotate — format-2 agent surface (S4.5)', () => {
+  const rects = (name: string, body: unknown) => {
+    const p = join(root, name);
+    writeFileSync(p, JSON.stringify(body));
+    return p;
+  };
+  const geometry = {
+    artboards: [{ id: 'hero', label: 'Hero · Desktop', x: 1000, y: 2000, w: 400, h: 300 }],
+    elements: [
+      {
+        cdId: 'cta',
+        selector: '[data-cd-id="cta"]',
+        x: 1100,
+        y: 2100,
+        w: 120,
+        h: 40,
+        tag: 'button',
+        text: 'Book a call',
+      },
+    ],
+  };
+  const human = { kind: 'human', name: 'Tereza' };
+  const tick = { by: 'Tereza', at: '2026-10-18T09:00:00Z' };
+
+  test('--resolve stamps resolved {by: AI, at}; a person’s resolve keeps their name and time', () => {
+    seed('ui-res', [
+      {
+        id: 'a',
+        type: 'sticky',
+        index: 'a0',
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 200,
+        text: 'one',
+        author: human,
+      },
+      {
+        id: 'b',
+        type: 'sticky',
+        index: 'a1',
+        x: 300,
+        y: 0,
+        w: 200,
+        h: 200,
+        text: 'two',
+        author: human,
+        resolved: tick,
+      },
+    ]);
+    const res = annotate(['ui/Res.tsx', '--resolve', 'a,b']);
+    expect(res.code).toBe(0);
+    expect(JSON.parse(res.out).resolved).toEqual(['a']); // b was already resolved by a person
+    expectCanonical('ui-res');
+    const els = byId('ui-res');
+    expect(els.a?.resolved).toMatchObject({ by: 'AI' });
+    expect(String(((els.a?.resolved ?? {}) as { at?: string }).at)).toMatch(
+      /^\d{4}-\d\d-\d\dT[\d:]+Z$/
+    );
+    expect(els.b?.resolved).toEqual(tick);
+    // The author is untouched.
+    expect(els.a?.author).toEqual(human);
+  });
+
+  test('--resolve refuses a locked sticky, a non-sticky and an unknown id — and writes nothing', () => {
+    seed('ui-res2', [
+      { id: 'a', type: 'sticky', index: 'a0', x: 0, y: 0, w: 200, h: 200, text: 'x', locked: true },
+      { id: 's', type: 'shape', index: 'a1', kind: 'rect', x: 300, y: 0, w: 100, h: 60 },
+    ]);
+    const before = boardText('ui-res2');
+    const locked = annotate(['ui/Res2.tsx', '--resolve', 'a']);
+    expect(locked.code).toBe(2);
+    expect(locked.err).toMatch(/locked/);
+    const shape = annotate(['ui/Res2.tsx', '--resolve', 's']);
+    expect(shape.code).toBe(2);
+    expect(shape.err).toMatch(/only stickies/);
+    expect(annotate(['ui/Res2.tsx', '--resolve', 'ghost']).code).toBe(2);
+    expect(boardText('ui-res2')).toBe(before);
+  });
+
+  test('update resolved:null reopens; a made-up resolved value is refused', () => {
+    seed('ui-res3', [
+      {
+        id: 'a',
+        type: 'sticky',
+        index: 'a0',
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 200,
+        text: 'x',
+        resolved: tick,
+      },
+    ]);
+    const bad = annotate(['ui/Res3.tsx'], {
+      ops: [
+        { op: 'update', id: 'a', resolved: { by: 'someone else', at: '2026-01-01T00:00:00Z' } },
+      ],
+    });
+    expect(bad.code).toBe(2);
+    expect(bad.err).toMatch(/resolved is true/);
+    const ok = annotate(['ui/Res3.tsx'], { ops: [{ op: 'update', id: 'a', resolved: null }] });
+    expect(ok.code).toBe(0);
+    expect(byId('ui-res3').a?.resolved).toBeUndefined();
+  });
+
+  test('--sticker places a bundled picture: asset copied, sticker{pack,id}, author ai', () => {
+    const res = annotate(['ui/Stk.tsx', '--sticker', 'project-status/group-100']);
+    expect(res.code).toBe(0);
+    expectCanonical('ui-stk');
+    const [img] = board('ui-stk');
+    expect(img).toMatchObject({
+      type: 'image',
+      w: 160,
+      h: 160,
+      author: { kind: 'ai' },
+      sticker: { pack: 'project-status', id: 'group-100' },
+    });
+    const href = String(img?.href);
+    expect(href).toMatch(/^assets\/[0-9a-f]{8}\.png$/);
+    expect(existsSync(join(root, '.design', href))).toBe(true);
+    // The file name works too, and is the same picture (content-addressed).
+    const again = annotate(['ui/Stk2.tsx', '--sticker', 'project-status/group-100.png']);
+    expect(again.code).toBe(0);
+    expect(board('ui-stk2')[0]?.href).toBe(href);
+  });
+
+  test('--sticker with an unknown pack / sticker names what exists; --dry-run writes no asset', () => {
+    const pack = annotate(['ui/StkBad.tsx', '--sticker', 'nope/group-1']);
+    expect(pack.code).toBe(2);
+    expect(pack.err).toMatch(/no pack "nope" \(packs: .*project-status/);
+    const one = annotate(['ui/StkBad.tsx', '--sticker', 'project-status/nope']);
+    expect(one.code).toBe(2);
+    expect(one.err).toMatch(/has no "nope"/);
+    const dry = annotate(['ui/StkDry.tsx', '--sticker', 'project-status/group-101', '--dry-run']);
+    expect(dry.code).toBe(0);
+    expect(existsSync(pathOf('ui-stkdry'))).toBe(false);
+    const op = JSON.parse(dry.out).ops[0].el;
+    expect(op.sticker).toEqual({ pack: 'project-status', id: 'group-101' });
+    expect(existsSync(join(root, '.design', op.href))).toBe(false);
+  });
+
+  test('{"op":"connect"} to an el: / ab: host binds the end: cached point + endHost with the live name', () => {
+    const p = rects('rects-host.json', geometry);
+    seed('ui-host', [
+      { id: 'n', type: 'sticky', index: 'a0', x: 1500, y: 2100, w: 200, h: 120, text: 'Bigger' },
+    ]);
+    const res = annotate(['ui/Host.tsx', '--rects', p], {
+      ops: [
+        { op: 'connect', from: 'n', to: 'el:hero/cta' },
+        { op: 'connect', from: 'n', to: 'ab:hero' },
+      ],
+    });
+    expect(res.code).toBe(0);
+    expectCanonical('ui-host');
+    const arrows = board('ui-host').filter((e) => e.type === 'arrow');
+    expect(arrows).toHaveLength(2);
+    const [toEl, toAb] = arrows;
+    expect(toEl?.start).toEqual({ el: 'n' });
+    // The cache: where the arrow meets the button's box, facing the note (right edge middle).
+    expect(toEl?.end).toEqual({ x: 1220, y: 2120 });
+    expect(toEl?.endHost).toEqual({
+      ref: 'el:hero/cta',
+      label: 'Book a call',
+      box: { x: 1100, y: 2100, w: 120, h: 40 },
+    });
+    expect(toAb?.endHost).toMatchObject({ ref: 'ab:hero', label: 'Hero · Desktop' });
+    expect(toAb?.author).toEqual({ kind: 'ai' });
+  });
+
+  test('a host end the geometry cannot place fails loud — never a guessed point', () => {
+    seed('ui-host2', [
+      { id: 'n', type: 'sticky', index: 'a0', x: 0, y: 0, w: 200, h: 120, text: 'x' },
+    ]);
+    const res = annotate(['ui/Host2.tsx'], {
+      ops: [{ op: 'connect', from: 'n', to: 'el:hero/cta' }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toMatch(/can't place el:hero\/cta — pass --rects/);
+    // With the end's last known point it is accepted, and the bind is kept (dangling is derived).
+    const ok = annotate(['ui/Host2.tsx'], {
+      ops: [{ op: 'connect', from: 'n', to: 'el:hero/cta', x2: 1220, y2: 2120 }],
+    });
+    expect(ok.code).toBe(0);
+    const a = board('ui-host2').find((e) => e.type === 'arrow');
+    expect(a?.end).toEqual({ x: 1220, y: 2120 });
+    expect(a?.endHost).toEqual({ ref: 'el:hero/cta', label: 'cta' });
+  });
+
+  test('--to: a created sticky lands beside the host and points at it with a bound end', () => {
+    const p = rects('rects-to.json', geometry);
+    const res = annotate(['ui/To.tsx', '--rects', p, '--to', 'el:hero/cta'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'make this bigger' }],
+    });
+    expect(res.code).toBe(0);
+    expectCanonical('ui-to');
+    const sticky = board('ui-to').find((e) => e.type === 'sticky');
+    expect(sticky).toMatchObject({ x: 1260, y: 2100 }); // cta.x + cta.w + 40
+    const arrow = board('ui-to').find((e) => e.type === 'arrow');
+    expect(arrow?.start).toEqual({ el: sticky?.id });
+    expect(arrow?.endHost).toMatchObject({ ref: 'el:hero/cta', label: 'Book a call' });
+    // It rides with the artboard its centre is over.
+    expect(sticky?.parentArtboard).toBe('hero');
+  });
+
+  test('a created note’s from is an arrow end — refused on a sticky instead of silently dropped', () => {
+    const res = annotate(['ui/FromBad.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', from: 'whatever', x: 0, y: 0 }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toMatch(/"from" is an arrow end/);
+  });
+
+  test('--wrap-section ids: one section around them, behind, members keep their world position', () => {
+    seed('ui-wrap', [
+      { id: 'a', type: 'sticky', index: 'a0', x: 100, y: 100, w: 200, h: 200, text: 'a' },
+      { id: 'b', type: 'sticky', index: 'a1', x: 400, y: 120, w: 200, h: 200, text: 'b' },
+      { id: 'c', type: 'sticky', index: 'a2', x: 2000, y: 2000, w: 200, h: 200, text: 'c' },
+    ]);
+    const res = annotate(['ui/Wrap.tsx', '--wrap-section', 'a,b', '--title', 'Round one']);
+    expect(res.code).toBe(0);
+    const out = JSON.parse(res.out);
+    expectCanonical('ui-wrap');
+    const els = byId('ui-wrap');
+    const sec = els[out.section as string];
+    expect(sec).toMatchObject({ type: 'section', author: { kind: 'ai' } });
+    expect(els.a?.parent).toBe(sec?.id);
+    expect(els.b?.parent).toBe(sec?.id);
+    expect(els.c?.parent).toBeUndefined();
+    expect(worldBox('ui-wrap', 'a')).toMatchObject({ x: 100, y: 100 });
+    expect(worldBox('ui-wrap', 'b')).toMatchObject({ x: 400, y: 120 });
+    const box = worldBox('ui-wrap', sec?.id as string);
+    expect(box?.x).toBeLessThan(100);
+    expect(box?.y).toBeLessThan(100);
+    expect((box?.x ?? 0) + (box?.w ?? 0)).toBeGreaterThan(600);
+    // Behind its members in the paint order.
+    const order = board('ui-wrap').map((e) => e.id);
+    expect(order.indexOf(sec?.id as string)).toBeLessThan(order.indexOf('c'));
+  });
+
+  test('--wrap-section with no ids wraps what this call created (and leaves arrows out)', () => {
+    const res = annotate(['ui/Wrap2.tsx', '--ops', '-', '--wrap-section', '--title', 'Review'], {
+      ops: [
+        { op: 'create', type: 'sticky', text: 'one', x: 0, y: 0, ref: '@a' },
+        { op: 'create', type: 'sticky', text: 'two', x: 300, y: 0, ref: '@b' },
+        { op: 'connect', from: '@a', to: '@b' },
+      ],
+    });
+    expect(res.code).toBe(0);
+    const els = board('ui-wrap2');
+    const sec = els.find((e) => e.type === 'section');
+    expect(els.filter((e) => e.parent === sec?.id).map((e) => e.type)).toEqual([
+      'sticky',
+      'sticky',
+    ]);
+    expect(els.find((e) => e.type === 'arrow')?.parent).toBeUndefined();
+  });
+
+  test('--wrap-section refuses to pull a locked element into a section', () => {
+    seed('ui-wrap3', [
+      { id: 'a', type: 'sticky', index: 'a0', x: 0, y: 0, w: 200, h: 200, text: 'a', locked: true },
+    ]);
+    const before = boardText('ui-wrap3');
+    const res = annotate(['ui/Wrap3.tsx', '--wrap-section', 'a']);
+    expect(res.code).toBe(2);
+    expect(res.err).toMatch(/locked/);
+    expect(boardText('ui-wrap3')).toBe(before);
+  });
+
+  test('moving a note onto another artboard moves its membership; off every artboard drops it', () => {
+    const p = rects('rects-move.json', {
+      artboards: [
+        { id: 'one', x: 0, y: 0, w: 400, h: 300 },
+        { id: 'two', x: 1000, y: 0, w: 400, h: 300 },
+      ],
+      elements: [],
+    });
+    seed('ui-mv', [
+      {
+        id: 'a',
+        type: 'sticky',
+        index: 'a0',
+        x: 50,
+        y: 50,
+        w: 100,
+        h: 100,
+        text: 'a',
+        parentArtboard: 'one',
+      },
+    ]);
+    expect(
+      annotate(['ui/Mv.tsx', '--canvas-state', p], {
+        ops: [{ op: 'move', id: 'a', x: 1100, y: 50 }],
+      }).code
+    ).toBe(0);
+    expect(byId('ui-mv').a?.parentArtboard).toBe('two');
+    expect(
+      annotate(['ui/Mv.tsx', '--canvas-state', p], {
+        ops: [{ op: 'move', id: 'a', x: 5000, y: 50 }],
+      }).code
+    ).toBe(0);
+    expect(byId('ui-mv').a?.parentArtboard).toBeUndefined();
+  });
+
+  test('votes, ballots and stamps are people’s: every write to one is refused', () => {
+    seed('ui-people', [
+      { id: 'v1', type: 'vote', index: 'a0', targets: ['ab:hero'], author: human },
+      {
+        id: 'stamp-x',
+        type: 'stamp',
+        index: 'a1',
+        x: 0,
+        y: 0,
+        w: 40,
+        h: 40,
+        kind: 'plus-one',
+        author: human,
+      },
+    ]);
+    const before = boardText('ui-people');
+    for (const ops of [
+      [{ op: 'create', type: 'ballot', vote: 'v1', voter: 'ai' }],
+      [{ op: 'create', type: 'stamp', kind: 'plus-one', x: 0, y: 0, w: 40, h: 40 }],
+      [{ op: 'update', id: 'v1', state: 'ended' }],
+      [{ op: 'delete', id: 'stamp-x' }],
+      [{ op: 'move', id: 'stamp-x', dx: 10, dy: 0 }],
+    ]) {
+      const res = annotate(['ui/People.tsx'], { ops });
+      expect(res.code).toBe(2);
+      expect(res.err).toMatch(/people's own votes and reactions|unknown type|no field/);
+    }
+    expect(boardText('ui-people')).toBe(before);
+    // --help says so.
+    const help = new TextDecoder().decode(Bun.spawnSync(['bun', BIN, '--help']).stdout);
+    expect(help).toMatch(/^ {2}vote\s+\(people only/m);
+  });
+
+  test('unknown fields stay errors, and the message now lists the extension fields too', () => {
+    const res = annotate(['ui/Strict.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0, resolvedBy: 'AI' }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toMatch(/no field "resolvedBy" \(fields: .*resolved/);
+    expect(existsSync(pathOf('ui-strict'))).toBe(false);
+  });
+
+  test('author is immutable: update cannot rewrite it, on any element', () => {
+    seed('ui-auth', [
+      {
+        id: 'a',
+        type: 'sticky',
+        index: 'a0',
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 200,
+        text: 'x',
+        author: human,
+      },
+    ]);
+    const res = annotate(['ui/Auth.tsx'], {
+      ops: [{ op: 'update', id: 'a', author: { kind: 'ai' } }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toMatch(/"author" can't be set here/);
+    expect(byId('ui-auth').a?.author).toEqual(human);
+  });
+});

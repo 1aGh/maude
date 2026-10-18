@@ -4,12 +4,19 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
-beforeAll(() => {
-  if (typeof window === 'undefined') GlobalRegistrator.register();
+// Registered here unless another file already left a full DOM up: a bare `window` stub some suites
+// set is not a DOM (`document` is what the panel needs), so test for that, and only tear down our own.
+let registeredHere = false;
+beforeAll(async () => {
+  if (typeof document === 'undefined') {
+    if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();
+    GlobalRegistrator.register();
+    registeredHere = true;
+  }
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 afterAll(async () => {
-  if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();
+  if (registeredHere && GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();
 });
 
 import { act } from 'react';

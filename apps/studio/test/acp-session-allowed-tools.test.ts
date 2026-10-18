@@ -131,6 +131,11 @@ const NOT_AUTO = [
   'maude codex',
   'maude cache clear',
   'maude-safe design curl-local http://127.0.0.1:4399/_api/sync/trash',
+  // S5.4 — `runs` has two tiered sub-verbs; anything else prompts until it gets its own entry,
+  // and a compound command is not the verb (V2-1.18 harness finding: one verb per command)
+  'maude design runs cancel r_abcdef01',
+  'maude design runs',
+  'ls .design && maude design runs list',
 ];
 
 const STILL_AUTO = [
@@ -151,6 +156,10 @@ const STILL_AUTO = [
   'maude version',
   'maude config get project',
   'maude kg context --about x',
+  // S5.4 (V2-1.15 §5.10): a terminal / chat Claude sees busy artboards and stops its own run
+  'maude design runs list',
+  'maude design runs list --canvas ui/x.tsx --json',
+  'maude design runs stop r_abcdef01',
 ];
 
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {

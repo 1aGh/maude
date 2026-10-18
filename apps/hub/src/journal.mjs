@@ -45,6 +45,7 @@ import { dirname, join } from 'node:path';
 // Imported, never re-typed — same reason server.mjs pulls this in for the
 // canvas-path receiver (see that file's own import of it).
 import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
+import { fileAccessFor, visibleJournalPage } from './access-files.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { listProjectFiles, readCanvasGroups, resolveProjectFileTarget } from './file-manifest.mjs';
 import {
@@ -183,6 +184,15 @@ export function openJournal(dataDir, { now = Date.now } = {}) {
   const handle = makeHandle({ db, getMeta, setMeta, now });
   handleCache.set(dataDir, handle);
   return handle;
+}
+
+/**
+ * The handle already open for a data directory, or null — never opens one.
+ * For a door that was not handed the journal but must see what it names
+ * (`access-files.mjs`: a cell's inert media lives in the journal, not on disk).
+ */
+export function cachedJournal(dataDir) {
+  return handleCache.get(dataDir) ?? null;
 }
 
 /** Drop the cached handle (tests; a closed db must not be handed out again). */
@@ -852,10 +862,33 @@ export function handleJournalRoutes({
     }
 
     const epoch = journal.epoch();
-    const head = journal.head();
     const askedEpoch = query?.epoch ?? null;
     const sinceRaw = query?.since;
     const since = Number.isFinite(Number(sinceRaw)) ? Math.trunc(Number(sinceRaw)) : 0;
+
+    // V2-1.16 L1 — a canvas-only session reads its closure's rows only, under
+    // the last VISIBLE seq as its head (U5). Project sessions: unchanged.
+    const files = fileAccessFor(match, { designRoot, journal });
+    if (files.claimDecides) {
+      const visibleHead = files.visibleHead();
+      if (askedEpoch !== null && askedEpoch !== epoch) {
+        respondJson(200, { epoch, head: visibleHead, reanchor: true, reason: 'epoch changed' });
+        return true;
+      }
+      const page = visibleJournalPage(files, journal, { since, pageMax: MAX_JOURNAL_PAGE });
+      if (page.reanchor) {
+        respondJson(200, { epoch, head: page.head, reanchor: true, reason: page.reanchor });
+        return true;
+      }
+      respondJson(200, {
+        epoch,
+        head: page.head,
+        entries: page.entries,
+        truncated: page.truncated,
+      });
+      return true;
+    }
+    const head = journal.head();
 
     // FAIL CLOSED, three ways (DDR-214's ordering rule applied to the cursor):
     // a different epoch, a cursor from the future, and a negative cursor are

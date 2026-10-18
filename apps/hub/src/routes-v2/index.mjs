@@ -20,6 +20,9 @@
 //            token and answers for itself).
 //   scope    V2-1.16 U3: 'none' | 'canvas' | 'filtered' | 'project'.
 //   handler  async (ctx) => boolean — v2 routes only. A legacy row has none.
+//   canvasDoor  true when the route's handler answers a canvas-only session
+//            itself (filters or refuses per target, V2-1.16 U1); absent, the
+//            access gate refuses every canvas-only session there (fail closed).
 //
 // A path no row names is the STUDIO's (the cell proxy and its own manifest,
 // `studio-manifest.mjs`, classify it): `DEFAULT_ROW` keeps the pre-v2 peer gate
@@ -89,6 +92,9 @@ export function checkHubRouteTable(rows) {
         throw new Error(`routes-v2: '${key}' names '${c}', not a capability in the matrix`);
       }
     }
+    if (row.canvasDoor !== undefined && typeof row.canvasDoor !== 'boolean') {
+      throw new Error(`routes-v2: '${key}' canvasDoor must be a boolean`);
+    }
     if (row.handler !== undefined && typeof row.handler !== 'function') {
       throw new Error(`routes-v2: '${key}' has a handler that is not a function`);
     }
@@ -153,6 +159,7 @@ export async function runHubRoutes(ctx) {
     request: ctx.request,
     capability,
     scope,
+    canvasDoor: row.canvasDoor === true,
     verify: ctx.verify,
   });
   if (refusal) {
