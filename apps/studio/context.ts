@@ -352,7 +352,13 @@ export interface Context {
             leases: Array<{ entry: string; artboard: string; token: number }>;
           };
         }
-      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; actionId?: string } | null>;
+      ): Promise<{
+        status: 'accepted' | 'rejected';
+        code?: string;
+        actionId?: string;
+        /** S5.5b — the run's touched artboards (canvas → ids), for `project:action`. */
+        touched?: Record<string, string[]>;
+      } | null>;
       /** S5.5 — a tool reported writing `hash` (sha256) to canvas `repoRel` for run `key`. */
       claimAiWrite?(key: string, repoRel: string, hash?: string | null): void;
       resolveAiAction?(
@@ -362,6 +368,8 @@ export interface Context {
         status: 'accepted' | 'rejected' | 'discarded';
         code?: string;
         canvases?: number;
+        actionId?: string;
+        touched?: Record<string, string[]>;
       } | null>;
     } | null;
   };
