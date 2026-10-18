@@ -130,11 +130,17 @@ import {
   shouldBootRefit,
 } from './bridge/canvas-mode-store.ts';
 import { type Insets, visibleRect, ZERO_INSETS } from './bridge/occlusion.ts';
-import {
-  buildMoveArtboardsRecord,
-  diffLayoutPositions,
-} from './commands/move-artboards-command.ts';
+import { buildMoveArtboardsRecord, type LayoutRider } from './commands/move-artboards-command.ts';
 import { scopedCdSelector, selectorIndex, shortText } from './dom-selection.ts';
+import {
+  type CommitPositionsOptions,
+  type CommitRider,
+  canvasMetaBody,
+  createDragBusCore,
+  type DragBusCore,
+  type DragFrame,
+  type LayoutRect,
+} from './drag-bus.ts';
 import { applyCaptureChrome } from './exporters/capture-chrome.ts';
 import {
   type DomToSvgApi,
@@ -850,10 +856,14 @@ export function isMetaSelfEcho(now: number = Date.now()): boolean {
   return now - last < META_SELF_ECHO_WINDOW_MS;
 }
 
-function patchCanvasMeta(patch: {
-  viewport?: ViewportState;
-  layout?: { artboards: ArtboardRect[] };
-}): void {
+function patchCanvasMeta(
+  patch: {
+    viewport?: ViewportState;
+    layout?: { artboards: ArtboardRect[] };
+  },
+  /** S2.9b — annotations riding with the layout (one action); `onRefused` when the server refuses. */
+  rider?: LayoutRider & { onRefused?: () => void }
+): void {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
   // DDR-247 — an embedded view persists nothing, camera included: its fit is
   // not the designer's view, and the next time they open the canvas in the
@@ -904,13 +914,19 @@ function patchCanvasMeta(patch: {
   // (PATCH → server write → fs:json broadcast → iframe message) lands
   // safely inside the echo window even on a fast network.
   window.__maude_last_meta_self_write_at = Date.now();
+  const body = canvasMetaBody(file, sanitized, rider);
   fetch('/_api/canvas-meta', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ file, patch: sanitized }),
-  }).catch((err) => {
-    console.warn('[canvas-lib] persist viewport failed:', err);
-  });
+    body: JSON.stringify(body),
+  })
+    .then((res) => {
+      // A refused rider refused the whole move (nothing was written): show what the disk holds.
+      if (body.annotations && !res.ok) rider?.onRefused?.();
+    })
+    .catch((err) => {
+      console.warn('[canvas-lib] persist viewport failed:', err);
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1777,36 +1793,37 @@ export function useViewportControllerContext(): ViewportControllerHandle | null 
   return useContext(ControllerContext);
 }
 
+export type { MovedArtboard } from './drag-bus.ts';
 // Drag-state context (Phase 4.2) — published by DesignCanvas so SnapGuideOverlay
 // (mounted by CanvasShell) can read the active drag's snap guides + so each
 // DCArtboard can know whether it's being dragged as a follower (multi-select
 // drag). A single source-of-truth: only one drag can be active at a time, so
 // the bus holds a single DragState. Each DCArtboard's hook writes here when
 // non-idle and resets to idle on release.
-/** Optional metadata accompanying a position commit. */
-export interface CommitPositionsOptions {
-  /**
-   * HUD / undo-stack label override. Default = `"move N artboard(s)"`.
-   * Distribute / align gestures pass their own label so undo HUD reads
-   * `"Undo: equal-space 4 artboards"` instead of `"Undo: move 4 artboards"`.
-   */
-  label?: string;
-}
+// S2.9b — the bus's stable half (frames, riders, layoutRects, the commit door) lives in
+// drag-bus.ts; contract client/v2/contracts/S2-S4-artboard-motion-ids.md §1–§2.
+export type { CommitPositionsOptions, CommitRider, DragFrame, LayoutRect };
 
-interface DragStateBus {
+interface DragStateBus extends DragBusCore {
   current: DragState;
   setCurrent: (s: DragState) => void;
-  /** Commit drag positions — DesignCanvas wires this to patchCanvasMeta. */
-  commitPositions: (
-    moved: { id: string; x: number; y: number }[],
-    opts?: CommitPositionsOptions
-  ) => void;
 }
 
 const DragStateContext = createContext<DragStateBus | null>(null);
+/** S2.9b — the same stable core, in a context whose value never changes during a drag. */
+const DragFramesContext = createContext<DragBusCore | null>(null);
 
 export function useDragStateContext(): DragStateBus | null {
   return useContext(DragStateContext);
+}
+
+/**
+ * S2.9b — `subscribeFrames` / `onCommit` / `layoutRects` without re-rendering per frame: a layer
+ * that moves 200 stickies at 60 fps reads the bus here, not through `useDragStateContext` (whose
+ * value changes with `current`).
+ */
+export function useDragFrames(): DragBusCore | null {
+  return useContext(DragFramesContext);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2292,9 +2309,13 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
    * undo stack — both the initial commit (do) and every undo/redo replay
    * route through here, so React state always tracks the server.
    */
-  const applyArtboardLayout = useCallback((layout: unknown) => {
+  const applyArtboardLayout = useCallback((layout: unknown, rider?: LayoutRider) => {
+    const was = artboardsRef.current;
     setArtboards(layout as ArtboardRect[]);
-    patchCanvasMeta({ layout: { artboards: layout as ArtboardRect[] } });
+    patchCanvasMeta(
+      { layout: { artboards: layout as ArtboardRect[] } },
+      rider ? { ...rider, onRefused: () => setArtboards(was) } : undefined
+    );
   }, []);
 
   // Register the layout patch sink with the undo provider so the rebuilt
@@ -2305,37 +2326,31 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     return () => undoSinks.setSink('layoutPatchFn', undefined);
   }, [undoSinks, applyArtboardLayout]);
 
-  const commitArtboardPositions = useCallback(
-    (moved: { id: string; x: number; y: number }[], opts?: CommitPositionsOptions) => {
-      const movedById = new Map(moved.map((m) => [m.id, m]));
-      const before = artboardsRef.current;
-      const next = before.map((r) => {
-        const m = movedById.get(r.id);
-        if (m) return { ...r, x: m.x, y: m.y };
-        return r;
-      });
-      // Phase 20 — skip pushing no-op drags (click-without-movement). The
-      // user got back what they had, no edit happened, undo would do nothing.
-      if (!diffLayoutPositions(before, next)) return;
-      const record = buildMoveArtboardsRecord({
-        before: before.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, h: r.h })),
-        after: next.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, h: r.h })),
-        ...(opts?.label ? { label: opts.label } : {}),
-      });
-      // push() invokes the rebuilt cmd.do() = applyArtboardLayout(next) BEFORE
-      // updating the stack, so the optimistic local + PATCH flow is preserved.
-      void undoStackRef.current.push(record);
-    },
+  // S2.9b — the bus core: one per mount, stable across drags (frames, riders, layoutRects and
+  // the commit door every artboard-position commit goes through — drag, nudge, align, Tidy).
+  // Phase 20's no-op skip (click without movement) lives in the core.
+  const busCore = useMemo(
+    () =>
+      createDragBusCore({
+        layout: () => artboardsRef.current,
+        commit: (after, before, opts) => {
+          const record = buildMoveArtboardsRecord({
+            before,
+            after,
+            ...(opts.label ? { label: opts.label } : {}),
+            ...(opts.rider ? { rider: opts.rider } : {}),
+          });
+          // push() invokes the rebuilt cmd.do() = applyArtboardLayout(next, rider) BEFORE
+          // updating the stack, so the optimistic local + PATCH flow is preserved.
+          void undoStackRef.current.push(record);
+        },
+      }),
     []
   );
 
   const dragBus = useMemo<DragStateBus>(
-    () => ({
-      current: dragCurrent,
-      setCurrent: setDragCurrent,
-      commitPositions: commitArtboardPositions,
-    }),
-    [dragCurrent, commitArtboardPositions]
+    () => ({ ...busCore, current: dragCurrent, setCurrent: setDragCurrent }),
+    [dragCurrent, busCore]
   );
 
   const inner = (
@@ -2356,9 +2371,11 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   return (
     <WorldContext.Provider value={ctxValue}>
       <ControllerContext.Provider value={controller}>
-        <DragStateContext.Provider value={dragBus}>
-          <CanvasShell hostRef={hostRef}>{inner}</CanvasShell>
-        </DragStateContext.Provider>
+        <DragFramesContext.Provider value={busCore}>
+          <DragStateContext.Provider value={dragBus}>
+            <CanvasShell hostRef={hostRef}>{inner}</CanvasShell>
+          </DragStateContext.Provider>
+        </DragFramesContext.Provider>
       </ControllerContext.Provider>
     </WorldContext.Provider>
   );
@@ -2561,9 +2578,12 @@ export function DCArtboard({
     // Cloud Phase 25 C2 — a read-only canvas keeps the Move tool for
     // selection, but artboards don't drag (editing is absent, not hidden).
     enabled: !!ctx && (toolMode?.tool ?? 'move') === 'move' && !isReadOnlyCanvas(),
-    onCommit: (moved) => {
-      if (dragBus) dragBus.commitPositions(moved);
+    // S2.9b — the ⌥-drag duplicate gesture carries no riders (contract §2: annotations are not
+    // duplicated with an artboard in v2.0); every other drop rides.
+    onCommit: (moved, { alt }) => {
+      if (dragBus) dragBus.commitPositions(moved, alt ? { riders: false } : undefined);
     },
+    onFrame: (f) => dragBus?.emitFrame(f),
   });
 
   // Publish this artboard's drag state to the bus. Only push when non-idle;
