@@ -104,6 +104,7 @@ import {
 
 import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { ArtboardActivityOverlay } from './artboard-activity-overlay.tsx';
+import { ArtboardGhostsLayer } from './artboard-ghosts-overlay.tsx';
 import {
   ArtboardGuidesOverlay,
   type GuideDefinitions,
@@ -2343,6 +2344,8 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     <div className="dc-canvas" ref={hostRef}>
       <div className="dc-world" ref={worldRef} style={worldStyle}>
         {children}
+        {/* S11.5 — the outlines an all-trashed canvas keeps (world coords, no hit area, shell-told). */}
+        <ArtboardGhostsLayer />
       </div>
       {showMiniMap ? <DCMiniMap /> : null}
       {/* Plan C F6 — separate bottom-left zoom pill (the design's ZoomHud).

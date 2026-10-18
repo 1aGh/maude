@@ -2867,6 +2867,8 @@
     "testid:studio/annotations/ui/text-editor.tsx#canvas iframe chrome/dc-annot-editor-data-annot-editor": "testid:.dc-annot-editor / [data-annot-editor]",
     "testid:studio/artboard-activity-overlay.tsx#other/ai-ring-artboardid": "testid:ai-ring-<artboardId>",
     "testid:studio/artboard-activity-overlay.tsx#other/ai-rings": "testid:ai-rings",
+    "testid:studio/artboard-ghosts-overlay.tsx#empty/artboard-ghost-artboard-id": "testid:artboard-ghost-<artboard-id>",
+    "testid:studio/artboard-ghosts-overlay.tsx#empty/artboard-ghosts": "testid:artboard-ghosts",
     "testid:studio/artboard-guides-overlay.tsx#canvas iframe chrome/dc-artboard-guides": "testid:.dc-artboard-guides",
     "testid:studio/canvas-comment-mount.tsx#canvas iframe chrome/dc-hmr-holding": "testid:.dc-hmr-holding",
     "testid:studio/canvas-lib.tsx#canvas iframe chrome/artboard-rename-id": "testid:artboard-rename-<id>",
