@@ -205,6 +205,8 @@ import {
   riderPatch,
   runStageHooks,
   trashAccess,
+  type ShareRouteDeps,
+  shareInviteSender,
 } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
@@ -1713,6 +1715,18 @@ export function createHttp(
     });
   const askQueue = createAskQueue({ outbox, gates: outboxGates, runs: () => runs });
   outboxSenders['ai.prompt'] = askQueue.sender;
+  // S9.19 — the Share sheet's door to the linked hub (routes/share.ts). The hub is the one this
+  // project is linked to AND that this Mac holds a credential for (a committed config alone names no
+  // hub a token is sent to); an invite the hub cannot hear yet waits in the outbox and this sends it.
+  const shareDeps: ShareRouteDeps = {
+    hub: () => {
+      const url = ctx.cfg.linkedHub?.url;
+      const rec = url ? getHubRecord(url) : null;
+      return url && rec?.token ? { url, token: rec.token } : null;
+    },
+    outbox,
+  };
+  outboxSenders['share.invite'] = shareInviteSender(shareDeps);
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
   // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
@@ -1998,6 +2012,8 @@ export function createHttp(
       runtime: () => ctx.syncControl?.current?.() ?? null,
       access: (req) => accessOf(req),
     }),
+    // S9.19 — /_api/share/*: the desktop's door to the linked hub's access API.
+    share: shareDeps,
     // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
     // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
     // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot

@@ -898,11 +898,40 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `share-dialog` | testid | The share-link dialog (`role="dialog"`). | `client/share-dialog.jsx` · `ShareDialog` | e2e:share-link | stable — re-emit |
-| `share-<kind>-url` | testid (pattern) | Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). | `client/share-dialog.jsx` · `ShareDialog` | e2e:share-link | stable — re-emit |
-| `share-copy-<kind>` | testid (pattern) | Copy button for that link. | `client/share-dialog.jsx` · `ShareDialog` | e2e:share-link | stable — re-emit |
-| `share-open-app` | testid | "Open in app" link (not in the native shell). | `client/share-dialog.jsx` · `ShareDialog` | — | stable — re-emit |
-| `[aria-label="Close share dialog"]` | selector | Close button of the share dialog. | `client/share-dialog.jsx` · `ShareDialog` | e2e:share-link | stable — re-emit |
+| `share-dialog` | testid | The Share sheet (`role="dialog"`) — Invite first, people and roles. *Was the share-link dialog; re-emitted S9.19 on the sheet root.* | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
+| `share-<kind>-url` | testid (pattern) | Read-only link input; `<kind>` ∈ web, app, local (only the kinds that have a value render). *Under the sheet's › Advanced · Other ways in (S9.19).* | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
+| `share-copy-<kind>` | testid (pattern) | Copy button for that link. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
+| `share-open-app` | testid | "Open in app" link (not in the native shell). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | — | stable — re-emit |
+| `[aria-label="Close share dialog"]` | selector | Close button of the Share sheet (`share-close`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | e2e:share-link | stable — re-emit |
+| `share-close` | testid | The Share sheet's close button (`aria-label="Close share dialog"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-scope` | testid | The scope segment (This canvas · Whole project). Drawn only when `/health.access.scopes` holds `canvas` (S9-slices Q13). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-scope-<scope>` | testid (pattern) | One scope button, `<scope>` ∈ canvas, project; `aria-pressed` = current. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite` | testid | The invite form: e-mail, role, Invite (rule share-opens-on-invite). Absent for a person without `invite`. | `client/v2/share/invite-row.jsx` · `InviteRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite-email` | testid | The invite e-mail field; focused when the sheet opens. | `client/v2/share/invite-row.jsx` · `InviteRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite-role` | testid | The invite role select — only the roles `/health.access.roles` holds (no Can view before the roles-v2 flip). | `client/v2/share/invite-row.jsx` · `InviteRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite-submit` | testid | Invite (the primary button). | `client/v2/share/invite-row.jsx` · `InviteRow` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite-sent` | testid | The status line after an invite the hub accepted. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite-queued` | testid | The status line of an invite that waits in the outbox: "Invites send when this Mac is online." | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-invite-link` | testid | A self-hosted hub sends no mail: the invitation link to pass on, with Copy. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-error` | testid | The hub's refusal, in its own words (`role="alert"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-owner-only` | testid | The line a person without `invite` sees instead of the invite form. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-local-note` | testid | A local (unlinked) project: no invite, one line about the cloud. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-unreachable` | testid | The hub cannot be asked right now; invites wait. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-people` | testid | The people list with its count line ("3 people · 1 invited"). | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
+| `share-people-empty` | testid | The people list when nobody else has access. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
+| `share-person-<id>` | testid (pattern) | One person or pending invitation (`data-state="invited"`); `<id>` = the hub's id, non `[A-Za-z0-9_-]` → `-`. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
+| `share-person-role-<id>` | testid (pattern) | That row's role in words — a button with the role menu for a person who may change it, a quiet label otherwise. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
+| `share-person-resend-<id>` | testid (pattern) | Resend on a pending invitation. | `client/v2/share/people-list.jsx` · `PeopleList` | test:share-sheet | new in v2 (S9.19) |
+| `share-role-menu` | testid | The role menu (`role="menu"`, 10 co-share-roles). | `client/v2/share/role-menu.jsx` · `RoleMenu` | test:share-sheet | new in v2 (S9.19) |
+| `share-role-<role>` | testid (pattern) | A role row, `<role>` = wire id (member, viewer, observer); `aria-checked` = current. | `client/v2/share/role-menu.jsx` · `RoleMenu` | test:share-sheet | new in v2 (S9.19) |
+| `share-role-make-owner` | testid | Make owner (whole project only). | `client/v2/share/role-menu.jsx` · `RoleMenu` | test:share-sheet | new in v2 (S9.19) |
+| `share-role-remove` | testid | "Remove from <scope>" — opens the Remove dialog. | `client/v2/share/role-menu.jsx` · `RoleMenu` | test:share-sheet | new in v2 (S9.19) |
+| `share-remove-dialog` | testid | The Remove dialog (`role="alertdialog"`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-remove-confirm` | testid | Remove (or Take back, for a pending invitation) in that dialog. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-row` | testid | The link row — only when `/health.access.links` (S9.20 fills in its rules). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-link-copy` | testid | Copy link in the link row. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-other-ways` | testid | The sheet's › Advanced fold, hint "Other ways in": the web / app / this-Mac links. | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
+| `share-other-ways-toggle` | testid | That fold's toggle (`aria-expanded`). | `client/v2/share/share-sheet.jsx` · `ShareSheet` | test:share-sheet | new in v2 (S9.19) |
 
 ### report-bug
 
@@ -1172,7 +1201,7 @@ The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 
 | `follow-catch-up` | testid | Catch up: back to the presenter's artboard, Live again (only while drifted). | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
 | `follow-open-canvas` | testid | "Open the canvas" after the presenter ended the presentation. | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
 | `follow-watchers` | testid | "N watching" ("99+" above 99), this follower included. | `client/v2/present/follow-view.jsx` · `FollowBar` | — | stable |
-| `[data-testid$="-dialog"]` | selector | Any testid ending in `-dialog`, used with `[role="dialog"]` to assert that no dialog is open. Matches today: share-dialog, report-bug-dialog, cloud-deeplink-dialog, cloud-device-dialog, file-deeplink-dialog, team-projects-dialog. *Keep the `-dialog` suffix on new dialog roots.* | `client/share-dialog.jsx` · `ShareDialog`<br>`client/report-bug.jsx` · `ReportBugDialog`<br>`client/panels/CloudBar.jsx` · `CloudBar`<br>`client/panels/file-deep-link-dialog.jsx` · `FileDeepLinkDialog`<br>`client/panels/TeamProjects.jsx` · `TeamProjectsDialog` | e2e:cloud-attach | stable — re-emit |
+| `[data-testid$="-dialog"]` | selector | Any testid ending in `-dialog`, used with `[role="dialog"]` to assert that no dialog is open. Matches today: share-dialog, report-bug-dialog, cloud-deeplink-dialog, cloud-device-dialog, file-deeplink-dialog, team-projects-dialog. *Keep the `-dialog` suffix on new dialog roots.* | `client/v2/share/share-sheet.jsx` · `ShareSheet`<br>`client/report-bug.jsx` · `ReportBugDialog`<br>`client/panels/CloudBar.jsx` · `CloudBar`<br>`client/panels/file-deep-link-dialog.jsx` · `FileDeepLinkDialog`<br>`client/panels/TeamProjects.jsx` · `TeamProjectsDialog` | e2e:cloud-attach | stable — re-emit |
 | `[role="dialog"] / [aria-modal="true"]` | selector | Any open dialog/modal (most shell dialogs and in-canvas popovers carry the role). *`App()` checks `[role="dialog"][aria-modal="true"]` to suppress shortcuts while a modal is open.* | `client/app.jsx` · `App` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e:cloud-attach, app.jsx, test:history-preview-focus | stable — re-emit |
 | `[role="status"]` | selector | Live status regions (loading, banners, notes). | `client/app.jsx` · `App` | runner:reliable-project-multiplayer/f3/s19-browser.mjs | stable — re-emit |
 | `.st-dialog-hd / .st-iconbtn` | selector | A dialog header and its close (×) icon button; `report-bug-dialog` closes via `[data-testid="report-bug-dialog"] .st-dialog-hd .st-iconbtn`. | `client/report-bug.jsx` · `ReportBugDialog` | e2e:report-bug-dialog | stable — re-emit |

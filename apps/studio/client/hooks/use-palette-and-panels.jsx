@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
-import { copyShareLink } from '../share-dialog.jsx';
+import { copyShareLink } from '../v2/share/link-dialog.js';
 import { normalizeOpenPath } from '../share-link.js';
 import { copyPresentationLink } from '../v2/present/copy-link.js';
 import { bindCopyPng, runCopyPng } from '../v2/export/copy-png.js';

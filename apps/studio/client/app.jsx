@@ -64,7 +64,7 @@ import { isEmbedLocation } from './embed.js';
 import { HomeApp } from './home/home-app.jsx';
 import { bootShellMode } from './home/shell-mode.js';
 import EmbedView from './embed-view.jsx';
-import { ShareDialog, copyShareLink } from './share-dialog.jsx';
+import { ShareSheet } from './v2/share/share-sheet.jsx';
 import IdentityBar from './panels/IdentityBar.jsx';
 import OnboardingWizard from './panels/OnboardingWizard.jsx';
 import { ReadinessDialog } from './panels/ReadinessList.jsx';
@@ -3158,12 +3158,12 @@ function ShellTree() {
       )}
       {relink.sheet}
       {shareDialog && (
-        <ShareDialog
+        <ShareSheet
           target={shareDialog}
           links={shareLinksFor(shareDialog.path)}
           shell={shareShell}
+          project={cfg?.cloud?.projectName || project}
           onClose={() => setShareDialog(null)}
-          Icon={StIcon}
         />
       )}
       {exportDialog && (

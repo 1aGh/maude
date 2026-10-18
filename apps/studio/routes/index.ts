@@ -37,6 +37,7 @@ import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createSettingsRoutes, type SettingsRouteDeps } from './settings.ts';
+import { createShareRoutes, type ShareRouteDeps } from './share.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
 import type { RouteSpec } from './table.ts';
@@ -60,6 +61,8 @@ export { assetStateDepsFor } from './asset-state.ts';
 export { type ExportRouteDeps, gateSpecV2, planExportV2 } from './export.ts';
 // S5.5b — the run registry's stage hooks + the bus announcement (http.ts reaches routes/ only here)
 export { announceAction, runStageHooks } from './project-undo.ts';
+// S9.19 — the outbox's `share.invite` door is the share routes' own hub call (routes/share.ts).
+export { type ShareRouteDeps, shareInviteSender } from './share.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
@@ -106,6 +109,8 @@ export interface RouteDeps {
   cloudMove: CloudMoveDeps;
   /** S8.19 — `GET /_api/asset-state` (main origin): disk + upload queue + hub presence */
   assetState?: AssetStateRouteDeps;
+  /** S9.19 — `/_api/share/*`: the desktop's door to the linked hub's access API (main origin only) */
+  share: ShareRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -168,5 +173,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(deps.settings ? createSettingsRoutes(deps.settings) : []),
     ...createCloudMoveRoutes(deps.cloudMove),
     ...createAssetStateRoutes(deps.assetState ?? { service: () => null }),
+    ...createShareRoutes(deps.share),
   ];
 }

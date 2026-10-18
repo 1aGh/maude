@@ -296,6 +296,13 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/format': { safe: 'read', unsafe: null },
   '/_api/project/migrate': REFUSED,
   '/_api/outbox': REFUSED,
+  // S9.19 — the desktop's door to ITS linked hub's /api/access/* (routes/share.ts), with the Mac's
+  // stored credential. A cell IS the hub: its browser door asks /api/access/* there, never through
+  // the studio child (which is linked to nothing). The `:id` verbs match nothing: default-closed.
+  '/_api/share/posture': REFUSED,
+  '/_api/share/me': REFUSED,
+  '/_api/share/people': REFUSED,
+  '/_api/share/invites': REFUSED,
   // V2-3.3 — a pin is ONE person's view state in `_canvas-state/`, and a cell's is shared by
   // every member: refused rather than letting one member's pins become everyone's.
   '/_api/pins': REFUSED,

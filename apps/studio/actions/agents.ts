@@ -789,6 +789,31 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'external',
     agent: human('billing', 'moves the project to the person’s billed Maude Cloud account'),
   },
+  // S9.19 — owner-only, decided by the hub; routes/share.ts refuses a session without `invite` first.
+  'share.invite': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/invites', method: 'POST' },
+    agent: human('invite'),
+  },
+  'share.set-role': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/people/:id', method: 'PATCH' },
+    agent: human('roles'),
+  },
+  'share.remove': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/people/:id/remove', method: 'POST' },
+    agent: human('roles'),
+  },
+  'share.resend': {
+    effect: 'shared',
+    minRole: 'owner',
+    server: { route: '/_api/share/invites/:id/resend', method: 'POST' },
+    agent: human('invite'),
+  },
   // ── app / help / ai ──
   'settings.open': { effect: 'none', agent: cli('maude design open --panel settings') },
   'ai.chat': { effect: 'none', agent: human('summon') },

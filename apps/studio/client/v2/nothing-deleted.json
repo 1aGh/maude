@@ -1157,7 +1157,7 @@
       "v2": {
         "action": null,
         "testid": "share-local-url",
-        "where": "Share cluster › Share… › Local link (this Mac only), with Copy",
+        "where": "Share cluster › Share… › Advanced · Other ways in › Local link (this Mac only), with Copy",
         "reach": [
           "desktop",
           "browser"
@@ -1174,7 +1174,7 @@
       "v2": {
         "action": null,
         "testid": "share-app-url",
-        "where": "Share cluster › Share… › Open in Maude app, with Copy",
+        "where": "Share cluster › Share… › Advanced · Other ways in › Open in Maude app, with Copy",
         "reach": [
           "desktop",
           "browser"

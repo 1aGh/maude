@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "3692d250cca4",
+  "manifestVersion": "c60fd8560bb5",
   "actions": [
     {
       "id": "search.open",
@@ -2747,6 +2747,70 @@
         "path": "human",
         "because": "billing",
         "note": "moves the project to the person’s billed Maude Cloud account"
+      }
+    },
+    {
+      "id": "share.invite",
+      "label": "Invite people…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/invites",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "invite"
+      }
+    },
+    {
+      "id": "share.set-role",
+      "label": "Change what someone can do…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/people/:id",
+        "method": "PATCH"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
+      }
+    },
+    {
+      "id": "share.remove",
+      "label": "Remove someone…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/people/:id/remove",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "roles"
+      }
+    },
+    {
+      "id": "share.resend",
+      "label": "Resend an invite…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "owner",
+      "server": {
+        "route": "/_api/share/invites/:id/resend",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "invite"
       }
     },
     {

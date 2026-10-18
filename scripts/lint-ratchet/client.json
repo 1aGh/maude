@@ -71,11 +71,6 @@
     "apps/studio/client/panels/BrandUploadPanel.jsx": {
       "lint/a11y/noStaticElementInteractions": 1
     },
-    "apps/studio/client/panels/ChatPanel.jsx": {
-      "lint/a11y/noAutofocus": 1,
-      "lint/a11y/noStaticElementInteractions": 1,
-      "lint/a11y/useKeyWithClickEvents": 1
-    },
     "apps/studio/client/panels/ClipInspector.jsx": {
       "lint/a11y/noLabelWithoutControl": 8
     },
@@ -139,9 +134,6 @@
       "lint/a11y/noAutofocus": 1,
       "lint/a11y/noStaticElementInteractions": 1,
       "lint/a11y/useKeyWithClickEvents": 2
-    },
-    "apps/studio/client/share-dialog.jsx": {
-      "lint/a11y/noStaticElementInteractions": 1
     },
     "apps/studio/client/shell/comments-panel.jsx": {
       "lint/a11y/noStaticElementInteractions": 1,
