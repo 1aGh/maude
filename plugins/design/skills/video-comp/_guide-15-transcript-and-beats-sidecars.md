@@ -56,6 +56,23 @@ re-run of the verb.
 - When `tempoStrength` is below 0.15 the track has no clear beat, so Snap to the beat stays off.
   Bar ticks are drawn tall only when `bar.confidence` is 0.4 or higher.
 
+#### Detecting beats
+
+```sh
+maude design beats assets/9f00aa11.mp3            # writes assets/9f00aa11.beats.json
+maude design beats assets/9f00aa11.mp3 --bpm 174  # fix the tempo, keep the bar phase
+maude design beats assets/9f00aa11.mp3 --dry-run --json   # print the grid, write nothing
+```
+
+- It decodes with ffmpeg, or with headless Chromium when ffmpeg is not installed (the same beats
+  either way, `analyzer.decode` says which). Nothing is downloaded and nothing leaves the machine.
+- The tempo can come out at half or double the real one (a 174 BPM track at 87). Check `bpm` against
+  what you know of the track, and re-run with `--bpm` to fix it. The file then says `bpmSource: "set"`.
+- Do not trust `bar.phase` below a `bar.confidence` of 0.4. Re-running without `--bpm` replaces the
+  file; with `--bpm` the existing bar phase and any keys the file already carried are kept.
+- Exit codes: 2 usage, 3 no decoder (no ffmpeg and no Chromium), 4 the asset is missing or is not
+  audio it can read.
+
 ### Both files keep keys they do not know
 
 Every Maude 2 reader and writer keeps an unknown key exactly as it found it, at the top level and on
