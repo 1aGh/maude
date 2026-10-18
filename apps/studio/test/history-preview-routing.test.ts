@@ -34,11 +34,15 @@ test('accepted preview history and restore use project actions, not Git discard'
   expect(diff).toContain('onRestore={async (file, version) =>');
   expect(diff).toContain('acceptedDiff');
   expect(diff).toMatch(/restoreProjectVersion\(\s*file,/);
-  expect(/historyRefresh=.*syncStatus\?\.appliedRevision.*projectHistoryRefresh/.test(app)).toBe(
-    true
-  );
+  // S11.10 retired the Changes panel: the refresh key now rides the Version history host
+  // (`refreshKey=` and the Advanced fold's `historyRefresh:`), same two inputs.
+  expect(
+    /(historyRefresh[=:]|refreshKey=).*syncStatus\?\.appliedRevision.*projectHistoryRefresh/.test(
+      app
+    )
+  ).toBe(true);
   expect(app).toMatch(
-    /onRestoreVersion=\{\(revision\) =>\s*restoreProjectVersion\(activePath, revision\)/
+    /onRestoreVersion[=:]\s*\{?\(revision\) =>\s*restoreProjectVersion\(activePath, revision\)/
   );
   expect(app).toMatch(/if \(!acceptedDiff\) return gitLoadLog\(path\);/);
   expect(app).toMatch(

@@ -104,6 +104,11 @@ describe('canvas → shell comment relays are scoped to the active canvas', () =
         (m) => m.index ?? 0
       )) {
         uses++;
+        // S9.22b (comment-bridge.js): the gate is a function whose `activeWin` is a PARAMETER, not a
+        // block-local — so the declaration check moves to its one call site, asserted below. Any other
+        // usage still needs its own `const activeWin = activePath…`.
+        if (/export function acceptCommentBridge\(e, activeWin\)/.test(CODE.slice(0, use)))
+          continue;
         // Nearest branch boundary at or before this usage.
         const open = starts.filter((s) => s < use).pop() ?? 0;
         // `= activePath` is the load-bearing half: a declaration that derives the
@@ -121,6 +126,18 @@ describe('canvas → shell comment relays are scoped to the active canvas', () =
     }
     // The handler was found at all — an empty scan approves everything.
     expect(uses).toBeGreaterThan(0);
+
+    // ... and the parameter-shaped gate is only as good as what its caller hands it: the active
+    // window, derived from app state (`activePath`), never from the message.
+    const bridgeCall = clientFiles().find(({ src }) =>
+      /acceptCommentBridge\(e, activeWin\)/.test(src)
+    );
+    expect(bridgeCall).toBeDefined();
+    const callSrc = bridgeCall?.src ?? '';
+    const callAt = callSrc.indexOf('acceptCommentBridge(e, activeWin)');
+    expect(callSrc.slice(Math.max(0, callAt - 400), callAt)).toMatch(
+      /const activeWin =\s*\n?\s*activePath/
+    );
 
     expect(
       undeclared,

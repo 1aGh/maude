@@ -457,5 +457,8 @@ export {
   resolveDesignRoot,
 };
 
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+// `import.meta.main` first: the server bundles this module (annotations/ai-read.ts), and inside the
+// `bun --compile` binary the argv/url compare is true for every bundled module (test/compiled-entry-guard).
+const isMain =
+  import.meta.main ?? (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
 if (isMain) await main();
