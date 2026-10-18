@@ -1,0 +1,271 @@
+/* client/v2/annotations/annotation-list.css — S4.17: Layers in Preview = the annotation list
+ * (canvas 15 `.an-lp*`, artboard an-layers). Sits in the left panel's Layers slot: a title with the
+ * count, person chips, rows grouped by section, a foot for what the filter hides. Tokens only; weights
+ * stop at 600; the one transition (the twisty) collapses under reduced motion. */
+
+@layer shell {
+  .al-panel {
+    border-left: 0;
+    min-width: 0;
+  }
+  .al {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--space-2);
+  }
+
+  .al-title {
+    flex: none;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    font-size: var(--type-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--fg-0);
+  }
+  .al-count {
+    font-size: var(--type-xs);
+    font-weight: 400;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* person chips */
+  .al-chips {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: 0 var(--space-3) var(--space-2);
+  }
+  .al-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-3);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    cursor: pointer;
+  }
+  .al-chip:hover {
+    color: var(--fg-0);
+  }
+  .al-chip[data-on] {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .al-chip:focus-visible,
+  .al-row:focus-visible,
+  .al-tw:focus-visible,
+  .al-sec-pick:focus-visible,
+  .al-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* the list */
+  .al-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--space-2) var(--space-2);
+  }
+  .al-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-2) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    text-align: left;
+    cursor: pointer;
+  }
+  .al-row:hover {
+    background: var(--bg-2);
+  }
+  .al-row[aria-current="true"],
+  .al-sec:has([aria-current="true"]) {
+    background: var(--accent-tint);
+    color: var(--fg-0);
+  }
+  .al-row--in {
+    padding-left: calc(var(--space-2) + var(--space-5));
+  }
+  .al-row[data-resolved] .al-name {
+    color: var(--fg-2);
+  }
+  .al-sec {
+    cursor: default;
+    padding: 0 var(--space-2) 0 0;
+  }
+  .al-tw {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .al-tw[data-open] svg {
+    transform: rotate(90deg);
+  }
+  .al-tw svg {
+    transition: transform var(--dur-soft) var(--ease-out);
+  }
+  .al-sec-pick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .al-glyph {
+    flex: none;
+    color: var(--fg-2);
+  }
+  .al-sw {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--bg-3);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+  }
+  .al-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .al-meta {
+    flex: none;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .al-state {
+    flex: none;
+    display: grid;
+    color: var(--fg-2);
+  }
+
+  /* empty / notes */
+  .al-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-3);
+  }
+  .al-empty-t {
+    margin: 0;
+    font-size: var(--type-sm);
+    color: var(--fg-0);
+  }
+  .al-empty-b {
+    margin: 0;
+    padding: 0 var(--space-3);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .al-empty .al-empty-b {
+    padding: 0;
+  }
+
+  /* the foot — what the filter is hiding */
+  .al-foot {
+    flex: none;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* "Locked · Unlock ⇧⌘L" and the drag tooltip */
+  .al-locked {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    align-self: flex-start;
+    margin: 0 var(--space-3) var(--space-2);
+    padding: 0 var(--space-1) 0 var(--space-2);
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    white-space: nowrap;
+  }
+  .al-locked-t {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .al-locked-div {
+    width: 1px;
+    height: 16px;
+    background: var(--border-default);
+  }
+  .al-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    cursor: pointer;
+  }
+  .al-btn:hover {
+    background: var(--bg-2);
+  }
+  .al-tip {
+    display: inline-block;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--bg-4);
+    color: var(--fg-0);
+    font-size: var(--type-xs);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .al-tw svg {
+      transition-duration: 1ms;
+    }
+  }
+}
