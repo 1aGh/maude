@@ -1105,3 +1105,56 @@ describe('gate — the recorded fence, quoted findings, the harness files', () =
     expect(r.startsWith('soft-locked: x IGNORE')).toBe(true);
   });
 });
+
+// S10.3b — a design system's revisions and head.json are the DS engine's alone (V2-1.6 §5.15):
+// the hook refuses a hand edit BEFORE it is written, for any agent, wherever the config puts the
+// system; the system's own working files stay editable (an outside edit is a review, S10.3).
+describe('design-system history is never written by hand (S10.3b)', () => {
+  let project;
+  const write = (rel, content, id) => ({
+    session_id: 'ds1',
+    tool_use_id: id,
+    cwd: project,
+    tool_name: 'Write',
+    tool_input: { file_path: join(project, '.design', rel), content },
+  });
+  const headAbs = () => join(project, '.design', 'brand', 'acme', 'revisions', 'head.json');
+  beforeAll(() => {
+    project = makeProject('maude-hook-ds-');
+    writeFileSync(
+      join(project, '.design', 'config.json'),
+      JSON.stringify({ designSystems: [{ name: 'acme', path: 'brand/acme' }] })
+    );
+    mkdirSync(join(project, '.design', 'brand', 'acme', 'revisions'), { recursive: true });
+    writeFileSync(headAbs(), '{}');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('Write / Edit of head.json and revisions/* → deny ds-managed (config path and system/<ds>)', async () => {
+    for (const [rel, id] of [
+      ['brand/acme/revisions/head.json', 'd1'],
+      ['brand/acme/revisions/abc123.json', 'd2'],
+      ['Brand/Acme/Revisions/abc123.css', 'd3'],
+      ['system/other/revisions/head.json', 'd4'],
+    ]) {
+      const r = await hook('pre-edit', write(rel, '{"head":"forged"}', id));
+      expect(`${rel} ${isDeny(r, 'ds-managed')}`).toBe(`${rel} true`);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('maude design ds');
+    }
+    const edit = await hook('pre-edit', {
+      session_id: 'ds1',
+      tool_use_id: 'd5',
+      cwd: project,
+      tool_name: 'Edit',
+      tool_input: { file_path: headAbs(), old_string: '{}', new_string: '{"head":"x"}' },
+    });
+    expect(isDeny(edit, 'ds-managed')).toBe(true);
+    expect(readFileSync(headAbs(), 'utf8')).toBe('{}');
+  });
+
+  test("the system's working files stay editable", async () => {
+    expect(
+      await hook('pre-edit', write('brand/acme/colors_and_type.css', ':root{}', 'd6'))
+    ).toMatchObject({ status: 0, stdout: '' });
+  });
+});

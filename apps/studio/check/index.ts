@@ -410,8 +410,8 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
         finding(
           'ds-managed',
           rel,
-          'design-system revisions are written by the review verbs, never by hand',
-          'change the system through `maude design ds-upgrade` or the DS review'
+          'design-system revisions and head.json are written by the DS engine, never by hand',
+          'change the system with `maude design ds` (pending --set, publish, keep, undo, pick) or the DS review'
         )
       );
     else if (rel.endsWith('.json') && kind !== 'skip') parseJson(rel, text, r);
