@@ -68,7 +68,7 @@ import {
   stripSummon,
 } from './access-docs.mjs';
 import { createPokeVisibility } from './access-files.mjs';
-import { claimForMatch } from './access-gate.mjs';
+import { claimForMatch, planPausedFromEnv } from './access-gate.mjs';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -1012,6 +1012,12 @@ export function createHub(config = {}) {
         // the last layer, never the only one.
         // Per connection, per document (L2): `!can('edit', canvas)`.
         if (connectionConfig && door.readOnly) connectionConfig.readOnly = true;
+        // A3 (S9.15b) — a paused project syncs read-only: same protocol gate,
+        // so its documents stay readable live and nothing writes to them. On
+        // the context too (`readOnly` below), because the per-message fence
+        // (`accepted.fence`) re-derives `connection.readOnly` from it.
+        const paused = planPausedFromEnv();
+        if (connectionConfig && paused) connectionConfig.readOnly = true;
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
@@ -1025,7 +1031,7 @@ export function createHub(config = {}) {
             source: match.source,
             dev: !!match.dev,
             scope: match.scope ?? '*',
-            readOnly: door.readOnly,
+            readOnly: door.readOnly || paused,
             format,
             ...docContextFields(match, door),
             // The address the token was minted for. Carried so the server-side
