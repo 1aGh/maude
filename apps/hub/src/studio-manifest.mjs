@@ -234,6 +234,8 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/history': { safe: 'read', unsafe: 'read' },
   '/_api/project/restore': { safe: null, unsafe: 'edit' },
   '/_api/project/undo': REFUSED,
+  // S5.5 — "your ⌘Z stack" is the same per-person question as undo itself.
+  '/_api/project/undo-stack': REFUSED,
   // Signs in and stores a credential on the machine that serves it — that is
   // the desktop's own copy-making step, never something a cell does for a
   // visitor (plan T21).

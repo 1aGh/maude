@@ -37,12 +37,12 @@ describe('one matrix — no local copy', () => {
     });
   }
 
-  it('both modules expose the stored roles — the matrix order, without observer until D1 allows it', () => {
-    // D1 `project_members.role CHECK (role IN ('viewer','member','owner'))` (migrate.mjs v4/v5):
-    // the control plane offers and stores observer only after its v2 migration (V2-1.7 §5.8).
-    assert.deepEqual([...ACCESS_ROLES], [...V1_ROLES]);
+  it('both modules expose the stored roles — the whole matrix, observer included (D1 v17)', () => {
+    // migrate.mjs v17 rebuilt project_members / project_invites to admit observer
+    // (V2-1.7 §5.8), so S9.1's V1_ROLES stand-in is gone.
+    assert.deepEqual([...ACCESS_ROLES], [...MATRIX_ROLES]);
     assert.equal(MEMBER_ROLES, ACCESS_ROLES);
-    for (const r of ACCESS_ROLES) assert.ok(MATRIX_ROLES.includes(r));
+    assert.deepEqual([...V1_ROLES], ACCESS_ROLES.slice(1), 'observer sits below the v1 roles');
   });
 });
 
@@ -64,29 +64,33 @@ describe('the answers for owner · member · viewer did not move', () => {
       for (const role of ['viewer', 'member', 'owner']) {
         assert.equal(can(role, word), roles.includes(role), `${role} ${word}`);
       }
-      assert.deepEqual([...CAPABILITIES[word]], roles, word);
+      assert.deepEqual(
+        CAPABILITIES[word].filter((r) => r !== 'observer'),
+        roles,
+        word
+      );
     }
   });
 
-  it('unknown role, unknown word, and observer hold nothing at the control plane', () => {
+  it('unknown role and unknown word hold nothing; observer (Can view) only looks', () => {
     for (const word of Object.keys(PRE)) {
       assert.equal(can('admin', word), false);
       assert.equal(can(null, word), false);
+      // `view` is the matrix's `read`; every other control-plane word is beyond Can view.
+      assert.equal(can('observer', word), word === 'view', `observer ${word}`);
     }
     assert.equal(can('owner', 'launch-missiles'), false);
-    // observer is a cell role the control plane does not store yet; its `view` is the matrix's
-    // `read`, but no D1 row can name it — decideAccess refuses such a row.
     assert.deepEqual(
       decideAccess({
         accountId: 'a2',
         project: { account_id: 'a1', state: 'active' },
         members: [{ account_id: 'a2', role: 'observer' }],
       }),
-      { ok: false, reason: 'no-access' }
+      { ok: true, role: 'observer' }
     );
   });
 
-  it('a membership change to observer is refused as unknown, as before', () => {
+  it('a membership change to observer is a demotion, and revokes', () => {
     const r = decideMembershipChange({
       actorRole: 'owner',
       targetAccountId: 'a2',
@@ -94,8 +98,7 @@ describe('the answers for owner · member · viewer did not move', () => {
       newRole: 'observer',
       ownerId: 'a1',
     });
-    assert.equal(r.ok, false);
-    assert.equal(r.reason, 'unknown-role');
+    assert.deepEqual(r, { ok: true, action: 'change-role', revokeSessions: true });
   });
 
   it('a demotion still revokes, a promotion does not', () => {

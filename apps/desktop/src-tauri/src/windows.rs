@@ -2791,6 +2791,7 @@ mod tests {
             ("windows.rs", "pub async fn open_project("),
             ("present.rs", "pub async fn present_displays("),
             ("present.rs", "pub async fn present_audience_open("),
+            ("home.rs", "pub async fn open_search_result("),
         ] {
             assert!(
                 body(&src(file), sig).contains("caller_in_front("),

@@ -32,6 +32,7 @@
     "allow-present-displays",
     "allow-present-audience-open",
     "allow-present-audience-close",
+    "allow-open-search-result",
     "allow-take-pending-intent",
     "allow-take-tabs-restored",
     "allow-take-pending-navigate",

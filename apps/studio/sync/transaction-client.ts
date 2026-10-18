@@ -61,6 +61,10 @@ interface OutboxAction {
   label: string;
   operations: Operation[];
   dependsOn?: string[];
+  /** V2-1.5 §5.1 — an AI run's publish names its run / chat / landing time (+ partial). */
+  origin?: { runId?: string; chatId?: string; madeAt?: number; partial?: true };
+  /** V2-1.15 §5.2 — the leases the publish holds; the kernel checks them in its commit. */
+  fence?: { runId: string; leases: Array<{ entry: string; artboard: string; token: number }> };
 }
 
 interface OutboxEntry {
@@ -421,7 +425,8 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       epoch,
       transactionId,
       ...(action.dependsOn?.length ? { dependsOn: action.dependsOn } : {}),
-      origin: { deviceId, sessionId, client: 'studio' },
+      origin: { ...action.origin, deviceId, sessionId, client: 'studio' },
+      ...(action.fence ? { fence: action.fence } : {}),
       action: { kind: action.kind ?? 'edit', label: action.label, operations: action.operations },
     });
   }
@@ -536,13 +541,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * `transactionId` may be chosen by the caller (`newTransactionId()`) so a
    * later proposal can name this one in `dependsOn` before it is answered.
    */
-  function propose(action: {
-    kind?: string;
-    label: string;
-    operations: Operation[];
-    transactionId?: string;
-    dependsOn?: string[];
-  }): Promise<ProposalResult> {
+  function propose(action: OutboxAction & { transactionId?: string }): Promise<ProposalResult> {
     const { transactionId, ...rest } = action;
     let entry: OutboxEntry;
     let file: string;

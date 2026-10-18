@@ -9628,7 +9628,7 @@
     "hook": "palette-row-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One ⌘K row; <id> is `action:<registry id>`, `tool:<id>`, `setting:<section>:<testid>:<n>`, `canvas:<rel>`, `artboard:<rel>#<id>`, `ask-ai`, or a short-list action id. The active row also has `.is-active`.",
+    "meaning": "One ⌘K row; <id> is `action:<registry id>`, `tool:<id>`, `setting:<section>:<testid>:<n>`, `canvas:<rel>`, `artboard:<rel>#<id>`, `project:<pid>:canvas:<rel>` / `project:<pid>:artboard:<rel>#<id>` (another project's row, S1.5), `ask-ai`, or a short-list action id. The active row also has `.is-active`.",
     "producer": {
       "file": "apps/studio/client/dialogs/command-palette.jsx",
       "symbol": "CommandPalette"
@@ -9641,7 +9641,20 @@
     "hook": "palette-group-<id>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`, or `did-you-mean` (typo-only hits, S1.4).",
+    "meaning": "A ⌘K result group: `canvases`, `artboards`, `actions` (with the “N hidden tools” aside), `tools`, `settings`, `did-you-mean` (typo-only hits, S1.4), or — once another project answers (desktop, S1.5) — `project-self` (this tab) and `project-<pid>` per other project, each headed by its square and where it is.",
+    "producer": {
+      "file": "apps/studio/client/dialogs/command-palette.jsx",
+      "symbol": "CommandPalette"
+    },
+    "region": "palette",
+    "consumers": ["apps/studio/test/v2-search-ui.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "palette-project-square",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The project's square (initial + Home's tone for its pid) on a ⌘K project group header (S1.5, desktop only).",
     "producer": {
       "file": "apps/studio/client/dialogs/command-palette.jsx",
       "symbol": "CommandPalette"

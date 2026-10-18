@@ -15,6 +15,50 @@
     align-items: baseline;
     gap: var(--space-2);
   }
+  /* S1.5 · pn-k-across: the project's square on its group header (Home's tones, same id → same tone) */
+  .st-pal-sq {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    align-self: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-xs);
+    font-family: var(--font-rounded);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--object-ink);
+  }
+  .st-pal-sq--lilac {
+    background: var(--object-lilac);
+  }
+  .st-pal-sq--yellow {
+    background: var(--object-yellow);
+  }
+  .st-pal-sq--sky {
+    background: var(--object-sky);
+  }
+  .st-pal-sq--green {
+    background: var(--object-green);
+  }
+  .st-pal-sq--coral {
+    background: var(--object-coral);
+  }
+  .st-pal-sq--grey {
+    background: var(--object-grey);
+  }
+  /* another project's canvas wears its picture where a row has its icon */
+  .st-pal-thumb {
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    background: var(--bg-4);
+  }
   .st-pal-aside {
     font-family: var(--font-body);
     letter-spacing: 0;

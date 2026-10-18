@@ -652,6 +652,7 @@ pub fn run() {
             present::present_displays,
             present::present_audience_open,
             present::present_audience_close,
+            home::open_search_result,
             home::relink_project,
             windows::window_labels,
             windows::e2e_focus_window,
