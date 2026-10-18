@@ -306,6 +306,24 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   },
   'share.open': { effect: 'shared', agent: human('links') },
   'share.copy-link': { effect: 'none', agent: human('links') },
+  // ── presence (S9.23) ──
+  // Where people are is awareness, not a file: an agent reads the room through the studio, never writes
+  // it. Go to is the view move `maude design open` already does; Bring everyone here is a person's
+  // gesture to other people (the `summon` capability), so it is human.
+  'presence.follow': {
+    effect: 'none',
+    agent: human('summon', 'a person watching another person’s camera'),
+  },
+  'presence.go-to': NAV('<canvas>#<artboard>'),
+  'presence.bring-everyone': {
+    effect: 'none',
+    minRole: 'edit',
+    agent: human(
+      'summon',
+      'moves other people’s cameras; the hub strips `summon` without the capability'
+    ),
+  },
+  'presence.stop': { effect: 'none', agent: human('summon', 'ends a Follow or the spotlight') },
   // ── app / help / ai ──
   'settings.open': PREF('settings are the user’s'),
   'ai.chat': { effect: 'none', agent: human('summon') },

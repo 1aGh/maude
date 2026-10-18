@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "4b37b15c25fd",
+  "manifestVersion": "2b5a3b133a8d",
   "actions": [
     {
       "id": "search.open",
@@ -2547,6 +2547,54 @@
       "agent": {
         "path": "human",
         "because": "ai-chat"
+      }
+    },
+    {
+      "id": "presence.follow",
+      "label": "Follow",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon",
+        "note": "a person watching another person’s camera"
+      }
+    },
+    {
+      "id": "presence.go-to",
+      "label": "Go to",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard>"
+      }
+    },
+    {
+      "id": "presence.bring-everyone",
+      "label": "Bring everyone here",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "minRole": "edit",
+      "agent": {
+        "path": "human",
+        "because": "summon",
+        "note": "moves other people’s cameras; the hub strips `summon` without the capability"
+      }
+    },
+    {
+      "id": "presence.stop",
+      "label": "Stop following",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon",
+        "note": "ends a Follow or the spotlight"
       }
     }
   ],
