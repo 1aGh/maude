@@ -1344,25 +1344,29 @@ export function CssKnobs({
             Named "Advanced" (not "Simple"/"Basic") so neither mode reads as
             the lesser fallback — see DDR-171 for the naming-collision call
             against the nested Advanced *section* below. */}
-        <span className="st-cp-idmode" data-tour="cp-mode">
-          <IconButtonGroup
-            value={mode}
-            ariaLabel="panel vocabulary mode"
-            options={[
-              {
-                value: 'advanced',
-                node: <Lu as={LuBraces} size={12} />,
-                label: 'Advanced — raw CSS',
-              },
-              {
-                value: 'designer',
-                node: <Lu as={LuWand2} size={12} />,
-                label: 'Designer — Figma vocabulary',
-              },
-            ]}
-            onChange={setMode}
-          />
-        </span>
+        {/* S2.2 (rule 13) — the Inspector frame mounts this panel in Advanced with no `onSetMode`: Designer is the
+            only default there, so the switch is not drawn. Settings › Look keeps the setting for a mount that passes one. */}
+        {setMode ? (
+          <span className="st-cp-idmode" data-tour="cp-mode">
+            <IconButtonGroup
+              value={mode}
+              ariaLabel="panel vocabulary mode"
+              options={[
+                {
+                  value: 'advanced',
+                  node: <Lu as={LuBraces} size={12} />,
+                  label: 'Advanced — raw CSS',
+                },
+                {
+                  value: 'designer',
+                  node: <Lu as={LuWand2} size={12} />,
+                  label: 'Designer — Figma vocabulary',
+                },
+              ]}
+              onChange={setMode}
+            />
+          </span>
+        ) : null}
       </div>
 
       {mode === 'designer' ? (

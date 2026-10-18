@@ -60,6 +60,10 @@
 @import url("../v2/fold/fold.css");
 /* V2-4.6 — Search ⌘K (canvases · actions · tools · settings, each with its where-path) and the "?" sheet. */
 @import url("../v2/search/search.css");
+/* S2.2 — the Inspector frame: name · kind chip · numbered sections · › Advanced (client/v2/inspector/). */
+@import url("../v2/inspector/inspector.css");
+/* S2.3 — the section bodies: rows, token chips, the Gap menu, constraints (client/v2/inspector/sections/). */
+@import url("../v2/inspector/sections/sections.css");
 /* Phase 4 gate — the a11y contrast floor (WCAG 1.4.3), utilities layer: wins over shell + components. */
 @import url("../v2/shell/contrast.css");
 /* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */

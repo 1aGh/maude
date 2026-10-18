@@ -1,0 +1,204 @@
+/* client/v2/inspector/inspector.css — S2.2: the inspector frame (14 Editing, ed-inspector). Everything is
+ * namespaced `insp-`; the › Advanced fold is the shared `.v2-fold` (client/v2/fold/fold.css). Tokens only —
+ * no hex, weights stop at --w-semibold, mono only inside Advanced (CONTRACT §5). */
+
+@layer shell {
+  .insp {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+  }
+
+  /* ── header: crumbs, name + kind chip, "Uses <system>" ── */
+  .insp-crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .insp-crumb-wrap {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .insp-crumb-ch {
+    display: inline-grid;
+    color: var(--fg-2);
+  }
+  .insp-crumb {
+    max-width: 14ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .insp-crumb[data-last="true"] {
+    color: var(--fg-1);
+  }
+  .insp-hd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .insp-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+  }
+  .insp-chip {
+    flex: none;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .insp-uses {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  /* ── numbered sections (bodies arrive with S2.3–S2.5 and S8) ── */
+  .insp-sec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+    box-shadow: inset 0 0.5px 0 var(--border-default);
+  }
+  .insp-sec-t {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .insp-sec-name {
+    cursor: default;
+  }
+  .insp-sec-a {
+    font-weight: var(--w-regular);
+    color: var(--fg-2);
+  }
+  .insp-add {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+  }
+  .insp-add:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
+  .insp-add:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* ── › Advanced: the code behind it (mono is allowed here) ── */
+  .insp-adv {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .insp-adv-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .insp-adv-h {
+    margin: 0;
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+  }
+  .insp-adv-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .insp-mono,
+  .insp-code,
+  .insp-id-input {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+  }
+  .insp-code {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--fg-1);
+  }
+  .insp-code-text {
+    color: var(--fg-2);
+  }
+  .insp-id {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .insp-id-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .insp-id-input[aria-invalid="true"] {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .insp-btn {
+    flex: none;
+  }
+  .insp-err,
+  .insp-note {
+    margin: 0;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    max-width: 60ch;
+  }
+  .insp-toks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .insp-tok {
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .insp-facts {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* the island's title (a lone Inspector has no tab strip to carry it) */
+  .st-rp-title {
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-2);
+    padding: 0 var(--space-2);
+  }
+}
