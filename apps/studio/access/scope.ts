@@ -9,8 +9,11 @@
 // null (R1), a malformed or `owner` grant is dropped, and a grant never lowers
 // (G1) or confers a project-only capability (PROJECT_ONLY).
 //
-// Pure and import-light (only `roles.ts`, types from `closure.ts`), so the hub
-// can import it the way it imports `roles.ts`.
+// Pure and import-light (only `roles.ts`, types from `closure.ts`, `node:crypto`
+// for the per-use photo-edit hash), so the hub can import it the way it imports
+// `roles.ts`.
+
+import { createHash } from 'node:crypto';
 
 import type { Closure } from './closure.ts';
 import {
@@ -140,21 +143,66 @@ export function sees(access: Access, closure: Closure | null, rel: string): bool
 const PHOTO_SIDECAR_RE = /^(assets\/.+)\.photo\.json$/;
 
 /**
+ * The per-use photo edit `assets/<img8>.<edit8>.photo.json` (contract S8-asset-sidecars §5.1):
+ * `edit8` is the first 8 (on a collision up to 16) hex of `photoEditHash(edit)`.
+ */
+export const PER_USE_PHOTO_RE = /^(assets\/[^/.]+)\.([0-9a-f]{8,16})\.photo\.json$/;
+
+/** Canonical JSON: keys sorted recursively, no whitespace, `JSON.stringify` numbers. */
+function canonicalJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(',')}]`;
+  if (v && typeof v === 'object')
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonicalJson((v as Record<string, unknown>)[k])}`)
+      .join(',')}}`;
+  return JSON.stringify(v);
+}
+
+/** The full sha256 hex of a PhotoEdit's canonical JSON — a per-use file's name is its prefix. */
+export function photoEditHash(edit: unknown): string {
+  return createHash('sha256').update(canonicalJson(edit), 'utf8').digest('hex');
+}
+
+/** Does `body` (the bytes about to be written) hash to the per-use name's `edit8`? */
+function bodyHashesTo(body: string | Uint8Array | undefined, edit8: string): boolean {
+  if (body === undefined) return false;
+  try {
+    const text = typeof body === 'string' ? body : new TextDecoder().decode(body);
+    return photoEditHash(JSON.parse(text)).startsWith(edit8);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * May this session write `rel`? G2:
  * - a project editor: yes (code modules / DS files stay behind the existing gates);
  * - otherwise only `owned` files of a canvas it may edit, plus create-only new files under
- *   `assets/`, plus a photo-edit sidecar of an asset whose every referrer it may edit.
+ *   `assets/`, plus a photo-edit sidecar of an asset whose every referrer it may edit;
+ * - S8 §5.6: plus CREATE of a per-use edit `assets/<img8>.<edit8>.photo.json` for an asset a
+ *   canvas it may edit references, only when `body` hashes to `edit8` — never over existing
+ *   bytes (same name ⇒ same bytes: the route answers a rewrite as a no-op before asking).
  */
 export function writes(
   access: Access,
   closure: Closure | null,
   rel: string,
-  o: { exists: boolean }
+  o: { exists: boolean; body?: string | Uint8Array }
 ): boolean {
   if (access.can('edit', null)) return true;
   if (!closure || access.grants.length === 0) return false;
   const owner = closure.ownedBy.get(rel);
   if (owner !== undefined) return access.can('edit', owner);
+  const perUse = PER_USE_PHOTO_RE.exec(rel);
+  if (perUse) {
+    if (o.exists || !bodyHashesTo(o.body, perUse[2] as string)) return false;
+    for (const [asset, users] of closure.assetUsers) {
+      if (assetBase(asset) !== perUse[1]) continue;
+      for (const u of users) if (access.can('edit', u)) return true;
+    }
+    return false;
+  }
   const photo = PHOTO_SIDECAR_RE.exec(rel);
   if (photo) {
     const base = photo[1] as string;
