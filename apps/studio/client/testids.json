@@ -7871,7 +7871,7 @@
     "hook": "tool-panel-<panel>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). `stickers` is the Stickers gallery (S4.3) pinned above/below the toolbar island (`data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Only a focused canvas opens it, once per 500 ms, on the toolbar it reported (EH-P4-2). Assets opens the left panel's Assets tab; Templates has its host from S4.3 and its panel from S4.4; the Component picker has no surface yet (S2).",
+    "meaning": "A tool panel the SHELL draws for a canvas toolbar slot (V2-4.5c; `tool-panel-open`). `stickers` is the Stickers gallery (S4.3) pinned above/below the toolbar island (`data-placement` = `above` or `below`, absent when it falls back to the centred dialog). Only a focused canvas opens it, once per 500 ms, on the toolbar it reported (EH-P4-2). Assets opens the left panel's Assets tab; Templates has its host from S4.3 and its panel from S4.4; `components` is the Component picker (S2.16, 300 px) in the same place.",
     "producer": {
       "file": "apps/studio/client/v2/annotations/stickers-gallery.jsx",
       "symbol": "StickersGallery"
@@ -14358,6 +14358,146 @@
     "region": "canvas",
     "consumers": ["apps/studio/test/edit-text-client.test.tsx"],
     "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Component picker's search field (\"Search components\"); up and down move the highlight, Enter places the highlighted row into the selected frame.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-system",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The picker's system line: the name of the design system the canvas renders under.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-group-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One group of the Component picker (`brand`, `components`, `patterns`); an empty group is not drawn (Patterns waits for S10).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-row-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One component row (`<name>` is its `@maude/ds` export, `Button`); a click puts it on the pointer (place-component, mode ghost).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-variant-<name>-<key>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A variant chip under the highlighted row (`Button`, `primary`); `aria-current` on the chosen one; a click places that variant.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-open-ds",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The picker's footer row \"Open Design system\".",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-empty",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The picker's empty line: no design system in the project, or nothing matches the search.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "component-picker-error",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The picker's one-line failure when the component list was refused or failed.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/component-picker.jsx",
+      "symbol": "ComponentPicker"
+    },
+    "region": "other",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/component-picker.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-place-ghost",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the dashed ghost that follows the pointer after a pick in the Component picker (its name; solid when snapped to the centre guide).",
+    "producer": {
+      "file": "apps/studio/editing/place-ghost.tsx",
+      "symbol": "PlaceGhost"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-place-ghost.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-place-guide",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the guide down the artboard's centre while a picked component follows the pointer; full strength when snapped.",
+    "producer": {
+      "file": "apps/studio/editing/place-ghost.tsx",
+      "symbol": "PlaceGhost"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-place-ghost.test.tsx"],
     "v2": "new"
   }
 ]

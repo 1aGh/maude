@@ -335,7 +335,7 @@ export function ToolPalette() {
           type="button"
           data-testid={`toolbar-slot-${id}`}
           aria-label={`${s.label}${keyHint}`}
-          title={`${s.label}${keyHint} — searchable sticker picker`}
+          title={`${s.label}${keyHint} — ${s.panel === 'components' ? 'place from the design system' : 'searchable sticker picker'}`}
           onClick={(e) => openToolPanel(s.panel ?? 'stickers', e.currentTarget)}
         >
           {Icon ? <Icon /> : null}

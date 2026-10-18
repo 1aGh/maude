@@ -34,6 +34,7 @@ import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
 import { PinGuides } from './place-freely.tsx';
+import { PlaceGhost } from './place-ghost.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
@@ -195,6 +196,8 @@ export function EditingLayer() {
       <PinGuides readOnly={isReadOnlyCanvas()} />
       {/* S2.12 — the edit-tone ring around the text being typed, the Czech ties under it */}
       <TextInPlace readOnly={isReadOnlyCanvas()} />
+      {/* S2.16 — a component picked in the shell (⇧I) follows the pointer until a click places it */}
+      <PlaceGhost readOnly={isReadOnlyCanvas()} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
     </>
