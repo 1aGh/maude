@@ -216,6 +216,7 @@ import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { hashBytes } from './sync/echo-guard.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { accessFor, getHubRecord } from './sync/hubs-config.ts';
+import { createResyncTrace, type ResyncStatusSource } from './sync/resync-trace.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
@@ -519,9 +520,15 @@ export function guardTableRoute(spec: RouteSpec): RouteSpec {
     ...spec,
     handle: (req, params) => {
       const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
-      if (!sameOrigin) return new Response('cross-origin rejected', { status: 403 });
+      if (!sameOrigin)
+        return (
+          spec.refuse?.('cross-origin') ?? new Response('cross-origin rejected', { status: 403 })
+        );
       if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+        return (
+          spec.refuse?.('untrusted-host') ??
+          new Response('local request required (DNS-rebinding guard)', { status: 403 })
+        );
       return spec.handle(req, params);
     },
   };
@@ -1701,6 +1708,16 @@ export function createHttp(
   outboxSenders['ai.prompt'] = askQueue.sender;
   // boot: a prompt queued before a restart is released once its gates are open (V2-1.14 §5.5)
   void outbox.drain.wake().catch(() => null);
+  // S11.11 — Resync's trace (sync/resync-trace.ts): `POST /_api/sync/resync` (routes/sync.ts) starts
+  // it, `/_sync-status` below reports it ("Resyncing… 1 204 of 1 318", then the result).
+  const resyncTrace = createResyncTrace({
+    // ctx.syncControl's structural type (context.ts) omits `status()`; the live runtime has it
+    read: () =>
+      (
+        ctx.syncControl?.current?.() as { status?(): ResyncStatusSource | null } | null | undefined
+      )?.status?.() ?? null,
+    expectFiles: () => readSyncSettings(ctx.paths.repoRoot)?.syncFiles !== false,
+  });
   const tableSpecs = allSpecs({
     outbox: { outbox },
     // S11.4 — what is on this Mac vs still coming: the runtime's in-memory listing against the
@@ -1906,6 +1923,8 @@ export function createHttp(
         return accessSees(access, closureOf(access), rel);
       },
     },
+    // S11.11 — POST /_api/sync/resync (routes/sync.ts), moved from the legacy literal.
+    sync: { control: () => ctx.syncControl, trace: resyncTrace },
     // S5.7 — the chat store's search / trash / resume-session routes (routes/chat.ts).
     chat: {
       designRoot: ctx.paths.designRoot,
@@ -2559,7 +2578,9 @@ export function createHttp(
         if (!(Number(status?.updatedAt) >= PROCESS_STARTED_AT)) {
           return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
         }
-        return Response.json(status, {
+        // S11.11 — the last Resync, while it runs and for a while after (sync/resync-trace.ts)
+        const resync = resyncTrace.view();
+        return Response.json(resync ? { ...status, resync } : status, {
           headers: { 'Cache-Control': 'no-store' },
         });
       } catch {
@@ -3648,42 +3669,6 @@ export function createHttp(
     // since S1.12b (routes/history.ts), judged per session with Version history's new routes.
     // `/_api/project/undo` + `/_api/project/undo-stack` are table routes since
     // S5.5 (routes/project-undo.ts): one id, several, or a whole chat.
-    '/_api/sync/resync': async (req: Request) => {
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      // REFUSALS ANSWER IN JSON, WITH A REASON.
-      //
-      // These were plain-text 403s, so the panel — which reads `json.detail` and
-      // falls back to a fixed string — rendered every one of them as "Resync
-      // could not start.", a sentence naming no cause and offering no next step.
-      // A person hitting the gate legitimately (a canvas iframe, a stale tab,
-      // the wrong host) got the same six words as a person hitting a bug, and
-      // neither could tell which they had. The GATES are unchanged: what a
-      // refusal SAYS is not a security property, and saying nothing was never
-      // protecting anything.
-      if (!sameOriginWrite(req)) return syncRefusal('cross-origin', 'Resync must be started');
-      if (!isTrustedRequestHost(req))
-        return syncRefusal('untrusted-host', 'Resync must be started');
-      const control = ctx.syncControl;
-      if (!control) {
-        return gitJson({
-          status: 200,
-          json: { ok: false, reason: 'no-supervisor', detail: 'Restart Maude to start syncing.' },
-        });
-      }
-      // REFUSED, not queued — see `SyncSupervisor.busy`. A second press must
-      // not buy a second full re-link of every canvas.
-      if (control.busy?.()) {
-        return gitJson({
-          status: 409,
-          json: { ok: false, reason: 'busy', detail: 'Syncing is already restarting.' },
-        });
-      }
-      // No argument: KEEP the configured hub. Only an explicit `null` unlinks,
-      // and this route must never be able to.
-      const sync = await control.restart();
-      return gitJson({ status: 200, json: { ok: true, sync } });
-    },
-
     // feature-before-first-external-users Task 2 — the three user-facing sync
     // toggles (syncFiles / propagateDeletes / resolveFirstAnchor), so the
     // breaker remediation stops meaning "edit JSON by hand" (DDR-177: the

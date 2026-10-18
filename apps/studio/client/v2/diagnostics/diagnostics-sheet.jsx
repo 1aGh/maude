@@ -15,10 +15,27 @@ import { rovingTabKey, useModalFocus } from '../shell/modal-focus.js';
 import SyncPanel from '../../panels/SyncPanel.jsx';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
 import ReadinessList from '../../panels/ReadinessList.jsx';
-import { filterLabel, LOG_FILTERS, logLines, modeStamp, tilde } from './diagnostics-model.js';
+import {
+  aiNeedsWork,
+  aiRows,
+  clock,
+  filterLabel,
+  LOG_FILTERS,
+  logLines,
+  modeStamp,
+  tilde,
+} from './diagnostics-model.js';
+import {
+  groupDigits,
+  resyncPercent,
+  resyncProgressText,
+  resyncResultText,
+} from './resync-model.js';
 
 /** Diagnostics' Advanced fold (Sync › Hub, commands) in prefs.json `fold`. */
 export const DIAGNOSTICS_FOLD = 'diagnostics';
+/** AI setup's "All checks" fold — its own key, so opening one fold never opens the other. */
+export const DIAGNOSTICS_AI_FOLD = 'diagnostics-ai';
 const DG_FOLD_CLASSES = Object.freeze({
   root: 'dg-fold',
   btn: 'dg-fold-btn',
@@ -69,7 +86,7 @@ function Row({ id, k, children, mono, copy, onCopy }) {
 
 // ── Logs ──────────────────────────────────────────────────────────────────────────────────────
 
-function LogsView({ data, error, onRefresh, onCopyReport }) {
+function LogsView({ data, error, onRefresh, onCopyLogs, onReveal }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const lines = logLines(data?.sources, { filter, query });
@@ -112,10 +129,21 @@ function LogsView({ data, error, onRefresh, onCopyReport }) {
           type="button"
           className="dg-btn"
           data-testid="diag-logs-copy-all"
-          onClick={onCopyReport}
+          onClick={() => onCopyLogs(lines)}
         >
           Copy all
         </button>
+        {/* Native only (S11.16's command): in a browser tab there is no Finder to show it in. */}
+        {onReveal ? (
+          <button
+            type="button"
+            className="dg-btn"
+            data-testid="diag-logs-show-in-finder"
+            onClick={onReveal}
+          >
+            Show in Finder
+          </button>
+        ) : null}
       </div>
       {error ? (
         <p className="dg-empty" role="alert" data-testid="diag-logs-error">
@@ -130,15 +158,16 @@ function LogsView({ data, error, onRefresh, onCopyReport }) {
           {lines.map((l, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: a log tail has no identity but position
             <li key={i} className="dg-line" data-source={l.source} data-level={l.level}>
+              <span className="dg-line-t">{clock(l.at)}</span>
               <span className="dg-line-s">{l.source}</span>
-              <span className="dg-line-m">{l.text}</span>
+              <span className="dg-line-m">{l.shown}</span>
             </li>
           ))}
         </ol>
       )}
       <p className="dg-hint">
         Kept {data?.retentionDays ?? 7} days on this Mac · Help › Report a bug can attach the last
-        lines.
+        200 lines.
       </p>
     </div>
   );
@@ -205,7 +234,32 @@ function ServerView({ status, wsConnected, activePath, isSystem, info, repoChang
 
 // ── AI setup ──────────────────────────────────────────────────────────────────────────────────
 
+function AiRow({ row }) {
+  return (
+    <li className="dg-ai-row" data-state={row.state} data-testid={`diag-ai-row-${row.id}`}>
+      <span className="dg-ai-ic" aria-hidden="true">
+        {row.state === 'ok' ? '✓' : row.state === 'unknown' ? '?' : '!'}
+      </span>
+      <span>
+        {row.label}
+        <span className="sr-only">
+          {row.state === 'ok'
+            ? ' — ready'
+            : row.state === 'unknown'
+              ? ' — not known'
+              : ' — needs setup'}
+        </span>
+        {row.hint ? <span className="dg-hint"> · {row.hint}</span> : null}
+      </span>
+      <span className="dg-ai-v">{row.value}</span>
+    </li>
+  );
+}
+
 function AiView({ status, report, loading, onRecheck }) {
+  const rows = aiRows(report);
+  // Anything not satisfied keeps its whole row (fix text, Set up / Sign in, the install command).
+  const needs = aiNeedsWork(report);
   return (
     <div className="dg-card" data-testid="diag-ai">
       <div className="dg-hd">
@@ -224,11 +278,39 @@ function AiView({ status, report, loading, onRecheck }) {
           Check again
         </button>
       </div>
-      {report ? (
-        <ReadinessList report={report} loading={loading} refresh={onRecheck} />
+      {rows.length ? (
+        <ul className="dg-ai-rows" data-testid="diag-ai-rows">
+          {rows.map((r) => (
+            <AiRow key={r.id} row={r} />
+          ))}
+        </ul>
       ) : (
         <p className="dg-empty">{loading ? 'Checking…' : 'Couldn’t reach the readiness probe.'}</p>
       )}
+      {needs.length ? (
+        <>
+          <p className="dg-ai-sub" data-testid="diag-ai-needs">
+            Needs setup
+          </p>
+          <ReadinessList
+            report={{ ...report, items: needs }}
+            loading={loading}
+            refresh={onRecheck}
+          />
+        </>
+      ) : null}
+      {/* The whole probe, as it always was (the optional checks too): one quiet row. */}
+      {report ? (
+        <AdvancedFold
+          panel={DIAGNOSTICS_AI_FOLD}
+          label="All checks"
+          classes={DG_FOLD_CLASSES}
+          testid="diag-ai-all"
+          buttonTestid="diag-ai-all-toggle"
+        >
+          <ReadinessList report={report} loading={loading} refresh={onRecheck} />
+        </AdvancedFold>
+      ) : null}
     </div>
   );
 }
@@ -241,6 +323,44 @@ function hubHost(status) {
   } catch {
     return '';
   }
+}
+
+/** 06 ad-trace steps 3-4: how far Resync got, then what it did. Quiet until a resync has run. */
+function ResyncCard({ view }) {
+  if (!view) return null;
+  const running = view.state === 'running';
+  const pct = resyncPercent(view);
+  return (
+    <div className="dg-resync" data-testid="diag-resync" data-state={view.state}>
+      {running ? (
+        <>
+          <span
+            className="dg-bar"
+            role="progressbar"
+            aria-label="Resync"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct ?? undefined}
+          >
+            <i style={{ width: `${pct ?? 0}%` }} />
+          </span>
+          <span data-testid="diag-resync-progress">{resyncProgressText(view)}</span>
+          <p className="dg-hint">
+            You keep working; the status beside the faces says Syncing… until it’s done.
+          </p>
+        </>
+      ) : (
+        <>
+          <span role="status" data-testid="diag-resync-result">
+            {resyncResultText(view)}
+          </span>
+          <p className="dg-hint">
+            {groupDigits(view.summary?.checked)} checked — the line is in Logs.
+          </p>
+        </>
+      )}
+    </div>
+  );
 }
 
 function SyncView({ sync, onClose }) {
@@ -263,6 +383,7 @@ function SyncView({ sync, onClose }) {
   const behind = Number(sync.behind) || 0;
   return (
     <div className="dg-sync" data-testid="diag-sync">
+      <ResyncCard view={sync.resync} />
       {behind > 0 && sync.onGetLatest ? (
         <div className="dg-latest" data-testid="diag-get-latest-row">
           <span>
@@ -326,7 +447,10 @@ function SyncView({ sync, onClose }) {
  * @param words `{ sync, server, ai }` status words (diagnostics-model `menuStatuses`)
  * @param data `GET /_api/diagnostics` payload or null; `error` its failure sentence
  * @param ai `{ report, loading, recheck }`
- * @param sync `{ status, project, cloud, groupPaths, behind, onGetLatest, word }`
+ * @param sync `{ status, project, cloud, groupPaths, behind, onGetLatest, word, resync }`
+ *   (`resync` = the server's trace of the last Resync, or null)
+ * @param onCopyLogs `(lines) => void` — "Copy all" (S11.11: the lines as shown, not the report)
+ * @param onReveal `() => void` or null — "Show in Finder" (native only)
  */
 export default function DiagnosticsSheet({
   view,
@@ -336,7 +460,8 @@ export default function DiagnosticsSheet({
   data,
   error,
   onRefresh,
-  onCopyReport,
+  onCopyLogs,
+  onReveal,
   onCopy,
   info,
   wsConnected,
@@ -404,7 +529,13 @@ export default function DiagnosticsSheet({
       </header>
       <div className="dg-body" role="tabpanel">
         {view === 'logs' ? (
-          <LogsView data={data} error={error} onRefresh={onRefresh} onCopyReport={onCopyReport} />
+          <LogsView
+            data={data}
+            error={error}
+            onRefresh={onRefresh}
+            onCopyLogs={onCopyLogs}
+            onReveal={onReveal}
+          />
         ) : null}
         {view === 'server' ? (
           <ServerView

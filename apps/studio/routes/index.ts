@@ -34,6 +34,7 @@ import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import { createProjectUndoRoutes, type ProjectUndoDeps } from './project-undo.ts';
 import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
+import { createSyncRoutes, type SyncRouteDeps } from './sync.ts';
 import type { RouteSpec } from './table.ts';
 import { createTrashRoutes, type TrashRouteDeps } from './trash.ts';
 
@@ -86,6 +87,8 @@ export interface RouteDeps {
   annotations?: AnnotationRouteDeps;
   /** S11.4 — `GET /_api/sync/availability`: listed ∖ on disk, a read over the runtime's state */
   availability?: AvailabilityRouteDeps;
+  /** S11.11 — `POST /_api/sync/resync` (moved from http.ts) + the trace `/_sync-status` reports */
+  sync: SyncRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -137,5 +140,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...(convert?.specs ?? []),
     ...createHistoryRoutes(deps.history ?? { control: () => null, designRel: deps.ai.designRel }),
     ...(deps.availability ? createAvailabilityRoutes(deps.availability) : []),
+    ...createSyncRoutes(deps.sync),
   ];
 }

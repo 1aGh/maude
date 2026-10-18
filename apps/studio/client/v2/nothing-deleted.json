@@ -969,7 +969,7 @@
       "v2": {
         "action": "sync.resync",
         "testid": "project-menu-row-sync.resync",
-        "where": "Menu > Diagnostics > Advanced > Resync now (also kept in the Sync details header; absent in a cloud project)"
+        "where": "Menu > Diagnostics > Advanced > Resync now (also kept in the Sync details header; absent in a cloud project) — one notice goes Resyncing… 1 204 of 1 318, then the result; the Sync tab's Resync card (diag-resync) shows the same; from a terminal: maude design sync resync"
       }
     },
     {
@@ -1640,8 +1640,8 @@
       "drawnAt": "ad-logs",
       "v2": {
         "action": null,
-        "testid": "diag-ai",
-        "where": "Menu > Diagnostics > AI setup — the Installed by Maude / Found on your PATH line under the Claude Code row"
+        "testid": "diag-ai-row-found",
+        "where": "Menu > Diagnostics > AI setup — the Found at row: the path, with Installed by Maude / Found on your PATH beside it"
       }
     },
     {
@@ -1667,7 +1667,7 @@
       "v2": {
         "action": "diag.logs",
         "testid": "diag-logs-lines",
-        "where": "Menu > Diagnostics > Logs — filter by source, search, Copy all"
+        "where": "Menu > Diagnostics > Logs — filter by source, search, Copy all (diag.copy-logs), Show in Finder (desktop); the same lines from a terminal: maude design logs"
       }
     },
     {

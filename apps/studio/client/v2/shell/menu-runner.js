@@ -53,6 +53,9 @@ export const NATIVE_COMMANDS = {
   'nav.home': 'new_home_tab',
   'home.open': 'new_home_tab',
   'project.open': 'open_project_folder',
+  // S11.11 — Diagnostics › Logs › Show in Finder; the command is S11.16's (doors.rs), confined to the
+  // app's log folder. Until it lands the invoke fails quietly and the sheet hides the button.
+  'diag.logs-show-in-finder': 'diagnostics_reveal_logs',
 };
 
 /** Fired on `window` for a menu action whose owner is a mounted component with its own state (the

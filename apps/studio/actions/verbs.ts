@@ -105,6 +105,11 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   // plans around them; `runs stop` stops one of YOUR live runs on this Mac (a member's is refused).
   d('runs list', 'none'),
   d('runs stop', 'project', { note: 'stops one of your own live runs on this Mac' }),
+  // S11.11 (Menu › Diagnostics). `logs` prints this Mac's log lines (redacted at the store, again in
+  // the verb; inside the untrusted block); `sync status` reads the one-word Sync status. Resync is
+  // below: it sends files to the cloud copy, so it prompts.
+  d('logs', 'none'),
+  d('sync status', 'none'),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
@@ -155,6 +160,12 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   }),
   d('exports', 'external', {
     note: 'a sub-verb not tiered above (a cloud render lane, a retry) prompts until it gets its own entry',
+  }),
+  d('sync resync', 'shared', {
+    note: 'compares every file with the cloud copy and sends what is newer here (nothing is overwritten)',
+  }),
+  d('sync', 'shared', {
+    note: 'a sub-verb not tiered above prompts until it gets its own entry',
   }),
   d('runs', 'shared', {
     note: 'a sub-verb not tiered above prompts until it gets its own entry',

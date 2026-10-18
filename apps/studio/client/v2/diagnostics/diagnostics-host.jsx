@@ -7,8 +7,13 @@ import { useReadiness } from '../../panels/ReadinessList.jsx';
 import { SYSTEM_TAB } from '../../shell/constants.js';
 import { useShellStore } from '../../stores/shell-store.jsx';
 import { OPEN_DIAGNOSTICS_EVENT, takeDiagnosticsRequest } from './diagnostics-bus.js';
-import { diagnosticsInfo, menuStatuses } from './diagnostics-model.js';
+import { menuRunner } from '../shell/menu-runner.js';
+import { diagnosticsInfo, logsText, menuStatuses } from './diagnostics-model.js';
 import DiagnosticsSheet from './diagnostics-sheet.jsx';
+import { readResyncView } from './resync-run.js';
+
+const REVEAL_LOGS = 'diag.logs-show-in-finder';
+const RESYNC_POLL_MS = 1500;
 
 export default function DiagnosticsHost({ toast }) {
   const {
@@ -59,6 +64,25 @@ export default function DiagnosticsHost({ toast }) {
     if (open) load();
   }, [open, load]);
 
+  // S11.11 — the last Resync's trace while the Sync tab is in view (it can be started from the menu,
+  // ⌘K, the old panel's button or `maude design sync resync`; the server keeps one trace for all).
+  const [resync, setResync] = useState(null);
+  const watchResync = open && view === 'sync' && syncStatus?.linked !== false && !cfg?.cloud;
+  useEffect(() => {
+    if (!watchResync) return undefined;
+    let alive = true;
+    const read = async () => {
+      const v = await readResyncView();
+      if (alive) setResync(v);
+    };
+    read();
+    const t = setInterval(read, RESYNC_POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [watchResync]);
+
   const info = useMemo(
     () =>
       diagnosticsInfo(cfg?.cloud ? { ...data, projectFolder: '' } : data, {
@@ -91,16 +115,20 @@ export default function DiagnosticsHost({ toast }) {
     },
     [toast]
   );
-  const onCopyReport = useCallback(async () => {
-    try {
-      const r = await fetch('/_api/diagnostics/report');
-      if (!r.ok) throw new Error(String(r.status));
-      await navigator.clipboard.writeText(await r.text());
-      toast?.('Diagnostic report copied.');
-    } catch {
-      toast?.('Couldn’t copy the diagnostic report.');
-    }
-  }, [toast]);
+  // "Copy all": the lines as the sheet shows them (filter and search applied) — the server already
+  // redacted them. The report with status and meta stays Report a bug's.
+  const onCopyLogs = useCallback(
+    async (lines) => {
+      try {
+        await navigator.clipboard.writeText(logsText(lines));
+        toast?.('Logs copied.');
+      } catch {
+        toast?.('Couldn’t copy the logs.');
+      }
+    },
+    [toast]
+  );
+  const onReveal = menuRunner.canRun(REVEAL_LOGS) ? () => menuRunner.run(REVEAL_LOGS) : null;
 
   if (!open) return null;
   return (
@@ -117,7 +145,8 @@ export default function DiagnosticsHost({ toast }) {
       data={data}
       error={error}
       onRefresh={load}
-      onCopyReport={onCopyReport}
+      onCopyLogs={onCopyLogs}
+      onReveal={onReveal}
       onCopy={onCopy}
       info={info}
       wsConnected={wsConnected}
@@ -144,6 +173,7 @@ export default function DiagnosticsHost({ toast }) {
         groupPaths: (groups || []).map((g) => g.path).filter(Boolean),
         behind: gitStatus?.behind || 0,
         onGetLatest: gitGetLatest,
+        resync,
         onCopy,
       }}
     />

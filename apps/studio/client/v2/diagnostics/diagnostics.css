@@ -280,18 +280,90 @@
   }
   .dg-line {
     display: grid;
-    grid-template-columns: 64px 1fr;
+    grid-template-columns: 8ch 7ch 1fr;
     gap: var(--space-2, 8px);
     overflow-wrap: anywhere;
   }
+  .dg-line-t,
   .dg-line-s {
     color: var(--fg-2);
+  }
+  /* the AI source reads quietly in the accent family, like 06 ad-logs; warn/error stay on the message */
+  .dg-line[data-source="ai"] .dg-line-s {
+    color: var(--accent-text, var(--accent));
   }
   .dg-line[data-level="warn"] .dg-line-m {
     color: var(--status-warn-text, var(--status-warn));
   }
   .dg-line[data-level="error"] .dg-line-m {
     color: var(--status-error-text, var(--status-error));
+  }
+
+  /* ── AI setup: four rows (06 ad-logs) ── */
+  .dg-ai-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+  }
+  .dg-ai-row {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--space-2, 8px);
+    min-height: 28px;
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-ai-ic {
+    color: var(--status-success-text, var(--status-success));
+  }
+  .dg-ai-row[data-state="missing"] .dg-ai-ic {
+    color: var(--status-warn-text, var(--status-warn));
+  }
+  .dg-ai-row[data-state="unknown"] .dg-ai-ic {
+    color: var(--fg-2);
+  }
+  .dg-ai-v {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 320px;
+  }
+  .dg-ai-sub {
+    margin: var(--space-3, 12px) 0 var(--space-1, 4px);
+    font-size: var(--type-xs, 12px);
+    color: var(--fg-2);
+  }
+
+  /* ── Resync: the card that says how far it got (06 ad-trace step 3-4) ── */
+  .dg-resync {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    margin-bottom: var(--space-3, 12px);
+    padding: var(--space-3, 12px);
+    background: var(--bg-2);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--type-sm, 13px);
+  }
+  .dg-bar {
+    display: block;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-3);
+    overflow: hidden;
+  }
+  .dg-bar > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width var(--dur-panel) var(--ease-out);
   }
 
   /* ── Sync: today's panel, whole, inside the sheet ── */
