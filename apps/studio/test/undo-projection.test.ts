@@ -81,6 +81,67 @@ describe('undo projection', () => {
     expect(historyRows(s)[1]?.madeAt).toBe(250);
   });
 
+  test('S2.20c: ⌘Z on a pending entry queues its inverse — the entry is undone, no entry added; when both land the undo names it', () => {
+    let s = reduce(fresh(), {
+      type: 'pending',
+      entry: { pendingTx: 'tx_p', label: 'Edit canvas', madeAt: 250 },
+    });
+    s = reduce(s, { type: 'pending-undo', pendingTx: 'tx_i', of: 'tx_p' });
+    expect(s.entries).toHaveLength(1);
+    expect(s.entries[0]).toMatchObject({ actionId: null, state: 'undone', pendingVia: 'tx_i' });
+    expect(nextUndo(s)).toBeNull(); // never the run, never an older entry
+    // the run lands, then the edit, then its inverse — an Undo of the edit's action
+    s = reduce(
+      s,
+      act({ actionId: 'a_run', kind: 'ai', label: 'Footer', madeAt: 400, revision: 7 })
+    );
+    s = reduce(
+      s,
+      act({
+        actionId: 'a_p',
+        kind: 'edit',
+        label: 'Edit canvas',
+        madeAt: 250,
+        revision: 8,
+        transactionId: 'tx_p',
+      })
+    );
+    s = reduce(
+      s,
+      act({ actionId: 'a_u', kind: 'undo', label: 'Undo', undoes: 'a_p', madeAt: 300, revision: 9 })
+    );
+    const p = s.entries.find((e: { actionId: string | null }) => e.actionId === 'a_p');
+    expect(p).toMatchObject({ state: 'undone', undoneVia: 'a_u' });
+    expect(nextUndo(s)?.actionId).toBe('a_run');
+    // the same history folded from scratch (the server's view once the stage is empty) agrees
+    const again = fold(fresh(), [
+      act({ actionId: 'a_run', kind: 'ai', label: 'Footer', madeAt: 400, revision: 7 }),
+      act({
+        actionId: 'a_p',
+        kind: 'edit',
+        label: 'Edit canvas',
+        madeAt: 250,
+        revision: 8,
+        transactionId: 'tx_p',
+      }),
+      act({
+        actionId: 'a_u',
+        kind: 'undo',
+        label: 'Undo',
+        undoes: 'a_p',
+        madeAt: 300,
+        revision: 9,
+      }),
+    ]);
+    expect(
+      again.entries.find((e: { actionId: string | null }) => e.actionId === 'a_p')
+    ).toMatchObject({
+      state: 'undone',
+      undoneVia: 'a_u',
+      tx: 'tx_p',
+    });
+  });
+
   test('a new entry — your AI run landing included — clears redo', () => {
     let s = fold(fresh(), [act({ actionId: 'a1', kind: 'edit', label: 'X', madeAt: 200 })]);
     s = reduce(s, { type: 'undone', actionId: 'a1' });

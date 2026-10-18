@@ -193,6 +193,44 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
   });
 
+  /** S2.20c — a waiting edit's transaction id → its final outcome (its inverse lands after it). */
+  const waitingOutcome = new Map<string, Promise<ProposalOutcome>>();
+
+  /**
+   * Put a person's edit in the stage's waiting list (V2-1.5 §5.4 "pending"): it goes out when no
+   * run holds what it depends on — `go` sends it — or is answered `discarded` with its run.
+   */
+  function waitBehind(
+    p: LaneProposal,
+    slug: string,
+    label: string,
+    madeAt: number,
+    dependsOn: string[],
+    go: () => Promise<ProposalOutcome>
+  ): Promise<ProposalOutcome> {
+    const answer = new Promise<ProposalOutcome>((resolve, reject) => {
+      stage.wait({
+        dependsOn,
+        send: () => void go().then(resolve, reject),
+        drop: resolve,
+        edit: {
+          transactionId: p.transactionId,
+          slug,
+          lane: p.lane,
+          label,
+          madeAt,
+          content: p.content,
+          baseContent: p.baseContent,
+          ...(p.undoes ? { undoes: p.undoes } : {}),
+        },
+      });
+    });
+    waitingOutcome.set(p.transactionId, answer);
+    const forget = () => waitingOutcome.delete(p.transactionId);
+    answer.then(forget, forget);
+    return answer;
+  }
+
   function laneLink(slug: string): AcceptedLaneLink {
     return {
       on,
@@ -201,12 +239,13 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         const doc = opts.docNameFor(slug);
         if (stage.captures(slug, p.stageable === true, p.content))
           return stage.capture(slug, doc, p);
-        const send = (dependsOn: string[] | undefined) =>
+        const send = (dependsOn: string[] | undefined, madeAt?: number) =>
           propose({
             kind: 'edit',
             label: LANE_LABEL[p.lane],
             transactionId: p.transactionId,
             dependsOn,
+            ...(madeAt ? { origin: { madeAt } } : {}),
             operations: [
               {
                 op: 'lane.replace',
@@ -218,17 +257,40 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
               },
             ],
           }).then(outcome);
+        if (p.undoes) {
+          // S2.20c — ⌘Z on a waiting edit: its inverse waits behind the same run, right after it
+          // (decision v2-lead-pending-inverse-via-stage), and lands as THAT edit's undo once the
+          // edit has an action — so history reads "Undo" of it and ⇧⌘Z can take the undo back.
+          const target = waitingOutcome.get(p.undoes);
+          if (!target || !stage.holdsDependency([p.undoes]))
+            return Promise.resolve({ status: 'rejected', code: 'not-pending' });
+          const madeAt = Date.now();
+          const undo = async (): Promise<ProposalOutcome> => {
+            const o = await target;
+            // The edit never landed (refused, discarded with its run): nothing to take back —
+            // the accepted version returns to disk.
+            if (o.status !== 'accepted' || !o.actionId)
+              return { status: 'rejected', code: 'discarded' };
+            const r = await propose({
+              kind: 'undo',
+              label: 'Undo',
+              transactionId: p.transactionId,
+              origin: { madeAt },
+              operations: [{ op: 'history.undo', actionId: o.actionId }],
+            });
+            return outcome(r);
+          };
+          return waitBehind(p, slug, 'Undo', madeAt, [...(p.dependsOn ?? []), p.undoes], undo);
+        }
         if (stage.holdsDependency(p.dependsOn)) {
           // Authored on top of an agent's unpublished bytes: it waits behind
           // the stage, and goes out right after the group (or is discarded
-          // with it).
-          return new Promise<ProposalOutcome>((resolve, reject) => {
-            stage.wait({
-              dependsOn: p.dependsOn ?? [],
-              send: (d) => void send(d).then(resolve, reject),
-              drop: resolve,
-            });
-          });
+          // with it). It is the person's edit, made NOW: `origin.madeAt` keeps
+          // its place in their ⌘Z stack when it lands behind the run (V2-1.5 U2).
+          const madeAt = Date.now();
+          return waitBehind(p, slug, LANE_LABEL[p.lane], madeAt, p.dependsOn ?? [], () =>
+            send(stage.mapDeps(p.dependsOn), madeAt)
+          );
         }
         return send(stage.mapDeps(p.dependsOn));
       },
@@ -638,6 +700,8 @@ export interface HistoryAction {
   label: string | null;
   committedAt: number;
   undoes: string | string[] | null;
+  /** The proposal's transaction id (store-core `actions.tx`). */
+  tx?: string;
   /** The stored envelope origin (V2-1.5 §5.1 keys among them). */
   origin?: Record<string, unknown> | null;
   effects: {

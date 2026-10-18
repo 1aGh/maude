@@ -157,6 +157,13 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // ── edit / select / object ──
   'edit.undo': UNDO_KEYS,
   'edit.redo': UNDO_KEYS,
+  'edit.undo-history': {
+    effect: 'none',
+    agent: human(
+      'keys',
+      'the person’s own undo stack, shown; an agent reads history with `maude design history list`'
+    ),
+  },
   'edit.cut': PREF('the clipboard is the user’s; remove the content from the source instead'),
   'edit.paste': PREF('the clipboard is the user’s; write the content into the source instead'),
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),

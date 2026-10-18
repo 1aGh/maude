@@ -3,6 +3,10 @@
 //   GET  /_api/project/undo-stack?canvas=<repoRel>[&since=<ms>]  → { ok, entries, redo }
 //   POST /_api/project/undo  { actionId } | { actionIds } | { chatId }  (+ redo?, via?)
 //                            → { ok, actionId, undoes, skipped? } · 409 undo-conflict
+//   POST /_api/project/undo  { pendingTx, canvas }  (S2.20c — your edit waiting behind an AI run)
+//                            → { ok, pending: true, pendingTx: <the inverse> } · 409 not-pending
+//
+// The stack folds your edits waiting behind a run in at their gesture time (`actionId: null`).
 //
 // MAIN ORIGIN ONLY (never `origin: 'canvas'`): history names people, and undo is
 // a write the untrusted canvas must not be able to make (DDR-054/088). Both
@@ -51,6 +55,52 @@ export interface ProjectUndoRuntime {
     redo?: boolean,
     o?: { via?: 'keys' | 'panel' }
   ): Promise<UndoAnswer | null>;
+  /** S2.20c — your edits of this canvas waiting behind an AI run (hub link only). */
+  pendingEdits?(
+    repoRel: string
+  ): Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }> | null;
+  /** S2.20c — ⌘Z on one of them: its inverse waits behind the same run. */
+  undoPendingEdit?(
+    repoRel: string,
+    transactionId: string
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; transactionId?: string } | null>;
+}
+
+const TX_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+type PendingEvent =
+  | { type: 'pending'; entry: { pendingTx: string; label: string; madeAt: number } }
+  | { type: 'pending-undo'; pendingTx: string; of: string; madeAt: number };
+
+/**
+ * S2.20c — the history events (oldest first) with the waiting edits folded in at their gesture
+ * time: a waiting edit happened before an action that landed after it, and its place decides
+ * whether that action clears it from redo (the reducer orders entries by `madeAt` too).
+ */
+export function withPendingEvents(
+  actions: Array<{ type: 'action'; action: AcceptedHistoryRow }>,
+  waiting: Array<{ transactionId: string; label: string; madeAt: number; undoes?: string }>
+): Array<{ type: 'action'; action: AcceptedHistoryRow } | PendingEvent> {
+  const pending: PendingEvent[] = waiting
+    .filter((w) => w && typeof w.transactionId === 'string' && Number.isFinite(w.madeAt))
+    .map((w) =>
+      w.undoes
+        ? { type: 'pending-undo', pendingTx: w.transactionId, of: w.undoes, madeAt: w.madeAt }
+        : {
+            type: 'pending',
+            entry: { pendingTx: w.transactionId, label: w.label, madeAt: w.madeAt },
+          }
+    );
+  const at = (e: PendingEvent) => (e.type === 'pending' ? e.entry.madeAt : e.madeAt);
+  const out: Array<{ type: 'action'; action: AcceptedHistoryRow } | PendingEvent> = [];
+  let i = 0;
+  for (const ev of actions) {
+    const t = ev.action.madeAt ?? ev.action.committedAt;
+    while (i < pending.length && at(pending[i]) < t) out.push(pending[i++]);
+    out.push(ev);
+  }
+  while (i < pending.length) out.push(pending[i++]);
+  return out;
 }
 
 export interface ProjectUndoDeps {
@@ -185,12 +235,17 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
         if (rows === undefined) return json(200, { ok: false, reason: 'unreachable' });
         if (rows === null) return json(200, { ok: false, reason: 'legacy' });
         const canvas = designRelOf(repoRel, deps.designRel);
+        // S2.20c — your edits waiting behind an AI run are entries too (`actionId: null`).
+        const waiting = runtime.pendingEdits?.(repoRel) ?? [];
         // The SAME reducer the shell runs (client/v2/undo/projection.js), over history oldest first.
         const state = fold(
           initialState({ canvas, openedAt: Number.isFinite(since) && since > 0 ? since : 0 }),
-          [...(rows as AcceptedHistoryRow[])]
-            .sort((a, b) => a.revision - b.revision)
-            .map((action) => ({ type: 'action', action }))
+          withPendingEvents(
+            [...(rows as AcceptedHistoryRow[])]
+              .sort((a, b) => a.revision - b.revision)
+              .map((action) => ({ type: 'action' as const, action })),
+            waiting
+          )
         );
         return json(200, { ok: true, ...view(state) });
       },
@@ -210,6 +265,29 @@ export function createProjectUndoRoutes(deps: ProjectUndoDeps): RouteSpec[] {
           body = JSON.parse(text);
         } catch {
           return new Response('body must be JSON', { status: 400 });
+        }
+        const pendingTx = (body as { pendingTx?: unknown } | null)?.pendingTx;
+        if (pendingTx !== undefined) {
+          // S2.20c — ⌘Z on your edit waiting behind an AI run: its inverse waits behind the same
+          // run (`{ pendingTx, canvas }`); the run's staged writes are never touched.
+          const canvas = (body as { canvas?: unknown }).canvas;
+          if (typeof pendingTx !== 'string' || !TX_ID.test(pendingTx))
+            return new Response('bad pendingTx', { status: 400 });
+          if (
+            typeof canvas !== 'string' ||
+            !canvas ||
+            canvas.length > 1024 ||
+            canvas.includes('\0')
+          )
+            return new Response('pendingTx takes canvas=<repoRel>', { status: 400 });
+          const runtime = deps.control();
+          const r = runtime?.undoPendingEdit
+            ? await runtime.undoPendingEdit(canvas, pendingTx)
+            : null;
+          if (!r) return json(200, { ok: false, reason: 'legacy' });
+          if (r.status !== 'accepted')
+            return json(409, { ok: false, reason: r.code ?? 'refused', code: r.code });
+          return json(200, { ok: true, pending: true, pendingTx: r.transactionId ?? null });
         }
         const parsed = parseUndoTarget(body);
         if (!parsed.ok) return new Response(parsed.reason, { status: 400 });
