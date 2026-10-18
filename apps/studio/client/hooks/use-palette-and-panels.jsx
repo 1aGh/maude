@@ -18,6 +18,16 @@ import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName, openCount, shellToast } from '../shell/util.js';
 import { planJump, JUMP_LADDER_MS, JUMP_NOW_MS } from '../v2/canvases/jump-model.js';
 import { CANVAS_OP_EVENT } from '../v2/left-panel/left-panel-bus.js';
+import {
+  goneWords,
+  OPEN_LINK_EVENT,
+  openedFromWords,
+  planOpenLink,
+  resolveLink,
+  stableLinkFor,
+  takeOpenLinks,
+} from '../v2/canvases/open-link.js';
+import { normalizeOpenPath } from '../share-link.js';
 import { Sidebar } from '../tree/tree.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
 import GitPanel from '../panels/GitPanel.jsx';
@@ -162,12 +172,68 @@ export function usePaletteAndPanels({
   // action id (the palette opened what the key toggles — Phase 4 unifies them).
   // S1.2 — "Copy link" on a canvas row, and its File-menu / ⌘K twins (`canvas.copy-link`, `canvas.trash`),
   // which reach here as a `maude:canvas-op` event from the menu runner (it holds no shell closures for
-  // these). The link is the one Share offers today; S1.18's stable `…/c/<entry>` resolver replaces it.
-  const copyCanvasLink = (path) => {
+  // these). S1.18: the stable link (`maude://open/<project>?c=<entry>`, survives a move or rename) when this
+  // project has an op log; otherwise — a legacy project, the cloud shell — the one Share offers today.
+  const copyCanvasLink = async (path) => {
     const links = shareLinksFor(path);
-    const link = links.web ?? links.app ?? links.local;
+    const stable =
+      shareShell === 'cloud'
+        ? null
+        : await stableLinkFor({ path, appLink: links.app }).catch(() => null);
+    const link = stable ?? links.web ?? links.app ?? links.local;
     if (link) copyShareLink(link);
   };
+  // S1.18 — a canvas link the shell delivered to this window (CloudBar → open-link.js): resolve its entry
+  // here, then open the canvas, glide to the artboard (the S1.3 jump), open the comment, say where it came
+  // from. In the Trash → the Trash; not here → "This canvas isn't in <project> any more."
+  const commentsRef = useRef(commentsByFile);
+  commentsRef.current = commentsByFile;
+  const openLinkRef = useRef(null);
+  openLinkRef.current = async (link) => {
+    const plan = planOpenLink(await resolveLink(link.entry), link);
+    if (plan.kind === 'trash') return menuRunner.run('view.trash');
+    if (plan.kind !== 'open') {
+      if (plan.kind === 'gone') shellToast(goneWords(localProjectName || project?.name));
+      return;
+    }
+    const designRel = cfg?.designRel ?? '.design';
+    const file =
+      (groups ?? [])
+        .flatMap((g) => g.paths || [])
+        .find((p) => normalizeOpenPath(p, designRel) === plan.path) ?? null;
+    if (!file) return void openLinkedFile(plan.path);
+    if (plan.artboard) canvasOpRef.current?.({ op: 'jump', path: file, artboardId: plan.artboard });
+    else if (file !== activePath) openTab(file);
+    if (plan.comment) {
+      jumpToComment(file, plan.comment);
+      openRightPanel('comments');
+    }
+    const say = () => {
+      const c = plan.comment
+        ? (commentsRef.current?.[file] ?? []).find((x) => x?.id === plan.comment)
+        : null;
+      shellToast(
+        openedFromWords({
+          who: typeof c?.author === 'string' && c.author.trim() ? c.author.trim() : null,
+          canvas: displayName(basename(file)),
+          artboard: plan.artboard,
+        }),
+        true
+      );
+    };
+    // A comment's author is known once its canvas's comments load.
+    if (plan.comment) setTimeout(say, JUMP_LADDER_MS[1]);
+    else say();
+  };
+  useEffect(() => {
+    const drain = () => {
+      for (const link of takeOpenLinks()) void openLinkRef.current?.(link);
+    };
+    if (!treeLoaded) return undefined;
+    drain();
+    window.addEventListener(OPEN_LINK_EVENT, drain);
+    return () => window.removeEventListener(OPEN_LINK_EVENT, drain);
+  }, [treeLoaded]);
   const canvasOpRef = useRef(null);
   canvasOpRef.current = ({ op, path, label, artboardId }) => {
     if (!path) return;

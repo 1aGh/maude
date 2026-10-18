@@ -1602,6 +1602,11 @@ export function createHttp(
       designRel: ctx.paths.designRel,
       emit: (e, p) => ctx.bus.emit(e, p),
     },
+    // S1.18 — stable canvas links over the same home (entry → current path)
+    links: {
+      control: () => ctx.syncControl?.current?.() ?? null,
+      designRel: ctx.paths.designRel,
+    },
     ai: {
       registry: runs,
       repoRoot: ctx.paths.repoRoot,

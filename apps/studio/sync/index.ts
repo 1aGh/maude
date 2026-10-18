@@ -617,6 +617,8 @@ export interface SyncRuntime {
   }): Promise<AcceptedHistoryRow[] | null>;
   /** A canvas source (repo-relative path) as it stood at a revision. */
   acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
+  acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
   /** Restore a canvas to a revision as a NEW action. */
   acceptedRestore?(
     repoRel: string,
@@ -5592,6 +5594,15 @@ export function createSyncRuntime(
           ...originFields(a.origin),
         };
       });
+    },
+    // S1.18 — a stable link's entry → path, over a FRESH manifest (a canvas moved since the last
+    // bootstrap must resolve to where it is now). No cleared set here: history/links.ts reads a
+    // retired entry with no live document as trashed.
+    acceptedLinkDocs: async () => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const manifest = (await acceptedLink.refresh().catch(() => null)) ?? acceptedLink.manifest;
+      if (!manifest) return null;
+      return manifest.docs.map((d) => ({ entry: d.entry, path: d.path, retired: !!d.retired }));
     },
     acceptedVersion: async (repoRel, revision) => {
       if (!acceptedOn() || !acceptedLink) return null;

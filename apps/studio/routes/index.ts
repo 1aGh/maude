@@ -20,6 +20,7 @@ import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { type AiRouteDeps, createAiRoutes } from './ai.ts';
 import { type ChatRouteDeps, createChatRoutes } from './chat.ts';
 import { createEditRoutes, type EditRouteDeps } from './edit.ts';
+import { createLinksRoutes, type LinksRouteDeps } from './links.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createPresentRoutes, type PresentRouteDeps } from './present.ts';
@@ -56,6 +57,8 @@ export interface RouteDeps {
   present: PresentRouteDeps;
   /** S1.7 — the shared Trash: `GET /_api/trash`, `POST /_api/trash/restore|clear` */
   trash?: TrashRouteDeps;
+  /** S1.18 — `GET /_api/link/resolve` (stable canvas links: entry → path) */
+  links?: LinksRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -85,5 +88,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
         readSource: () => null,
       }
     ),
+    ...createLinksRoutes(deps.links ?? { control: () => null, designRel: deps.ai.designRel }),
   ];
 }

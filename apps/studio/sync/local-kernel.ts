@@ -433,6 +433,10 @@ export interface LocalRuntime {
   acceptedTrash(): Promise<TrashListing | null>;
   acceptedTrashRestore(entry: string): Promise<LocalOutcome>;
   acceptedTrashClear(items?: string[]): Promise<LocalOutcome>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). */
+  acceptedLinkDocs(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
+  /** S1.18 — is the entry in the shared Trash (cleared items excluded)? */
+  acceptedTrashed(entry: string): Promise<boolean>;
 }
 
 export interface LocalHomeOptions {
@@ -1186,6 +1190,25 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           label: 'Cleared out the trash',
         })
       );
+    },
+    // S1.18 — the manifest rows a stable link resolves over (history/links.ts).
+    async acceptedLinkDocs() {
+      await settled();
+      const o = opened;
+      if (!o) return null;
+      const m = await o.store.manifest();
+      return (m.docs as { entry: string; path: string | null; retired: boolean }[]).map((d) => ({
+        entry: d.entry,
+        path: d.path,
+        retired: !!d.retired,
+      }));
+    },
+    async acceptedTrashed(entry) {
+      await settled();
+      const o = opened;
+      if (!o) return false;
+      const t = (await o.store.trash({ entry })) as { canvases?: unknown[] } | null;
+      return (t?.canvases?.length ?? 0) > 0;
     },
   };
 

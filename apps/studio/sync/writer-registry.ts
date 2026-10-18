@@ -141,6 +141,8 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'trash.clear { items? } — owner-only clear-out: @trash effects + trash_cleared rows, no head moves',
     test: 'test/acl-l18-trash.test.ts',
   },
+  // S1.18 — a stable canvas link's entry → path (history/links.ts)
+  '/_api/link/resolve': { class: 'read' },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',
