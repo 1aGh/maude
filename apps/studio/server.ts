@@ -57,6 +57,7 @@ import { createInspectRegistry } from './inspect.ts';
 import { listenLoopback, V4_LOOPBACK } from './loopback-listen.ts';
 import { startHeapWatch } from './mem.ts';
 import { canvasOriginRoutes } from './routes/canvas-origin.ts';
+import { runStageHooks } from './routes/index.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
@@ -281,6 +282,13 @@ const runRegistry = createRunRegistry({
     }
   },
   emit: (e, p) => ctx.bus.emit(e, p),
+  // S5.5b — THE end of every run's stage, by its run id (publish / partial / hold), announced as
+  // `project:action`. The ACP tracker leaves a registry run's stage to this hook, so without it no chat
+  // turn's edits would ever publish (http.ts wires the same hook only on its test fallback registry).
+  stage: runStageHooks({
+    control: () => ctx.syncControl?.current?.() ?? null,
+    emit: (e, p) => ctx.bus.emit(e, p),
+  }),
 });
 await runRegistry.boot();
 // runningChats() / activitySnapshot() read the registry (unioned with the bridge until S5.6)
