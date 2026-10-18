@@ -190,6 +190,12 @@ import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-t
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
+import {
+  createVotesPoke,
+  createVotesRoutes,
+  stripVoteAwareness,
+  VOTES_CAPABILITY,
+} from './routes-v2/votes.mjs';
 import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
 import { seedRepo } from './seed-repo.mjs';
@@ -867,6 +873,9 @@ export function createHub(config = {}) {
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
   let accepted = null;
+  // Gate 0 A18 (S4.6 / S9.13) — formal votes; assigned once the store is open.
+  /** @type {ReturnType<typeof createVotesRoutes>|null} */
+  let votesRoutes = null;
 
   const server = new Server({
     port,
@@ -1121,8 +1130,8 @@ export function createHub(config = {}) {
           // `runs-v1` (V2-1.15 §5.3): AI runs + per-artboard leases at
           // `/api/projects/:p/v1/runs*`, the proposal `fence`, `{t:'runs'}`.
           capabilities: journal
-            ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY]
-            : ['annotations-v2', 'format-v2', RUNS_CAPABILITY],
+            ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
+            : ['annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY],
           // The project's file format — null while the store is unread.
           formatVersion: accepted?.isReady() ? accepted.projectFormat() : null,
           // T19/T29 — the project coordinator (accepted revisions) apart from
@@ -1192,6 +1201,7 @@ export function createHub(config = {}) {
           canvasHost: Boolean(studioProxy && isCanvasHost(request)),
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
+          deps: { votes: votesRoutes },
         })
       ) {
         bailFromOnRequest();
@@ -2064,6 +2074,8 @@ export function createHub(config = {}) {
       // V2-1.7 §5.5 / L11 (S9.5): Bring everyone here needs `summon` on this
       // document — the field is stripped from any connection lacking it.
       stripSummon({ states, context });
+      // Gate 0 A18 (S9.13): picks never ride presence, whoever sends them.
+      stripVoteAwareness({ states });
     },
 
     // A content change tells the cell's DO, so a parked desktop's
@@ -2143,6 +2155,14 @@ export function createHub(config = {}) {
         token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
       })
     : openSqliteProjectStore(dataDir);
+  // Gate 0 A18 (S4.6 / S9.13) — the hub holds a linked project's ballots and
+  // the timer; the routes are rows in `routes-v2/votes.mjs`.
+  votesRoutes = createVotesRoutes({
+    store: projectStore,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    auth: (req) => acceptedAuth(req),
+    poke: createVotesPoke({ instance: server, visibility: pokeVisibility }),
+  });
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it
   // could lose on the next rollout (T11: no weakened "saved" semantics).
