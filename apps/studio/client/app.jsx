@@ -1016,6 +1016,7 @@ function ShellState({ children }) {
   });
   uiOpenRef.current = {
     openTab,
+    runAction: (id) => menuRunner.run(id),
     frameFor: (f) => iframesRef.current.get(f),
     setPresent: (on) => {
       setPresentMode(on);
@@ -1780,10 +1781,11 @@ function ShellProjectPill() {
         native,
         cloudTab: isCloudTab,
         readOnly: viewerMode,
+        observer: cfg?.cloud?.role === 'observer',
         canvasOpen,
         presenting: presentMode,
       }),
-    [native, isCloudTab, viewerMode, canvasOpen, presentMode]
+    [native, isCloudTab, viewerMode, cfg?.cloud?.role, canvasOpen, presentMode]
   );
   // V2-4.8a: the megaphone's unseen dot, as a word on the Help row; and no "Back to Home" in a hub that
   // serves one project (no dashboard to go back to — the v1 link was absent there too).

@@ -77,7 +77,6 @@ export function usePaletteAndPanels({
   cfg,
   cellManaged,
   cloudManaged,
-  savingIsManaged,
   viewerMode,
   commentsByFile,
   focusedCommentId,
@@ -580,14 +579,11 @@ export function usePaletteAndPanels({
           resizing={resizingFor('tree')}
           dirtyByPath={dirtyByPath}
           project={project}
-          gitBranch={gitStatus?.branch}
-          remoteSync={remoteSync}
-          onGetLatest={gitGetLatest}
           canvasKinds={cfg?.canvasKinds}
           syncStatus={syncStatus}
           onLinkedHub={setCloudLinkedHub}
           onLocalProject={setLocalProjectName}
-          savingIsManaged={savingIsManaged}
+          role={viewerMode ? (cfg?.cloud?.role === 'observer' ? 'view' : 'comment') : undefined}
         />
       );
     // V2-4.4a — the left panel's third tab. Lists today's asset library (the Choose-media dialog's list).

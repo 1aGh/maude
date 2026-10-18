@@ -35,7 +35,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 
 ## Capabilities
 
-313 capabilities: 100 by file, 77 by verb, 136 the person's only, 0 not yet.
+313 capabilities: 100 by file, 84 by verb, 129 the person's only, 0 not yet.
 
 ### Edit a file (100)
 
@@ -142,7 +142,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Ungroup | `annotation.ungroup` | `annotations` | Clear the elements’ group id | `design:whiteboard` |
 | Use a style | `text.use-style` | `canvas-tsx` | Give the element the style’s class from system/<ds>/components.json typeRoles (heading → t-heading), replacing any other t-* class, and take out its inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle so the style shows. Over HTTP: POST /_api/edit-op {op: "text.use-style", params: {role: "t-heading"}} | `design:design` |
 
-### Run a verb (77)
+### Run a verb (84)
 
 | Capability | Action id | Verb | Tier |
 | --- | --- | --- | --- |
@@ -165,6 +165,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Copy logs | `diag.copy-logs` | `maude design logs` | auto |
 | Copy presentation link | `present.copy-link` | `maude design open <canvas> --mode present` | auto |
 | Deselect all | `select.none` | `maude design open <canvas> --select none` | auto |
+| Design system | `view.design-system` | `maude design open --panel design-system` | auto |
 | Draw a mark | `ai.draw-mark` | `maude design draw-build` | prompt |
 | Edit | `inspect.edit` | `maude design open <canvas>@<element> --mode edit` | auto |
 | Export again | `export.rerun-last` | `maude design exports again <id>` | auto |
@@ -181,8 +182,12 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Handoff to production | `handoff.open` | `maude design handoff` | auto |
 | Import a brand… | `import.brand` | `maude design import-brand` | auto |
 | Import from Figma… | `import.figma` | `maude design import-figma` | prompt |
+| Inspector | `view.inspector` | `maude design open --panel inspector` | auto |
 | Kanban template | `annotation.template-kanban` | `maude design annotate <canvas> --board kanban` | auto |
+| Keyboard shortcuts | `help.shortcuts` | `maude design open --panel shortcuts` | auto |
 | Last good version | `canvas.last-good` | `maude design history restore <canvas> @last-good` | prompt |
+| Layers | `view.layers` | `maude design open --panel layers` | auto |
+| Layers as a panel | `view.layers-panel` | `maude design open --panel layers-panel` | auto |
 | Logs | `diag.logs` | `maude design logs` | auto |
 | Name this version… | `history.name` | `maude design history name <canvas> <ref> "<name>"` | prompt |
 | Next artboard | `present.next` | `maude design open <canvas>#<artboard> --mode present` | auto |
@@ -208,6 +213,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Select next sibling | `object.select-next` | `maude design open <canvas>@<element>` | auto |
 | Select parent | `object.select-parent` | `maude design open <canvas>@<element>` | auto |
 | Server | `diag.server` | `maude design status` | auto |
+| Settings… | `settings.open` | `maude design open --panel settings` | auto |
 | Show all comments | `comments.filter-all` | `maude design comments list --all` | auto |
 | Show my comments | `comments.filter-mine` | `maude design comments list --mine` | auto |
 | Show open comments | `comments.filter-open` | `maude design comments list --open` | auto |
@@ -222,9 +228,10 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Version history of this object | `history.object` | `maude design history object <canvas> <artboard>/<id>` | auto |
 | View code | `canvas.view-code` | `maude design canvas-source` | auto |
 | View this version | `history.view-version` | `maude design history show` | auto |
+| What's new | `help.whats-new` | `maude design open --panel whats-new` | auto |
 | Zoom to artboard | `view.zoom-to-artboard` | `maude design open <canvas>#<artboard>` | auto |
 
-### Only the person (136)
+### Only the person (129)
 
 | Capability | Action id | Why |
 | --- | --- | --- |
@@ -258,7 +265,6 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Copy properties | `edit.copy-properties` | view-pref — the clipboard is the user’s; read the source instead |
 | Copy transcript | `chat.copy-transcript` | ai-chat |
 | Cut | `edit.cut` | view-pref — the clipboard is the user’s; remove the content from the source instead |
-| Design system | `view.design-system` | view-pref — read system/<ds>/ for the design system itself |
 | Discard changes to a file | `history.discard-file` | git — an agent runs git itself in the project folder: git restore <file> |
 | Download all | `sync.download-all` | hub-link — pulls every file of a linked project onto this Mac |
 | Edit element id… | `element.set-id` | keys — ask the person to use Element id; an agent never rewrites the comments file |
@@ -277,12 +283,8 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Hide panels | `view.panels` | view-pref |
 | How sharing works | `help.sharing` | onboarding |
 | Inspect | `tool.inspect` | view-pref — a pointer mode |
-| Inspector | `view.inspector` | view-pref — read the element’s JSX for its properties |
 | Keep going | `ai.keep-going` | ai-chat |
 | Keep timeline open | `view.timeline-keep-open` | view-pref |
-| Keyboard shortcuts | `help.shortcuts` | onboarding |
-| Layers | `view.layers` | view-pref — read the canvas source for its structure |
-| Layers as a panel | `view.layers-panel` | view-pref — puts Layers in the left panel or in the Inspector |
 | Minimap | `view.minimap` | view-pref |
 | Model | `chat.advanced.model` | ai-chat |
 | Move to trash | `chat.trash` | ai-chat |
@@ -323,7 +325,6 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Select by selector | `layers.select-by-selector` | view-pref — a selection in the person’s window; an agent finds elements with `maude design canvas-rects` |
 | Select matching | `object.select-matching` | view-pref — a selection in the person’s window; an agent greps the canvas for the same className and style |
 | Set up Maude… | `help.setup` | onboarding |
-| Settings… | `settings.open` | view-pref — settings are the user’s |
 | Share on GitHub… | `project.share-github` | accounts — invites a GitHub user to the project repository under the person’s account |
 | Share… | `share.open` | links |
 | Show all tabs | `tab.overview` | native-window |
@@ -357,7 +358,6 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Unpin canvas | `canvases.unpin` | view-pref — a per-person pin; an agent reads the canvas list with `maude design index` |
 | Use my own plugin copy | `settings.use-own-plugin-copy` | view-pref — prefs.json ownPluginCopy: the AI chat loads your own plugin copy |
 | Watch the intro | `help.intro` | onboarding |
-| What's new | `help.whats-new` | onboarding |
 | Zoom controls | `view.zoom-controls` | view-pref |
 | Zoom in | `view.zoom-in` | view-pref |
 | Zoom out | `view.zoom-out` | view-pref |

@@ -146,6 +146,9 @@ export interface GitStatusResult {
   ahead?: number;
   behind?: number;
   remoteAhead?: boolean;
+  /** S11.10 — the `origin` URL with any credentials stripped (Version history › Advanced › Remote); absent
+   *  when there is no remote. */
+  remote?: string;
 }
 
 export interface GitStatusOpts {
@@ -452,6 +455,8 @@ export async function gitStatus(dir: string, opts: GitStatusOpts = {}): Promise<
   // Local "saved but not published" count — no network (uses the cached
   // remote-tracking ref). Lets the panel offer Publish even on a clean tree.
   result.unpushed = await localUnpushed(dir, result.branch, opts.remote || 'origin').catch(() => 0);
+  const remoteUrl = await originUrl(dir, opts.remote || 'origin').catch(() => null);
+  if (remoteUrl) result.remote = remoteUrl;
 
   if (opts.checkRemote) {
     try {
@@ -1954,6 +1959,22 @@ export async function gitShowFile(
  *  using only on-disk refs (no fetch). When no tracking ref exists but a remote
  *  is configured, every commit counts as unpushed (never published). 0 when
  *  there's no remote or no branch. Best-effort; callers swallow errors → 0. */
+/** The remote's URL for display: `user:token@` userinfo is dropped so a PAT never reaches the panel. */
+export function stripUrlCredentials(url: string): string {
+  const u = url.trim();
+  return u.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/i, '$1');
+}
+
+async function originUrl(dir: string, remote: string): Promise<string | null> {
+  if (!isSafeGitPositional(remote)) return null;
+  if (await systemGitAvailable()) {
+    const r = await runGit(dir, ['remote', 'get-url', remote]);
+    return r.code === 0 && r.stdout.trim() ? stripUrlCredentials(r.stdout) : null;
+  }
+  const url = await git.getConfig({ fs, dir, path: `remote.${remote}.url` }).catch(() => null);
+  return typeof url === 'string' && url ? stripUrlCredentials(url) : null;
+}
+
 async function localUnpushed(dir: string, branch: string | null, remote: string): Promise<number> {
   if (!branch) return 0;
   // Guard parity with the other system-git callsites — `branch`/`remote` are

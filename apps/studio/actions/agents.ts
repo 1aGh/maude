@@ -421,7 +421,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'layers.select-by-selector': PREF(
     'a selection in the person’s window; an agent finds elements with `maude design canvas-rects`'
   ),
-  'view.design-system': PREF('read system/<ds>/ for the design system itself'),
+  'view.design-system': { effect: 'none', agent: cli('maude design open --panel design-system') },
   'view.comments': COMMENTS,
   // S9.22 — the panel's filters are the verb's flags; an agent reads the same list the person sees.
   'comments.filter-open': { effect: 'none', agent: cli('maude design comments list --open') },
@@ -488,7 +488,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).
   // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.
   'view.assets': { effect: 'none', agent: cli('maude design asset-sweep') },
-  'view.layers-panel': PREF('puts Layers in the left panel or in the Inspector'),
+  'view.layers-panel': { effect: 'none', agent: cli('maude design open --panel layers-panel') },
   // S1.17 — the Trash list is `trash list` (GET /_api/trash, the route the Trash view reads); restoring
   // one item is `trash restore <id>` (POST /_api/trash/restore, the Restore button's route and body).
   'view.trash': { effect: 'none', agent: cli('maude design trash list') },
@@ -512,10 +512,10 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
       'only the project owner, in the Trash view; nothing an agent may do'
     ),
   },
-  'view.inspector': PREF('read the element’s JSX for its properties'),
+  'view.inspector': { effect: 'none', agent: cli('maude design open --panel inspector') },
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
-  'view.layers': PREF('read the canvas source for its structure'),
+  'view.layers': { effect: 'none', agent: cli('maude design open --panel layers') },
   'view.inspector-on-select': PREF(),
   'view.minimap': PREF(),
   'view.zoom-controls': PREF(),
@@ -653,11 +653,11 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'share.open': { effect: 'shared', agent: human('links') },
   'share.copy-link': { effect: 'none', agent: human('links') },
   // ── app / help / ai ──
-  'settings.open': PREF('settings are the user’s'),
+  'settings.open': { effect: 'none', agent: cli('maude design open --panel settings') },
   'ai.chat': { effect: 'none', agent: human('summon') },
   // S11.2: opens the chat with words in the field; the agent writes the artboard itself, no verb needed
   'ai.ask-fill-artboard': { effect: 'none', agent: human('summon') },
-  'help.shortcuts': HELP,
+  'help.shortcuts': { effect: 'none', agent: cli('maude design open --panel shortcuts') },
   'help.guides': HELP,
   'ai.generate': { effect: 'external', agent: cli('maude design generate') },
   'ai.draw-mark': { effect: 'external', agent: cli('maude design draw-build') },
@@ -695,7 +695,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     minRole: 'edit',
     agent: human('ai-chat'),
   },
-  'help.whats-new': HELP,
+  'help.whats-new': { effect: 'none', agent: cli('maude design open --panel whats-new') },
   'help.tour': HELP,
   'help.intro': HELP,
   'help.sharing': HELP,

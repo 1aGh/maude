@@ -55,6 +55,7 @@ import {
   type ViewportControllerHandle,
 } from './canvas-lib.tsx';
 import { replayActionKey, replayToolKey } from './canvas-replay-keys.ts';
+import { scopedMatches } from './client/v2/left-panel/selector-scope.js';
 import {
   buildEditSourceRecord,
   type EditSourceApplyFn,
@@ -84,8 +85,8 @@ import {
 import { setElementDragActive } from './drag-state.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
-import { editOpRecord } from './editing/edit-op.ts';
 import { drawToolOfAction } from './editing/draw-geometry.ts';
+import { editOpRecord } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -3027,6 +3028,24 @@ function CanvasRouter({
           if (host && zoomController && !sameSelection) {
             revealElementViaCamera(host, target as HTMLElement, zoomController);
           }
+        }
+        return;
+      }
+      // S11.9 — Layers › Advanced › Select by selector. The selector is typed in the shell; the match is
+      // scoped to the artboards and capped (selector-scope.js), so a planted `*` cannot select the page.
+      if (m.dgn === 'select-by-selector') {
+        if (e.source !== window.parent) return;
+        const found = scopedMatches(document, (m as { selector?: unknown }).selector as string);
+        if (found.ok && found.els.length > 0) {
+          selSet.replace(
+            found.els.map((el) =>
+              hoverTargetToSelection({
+                el,
+                cdId: el.getAttribute('data-cd-id') ?? undefined,
+                artboardId: el.closest('[data-dc-screen]')?.getAttribute('data-dc-screen') ?? null,
+              } as HoverTarget)
+            )
+          );
         }
         return;
       }

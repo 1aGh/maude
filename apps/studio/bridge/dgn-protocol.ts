@@ -300,6 +300,9 @@ export interface ShellToCanvas {
   'ai-activity': { file: string; entry: AiActivityEntry | null };
   // selection + edit round-trips
   'select-by-id': { id?: Id; artboardId?: Id | null; index?: number };
+  /** S11.9 — Layers › Advanced › Select by selector: the canvas selects what the selector matches inside its
+   *  artboards (capped at 500, scoped to `[data-dc-screen]`). */
+  'select-by-selector': { selector: string };
   highlight: { id: Id | null; artboardId?: Id | null; index?: number };
   'request-layers': { artboardId: Id | null };
   'force-clear': Empty;
@@ -1220,6 +1223,12 @@ const s2c: S2C = {
     status: 'live',
     owner: CS,
     parse: p({ id: opt(str), artboardId: opt(nul(str)), index: opt(num) }),
+  },
+  'select-by-selector': {
+    gate: 'parent',
+    status: 'live',
+    owner: CS,
+    parse: p({ selector: str }),
   },
   highlight: {
     gate: 'any',

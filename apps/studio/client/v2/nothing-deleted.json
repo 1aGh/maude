@@ -180,8 +180,8 @@
       "drawnAt": "ad-menus",
       "v2": {
         "action": "view.comments",
-        "testid": "share-cluster-comments-count",
-        "where": "Share cluster › Comments icon — the count of open comments on its badge (hidden at 0); opens the Comments panel"
+        "testid": "comment-filter-open",
+        "where": "Comments panel › Open filter — its count; the Share cluster's Comments badge counts unread @mention threads (S9.22b)"
       }
     },
     {
@@ -2902,7 +2902,7 @@
     "testid:studio/client/app.jsx#banners/cloud-role-banner-dismiss": "D12",
     "testid:studio/client/app.jsx#comments panel/aria-label-reopen": "testid:[aria-label=\"Reopen\"]",
     "testid:studio/client/app.jsx#comments panel/comment-filter-all": "D8",
-    "testid:studio/client/app.jsx#comments panel/comment-filter-open": "testid:comment-filter-open",
+    "testid:studio/client/app.jsx#comments panel/comment-filter-open": "A-open-comments-count",
     "testid:studio/client/app.jsx#comments panel/comment-filter-resolved": "testid:comment-filter-resolved",
     "testid:studio/client/app.jsx#comments panel/comment-item-id": "testid:comment-item-<id>",
     "testid:studio/client/app.jsx#export dialog/data-ok-on-export-status": "D3",

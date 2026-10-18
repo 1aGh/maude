@@ -1431,9 +1431,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "read system/<ds>/ for the design system itself"
+        "path": "cli",
+        "verb": "maude design open --panel design-system"
       }
     },
     {
@@ -1454,9 +1453,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "puts Layers in the left panel or in the Inspector"
+        "path": "cli",
+        "verb": "maude design open --panel layers-panel"
       }
     },
     {
@@ -1603,9 +1601,8 @@
       "fromCanvas": true,
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "read the element’s JSX for its properties"
+        "path": "cli",
+        "verb": "maude design open --panel inspector"
       }
     },
     {
@@ -1638,9 +1635,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "read the canvas source for its structure"
+        "path": "cli",
+        "verb": "maude design open --panel layers"
       }
     },
     {
@@ -2443,9 +2439,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "settings are the user’s"
+        "path": "cli",
+        "verb": "maude design open --panel settings"
       }
     },
     {
@@ -2526,8 +2521,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "onboarding"
+        "path": "cli",
+        "verb": "maude design open --panel shortcuts"
       }
     },
     {
@@ -2581,8 +2576,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "human",
-        "because": "onboarding"
+        "path": "cli",
+        "verb": "maude design open --panel whats-new"
       }
     },
     {
