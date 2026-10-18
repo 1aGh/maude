@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fba88bac94c0",
+  "manifestVersion": "779527a96939",
   "actions": [
     {
       "id": "search.open",
@@ -3149,6 +3149,13 @@
       "id": "https://maude.sh/schema/edl/v1",
       "source": "hand",
       "skill": "design:footage-director"
+    },
+    {
+      "format": "gen",
+      "schema": "apps/studio/schema/gen.v1.schema.json",
+      "id": "https://maude.sh/schema/gen/v1",
+      "source": "hand",
+      "skill": "design:ai-generation"
     },
     {
       "format": "tokens",
