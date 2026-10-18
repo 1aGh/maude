@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "04f9fd895ffc",
+  "manifestVersion": "a07bcfcc5202",
   "actions": [
     {
       "id": "search.open",
@@ -993,6 +993,18 @@
         "format": "canvas-meta",
         "skill": "design:design",
         "how": "present.order / present.skip and artboardMeta.<id>.notes in the canvas .meta.json"
+      }
+    },
+    {
+      "id": "present.presenter-view",
+      "label": "Presenter view on another display",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "needs a person and a second display"
       }
     },
     {

@@ -4737,13 +4737,300 @@
     "hook": "present-slot-presenter",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Slot for S3.6b's Presenter view button (desktop, two displays); absent while empty.",
+    "meaning": "Slot for the Presenter view button (desktop, another display); absent while empty.",
     "producer": {
       "file": "apps/studio/client/v2/present/present-controls.jsx",
       "symbol": "PresentControls"
     },
     "region": "other",
-    "consumers": [],
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view on the Mac while Present · Artboards runs with it on: now, next, notes, the clock and the order map. Hidden with one display.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-end",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › End (esc): leaves Present and closes the audience window.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-audience",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view's top bar: \"Audience on <display>\", or why the audience screen would not open.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-audience-retry",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Try again, shown when the audience screen would not open.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-elapsed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view clock: time since Present started.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-wall",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view clock: the wall time.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-now",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the Now box (the presented artboard).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-now-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › \"Now · 3 of 14 · <artboard>\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-next-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the Next box (the artboard after this one in the run).",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-next-label",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › \"Next · <artboard>\" (or \"Next · the end\").",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-prev",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Previous artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-next",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › Next artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-notes",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the presented artboard's speaker notes, one paragraph per line.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-order-map",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › the run drawn as the canvas layout; one cell per artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-map.jsx",
+      "symbol": "OrderMap"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-order-count",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Presenter view › \"Order · 15 artboards · 1 skipped\".",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-view.jsx",
+      "symbol": "PresenterView"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-cell-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One artboard in the order map, where it sits on the canvas; `<id>` is the artboard id. `data-n` is its run number, `aria-current` marks the one on screen, `data-skip` a skipped one (dimmed, eye-off, not clickable). A click jumps both screens.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-map.jsx",
+      "symbol": "OrderMap"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "presenter-skipped-mark",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The eye-off mark on a skipped artboard in the order map.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/order-map.jsx",
+      "symbol": "OrderMap"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "present-presenter-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present controls › Presenter view (laptop glyph); `aria-pressed` while on. Only with another display.",
+    "producer": {
+      "file": "apps/studio/client/v2/present/presenter-button.jsx",
+      "symbol": "PresenterViewButton"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "mode-present-presenter-view",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Present ⌄ › Presenter view on another display (a check while on, the display's name). Only in the desktop app with another display.",
+    "producer": {
+      "file": "apps/studio/client/v2/shell/mode-switch.jsx",
+      "symbol": "ModeSwitch"
+    },
+    "region": "other",
+    "consumers": [
+      "apps/studio/test/presenter-view.test.tsx"
+    ],
     "v2": "new"
   },
   {

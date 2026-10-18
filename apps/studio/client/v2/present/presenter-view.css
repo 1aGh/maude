@@ -1,0 +1,275 @@
+/* client/v2/present/presenter-view.css — S3.6b: Presenter view on the Mac (04 Modes md-presenter, .md-pv-*).
+ *
+ * It fills the window while Present · Artboards runs with presenter view on (DDR-117 hides the rest of the
+ * chrome, `.maude.is-present`). Theme-aware chrome on the shell's surface tokens; no motion of its own, so
+ * Reduce motion has nothing to collapse. Tokens only. */
+
+@layer shell {
+  .maude .pv {
+    position: fixed;
+    inset: 0;
+    z-index: 205; /* over the canvas frame; the Present controls (210) stand down while this is up */
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: 0 var(--space-5) var(--space-5);
+    box-sizing: border-box;
+    overflow: auto;
+    background: var(--bg-0);
+    color: var(--fg-0);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+  }
+
+  .maude .pv-top {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    height: 56px;
+    margin: 0 calc(-1 * var(--space-5));
+    padding: 0 var(--space-5);
+    background: var(--bg-1);
+    box-shadow: inset 0 -0.5px 0 var(--border-default);
+  }
+  .maude .pv-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    font-size: var(--type-sm);
+    font-weight: var(--w-semibold);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .maude .pv-clock {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+  .maude .pv-clock strong {
+    font-size: var(--type-xl);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .maude .pv-wall {
+    margin-left: var(--space-3);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .maude .pv-right {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .maude .pv-right .btn {
+    gap: var(--space-2);
+  }
+  .maude .pv-aud {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .maude .pv-aud.is-failed {
+    color: var(--status-warn-text, var(--fg-0));
+  }
+
+  .maude .pv-l {
+    margin: 0 0 var(--space-2);
+  }
+  .maude .pv-grid {
+    flex: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+  .maude .pv-now,
+  .maude .pv-side {
+    min-width: 0;
+  }
+
+  /* The screen boxes: an audience-screen stage, so a fixed dark ground (the artboard's own pixels belong
+     here once a thumbnail exists; until then the box is its shape and its name). */
+  .maude .pv-box {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-height: 46vh;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    overflow: hidden;
+  }
+  .maude .pv-box-label {
+    padding: var(--space-3);
+    font-size: var(--type-md);
+    font-weight: var(--w-semibold);
+    text-align: center;
+    color: var(--fg-0);
+  }
+  .maude .pv-box-label--quiet {
+    color: var(--fg-2);
+    font-weight: var(--w-regular, 400);
+  }
+  .maude .pv-under {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+  .maude .pv-under .btn {
+    gap: var(--space-1);
+  }
+  .maude .pv-flip {
+    display: inline-grid;
+    transform: scaleX(-1);
+  }
+  .maude .pv-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+  }
+
+  .maude .pv-notes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 140px;
+    max-height: 32vh;
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    background: var(--bg-1);
+    box-shadow: inset 0 0 0 0.5px var(--border-default);
+    font-size: var(--type-md);
+    line-height: var(--lh-md);
+  }
+  .maude .pv-notes p {
+    margin: 0;
+  }
+  .maude .pv-quiet {
+    color: var(--fg-2);
+  }
+  .maude .pv-side > .pv-l:nth-of-type(2) {
+    margin-top: var(--space-4);
+  }
+
+  /* The order map: the canvas layout, one cell per artboard. */
+  .maude .pv-order {
+    flex: none;
+  }
+  .maude .pv-order-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+  }
+  .maude .pv-map {
+    position: relative;
+    flex: none;
+  }
+  .maude .pv-cell {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-1);
+    font: inherit;
+    box-shadow: 0 0 0 1px var(--border-strong);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .maude .pv-cell:hover:not(:disabled) {
+    background: var(--bg-3, var(--bg-2));
+  }
+  .maude .pv-cell:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .maude .pv-cell[aria-current] {
+    box-shadow:
+      0 0 0 2px var(--bg-0),
+      0 0 0 4px var(--accent);
+  }
+  .maude .pv-cell[data-skip] {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .maude .pv-cell-label {
+    max-width: calc(100% - var(--space-2));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--type-xs);
+  }
+  .maude .pv-cell-n {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    display: inline-grid;
+    place-items: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 3px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--type-xs);
+    font-weight: var(--w-semibold);
+    color: var(--fg-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .maude .pv-cell[aria-current] .pv-cell-n {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .maude .pv-cell-skip {
+    display: inline-grid;
+  }
+  .maude .pv-legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 250px;
+    font-size: var(--type-sm);
+    line-height: var(--lh-sm);
+    color: var(--fg-1);
+  }
+  .maude .pv-legend p {
+    margin: 0;
+  }
+  .maude .pv-legend-r {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  @media (max-width: 900px) {
+    .maude .pv-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .maude .pv-clock {
+      display: none;
+    }
+  }
+}
