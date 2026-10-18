@@ -44,6 +44,13 @@ import { SEED_LADDER_MS } from './occlusion-insets.js';
 import { insetsLane } from './use-occluded-insets.js';
 import { panelLayout, usePanelLayout } from './use-panel-layout.js';
 
+/**
+ * Do the Canvases / AI chat panels fold to their icons? Where the what-shows table says so — and only for a mode
+ * someone CHOSE (nonce > 0): a view-only link's boot Preview keeps the panels, so the Canvases list is there to
+ * open a canvas from.
+ */
+export const wantsFold = (mode, snap) => foldsPanels(mode, snap.present) && snap.nonce > 0;
+
 /** The window's one mode store (mode is per project window, Q6). */
 export const shellMode = createShellMode();
 
@@ -203,7 +210,7 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
       foldedForRef.current = foldKey;
       // Only a mode someone CHOSE folds (nonce > 0): a view-only link's boot Preview keeps today's
       // panels, so the Canvases list is there to open a canvas from.
-      const want = foldsPanels(mode, snap.present) && snap.nonce > 0;
+      const want = wantsFold(mode, snap);
       if (panelLayout.get().folded !== want) {
         panelLayout.setFolded(want);
         return;

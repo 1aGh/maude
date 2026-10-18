@@ -141,8 +141,14 @@ export function ShellShareCluster() {
   const ex = useMemo(() => exportsRing(exportCenter?.jobs), [exportCenter?.jobs]);
   const canvasOpen = !!activePath && activePath !== SYSTEM_TAB;
   const ctx = useMemo(
-    () => menuCtx({ native: isNativeApp(), readOnly: !!viewerMode, canvasOpen }),
-    [viewerMode, canvasOpen]
+    () =>
+      menuCtx({
+        native: isNativeApp(),
+        readOnly: !!viewerMode,
+        observer: cfg?.cloud?.role === 'observer',
+        canvasOpen,
+      }),
+    [viewerMode, canvasOpen, cfg?.cloud?.role]
   );
 
   // S3.2a — the first Present row names the artboard a click would start from: the labels come from the

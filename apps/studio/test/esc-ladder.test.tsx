@@ -30,12 +30,14 @@ import {
   escOwnerOpen,
   runEscRung,
 } from '../bridge/esc-ladder.ts';
+import { SHELL_KEY_HANDLERS } from '../client/actions/shell-key-handlers.js';
 import {
   capsFor,
   createShellMode,
   decideModeRequest,
   shellEscDecision,
 } from '../client/v2/shell/canvas-mode.js';
+import { shellMode } from '../client/v2/shell/use-canvas-mode-lane.js';
 import { useInputRouter } from '../input-router.tsx';
 import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
 
@@ -540,5 +542,47 @@ describe('C · the shell’s end of esc', () => {
     expect(decideModeRequest({ mode: 'back' }, ctxOf({ viewing: s.get().viewing }))).toEqual({
       kind: 'exit-viewing',
     });
+  });
+
+  test('the registry’s shell `ui.step-back` handler: the focused comment pin first, THEN Preview → Edit (never both)', () => {
+    act(() => {
+      shellMode.back();
+      shellMode.select('preview');
+    });
+    let pin: string | null = 'c1';
+    const d = {
+      presentMode: false,
+      viewerMode: false,
+      get focusedCommentId() {
+        return pin;
+      },
+      setFocusedCommentId: (v: string | null) => {
+        pin = v;
+      },
+      tlKeyRef: { current: {} },
+    };
+    const ctx = { focus: 'chrome', facts: new Set<string>() };
+    const ev = () => new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
+    expect([pin, shellMode.get().mode]).toEqual([null, 'preview']);
+    SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
+    expect(shellMode.get().mode).toBe('edit');
+    SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
+    expect(shellMode.get().mode).toBe('edit'); // nowhere further back
+    // typing in a text field: the field keeps the key
+    act(() => shellMode.select('preview'));
+    SHELL_KEY_HANDLERS['ui.step-back'](d, {
+      event: ev(),
+      ctx: { focus: 'text', facts: new Set() },
+    });
+    expect(shellMode.get().mode).toBe('preview');
+    // an open menu closes first: the mode does not move
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    document.body.append(menu);
+    SHELL_KEY_HANDLERS['ui.step-back'](d, { event: ev(), ctx });
+    expect(shellMode.get().mode).toBe('preview');
+    menu.remove();
+    act(() => shellMode.select('edit'));
   });
 });
