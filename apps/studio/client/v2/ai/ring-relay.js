@@ -10,6 +10,7 @@
 // not re-sent to a frame that already has it.
 
 import { useEffect } from 'react';
+import { getMadeByAiStore, madeByAiRings } from './made-by-ai.js';
 import { mergeRings, ringsFor, doneRings } from './runs-model.js';
 import { getRunsStore } from './runs-store.js';
 
@@ -17,6 +18,8 @@ const FRAME = 'iframe[data-testid="canvas-frame"]';
 
 export function createRingsLane({
   store,
+  // S5.15 — "Made by AI" (made-by-ai.js): settled rings that last until the next person's change
+  madeByAi = getMadeByAiStore(),
   doc = globalThis.document,
   win = globalThis.window,
 } = {}) {
@@ -28,10 +31,10 @@ export function createRingsLane({
     if (!target) return;
     const { view, done } = store.getSnapshot();
     const file = frame.getAttribute('data-path') || frame.dataset?.path || '';
-    const artboards = mergeRings(
-      ringsFor(view, { activeCanvas: file }),
-      doneRings(Object.keys(done))
-    );
+    const artboards = mergeRings(ringsFor(view, { activeCanvas: file }), {
+      ...madeByAiRings(madeByAi?.getSnapshot(), file),
+      ...doneRings(Object.keys(done)),
+    });
     const json = JSON.stringify(artboards);
     const before = spoken.get(target);
     if (!force && before === json) return;
@@ -51,6 +54,7 @@ export function createRingsLane({
   };
 
   const unsub = store.subscribe(tellAll);
+  const unsubMade = madeByAi?.subscribe(tellAll);
   const onMessage = (e) => {
     const dgn = e.data?.dgn;
     if (dgn !== 'loaded' && dgn !== 'canvas-rendered') return;
@@ -64,6 +68,7 @@ export function createRingsLane({
   tellAll();
   return () => {
     unsub();
+    unsubMade?.();
     win?.removeEventListener?.('message', onMessage);
   };
 }
