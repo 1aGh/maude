@@ -773,6 +773,12 @@ function startCanvasServer(
             // Fail closed in a cell (absent header = unproven session);
             // loopback desktop keeps full capability as before. S9.11 — from the access.
             readOnly: !access.can('edit', canvasOfSlug(access, collabSlug, ctx.paths.designRel)),
+            // S3.7c — the hub's canvas door opened this on a receive-only FOLLOW
+            // capability (stripped-then-injected, so a client cannot claim it; it
+            // only ever narrows): the room drops its sync, keeps its `watching`.
+            ...(WORKSPACE && req.headers.get('x-maude-collab-follow') === '1'
+              ? { follow: true }
+              : {}),
           },
         });
         if (ok) return undefined as unknown as Response;

@@ -763,7 +763,7 @@ export function createHub(config = {}) {
         // The canvas token is OPTIONAL by construction — `?? null` at the call
         // site, and the canvas origin simply stays unauthenticated without it.
         // So a mint that cannot happen degrades to "no token", loudly, once.
-        mintCanvasToken: (session, { readOnly = false } = {}) => {
+        mintCanvasToken: (session, { readOnly = false, follow = null } = {}) => {
           try {
             return mintRenderToken({
               secret,
@@ -777,6 +777,9 @@ export function createHub(config = {}) {
               // the viewer floor instead, enforced by the canvas door.
               role: readOnly ? 'viewer' : session.role,
               readOnly,
+              // S3.7c — a presentation follower's capability: ONE canvas,
+              // receive-only, no project role (render-token.mjs drops `r`).
+              follow,
               ttlMs: canvasTokenTtlMs(),
             });
           } catch (err) {
@@ -3427,8 +3430,8 @@ export function browserSession(dataDir, secret, request) {
   // grants: V2-1.7 §5.3, minted by the S9.2 door) is a canvas-scoped session,
   // not a stale one. It carries its claim and the fail-closed read-only
   // projection; every project-scope door still refuses it (the S9.3 gate and
-  // the `canvasDoor` rows decide; the studio proxy refuses `!session.role`
-  // until the studio reads `x-maude-access` per request). A role-null cookie
+  // the `canvasDoor` rows decide; the studio proxy forwards it with its claim
+  // and the studio's per-request reader decides — S3.7c). A role-null cookie
   // WITHOUT such a claim is still no session at all.
   if (!role) return canvasOnlyBrowserSession(match);
   return {
