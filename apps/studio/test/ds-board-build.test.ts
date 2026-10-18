@@ -14,8 +14,10 @@ import { loadProject } from '../ds/cli.ts';
 import { dsDepsFor, importsDs, importsDsBoard, specimenFiles, usesDs } from '../ds/ds-resolver.ts';
 import { systemConfigsFrom } from '../ds/system.ts';
 
-const root = mkdtempSync(join(tmpdir(), 'ds-board-build-'));
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+// the project root holds `.design/`; every other path in this file is relative to the design root
+const project = mkdtempSync(join(tmpdir(), 'ds-board-build-'));
+const root = join(project, '.design');
+afterAll(() => rmSync(project, { recursive: true, force: true }));
 const put = (rel: string, text: string) => {
   mkdirSync(dirname(join(root, rel)), { recursive: true });
   writeFileSync(join(root, rel), text);
@@ -119,7 +121,7 @@ describe('@maude/ds/board through the canvas build', () => {
   });
 
   test('ds-check canvas mode is clean on the template', () => {
-    const ctx = canvasContext(loadProject(root, {}));
+    const ctx = canvasContext(loadProject(project, {}));
     const report = checkCanvas(ctx, 'system/acme/design-system.tsx');
     expect(report.findings).toEqual([]);
     expect(report.state).not.toBe('blocked');
