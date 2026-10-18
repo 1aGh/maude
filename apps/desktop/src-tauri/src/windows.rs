@@ -89,14 +89,16 @@ pub const CLOSE_GRACE: Duration = Duration::from_secs(10);
 /// server's boot self-heal (bun install + build), up to ~90 s.
 pub const SERVER_WAIT_MS: u64 = 120_000;
 
-/// What a window is for. `Home` and `Cell` are reserved here so the book has
-/// one shape; V2-3.3 opens `home`, and `c-*` cell tabs come later.
+/// What a window is for: Home (V2-3.3), a project on this Mac (`p-<pid>`), or a
+/// cell tab (`c-<16 hex>`, S9.17) — a cloud project shown straight from its cell
+/// over https, for an account whose access gets no local copy (a `409 browser-door`
+/// answer, V2-1.7 §5.4). A cell tab is pinned to ONE cell origin and belongs to ONE
+/// account profile; it is in no capability (no IPC).
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)] // Cell: first constructed with the cell tabs
 pub enum Role {
     Home,
     Project { pid: String, root: String },
-    Cell { url: String },
+    Cell { origin: String, profile: String },
 }
 
 #[derive(Clone, Debug)]
@@ -458,6 +460,8 @@ impl WindowBook {
         let tabs = self
             .tabs
             .iter()
+            // S9.17: a cell tab is opened by a door answer, never restored.
+            .filter(|l| !is_cell_label(l))
             .map(|l| crate::app_state::SessionTab {
                 label: l.clone(),
                 pid: self.project_of(l).map(|(pid, _)| pid),
@@ -779,9 +783,10 @@ pub fn navigation_allowed(
         NavRole::Home => false,
         NavRole::Project if loopbackish(&target) => canvas == Some(o.as_str()),
         NavRole::Project => target.scheme() == "https",
-        NavRole::Cell => {
-            target.scheme() == "https" && !loopbackish(&target) && crate::oauth::in_cloud_zone(&o)
-        }
+        // S9.17: the pinned cell origin matched above; besides it only the cell's
+        // canvas origin (the iframe) and the control plane (the cell's browser
+        // sign-in hands off there and back) — never another tenant's host.
+        NavRole::Cell => !loopbackish(&target) && cell_extra_origin(&o),
         NavRole::Audience => false,
     }
 }
@@ -803,10 +808,319 @@ pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) 
     }
     let o = url.origin().ascii_serialization();
     origin == Some(o.as_str())
-        || (role == NavRole::Cell
-            && url.scheme() == "https"
-            && !loopbackish(url)
-            && crate::oauth::in_cloud_zone(&o))
+        || (role == NavRole::Cell && !loopbackish(url) && cell_control_plane(&o))
+}
+
+// ── Cell tabs (S9.17) ────────────────────────────────────────────────────────
+//
+// A `409 {reason:'browser-door', url}` from a mint door (access/scope.ts
+// `peerTokenDoor`) means: this account may look, but gets no peer token and so
+// no local copy. The app opens the cell itself in a `c-*` tab. The URL arrives
+// from a page (Home or a project tab relaying the door's answer), so Rust takes
+// nothing from it but a validated cell front door: https, port-less, one label
+// under the compiled-in cloud zone, `/` or `/c/<canvas>`, no query, no fragment,
+// rebuilt from its parts. The profile is the caller's own (`managed_profile`:
+// a project tab only ever its own account; Home names an existing one), and the
+// tab's cookies live in a data store of THAT profile — another account's tabs
+// never see them, and a tab of one account is never reused for another.
+
+/// The cloud zone's host, compiled in on purpose (oauth.rs `DEFAULT_CLOUD_HOST`,
+/// whose arm-2 rationale applies: a poisoned `MAUDE_CLOUD_URL` must not widen
+/// which hosts a cell tab may show). `cell_door` also requires `in_cloud_zone`.
+pub const CELL_ZONE: &str = "cloud.maude.sh";
+
+/// The one canvas origin every cell's canvas iframe is served from
+/// (apps/cells/worker.mjs: `canvas.cloud.maude.sh/<id>/…`).
+fn cell_canvas_origin() -> String {
+    format!("https://canvas.{CELL_ZONE}")
+}
+
+/// The configured control plane, exactly (scheme + host + port), https only —
+/// where a cell's browser sign-in hands off and comes back from.
+fn cell_control_plane(origin: &str) -> bool {
+    let base = crate::oauth::cloud_base();
+    base.scheme() == "https" && base.origin().ascii_serialization() == origin
+}
+
+/// A cell tab's origins besides its own pinned one.
+fn cell_extra_origin(origin: &str) -> bool {
+    origin == cell_canvas_origin() || cell_control_plane(origin)
+}
+
+/// What a validated browser door names.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CellDoor {
+    /// `https://<project>.cloud.maude.sh` — what the tab is pinned to.
+    pub origin: String,
+    /// The cell project id (the host's first label) — the tab's name.
+    pub project: String,
+    /// The URL the tab navigates to, rebuilt from the validated parts.
+    pub url: String,
+}
+
+/// Percent-decode one path segment to UTF-8; `None` on a bad escape or bytes.
+fn percent_decode(seg: &str) -> Option<String> {
+    let b = seg.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = std::str::from_utf8(b.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// A cell's project id: a DNS label of `[a-z0-9-]`, and never one of the zone's
+/// own non-cell hosts (`canvas`, `view-*` share views, `canvas-*`).
+fn cell_project_id(label: &str) -> bool {
+    let shape = !label.is_empty()
+        && label.len() <= 63
+        && label.split('-').all(|p| {
+            !p.is_empty() && p.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        });
+    shape && label != "canvas" && !label.starts_with("view-") && !label.starts_with("canvas-")
+}
+
+/// Pure: validate a browser door's `url` (above). The error is the one sentence
+/// the page may show.
+pub fn cell_door(url: &str) -> Result<CellDoor, String> {
+    let refuse = || "That isn't a Maude Cloud project address.".to_string();
+    if url.len() > 2048
+        || url.contains(|c: char| c.is_whitespace() || c.is_control() || matches!(c, '\\' | '@'))
+    {
+        return Err(refuse());
+    }
+    let u = tauri::Url::parse(url).map_err(|_| refuse())?;
+    if u.scheme() != "https"
+        || u.port().is_some()
+        || !u.username().is_empty()
+        || u.password().is_some()
+        || u.query().is_some()
+        || u.fragment().is_some()
+    {
+        return Err(refuse());
+    }
+    let host = u.host_str().ok_or_else(refuse)?;
+    let project = host
+        .strip_suffix(CELL_ZONE)
+        .and_then(|h| h.strip_suffix('.'))
+        .filter(|p| cell_project_id(p))
+        .ok_or_else(refuse)?
+        .to_string();
+    let origin = format!("https://{project}.{CELL_ZONE}");
+    if u.origin().ascii_serialization() != origin || !crate::oauth::in_cloud_zone(&origin) {
+        return Err(refuse());
+    }
+    let mut out = tauri::Url::parse(&origin).map_err(|_| refuse())?;
+    let path = u.path();
+    if !matches!(path, "" | "/") {
+        let rest = path.strip_prefix("/c/").ok_or_else(refuse)?;
+        let segs: Vec<String> = rest
+            .split('/')
+            .map(percent_decode)
+            .collect::<Option<_>>()
+            .ok_or_else(refuse)?;
+        if segs.iter().any(|s| s.contains(['/', '\\'])) {
+            return Err(refuse());
+        }
+        let canvas =
+            crate::project_resolve::validate_open_param(&segs.join("/")).ok_or_else(refuse)?;
+        out.path_segments_mut()
+            .map_err(|_| refuse())?
+            .clear()
+            .push("c")
+            .extend(canvas.split('/'));
+    }
+    Ok(CellDoor {
+        origin,
+        project,
+        url: out.to_string(),
+    })
+}
+
+/// Is `label` a cell tab's (`c-<16 hex>`)?
+pub fn is_cell_label(label: &str) -> bool {
+    label.strip_prefix("c-").is_some_and(|h| {
+        h.len() == 16 && h.bytes().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'))
+    })
+}
+
+/// The label of `profile`'s cell tab for `origin`: one tab per (account, cell).
+pub fn cell_label(profile: &str, origin: &str) -> String {
+    let h = sha256_hex(format!("maude-cell:{profile}\n{origin}").as_bytes());
+    format!("c-{}", &h[..16])
+}
+
+/// The WebKit data store a cell tab of `profile` keeps its cookies in: one per
+/// account profile (the cell's session cookie), never shared with a project tab
+/// (those are per label) or with another account.
+pub fn data_store_id_for_cell_profile(profile: &str) -> [u8; 16] {
+    let digest = Sha256::digest(format!("maude-cell-profile:{profile}").as_bytes());
+    let mut out = [0u8; 16];
+    out.copy_from_slice(&digest[..16]);
+    out
+}
+
+/// Open `profile`'s tab for `door` once: an existing tab of the SAME account
+/// and cell comes to the front; otherwise a new tab, pinned to the cell's
+/// origin, after `caller`. The book entry (with the pinned origin) is written
+/// before the webview is built, so its first navigation finds it.
+pub fn open_cell_in(
+    host: &impl WindowHost,
+    book: &Mutex<WindowBook>,
+    door: &CellDoor,
+    profile: &str,
+    caller: Option<&str>,
+    tick: u64,
+) -> Result<Opened, String> {
+    let label = cell_label(profile, &door.origin);
+    let role = Role::Cell {
+        origin: door.origin.clone(),
+        profile: profile.to_string(),
+    };
+    {
+        let mut b = book.lock().unwrap_or_else(|e| e.into_inner());
+        match b.entry(&label).map(|e| e.role.clone()) {
+            Some(r) if r == role && host.exists(&label) => {
+                drop(b);
+                host.reveal(&label, &door.project);
+                return Ok(Opened::Existing(label));
+            }
+            // A label is one (account, cell): anything else under it is refused.
+            Some(r) if r != role => {
+                return Err("That tab belongs to another account.".to_string())
+            }
+            Some(_) => {
+                b.remove(&label);
+            }
+            None => {}
+        }
+        b.insert_after(&label, role, tick, caller);
+        b.set_origin(&label, &door.origin);
+    }
+    let spec = WindowSpec {
+        label: label.clone(),
+        title: door.project.clone(),
+        caller: caller.map(str::to_string),
+        background: false,
+    };
+    if let Err(e) = host.create(&spec) {
+        book.lock().unwrap_or_else(|e| e.into_inner()).remove(&label);
+        return Err(e);
+    }
+    Ok(Opened::New(label))
+}
+
+impl WindowBook {
+    /// `(origin, profile)` of a cell tab.
+    pub fn cell_of(&self, label: &str) -> Option<(String, String)> {
+        match &self.entries.get(label)?.role {
+            Role::Cell { origin, profile } => Some((origin.clone(), profile.clone())),
+            _ => None,
+        }
+    }
+}
+
+/// Send cell tab `label` to `url` (a `cell_door` URL) — only while the tab is
+/// still pinned to that URL's origin.
+pub fn navigate_cell(app: &AppHandle, label: &str, url: &str) {
+    let Ok(parsed) = url.parse::<tauri::Url>() else {
+        return;
+    };
+    let pinned = app.try_state::<SidecarState>().and_then(|s| {
+        s.windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .cell_of(label)
+            .map(|(origin, _)| origin)
+    });
+    if pinned.as_deref() != Some(parsed.origin().ascii_serialization().as_str()) {
+        return;
+    }
+    if let Some(wv) = app.get_webview(label) {
+        if let Err(e) = wv.navigate(parsed) {
+            crate::sidecar::log_line(&format!("[maude] {label}: navigate failed: {e}"));
+        }
+    }
+}
+
+/// The refusal when this Mac cannot keep an account's cookies apart.
+pub const CELL_TABS_UNSUPPORTED: &str = "Open this project in your browser.";
+
+/// Can this machine give every account's cell tabs their own data store?
+fn cell_tabs_supported() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        supports_data_store()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
+/// What `open_cell_tab` answers.
+#[derive(Clone, Debug, Serialize)]
+pub struct OpenedCell {
+    pub label: String,
+    /// `new` | `existing`.
+    pub opened: &'static str,
+}
+
+/// `open_cell_tab({url, profile?})` — a `409 browser-door` answer opens the cell
+/// as a tab (S9.17). Home or the project tab in front; the URL is only a cell
+/// front door (`cell_door`), the account the caller's own (`managed_profile`).
+/// Open once per (account, cell); the tab navigates to the door. No file-plane
+/// copy, no registry entry, no IPC in the tab. `async`: building a webview from a
+/// sync command deadlocks on Windows.
+#[tauri::command]
+pub async fn open_cell_tab(
+    app: AppHandle,
+    webview: tauri::Webview,
+    url: String,
+    profile: Option<String>,
+) -> Result<OpenedCell, String> {
+    let who = caller_any(&webview, false)?;
+    // 1g / S15-A3: a background tab may not switch tabs, and one switch at a time.
+    let _front = claim_front(&webview)?;
+    let door = cell_door(&url)?;
+    // The account's cookies need a store of their own (macOS ≥ 14). Without one a
+    // cell tab would share them with every other account: the page falls back to
+    // the system browser (`open_cloud_url`) instead.
+    if !cell_tabs_supported() {
+        return Err(CELL_TABS_UNSUPPORTED.to_string());
+    }
+    let profile = crate::managed::managed_profile(
+        &who,
+        profile.as_deref(),
+        |root| crate::app_state::profile_for(&app, root),
+        |p| p == crate::profiles::DEFAULT_ID || crate::profiles::exists(p),
+    )?;
+    let state = app.state::<SidecarState>();
+    let tick = state.tick.fetch_add(1, Ordering::SeqCst);
+    let opened = open_cell_in(
+        &TauriHost { app: &app },
+        &state.windows,
+        &door,
+        &profile,
+        Some(webview.label()),
+        tick,
+    )?;
+    navigate_cell(&app, opened.label(), &door.url);
+    crate::home::state_changed(&app);
+    Ok(OpenedCell {
+        label: opened.label().to_string(),
+        opened: match opened {
+            Opened::New(_) => "new",
+            Opened::Existing(_) => "existing",
+        },
+    })
 }
 
 /// `navigation_allowed` / `top_level_allowed` against the live book. A label
@@ -907,6 +1221,14 @@ impl WindowHost for TauriHost<'_> {
         let (nav_app, nav_label) = (self.app.clone(), spec.label.clone());
         let (load_app, load_label) = (self.app.clone(), spec.label.clone());
         let label = spec.label.clone();
+        // S9.17: a cell tab keeps its cookies in its ACCOUNT's store, not its label's.
+        let cell_profile = self.app.try_state::<SidecarState>().and_then(|s| {
+            s.windows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .cell_of(&label)
+                .map(|(_, profile)| profile)
+        });
         crate::tabs::add_tab(self.app, &spec.label, move |builder| {
             #[allow(unused_mut)]
             let mut builder = builder
@@ -933,8 +1255,13 @@ impl WindowHost for TauriHost<'_> {
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny);
             #[cfg(target_os = "macos")]
             if supports_data_store() {
-                builder = builder.data_store_identifier(data_store_id_for_label(&label));
+                builder = builder.data_store_identifier(match &cell_profile {
+                    Some(profile) => data_store_id_for_cell_profile(profile),
+                    None => data_store_id_for_label(&label),
+                });
             }
+            #[cfg(not(target_os = "macos"))]
+            let _ = &cell_profile;
             builder
         })?;
         if spec.background {
@@ -1306,6 +1633,8 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
     crate::profiles::forget_prepared(label);
     crate::home::state_changed(app);
     let Some(root) = root else { return };
+    // S9.17: no page counts this project's unread mentions any more.
+    crate::notify::project_closed(app, &root);
     crate::sidecar::log_line(&format!(
         "[maude] {label} closed — {root}'s server stops in {}s unless it is reopened",
         CLOSE_GRACE.as_secs()
@@ -3550,11 +3879,15 @@ mod tests {
         assert!(!navigation_allowed(Home, &u("http://127.0.0.1:4501/"), h, None));
         assert!(!navigation_allowed(Home, &u("https://www.youtube.com/"), h, None));
         assert!(!navigation_allowed(Home, &u("data:text/html,x"), h, None));
-        // A cell tab (one rule, built later): https in the cloud zone.
-        assert!(navigation_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None, None));
-        assert!(top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None));
-        assert!(!navigation_allowed(Cell, &u("https://evil.example/"), None, None));
-        assert!(!navigation_allowed(Cell, &u("http://localhost:4399/"), None, None));
+        // A cell tab (S9.17): pinned to ITS cell — not every host in the zone.
+        let c = Some("https://acme.cloud.maude.sh");
+        assert!(navigation_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), c, None));
+        assert!(top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), c));
+        assert!(!navigation_allowed(Cell, &u("https://evil.example/"), c, None));
+        assert!(!navigation_allowed(Cell, &u("http://localhost:4399/"), c, None));
+        assert!(!navigation_allowed(Cell, &u("https://other.cloud.maude.sh/"), c, None));
+        assert!(!top_level_allowed(Cell, &u("https://other.cloud.maude.sh/"), c));
+        assert!(!top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None));
     }
 
     /// N-M3 (audit 2): a dead server's port vouches for nothing — the window's
@@ -3622,5 +3955,176 @@ mod tests {
         // Another window's values are untouched.
         assert_eq!(TABS_RESTORED.take("p-stays"), Some(TabsRestored { count: 2 }));
         assert_eq!(PENDING_NAVIGATE.take("p-stays"), Some(t));
+    }
+
+    // ── S9.17 cell tabs ─────────────────────────────────────────────────────
+
+    /// The browser door's URL comes from a page: only a cell's own front door
+    /// (or one canvas on it) passes, rebuilt from its parts.
+    #[test]
+    fn cell_door_takes_only_a_cell_front_door() {
+        let ok = cell_door("https://alligators.cloud.maude.sh").unwrap();
+        assert_eq!(ok.origin, "https://alligators.cloud.maude.sh");
+        assert_eq!(ok.project, "alligators");
+        assert_eq!(ok.url, "https://alligators.cloud.maude.sh/");
+        let canvas = cell_door("https://alligators.cloud.maude.sh/c/ui/A%20B.tsx").unwrap();
+        assert_eq!(canvas.url, "https://alligators.cloud.maude.sh/c/ui/A%20B.tsx");
+        assert_eq!(canvas.origin, ok.origin);
+        for bad in [
+            "http://alligators.cloud.maude.sh/",          // not https
+            "https://alligators.cloud.maude.sh:8443/",    // a port
+            "https://evil.example/",                      // outside the zone
+            "https://evilcloud.maude.sh/",                // a suffix, not a subdomain
+            "https://cloud.maude.sh.attacker.com/",       // the zone as a prefix
+            "https://cloud.maude.sh/",                    // the control plane is no cell
+            "https://canvas.cloud.maude.sh/alligators/x", // the shared canvas origin
+            "https://view-alligators.cloud.maude.sh/",    // a share view
+            "https://canvas-x.cloud.maude.sh/",
+            "https://a.b.cloud.maude.sh/",                // two labels
+            "https://Alli_gators.cloud.maude.sh/",
+            "https://u:p@alligators.cloud.maude.sh/",     // userinfo
+            "https://alligators.cloud.maude.sh/?next=https://evil.example",
+            "https://alligators.cloud.maude.sh/#x",
+            "https://alligators.cloud.maude.sh/admin",    // not the door
+            "https://alligators.cloud.maude.sh/c/",
+            "https://alligators.cloud.maude.sh/c/../secret",
+            "https://alligators.cloud.maude.sh/c/ui%2F..%2Fsecret",
+            "https://alligators.cloud.maude.sh/c/ui%5Cx.tsx",
+            "https://alligators.cloud.maude.sh/c/ui/%ZZ",
+            "https://alligators.cloud.maude.sh/\\evil",
+            "https://alligators.cloud.maude.sh/ c",
+            "javascript:alert(1)",
+            "https://127.0.0.1/",
+            "https://localhost/",
+            "",
+        ] {
+            assert!(cell_door(bad).is_err(), "{bad} passed as a browser door");
+        }
+    }
+
+    fn door(project: &str) -> CellDoor {
+        cell_door(&format!("https://{project}.cloud.maude.sh/")).unwrap()
+    }
+
+    /// One tab per (account, cell): the same account's second door focuses its
+    /// tab; another account gets a tab — and a cookie store — of its own.
+    #[test]
+    fn cell_tabs_are_one_per_account_and_cell() {
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        let d = door("alligators");
+        let first = open_cell_in(&host, &book, &d, "default", Some("home"), 1).unwrap();
+        let label = first.label().to_string();
+        assert!(is_cell_label(&label), "{label}");
+        assert_eq!(first, Opened::New(label.clone()));
+        {
+            let b = book.lock().unwrap();
+            assert_eq!(
+                b.cell_of(&label),
+                Some((d.origin.clone(), "default".to_string()))
+            );
+            // Pinned before its first navigation: the guard knows its origin.
+            let (role, origin, _) = b.nav_view(&label).unwrap();
+            assert_eq!(role, NavRole::Cell);
+            assert_eq!(origin.as_deref(), Some(d.origin.as_str()));
+            assert!(b.tab_labels().contains(&label));
+        }
+        let again = open_cell_in(&host, &book, &d, "default", Some("home"), 2).unwrap();
+        assert_eq!(again, Opened::Existing(label.clone()));
+        assert_eq!(host.created.borrow().len(), 1);
+        assert_eq!(host.revealed.borrow().as_slice(), &[(label.clone(), "alligators".to_string())]);
+        // Another account: never that tab.
+        let other = open_cell_in(&host, &book, &d, "work", Some("home"), 3).unwrap();
+        assert!(matches!(&other, Opened::New(l) if *l != label && is_cell_label(l)));
+        assert_ne!(
+            data_store_id_for_cell_profile("default"),
+            data_store_id_for_cell_profile("work")
+        );
+        assert_ne!(data_store_id_for_cell_profile("default"), data_store_id_for_label(&label));
+        // Another cell of the same account: its own tab.
+        let gators2 = open_cell_in(&host, &book, &door("crocs"), "default", None, 4).unwrap();
+        assert!(matches!(gators2, Opened::New(l) if l != label));
+        // A failed build leaves nothing behind.
+        let failing = MockHost { fail_create: true, ..Default::default() };
+        assert!(open_cell_in(&failing, &book, &door("geckos"), "default", None, 5).is_err());
+        let geckos = cell_label("default", &door("geckos").origin);
+        assert!(book.lock().unwrap().entry(&geckos).is_none());
+    }
+
+    /// A label is one (account, cell): an entry of another account under it is
+    /// refused, never shown to this account.
+    #[test]
+    fn a_cell_tab_of_another_account_is_refused() {
+        let host = MockHost::default();
+        let book = Mutex::new(WindowBook::default());
+        let d = door("alligators");
+        let label = cell_label("default", &d.origin);
+        book.lock().unwrap().insert(
+            &label,
+            Role::Cell {
+                origin: d.origin.clone(),
+                profile: "work".into(),
+            },
+            1,
+        );
+        host.live.borrow_mut().push(label.clone());
+        let r = open_cell_in(&host, &book, &d, "default", None, 2);
+        assert_eq!(r, Err("That tab belongs to another account.".to_string()));
+        assert!(host.revealed.borrow().is_empty());
+        // And a project tab may only ever open cells for its own account.
+        let caller = Caller::Project(CallerProject {
+            label: "p-a".into(),
+            pid: "la".into(),
+            root: "/r/a".into(),
+        });
+        let rule = |req: Option<&str>| {
+            crate::managed::managed_profile(&caller, req, |_| "default".to_string(), |_| true)
+        };
+        assert!(rule(Some("work")).is_err());
+        assert_eq!(rule(None).as_deref(), Ok("default"));
+    }
+
+    /// A cell tab has no IPC and is never restored.
+    #[test]
+    fn cell_tabs_hold_no_capability_and_no_session_slot() {
+        for cap in [
+            include_str!("../capabilities/default.json"),
+            include_str!("../capabilities/strip.json"),
+            include_str!("../capabilities/home-splash.json"),
+        ] {
+            let v: serde_json::Value = serde_json::from_str(cap).unwrap();
+            for key in ["webviews", "windows"] {
+                for w in v[key].as_array().into_iter().flatten() {
+                    let w = w.as_str().unwrap_or_default();
+                    assert!(!w.starts_with("c-") && w != "*", "a capability names {w}");
+                }
+            }
+        }
+        let mut b = WindowBook::default();
+        let d = door("alligators");
+        let label = cell_label("default", &d.origin);
+        b.insert(
+            &label,
+            Role::Cell {
+                origin: d.origin,
+                profile: "default".into(),
+            },
+            1,
+        );
+        b.insert("p-a", Role::Project { pid: "la".into(), root: "/r/a".into() }, 2);
+        let (tabs, _) = b.session_tabs();
+        assert_eq!(tabs.iter().map(|t| t.label.as_str()).collect::<Vec<_>>(), ["p-a"]);
+    }
+
+    /// `open_cell_tab` checks its caller, the front tab and the account before
+    /// it builds anything (the ratchet covers the first; this pins the order).
+    #[test]
+    fn open_cell_tab_checks_caller_front_and_account_first() {
+        let src = include_str!("windows.rs");
+        let body = command_body(src, "open_cell_tab").expect("open_cell_tab exists");
+        let at = |s: &str| body.find(s).unwrap_or_else(|| panic!("{s} missing"));
+        assert!(at("caller_any(&webview, false)?") < at("claim_front(&webview)?"));
+        assert!(at("claim_front(&webview)?") < at("cell_door(&url)?"));
+        assert!(at("managed_profile(") < at("open_cell_in("));
     }
 }

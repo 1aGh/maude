@@ -211,10 +211,32 @@ pub fn strip_state(book: &WindowBook, name_of: impl Fn(&str) -> String) -> TabSt
 }
 
 /// `strip_state`, with `account_of(root)` giving a project tab's account badge.
+#[cfg(test)]
 pub fn strip_state_with(
     book: &WindowBook,
     name_of: impl Fn(&str) -> String,
     account_of: impl Fn(&str) -> Option<StripAccount>,
+) -> TabStripState {
+    strip_state_full(book, name_of, account_of, |_| None)
+}
+
+/// The project id a cell tab shows (S9.17): the first label of its pinned
+/// origin (`cell_door` validated it as `[a-z0-9-]`) — never a path or an e-mail.
+pub fn cell_tab_name(origin: &str) -> String {
+    origin
+        .strip_prefix("https://")
+        .and_then(|h| h.split('.').next())
+        .filter(|p| !p.is_empty())
+        .unwrap_or("Cloud")
+        .to_string()
+}
+
+/// `strip_state_with`, with `cell_account(profile)` giving a cell tab's badge.
+pub fn strip_state_full(
+    book: &WindowBook,
+    name_of: impl Fn(&str) -> String,
+    account_of: impl Fn(&str) -> Option<StripAccount>,
+    cell_account: impl Fn(&str) -> Option<StripAccount>,
 ) -> TabStripState {
     let tabs = book
         .tab_labels()
@@ -225,7 +247,15 @@ pub fn strip_state_with(
                 Role::Project { root, pid } => {
                     ("project", name_of(root), pid.as_str(), account_of(root), "mac")
                 }
-                Role::Cell { .. } => ("cell", "Cloud".to_string(), "", None, "cloud"),
+                // S9.17: the cell's project id; the square's tone hashes the origin
+                // (which never reaches the strip itself).
+                Role::Cell { origin, profile } => (
+                    "cell",
+                    cell_tab_name(origin),
+                    origin.as_str(),
+                    cell_account(profile),
+                    "cloud",
+                ),
                 Role::Home => return None,
             };
             let name = crate::notify::sanitize_title(&name);
@@ -440,10 +470,18 @@ fn title_of(app: &AppHandle, label: &str) -> String {
     if label == HOME_LABEL {
         return "Home".to_string();
     }
-    app.try_state::<SidecarState>()
-        .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).root_of(label))
-        .map(|root| windows::project_display_name(&root))
-        .unwrap_or_else(|| "Maude".to_string())
+    let (root, cell) = app
+        .try_state::<SidecarState>()
+        .map(|s| {
+            let book = s.windows.lock().unwrap_or_else(|e| e.into_inner());
+            (book.root_of(label), book.cell_of(label))
+        })
+        .unwrap_or_default();
+    match (root, cell) {
+        (Some(root), _) => windows::project_display_name(&root),
+        (None, Some((origin, _))) => cell_tab_name(&origin),
+        _ => "Maude".to_string(),
+    }
 }
 
 /// Make `label` the active tab (contract §3.2 `activate`): the book's
@@ -682,10 +720,15 @@ fn current_state(app: &AppHandle) -> Option<TabStripState> {
     };
     let state = app.try_state::<SidecarState>()?;
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-    let mut s = strip_state_with(&book, windows::project_display_name, |root| {
-        let id = st.profile_for(root);
-        account_badge(&id, &label_of(&id))
-    });
+    let mut s = strip_state_full(
+        &book,
+        windows::project_display_name,
+        |root| {
+            let id = st.profile_for(root);
+            account_badge(&id, &label_of(&id))
+        },
+        |profile| account_badge(profile, &label_of(profile)),
+    );
     s.overview = overview_open();
     s.renaming = RENAMING
         .lock()
@@ -1850,5 +1893,37 @@ mod tests {
         assert_eq!(r.position, strip.position);
         assert_eq!(r.size, LogicalSize::new(1280.0, 800.0).into());
         assert_ne!(r.size, strip.size);
+    }
+
+    /// S9.17: a cell tab is a `cell` in the strip, named by its project id, on
+    /// `cloud`, with its account's badge — never its origin or an e-mail.
+    #[test]
+    fn a_cell_tab_in_the_strip_names_its_project_and_account_only() {
+        let mut b = WindowBook::default();
+        let origin = "https://alligators.cloud.maude.sh";
+        let label = windows::cell_label("work", origin);
+        b.insert(
+            &label,
+            Role::Cell {
+                origin: origin.into(),
+                profile: "work".into(),
+            },
+            1,
+        );
+        let s = strip_state_full(
+            &b,
+            |_| unreachable!("a cell tab has no root"),
+            |_| None,
+            |profile| account_badge(profile, "Work"),
+        );
+        let t = &s.tabs[0];
+        assert_eq!((t.kind, t.name.as_str(), t.place), ("cell", "alligators", "cloud"));
+        assert_eq!(t.account.as_ref().map(|a| a.initial.as_str()), Some("W"));
+        let wire = serde_json::to_string(&s).unwrap();
+        for leak in ["https://", "cloud.maude.sh", "@"] {
+            assert!(!wire.contains(leak), "{leak} reached the strip: {wire}");
+        }
+        assert_eq!(cell_tab_name("https://x"), "x");
+        assert_eq!(cell_tab_name("garbage"), "Cloud");
     }
 }
