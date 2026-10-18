@@ -40,6 +40,8 @@
 /* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
 @import url("../v2/shell/floating-panels.css");
 @import url("../v2/shell/project-pill.css");
+/* S3.2b — the Present chrome: the controls (Present · Artboards) and the canvas pill. */
+@import url("../v2/present/present.css");
 /* V2-4.3a — the Share cluster, top-right. */
 @import url("../v2/shell/share-cluster.css");
 /* V2-4.5c — tool panels the canvas toolbar opens (Stickers), pinned next to the toolbar island. */
