@@ -188,7 +188,11 @@ export type HumanReason =
   // S5 (V2-1.15 Q5): the AI chat's own surface — the panel, its composer and its chat list. An
   // agent already holds the capability the chat wraps (it IS the AI); the row is the person's way
   // to drive that conversation — decision:maude/v2-S5.7-chat-actions-human-ai-chat
-  | 'ai-chat';
+  | 'ai-chat'
+  // S11.10: the git half of Version history › Advanced (branch, save with a note, publish, open a pull
+  // request…). The person's working tree and remote; an agent runs git itself in the project folder —
+  // decision:maude/v2-S11.10-git-actions-human
+  | 'git';
 
 export type AgentPath =
   | { path: 'file'; format: FormatId; skill: SkillRef; how: string }

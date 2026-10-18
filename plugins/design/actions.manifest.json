@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "9a43e154d028",
+  "manifestVersion": "4e0c0bcbd0e6",
   "actions": [
     {
       "id": "search.open",
@@ -3149,6 +3149,18 @@
       }
     },
     {
+      "id": "history.compare-pictures",
+      "label": "Compare pictures",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the same two versions as words: maude design history diff"
+      }
+    },
+    {
       "id": "history.name",
       "label": "Name this version…",
       "kind": "command",
@@ -3226,6 +3238,158 @@
       "agent": {
         "path": "cli",
         "verb": "maude design history restore <canvas> @last-good"
+      }
+    },
+    {
+      "id": "history.branch-switch",
+      "label": "Switch branch",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/checkout",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git switch <branch>"
+      }
+    },
+    {
+      "id": "history.new-branch",
+      "label": "New branch…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/branch",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git switch -c <branch>"
+      }
+    },
+    {
+      "id": "history.fetch",
+      "label": "Fetch",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "server": {
+        "route": "/_api/git/fetch",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git fetch"
+      }
+    },
+    {
+      "id": "history.publish",
+      "label": "Publish",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/push",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git push"
+      }
+    },
+    {
+      "id": "history.save-with-note",
+      "label": "Save a version with a note…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/commit",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git commit -m \"<note>\""
+      }
+    },
+    {
+      "id": "history.open-pr",
+      "label": "Add to main · opens a pull request",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/fold",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: gh pr create (or git merge locally)"
+      }
+    },
+    {
+      "id": "history.discard-file",
+      "label": "Discard changes to a file",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/discard",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git restore <file>"
+      }
+    },
+    {
+      "id": "history.continue-draft",
+      "label": "Continue on your draft",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "minRole": "edit",
+      "server": {
+        "route": "/_api/git/checkout",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "human",
+        "because": "git",
+        "note": "an agent runs git itself in the project folder: git switch <draft>"
+      }
+    },
+    {
+      "id": "history.undo-action",
+      "label": "Undo this change",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "undo": "version",
+      "server": {
+        "route": "/_api/project/undo",
+        "method": "POST"
+      },
+      "agent": {
+        "path": "cli",
+        "verb": "maude design history undo --action <id>"
       }
     }
   ],

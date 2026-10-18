@@ -2,8 +2,11 @@
 //
 //   header · All / Named / Made by AI / People · Now row (+ Name this version…) · Today / Yesterday / 4 Oct …
 //   rows with a picture, a face or the spark, the words, a chip · click = look at it (the shell's Viewing hold)
-//   the selected row: Compare (S1.15) · Restore this version (edit only; Can view looks, never restores)
-//   foot: Advanced (the git body, until S1.15 / S11 re-home it)
+//   the selected row: Compare · Restore this version (edit only; Can view looks, never restores)
+//   comparing (S1.15): the selected row is A, a second click makes a row B (marks on both, Now can be B);
+//     the selected row then carries what Restore takes back from others, Stop comparing,
+//     Restore only <artboard> and Restore this version
+//   foot: Advanced (Compare pictures + the git body, until S11 re-words it)
 //
 // The rows are the server's (rule G); this file draws them and sends three things back: look (`onView`),
 // restore (one new version + a toast with Undo) and name — both built by history/surface-requests.ts, the one
@@ -12,10 +15,19 @@
 // the header says "· this object" and "All versions" lifts the filter.
 // Everything here is judged again on the server (§5.12): hiding Restore from a viewer is presentation.
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { initialsOf, Kbd, StIcon } from '../../shell/icons.jsx';
 import { shellToast } from '../../shell/util.js';
 import { AdvancedFold } from '../fold/advanced-fold.jsx';
+import {
+  COMPARE_WORDS as CW,
+  focusGroup,
+  groupByArtboard,
+  restoreOnlyTarget,
+  whyLine,
+} from './blame.js';
+import { HistoryAdvanced } from './git-advanced.jsx';
+import { GIT_HINT } from './git-model.js';
 import { NameDialog } from './name-dialog.jsx';
 import { OBJECT_WORDS as OW } from './object-filter.js';
 import { ObjectHistoryView } from './object-view.jsx';
@@ -63,12 +75,38 @@ function Face({ row }) {
   );
 }
 
-function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }) {
+/** Compare's A / B mark on a row. */
+function Mark({ mark }) {
+  if (!mark) return null;
+  return (
+    <span
+      className={`cmp-mark cmp-mark--${mark.toLowerCase()}`}
+      data-testid={`vh-mark-${mark}`}
+      role="img"
+      aria-label={`Version ${mark}`}
+    >
+      {mark}
+    </span>
+  );
+}
+
+function Row({
+  row,
+  selected,
+  mark,
+  comparing,
+  canEdit,
+  restoring,
+  onView,
+  onRestore,
+  onCompare,
+  compareActs,
+}) {
   return (
     <li className="vh-item">
       <button
         type="button"
-        className={`vh-row${row.named ? ' is-named' : ''}${selected ? ' is-sel' : ''}`}
+        className={`vh-row${row.named ? ' is-named' : ''}${selected ? ' is-sel' : ''}${mark === 'B' ? ' is-b' : ''}`}
         aria-current={selected ? 'true' : undefined}
         data-testid={`vh-row-${row.ref}`}
         data-ref={row.ref}
@@ -76,7 +114,10 @@ function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }
       >
         <Picture row={row} />
         <span className="vh-t">
-          <strong>{row.title}</strong>
+          <strong>
+            <Mark mark={mark} />
+            {row.title}
+          </strong>
           <span>
             <Face row={row} />
             {row.sub}
@@ -88,7 +129,9 @@ function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }
           </span>
         ))}
       </button>
-      {selected ? (
+      {selected && comparing ? (
+        compareActs
+      ) : selected ? (
         <span className="vh-acts" data-testid="vh-acts">
           {onCompare ? (
             <button
@@ -126,10 +169,17 @@ function Row({ row, selected, canEdit, restoring, onView, onRestore, onCompare }
  * @param p.onLeaveViewing  back to now
  * @param p.onChanged       a version landed (name / restore / undo): the shell refreshes what shows it
  * @param p.refreshKey      anything that says a version may have landed
- * @param p.onCompare       (row) — S1.15's Compare; absent = no button
  * @param p.scope           S1.16 — `{ path, key, tail }` when the panel is filtered to one object, else null
  * @param p.onClearScope    "All versions"
- * @param p.advanced        the Advanced fold's body (the git body until S11 re-words it)
+ * @param p.onCompare       (row) start comparing: the row is A, Now is B; absent = no Compare button
+ * @param p.compare         the Compare in progress (`compare-store.js`) or null
+ * @param p.onPickB         (words | null) — a second row (or null = Now) becomes B
+ * @param p.onStopCompare   Stop comparing (back to Viewing the version)
+ * @param p.onRows          (rows) the rows on screen, so Compare can name who made a change
+ * @param p.onComparePictures  ({ file, beforeSha }) opens today's picture DiffView (Advanced)
+ * @param p.role            'view' | 'comment' | 'edit' | 'owner' — the git part of Advanced is for editors only
+ * @param p.git             the shell's git bundle for Advanced (S11.10, git-advanced.jsx); absent = no git part
+ * @param p.advanced        anything else for the Advanced fold's body
  */
 export function VersionHistoryPanel({
   path,
@@ -144,6 +194,13 @@ export function VersionHistoryPanel({
   onCompare,
   scope = null,
   onClearScope,
+  compare = null,
+  onPickB,
+  onStopCompare,
+  onRows,
+  onComparePictures,
+  role = canEdit ? 'edit' : 'view',
+  git = null,
   advanced = null,
   toast = shellToast,
   fetchImpl,
@@ -187,6 +244,97 @@ export function VersionHistoryPanel({
     },
     [path, restoring, toast, fetchImpl, onChanged, onLeaveViewing]
   );
+
+  const comparing = !!compare && compare.path === path;
+  const answer = comparing ? compare.answer : null;
+  const cmpGroups =
+    answer?.status === 'ready' ? groupByArtboard(answer.changes, answer.labels) : [];
+  const target = comparing ? restoreOnlyTarget(focusGroup(cmpGroups, compare.focus)) : null;
+  // A may sit on a page not loaded yet (a Compare opened from a link): the ref is all a restore needs
+  const aRow = comparing
+    ? (v.rows.find((r) => r.ref === compare.a.at) ?? {
+        ref: compare.a.at,
+        named: null,
+        madeAt: null,
+      })
+    : null;
+  // the rows on screen are what names a line's maker (blame.js)
+  useEffect(() => {
+    if (comparing) onRows?.(v.rows);
+  }, [comparing, v.rows, onRows]);
+
+  const doRestoreOnly = useCallback(async () => {
+    if (restoring || !target || !comparing) return;
+    setRestoring(true);
+    const res = await restoreVersion({
+      path,
+      row: aRow,
+      artboard: target.id,
+      toast,
+      fetchImpl,
+      onChanged: () => onChanged?.(),
+    });
+    setRestoring(false);
+    if (res.ok) {
+      onStopCompare?.();
+      onLeaveViewing?.();
+    }
+  }, [
+    restoring,
+    target,
+    comparing,
+    path,
+    aRow,
+    compare,
+    toast,
+    fetchImpl,
+    onChanged,
+    onStopCompare,
+    onLeaveViewing,
+  ]);
+
+  const compareActs = comparing ? (
+    <span className="vh-acts vh-acts--cmp" data-testid="vh-acts">
+      <span className="vh-why" data-testid="vh-why">
+        {whyLine(cmpGroups, answer?.blame, v.rows)}
+      </span>
+      <span className="vh-btns">
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost"
+          data-testid="vh-stop-compare"
+          onClick={() => onStopCompare?.()}
+        >
+          {CW.stop}
+        </button>
+        {canEdit && target ? (
+          <button
+            type="button"
+            className="btn btn--sm"
+            data-testid="vh-restore-only"
+            disabled={restoring}
+            onClick={doRestoreOnly}
+          >
+            {CW.restoreOnly(target.label)}
+          </button>
+        ) : null}
+        {canEdit ? (
+          <button
+            type="button"
+            className="btn btn--sm btn--primary"
+            data-testid="vh-restore"
+            disabled={restoring}
+            onClick={() => doRestore(aRow)}
+          >
+            {restoring ? W.restoring : W.restore}
+          </button>
+        ) : null}
+      </span>
+    </span>
+  ) : null;
+
+  const markOf = (row) =>
+    !comparing ? null : row.ref === compare.a.at ? 'A' : row.ref === compare.b?.at ? 'B' : null;
 
   const onListKey = (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -273,16 +421,22 @@ export function VersionHistoryPanel({
           />
         ) : null}
         {!scoped && now ? (
-          <div className={`vh-now${sel ? '' : ' is-sel'}`} data-testid="vh-now">
+          <div
+            className={`vh-now${sel && !(comparing && compare.b?.at === 'now') ? '' : ' is-sel'}`}
+            data-testid="vh-now"
+          >
             <span className="vh-dot" aria-hidden="true" />
             {sel ? (
               <button
                 type="button"
                 className="vh-now-t vh-row"
                 data-testid="vh-now-back"
-                onClick={() => onLeaveViewing?.()}
+                onClick={() => (comparing ? onPickB?.(null) : onLeaveViewing?.())}
               >
-                <strong>{W.now}</strong>
+                <strong>
+                  {comparing && compare.b?.at === 'now' ? <Mark mark="B" /> : null}
+                  {W.now}
+                </strong>
                 <span>{`${canvasLabel} · ${now.status}`}</span>
               </button>
             ) : (
@@ -344,10 +498,17 @@ export function VersionHistoryPanel({
                       key={row.id}
                       row={row}
                       selected={sel === row.ref}
+                      mark={markOf(row)}
+                      comparing={comparing}
+                      compareActs={compareActs}
                       canEdit={canEdit}
                       restoring={restoring}
                       onCompare={onCompare}
-                      onView={(r) => onView?.({ path, ...viewingWords(r) })}
+                      onView={(r) =>
+                        comparing && r.ref !== compare.a.at
+                          ? onPickB?.(viewingWords(r))
+                          : onView?.({ path, ...viewingWords(r) })
+                      }
                       onRestore={doRestore}
                     />
                   ))}
@@ -368,9 +529,20 @@ export function VersionHistoryPanel({
           </div>
         )}
       </div>
-      {advanced ? (
-        <AdvancedFold panel="history" hint="branch, version ids">
-          {advanced}
+      {advanced || git || onComparePictures ? (
+        <AdvancedFold panel="history" hint={GIT_HINT}>
+          <HistoryAdvanced
+            canvas={path}
+            version={sel}
+            versionRow={sel ? (v.rows.find((r) => r.ref === sel) ?? null) : null}
+            role={role}
+            git={git}
+            fetchImpl={fetchImpl}
+            onComparePictures={onComparePictures}
+            canView={!!path}
+          >
+            {advanced}
+          </HistoryAdvanced>
         </AdvancedFold>
       ) : null}
       {naming ? (

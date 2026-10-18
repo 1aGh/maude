@@ -22,7 +22,10 @@ const STUDIO = join(import.meta.dir, '..');
 // The shell's code, whichever client file it lives in (app.jsx before the
 // V2-0.2 split, its modules after) — see `_client-source.ts`.
 const APP = clientSource();
-const PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'GitPanel.jsx'), 'utf8');
+// S11.10 — the Changes / History panel is Version history › Advanced now: the fold's three files are one text.
+const PANEL = ['git-advanced.jsx', 'git-parts.jsx', 'git-model.js']
+  .map((f) => readFileSync(join(STUDIO, 'client', 'v2', 'history', f), 'utf8'))
+  .join('\n');
 const HTTP = readFileSync(join(STUDIO, 'http.ts'), 'utf8');
 const ENDPOINTS = readFileSync(join(STUDIO, 'cloud', 'endpoints.ts'), 'utf8');
 
@@ -32,11 +35,11 @@ describe('the loader is chosen ONCE, where the posture is named', () => {
     // (DDR-241, T27); the Git posture is still chosen at this one place.
     expect(APP).toContain('return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);');
     expect(APP).toContain(
-      "historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}"
+      "historySource: projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local',"
     );
     // The panel may READ the source, never compute it from `cloudManaged` —
     // that would be the second derivation the posture constant exists to stop.
-    expect(PANEL).toContain("const cloudHistorySource = historySource === 'cloud';");
+    expect(PANEL).toContain("const cloudHistory = git.historySource === 'cloud';");
     expect(PANEL).not.toMatch(/historySource\s*=\s*cloudManaged/);
   });
 
@@ -53,21 +56,20 @@ describe('the loader is chosen ONCE, where the posture is named', () => {
     expect(fileContaining("'/_api/cloud/history?limit=40'").src).toMatch(
       /if \(!r\.ok\) return null;/
     );
-    expect(PANEL).toContain('const [logFailed, setLogFailed] = useState(false);');
-    expect(PANEL).toContain('setLogFailed(entries == null);');
+    expect(PANEL).toContain("entries == null ? { status: 'failed', entries: [] }");
     expect(PANEL).toContain('data-testid="git-history-unreachable"');
     expect(PANEL).toContain('data-testid="git-history-retry"');
   });
 
   test('the cloud empty state never offers the Save this posture withdrew', () => {
     expect(PANEL).toContain('The cloud is saving this project');
-    // The old copy must still exist for the LOCAL branch — and only there.
-    expect(PANEL).toContain("Save a version and it'll show up here.");
+    // The plain copy exists for the LOCAL posture — and only there.
+    expect(PANEL).toContain("state === 'cloud' ? W.noVersionsCloud : W.noVersions");
   });
 
   test('the header names the cloud project, falling back to the hub host', () => {
-    expect(PANEL).toContain(
-      'const headerProject = cloudHistorySource\n    ? (cloudHistory?.project ?? cloudHistory?.hubHost ?? null)\n    : project;'
+    expect(PANEL).toMatch(
+      /const headProject = cloudHistory\s*\?\s*\(git\.cloudHistory\?\.project \?\? git\.cloudHistory\?\.hubHost\)\s*:\s*git\.project;/
     );
   });
 });
@@ -113,16 +115,16 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
   });
 
   test('the drafts switcher is withdrawn — a branch switch moves a HEAD the cell has never seen', () => {
-    // The BRANCH half is withdrawn; the project half stays (plan T22 — a
-    // managed project still needs the way to another project).
-    expect(APP).toContain('projectOnly={savingIsManaged}');
+    // S11.10: the BRANCH half lives in Version history › Advanced, and the posture withdraws it there
+    // ('cloud' for a cell, 'cloud-saving' for a linked repo — gitSurface, pinned in v2-git-model.test.ts);
+    // the project dock keeps only the way to another project (plan T22).
+    expect(PANEL).toContain('cellManaged: git.cellManaged,');
+    expect(PANEL).toContain('cloudManaged: git.cloudManaged,');
     const SWITCHER = readFileSync(
       join(STUDIO, 'client', 'panels', 'RepoBranchSwitcher.jsx'),
       'utf8'
     );
-    expect(SWITCHER).toContain('if (native && status && (!status.repo || projectOnly)) {');
-    expect(SWITCHER).toContain('if (!status?.repo || projectOnly) return null;');
-    expect(APP).toContain('savingIsManaged={savingIsManaged}');
+    expect(SWITCHER).not.toContain('/_api/git/');
   });
 
   test('the posture is declared above every effect that names it', () => {

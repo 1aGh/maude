@@ -667,6 +667,8 @@ export interface SyncRuntime {
     queued?: boolean;
     actionId?: string;
   } | null>;
+  /** S1.18 — the manifest rows a stable link resolves over (history/links.ts). Null when legacy. */
+  acceptedLinkDocs?(): Promise<{ entry: string; path: string | null; retired: boolean }[] | null>;
   /**
    * Restore a canvas to a revision as a NEW action. S1.13: `o.lanes` — one artboard / object /
    * kept-aside version, the studio's lanes as ONE `restore` action (local-kernel.ts RestoreOptions).

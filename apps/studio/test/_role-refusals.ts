@@ -76,6 +76,19 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
     refused: ['view', 'comment'],
     body: { id: 'canvas:n_a' },
   },
+  // S11.10 — Version history › Advanced's git buttons (history.branch-switch · continue-draft · new-branch · publish ·
+  // save-with-note · open-pr · discard-file) and a row's Undo (history.undo-action). The fold is hidden below edit;
+  // these rows are the server half (test/access-role-matrix.test.ts pins the same routes).
+  { method: 'POST', route: '/_api/git/checkout', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/branch', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/push', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/commit', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/fold', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/git/discard', refused: ['view', 'comment'] },
+  { method: 'POST', route: '/_api/project/undo', refused: ['view', 'comment'] },
+  // history.fetch moves remote refs only: the role matrix allows it for a viewer, so the fold hides it and
+  // the server refuses no one (no `minRole` on the action, so no role is below it).
+  { method: 'POST', route: '/_api/git/fetch', refused: [] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

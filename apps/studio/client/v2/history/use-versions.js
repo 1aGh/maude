@@ -12,7 +12,7 @@
 // "Couldn't load versions" + "Retry versions" — pressed by hand, never automatic (CONTRACT §4, C20).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { restoreRequest } from '../../../history/surface-requests.ts';
+import { nameRequest, restoreRequest } from '../../../history/surface-requests.ts';
 
 export const FILTERS = Object.freeze([
   { id: 'all', label: 'All' },
@@ -147,25 +147,30 @@ const postJson = (fetchImpl, url, body) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+/** Send one of surface-requests.ts's requests: the route and the body are the builder's, never spelled here. */
+const send = (fetchImpl, req) => postJson(fetchImpl, req.route, req.body);
 
 /**
  * "Restore this version": a NEW version (C5), one undo step. Success toasts the action's own line
  * ("Restored 5 Oct, 18:40") with Undo; a hub that did not take it says so with Retry restore (C20).
+ * `artboard`: only that artboard, as it was at the row (Compare's "Restore only <artboard>", §5.8).
  * `element` (`<artboard>/<id>` or an annotation id) restores only that object (S1.13 / S1.16) — the request is
  * the one `maude design history restore --element` makes (history/surface-requests.ts).
  * @returns { ok, actionId?, reason? }
  */
-export async function restoreVersion({ path, row, toast, fetchImpl, onChanged, element }) {
+export async function restoreVersion({ path, row, artboard, toast, fetchImpl, onChanged, element }) {
   const f = fetchImpl || ((...a) => fetch(...a));
   let r = null;
   let j = null;
   try {
-    r = await postJson(
+    r = await send(
       f,
-      '/_api/project/restore',
-      element === undefined
-        ? { path, at: row.ref }
-        : restoreRequest({ path, at: row.ref, element }).body
+      restoreRequest({
+        path,
+        at: row.ref,
+        ...(artboard ? { artboard } : {}),
+        ...(element !== undefined ? { element } : {}),
+      })
     );
     j = await r.json().catch(() => null);
   } catch {
@@ -199,7 +204,7 @@ export async function restoreVersion({ path, row, toast, fetchImpl, onChanged, e
   if (!r || r.status === 503 || reason === 'unreachable')
     toast?.(HISTORY_WORDS.restoreServer, false, {
       label: HISTORY_WORDS.retryRestore,
-      onClick: () => restoreVersion({ path, row, toast, fetchImpl, onChanged, element }),
+      onClick: () => restoreVersion({ path, row, artboard, toast, fetchImpl, onChanged, element }),
     });
   else toast?.(j?.line || HISTORY_WORDS.restoreFailed, false);
   return { ok: false, reason };
@@ -211,7 +216,7 @@ export async function nameVersion({ path, at, name, fetchImpl, onChanged }) {
   let r = null;
   let j = null;
   try {
-    r = await postJson(f, '/_api/project/name', { path, at, name });
+    r = await send(f, nameRequest({ path, at, name }));
     j = await r.json().catch(() => null);
   } catch {
     /* below */

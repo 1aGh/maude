@@ -494,49 +494,49 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
 | --- | --- | --- | --- | --- | --- |
-| `git-panel` | testid | The Changes (git) panel root. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e:git-lifecycle, e2e:s20-deployment, e2e:team-project | stable — re-emit |
-| `git-panel-repo` | testid | Project / shared-draft label in the Changes panel header (the cloud project when history comes from the cloud). | `client/panels/GitPanel.jsx` · `GitPanel` | — | stable — re-emit |
-| `git-cloud-managed` | testid | Note in a cloud-managed project that saving is automatic (replaces the commit form). | `client/panels/GitPanel.jsx` · `GitPanel` | test:cloud-managed-save-surfaces (source text), test:git-cloud-posture (source text) | stable — re-emit |
-| `git-get-latest` | testid | "Get latest" (pull) button (two render sites). | `client/panels/GitPanel.jsx` · `GitPanel` | e2e:git-lifecycle | stable — re-emit |
-| `git-commit-message` | testid | Commit message input. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e:git-lifecycle | stable — re-emit |
-| `git-save-all` | testid | "Save all" (commit) button. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e:git-lifecycle | stable — re-emit |
-| `git-publish` | testid | "Publish" (push) button. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e:git-lifecycle | stable — re-emit |
-| `git-history-unreachable` | testid | History tab: the server history could not be reached. | `client/panels/GitPanel.jsx` · `GitPanel` | test:cloud-history-posture (source text) | stable — re-emit |
-| `git-history-retry` | testid | History tab: Retry button. | `client/panels/GitPanel.jsx` · `GitPanel` | test:cloud-history-posture (source text) | stable — re-emit |
-| `project-history-row-<revision>` | testid (pattern) | One accepted project-history version row. | `client/panels/GitPanel.jsx` · `AcceptedRow` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e-mp:surface, test:history-preview-restore | stable — re-emit |
-| `project-history-preview-<revision>` | testid (pattern) | Preview button on a history row. | `client/panels/GitPanel.jsx` · `AcceptedRow` | runner:reliable-project-multiplayer/f3/s11-browser.mjs, runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e-mp:surface | stable — re-emit |
-| `project-history-restore-<revision>` | testid (pattern) | Restore button on a history row. | `client/panels/GitPanel.jsx` · `AcceptedRow` | e2e-mp:surface | stable — re-emit |
-| `project-history-undo-<revision>` | testid (pattern) | Undo button on the latest history row. | `client/panels/GitPanel.jsx` · `AcceptedRow` | e2e-mp:surface, e2e:s20-deployment | stable — re-emit |
+| `git-panel` | testid | The git body of Version history › Advanced (root). | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:git-lifecycle, e2e:s20-deployment, e2e:team-project | stable — re-emit |
+| `git-panel-repo` | testid | Project / branch label at the head of the git body (the cloud project when the versions come from the cloud). | `client/v2/history/git-advanced.jsx` · `GitBody` | — | stable — re-emit |
+| `git-cloud-managed` | testid | Note in a cloud-managed project that saving is automatic (replaces the commit form). | `client/v2/history/git-advanced.jsx` · `GitBody` | test:cloud-managed-save-surfaces (source text), test:git-cloud-posture (source text) | stable — re-emit |
+| `git-get-latest` | testid | "Get latest" (pull) button: the team-has-new-versions nudge and the publish-conflict banner. | `client/v2/history/git-parts.jsx` · `Banner` | e2e:git-lifecycle | stable — re-emit |
+| `git-commit-message` | testid | The note field of the "Save a version" dialog. | `client/v2/history/git-parts.jsx` · `SaveDialog` | e2e:git-lifecycle | stable — re-emit |
+| `git-save-all` | testid | "Save all" in the "Save a version" dialog. | `client/v2/history/git-parts.jsx` · `SaveDialog` | e2e:git-lifecycle | stable — re-emit |
+| `git-publish` | testid | "Publish N versions" (push) button. | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:git-lifecycle | stable — re-emit |
+| `git-history-unreachable` | testid | Every version list: the server history could not be reached. | `client/v2/history/git-parts.jsx` · `VersionList` | test:cloud-history-posture (source text) | stable — re-emit |
+| `git-history-retry` | testid | Every version list: Retry button. | `client/v2/history/git-parts.jsx` · `VersionList` | test:cloud-history-posture (source text) | stable — re-emit |
+| `project-history-row-<revision>` | testid (pattern) | One accepted project-history version row in "Every version, with its id". | `client/v2/history/git-parts.jsx` · `VersionItem` | runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e-mp:surface, test:history-preview-restore | stable — re-emit |
+| `project-history-preview-<revision>` | testid (pattern) | Preview button on a version row. | `client/v2/history/git-parts.jsx` · `VersionItem` | runner:reliable-project-multiplayer/f3/s11-browser.mjs, runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e-mp:surface | stable — re-emit |
+| `project-history-restore-<revision>` | testid (pattern) | Restore button on a version row. | `client/v2/history/git-parts.jsx` · `VersionItem` | e2e-mp:surface | stable — re-emit |
+| `project-history-undo-<revision>` | testid (pattern) | Undo button on one of your own version rows. | `client/v2/history/git-parts.jsx` · `VersionItem` | e2e-mp:surface, e2e:s20-deployment | stable — re-emit |
 | `history-preview-version` | testid | Version label in the history preview (diff) sheet. | `client/panels/DiffView.jsx` · `DiffView` | runner:reliable-project-multiplayer/f3/s11-browser.mjs, runner:reliable-project-multiplayer/f3/s19-browser.mjs, e2e-mp:surface | stable — re-emit |
 | `history-preview-restore` | testid | Restore button in the history preview sheet. | `client/panels/DiffView.jsx` · `DiffView` | runner:reliable-project-multiplayer/f3/s11-browser.mjs, e2e-mp:surface | stable — re-emit |
 | `repo-switcher-trigger` | testid | Bottom-of-sidebar project/branch switcher button (two render branches). | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | spec:git-branch-switcher, e2e:cloud-attach, e2e:git-branch-switcher, e2e:git-lifecycle, e2e:git-switch-repos, e2e:team-project | moves — map in Phase 4 |
 | `repo-switcher-popup` | testid | The switcher popup menu (two render branches). | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | spec:git-branch-switcher, e2e:git-branch-switcher, e2e:git-lifecycle, e2e:team-project | moves — map in Phase 4 |
-| `branch-row-<branch>` | testid (pattern) | A branch row in the switcher; `<branch>` from the module-local `slugify`/`tid` (e.g. `branch-row-main`, `branch-row-feat-local-work`). | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | spec:git-branch-switcher, spec:git-lifecycle, e2e:git-branch-switcher, e2e:git-lifecycle | moves — map in Phase 4 |
+| `branch-row-<branch>` | testid (pattern) | A branch option in the Branch select; `<branch>` from `tid` (e.g. `branch-row-main`, `branch-row-feat-local-work`). | `client/v2/history/git-advanced.jsx` · `GitBody` | spec:git-branch-switcher, spec:git-lifecycle, e2e:git-branch-switcher, e2e:git-lifecycle | moves — map in Phase 4 |
 | `switcher-open-team` | testid | Switcher item that opens the team-projects dialog. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:cloud-attach, e2e:team-project | moves — map in Phase 4 |
-| `switcher-get-latest` | testid | Switcher "Get latest" button. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-resume` | testid | "Resume where you left off" strip in the switcher. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-resume-dismiss` | testid | Dismiss for the resume strip. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-merge` | testid | Switcher item "add this draft to &lt;shared&gt;" (merge). | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:git-lifecycle | moves — map in Phase 4 |
-| `switcher-merge-confirm` | testid | Confirm button for the merge. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:git-lifecycle | moves — map in Phase 4 |
-| `switcher-fetch` | testid | Switcher item that refreshes remote drafts. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:git-lifecycle | moves — map in Phase 4 |
-| `switcher-new-branch` | testid | Switcher item "new draft". | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:git-lifecycle | moves — map in Phase 4 |
-| `switcher-new-branch-input` | testid | Branch-name input for a new draft. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:git-lifecycle | moves — map in Phase 4 |
-| `switcher-new-branch-create` | testid | Create button for a new draft. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | e2e:git-lifecycle | moves — map in Phase 4 |
-| `switcher-chat-guard` | testid | Dialog that warns a branch switch would interrupt a running chat. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-chat-guard-cancel` | testid | Cancel on the chat guard. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-chat-guard-confirm` | testid | Confirm on the chat guard. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-pr-link` | testid | Button that opens/copies the pull-request link after a merge. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `switcher-pr-dismiss` | testid | "Got it" on the pull-request result. | `client/panels/RepoBranchSwitcher.jsx` · `RepoBranchSwitcher` | — | moves — map in Phase 4 |
-| `[data-tour="save-local"]` | data-tour | The local save (commit) control in the Changes panel. | `client/panels/GitPanel.jsx` · `GitPanel` | tour:collab-tour | stable — re-emit |
-| `[data-tour="publish"]` | data-tour | The Publish (push) button in the Changes panel (same element as `git-publish`). | `client/panels/GitPanel.jsx` · `GitPanel` | tour:collab-tour | stable — re-emit |
-| `[data-tour="pull"]` | data-tour | The Get-latest (pull) button in the Changes panel (same element as one `git-get-latest`). | `client/panels/GitPanel.jsx` · `GitPanel` | tour:collab-tour | stable — re-emit |
-| `.gp-panel` | selector | Changes panel body. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e-mp:surface | stable — re-emit |
-| `.gp-version` | selector | A version row in the Changes panel history. | `client/panels/GitPanel.jsx` · `AcceptedRow` | e2e-mp:surface | stable — re-emit |
-| `.gp-tabs / .gp-cloud-note` | selector | Changes panel tab strip (hidden when withdrawn) and the cloud-managed note. *Source-text consumer only: `test/git-cloud-posture.test.ts` regex-matches `className="gp-tabs"` / `className="gp-cloud-note"` in `GitPanel.jsx`.* | `client/panels/GitPanel.jsx` · `GitPanel` | test:git-cloud-posture (source text) | stable — re-emit |
+| `switcher-get-latest` | testid | The "your team has new versions" nudge in Version history › Advanced (its button is `git-get-latest`). | `client/v2/history/git-advanced.jsx` · `GitBody` | — | moves — map in Phase 4 |
+| `switcher-resume` | testid | Drafts › Continue row: go back to the branch you were working on. | `client/v2/history/git-advanced.jsx` · `GitBody` | — | moves — map in Phase 4 |
+| `switcher-resume-dismiss` | testid | Dismiss for the Continue row. | `client/v2/history/git-advanced.jsx` · `GitBody` | — | moves — map in Phase 4 |
+| `switcher-merge` | testid | "Add to main · opens a pull request" button (on a branch). | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:git-lifecycle | moves — map in Phase 4 |
+| `switcher-merge-confirm` | testid | Confirm button of the "Add to main" dialog. | `client/v2/history/git-parts.jsx` · `AddDialog` | e2e:git-lifecycle | moves — map in Phase 4 |
+| `switcher-fetch` | testid | "Fetch" button: ask the remote for new branches. | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:git-lifecycle | moves — map in Phase 4 |
+| `switcher-new-branch` | testid | "New branch…" button. | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:git-lifecycle | moves — map in Phase 4 |
+| `switcher-new-branch-input` | testid | Branch-name input of the "Create a branch" dialog. | `client/v2/history/git-parts.jsx` · `BranchDialog` | e2e:git-lifecycle | moves — map in Phase 4 |
+| `switcher-new-branch-create` | testid | Create button of the "Create a branch" dialog. | `client/v2/history/git-parts.jsx` · `BranchDialog` | e2e:git-lifecycle | moves — map in Phase 4 |
+| `switcher-chat-guard` | testid | Dialog that warns a branch change would interrupt a running chat. | `client/v2/history/git-parts.jsx` · `GuardDialog` | — | moves — map in Phase 4 |
+| `switcher-chat-guard-cancel` | testid | Cancel on the chat guard. | `client/v2/history/git-parts.jsx` · `GuardDialog` | — | moves — map in Phase 4 |
+| `switcher-chat-guard-confirm` | testid | Confirm on the chat guard. | `client/v2/history/git-parts.jsx` · `GuardDialog` | — | moves — map in Phase 4 |
+| `switcher-pr-link` | testid | Button that opens/copies the pull-request link after "Add to main". | `client/v2/history/git-parts.jsx` · `AddDialog` | — | moves — map in Phase 4 |
+| `switcher-pr-dismiss` | testid | "Got it" on the pull-request result. | `client/v2/history/git-parts.jsx` · `AddDialog` | — | moves — map in Phase 4 |
+| `[data-tour="save-local"]` | data-tour | The local save (commit) control: the primary button of the "Save a version" dialog. | `client/v2/history/git-parts.jsx` · `SaveDialog` | tour:collab-tour | stable — re-emit |
+| `[data-tour="publish"]` | data-tour | The Publish (push) button in Version history › Advanced (same element as `git-publish`). | `client/v2/history/git-advanced.jsx` · `GitBody` | tour:collab-tour | stable — re-emit |
+| `[data-tour="pull"]` | data-tour | The Get-latest (pull) button in Version history › Advanced (same element as one `git-get-latest`). | `client/v2/history/git-advanced.jsx` · `GitBody` | tour:collab-tour | stable — re-emit |
+| `.gp-panel` | selector | Retired S11.10: the Changes panel is the git body of Version history › Advanced. Its root is `git-panel`. | `client/panels/GitPanel.jsx` · `GitPanel` | e2e-mp:surface | retired |
+| `.gp-version` | selector | Retired S11.10: a version row is `.vh-git-ver` (or `project-history-row-<revision>`) in Version history › Advanced. | `client/panels/GitPanel.jsx` · `AcceptedRow` | e2e-mp:surface | retired |
+| `.gp-tabs / .gp-cloud-note` | selector | Retired S11.10: there are no tabs; the mode is `gitSurface()` (git-model.js) and the note is `git-cloud-managed`. `test/git-cloud-posture.test.ts` pins the new source text. | `client/panels/GitPanel.jsx` · `GitPanel` | test:git-cloud-posture (source text) | retired |
 | `.dv-frame` | selector | The canvas frame inside the history preview (diff) sheet. | `client/panels/DiffView.jsx` · `CanvasView` | e2e-mp:surface | stable — re-emit |
 | `.dv-zoom-sync` | selector | Zoom-sync label in the diff zoom bar. *CSS consumer.* | `client/panels/DiffView.jsx` · `ZoomBar` | test:shell-text-contrast | stable — re-emit |
-| `git-compare` | testid | The compare-before/after button on a changed canvas in the Changes list. | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
-| `git-discard` | testid | The discard button on a changed file (or canvas with its supporting files) in the Changes list. Desktop only (read-only elsewhere). | `client/panels/GitPanel.jsx` · `GitPanel` | — | new |
+| `git-compare` | testid | The compare-before/after button on a changed canvas in "Not in a version yet". | `client/v2/history/git-parts.jsx` · `UnsavedList` | — | new |
+| `git-discard` | testid | The Discard button on a changed file (or canvas with its supporting files) in "Not in a version yet". Desktop only. | `client/v2/history/git-parts.jsx` · `UnsavedList` | — | new |
 | `vh-panel` | testid | Version history (⌥⌘H): the panel in the right slot; the dock id stays `changes`. Header, the four filters, the Now row, the rows, the Advanced fold. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-close` | testid | Version history's close button. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
 | `vh-filter-<id>` | testid (pattern) | One filter of Version history (`aria-pressed`): `<id>` is all, named, ai or people — All · Named · Made by AI · People. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
@@ -574,6 +574,45 @@ V2-4.6: the “?” sheet is registry-built and carries hooks; `HelpModal` still
 | `vh-name-scrim` | testid | The dim behind the Name this version dialog. | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 | `vh-name-input` | testid | The name field (1–80 characters). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 | `vh-name-save` | testid | Name version (the dialog's primary button). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
+| `vh-mark-A` | testid | Compare › the "A" mark on the version being compared from (the held row). | `client/v2/history/history-panel.jsx` · `Mark` | — | new |
+| `vh-mark-B` | testid | Compare › the "B" mark on the second version (a row, or the Now row when B is Now). | `client/v2/history/history-panel.jsx` · `Mark` | — | new |
+| `vh-why` | testid | Compare › the held row's why-line: what "Restore this version" takes back from others ("… — Tereza's change to Helma z boku goes too. Now stays in the list."). | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-stop-compare` | testid | Compare › "Stop comparing": back to looking at the version. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-restore-only` | testid | Compare › "Restore only <artboard>": that artboard as it was at A, as a new version. Edit only; absent for a generated family or an artboard A does not hold. | `client/v2/history/history-panel.jsx` · `VersionHistoryPanel` | — | new |
+| `vh-advanced` | testid | Version history › Advanced body: Compare pictures, then today's git body. | `client/v2/history/git-advanced.jsx` · `HistoryAdvanced` | — | new |
+| `vh-compare-pictures` | testid | Version history › Advanced › "Compare pictures": opens the picture DiffView (before / after as ?sha= panes, side by side or overlay wipe). | `client/v2/history/git-advanced.jsx` · `HistoryAdvanced` | — | new |
+| `vh-git-branch` | testid | The Branch select in Version history › Advanced (its options are `branch-row-<branch>`). | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:chrome, test:v2-git-advanced | new |
+| `vh-git-continue` | testid | Drafts › Continue: switch to the draft you were working on. | `client/v2/history/git-advanced.jsx` · `GitBody` | test:v2-git-advanced | new |
+| `vh-git-remote` | testid | The Remote row (where the project is published). | `client/v2/history/git-advanced.jsx` · `GitBody` | test:v2-git-advanced | new |
+| `vh-git-remote-copy` | testid | Copy the remote address. | `client/v2/history/git-parts.jsx` · `CopyButton` | test:v2-git-advanced | new |
+| `vh-git-note` | testid | The one-line note under the git head: a browser tab is read-only here. | `client/v2/history/git-advanced.jsx` · `GitBody` | test:v2-git-advanced | new |
+| `vh-git-save` | testid | "Save a version with a note…" button (opens the dialog). | `client/v2/history/git-advanced.jsx` · `GitBody` | e2e:git-lifecycle, test:v2-git-advanced | new |
+| `vh-git-pull-copy` | testid | "Pull a copy to this Mac…" button (registry `project.pull-copy`). | `client/v2/history/git-advanced.jsx` · `GitBody` | test:v2-git-advanced | new |
+| `vh-git-notyet` | testid | "Not in a version yet": the changed files. | `client/v2/history/git-parts.jsx` · `UnsavedList` | test:v2-git-advanced | new |
+| `vh-git-changed` | testid | "Changed in this version": the file line and its lines. | `client/v2/history/git-parts.jsx` · `ChangedList` | test:v2-git-advanced | new |
+| `vh-git-changed-file` | testid | The changed file line: badge, path, +added −removed. | `client/v2/history/git-parts.jsx` · `ChangedList` | test:v2-git-advanced | new |
+| `vh-git-diff` | testid | The changed lines of the selected version. | `client/v2/history/git-parts.jsx` · `ChangedList` | test:v2-git-advanced | new |
+| `vh-git-versions` | testid | "Every version, with its id": the list. | `client/v2/history/git-parts.jsx` · `VersionList` | test:v2-git-advanced | new |
+| `vh-git-version-<key>` | testid (pattern) | One git version row in "Every version, with its id"; `<key>` is the commit id. | `client/v2/history/git-parts.jsx` · `VersionItem` | test:v2-git-advanced | new |
+| `vh-git-save-dialog` | testid | The "Save a version" dialog. | `client/v2/history/git-parts.jsx` · `SaveDialog` | test:v2-git-advanced | new |
+| `vh-git-branch-dialog` | testid | The "Create a branch" dialog. | `client/v2/history/git-parts.jsx` · `BranchDialog` | test:v2-git-advanced | new |
+| `vh-git-add-dialog` | testid | The "Add to main" dialog (and, after it, the pull-request result). | `client/v2/history/git-parts.jsx` · `AddDialog` | test:v2-git-advanced | new |
+| `.vh-git-ver` | selector | A version row in "Every version, with its id" (what `.gp-version` was). | `client/v2/history/git-parts.jsx` · `VersionItem` | e2e:surface, test:v2-git-advanced | new |
+| `cmp-view` | testid | Compare: the canvas area while comparing (two read-only frames, the bar, the list of changes). | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-stage` | testid | Compare: the two frames' stage (`data-mode` side | overlay). | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-frame-a` | testid | Compare: the read-only frame of version A (`?sha=<ref>&ro=1&comments=0&hide-chrome=1`). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-frame-b` | testid | Compare: the read-only frame of version B (a version like A, or Now through the embed URL). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-frame-a-cap` | testid | Compare: A's caption ("A · Schváleno trenéry · 5 Oct, 18:40 · Jonas"). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-frame-b-cap` | testid | Compare: B's caption ("B · Now · 6 Oct, 14:32"). | `client/v2/history/compare-view.jsx` · `Frame` | — | new |
+| `cmp-mode-<id>` | testid (pattern) | Compare: Side by side | Overlay (`aria-pressed`); `<id>` is side or overlay. | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-wipe` | testid | Compare › Overlay: the slider between A and B. | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-summary` | testid | Compare: "4 changes between A and B — 3 on Venkovní dres · přední, 1 on Helma z boku" (also "Reading the changes…" and the failed line). | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-retry` | testid | Compare: Retry changes, pressed by hand, never automatic. | `client/v2/history/compare-view.jsx` · `CompareView` | — | new |
+| `cmp-list` | testid | Compare: the changes in words, grouped by artboard. | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
+| `cmp-line-<n>` | testid (pattern) | Compare: one change line (`<n>` is its place in the server's list); a click focuses its artboard in both frames (`aria-current`). | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
+| `cmp-who-<n>` | testid (pattern) | Compare: who made change `<n>` — the spark or a face and the time, or "changed in between" (`data-maker` ai | person | none). | `client/v2/history/change-list.jsx` · `Maker` | — | new |
+| `cmp-expand-<n>` | testid (pattern) | Compare: opens a reworked artboard's own lines ("Show 624 changes"). | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
+| `cmp-sub-<n>` | testid (pattern) | Compare: the opened lines of reworked line `<n>`. | `client/v2/history/change-list.jsx` · `ChangeList` | — | new |
 | `vh-name-error` | testid | The reason under the name field (`role=alert`). | `client/v2/history/name-dialog.jsx` · `NameDialog` | — | new |
 
 ### sync/cloud
@@ -1314,9 +1353,9 @@ These tests read a source file and assert that a hook appears in it. They pin th
 | --- | --- | --- |
 | `test/cloud-shell-surfaces.test.ts` | `client/app.jsx` | V2-4.8a: the `onOpenDashboard` handler (`cfg?.cloud?.dashboardUrl`, `window.location.assign`) and the `noDashboard` gate on the `nav.home` row (was `cloud-back`, then `cloud-project-name`) |
 | `test/sync-panel-surface.test.ts` | `client/app.jsx`, `client/panels/SyncPanel.jsx` | `sync-assets`, `sync-resync`, `sync-assets-cancel`, `` data-testid={`sync-held-${h.kind}`} `` (SyncPanel.jsx) |
-| `test/cloud-history-posture.test.ts` | `client/panels/GitPanel.jsx` | `git-history-unreachable`, `git-history-retry` |
-| `test/cloud-managed-save-surfaces.test.ts` | `client/panels/GitPanel.jsx` | `git-cloud-managed` |
-| `test/git-cloud-posture.test.ts` | `client/panels/GitPanel.jsx` | `git-cloud-managed`, `className="gp-tabs"` under `!withdrawn`, `className="gp-cloud-note"` under `cloudManaged` |
+| `test/cloud-history-posture.test.ts` | `client/v2/history/git-parts.jsx` | `git-history-unreachable`, `git-history-retry` |
+| `test/cloud-managed-save-surfaces.test.ts` | `client/v2/history/{git-advanced.jsx,git-parts.jsx,git-model.js}` | `git-cloud-managed` |
+| `test/git-cloud-posture.test.ts` | `client/v2/history/{git-advanced.jsx,git-parts.jsx,git-model.js}` | `git-cloud-managed`, the `gitSurface` modes |
 | `test/shell-accessibility.test.ts` | `client/app.jsx` (oxc AST), `client/index.html` | no element has `role="menubar"` and the `project-pill` has `aria-haspopup="menu"` (V2-4.8a; was `.st-menus` / `.st-menubar`); the iframe with `data-path` has a `title` template literal "Canvas: " + `t.path`; `<FileTree aria-label="Project file tree"` (the `canvas-list` element); `DirRow`/`DsFolderRow`/`FileRow`/`CanvasRow`/`Sidebar` each contain `<FileTreeItem` |
 
 The other source-reading tests named by the survey (`config-projection`, `comment-relay-origin-gate`, `export-format-scope-coherence`, `history-preview-routing`, `tree-expansion`, plus `acp-branch-guard` and `exporters/degraded-propagation`) pin code shapes such as function bodies and message branches, not DOM hooks, so they are not listed per hook here.

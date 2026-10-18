@@ -61,6 +61,13 @@ const RESTORE = (verb: string): ActionDefAI => ({
   server: { route: '/_api/project/restore', method: 'POST' },
   agent: cli(verb),
 });
+// S11.10 — Version history › Advanced's git buttons: the person's working tree or remote (human 'git').
+const GIT = (route: string, git: string, write = true): ActionDefAI => ({
+  effect: 'shared',
+  ...(write ? { minRole: 'edit' as const } : {}),
+  server: { route, method: 'POST' },
+  agent: human('git', `an agent runs git itself in the project folder: ${git}`),
+});
 // S9.7b — the comment TOOL's agent path is the write verb: an agent leaves a comment by posting it
 // (`POST /_api/comments/op`, as the session, AI-written). The action itself only picks a tool
 // (fromCanvas ⇒ effect none); the verb's own tier is shared → prompt (verbs.ts).
@@ -346,6 +353,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     effect: 'none',
     agent: cli('maude design history object <canvas> <artboard>/<id>'),
   },
+  // S1.15: the picture compare (DiffView, before / after as ?sha= panes) is for looking — an agent reads the
+  // same two versions as words with `history diff`.
+  'history.compare-pictures': PREF('the same two versions as words: maude design history diff'),
   'history.name': {
     effect: 'shared',
     minRole: 'edit',
@@ -361,6 +371,26 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
     'maude design history restore <canvas> <ref> --element <artboard>/<id>'
   ),
   'history.go-back': RESTORE('maude design history restore <canvas> @last-good'),
+  // S11.10 — the git half of Version history › Advanced. Each is the person's working tree or remote: an agent
+  // runs git itself in the project folder, so these are human 'git' (decision:maude/v2-S11.10-git-actions-human).
+  // `server` pins the route the button calls; the server refuses Can comment / Can view on every write.
+  'history.branch-switch': GIT('/_api/git/checkout', 'git switch <branch>'),
+  'history.new-branch': GIT('/_api/git/branch', 'git switch -c <branch>'),
+  // a fetch moves remote refs only: the role matrix allows it for a viewer, so the fold hides it by role alone
+  'history.fetch': GIT('/_api/git/fetch', 'git fetch', false),
+  'history.publish': GIT('/_api/git/push', 'git push'),
+  'history.save-with-note': GIT('/_api/git/commit', 'git commit -m "<note>"'),
+  'history.open-pr': GIT('/_api/git/fold', 'gh pr create (or git merge locally)'),
+  'history.discard-file': GIT('/_api/git/discard', 'git restore <file>'),
+  'history.continue-draft': GIT('/_api/git/checkout', 'git switch <draft>'),
+  // V2-1.5 §5.3: undo one accepted action by id, as a new version; a teammate's later edits are kept.
+  'history.undo-action': {
+    effect: 'project',
+    minRole: 'edit',
+    undo: 'version',
+    server: { route: '/_api/project/undo', method: 'POST' },
+    agent: cli('maude design history undo --action <id>'),
+  },
   'view.exports': { effect: 'none', agent: cli('maude design exports list') },
   // V2-4.4a — the left panel's tabs and its Trash row are views; the data is files (assets/, _trash/).
   // `asset-sweep` reports what is in <designRoot>/assets/ and where each file is used — what the tab lists.

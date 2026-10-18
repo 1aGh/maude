@@ -90,6 +90,26 @@ const NO_OWN_REQUEST: Record<string, string> = {
   'history.filter': 'the person’s own panel filter (human view-pref)',
   'history.view-version': 'a read: `history show` — GET, no body',
   'history.compare': 'a read: `history diff` — GET, no body',
+  'history.compare-pictures':
+    'looking at two renders (human view-pref); the words are `history diff`',
+};
+
+/**
+ * S11.10 — history.* actions that call a route of their own, already registered and pinned elsewhere: the git
+ * buttons of Version history › Advanced (`/_api/git/*`, refused below edit by access-role-matrix) and a row's
+ * Undo (`/_api/project/undo`, whose verb is `history undo --action`). Not in `SURFACE`: they build no request in
+ * history/surface-requests.ts. test/v2-git-model.test.ts holds each button to its registry action and route.
+ */
+const OWN_ROUTES: Record<string, string> = {
+  'history.branch-switch': '/_api/git/checkout',
+  'history.new-branch': '/_api/git/branch',
+  'history.fetch': '/_api/git/fetch',
+  'history.publish': '/_api/git/push',
+  'history.save-with-note': '/_api/git/commit',
+  'history.open-pr': '/_api/git/fold',
+  'history.discard-file': '/_api/git/discard',
+  'history.continue-draft': '/_api/git/checkout',
+  'history.undo-action': '/_api/project/undo',
 };
 
 let studio: ReturnType<typeof fakeStudio> | null = null;
@@ -198,12 +218,25 @@ describe('surface = substrate: history + Trash (S1.17)', () => {
     const ids = manifest.actions
       .map((a) => a.id)
       .filter((id) => id.startsWith('history.') || id.startsWith('trash.') || id === 'view.trash');
-    const uncovered = ids.filter((id) => !(id in SURFACE) && !(id in NO_OWN_REQUEST));
+    const uncovered = ids.filter(
+      (id) => !(id in SURFACE) && !(id in NO_OWN_REQUEST) && !(id in OWN_ROUTES)
+    );
     expect(uncovered).toEqual([]);
+    expect(Object.keys(OWN_ROUTES).filter((id) => !ids.includes(id))).toEqual([]);
     // ratchet: the exemptions name real actions (a removed action leaves the list too)
     const stale = Object.keys(NO_OWN_REQUEST).filter((id) => !ids.includes(id));
     expect(stale).toEqual([]);
-    expect(Object.keys(NO_OWN_REQUEST).length).toBeLessThanOrEqual(4);
+    expect(Object.keys(NO_OWN_REQUEST).length).toBeLessThanOrEqual(5);
+  });
+
+  test('an own-route action names, in the registry, the route its button calls', () => {
+    const wrong = Object.entries(OWN_ROUTES)
+      .filter(([id, route]) => {
+        const a = manifest.actions.find((x) => x.id === id) as { server?: { route: string } };
+        return a?.server?.route !== route;
+      })
+      .map(([id]) => id);
+    expect(wrong).toEqual([]);
   });
 
   test('a covered action’s agent path is the verb the test runs', () => {

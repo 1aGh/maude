@@ -32,7 +32,6 @@ import {
 import { Sidebar } from '../tree/tree.jsx';
 import { annotationLayersFor } from '../v2/annotations/annotation-list.jsx';
 import { AssetsPanel } from '../v2/left-panel/assets-panel.jsx';
-import GitPanel from '../panels/GitPanel.jsx';
 import { VersionHistoryHost } from '../v2/history/history-host.jsx';
 import { setHistoryOpener } from '../v2/history/object-filter.js';
 import SyncPanel from '../panels/SyncPanel.jsx';
@@ -594,74 +593,64 @@ export function usePaletteAndPanels({
           readOnly={viewerMode}
         />
       );
-    // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`),
-    // its body is the new panel; today's git body lives on in its Advanced fold until S1.15 / S11 re-home it.
+    // S1.14 — Version history (⌥⌘H): the dock id `changes` stays (testids, the dock strip, `history.open`).
+    // S11.10 — its Advanced fold holds the git in plain words (v2/history/git-advanced.jsx), which retired the
+    // Changes / History panel: every prop that panel took rides in `git` below, unchanged in meaning.
     if (id === 'changes')
       return (
         <VersionHistoryHost
           path={activeCanvasFile}
           canvasLabel={activeCanvasFile ? displayName(basename(activeCanvasFile)) : ''}
           canEdit={!viewerMode}
+          role={viewerMode ? 'view' : 'edit'}
           refreshKey={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
           resizing={resizingFor('changes')}
           onClose={() => setChangesOpen(false)}
-          advanced={renderPanelBody('changes-git')}
-        />
-      );
-    if (id === 'changes-git')
-      return (
-        <GitPanel
-          status={gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus}
-          project={project}
-          readOnly={!isNativeApp() || viewerMode}
-          // A cloud cell commits every edit server-side as it lands, so the
-          // working-tree half of this panel describes work that is already
-          // saved. `cfg.cloud` is present exactly when the hub runs the
-          // workspace agent that owns this project's history, which is the
-          // same condition.
-          //
-          // PRESENTATION, NOT A CONTROL — nothing may come to depend on this.
-          // `/_api/git/commit` and `/_api/git/discard` are classified `edit` in
-          // the cell's route manifest and stay reachable by any member with a
-          // session; withdrawing the buttons removes an offer that would
-          // mislead, it does not remove a capability. The real gates are
-          // server-side (`projectReadOnly`, the manifest's role matrix), and
-          // they are unchanged by this flag.
-          historyOnly={cellManaged}
-          // DDR-218 (fix 8) — the DESKTOP half of the same withdrawal: a repo
-          // linked+credentialed to Maude Cloud is cloud-managed (the cell
-          // commits every edit as it lands), so the local Changes surface is
-          // the second save mechanism the sync RCA's user was confused by.
-          // Live: CloudBar lifts every link change (resolve/attach/detach)
-          // into `cloudLinkedHub`. Same presentation-not-a-control rule as
-          // `historyOnly` above; Disconnect restores the panel in place.
-          cloudManaged={cloudManaged}
-          resizing={resizingFor('changes')}
-          onClose={() => setChangesOpen(false)}
-          onCommit={gitCommit}
-          onDiscard={gitDiscard}
-          onPublish={gitPublish}
-          onGetLatest={gitGetLatest}
-          // WHICH HISTORY, decided at the ONE place the posture is named — not
-          // inside the panel, which would be a second derivation of the rule
-          // `cloud-managed-save-surfaces.test.ts` exists to keep singular.
-          loadLog={async (path) => {
-            // The project's accepted history when it has one; Git otherwise.
-            const accepted = await loadAcceptedLog(path);
-            setProjectHistoryOn(accepted !== 'legacy');
-            if (accepted !== 'legacy') return accepted;
-            return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
-          }}
-          historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}
-          historyRefresh={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
-          onRestoreVersion={(revision) =>
-            restoreProjectVersion(activePath, revision).then((r) => !!r.ok)
+          // S1.15 — Version history › Advanced › Compare pictures: today's picture DiffView
+          onComparePictures={({ file, beforeSha }) =>
+            setDiffTarget({ file, beforeSha, conflict: false })
           }
-          // Not through a cell's door: every browser editor proposes under the
-          // studio's one credential there, so "your own action" is not
-          // knowable and the hub refuses the route (studio-manifest.mjs).
-          onUndoAction={
-            cellManaged
+          git={{
+            status: gitStatus && remoteSync ? { ...gitStatus, ...remoteSync } : gitStatus,
+            project,
+            // Web studio: awareness only — the developer commits and pushes from their terminal (DDR-119).
+            native: isNativeApp(),
+            // A cloud cell commits every edit server-side as it lands, so the working-tree half describes work
+            // that is already saved. `cfg.cloud` is present exactly when the hub runs the workspace agent that
+            // owns this project's history, which is the same condition.
+            //
+            // PRESENTATION, NOT A CONTROL — nothing may come to depend on this. `/_api/git/commit` and
+            // `/_api/git/discard` are classified `edit` in the cell's route manifest and stay reachable by any
+            // member with a session; withdrawing the buttons removes an offer that would mislead, it does not
+            // remove a capability. The real gates are server-side (`projectReadOnly`, the manifest's role
+            // matrix), and they are unchanged by this flag.
+            historyOnly: cellManaged,
+            cellManaged,
+            // DDR-218 (fix 8) — the DESKTOP half of the same withdrawal: a repo linked+credentialed to Maude
+            // Cloud is cloud-managed (the cell commits every edit as it lands). Same presentation-not-a-control
+            // rule; Disconnect restores the panel live.
+            cloudManaged,
+            onCommit: gitCommit,
+            onDiscard: gitDiscard,
+            onPublish: gitPublish,
+            onGetLatest: gitGetLatest,
+            liveBranch: gitStatus?.branch,
+            // WHICH HISTORY, decided at the ONE place the posture is named — not inside the fold, which would be
+            // a second derivation of the rule `cloud-managed-save-surfaces.test.ts` exists to keep singular.
+            loadLog: async (path) => {
+              // The project's accepted history when it has one; Git otherwise.
+              const accepted = await loadAcceptedLog(path);
+              setProjectHistoryOn(accepted !== 'legacy');
+              if (accepted !== 'legacy') return accepted;
+              return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
+            },
+            historySource: projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local',
+            historyRefresh: `${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`,
+            onRestoreVersion: (revision) =>
+              restoreProjectVersion(activePath, revision).then((r) => !!r.ok),
+            // Not through a cell's door: every browser editor proposes under the studio's one credential there,
+            // so "your own action" is not knowable and the hub refuses the route (studio-manifest.mjs).
+            onUndoAction: cellManaged
               ? undefined
               : async (actionId) => {
                   const r = await fetch('/_api/project/undo', {
@@ -671,20 +660,17 @@ export function usePaletteAndPanels({
                   }).catch(() => null);
                   const j = r ? await r.json().catch(() => null) : null;
                   return !!j?.ok;
-                }
-          }
-          // What the cloud half of the header names. The cell reports its own
-          // project and branch with the log; the hub host is the fallback,
-          // because a header that names the LOCAL folder while listing the
-          // CLOUD's commits is the confusion this feature exists to end.
-          cloudHistory={cloudHistory}
-          onOpenCanvas={(p) => openTab(p)}
-          onOpenDiff={(file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false })}
-          activeCanvas={activeCanvasFile}
-          onPreviewVersion={(sha) =>
-            setDiffTarget({ file: activePath, beforeSha: sha, conflict: false })
-          }
-          designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+                },
+            // What the cloud half of the header names. The cell reports its own project and branch with the log;
+            // the hub host is the fallback, because a header that names the LOCAL folder while listing the CLOUD's
+            // commits is the confusion this feature exists to end.
+            cloudHistory,
+            onOpenCanvas: (p) => openTab(p),
+            onOpenDiff: (file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false }),
+            onPreviewVersion: (sha) =>
+              setDiffTarget({ file: activePath, beforeSha: sha, conflict: false }),
+            designRel: (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, ''),
+          }}
         />
       );
     if (id === 'sync')

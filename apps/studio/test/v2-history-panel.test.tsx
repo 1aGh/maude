@@ -284,7 +284,7 @@ describe('looking, restoring, naming', () => {
     );
     await click(q('[data-testid="vh-restore"]'));
     const post = calls.find((c) => c.url === '/_api/project/restore');
-    expect(post?.body).toEqual({ path: PATH, at: 'r41' });
+    expect(post?.body).toEqual({ path: PATH, revision: 41 });
     expect(left).toBe(1);
     expect(changed).toBe(1);
     expect(toasts.at(-1)).toMatchObject({ msg: 'Restored “Schváleno trenéry”', ok: true });

@@ -42,7 +42,7 @@ export async function openVersionHistory(): Promise<void> {
 
 /**
  * Menu › Version history › Advanced: today's source-control body (`git-panel`) lives in the panel's Advanced
- * fold until S1.15 / S11 re-home it, so a scenario that drives it opens the fold too (a fold the Mac
+ * fold (S11.10), so a scenario that drives it opens the fold too (a fold the Mac
  * remembers open is left open).
  */
 export async function openHistory(): Promise<void> {
@@ -57,6 +57,19 @@ export async function openHistory(): Promise<void> {
   await toggle.waitForDisplayed({ timeout: 10_000 });
   if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
   await (await $(tid('git-panel'))).waitForDisplayed({ timeout: 30_000 });
+}
+
+/**
+ * The branch HEAD is on, read from Version history › Advanced › Branch (S11.10; the project dock no longer
+ * shows it). '' while the page is mid-reload — the caller keeps polling.
+ */
+export async function currentBranch(): Promise<string> {
+  try {
+    await openHistory();
+    return await (await $(tid('vh-git-branch'))).getValue();
+  } catch {
+    return '';
+  }
 }
 
 /** Menu › Version history again closes it (the action toggles). */

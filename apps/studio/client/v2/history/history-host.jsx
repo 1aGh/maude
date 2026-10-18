@@ -5,11 +5,15 @@
 //                        housekeeping: another canvas in front, or a canvas that is gone, ends it
 //   useViewing()         the hold (`{ path, at, title, when, who }` or null) — the Viewport frames it, the dock
 //                        locks the AI chat island while it lasts ("no tools, AI or locks")
+//   Compare (S1.15)      rides on the hold: the panel starts it (the selected row is A, Now is B), the Viewport
+//                        draws it (compare-view.jsx `CompareHost`); leaving the hold ends it
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { shellMode } from '../shell/use-canvas-mode-lane.js';
 import { historyScope } from './object-filter.js';
+import { compareStore, useCompare } from './compare-store.js';
 import { VersionHistoryPanel } from './history-panel.jsx';
+import { viewingWords } from './use-versions.js';
 import { ViewBar } from './view-bar.jsx';
 
 const getViewing = () => shellMode.get().viewing;
@@ -18,7 +22,10 @@ export function useViewing() {
   return useSyncExternalStore(shellMode.subscribe, getViewing, getViewing);
 }
 
-const leave = () => shellMode.leaveViewing();
+const leave = () => {
+  compareStore.stop();
+  shellMode.leaveViewing();
+};
 const clearScope = () => historyScope.clear();
 
 /** S1.16 - the object filter openHistory({ element }) set, or null. */
@@ -29,7 +36,7 @@ export function useHistoryScope() {
 export function ViewBarHost({ activePath }) {
   const viewing = useViewing();
   useEffect(() => {
-    if (viewing && viewing.path !== activePath) shellMode.leaveViewing();
+    if (viewing && viewing.path !== activePath) leave();
   }, [viewing, activePath]);
   return <ViewBar viewing={viewing} onLeave={leave} />;
 }
@@ -42,6 +49,7 @@ export function VersionHistoryHost({ refreshKey = 0, onChanged, ...rest }) {
   useEffect(() => {
     if (scope && rest.path !== scope.path) historyScope.clear();
   }, [scope, rest.path]);
+  const compare = useCompare();
   const [bump, setBump] = useState(0);
   const changed = useCallback(
     (res) => {
@@ -60,6 +68,11 @@ export function VersionHistoryHost({ refreshKey = 0, onChanged, ...rest }) {
       onView={(words) => shellMode.view(words)}
       onLeaveViewing={leave}
       onChanged={changed}
+      compare={compare}
+      onCompare={(row) => compareStore.start({ path: rest.path, a: viewingWords(row) })}
+      onPickB={(words) => compareStore.setB(words)}
+      onStopCompare={() => compareStore.stop()}
+      onRows={(rows) => compareStore.setRows(rows)}
     />
   );
 }

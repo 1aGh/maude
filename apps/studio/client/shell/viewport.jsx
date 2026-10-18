@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { canvasUrl } from '../canvas-url.js';
+import { CompareHost } from '../v2/history/compare-view.jsx';
 import { useViewing } from '../v2/history/history-host.jsx';
 import { SYSTEM_TAB } from './constants.js';
 import { FilePreview, sanitizeDisplayText } from '../panels/file-preview.jsx';
@@ -197,6 +198,8 @@ export function Viewport({
           </div>
         </div>
       )}
+      {/* S1.15 — Compare two versions: over the canvas while a Compare rides on the Viewing hold */}
+      <CompareHost cfg={cfg} />
     </div>
   );
 }
