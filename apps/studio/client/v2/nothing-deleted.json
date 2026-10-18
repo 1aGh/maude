@@ -3454,6 +3454,8 @@
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-gaps": "v2 code (added after the freeze)",
     "testid:studio/editing/nudge.tsx#canvas/edit-nudge-tag": "v2 code (added after the freeze)",
     "testid:studio/editing/selection.tsx#canvas/edit-name-tag": "v2 code (added after the freeze)",
-    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)"
+    "testid:studio/editing/selection.tsx#canvas/edit-parent-outline": "v2 code (added after the freeze)",
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview": "v2 code (added after the freeze)",
+    "testid:studio/editing/undo-preview.tsx#canvas/edit-undo-preview-tag": "v2 code (added after the freeze)"
   }
 }

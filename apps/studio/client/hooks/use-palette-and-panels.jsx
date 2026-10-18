@@ -24,6 +24,7 @@ import GitPanel from '../panels/GitPanel.jsx';
 import SyncPanel from '../panels/SyncPanel.jsx';
 import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { layerOpMessage } from '../v2/inspector/layers-row-tools.jsx';
+import { runUndoKey } from '../v2/undo/use-undo-projection.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
 
 export function usePaletteAndPanels({
@@ -612,11 +613,14 @@ export function usePaletteAndPanels({
           onUndoRedo={(dir) =>
             // V2-2.4 retired the canvas's `undo`/`redo` lanes for run-action; the inspector
             // knobs' ⌘Z rides the same lane (it reached no handler after step 6 — V2-2.10).
-            postToActiveCanvas({
-              dgn: 'run-action',
-              v: 1,
-              id: dir === 'redo' ? 'edit.redo' : 'edit.undo',
-            })
+            // S2.20 — the ⌘Z projection first; the canvas stack only off the op log.
+            void runUndoKey(activePath, dir === 'redo', () =>
+              postToActiveCanvas({
+                dgn: 'run-action',
+                v: 1,
+                id: dir === 'redo' ? 'edit.redo' : 'edit.undo',
+              })
+            )
           }
           photoSel={photoSel}
           photoRev={photoRev}

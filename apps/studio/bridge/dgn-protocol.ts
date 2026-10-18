@@ -329,6 +329,8 @@ export interface ShellToCanvas {
   // character-key chord (V, /, ⇧0 …; actions/keys.ts › isCharacterChord). State, not an event: the shell
   // sends it on every change and seeds each canvas on `loaded` / `canvas-rendered`.
   'key-prefs': { singleKeys: boolean };
+  // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
+  'undo-preview': { artboards: string[]; tag: string | null };
 }
 
 export type DgnMessage<M> = { [K in keyof M]: { dgn: K } & M[K] }[keyof M];
@@ -1173,6 +1175,12 @@ const s2c: S2C = {
     status: 'live',
     owner: 'bridge/canvas-mode-store (V2-4 gate)',
     parse: p({ singleKeys: bool }),
+  },
+  'undo-preview': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'editing/undo-preview (S2.20)',
+    parse: p({ artboards: arrOf(str), tag: nul(str) }),
   },
 };
 

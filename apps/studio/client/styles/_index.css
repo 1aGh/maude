@@ -50,6 +50,8 @@
 @import url("../v2/annotations/templates-panel.css");
 /* V2-4.8b — callouts: the old top banners (sync diverged / rejected, role, update, repo changed) as one stack. */
 @import url("../v2/shell/callouts.css");
+/* S2.20 — Menu › Edit › Undo history… (client/v2/undo/undo-history.jsx). */
+@import url("../v2/undo/undo.css");
 /* V2-4.4a — the left panel: Canvases · Layers · Assets, the pinned Design system row, Trash, Advanced. */
 @import url("../v2/left-panel/left-panel.css");
 /* S1.1 — the Canvases list at scale: Pinned, Sort, folders with counts, virtualised rows. */

@@ -19,6 +19,7 @@ import { useObjectOps } from './object-actions.ts';
 import { resolveObjectKey } from './object-keys.ts';
 import { isObjectOpAction, layerParams, OBJECT_OP_ACTIONS, refsOf } from './object-ops.ts';
 import { EditingSelection, enterSelection, stepOut } from './selection.tsx';
+import { UndoPreview } from './undo-preview.tsx';
 
 /** Registry ids this layer runs when the shell asks (`dgn:'run-action'`). */
 export const EDITING_ACTIONS = ['object.enter', 'object.step-out', ...OBJECT_OP_ACTIONS] as const;
@@ -85,6 +86,8 @@ export function EditingLayer() {
       {/* S2.6 — a locked object says so; the arrows say where they put things */}
       <LockBadge readOnly={isReadOnlyCanvas()} />
       <NudgeReadout readOnly={isReadOnlyCanvas()} />
+      {/* S2.20 — an Undo history row lights what it would undo */}
+      <UndoPreview />
     </>
   );
 }

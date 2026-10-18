@@ -19,9 +19,7 @@ import { holds, isEnabled, isVisible } from '../../../actions/resolve.ts';
 /** Menu ids the registry does not hold yet → the task that registers them. The menu renders only
  *  what the registry has, so these rows appear the day their action lands (and the test goes red
  *  until they are taken off this list). */
-export const PENDING_MENU_IDS = Object.freeze({
-  'edit.undo-history': 'S2 (undo history)',
-});
+export const PENDING_MENU_IDS = Object.freeze({});
 
 /** The label a state-dependent row shows. CONTRACT §1: "Hide panels / Show panels". */
 function labelFor(def, state) {
