@@ -322,7 +322,14 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.zoom-fit': PREF(),
   'timeline.comment-mode': COMMENT_ADD,
   // ── export / share ──
-  'export.open': { effect: 'none', agent: cli('maude design export') },
+  // S8.1c — the sheet's params are the CLI's flags: {scope, format, canvas, folder, region, at} ↔
+  // `<format> --scope --canvas --folder --region x,y,w,h --at <sha>` (ExportSpec v2, S8-export-spec §5.7).
+  'export.open': {
+    effect: 'none',
+    agent: cli(
+      'maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]'
+    ),
+  },
   'handoff.open': { effect: 'none', agent: cli('maude design handoff') },
   'export.canvas-dialog': { effect: 'none', agent: cli('maude design export') },
   'export.rerun-last': {

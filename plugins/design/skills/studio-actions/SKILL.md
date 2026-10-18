@@ -120,7 +120,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Draw a mark | `ai.draw-mark` | `maude design draw-build` | prompt |
 | Export again | `export.rerun-last` | `maude design exports again <id>` | auto |
 | Export from the canvas | `export.canvas-dialog` | `maude design export` | prompt |
-| Export… | `export.open` | `maude design export` | prompt |
+| Export… | `export.open` | `maude design export <format> --scope selection\|canvas\|folder\|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]` | prompt |
 | Exports | `view.exports` | `maude design exports list` | auto |
 | Find a canvas | `canvases.find` | `maude design index` | auto |
 | Flowchart template | `annotation.template-flow` | `maude design annotate <canvas> --board flow` | auto |

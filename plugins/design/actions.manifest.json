@@ -1559,7 +1559,7 @@
       "effect": "none",
       "agent": {
         "path": "cli",
-        "verb": "maude design export"
+        "verb": "maude design export <format> --scope selection|canvas|folder|project [--canvas <rel>] [--folder <rel>] [--region x,y,w,h] [--at <sha>]"
       }
     },
     {
