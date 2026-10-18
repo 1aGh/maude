@@ -194,3 +194,10 @@
     background: var(--bg-1);
   }
 }
+
+/* S3.9 - Preview folds the pill to its mark (04 md-preview `ProjectPill folded`): a 40px square island. */
+@layer shell {
+  .st-pill[data-folded="true"] .st-pill-btn {
+    padding: 0 var(--space-2, 8px);
+  }
+}

@@ -11067,5 +11067,70 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-inspector-interaction.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "preview-bar",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Preview's line, top centre: \"Previewing <canvas>\" and what esc does; `data-state` in/out drives the fade, `data-occludes=\"top\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar-title",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Previewing <canvas>\" inside the PreviewBar (the canvas name is the `<strong>`).",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar-esc",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The esc hint: \"esc to edit\" for editors, \"esc for Viewing\" for a viewing role.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "preview-bar-back",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The way back after a followed link (\"‹ Homepage\"); present only when the shell passes a back canvas (S3.10a fills it).",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/preview-bar.jsx",
+      "symbol": "PreviewBar"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "zoom-only",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Preview's zoom readout, bottom left: the percentage and nothing else; `data-occludes=\"bottom\"`.",
+    "producer": {
+      "file": "apps/studio/client/v2/preview/zoom-only.jsx",
+      "symbol": "ZoomOnly"
+    },
+    "region": "other",
+    "consumers": [],
+    "v2": "new"
   }
 ]
