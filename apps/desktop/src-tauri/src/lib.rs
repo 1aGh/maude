@@ -228,6 +228,36 @@ async fn pick_directory(
     Ok(picked)
 }
 
+/// S5.10 — "Choose a folder…" in the AI composer's paperclip: the native
+/// folder picker, returning the chosen folder (or `None` on cancel) for the
+/// server's read-only attach consent. Unlike `pick_directory` it does NOT
+/// remember the pick: an attached folder is something the AI may READ once the
+/// person consents, never a folder this tab may open or switch to (V2-3.6 M3's
+/// `PICKED_FOLDER` stays the "Open another folder…" pick only).
+#[tauri::command]
+async fn pick_attach_folder(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    let _caller = windows::caller_project(&webview, false)?;
+    windows::caller_in_front(&webview)?; // 1g: no native dialog from a hidden tab
+                                         // E2E (debug builds only): the harness names the folder instead of the OS dialog.
+    #[cfg(debug_assertions)]
+    if let Ok(p) = std::env::var("MAUDE_E2E_PICK_ATTACH_DIR") {
+        if !p.is_empty() {
+            return Ok(Some(p));
+        }
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().set_parent(&webview.window()).pick_folder(move |folder| {
+        let path = folder
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.to_string_lossy().to_string());
+        let _ = tx.send(path);
+    });
+    rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())
+}
+
 /// Native "Save As…" for an export payload — opens a save dialog seeded with the
 /// export's filename, then streams the finished job's bytes STRAIGHT FROM the
 /// local dev-server to the chosen path over `reqwest`, and returns that path (or
@@ -496,8 +526,22 @@ fn open_local_project(
     if !p.join(".design").is_dir() {
         return Err("That folder isn’t a Maude project yet (no design system). Open it and run “Set up a design system” first.".to_string());
     }
+    // S1.22b: a registered project other than the picked folder must be one of
+    // THIS tab's account (⌘K's rule) and keeps its binding — the switch never
+    // moves the tab onto another account's project, nor adopts the last sign-in.
+    let binding = {
+        let st = app_state::load(&app);
+        windows::in_tab_open_rule(
+            &st,
+            &caller.pid,
+            &st.profile_for(&caller.root),
+            &windows::pid_for_root(&p.to_string_lossy()),
+            windows::picked_covers(&caller.label, &p),
+            windows::is_boot_root(&p),
+        )?
+    };
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
-    app_state::set_last_project(&app, &p);
+    app_state::set_last_project_with(&app, &p, binding);
     // The pick is spent once it opened something (it is registered now).
     windows::PICKED_FOLDER.take(&caller.label);
     sidecar::switch_project(&app, &caller.label, p, open);
@@ -647,6 +691,10 @@ pub fn run() {
             tabs::tab_activate,
             tabs::tab_close,
             tabs::tab_reorder,
+            // S1.22b: the tab menu, Rename… and the tab overview (strip-only).
+            tabs::tab_menu,
+            tabs::tab_rename,
+            tabs::tab_overview,
             tabs::e2e_shell_bounds,
             menu::e2e_menu_state,
             notify::e2e_ai_transition,
@@ -697,11 +745,17 @@ pub fn run() {
             profiles::profiles_list,
             profiles::profiles_create,
             profiles::profiles_delete,
+            profiles::accounts_list,
+            pick_attach_folder,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .setup(|app| {
             let handle = app.handle().clone();
+            // S1.22b: the menu is NSApp's by now (tauri init_app_menu runs before setup);
+            // hide the ⇧⌘] / ⇧⌘[ items, keeping their keys (menu.rs).
+            #[cfg(target_os = "macos")]
+            menu::hide_hidden_items();
 
             // Crash reporting (Phase 32 / Task 4) — prime the opt-in toggle from
             // prefs.json and install the panic hook FIRST, so a panic anywhere in
@@ -953,6 +1007,11 @@ pub(crate) fn on_menu(app: &tauri::AppHandle, id: &str) {
     // S5.14: Maude ▸ Quit ⌘Q is a native item (menu.rs) — ask first while AI is working.
     if id == quit::MENU_QUIT {
         quit::request(app);
+        return;
+    }
+    // S1.22b: a row of the tab menu (right-click a tab; tabs::tab_menu builds it).
+    if let Some((item, label)) = tabs::tab_menu_command(id) {
+        tabs::run_tab_menu(app, item, &label);
         return;
     }
     let Some(route) = menu::route(id) else {

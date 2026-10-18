@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tab-overview"
+description = "Enables the tab_overview command without any pre-configured scope."
+commands.allow = ["tab_overview"]
+
+[[permission]]
+identifier = "deny-tab-overview"
+description = "Denies the tab_overview command without any pre-configured scope."
+commands.deny = ["tab_overview"]

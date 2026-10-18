@@ -30,13 +30,18 @@ describe('"?" sheet · Tabs and windows / Finding a canvas (S1.21)', () => {
     expect(rowsOf(sheet, 'tabs-windows').map((r) => r.id)).toEqual([
       'tab.next',
       'tab.prev',
+      'tab.overview',
       'home.open',
       'tab.close',
       'tab.select',
     ]);
     const keys = Object.fromEntries(rowsOf(sheet, 'tabs-windows').map((r) => [r.id, r.keys]));
+    // S1.22b: ⇧⌘] / ⇧⌘[ are aliases (the sheet shows the primary chord); Show all tabs is ⇧⌘\.
     expect(keys['tab.next']).toEqual(['⌃tab']);
     expect(keys['tab.prev']).toEqual(['⌃⇧tab']);
+    expect(keys['tab.overview']).toEqual(['⇧⌘\\']);
+    expect(ACTIONS_BY_ID.get('tab.next')?.keys?.map((b) => b.chord)).toContain('⇧⌘]');
+    expect(ACTIONS_BY_ID.get('tab.prev')?.keys?.map((b) => b.chord)).toContain('⇧⌘[');
     expect(keys['home.open']).toEqual(['⌘T']);
     expect(keys['tab.close']).toEqual(['⌘W']);
     expect(keys['tab.select']).toEqual(['⌘1–9']);

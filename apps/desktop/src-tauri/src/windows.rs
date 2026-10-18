@@ -625,6 +625,10 @@ pub fn open_in_as(
 /// (`notify::sanitize_title`, contract §5.2 "Title" — one line, no bidi
 /// controls) — AppKit draws it.
 pub fn project_display_name(root: &str) -> String {
+    // S1.22b: the name the person gave the tab on this Mac wins (Rename…).
+    if let Some(n) = crate::app_state::display_name_of(&pid_for_root(root)) {
+        return crate::notify::sanitize_title(&n);
+    }
     let from_config = std::fs::read(Path::new(root).join(".design").join("config.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
@@ -1891,6 +1895,51 @@ pub fn local_project_allowed(app: &AppHandle, label: &str, path: &Path) -> bool 
     ok
 }
 
+/// Whether `path` is the folder the last picker shown to `label` returned (or a
+/// direct child of it) — PEEKS, like `local_project_allowed`.
+pub fn picked_covers(label: &str, path: &Path) -> bool {
+    let picked = PICKED_FOLDER.take(label);
+    let ok = picked.is_some() && local_path_allowed(false, picked.as_deref(), path);
+    if let Some(p) = picked {
+        PICKED_FOLDER.park(label, p);
+    }
+    ok
+}
+
+/// S1.22b (S1.19 follow-up) — THE rule for `open_local_project`, a project tab
+/// switching itself in place to `target_pid`: the folder the person just
+/// picked may be opened and adopts `lastSignInProfile` as any picked folder
+/// does (S15-A1 `Adopt`); the caller's own project and the launch folder keep
+/// their binding; any other registered project must be one `index_scope`
+/// gives the caller — its own account (`home::tab_may_open`, the ⌘K and
+/// `open_project({pid})` rule) — and keeps ITS binding (`Keep`). So a page can
+/// neither move its tab onto another account's project nor re-bind one.
+pub fn in_tab_open_rule(
+    st: &crate::app_state::AppState,
+    caller_pid: &str,
+    caller_profile: &str,
+    target_pid: &str,
+    picked: bool,
+    boot_root: bool,
+) -> Result<crate::app_state::Binding, String> {
+    use crate::app_state::Binding;
+    if picked {
+        return Ok(Binding::Adopt);
+    }
+    if target_pid == caller_pid || boot_root {
+        return Ok(Binding::Keep);
+    }
+    crate::home::tab_may_open(st, caller_pid, caller_profile, target_pid).map(|_| Binding::Keep)
+}
+
+/// The `MAUDE_PROJECT_ROOT` launch folder is `path` (this process's own env).
+pub fn is_boot_root(path: &Path) -> bool {
+    std::env::var("MAUDE_PROJECT_ROOT")
+        .ok()
+        .filter(|r| !r.is_empty())
+        .is_some_and(|r| same_dir(Path::new(&r), path))
+}
+
 /// Everything parked for `label` dies with the window — a later window that
 /// reuses the label must not inherit it — and with an in-tab switch, so the
 /// project the label shows next cannot take what was parked for the last one
@@ -2749,6 +2798,55 @@ mod tests {
             "#[cfg(test)]\nmod tests {}\n",
         );
         assert!(checked(real));
+    }
+
+    /// S1.22b (S1.19 follow-up): `open_local_project` switches a tab in place only
+    /// to a project of its own account (or the folder the person picked), and
+    /// never re-binds a registered one to the last sign-in.
+    #[test]
+    fn open_local_project_keeps_the_tabs_account_and_the_targets_binding() {
+        use crate::app_state::{AppState, Binding};
+        let mut st = AppState::default();
+        let a = st.upsert("/s122b/a", 1);
+        let same = st.upsert("/s122b/same", 1);
+        let other = st.upsert("/s122b/other", 1);
+        st.projects.get_mut(&other).unwrap().profile = "work".into();
+        st.last_sign_in_profile = Some("work".into());
+        // Another account's project: refused with the ⌘K answer, picked or not registered alike.
+        assert_eq!(
+            in_tab_open_rule(&st, &a, "default", &other, false, false),
+            Err(crate::home::NOT_THIS_TABS.to_string())
+        );
+        assert!(in_tab_open_rule(&st, &a, "default", "nobody", false, false).is_err());
+        // Same account: allowed, and the target keeps its binding (no adopt of `work`).
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &same, false, false), Ok(Binding::Keep));
+        st.open_with("/s122b/same", 2, Binding::Keep);
+        assert_eq!(st.profile_for("/s122b/same"), "default");
+        // Itself and the launch folder keep theirs; a picked folder adopts as before.
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &a, false, false), Ok(Binding::Keep));
+        assert_eq!(in_tab_open_rule(&st, &a, "default", "boot", false, true), Ok(Binding::Keep));
+        assert_eq!(in_tab_open_rule(&st, &a, "default", &other, true, false), Ok(Binding::Adopt));
+        // The command takes the rule and the binding, not the Adopt-only `set_last_project`.
+        let src = include_str!("lib.rs");
+        let body = &src[src.find("fn open_local_project(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap_or(body.len())];
+        assert!(body.contains("windows::in_tab_open_rule("), "open_local_project skips the rule");
+        assert!(body.contains("set_last_project_with(&app, &p, binding)"));
+        assert!(!body.contains("app_state::set_last_project(&app"));
+    }
+
+    /// S5.10: the attach picker is a project tab's, from the tab in front, and
+    /// never remembers its folder as one the tab may open (V2-3.6 M3).
+    #[test]
+    fn pick_attach_folder_is_caller_checked_and_never_remembers_the_pick() {
+        let src = include_str!("lib.rs");
+        let body = &src[src.find("async fn pick_attach_folder(").unwrap()..];
+        let body = &body[..body.find("#[tauri::command]").unwrap()];
+        assert!(body.contains("windows::caller_project(&webview, false)?"));
+        assert!(body.contains("windows::caller_in_front(&webview)?"));
+        assert!(!body.contains("remember_pick") && !body.contains("PICKED_FOLDER"));
+        let env = body.find("MAUDE_E2E_PICK_ATTACH_DIR").unwrap();
+        assert!(body[..env].contains("#[cfg(debug_assertions)]"));
     }
 
     /// V2-3.6 M3: a project page switches its tab only to a registered

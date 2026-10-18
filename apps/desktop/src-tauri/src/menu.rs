@@ -31,6 +31,11 @@ pub const MENU_PREV_TAB: &str = "prev_tab";
 /// Window ▸ Tab 1…8 (`tab.select-<n>`, id `select_tab_<n>`) and Last Tab (`tab.select-last`).
 pub const MENU_SELECT_TAB_PREFIX: &str = "select_tab_";
 pub const MENU_SELECT_LAST_TAB: &str = "select_tab_last";
+/// S1.22b — the hidden ⇧⌘] / ⇧⌘[ items (`tab.next` / `tab.prev` aliases: a menu item carries
+/// one accelerator) and Window ▸ Show All Tabs ⇧⌘\ (`tab.overview`).
+pub const MENU_NEXT_TAB_ALT: &str = "next_tab_alt";
+pub const MENU_PREV_TAB_ALT: &str = "prev_tab_alt";
+pub const MENU_SHOW_ALL_TABS: &str = "show_all_tabs";
 
 /// What a tab-bar menu item asks the shell to do (lib.rs runs it on `tabs`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +48,8 @@ pub enum TabCommand {
     Select(usize),
     /// The last project tab.
     Last,
+    /// S1.22b: open / close the tab overview.
+    Overview,
 }
 
 /// The tab command a native menu-item id names, if any.
@@ -50,8 +57,9 @@ pub fn tab_command(id: &str) -> Option<TabCommand> {
     match id {
         MENU_SHOW_HOME => Some(TabCommand::ShowHome),
         MENU_CLOSE_TAB => Some(TabCommand::Close),
-        MENU_NEXT_TAB => Some(TabCommand::Next),
-        MENU_PREV_TAB => Some(TabCommand::Prev),
+        MENU_NEXT_TAB | MENU_NEXT_TAB_ALT => Some(TabCommand::Next),
+        MENU_PREV_TAB | MENU_PREV_TAB_ALT => Some(TabCommand::Prev),
+        MENU_SHOW_ALL_TABS => Some(TabCommand::Overview),
         MENU_SELECT_LAST_TAB => Some(TabCommand::Last),
         _ => id
             .strip_prefix(MENU_SELECT_TAB_PREFIX)
@@ -145,7 +153,7 @@ pub const MENU_ACTION_EVENT: &str = "menu://action";
 /// natively. Test-only: lib.rs matches the `MENU_*` constants directly, so keep this list in step
 /// with its arms.
 #[cfg(test)]
-pub const HANDLED_MENU_IDS: [&str; 15] = [
+pub const HANDLED_MENU_IDS: [&str; 18] = [
     MENU_OPEN_PROJECT_FOLDER,
     MENU_SHOW_HOME,
     MENU_CHECK_UPDATES,
@@ -161,6 +169,9 @@ pub const HANDLED_MENU_IDS: [&str; 15] = [
     "select_tab_7",
     "select_tab_8",
     MENU_SELECT_LAST_TAB,
+    MENU_NEXT_TAB_ALT,
+    MENU_PREV_TAB_ALT,
+    MENU_SHOW_ALL_TABS,
 ];
 
 /// The generated slice, embedded at compile time.
@@ -193,6 +204,9 @@ enum ItemSpec {
         exec: String,
         #[serde(default)]
         accel: Option<String>,
+        /// S1.22b: not drawn; its accelerator still works (macOS, `hide_hidden_items`).
+        #[serde(default)]
+        hidden: bool,
     },
     /// An OS-provided item (About, Quit, the Edit items WKWebView needs, the Window items).
     Predefined {
@@ -316,6 +330,59 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     MenuBuilder::new(app).items(&refs).build()
 }
 
+/// S1.22b: `(label, key equivalent)` of every hidden item in the slice — the key is the
+/// accelerator's last part (`CmdOrCtrl+Shift+]` → `]`), which muda sets as the item's
+/// `keyEquivalent`.
+pub fn hidden_items() -> Vec<(String, String)> {
+    spec()
+        .menus
+        .into_iter()
+        .flat_map(|m| m.items)
+        .filter_map(|i| match i {
+            ItemSpec::Item {
+                label,
+                accel: Some(a),
+                hidden: true,
+                ..
+            } => a.rsplit('+').next().map(|k| (label, k.to_string())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// S1.22b (macOS): hide the slice's `hidden` items in NSApp's main menu and keep their
+/// accelerators live (`allowsKeyEquivalentWhenHidden`) — muda can't hide an item. Matched by
+/// title AND key equivalent, so the visible twin with the same title stays. Main thread only
+/// (`setup`); a no-op anywhere else.
+#[cfg(target_os = "macos")]
+pub fn hide_hidden_items() {
+    let Some(mtm) = objc2::MainThreadMarker::new() else {
+        return;
+    };
+    let Some(main) = objc2_app_kit::NSApplication::sharedApplication(mtm).mainMenu() else {
+        return;
+    };
+    let wanted = hidden_items();
+    let mut hid = 0;
+    for top in main.itemArray().iter() {
+        let Some(sub) = top.submenu() else { continue };
+        for it in sub.itemArray().iter() {
+            let (title, key) = (it.title().to_string(), it.keyEquivalent().to_string());
+            if wanted.iter().any(|(l, k)| *l == title && *k == key) {
+                it.setHidden(true);
+                it.setAllowsKeyEquivalentWhenHidden(true);
+                hid += 1;
+            }
+        }
+    }
+    if hid != wanted.len() {
+        crate::sidecar::log_line(&format!(
+            "[maude] menu: hid {hid} of {} hidden items",
+            wanted.len()
+        ));
+    }
+}
+
 /// Debug-only e2e helper (V2-3.9 T7): optionally click a native menu item by id (`click`, the
 /// same `on_menu` path AppKit's click takes — WebDriver keys never reach the menu bar), then
 /// answer AppKit's enablement of every `ROLE_ITEMS` id and the active tab. Granted only by
@@ -420,6 +487,21 @@ mod tests {
                 ("File".into(), "close_tab".into(), Some("CmdOrCtrl+W".into())),
                 ("Window".into(), "next_tab".into(), Some("Ctrl+Tab".into())),
                 ("Window".into(), "prev_tab".into(), Some("Ctrl+Shift+Tab".into())),
+                (
+                    "Window".into(),
+                    "next_tab_alt".into(),
+                    Some("CmdOrCtrl+Shift+]".into())
+                ),
+                (
+                    "Window".into(),
+                    "prev_tab_alt".into(),
+                    Some("CmdOrCtrl+Shift+[".into())
+                ),
+                (
+                    "Window".into(),
+                    "show_all_tabs".into(),
+                    Some("CmdOrCtrl+Shift+\\".into())
+                ),
                 ("Window".into(), "select_tab_1".into(), Some("CmdOrCtrl+1".into())),
                 ("Window".into(), "select_tab_2".into(), Some("CmdOrCtrl+2".into())),
                 ("Window".into(), "select_tab_3".into(), Some("CmdOrCtrl+3".into())),
@@ -541,6 +623,30 @@ mod tests {
         }
     }
 
+    /// S1.22b: ⇧⌘] / ⇧⌘[ are their own HIDDEN items routed to Next / Previous (a menu item has
+    /// one accelerator); Show All Tabs ⇧⌘\ is a visible item routed to the tab overview.
+    #[test]
+    fn menu_hidden_tab_aliases_and_show_all_tabs() {
+        assert_eq!(tab_command("next_tab_alt"), Some(TabCommand::Next));
+        assert_eq!(tab_command("prev_tab_alt"), Some(TabCommand::Prev));
+        assert_eq!(tab_command("show_all_tabs"), Some(TabCommand::Overview));
+        assert_eq!(
+            hidden_items(),
+            [
+                ("Show Next Tab".to_string(), "]".to_string()),
+                ("Show Previous Tab".to_string(), "[".to_string())
+            ],
+            "exactly the two aliases are hidden; Show All Tabs is drawn"
+        );
+        // The visible twins keep their own keys, so the title + key match hides only the alias.
+        let accel_of = |id: &str| items().into_iter().find(|(_, i, _)| i == id).and_then(|(_, _, a)| a);
+        assert_eq!(accel_of("next_tab").as_deref(), Some("Ctrl+Tab"));
+        assert_eq!(accel_of("prev_tab").as_deref(), Some("Ctrl+Shift+Tab"));
+        // Every alias is one of the registry's alias chords (gen-actions checks it too).
+        assert_eq!(route("next_tab_alt"), Some(MenuRoute::Native("next_tab_alt".into())));
+        assert_eq!(route("show_all_tabs"), Some(MenuRoute::Native("show_all_tabs".into())));
+    }
+
     #[test]
     fn menu_tab_commands_parse_from_their_item_ids() {
         assert_eq!(tab_command("show_home"), Some(TabCommand::ShowHome));
@@ -586,6 +692,9 @@ mod tests {
                 "-",
                 "item:next_tab",
                 "item:prev_tab",
+                "item:next_tab_alt",
+                "item:prev_tab_alt",
+                "item:show_all_tabs",
                 "-",
                 "item:select_tab_1",
                 "item:select_tab_2",

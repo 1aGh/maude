@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "fe4eab9150d7",
+  "manifestVersion": "2c011396e466",
   "actions": [
     {
       "id": "search.open",
@@ -2706,6 +2706,29 @@
       "agent": {
         "path": "human",
         "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.overview",
+      "label": "Show all tabs",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "tab.rename",
+      "label": "Rename…",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window",
+        "note": "the name this Mac shows for a tab; the project files never change"
       }
     },
     {
