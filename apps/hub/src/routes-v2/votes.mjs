@@ -26,6 +26,7 @@
 import { connectionClaimDecides } from '../access-files.mjs';
 import { OBSERVER_REFUSAL, READ_ONLY_REFUSAL } from '../access-gate.mjs';
 import { documentMap, FILES_CTL_DOC } from '../files-ctl.mjs';
+import { matchesScope } from '../tokens.mjs';
 import { asVoteCanvas } from '../votes.mjs';
 
 /** The `/health` capability a v2 studio looks for before it offers "Start a vote…". */
@@ -41,6 +42,44 @@ export const VOTES_END_ROUTE = new RegExp(`${base}/(${SEG})/end$`);
 
 export const VOTES_BODY_BYTES = 16 * 1024;
 export const VOTES_POKE_COALESCE_MS = 100;
+/**
+ * Vote writes (start, ballot, end) per person per minute. A ballot is one call
+ * per dot moved, so the budget is generous; it exists so one credential cannot
+ * turn the store (one transaction per call) into a write amplifier.
+ */
+export const VOTES_WRITE_LIMIT = Object.freeze({ max: 240, windowMs: 60_000 });
+const RATE_LIMITED = Object.freeze({
+  code: 'rate-limited',
+  error: 'Too many vote changes at once. Try again in a minute.',
+});
+/** Ceiling on tracked people — a flood of actors must not grow the map unbounded. */
+const MAX_TRACKED_ACTORS = 10_000;
+
+/**
+ * A sliding-window counter per key, in memory. Votes are not a brute-force
+ * surface (every call is already authenticated), so the persistent
+ * `rate-store.mjs` buys nothing here; a restart resetting it is fine.
+ */
+export function createWriteLimiter({ max, windowMs } = VOTES_WRITE_LIMIT) {
+  const hits = new Map();
+  return {
+    check(key, now) {
+      const floor = now - windowMs;
+      const list = (hits.get(key) ?? []).filter((t) => t > floor);
+      if (list.length >= max) {
+        hits.set(key, list);
+        return false;
+      }
+      list.push(now);
+      if (!hits.has(key) && hits.size >= MAX_TRACKED_ACTORS) {
+        for (const [k, v] of hits) if (!v.some((t) => t > floor)) hits.delete(k);
+        if (hits.size >= MAX_TRACKED_ACTORS) hits.delete(hits.keys().next().value);
+      }
+      hits.set(key, list);
+      return true;
+    },
+  };
+}
 
 const STATUS = { invalid: 400, 'not-found': 404, ended: 409, 'vote-open': 409, capacity: 429 };
 const NOT_FOUND = Object.freeze({ code: 'not-found', error: 'no such vote' });
@@ -161,7 +200,9 @@ async function readJson(request) {
  * @param {string} deps.projectId    this hub's project (`:p` must name it, or `current`)
  * @param {(request: object) => object | null} deps.auth  `{ actor, readOnly, access? }`
  * @param {{ schedule: (seq: number, canvases: string[]) => void } | null} [deps.poke]
- * @param {() => number} [deps.now]  for the best-effort end timer only
+ * @param {() => number} [deps.now]  the best-effort end timer and the write limiter
+ * @param {{ max: number, windowMs: number } | null} [deps.writeLimit]  per-person write
+ *   budget (default `VOTES_WRITE_LIMIT`; null = off, the hub's `rateLimit: false`)
  */
 export function createVotesRoutes({
   store,
@@ -169,14 +210,20 @@ export function createVotesRoutes({
   auth,
   poke = null,
   now = () => Date.now(),
+  writeLimit = VOTES_WRITE_LIMIT,
   setTimeoutImpl = setTimeout,
   clearTimeoutImpl = clearTimeout,
   log = console,
 }) {
+  const limiter = writeLimit ? createWriteLimiter(writeLimit) : null;
+
   /** May `who` use `cap` on `canvas`? A non-peer credential (operator, cell secret) is project-level. */
   function holds(who, cap, canvas) {
     const access = who.access;
     if (!access) return cap === 'read' || !who.readOnly;
+    // A project session keeps DDR-053's machine scope — the file door's `sees`
+    // and `/present/<canvas>`'s rule: a vote outside it is a missing vote.
+    if (access.role !== null && !matchesScope(who.scope ?? '*', canvas)) return false;
     if (!access.can(cap, canvas)) return false;
     // The read_only projection stays the floor for a project session's edits.
     if (!access.canvasOnly && who.readOnly && cap === 'edit') return false;
@@ -282,8 +329,9 @@ export function createVotesRoutes({
         })
       );
       if (r.refused) return refusal(respondJson, r);
-      for (const v of r.votes) if (v.state === 'open') ends.add(v.endsAt);
-      respondJson(200, { seq: r.seq, votes: r.votes });
+      const votes = r.votes.filter((v) => holds(who, 'read', v.canvas));
+      for (const v of votes) if (v.state === 'open') ends.add(v.endsAt);
+      respondJson(200, { seq: r.seq, votes });
       return true;
     }
 
@@ -297,6 +345,11 @@ export function createVotesRoutes({
 
     if (method !== 'POST' || kind === 'one') {
       respondJson(405, { code: 'method-not-allowed' });
+      return true;
+    }
+    // Before the body is read: a flood costs a request, never a transaction.
+    if (limiter && !limiter.check(who.actor, now())) {
+      respondJson(429, { ...RATE_LIMITED });
       return true;
     }
 

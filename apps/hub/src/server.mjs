@@ -1195,6 +1195,8 @@ export function createHub(config = {}) {
           // `roles-v2` (V2-1.7 §5.8 step 4): this cell honours observer and
           // canvas-scoped credentials — the control plane mints `m2.` only
           // when it is here. Added by the lead's Q13 flip, never before.
+          // `votes-v1` (Gate 0 A18, S9.13): hub-held ballots at
+          // `/api/projects/:p/v1/votes*`.
           capabilities: withRolesV2(
             journal
               ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY, VOTES_CAPABILITY]
@@ -1285,6 +1287,8 @@ export function createHub(config = {}) {
             browserSession: (req) => browserSession(dataDir, secret, req),
             designRoot: () => (studioProxy ? designRootFor() : null),
             signInUrl: (req) => signInUrl({ request: req }),
+            // Gate 0 A18 (S9.13) — the votes runtime, null until the store is open.
+            votes: votesRoutes,
           },
         })
       ) {
@@ -2250,6 +2254,8 @@ export function createHub(config = {}) {
     projectId: process.env.MAUDE_TENANT_ID || 'local',
     auth: (req) => acceptedAuth(req),
     poke: createVotesPoke({ instance: server, visibility: pokeVisibility }),
+    // Per-person write budget (`VOTES_WRITE_LIMIT`); off with the hub's other limits.
+    ...(rateLimit ? {} : { writeLimit: null }),
   });
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it

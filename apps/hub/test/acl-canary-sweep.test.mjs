@@ -314,6 +314,53 @@ describe('the hub canary sweep (A-only peer token)', () => {
     }
   });
 
+  // S9.13 — the table-driven pass above cannot name a real vote or a real
+  // presentation, so these rows carry B's own: an open vote on B (title and
+  // target both canary-named, a member's ballot in it) and B's `/present/` path.
+  test('votes + present rows (S9.13): a real B vote answers exactly as a missing one', async () => {
+    const owner = http(hub.http, t.owner);
+    const started = await owner.post(`${V1}/votes`, {
+      canvas: B,
+      targets: ['ab:canary-b-board', 'ab:canary-b-alt'],
+      title: 'canary-b vote',
+    });
+    assert.equal(started.status, 201, JSON.stringify(started.body));
+    const bVote = started.body.vote.id;
+    const cast = await http(hub.http, t.member).post(`${V1}/votes/${bVote}/ballot`, {
+      picks: { 'ab:canary-b-board': 1 },
+    });
+    assert.equal(cast.status, 200, JSON.stringify(cast.body));
+    const rowsFor = (vote, canvas) => [
+      ['GET', `${V1}/votes/${vote}`],
+      ['POST', `${V1}/votes/${vote}/ballot`, JSON.stringify({ picks: { 'ab:canary-b-board': 1 } })],
+      ['POST', `${V1}/votes/${vote}/end`, '{}'],
+      ['GET', `${V1}/votes?canvas=${encodeURIComponent(canvas)}`],
+      ['GET', `${V1}/votes?canvas=${encodeURIComponent(canvas)}&after=0`],
+      ['POST', `${V1}/votes`, JSON.stringify({ canvas, targets: ['ab:x'] })],
+      ['GET', `/present/${canvas.replace(/\.tsx$/, '')}`],
+      ['HEAD', `/present/${canvas.replace(/\.tsx$/, '')}`],
+    ];
+    const bT = { vote: bVote, ...bTargets, bare: B.replace(/\.tsx$/, '') };
+    const nT = { vote: 'vote-zzzzzzzzzz', ...nopeTargets, bare: NOPE.replace(/\.tsx$/, '') };
+    const bReqs = rowsFor(bT.vote, B);
+    const nReqs = rowsFor(nT.vote, NOPE);
+    for (let i = 0; i < bReqs.length; i++) {
+      const where = `${bReqs[i][0]} ${bReqs[i][1].replace(bVote, ':id')}`;
+      const b = await send(t.aEdit, bReqs[i]);
+      const n = await send(t.aEdit, nReqs[i]);
+      const bText = normalize(b.text, bT);
+      assertNoLeak(where, bText, normalize(b.headers.replace(/^date:.*$/m, ''), bT));
+      assert.equal(b.status, n.status, `${where}: status B ${b.status} ≠ missing ${n.status}`);
+      assert.equal(bText, normalize(n.text, nT), `${where}: body differs from missing`);
+    }
+    // The project-wide list: A-only sees no B vote, not even its id.
+    const list = await send(t.aEdit, ['GET', `${V1}/votes`]);
+    assert.equal(list.status, 200);
+    assertNoLeak('GET votes', list.text);
+    assert.equal(list.text.includes(bVote), false, 'the list names B’s vote');
+    assert.equal((await owner.post(`${V1}/votes/${bVote}/end`, {})).status, 200);
+  });
+
   test('the session-ending rows are swept too, last', async () => {
     for (const path of SESSION_ENDING) {
       const r = await send(t.aEdit, ['POST', path, '{}']);

@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 
+import { addToken } from '../src/tokens.mjs';
 import { A, B, http, NOPE, rm, seedTokens, startHub, tmpDir } from './_acl-docs-fixture.mjs';
 
 const V = '/api/projects/local/v1/votes';
@@ -111,6 +112,27 @@ describe('per role (§2.6)', () => {
     // Olga (the owner) holds no ballot.
     assert.equal('mine' in (await as.owner.get(`${V}/${v.id}`)).body, false);
     await as.owner.post(`${V}/${v.id}/end`, {});
+  });
+
+  test('one ballot per person: voting twice replaces, from any of their machines', async () => {
+    const v = (await start('owner', A)).body.vote;
+    // Two tokens, one person (a desktop and a second Mac): one ballot.
+    const second = http(
+      hub.http,
+      addToken(dataDir, { label: 'vera-2nd-mac', scope: '*', role: 'viewer', owner: 'vera@x.test' })
+        .value
+    );
+    assert.equal(
+      (await as.viewer.post(`${V}/${v.id}/ballot`, { picks: { 'ab:dir-a': 2 } })).status,
+      200
+    );
+    const again = await second.post(`${V}/${v.id}/ballot`, { picks: { 'ab:dir-c': 1 } });
+    assert.equal(again.status, 200, JSON.stringify(again.body));
+    assert.deepEqual(again.body.mine, { 'ab:dir-c': 1 });
+    assert.deepEqual(again.body.vote.done, ['vera@x.test']);
+    const end = await as.owner.post(`${V}/${v.id}/end`, {});
+    assert.deepEqual(end.body.vote.tallies, { 'ab:dir-c': 1 });
+    assert.equal(end.body.vote.voters, 1);
   });
 
   test('no bearer: 401', async () => {
