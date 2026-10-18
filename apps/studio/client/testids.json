@@ -11557,10 +11557,10 @@
     "hook": "settings-reset-folds",
     "kind": "testid",
     "pattern": false,
-    "meaning": "Settings › Advanced › Reset › Reset Advanced sections: the row (every panel's Advanced fold goes back to a fresh Mac's).",
+    "meaning": "Settings › Advanced › Reset › Close all Advanced sections: the row (every panel's Advanced fold folds).",
     "producer": {
-      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
-      "symbol": "ResetFoldsRow"
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
     },
     "region": "settings",
     "consumers": [],
@@ -11573,16 +11573,268 @@
     "hook": "settings-reset-folds-btn",
     "kind": "testid",
     "pattern": false,
-    "meaning": "The Reset button inside that row.",
+    "meaning": "The Close all button inside that row.",
     "producer": {
-      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
-      "symbol": "ResetFoldsRow"
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
     },
     "region": "settings",
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-settings.test.tsx"
     ],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-server-port",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Local server port: display only (`location.port`); never an input.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-runtime",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › This Mac › Runtime (\"Bun 1.3.4 · built in\"), from GET /_api/settings/about.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-plugins",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Claude Code › Plugins: the bundled design / flow versions.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-own-plugin-copy",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Claude Code › Use my own plugin copy (prefs.json `ownPluginCopy`, read at the next AI session). Row; the switch is its input.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-decision-memory",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Decision memory › In this project: \"N decisions · kgai\" or \"Not set up\" (GET /_api/kg/summary).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-report-logs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Privacy › Logs in bug reports row (prefs.json `reportLogs`: ask · always · never).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-report-logs-select",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The select inside that row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-experimental-teams",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Experimental › AI reviews argue it out (teams): row; the switch is its input (prefs.json `experimentalTeams`).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/advanced-section.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Reset: the group.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-panel-layout",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Reset › Reset panel layout: the row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-panel-layout-btn",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The button inside that row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-fold-list-t",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The \"Open now, on this Mac\" heading above the per-fold switches.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-fold-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Advanced › Reset › one switch per Advanced fold (FOLD_PANELS plus any id remembered): `settings-fold-inspector`, `settings-fold-left.canvases`…",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-all",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Reset › Reset all settings…: the row.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-all-btn",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The button inside that row (opens the confirm dialog).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ResetSection"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-all-dialog",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The confirm dialog, titled \"Reset all settings\".",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ConfirmResetAll"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-all-confirm",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Its primary button; the label is the title’s verb.",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ConfirmResetAll"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "settings-reset-all-cancel",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Its Cancel button (focused on open).",
+    "producer": {
+      "file": "apps/studio/client/v2/settings/reset-section.jsx",
+      "symbol": "ConfirmResetAll"
+    },
+    "region": "settings",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-s11-13-advanced.test.tsx"],
     "v2": "new"
   },
   {

@@ -190,7 +190,7 @@ export default function SettingsSheet({
                     />
                   )}
                   {s.id === 'advanced' && (
-                    <AdvancedSection update={update} onUpdateLater={onUpdateLater} />
+                    <AdvancedSection update={update} onUpdateLater={onUpdateLater} live={general} />
                   )}
                 </section>
               )

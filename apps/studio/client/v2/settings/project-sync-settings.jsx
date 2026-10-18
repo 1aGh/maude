@@ -139,8 +139,8 @@ export default function ProjectSyncSettings({ cloud }) {
           />
           <SwitchRow
             testid="sync-setting-propagateDeletes"
-            label="Propagate deletions"
-            note="Removing a file here removes it everywhere; replaced copies are kept in Trash."
+            label="Follow the trash from other devices"
+            note="Moved to the trash on another Mac — moved to the trash here too. Trash keeps it until you clear it out."
             checked={settings.propagateDeletes}
             disabled={busy}
             onChange={(v) => change({ propagateDeletes: v })}
@@ -159,8 +159,8 @@ export default function ProjectSyncSettings({ cloud }) {
               onChange={(e) => change({ resolveFirstAnchor: e.target.value })}
             >
               <option value="ask">Keep asking</option>
-              <option value="keep-local">Keep this machine's</option>
-              <option value="keep-cloud">Keep the workspace's</option>
+              <option value="keep-local">Keep this Mac’s</option>
+              <option value="keep-cloud">Keep the workspace’s</option>
             </select>
           </label>
           {note && (

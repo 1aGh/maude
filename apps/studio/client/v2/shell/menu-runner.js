@@ -22,6 +22,7 @@ import { runFillAsk } from '../empty/fill-ask.js';
 import { foldStore } from '../fold/use-fold.js';
 import { INSPECTOR_ACTION_IDS, runInspectorAction } from '../inspector/inspector-actions.js';
 import { copyText } from '../left-panel/canvas-file-menu.js';
+import { createSettingsHandlers } from '../settings/settings-handlers.js';
 import {
   dispatchCanvasOp,
   requestCanvasesOp,
@@ -327,6 +328,7 @@ export function createMenuHandlers(d) {
     'canvas.reload': () => d.onReload(),
     // ── Diagnostics (V2-4.7b) ──
     ...createDiagnosticsHandlers(d),
+    ...createSettingsHandlers(d), // S11.13 — Settings › Advanced: the four settings.* ids
   };
   for (const [id, preset] of Object.entries(ARTBOARD_PRESET))
     h[id] = () => d.onInsertArtboard(preset);

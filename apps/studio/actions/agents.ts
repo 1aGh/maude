@@ -548,6 +548,17 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   // S3.7b — in a cloud-linked project `maude design open <canvas> --mode present` also prints the link.
   'present.copy-link': { ...NAV('<canvas> --mode present'), minRole: 'edit' },
   'settings.theme': PREF(),
+  // S11.13 — Settings › Advanced: this Mac's own preferences (prefs.json), not project state.
+  'settings.reset-panel-layout': PREF('puts the panels back where they started; a UI preference'),
+  'settings.reset-all': PREF(
+    'puts this Mac’s Maude preferences back to a fresh Mac’s; keys and sign-ins stay'
+  ),
+  'settings.use-own-plugin-copy': PREF(
+    'prefs.json ownPluginCopy: the AI chat loads your own plugin copy'
+  ),
+  'settings.experimental-teams': PREF(
+    'prefs.json experimentalTeams: agent teams at the next AI session'
+  ),
   'view.zoom-in': PREF(),
   'view.zoom-out': PREF(),
   'view.zoom-fit': PREF(),

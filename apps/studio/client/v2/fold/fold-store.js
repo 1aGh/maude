@@ -19,7 +19,18 @@ export const FOLD_PANELS = Object.freeze([
   'help',
   'inspector',
   'ai.chat',
-  'history', // S1.14 — Version history › Advanced (the git body)
+  // S11.13 — the rest of 06's "Advanced, inside each panel". Owners register by id: a panel's fold keeps
+  // working under any id (the store takes any valid one); listing it here makes ⌘K "Open all" and
+  // Settings › Advanced › Reset cover it before it has ever been opened on this Mac.
+  'left.layers',
+  'history',
+  'code',
+  'connections',
+  'ai',
+  'share',
+  'timeline',
+  'export',
+  'ds',
 ]);
 
 /**
@@ -96,6 +107,10 @@ export function createFoldStore({ persist = () => {} } = {}) {
     /** Settings › Advanced › Reset: every fold back to how a fresh Mac shows it. */
     reset() {
       return write(Object.fromEntries(known().map((id) => [id, defaultOf(id)])));
+    },
+    /** Every fold this Mac knows: the panels that carry one, then any id remembered since. */
+    ids() {
+      return known();
     },
     /** Which folds are open right now. */
     openIds() {

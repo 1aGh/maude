@@ -68,6 +68,12 @@ export interface UiPrefs {
   panelsHidden?: boolean;
   /** V2-4 gate (WCAG 2.1.4): Settings › General › Keyboard › Single-key shortcuts. Absent = on. */
   singleKeyShortcuts?: boolean;
+  /** S11.13: Settings › Advanced › "Use my own plugin copy" (`MAUDE_NO_PLUGIN_BOOTSTRAP`, read at ACP spawn). */
+  ownPluginCopy?: boolean;
+  /** S11.13: "AI reviews argue it out (teams)" — agent teams on at the next AI session. */
+  experimentalTeams?: boolean;
+  /** S11.13: Privacy › "Logs in bug reports". Absent = ask each time. */
+  reportLogs?: 'ask' | 'always' | 'never';
   migratedFrom?: number;
   /**
    * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
@@ -246,6 +252,18 @@ export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatc
     if (typeof body.singleKeyShortcuts !== 'boolean')
       return fail('singleKeyShortcuts must be a boolean');
     patch.singleKeyShortcuts = body.singleKeyShortcuts;
+  }
+  // S11.13 — Settings › Advanced: read at the next AI session / bug report, per Mac.
+  for (const k of ['ownPluginCopy', 'experimentalTeams'] as const) {
+    if (k in body) {
+      if (typeof body[k] !== 'boolean') return fail(`${k} must be a boolean`);
+      patch[k] = body[k] as boolean;
+    }
+  }
+  if ('reportLogs' in body) {
+    if (body.reportLogs !== 'ask' && body.reportLogs !== 'always' && body.reportLogs !== 'never')
+      return fail('reportLogs must be ask|always|never');
+    patch.reportLogs = body.reportLogs;
   }
   if ('canvases' in body) {
     const c = body.canvases;
