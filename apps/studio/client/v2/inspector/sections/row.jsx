@@ -1,10 +1,22 @@
 // client/v2/inspector/sections/row.jsx — S2.3: a labelled row inside a section body (14 Editing, `Row`).
 // `name` is the testid suffix: insp-row-<name>.
 
-export function Row({ k, name, dim = false, children }) {
+export function Row({ k, name, dim = false, mod = false, children }) {
   return (
     <div className="insp-row" data-testid={`insp-row-${name}`} data-dim={dim ? 'true' : undefined}>
-      <span className="insp-row-k">{k}</span>
+      <span className="insp-row-k">
+        {k}
+        {/* S2.12: a value this object sets over its style's — the dot says "Changed here" */}
+        {mod ? (
+          <i
+            className="insp-mod"
+            role="img"
+            aria-label="Changed here"
+            title="Changed here"
+            data-testid={`insp-mod-${name}`}
+          />
+        ) : null}
+      </span>
       <span className="insp-row-v">{children}</span>
     </div>
   );

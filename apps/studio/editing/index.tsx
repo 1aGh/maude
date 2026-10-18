@@ -21,6 +21,8 @@ import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
+import { CornerDots } from './corner-dots.tsx';
+import { DrawTools } from './draw-tools.tsx';
 import { GapBands } from './gap-bands.tsx';
 import { HoldRings } from './hold-rings.tsx';
 import {
@@ -43,6 +45,14 @@ import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
 import { StickyName } from './sticky-name.tsx';
+import {
+  isTextAction,
+  runTextAction,
+  TEXT_ACTIONS,
+  textOpDeps,
+  textParams,
+} from './text-actions.ts';
+import { TextInPlace } from './text-in-place.tsx';
 import { TidyPreview } from './tidy-preview.tsx';
 import { TokenRuler } from './token-ruler.tsx';
 import { UndoPreview } from './undo-preview.tsx';
@@ -58,14 +68,16 @@ export const EDITING_ACTIONS = [
   // S2.7 — run by align-bar.tsx / rotate-handle.tsx (each listens for its own run-action ids)
   ...ARRANGE_ACTIONS,
   'object.rotate',
-  // S2.9 — Tidy up over 2+ artboards (run by align-bar.tsx)
-  TIDY_ACTION,
-  // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
-  ...ARTBOARD_ACTIONS,
   // S2.11 — Place freely, move earlier / later, convert children to absolute position
   ...LAYOUT_ACTIONS,
   // S2.11b — the Position row's pins: one object.constrain with the measured box
   CONSTRAIN_ACTION,
+  // S2.12 — text: language, case, style (use / reset / detach); `text.set` is the caret's commit
+  ...TEXT_ACTIONS,
+  // S2.9 — Tidy up over 2+ artboards (run by align-bar.tsx)
+  TIDY_ACTION,
+  // S2.10 — ⌘D / Duplicate at another width / Rename / Reset position (run by artboard-commands.tsx)
+  ...ARTBOARD_ACTIONS,
 ] as const;
 
 export function EditingLayer() {
@@ -90,6 +102,11 @@ export function EditingLayer() {
       toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
       record: (rec) => undoRef.current?.record(rec),
     };
+    // S2.12 — the text actions toast the same way and push the same undo record
+    textOpDeps.current = {
+      toast: (m, kind) => showCanvasToast(m, kind === 'error' ? 'error' : 'info'),
+      record: (rec) => undoRef.current?.record(rec),
+    };
   }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -109,6 +126,12 @@ export function EditingLayer() {
         if (!isReadOnlyCanvas()) {
           const { refs } = layerParams(m.params);
           void runLayoutAction(m.id, selRef.current, refs);
+        }
+      } else if (isTextAction(m.id)) {
+        // S2.12 — the Type section / ⌘K; a Layers-less ask names its target in `params.targets`
+        if (!isReadOnlyCanvas()) {
+          const { refs, params } = textParams(m.params);
+          void runTextAction(m.id, selRef.current, refs, params, textOpDeps.current);
         }
       } else if (isConstrainAction(m.id)) {
         if (!isReadOnlyCanvas()) void runConstrainAction(m.params, selRef.current);
@@ -192,6 +215,19 @@ export function EditingLayer() {
       {/* S2.7 — the align bar over a multi-selection, the rotate handle at its corner */}
       <AlignBar readOnly={isReadOnlyCanvas()} />
       <RotateHandle readOnly={isReadOnlyCanvas()} />
+      {/* S2.11 — the gap / padding bands of an auto layout, the token ruler a gap drag shows, the
+          slot a reordered card opens, and the pin guides of a freely placed object */}
+      <GapBands readOnly={isReadOnlyCanvas()} />
+      <TokenRuler />
+      <ReorderSlot />
+      <PinGuides readOnly={isReadOnlyCanvas()} />
+      {/* S2.12 — the edit-tone ring around the text being typed, the Czech ties under it */}
+      <TextInPlace readOnly={isReadOnlyCanvas()} />
+      {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
+      <DrawTools readOnly={isReadOnlyCanvas()} />
+      <CornerDots readOnly={isReadOnlyCanvas()} />
+      {/* S2.20 — an Undo history row lights what it would undo */}
+      <UndoPreview />
       {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}
       <ArtboardGuides readOnly={isReadOnlyCanvas()} />
       <TidyPreview />
@@ -203,14 +239,6 @@ export function EditingLayer() {
       {editChrome ? <MinimapContext /> : null}
       {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
       <HoldRings />
-      {/* S2.11 — the gap / padding bands of an auto layout, the token ruler a gap drag shows, the
-          slot a reordered card opens, and the pin guides of a freely placed object */}
-      <GapBands readOnly={isReadOnlyCanvas()} />
-      <TokenRuler />
-      <ReorderSlot />
-      <PinGuides readOnly={isReadOnlyCanvas()} />
-      {/* S2.20 — an Undo history row lights what it would undo */}
-      <UndoPreview />
     </>
   );
 }

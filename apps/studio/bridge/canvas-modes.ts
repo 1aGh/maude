@@ -185,12 +185,13 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
     slots: Object.freeze([
       slot({ key: 'V', label: 'Select', tool: 'move', minRole: 'edit' }),
       slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'edit' }),
-      // Frame / Text / Image are backed by today's "+ Insert Div / Text / Image" until S2 builds the
-      // tools: a click adds one at its default size, as the insert does.
-      slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit', insert: 'div' }),
-      slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit', pending: 'S2' }),
+      // Frame and Shape are drawn by dragging (S2.13): a frame inside an artboard, an artboard on empty canvas.
+      // Image is still backed by today's "+ Insert Image" until S2 builds the tool.
+      slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit' }),
+      slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit' }),
       slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit', pending: 'S2' }),
-      slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit', insert: 'text' }),
+      // Click to type (S2.12b): a tool, no longer today's momentary Insert Text.
+      slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit' }),
       slot({
         key: 'I',
         label: 'Image',
@@ -214,11 +215,12 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
         minRole: 'edit',
         popover: 'more',
         more: Object.freeze([
-          slot({ key: '', label: 'Line', tool: 'line', minRole: 'edit', pending: 'S2' }),
-          slot({ key: '', label: 'Ellipse', tool: 'ellipse', minRole: 'edit', pending: 'S2' }),
-          slot({ key: '', label: 'Polygon', tool: 'polygon', minRole: 'edit', pending: 'S2' }),
+          slot({ key: '', label: 'Line', tool: 'line', minRole: 'edit' }),
+          slot({ key: '', label: 'Ellipse', tool: 'ellipse', minRole: 'edit' }),
+          slot({ key: '', label: 'Polygon', tool: 'polygon', minRole: 'edit' }),
           slot({ key: '', label: 'Crop', tool: 'crop', minRole: 'edit', pending: 'S2' }),
-          slot({ key: '', label: 'Export area', tool: 'slice', minRole: 'edit', pending: 'S2' }),
+          // Export area (S2.13): drag a rectangle, the Export sheet opens with it. Writes nothing to the file.
+          slot({ key: '', label: 'Export area', tool: 'slice', minRole: 'edit' }),
         ]),
       }),
     ]),

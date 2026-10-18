@@ -328,6 +328,25 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'layout.convert-to-absolute': TSX(
     'Give each child position: "absolute" with left/top/width/height as rendered, and a static parent position: "relative" with its own width/height fixed if it would collapse; the children then no longer take part in the layout'
   ),
+  // S2.12 — text in place, styles and the Czech ties
+  'text.set': TSX(
+    'Replace the element’s text child with the new copy (escape { } < > &). In a Czech element (lang="cs" on it or an ancestor) set the copy as Czech sets it: a no-break space (U+00A0) after every one-letter word (v k s z o u i a …) and „quotes“ — never inside a URL or `code`. Over HTTP: POST /_api/edit-op {file, op: "text.set", targets: [{artboard, element}], params: {text, before?, lang?}}'
+  ),
+  'text.set-language': TSX(
+    'Set lang="<tag>" on the element (cs, en, sk, de, pl). For cs also set the copy as Czech sets it: U+00A0 after every one-letter word, „quotes“; other languages leave the copy alone. Over HTTP: POST /_api/edit-op {file, op: "text.set-language", targets, params: {lang}}'
+  ),
+  'text.set-case': TSX(
+    'AA is style.textTransform "uppercase"; As typed removes it (write "none" when the element’s style sets a case). Over HTTP: POST /_api/edit-op {op: "text.set-case", params: {case: "upper"|"typed", explicit?}}'
+  ),
+  'text.use-style': TSX(
+    'Give the element the style’s class from system/<ds>/components.json typeRoles (heading → t-heading), replacing any other t-* class, and take out its inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle so the style shows. Over HTTP: POST /_api/edit-op {op: "text.use-style", params: {role: "t-heading"}}'
+  ),
+  'text.reset-style': TSX(
+    'Delete the inline fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform and fontStyle from the element’s style so its t-* class shows (params.props names fewer). Over HTTP: POST /_api/edit-op {op: "text.reset-style", params: {props?}}'
+  ),
+  'text.detach-style': TSX(
+    'Write the style’s values as inline style (fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textTransform, fontStyle — keep any the element already sets) and delete its t-* class; the text looks the same and stops following the style. Over HTTP: POST /_api/edit-op {op: "text.detach-style", params: {values: {"font-size": "var(--type-xl)", …}}} — the values as the design system wrote them (tokens), not px'
+  ),
   // ── view ──
   'view.panels': PREF(),
   'view.pin-panels': PREF(),
@@ -480,9 +499,34 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'tool.eraser': BOARD('Remove the elements from the canvas’s .annotations.json'),
   'tool.browse': PREF('a pointer mode'),
   'tool.rect': BOARD('Add a rect shape element to the canvas’s .annotations.json'),
-  'tool.ellipse': BOARD('Add an ellipse shape element to the canvas’s .annotations.json'),
+  // S2.13 — Edit's Ellipse (More) draws a design shape in the TSX; Preview's Shape (`tool.shape`) stays the board's.
+  'tool.ellipse': TSX(
+    'Add a <div data-shape="ellipse"> with position: "absolute", left / top / width / height in px, borderRadius: "50%" and background: "var(--accent)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
   // V2-4.5b — the toolbar slots derived from MODE_TOOLS (defs/tool.ts)
-  'tool.frame': TSX('Add a frame (a <div>) to the artboard in the canvas .tsx'),
+  'tool.frame': TSX(
+    'Add a frame (a <div> with position: "absolute", left / top / width / height in px, background: "var(--bg-1)") to the artboard or the frame in the canvas .tsx; on empty canvas add a <DCArtboard kind="digital" fixed> with its place in layout.artboards[] — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.el-shape': TSX(
+    'Add a <div data-shape="rectangle"> with position: "absolute", left / top / width / height in px and background: "var(--accent)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.line': TSX(
+    'Add a <div data-shape="line"> with position: "absolute", left / top at the first point, width = the length, height: 0, borderTop: "2px solid var(--fg-0)", transform: rotate(<deg>) and transformOrigin: "0 0" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'tool.polygon': TSX(
+    'Add a <div data-shape="polygon"> with position: "absolute", left / top / width / height in px, background: "var(--accent)" and clipPath: "polygon(…%)" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  // Export area writes nothing to the file; an agent exports a region with the export verb.
+  'tool.slice': { effect: 'none', agent: cli('maude design export') },
+  'object.insert-shape': TSX(
+    'Add a <div> (data-shape="rectangle|ellipse|line|polygon" for a shape) as the last child of the frame or artboard, position: "absolute" with left / top / width / height in px; give a static parent position: "relative" — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'artboard.draw': TSX(
+    'Add <DCArtboard id="artboard-N" label="Artboard N" kind="digital" width={w} height={h} fixed> and its x / y in layout.artboards[] of the .meta.json — see canvas-tsx.md § Draw a frame or a shape'
+  ),
+  'object.set-corner-radius': TSX(
+    'Set style.borderRadius on the element: one value while the four corners are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ; a --radius-* token as var(--radius-md); remove the border-*-radius longhands — see canvas-tsx.md § Corner radius'
+  ),
   'tool.el-text': TSX('Add a text element to the artboard in the canvas .tsx'),
   'tool.image': TSX('Add an <img> (a project asset) to the artboard in the canvas .tsx'),
   'tool.inspect': PREF('a pointer mode'),

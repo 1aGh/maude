@@ -10,7 +10,7 @@
 // Rule 13 — the v1 letters died in the commit that bound these: B (Pen → M), I (Highlighter → the
 // Marker's tip; I is Image), E (Eraser → the Marker's tip; E is Stickers), O (Ellipse → Edit › More),
 // ⇧S (Section → S) and the ⇧-letter aliases v1's lower-casing matched. Listed in help.ts MOVED_KEYS.
-// A pending slot (S2's Shape · Pen · Component, More) has no key until its tool lands.
+// A pending slot (S2's Pen · Component, Crop) has no key until its tool lands.
 
 import {
   type CanvasModeV2,
@@ -124,4 +124,9 @@ export const TOOL_ACTIONS: ActionDef[] = [
   // Ellipse: dead in v1 — `setTool` knows only `shape` (V2-1.3 defect 5).
   keyless('tool.rect', 'Rectangle', 'Rect'),
   keyless('tool.ellipse', 'Ellipse', 'Ellipse'),
+  // S2.13 — Edit's More: Line · Ellipse · Polygon · Export area have no key (Ellipse O died, D2). Each arms
+  // its drag tool; ⌘K and the More popover are the ways in.
+  keyless('tool.line', 'Line'),
+  keyless('tool.polygon', 'Polygon'),
+  keyless('tool.slice', 'Export area'),
 ];

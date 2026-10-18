@@ -35,13 +35,14 @@ describe('toolKeyAction (T8)', () => {
   const act = (mode: CanvasModeV2, key: string, caps: ModeCaps = EDITOR, tip?: 'highlighter') =>
     toolKeyAction(mode, k(key), caps, tip);
 
-  test("Edit's own keys: V H arm, F T I add one (S2 makes them tools), R P ⇧I wait for S2", () => {
+  test("Edit's own keys: V H arm, F R arm their drag tools (S2.13), I adds one, T arms click-to-type (S2.12), P ⇧I wait for S2", () => {
     expect(act('edit', 'V')).toEqual({ kind: 'arm', tool: 'move' });
     expect(act('edit', 'H')).toEqual({ kind: 'arm', tool: 'hand' });
-    expect(act('edit', 'F')).toEqual({ kind: 'insert', insert: 'div' });
-    expect(act('edit', 'T')).toEqual({ kind: 'insert', insert: 'text' });
+    expect(act('edit', 'F')).toEqual({ kind: 'arm', tool: 'frame' });
+    expect(act('edit', 'R')).toEqual({ kind: 'arm', tool: 'el-shape' });
+    expect(act('edit', 'T')).toEqual({ kind: 'arm', tool: 'el-text' });
     expect(act('edit', 'I')).toEqual({ kind: 'insert', insert: 'image' });
-    for (const key of ['R', 'P', '⇧I']) expect(act('edit', key)).toBeNull();
+    for (const key of ['P', '⇧I', 'O']) expect(act('edit', key)).toBeNull();
   });
 
   test('Edit: N C M A E S switch to Preview with that tool (E opens Stickers; M its last tip, Q4)', () => {
@@ -72,7 +73,7 @@ describe('toolKeyAction (T8)', () => {
 
   test('Q2 — Preview: V F I switch to Edit (P ⇧I wait for S2); a momentary slot arms nothing', () => {
     expect(act('preview', 'V')).toEqual({ kind: 'request', mode: 'edit', tool: 'move' });
-    expect(act('preview', 'F')).toEqual({ kind: 'request', mode: 'edit' });
+    expect(act('preview', 'F')).toEqual({ kind: 'request', mode: 'edit', tool: 'frame' });
     expect(act('preview', 'I')).toEqual({ kind: 'request', mode: 'edit' });
     expect(act('preview', 'P')).toBeNull();
     expect(act('preview', '⇧I')).toBeNull();
@@ -87,7 +88,7 @@ describe('toolKeyAction (T8)', () => {
       tool: 'sticky',
     });
     expect(act('viewing', 'V', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'move' });
-    expect(act('viewing', 'F', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit' });
+    expect(act('viewing', 'F', COMMENTER)).toEqual({ kind: 'deny', mode: 'edit', tool: 'frame' });
     expect(act('viewing', 'E', COMMENTER)).toEqual({
       kind: 'deny',
       mode: 'preview',
@@ -113,7 +114,7 @@ describe('toolKeyAction (T8)', () => {
   });
 
   test('modeKeys lists exactly what each mode answers', () => {
-    expect(modeKeys('edit')).toEqual(['V', 'H', 'F', 'T', 'I', 'N', 'C', 'M', 'A', 'E', 'S']);
+    expect(modeKeys('edit')).toEqual(['V', 'H', 'F', 'R', 'T', 'I', 'N', 'C', 'M', 'A', 'E', 'S']);
     expect(modeKeys('preview')).toEqual([
       'H',
       'N',

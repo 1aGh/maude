@@ -210,7 +210,7 @@ describe('canvas document', () => {
       ['⇧V', inCanvas, null],
       ['H', inCanvas, 'tool.hand'],
       ['F', inCanvas, 'tool.frame'],
-      ['R', inCanvas, null], // Edit's Shape is S2's: no key before its tool, and never Preview's R
+      ['R', inCanvas, 'tool.el-shape'], // Edit's Shape (S2.13) — never Preview's R
       ['P', inCanvas, null], // S2's Pen
       ['T', inCanvas, 'tool.el-text'],
       ['I', inCanvas, 'tool.image'],

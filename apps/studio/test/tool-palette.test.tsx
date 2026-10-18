@@ -50,7 +50,8 @@ import { DEFAULT_TOOLS, ToolProvider, useToolMode } from '../use-tool-mode.tsx';
 
 const DEFAULT_IDS = new Set<string>(DEFAULT_TOOLS.map((t) => t.id));
 const armableDefault = (t: ToolId) => DEFAULT_IDS.has(t);
-const ids = (slots: ReturnType<typeof visibleSlots>) => slots.map((s) => s.tool ?? s.panel);
+const ids = (slots: ReturnType<typeof visibleSlots>) =>
+  slots.map((s) => s.tool ?? s.panel ?? s.label.toLowerCase());
 
 describe('canvas-icons / TOOL_ICONS', () => {
   test('exposes a component for every default tool id', () => {
@@ -144,24 +145,28 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
 });
 
 describe('visibleSlots / role, pending and read-only', () => {
-  test('an editor sees the Edit slots that exist today; the S2 tools and an empty More stay hidden', () => {
+  test('an editor sees the Edit slots that exist today; Pen and Component (their slices) stay hidden', () => {
     expect(ids(visibleSlots('edit', 'edit', armableDefault))).toEqual([
       'move',
       'hand',
-      'frame', // today's insert Div
-      'el-text', // today's insert Text
+      'frame', // S2.13: drawn by dragging
+      'el-shape', // S2.13
+      'el-text', // S2.12b: click to type
       'image', // today's insert Image
+      'more', // S2.13: Line · Ellipse · Polygon · Export area (Crop is still pending)
     ]);
   });
 
-  test('pending hides a slot even once the tool exists: only S2 landing may show it', () => {
+  test('pending hides a slot even once the tool exists: only its slice landing may show it', () => {
     // `armable: everything` is the day S2 registers the descriptors; the slot data still says pending.
     expect(ids(visibleSlots('edit', 'edit', () => true))).toEqual([
       'move',
       'hand',
       'frame',
+      'el-shape',
       'el-text',
       'image',
+      'more',
     ]);
   });
 
@@ -213,9 +218,8 @@ describe('pending slots / no dead buttons', () => {
   // package list only shrinks when that package lands (the lead edits this list in the same commit).
   test('every pending slot is a v2 tool owned by S2; the list is exactly the unbuilt Edit tools', () => {
     const pend = pendingSlots();
-    expect(pend.map((p) => p.slot.tool).sort()).toEqual(
-      ['component', 'crop', 'el-pen', 'el-shape', 'ellipse', 'line', 'polygon', 'slice'].sort()
-    );
+    // S2.13 built Shape and More's Line · Ellipse · Polygon · Export area; Pen, Component and Crop remain
+    expect(pend.map((p) => p.slot.tool).sort()).toEqual(['component', 'crop', 'el-pen'].sort());
     for (const p of pend) {
       expect(p.slot.pending).toBe('S2');
       expect(p.mode).toBe('edit');
@@ -435,12 +439,13 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
   beforeAll(asIframe);
   afterAll(restoreParent);
 
-  test('renders toolbar-edit with the slots that exist today; no pending id, no More, no Export', () => {
+  test('renders toolbar-edit with the slots that exist today; no pending id, no Export', () => {
     mountBar();
     expect(q('toolbar-edit')?.getAttribute('role')).toBe('toolbar');
     expect(q('toolbar-edit')?.classList.contains('dc-tool-palette')).toBe(true); // chrome selectors keep matching
-    expect(slotIds()).toEqual(['move', 'hand', 'frame', 'el-text', 'image']);
-    for (const dead of ['el-shape', 'el-pen', 'component', 'more', 'line', 'ellipse'])
+    expect(slotIds()).toEqual(['move', 'hand', 'frame', 'el-shape', 'el-text', 'image', 'more']);
+    // Pen and Component wait for their slices; Line · Ellipse · Polygon · Export area are behind More only (D2)
+    for (const dead of ['el-pen', 'component', 'line', 'ellipse', 'polygon', 'slice'])
       expect(q(`toolbar-slot-${dead}`)).toBeNull();
     expect(document.querySelector('[aria-label^="Export"]')).toBeNull();
     expect(document.querySelector('[aria-label^="Insert element"]')).toBeNull(); // the "+" is Frame/Text/Image now
@@ -457,22 +462,56 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     expect(q('toolbar-slot-hand')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('Frame / Text / Image add one at its default size through today’s insert verbs, and arm nothing', () => {
+  test('Image adds one through today’s insert verb and arms nothing; Frame and Shape are tools (S2.13)', () => {
     const art = document.createElement('div');
     art.innerHTML =
       '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
     document.body.appendChild(art);
     mountBar();
-    click(q('toolbar-slot-frame'));
-    click(q('toolbar-slot-el-text'));
     click(q('toolbar-slot-image'));
-    expect(verbs()).toEqual([
-      { dgn: 'insert-request', refId: 'p1', position: 'after', kind: 'div' },
-      { dgn: 'insert-request', refId: 'p1', position: 'after', kind: 'text' },
-      { dgn: 'insert-image-request', refId: 'p1', position: 'after' },
-    ]);
+    expect(verbs()).toEqual([{ dgn: 'insert-image-request', refId: 'p1', position: 'after' }]);
     expect(ctx?.tool).toBe('move');
-    expect(q('toolbar-slot-frame')?.hasAttribute('aria-pressed')).toBe(false); // momentary, not a tool
+    expect(q('toolbar-slot-image')?.hasAttribute('aria-pressed')).toBe(false); // momentary, not a tool
+    click(q('toolbar-slot-frame'));
+    expect(ctx?.tool).toBe('frame');
+    expect(q('toolbar-slot-frame')?.getAttribute('aria-pressed')).toBe('true');
+    click(q('toolbar-slot-el-shape'));
+    expect(ctx?.tool).toBe('el-shape');
+    expect(q('toolbar-slot-el-shape')?.getAttribute('aria-pressed')).toBe('true');
+    expect(q('toolbar-slot-frame')?.getAttribute('aria-pressed')).toBe('false');
+    expect(verbs()).toHaveLength(1); // nothing was inserted by arming
+    art.remove();
+  });
+
+  test('More is a labelled list: Line · Ellipse · Polygon · Export area (Crop waits); a row arms that tool', () => {
+    mountBar();
+    expect(q('toolbar-popover-more')).toBeNull();
+    click(q('toolbar-slot-more'));
+    expect(q('toolbar-popover-more')?.getAttribute('role')).toBe('menu');
+    const rows = [...document.querySelectorAll('[data-testid^="toolbar-more-"]')];
+    expect(rows.map((r) => r.textContent)).toEqual(['Line', 'Ellipse', 'Polygon', 'Export area']);
+    click(q('toolbar-more-ellipse'));
+    expect(ctx?.tool).toBe('ellipse');
+    expect(q('toolbar-popover-more')).toBeNull(); // chose, closed
+    expect(q('toolbar-slot-more')?.getAttribute('aria-pressed')).toBe('true'); // More is lit while one of its tools is armed
+    click(q('toolbar-slot-more'));
+    click(q('toolbar-more-slice'));
+    expect(ctx?.tool).toBe('slice');
+    expect(verbs()).toEqual([]);
+  });
+
+  test('Text is a tool (click to type, S2.12): it arms el-text, stays pressed and adds nothing by itself', () => {
+    const art = document.createElement('div');
+    art.innerHTML =
+      '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
+    document.body.appendChild(art);
+    mountBar();
+    expect(q('toolbar-slot-el-text')?.getAttribute('aria-pressed')).toBe('false');
+    click(q('toolbar-slot-el-text'));
+    expect(ctx?.tool).toBe('el-text');
+    expect(ctx?.mode).toBe('edit');
+    expect(q('toolbar-slot-el-text')?.getAttribute('aria-pressed')).toBe('true');
+    expect(verbs()).toEqual([]);
     art.remove();
   });
 });

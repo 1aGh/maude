@@ -289,8 +289,8 @@ describe('input-router / keydown — the toolbar letters, ungoverned', () => {
     expect(key('B', { shiftKey: true }).kind).toBe('no-op');
   });
 
-  test("R in Edit's posture → no-op (the design Shape is S2's); in Preview's → annotation shape", () => {
-    expect(key('r').kind).toBe('no-op');
+  test("R in Edit's posture → the design Shape tool (S2.13); in Preview's → annotation shape", () => {
+    expect(key('r')).toEqual({ kind: 'tool', tool: 'el-shape' });
     expect(key('r', preview)).toEqual({ kind: 'tool', tool: 'shape' });
   });
 
@@ -307,8 +307,8 @@ describe('input-router / keydown — the toolbar letters, ungoverned', () => {
     expect(key('i')).toEqual({ kind: 'insert', insert: 'image' });
   });
 
-  test("T: Edit's posture adds a text element; Preview's arms annotation Text", () => {
-    expect(key('t')).toEqual({ kind: 'insert', insert: 'text' });
+  test("T: Edit's posture arms click-to-type (el-text, S2.12); Preview's arms annotation Text", () => {
+    expect(key('t')).toEqual({ kind: 'tool', tool: 'el-text' });
     expect(key('t', preview)).toEqual({ kind: 'tool', tool: 'text' });
   });
 

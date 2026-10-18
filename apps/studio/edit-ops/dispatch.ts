@@ -17,11 +17,13 @@ import { artboardResize } from './artboard-resize.ts';
 import { CLEAR_LINK_OP } from './clear-link.ts';
 import { objectConstrain } from './constraints.ts';
 import { artboardTrash } from './artboard-trash.ts';
+import { objectSetCornerRadius } from './corner-radius.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
 import { hasLayoutChange } from './layout-patch.ts';
+import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { objectLock } from './lock.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import type { ReferenceLanes } from './references.ts';
@@ -31,6 +33,9 @@ import { objectRotate } from './rotate.ts';
 import { layoutSetGap } from './set-gap.ts';
 import { elementSetId } from './set-id.ts';
 import { SET_LINK_OP } from './set-link.ts';
+import { textSet, textSetLanguage } from './text-copy.ts';
+import { textDetachStyle } from './text-detach.ts';
+import { textResetStyle, textSetCase, textUseStyle } from './text-style-ops.ts';
 import {
   EDIT_OP_STATUS,
   type EditOp,
@@ -83,6 +88,17 @@ export const EDIT_OPS: readonly EditOp[] = [
   CLEAR_LINK_OP,
   // S2.10b — ⌫ / "Move to trash" on an artboard: one `kind: 'trash'` action on an op-log home
   artboardTrash,
+  // S2.12 — text in place, styles and the Czech ties
+  textSet,
+  textSetLanguage,
+  textSetCase,
+  textUseStyle,
+  textResetStyle,
+  textDetachStyle,
+  // S2.13 — the Frame / Shape tools' drag, the corner dot's drag
+  objectInsertShape,
+  artboardDraw,
+  objectSetCornerRadius,
 ];
 
 export interface AiHoldHit {

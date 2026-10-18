@@ -8139,7 +8139,7 @@
     "hook": "toolbar-slot-<toolId>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Frame / Text / Image and the panel-only Stickers have none). `<toolId>`: `move`, `hand`, `frame`, `el-text`, `image` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
+    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Image and the panel-only Stickers have none; Text (`el-text`) is click to type). `<toolId>`: `move`, `hand`, `frame`, `el-shape`, `el-text`, `image`, `more` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -8154,7 +8154,7 @@
     "hook": "toolbar-popover-<which>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\") or `marker-tips`.",
+    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\"), `marker-tips` or `more` (Line · Ellipse · Polygon · Export area).",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -8176,6 +8176,22 @@
     },
     "region": "canvas iframe chrome",
     "consumers": [
+      "apps/studio/test/tool-palette.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-more-<tool>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the More popover: `line`, `ellipse`, `polygon`, `slice` (Export area). `aria-checked` on the armed one.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": [
       "apps/studio/test/tool-palette.test.tsx"
     ],
     "v2": "new"
@@ -12693,7 +12709,7 @@
     "hook": "insp-row-<name>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One labelled row inside a section body; `<name>` ∈ width, height, clip, xy, rotation, direction, gap, spacing, padding, pad-top/right/bottom/left, align. `data-dim=\"true\"` when the control is inert (an object inside auto layout has no X · Y of its own).",
+    "meaning": "One labelled row inside a section body; `<name>` ∈ width, height, clip, xy, rotation, direction, gap, spacing, padding, pad-top/right/bottom/left, align, and for a text style, resizing, case, language. `data-dim=\"true\"` when the control is inert (an object inside auto layout has no X · Y of its own).",
     "producer": {
       "file": "apps/studio/client/v2/inspector/sections/row.jsx",
       "symbol": "Row"
@@ -13175,6 +13191,22 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/v2-inspector-paint.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-shape-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Size › Kind: what the selected shape is — Rectangle · Ellipse · Line · Polygon (read from its `data-shape`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/shape.jsx",
+      "symbol": "ShapeKindBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
     ],
     "v2": "new"
   },
@@ -15965,6 +15997,278 @@
     "v2": "new"
   },
   {
+    "hook": "insp-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Style: \"Aa Heading ⌄\" — the type role the text wears, by the system's own name (\"Heading · changed\" when this text sets a value over it, \"No style\" when it wears none).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-menu-style",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Style: the menu of the system's type roles (components.json typeRoles), then Detach style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-<role>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Type › Style menu: one row per type role of the system (`<role>` is the typeRoles key: title, heading, body…); a click asks `text.use-style`.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-detach",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Style menu: Detach style (asks `text.detach-style`; the text keeps its look and stops following the style).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-differs",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: the line under Style when the text sets values over its style — \"Size differs from Heading.\" — with Reset.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-reset",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: Reset on the differs line (asks `text.reset-style`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-update",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: \"Update <Heading> for every canvas…\" — drawn only once S10 registers `ds.review-update` (S10-ds-review-entry.md).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-none",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: the line for a text with no style (\"This text follows no style.\", or \"Keeps its look; stops following Heading. Nothing else changes.\" right after Detach) with Use a style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-use",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: Use a style — opens the Style menu for a text with no style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-style-follows",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: \"Change Heading in the Design system and this follows.\" under a text that wears its style untouched.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "StyleBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-type-from",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type: \"from Heading\" beside Size · weight while the text takes both from its style.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/type.jsx",
+      "symbol": "TypeBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mod-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The dot beside a row's label (\"Changed here\") when the text sets that value over its style; `<name>` is the row: style, type-size.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/sections/row.jsx",
+      "symbol": "Row"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-resizing",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Resizing: Width · Height · Fixed (Width = the box follows the line; Height = width fixed, height follows the text; Fixed = both).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-ctl-case",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Case: As typed · AA (asks `text.set-case`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-language",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Language: the select (Čeština · English · Slovenčina · Deutsch · Polski; asks `text.set-language`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-language-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Type › Language: the Čeština line — one-letter words stay with the next word, „quotes“ turn Czech.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/text.jsx",
+      "symbol": "TextBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/v2-inspector-text.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-tie-arc",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the small arc under a space that will become a no-break space, while a Czech text is being typed.",
+    "producer": {
+      "file": "apps/studio/editing/text-in-place.tsx",
+      "symbol": "TextInPlace"
+    },
+    "region": "canvas",
+    "consumers": [
+      "apps/studio/test/edit-text-client.test.tsx"
+    ],
+    "sourceConsumers": [],
+    "v2": "new"
+  },
+  {
     "hook": "ed-ab-handle-<h>",
     "kind": "testid",
     "pattern": true,
@@ -16323,6 +16627,102 @@
     "consumers": [],
     "sourceConsumers": [
       "apps/studio/test/edit-layout-client.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-corner-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the radius beside the corner dot being dragged (\"8\").",
+    "producer": {
+      "file": "apps/studio/editing/corner-dots.tsx",
+      "symbol": "CornerDots"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-corner-dot-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: the dot inside one corner of a selected shape or frame (`tl`, `tr`, `br`, `bl`); drag it to round the corner. `data-on` while it is dragged.",
+    "producer": {
+      "file": "apps/studio/editing/corner-dots.tsx",
+      "symbol": "CornerDots"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the live tag of a drag — \"Rectangle · 216 × 216\", \"Line · 142 px\", \"Export area · 640 × 360\".",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the stroke a Line drag shows while it is drawn.",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the box a Frame / Shape / Export-area drag shows while it is drawn; `data-kind` says which.",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
+    ],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the overlay that takes the pointer while a drag tool (Frame, Shape, More) is armed; `data-tool` names it.",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": [
+      "apps/studio/test/edit-shapes-client.test.tsx"
     ],
     "v2": "new"
   },
@@ -17431,7 +17831,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -17445,7 +17847,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
     "v2": "new"
   },
   {
@@ -17459,7 +17863,9 @@
     },
     "region": "empty",
     "consumers": [],
-    "sourceConsumers": ["apps/studio/test/v2-all-trashed.test.tsx"],
+    "sourceConsumers": [
+      "apps/studio/test/v2-all-trashed.test.tsx"
+    ],
     "v2": "new"
   },
   {

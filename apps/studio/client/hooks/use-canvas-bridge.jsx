@@ -17,6 +17,7 @@ import {
   TRASH_RECORD_LABEL,
   trashArtboardBody,
 } from '../edit-op-relay.ts';
+import { exportRegionOf } from '../export-region.ts';
 import { localSelectRecord } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
@@ -989,6 +990,8 @@ export function useCanvasBridge({
           setExportDialog({
             mode: 'export',
             scope: m.detail && typeof m.detail.scope === 'string' ? m.detail.scope : undefined,
+            // S2.13 — Export area: the world rectangle the sheet is to capture (S8's `region` param reads it)
+            region: exportRegionOf(m.detail),
           });
         }
       } else if (m.dgn === 'open-timeline-request') {

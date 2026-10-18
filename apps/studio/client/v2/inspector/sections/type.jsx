@@ -12,6 +12,7 @@ import {
   typeFromCss,
   typeToCss,
 } from '../../../../edit-ops/words-paint.ts';
+import { roleName } from '../../../../edit-ops/text-style.ts';
 import { Select } from '../../../inspector-controls.jsx';
 import { useCssWrite } from '../css-write.js';
 import { isAllText, targetOf } from '../kinds/multi.jsx';
@@ -47,9 +48,15 @@ export function TypeBody({ el, selection, kind, ctx }) {
     ...WEIGHTS,
   ];
 
+  // S2.12: a text that wears a style says where its size and weight come from, and wears a dot when it
+  // sets either over the style's
+  const info = el?.textInfo;
+  const styled = kind !== 'multi' && !!info?.role;
+  const sizeMod = styled && info.differs.some((p) => p === 'font-size' || p === 'font-weight');
+
   return (
     <>
-      <Row k="Size · weight" name="type-size">
+      <Row k="Size · weight" name="type-size" mod={sizeMod}>
         <LengthControl
           name="font-size"
           label="Text size"
@@ -70,6 +77,12 @@ export function TypeBody({ el, selection, kind, ctx }) {
           mini
           onChange={(v) => v !== 'mixed' && set({ weight: v ? Number.parseInt(v, 10) : null })}
         />
+        {styled && !sizeMod ? (
+          <span
+            className="insp-from"
+            data-testid="insp-type-from"
+          >{`from ${roleName(info.role)}`}</span>
+        ) : null}
       </Row>
       <Row k="Colour" name="type-colour">
         <ColorControl

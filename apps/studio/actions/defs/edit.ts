@@ -362,6 +362,84 @@ export const EDIT_ACTIONS: ActionDef[] = [
     enabled: { ...EDITS, selection: ['object'] },
     search: { keywords: ['remove auto layout', 'absolute', 'free', 'unlayout', 'convert layout'] },
   },
+  // S2.13 (ed-shape) — the Frame / Shape tools' drag and the corner dot's drag. Gestures like `object.reorder-to`:
+  // the tool (F, R, More) is how a person starts them, so they are not offered in ⌘K.
+  {
+    id: 'object.insert-shape',
+    label: 'Draw a shape',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'artboard.draw',
+    label: 'Draw an artboard',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: EDITS,
+    search: { hidden: true },
+  },
+  {
+    id: 'object.set-corner-radius',
+    label: 'Round a corner',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  // S2.12 (ed-text-edit · ed-text-style) — text in place, styles and the Czech ties. The home of every
+  // one is the text's inspector (Type: Style · Case · Language) and the caret on the canvas; ⌘K offers the
+  // two that need no choice. The rest take a value (a style, a case, a language, the typed copy), so they
+  // are run by their control and are not offered in ⌘K. `text.set` is the typed copy — a gesture.
+  {
+    id: 'text.set',
+    label: 'Set text',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'text.set-language',
+    label: 'Set language',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'text.set-case',
+    label: 'Set case',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'text.use-style',
+    label: 'Use a style',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { hidden: true },
+  },
+  {
+    id: 'text.reset-style',
+    label: 'Reset text style',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['reset', 'override', 'style', 'type', 'font', 'size'] },
+  },
+  {
+    id: 'text.detach-style',
+    label: 'Detach text style',
+    kind: 'command',
+    exec: 'canvas',
+    enabled: { ...EDITS, selection: ['object'] },
+    search: { keywords: ['detach', 'style', 'unlink', 'type', 'no style'] },
+  },
   // S2.2 (D18) — the inspector's Advanced actions. Shell commands on the selected element, ⌘K only
   // (their homes are the buttons and the id field inside Inspector › Advanced, client/v2/inspector/).
   // Greyed without an object selected. Setting an id is a write, so it is greyed below Can edit too.

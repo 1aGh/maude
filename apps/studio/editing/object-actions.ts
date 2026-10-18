@@ -68,7 +68,7 @@ export function matchingElements(el: Element): Element[] {
 }
 
 /** Select `refs` as soon as the canvas shows them (a structural write re-renders asynchronously). */
-function selectWhenRendered(
+export function selectWhenRendered(
   refs: ElementRef[],
   replace: (s: Selection[]) => void,
   doc: Document = document
