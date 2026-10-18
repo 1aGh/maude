@@ -676,6 +676,23 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
 export const hookActor = (env = process.env) =>
   env.MAUDE_AGENT_ACTOR === 'maude-chat' ? 'maude-chat' : 'claude-code';
 
+/**
+ * V2-1.15 §5.4 "Binding the hook run key": the ACP bridge spawns each chat's `claude` with
+ * MAUDE_CHAT_ID=<chatId> (acp/env.ts `chatSpawnEnv`); every `/_api/agent/*` call sends it as
+ * `chat`, so the hook's run IS that chat's `starting` run — one turn is never two runs. A value
+ * that is not a chat id is ignored (the call binds by session alone). Attribution and run
+ * binding only, never a permission: the studio's checks are the same either way.
+ */
+export const hookChat = (env = process.env) => {
+  const v = env.MAUDE_CHAT_ID;
+  return typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : null;
+};
+/** The hook key the studio resolves a run by: the session, plus the chat when there is one. */
+const runKey = (ctx) => {
+  const chat = hookChat();
+  return chat ? { session: ctx.session, chat } : { session: ctx.session };
+};
+
 async function prompt(ctx, input) {
   // V2-1.18 §5.4: the main agent needs its run folder to write hand-offs — named once a session
   const marker = join(ctx.designRoot, '_runs', 'sessions', `${ctx.session}.json`);
@@ -696,7 +713,7 @@ async function prompt(ctx, input) {
   await postStudio(
     studio,
     '/_api/agent/run/begin',
-    { session: ctx.session, ...(promptId ? { promptId } : {}), actor: hookActor() },
+    { ...runKey(ctx), ...(promptId ? { promptId } : {}), actor: hookActor() },
     { timeoutMs: 600 }
   );
   return out;
@@ -764,7 +781,7 @@ async function preEdit(ctx, input) {
     studio,
     '/_api/agent/edit/check',
     {
-      session: ctx.session,
+      ...runKey(ctx),
       toolUseId,
       tool: input.tool_name,
       path: t.rel,
@@ -873,7 +890,7 @@ async function postEdit(ctx, input, self) {
     const r = await postStudio(
       studio,
       '/_api/agent/edit/touched',
-      { session: ctx.session, toolUseId, path: t.rel, via: 'tool' },
+      { ...runKey(ctx), toolUseId, path: t.rel, via: 'tool' },
       { timeoutMs: 300 }
     );
     if (r?.status === 200 && Array.isArray(r.body?.artboards)) artboards = r.body.artboards;
@@ -963,7 +980,7 @@ async function postBash(ctx, input) {
       await postStudio(
         studio,
         '/_api/agent/edit/touched',
-        { session: ctx.session, toolUseId, via: 'bash', since: mark.at },
+        { ...runKey(ctx), toolUseId, via: 'bash', since: mark.at },
         { timeoutMs: 300 }
       );
   }
@@ -1049,7 +1066,10 @@ async function stop(ctx, input, self) {
     await postStudio(
       studio,
       '/_api/agent/run/end',
-      { session: ctx.session, outcome: problems.length || missing.length ? 'warnings' : 'done' },
+      {
+        ...runKey(ctx),
+        outcome: problems.length || missing.length ? 'warnings' : 'done',
+      },
       { timeoutMs: 600 }
     );
   rmSync(ctx.run, { recursive: true, force: true });

@@ -380,6 +380,8 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       reapTimer: null,
     };
     entry.bridge = new AcpBridge({
+      // V2-1.15 §5.4 — the adapter carries MAUDE_CHAT_ID=<this chat> (the hook's run binding).
+      chatId,
       repoRoot: ctx.paths.repoRoot,
       // Static, config-derived environment brief for every new session
       // (feature-acp-context-hardening; see bootstrap-brief.ts guardrails).

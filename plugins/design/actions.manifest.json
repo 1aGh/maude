@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "cebb78d1a7ce",
+  "manifestVersion": "404238e54001",
   "actions": [
     {
       "id": "search.open",
@@ -761,6 +761,30 @@
       "agent": {
         "path": "human",
         "because": "view-pref"
+      }
+    },
+    {
+      "id": "present.from-selection",
+      "label": "Present",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
+      }
+    },
+    {
+      "id": "present.from-start",
+      "label": "Present from the start",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
       }
     },
     {
@@ -1525,9 +1549,8 @@
       "effect": "none",
       "minRole": "edit",
       "agent": {
-        "path": "human",
-        "because": "view-pref",
-        "note": "S5.4 makes it `maude design runs list` (V2-1.15 §5.10)"
+        "path": "cli",
+        "verb": "maude design runs list"
       }
     },
     {
@@ -1538,9 +1561,8 @@
       "effect": "project",
       "minRole": "edit",
       "agent": {
-        "path": "human",
-        "because": "ai-chat",
-        "note": "S5.4 adds `maude design runs stop <run>` for an agent’s own runs"
+        "path": "cli",
+        "verb": "maude design runs stop <run>"
       }
     },
     {
@@ -1553,6 +1575,20 @@
       "agent": {
         "path": "human",
         "because": "ai-chat"
+      }
+    },
+    {
+      "id": "ai.run-on-copy",
+      "label": "Run on a copy",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "minRole": "edit",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Duplicate the busy DCArtboard beside it with a new id and edit the copy (skill section \"AI runs and busy artboards\")"
       }
     },
     {
@@ -2436,6 +2472,18 @@
     },
     {
       "scope": "design",
+      "verb": "design runs list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design runs stop",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design annotate",
       "effect": "project",
       "tier": "auto"
@@ -2607,6 +2655,12 @@
       "scope": "design",
       "verb": "design exports",
       "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design runs",
+      "effect": "shared",
       "tier": "prompt"
     },
     {

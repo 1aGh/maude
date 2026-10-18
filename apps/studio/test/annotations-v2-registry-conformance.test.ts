@@ -7,7 +7,7 @@ import { describe, expect, test } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { projectBoard } from '../annotations/ai-read.ts';
-import { AiBatch } from '../annotations/ai-write.ts';
+import { AiBatch, PEOPLE_ONLY_TYPES } from '../annotations/ai-write.ts';
 import {
   BOX_FIELDS,
   boxOf,
@@ -184,11 +184,17 @@ describe.each(Object.keys(SAMPLES))('%s', (type) => {
   test('AI read shows it; AI write creates it through the registry', () => {
     const el = sample(type);
     const read = projectBoard([el]);
-    expect(read.elements.map((e) => e.id)).toEqual([el.id]);
-    expect(read.elements[0]?.type).toBe(type);
+    // A ballot is the voter's secret until the vote ends (Q5): the agent's read never prints one.
+    expect(read.elements.map((e) => e.id)).toEqual(type === 'ballot' ? [] : [el.id]);
+    if (type !== 'ballot') expect(read.elements[0]?.type).toBe(type);
     if (def.caps.box) {
       const batch = new AiBatch([]);
       const { id: _i, type: _t, index: _x, ...fields } = el;
+      // Votes, ballots and stamps are people's (S4.5): the agent reads them and may not write them.
+      if (PEOPLE_ONLY_TYPES.has(type)) {
+        expect(() => batch.create(type, fields)).toThrow(/people's own votes and reactions/);
+        return;
+      }
       const id = batch.create(type, fields);
       expect(batch.state.get(id)?.type).toBe(type);
       expect(batch.state.get(id)?.author).toEqual({ kind: 'ai' });

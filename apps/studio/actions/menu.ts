@@ -83,6 +83,9 @@ export const PROJECT_MENU: readonly MenuNode[] = [
       { id: 'view.assets' },
       { id: 'view.exports' },
       { id: 'view.annotations' },
+      // S3.1 (04 md-keys "Menu › View, amended"): Present ⌥⌘↵ · Present from the start ⇧⌥⌘↵.
+      { id: 'present.from-selection' },
+      { id: 'present.from-start' },
       { id: 'present.canvas' },
       SEP,
       { id: 'view.zoom-in' },

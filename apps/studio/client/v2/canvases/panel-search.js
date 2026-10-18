@@ -10,7 +10,7 @@
 // text ("Trenéři", never its folded "treneri"), so the row can wrap exactly the letters the person typed.
 // `markRanges` does the same for the words a row shows besides its name (the folder, the quoted artboard).
 
-import { fold, scoreRow, words as queryWords } from '../../../index/match.ts';
+import { scoreRow, words as queryWords } from '../../../index/match.ts';
 
 /** `s` folded (no accents, lower case), plus for every folded index the index in `s` it came from. */
 export function foldMapped(s) {
@@ -75,15 +75,6 @@ const KIND_WORDS = {
 const kindWord = (k) => KIND_WORDS[k] || '';
 
 /**
- * `scoreRow` forgives one wrong letter in a word of four or more — right for "unifromy", wrong for "2023",
- * which is another year, not a typo of 2026. A query word with a digit must be there exactly.
- */
-function digitsExact(qWords, ...texts) {
-  const hay = fold(texts.join(' '));
-  return qWords.every((w) => !/\d/.test(w) || hay.includes(w));
-}
-
-/**
  * The canvases that answer `query`, best first.
  *
  *   canvases  canvas nodes (tree-model): `{ path, name, boards, sortKinds }`
@@ -112,14 +103,15 @@ export function searchCanvases(canvases, query, { folderOf = () => '', order } =
       { key: c.path, name: c.name, meta: `${folder} ${kinds}`.trim() },
       qWords
     );
-    const own = ownHit && digitsExact(qWords, c.name, folder, kinds) ? ownHit : null;
+    // A query word with a digit must be there exactly — scoreRow (index/match.ts, S1.4) owns that rule.
+    const own = ownHit;
     const boards = [];
     for (const b of c.boards || []) {
       const h = scoreRow(
         { key: `${c.path}#${b.id}`, name: b.label || b.id, meta: `${c.name} ${kindWord(b.kind)}` },
         qWords
       );
-      if (h && digitsExact(qWords, b.label || b.id, c.name)) boards.push({ b, h });
+      if (h) boards.push({ b, h });
     }
     if (!own && !boards.length) continue;
     const named = boards.filter((x) => x.h.marks.length > 0);
