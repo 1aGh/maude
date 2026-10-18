@@ -27,6 +27,8 @@ function dim(v: unknown, what: string, file: string): number | undefined {
 
 export const artboardResize: EditOp = {
   id: 'artboard.resize',
+  // S2.10b — an AI run holding the artboard refuses its resize
+  artboards: (req) => (typeof req.params.artboard === 'string' ? [req.params.artboard] : []),
   apply(source, req) {
     const id = req.params.artboard;
     if (typeof id !== 'string' || !ARTBOARD_ID_RE.test(id))

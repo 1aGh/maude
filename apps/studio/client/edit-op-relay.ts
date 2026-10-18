@@ -47,3 +47,31 @@ export async function readEditOpAnswer(res: Response): Promise<EditOpResult> {
     };
   return { ok: false, code: 'invalid', message: 'That edit did not go through; try again.' };
 }
+
+// ── S2.10b — the shell's own edit-op: ⌫ / "Move to trash" on an artboard ─────────────────────
+
+/** The canvas's legacy undo row for an artboard moved to the trash. */
+export const TRASH_RECORD_LABEL = 'Move artboard to the trash';
+
+/** `artboard.trash` for the active canvas (the shell pins the file, as for a canvas's own ask). */
+export function trashArtboardBody(activeFile: string, artboards: string[]): EditOpRequest | null {
+  const parsed = parseEditOpRequest({
+    file: activeFile,
+    op: 'artboard.trash',
+    targets: [],
+    params: { artboards },
+  });
+  return parsed.ok ? parsed.req : null;
+}
+
+/**
+ * The `record-edit` payload the shell posts the canvas after its own edit-op: only on a legacy link
+ * (no action id, a write id) — an op-log write undoes through the op log, never a second way.
+ */
+export function legacyRecordPayload(
+  r: EditOpResult,
+  label: string
+): { op: 'edit-op'; writeId: string; label: string } | null {
+  if (!r.ok || r.actionId || r.queued || !r.writeId) return null;
+  return { op: 'edit-op', writeId: r.writeId, label };
+}

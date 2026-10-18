@@ -442,7 +442,12 @@ export interface LocalRuntime {
   proposeLanes(
     slug: string,
     lanes: Array<{ lane: string; text: string; baseText: string }>,
-    o: { kind: string; label: string }
+    /** S2.10b — `origin.trashed`: an artboard-trash action (S1-trash.md §2) */
+    o: {
+      kind: string;
+      label: string;
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
   ): Promise<LocalOutcome>;
   acceptedHistory(q: {
     limit?: number;
@@ -1182,7 +1187,11 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   async function proposeLanes(
     slug: string,
     lanes: Array<{ lane: string; text: string; baseText: string }>,
-    o: { kind: string; label: string }
+    o: {
+      kind: string;
+      label: string;
+      origin?: { trashed?: Array<{ artboard: string; label?: string }> };
+    }
   ): Promise<LocalOutcome> {
     await readyP;
     return serial(async () => {
@@ -1215,7 +1224,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         const r = await submit(catchUp, { kind: OUTSIDE_KIND, label: null }, actor, {}, true);
         if (r.status !== 'accepted') return r;
       }
-      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, {}, true);
+      const origin = o.origin?.trashed?.length ? { trashed: o.origin.trashed } : {};
+      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, origin, true);
       if (r.status === 'accepted') {
         for (const l of lanes) if (!isExplicit(l.lane)) seen.set(`${live.path}|${l.lane}`, l.text);
       }

@@ -81,8 +81,10 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { WRITE_ID_RE } from './edit-ops/revert.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
+import { editOpRecord } from './editing/edit-op.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -3078,6 +3080,17 @@ function CanvasRouter({
               )
             );
           }
+          return;
+        }
+        // S2.10b — the shell's own edit-op (⌫ Move to trash on an artboard) on a legacy link: one
+        // revert record, as a canvas-asked edit-op records (editing/edit-op.ts). An op-log write
+        // posts none — it undoes through the op log.
+        if (p && (p as { op?: string }).op === 'edit-op') {
+          const w = (p as { writeId?: unknown }).writeId;
+          if (typeof w === 'string' && WRITE_ID_RE.test(w))
+            undoStack.record(
+              editOpRecord(w, typeof p.label === 'string' ? p.label : 'Move artboard to the trash')
+            );
           return;
         }
         if (

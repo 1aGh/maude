@@ -62,7 +62,14 @@ interface OutboxAction {
   operations: Operation[];
   dependsOn?: string[];
   /** V2-1.5 §5.1 — an AI run's publish names its run / chat / landing time (+ partial). */
-  origin?: { runId?: string; chatId?: string; madeAt?: number; partial?: true };
+  origin?: {
+    runId?: string;
+    chatId?: string;
+    madeAt?: number;
+    partial?: true;
+    /** S2.10b — an artboard-trash action's removed boards (S1-trash.md §2; kind `trash` only) */
+    trashed?: Array<{ artboard: string; label?: string }>;
+  };
   /** V2-1.15 §5.2 — the leases the publish holds; the kernel checks them in its commit. */
   fence?: { runId: string; leases: Array<{ entry: string; artboard: string; token: number }> };
 }

@@ -84,3 +84,11 @@ Annotations that belong to a moved artboard move with it (their `x` / `y` in the
 4. **Annotations are not copied** with an artboard (v2.0).
 
 "Rename" is the `label` prop (up to 80 characters). "Reset position" removes the board's `layout.artboards[]` entry.
+
+## Remove an artboard: the same result by hand (S2.10b)
+
+⌫ on a selected artboard and the artboard menu's "Move to trash" (the op `artboard.trash`,
+`edit-ops/artboard-trash.ts`) remove the whole `<DCArtboard id="…">…</DCArtboard>` element and its
+`layout.artboards[]` entry in the `.meta.json`. A canvas keeps at least one artboard. In the studio this is one
+project action, "Moved “<label>” to the trash": the Trash lists the artboard and one ⌘Z brings it back at its
+place. Removed by hand, the change is an ordinary edit of the file (Version history still has the board).

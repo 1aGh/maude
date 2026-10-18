@@ -55,7 +55,14 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/edit-css': { ...LANE_SOURCE, rows: 'S02' },
   '/_api/edit-attr': { ...LANE_SOURCE, rows: 'S03' },
   // S2.1 — the one dispatch route for S2/S3 structural edits (routes/edit.ts, edit-ops/)
-  '/_api/edit-op': { ...LANE_SOURCE, rows: 'S2-ops' },
+  // S2.10b — in accepted mode an op with a layout part (a copy and its place, an artboard moved to the
+  // trash) is ONE proposal: proposeLanes, html + meta (kind / label / origin.trashed from the op).
+  '/_api/edit-op': {
+    ...LANE_SOURCE,
+    rows: 'S2-ops',
+    via: 'an op that places or removes artboards: proposeLanes → one action, html + meta lane.replace with the read bases, written raw after acceptance; any other op: the source write path',
+    test: 'test/v2-artboard-one-step-hub.test.ts',
+  },
   '/_api/reorder': { ...LANE_SOURCE, rows: 'S04' },
   '/_api/delete-element': { ...LANE_SOURCE, rows: 'S05' },
   '/_api/insert-element': { ...LANE_SOURCE, rows: 'S06' },

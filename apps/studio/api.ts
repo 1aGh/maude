@@ -460,8 +460,9 @@ export type ReorderRevertResult =
 
 /** S4.7 — one lane of a two-lane action, as file text (the runtime canonicalizes). */
 export interface LaneChange {
-  /** S2.9b adds `meta`: an artboard move and its annotation riders (one action). */
-  lane: 'annotations' | 'comments' | 'meta';
+  /** S2.9b adds `meta`: an artboard move and its annotation riders (one action). S2.10b adds `html`:
+   *  an edit-op's source and its layout lane (a copy and its place, an artboard moved to the trash). */
+  lane: 'annotations' | 'comments' | 'meta' | 'html';
   text: string;
   baseText: string;
 }
@@ -574,7 +575,13 @@ export interface Api {
    * the file text it replaced) and cell announce as a layout write. No `last_modified` stamp. False
    * when the path is refused.
    */
-  writeCanvasMetaText(file: string, nextText: string, baseText: string | null): Promise<boolean>;
+  writeCanvasMetaText(
+    file: string,
+    nextText: string,
+    baseText: string | null,
+    /** S2.10b — `hooks: false`: an accepted-mode action already carries the lane (no `onMetaChanged`) */
+    opts?: { hooks?: boolean }
+  ): Promise<boolean>;
   // Annotations board (DDR-242 — .design/<slug>.annotations.json)
   /** Canonical board text; a not-yet-migrated legacy SVG is read through the migration. */
   loadAnnotations(file: string): Promise<string | null>;
@@ -2366,12 +2373,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   async function writeCanvasMetaText(
     file: string,
     nextText: string,
-    baseText: string | null
+    baseText: string | null,
+    opts?: { hooks?: boolean }
   ): Promise<boolean> {
     const metaAbs = canvasMetaPath(file);
     if (!metaAbs) return false;
     await Bun.write(metaAbs, nextText);
-    hooks.onMetaChanged?.(file, nextText, baseText);
+    if (opts?.hooks !== false) hooks.onMetaChanged?.(file, nextText, baseText);
     announceWritten(path.relative(paths.designRoot, metaAbs));
     return true;
   }

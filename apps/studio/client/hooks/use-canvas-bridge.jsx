@@ -9,7 +9,13 @@ import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
 import { applyEditRequest } from '../apply-edit-request.ts';
-import { editOpBody, readEditOpAnswer } from '../edit-op-relay.ts';
+import {
+  editOpBody,
+  legacyRecordPayload,
+  readEditOpAnswer,
+  TRASH_RECORD_LABEL,
+  trashArtboardBody,
+} from '../edit-op-relay.ts';
 import { localSelectRecord } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
@@ -1829,11 +1835,41 @@ export function useCanvasBridge({
     [structuralWrite, postToActiveCanvas, scheduleArtboardResync, activePath]
   );
 
+  // S2.10b — ⌫ / "Move to trash" on an artboard (the canvas's ⌫, its menu row, the shell's ⌫ guard)
+  // is the `artboard.trash` edit-op: on an op-log project ONE `kind: 'trash'` action (the Trash lists
+  // it, one ⌘Z brings the board and its place back); on a legacy link one write + one revert record
+  // on the canvas's undo stack. `/_api/delete-artboard` stays for its v1 callers.
   const deleteArtboardShell = useCallback(
     (artboardId) => {
-      structuralWrite('/_api/delete-artboard', { artboardId }, { label: 'delete artboard' });
+      if (!activePath || activePath === SYSTEM_TAB) return;
+      const body = trashArtboardBody(activePath, [artboardId]);
+      if (!body) return;
+      editApplyChainRef.current = editApplyChainRef.current
+        .catch(() => {})
+        .then(() =>
+          fetch('/_api/edit-op', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+            .then(readEditOpAnswer)
+            .then((r) => {
+              if (!r.ok) {
+                postToActiveCanvas({ dgn: 'op-toast', message: r.message });
+                return;
+              }
+              const payload = legacyRecordPayload(r, TRASH_RECORD_LABEL);
+              if (payload) postToActiveCanvas({ dgn: 'record-edit', payload });
+            })
+            .catch(() =>
+              postToActiveCanvas({
+                dgn: 'op-toast',
+                message: 'The studio could not be reached; try again.',
+              })
+            )
+        );
     },
-    [structuralWrite]
+    [activePath, postToActiveCanvas]
   );
 
   // feature-3-web-artboards T3 — "Duplicate at width…". No onOk auto-select
