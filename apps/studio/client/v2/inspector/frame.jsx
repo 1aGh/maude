@@ -81,6 +81,8 @@ export function InspectorFrame({
   onSetArtboardPrint,
   onDuplicateArtboard,
   onSelectCrumb,
+  editScope,
+  onDetachInstance,
 }) {
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
@@ -182,6 +184,8 @@ export function InspectorFrame({
         onRenameElementId={onRenameElementId}
         edit={edit}
         artboard={artboard}
+        editScope={editScope}
+        onDetachInstance={onDetachInstance}
       />
     </div>
   );

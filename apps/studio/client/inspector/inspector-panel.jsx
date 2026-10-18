@@ -723,6 +723,9 @@ export function InspectorPanel({
             onSetArtboardKind={onSetArtboardKind}
             onSetArtboardPrint={onSetArtboardPrint}
             onDuplicateArtboard={onDuplicateArtboard}
+            // S11.8 — › Advanced › Used in: "Shared · 4 places" + Detach
+            editScope={editScope}
+            onDetachInstance={onDetachInstance}
             // S2.1 — a crumb selects that level (ref null = the artboard) through the Layers path
             onSelectCrumb={(ref) =>
               onSelectLayer?.({ id: ref?.element, index: ref?.occurrence ?? 0 })

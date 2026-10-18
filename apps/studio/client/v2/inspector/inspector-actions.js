@@ -3,6 +3,9 @@
 //   inspector.copy-css   ⌘K "Copy CSS"          the selected element's declarations on the clipboard
 //   element.copy-id      ⌘K "Copy element id"   its id on the clipboard
 //   element.set-id       ⌘K "Edit element id…"  opens › Advanced and puts the cursor in the id field
+//   inspector.copy-code  ⌘K "Copy code"         the element's JSX on the clipboard (S11.8; Can comment and up)
+//   inspector.edit-css-as-text  ⌘K "Edit CSS as text…"  Advanced › CSS as one block (S11.8)
+//   element.detach       ⌘K "Detach"            this instance becomes its own component (S11.8)
 //
 // The menu runner (client/v2/shell/menu-runner.js) calls `runInspectorAction(id)`; the mounted frame binds the
 // handlers for the element it shows (frame.jsx), the same shape as left-panel-bus.js. With nothing bound
@@ -12,6 +15,10 @@ export const INSPECTOR_ACTION_IDS = Object.freeze([
   'inspector.copy-css',
   'element.copy-id',
   'element.set-id',
+  // S11.8 — Inspector › Advanced, the code half (bound by the fold, advanced.jsx)
+  'inspector.copy-code',
+  'inspector.edit-css-as-text',
+  'element.detach',
 ]);
 
 /** @type {Map<string, () => Promise<string | null> | string | null>} */
