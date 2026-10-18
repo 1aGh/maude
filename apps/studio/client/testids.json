@@ -12660,6 +12660,34 @@
     "v2": "new"
   },
   {
+    "hook": "ab-custom-width",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the small \"Width\" field that opens beside the pointer for the artboard menu's Duplicate at another width ▸ Custom width… (↵ copies at that width, esc closes).",
+    "producer": {
+      "file": "apps/studio/editing/artboard-commands.tsx",
+      "symbol": "ArtboardCommands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-artboard-menu.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "ab-custom-width-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the number input inside that Custom width field.",
+    "producer": {
+      "file": "apps/studio/editing/artboard-commands.tsx",
+      "symbol": "ArtboardCommands"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-artboard-menu.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "edit-ab-guides",
     "kind": "testid",
     "pattern": false,

@@ -141,6 +141,8 @@ import {
   type DragFrame,
   type LayoutRect,
 } from './drag-bus.ts';
+import { routeDrop } from './editing/duplicate-rhythm.ts';
+import { growCh, nextRenameId, RENAME_EVENT, requestRename } from './editing/rename-order.ts';
 import { applyCaptureChrome } from './exporters/capture-chrome.ts';
 import {
   type DomToSvgApi,
@@ -639,7 +641,7 @@ export function useWorldRefContext(): RefObject<HTMLDivElement | null> | null {
 
 const VP_GRID = { cols: 3, w: 1280, h: 820, gutter: 80 } as const;
 
-interface ArtboardSeed {
+export interface ArtboardSeed {
   id: string;
   w: number;
   h: number;
@@ -720,7 +722,7 @@ function subtreeHasVideoComp(children: ReactNode): boolean {
   return visit(children);
 }
 
-function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
+export function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
   // Render order (the order DCArtboards appear in JSX), not alphabetical —
   // authors label artboards DS-01 / DS-02 / CV-01 etc. and expect that
   // numeric order to show top-left → bottom-right, but their ids are usually
@@ -2581,7 +2583,9 @@ export function DCArtboard({
     // S2.9b — the ⌥-drag duplicate gesture carries no riders (contract §2: annotations are not
     // duplicated with an artboard in v2.0); every other drop rides.
     onCommit: (moved, { alt }) => {
-      if (dragBus) dragBus.commitPositions(moved, alt ? { riders: false } : undefined);
+      // S2.10 — an ⌥ drop copies (the originals stay; `editing/artboard-commands.tsx` writes the copy);
+      // with nothing listening (an embed, a specimen) it is the v1 move, without riders (contract §2).
+      if (dragBus) routeDrop(alt, moved, window, (m, o) => dragBus.commitPositions(m, o));
     },
     onFrame: (f) => dragBus?.emitFrame(f),
   });
@@ -2612,6 +2616,17 @@ export function DCArtboard({
   // shell writes the `label` prop), Escape or an unchanged name cancels.
   const [renaming, setRenaming] = useState(false);
   const renameDoneRef = useRef(false);
+  // S2.10 — the registry's `artboard.rename` and Tab from the previous name open this one's field.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const open = (e: Event) => {
+      if ((e as CustomEvent<{ id?: string }>).detail?.id !== id || isReadOnlyCanvas()) return;
+      renameDoneRef.current = false;
+      setRenaming(true);
+    };
+    window.addEventListener(RENAME_EVENT, open);
+    return () => window.removeEventListener(RENAME_EVENT, open);
+  }, [id]);
   const commitRename = (value: string) => {
     if (renameDoneRef.current) return;
     renameDoneRef.current = true;
@@ -2821,6 +2836,12 @@ export function DCArtboard({
             aria-label="Artboard name"
             defaultValue={label}
             maxLength={80}
+            // S2.10 — the field is as wide as the whole name (never the artboard's width, which would hide
+            // the end of a long one); it grows with every key.
+            style={{ width: 'max-content', minWidth: `max(100%, ${growCh(label)}ch)` }}
+            onInput={(e) => {
+              e.currentTarget.style.minWidth = `max(100%, ${growCh(e.currentTarget.value)}ch)`;
+            }}
             // biome-ignore lint/a11y/noAutofocus: the rename field opens on the designer's own double-click
             autoFocus
             onFocus={(e) => e.currentTarget.select()}
@@ -2831,7 +2852,13 @@ export function DCArtboard({
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === 'Enter') commitRename(e.currentTarget.value);
-              else if (e.key === 'Escape') {
+              else if (e.key === 'Tab') {
+                // S2.10 — save, then the next artboard's name opens (reading order; ⇧ goes back)
+                e.preventDefault();
+                const to = nextRenameId(ctx?.artboards ?? [], id, e.shiftKey);
+                commitRename(e.currentTarget.value);
+                if (to) requestRename(to);
+              } else if (e.key === 'Escape') {
                 renameDoneRef.current = true;
                 setRenaming(false);
               }

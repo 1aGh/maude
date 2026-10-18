@@ -358,3 +358,139 @@ describe('edit-artboards (part 2) — arrange: Tidy up', () => {
     await browser.keys('Escape');
   });
 });
+
+/**
+ * 14 Editing — artboards, part 3 (S2.10): the artboard's own menu, ⌘D at the row's gap, rename in place with Tab.
+ * Right-click the name: Ask AI (greyed), Duplicate ⌘D, Duplicate at another width ▸, Rename, Export…, Advanced ▸,
+ * Move to trash. ⌘D lands "Příběh 2" to the right at the gap the row uses, selected, positions in the layout lane;
+ * ⌘Z takes the copy back. Double-click a name: the field is as wide as the whole name, ↵ saves, Tab opens the next
+ * artboard's name. WRITTEN, NOT RUN (the lead runs the desktop lane); the canvas is written at run time and removed.
+ */
+const MENU_TSX = join(HERE, '../fixtures/project/.design/ui/ArtboardMenu.tsx');
+const MENU_META = join(HERE, '../fixtures/project/.design/ui/ArtboardMenu.meta.json');
+const MENU_START: Array<[string, string, number]> = [
+  ['a', 'Příběh', 0],
+  ['b', 'Druhá', 360],
+];
+const menuSource = () => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
+
+export default function ArtboardMenu() {
+  return (
+    <DesignCanvas>
+      <DCSection id="menu" title="Menu" subtitle="S2.10">
+${MENU_START.map(([id, label]) => `        <DCArtboard id="${id}" label="${label}" width={240} height={320} fixed>\n          <div data-cd-id="${id}-body" style={{ padding: 16 }}>{"${id}"}</div>\n        </DCArtboard>`).join('\n')}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+`;
+const menuMeta = () =>
+  JSON.stringify(
+    {
+      title: 'ArtboardMenu',
+      layout: { artboards: MENU_START.map(([id, , x]) => ({ id, x, y: 0 })) },
+    },
+    null,
+    2
+  );
+const menuLayout = () =>
+  (
+    JSON.parse(readFileSync(MENU_META, 'utf8')) as {
+      layout: { artboards: Array<{ id: string; x: number; y: number }> };
+    }
+  ).layout.artboards;
+
+describe('edit-artboards (part 3) — the artboard menu, ⌘D, rename in place', () => {
+  before(() => {
+    fixtures.snapshot();
+    writeFileSync(MENU_TSX, menuSource());
+    writeFileSync(MENU_META, menuMeta());
+    startReport('edit-artboards (part 3)');
+  });
+  after(() => {
+    rmSync(MENU_TSX, { force: true });
+    rmSync(MENU_META, { force: true });
+    fixtures.restore();
+  });
+
+  it('right-click the name: the menu rows in the design’s order', async () => {
+    await waitForSidecar();
+    const row = await canvasRow('canvas-row-ui-artboardmenu');
+    await row.waitForExist({ timeout: 60_000 });
+    await row.click();
+    await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });
+    await inFrame((d) => {
+      const win = d.defaultView as Window & typeof globalThis;
+      const label = d.querySelector('[data-dc-screen="a"] .dc-artboard-label') as HTMLElement;
+      label.dispatchEvent(
+        new win.MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 80,
+          clientY: 120,
+        })
+      );
+      return true;
+    });
+    const rows = await inFrame((d) =>
+      [...d.querySelectorAll('[data-testid^="canvas-menu-item-"]')].map((n) =>
+        (n.getAttribute('data-testid') ?? '').replace('canvas-menu-item-', '')
+      )
+    );
+    expect(rows.slice(0, 3)).toEqual(['ask-ai', 'duplicate-artboard', 'duplicate-at-width']);
+    expect(rows).toContain('rename-artboard');
+    expect(rows).toContain('delete-artboard');
+    await capture('artboard-menu');
+    await browser.keys('Escape');
+  });
+
+  it('⌘D: “Příběh 2” lands to the right at the row’s gap; positions in the layout lane; ⌘Z takes it back', async () => {
+    await onLabel('a', ['pointerdown', 'pointerup', 'click']);
+    await inFrame((d) => {
+      const win = d.defaultView as Window & typeof globalThis;
+      d.dispatchEvent(
+        new win.KeyboardEvent('keydown', {
+          key: 'd',
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      return true;
+    });
+    await browser.waitUntil(() => readFileSync(MENU_TSX, 'utf8').includes('id="a-2"'), {
+      timeout: 15_000,
+      timeoutMsg: '⌘D never wrote the copy',
+    });
+    expect(readFileSync(MENU_TSX, 'utf8')).toContain('label="Příběh 2"');
+    const copy = menuLayout().find((b) => b.id === 'a-2');
+    expect(copy?.y).toBe(0);
+    // b stands where the copy would first go (x 240 + 120): the copy is pushed past it, at the same gap
+    expect(copy?.x).toBeGreaterThanOrEqual(360 + 240);
+    await capture('artboard-duplicate-selected');
+    await browser.keys(['Meta', 'z']);
+    await browser.waitUntil(() => !readFileSync(MENU_TSX, 'utf8').includes('id="a-2"'), {
+      timeout: 15_000,
+      timeoutMsg: 'one ⌘Z did not take the copy back',
+    });
+  });
+
+  it('double-click the name, Tab: the next artboard’s name opens', async () => {
+    await onLabel('a', ['dblclick']);
+    expect(await inFrame((d) => !!d.querySelector('[data-testid="artboard-rename-a"]'))).toBe(true);
+    await inFrame((d) => {
+      const win = d.defaultView as Window & typeof globalThis;
+      const input = d.querySelector('[data-testid="artboard-rename-a"]') as HTMLInputElement;
+      input.dispatchEvent(
+        new win.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+      );
+      return true;
+    });
+    await browser.waitUntil(
+      async () => inFrame((d) => !!d.querySelector('[data-testid="artboard-rename-b"]')),
+      { timeout: 10_000, timeoutMsg: 'Tab never opened the next name' }
+    );
+    await capture('artboard-rename-tab');
+    await browser.keys('Escape');
+  });
+});

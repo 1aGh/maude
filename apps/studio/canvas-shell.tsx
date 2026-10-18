@@ -81,6 +81,8 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { useArtboardActions } from './editing/artboard-actions.ts';
+import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -1052,6 +1054,7 @@ function CanvasCore({
   );
 
   const objectOps = useObjectOps();
+  const artboardActions = useArtboardActions();
   const registry = useMemo<ContextRegistry>(
     () =>
       buildRegistry({
@@ -1062,8 +1065,17 @@ function CanvasCore({
         alignArtboards,
         focusArtboard,
         objectMenu: objectOps.menuDeps,
+        artboardMenu: artboardActions.menuDeps,
       }),
-    [controller, selSet, distributeArtboards, alignArtboards, focusArtboard, objectOps]
+    [
+      controller,
+      selSet,
+      distributeArtboards,
+      alignArtboards,
+      focusArtboard,
+      objectOps,
+      artboardActions,
+    ]
   );
 
   // Distribute is reached via the align bar (editing/align-bar.tsx, above the
@@ -1433,6 +1445,8 @@ function buildRegistry(deps: {
   focusArtboard: (artboardId: string) => void;
   /** S2.6 — what the object menu's rows run (editing/object-actions.ts) */
   objectMenu: ObjectMenuDeps;
+  /** S2.10 — what the artboard menu's rows run (editing/artboard-actions.ts) */
+  artboardMenu: ArtboardMenuDeps;
 }): ContextRegistry {
   const { controller, clearSelection, selSet, distributeArtboards, alignArtboards, focusArtboard } =
     deps;
@@ -2364,6 +2378,11 @@ function buildRegistry(deps: {
   };
   // S2.6 — the v1 element rows above, laid out as the v2 object menu (editing/object-menu.tsx)
   registry.element = objectMenuSections(registry.element, deps.objectMenu);
+  // S2.10 — the v1 artboard rows, laid out as the v2 artboard menu (editing/artboard-menu.tsx)
+  registry['artboard-chrome'] = artboardMenuSections(
+    registry['artboard-chrome'],
+    deps.artboardMenu
+  );
   return filterRegistryForReadOnly(registry);
 }
 
