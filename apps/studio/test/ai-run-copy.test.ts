@@ -123,7 +123,8 @@ function setup(over: Partial<Parameters<typeof createAiRoutes>[0]> = {}) {
         calls.push(`accepted ${rel}`);
         return ACCEPTED;
       },
-      beginAiAction: (key, label) => void calls.push(`begin ${key} ${label}`),
+      beginAiAction: (key, label, meta) =>
+        void calls.push(`begin ${key} ${label} ${JSON.stringify(meta)}`),
       claimAiWrite: (key, rel, hash) => void calls.push(`claim ${key} ${rel} ${hash}`),
     }),
     ...over,
@@ -187,8 +188,9 @@ describe('POST /_api/ai/runs/:id/copy', () => {
     const written = readFileSync(abs, 'utf8');
     expect(calls).toEqual([
       'accepted .design/ui/C.tsx',
-      'begin acp:c2 Claude: c2',
-      `claim acp:c2 .design/ui/C.tsx ${hashBytes(written)}`,
+      // the chat run's stage IS the run: the tracker joins it, the registry ends it
+      `begin ${w.runId} Claude: c2 ${JSON.stringify({ runId: w.runId, chatId: 'c2' })}`,
+      `claim ${w.runId} .design/ui/C.tsx ${hashBytes(written)}`,
     ]);
     // the line moved up: when the holder finishes, the third ask gets P (not the copied ask)
     await reg.turnEnded(busy.runId, 'done');
@@ -293,5 +295,48 @@ describe('POST /_api/ai/runs/:id/copy', () => {
       m.params
     );
     expect(res?.status).toBe(400);
+  });
+});
+
+describe('the copy is the waiting run’s write, in the run’s own stage (V2-1.5 §5.5)', () => {
+  test('the chat tracker’s later begin joins the stage the copy opened; the busy run never owns the copy', async () => {
+    const { createActionStage } = await import('../sync/action-stage.ts');
+    const dir = mkdtempSync(path.join(tmpdir(), 'ai-copy-stage-'));
+    dirs.push(dir);
+    const stage = createActionStage({
+      designRoot: dir,
+      propose: async () => ({ status: 'accepted' }) as never,
+      newTransactionId: () => 'tx_1',
+      log: { log() {}, warn() {} },
+    });
+    // the busy run holds the canvas (it claimed the slug)
+    const busy = 'r_busy00000001';
+    stage.begin(busy, 'Claude: Make it greener', { runId: busy });
+    stage.claim(busy, 'ui-c', null);
+    // what routes/ai.ts does before the copy lands (stageOf → the waiting run's own id)
+    const w = 'r_wait00000001';
+    const copyBytes = 'export default () => null; // with the copy';
+    stage.begin(w, 'Claude: Headline in one word', { runId: w, chatId: 'c2' });
+    stage.claim(w, 'ui-c', hashBytes(copyBytes));
+    // then the chat's own turn (acp/index.ts tracker): `acp:<chat>` with {runId} joins it
+    stage.begin('acp:c2', 'Claude: Headline in one word', { runId: w, chatId: 'c2' });
+    expect(
+      stage
+        .runs()
+        .map((r) => r.runId)
+        .sort()
+    ).toEqual([busy, w].sort());
+    // the watcher's import of the copy is staged by the WAITING run (matched by hash)
+    expect(stage.captures('ui-c', true, copyBytes)).toBe(true);
+    void stage.capture('ui-c', 'doc-ui-c', {
+      lane: 'html',
+      content: copyBytes,
+      baseContent: 'export default () => null;',
+      transactionId: 'tx_w1',
+      stageable: true,
+    } as never);
+    await tick();
+    expect(stage.runs().find((r) => r.runId === w)?.canvases).toEqual(['ui-c']);
+    expect(stage.runs().find((r) => r.runId === busy)?.canvases).toEqual([]);
   });
 });
