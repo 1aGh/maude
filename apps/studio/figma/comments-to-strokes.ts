@@ -60,6 +60,11 @@ export interface CommentStrokesResult {
   unplacedIds: string[];
 }
 
+/** The id of the sticky a comment thread becomes (so `--into` can name its author). */
+export function commentStrokeId(commentId: string): string {
+  return `figc_${commentId.replace(/[^0-9A-Za-z]+/g, '_')}`;
+}
+
 /** Index every node on a page by id, so a pin can find what it hangs off. */
 export function indexNodes(root: FigmaNode): Map<string, FigmaNode> {
   const out = new Map<string, FigmaNode>();
@@ -141,7 +146,7 @@ export function commentsToStrokes(
     const h = Math.min(CARD_MAX_H, Math.max(CARD_MIN_H, lines * LINE_H + 24));
 
     const card: StickyStroke = {
-      id: `figc_${root.id.replace(/[^0-9A-Za-z]+/g, '_')}`,
+      id: commentStrokeId(root.id),
       tool: 'sticky',
       color: root.resolved ? RESOLVED_COLOR : DEFAULT_STICKY_COLOR,
       x: Math.round(wx - origin.x),
