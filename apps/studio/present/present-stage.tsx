@@ -21,8 +21,17 @@ import { type RefObject, useEffect, useRef, useSyncExternalStore } from 'react';
 import { canvasModeStore, reportPresentPosition } from '../bridge/canvas-mode-store.ts';
 import type { ArtboardRect } from '../canvas-lib.tsx';
 import { resolveBleedMm, resolveMmPx } from '../print/units.ts';
+import {
+  type AwarenessChanges,
+  readForeignPeers,
+  touchesForeignClient,
+  useCollab,
+} from '../use-collab.tsx';
 import { cameraFor, fitForKind } from './fit.ts';
+import { createFollower, type FollowView, newPresentSid } from './follow.ts';
 import { type PresentMeta, presentRun, startIndex } from './order.ts';
+import { usePointerDot } from './pointer-dot.tsx';
+import { usePresentZoom } from './present-zoom.ts';
 
 export interface Camera {
   x: number;
@@ -57,6 +66,13 @@ export interface StageDeps {
   now(): number;
   reducedMotion(): boolean;
   liftMs(): number;
+  /** S3.7a — every announced move; may return the session to stamp on `present-position`. */
+  onMove?(pos: { index: number; total: number; artboardId: string }): {
+    sid: string;
+    seq: number;
+  } | null;
+  /** S3.7a — a person moved the stage here (a key or a click), not the shell or the presenter. */
+  onLocalStep?(): void;
 }
 
 export interface StageState {
@@ -72,6 +88,11 @@ export interface PresentStage {
   step(to: number | 'next' | 'prev'): void;
   /** The artboards, the host or the meta changed under a running stage: re-fit without a tween. */
   refresh(): void;
+  /** S3.7a — follow mode: show the presenter's artboard (by id; its index when the id is not in this
+   *  run). A no-op when it is already on screen. */
+  goTo(artboardId: string, index: number): void;
+  /** S3.7a — the audience window: keys and clicks do nothing, and the pointer is hidden. */
+  setLocked(locked: boolean): void;
   /** Unmount: undo everything at once. */
   dispose(): void;
   state(): StageState;
@@ -120,6 +141,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
   let tween: number | null = null;
   let exiting = false;
   let detach: (() => void) | null = null;
+  let locked = false;
 
   const ms = () => (deps.reducedMotion() ? 1 : Math.max(1, deps.liftMs()));
 
@@ -243,10 +265,13 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       }
       if (!cam || !sameCam(cam, to)) setCam(to);
     }
-    if (announce) reportPresentPosition(deps.win, { index, total, artboardId: id });
+    if (announce) {
+      const session = deps.onMove?.({ index, total, artboardId: id }) ?? null;
+      reportPresentPosition(deps.win, { index, total, artboardId: id, ...(session ?? {}) });
+    }
   };
 
-  const go = (to: number | 'next' | 'prev') => {
+  const go = (to: number | 'next' | 'prev', local = false) => {
     if (!active || exiting) return;
     const n = currentRun().run.length;
     if (n === 0) return;
@@ -255,6 +280,12 @@ export function createPresentStage(deps: StageDeps): PresentStage {
     const clamped = Math.min(Math.max(0, target), n - 1);
     if (clamped === index && artboardId !== null) return; // the end (or the start): nothing to move to
     show(clamped, 'cut', true);
+    if (local) deps.onLocalStep?.();
+  };
+
+  const applyCursor = () => {
+    const host = deps.getHost();
+    if (host) host.style.cursor = active && locked ? 'none' : '';
   };
 
   const askBack = () => {
@@ -274,6 +305,11 @@ export function createPresentStage(deps: StageDeps): PresentStage {
   };
 
   const onKey = (e: KeyboardEvent) => {
+    if (locked) {
+      // The audience window takes no keys at all — the presenter's Mac drives it.
+      consume(e);
+      return;
+    }
     if (e.key === 'Escape') {
       consume(e);
       askBack();
@@ -291,7 +327,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
     else if (e.key === ' ' || e.code === 'Space') to = e.shiftKey ? 'prev' : 'next';
     if (!to) return;
     consume(e);
-    if (!e.repeat) go(to);
+    if (!e.repeat) go(to, true);
   };
 
   const attach = () => {
@@ -303,7 +339,8 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       if (!own(e)) return;
       const m = e as MouseEvent;
       consume(e);
-      if (m.button === 0 && !m.metaKey && !m.ctrlKey && !m.altKey && !m.shiftKey) go('next');
+      if (locked) return;
+      if (m.button === 0 && !m.metaKey && !m.ctrlKey && !m.altKey && !m.shiftKey) go('next', true);
     };
     // The router and the viewport controller must not see the audience's mouse: nothing is selected,
     // dragged, edited or panned on the stage.
@@ -372,6 +409,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       // The audience sees no selection halo: clear it now, restore it on the way out.
       if (sel && saved.selection.length > 0) sel.clear();
       attach();
+      applyCursor();
       const r = currentRun();
       show(startIndex(r, from), 'lift', true);
     },
@@ -381,6 +419,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       active = false;
       detach?.();
       detach = null;
+      applyCursor();
       const s = saved;
       const sel = deps.getSelection();
       if (sel && s && s.selection.length > 0) sel.replace(s.selection as never);
@@ -392,6 +431,22 @@ export function createPresentStage(deps: StageDeps): PresentStage {
 
     step: (to) => go(to),
     refresh,
+
+    goTo(id, at) {
+      if (!active || exiting) return;
+      const run = currentRun().run;
+      if (run.length === 0) return;
+      let i = run.indexOf(id);
+      if (i < 0)
+        i = Math.min(Math.max(0, Math.trunc(Number.isFinite(at) ? at : 0)), run.length - 1);
+      if (i === index && artboardId === run[i]) return;
+      show(i, 'cut', true);
+    },
+
+    setLocked(next) {
+      locked = !!next;
+      applyCursor();
+    },
 
     dispose() {
       if (active) {
@@ -405,6 +460,7 @@ export function createPresentStage(deps: StageDeps): PresentStage {
       if (exiting) finishExit();
       cancelTween();
       removeMask();
+      applyCursor();
     },
 
     state: () => ({ active, index, total, artboardId }),
@@ -466,6 +522,19 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
   const from = snap?.present?.from;
   const stepN = snap?.step?.n ?? 0;
   const stepTo = snap?.step?.to;
+  // S3.7a — publish the position on awareness only while the shell grants it (caps.present).
+  const broadcast = active && snap?.caps?.present === true;
+  const follow = active ? (snap?.follow ?? null) : null;
+
+  const collab = useCollab();
+  const collabRef = useRef(collab);
+  collabRef.current = collab;
+  const broadcastRef = useRef(broadcast);
+  broadcastRef.current = broadcast;
+  /** The running presentation session (new per Present start), while broadcasting. */
+  const sessionRef = useRef<{ sid: string; seq: number } | null>(null);
+  /** The follower loop (S3.7a), while following. */
+  const followRef = useRef<{ moved(): void; localStep(): void } | null>(null);
 
   const engineRef = useRef<PresentStage | null>(null);
   if (!engineRef.current && win) {
@@ -485,6 +554,21 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
       now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
       reducedMotion: () => reducedMotion(win),
       liftMs: () => cssMs(win),
+      onMove: (pos) => {
+        followRef.current?.moved();
+        if (!broadcastRef.current) return null;
+        let s = sessionRef.current;
+        if (s) s.seq += 1;
+        else {
+          s = { sid: newPresentSid(), seq: 0 };
+          sessionRef.current = s;
+        }
+        collabRef.current?.publishAwareness({
+          present: { v: 1, sid: s.sid, ...pos, seq: s.seq, media: null },
+        });
+        return { sid: s.sid, seq: s.seq };
+      },
+      onLocalStep: () => followRef.current?.localStep(),
     });
   }
 
@@ -504,6 +588,33 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
     engineRef.current?.step(stepTo);
   }, [active, stepN]);
 
+  // S3.7a — stop broadcasting (Present ended, a role clamp took caps.present away): clear the field so
+  // followers see "ended", and start a new session next time.
+  useEffect(() => {
+    if (broadcast || !sessionRef.current) return;
+    sessionRef.current = null;
+    collabRef.current?.publishAwareness({ present: null });
+  }, [broadcast]);
+
+  // S3.7a — a closing page clears its position at once (the throttled publish would not flush).
+  useEffect(() => {
+    if (!win) return;
+    const onHide = () => {
+      if (!sessionRef.current) return;
+      sessionRef.current = null;
+      collabRef.current?.publishAwareness({ present: null });
+      try {
+        collabRef.current?.awareness.setLocalStateField('present', null);
+      } catch {
+        /* no awareness */
+      }
+    };
+    win.addEventListener('pagehide', onHide);
+    return () => win.removeEventListener('pagehide', onHide);
+  }, [win]);
+
+  usePresentFollow(win, engineRef, followRef, follow, collab);
+
   // The artboards (a drag, an HMR, a peer's order) moved under a running stage.
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh on the artboard list only
   useEffect(() => {
@@ -512,4 +623,119 @@ export function usePresentStage(opts: UsePresentStageOptions): void {
 
   // Unmount: declared after the start/stop effect, so its cleanup runs second and lands the exit at once.
   useEffect(() => () => engineRef.current?.dispose(), []);
+
+  // S3.2b — the two small things Present · Canvas shares with this stage, mounted here so canvas-lib's
+  // one mount point stays the only one: the presenter's Pointer (L) and the zoom the shell's pill shows.
+  usePointerDot({ viewport: opts.controller.viewport });
+  usePresentZoom(opts.controller.viewport.zoom);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S3.7a — follow mode (a follower canvas: `follow=1`, seeded by client/v2/present/follow-view.jsx)
+
+type FollowSnap = { sid: string | null; live: boolean; locked: boolean; n: number } | null;
+
+/**
+ * Keep the stage on the presenter's artboard while Live; a local ← → (or a click) turns Live off and the
+ * follower page offers Catch up (`present-follow {live: true}`). Reads foreign states only through the
+ * trust boundary (`readForeignPeers` → `sanitizeForeignState`), publishes `watching`, and tells the
+ * follower page what it shows (`present-follow-state`).
+ */
+function usePresentFollow(
+  win: Window | null,
+  engineRef: { current: PresentStage | null },
+  followRef: { current: { moved(): void; localStep(): void } | null },
+  follow: FollowSnap,
+  collab: ReturnType<typeof useCollab>
+): void {
+  const following = !!follow && !!win;
+  const wantSid = follow?.sid ?? null;
+  const liveRef = useRef(true);
+  const lockedRef = useRef(false);
+  const tickRef = useRef<(() => void) | null>(null);
+  const viewRef = useRef<FollowView | null>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one loop per (session, collab)
+  useEffect(() => {
+    if (!following || !win) return;
+    const follower = createFollower(wantSid);
+    let watching: string | null = null;
+    const post = () => {
+      const v = viewRef.current;
+      const st = engineRef.current?.state();
+      const t = v?.target ?? null;
+      const clampInt = (n: number) => Math.min(2000, Math.max(0, Math.trunc(n) || 0));
+      if (win.parent === win) return;
+      try {
+        win.parent.postMessage(
+          {
+            dgn: 'present-follow-state',
+            live: liveRef.current,
+            sid: v?.sid ?? null,
+            presenterName: (v?.presenterName ?? '').slice(0, 64),
+            presenterIndex: clampInt(t?.index ?? 0),
+            index: clampInt(st?.index ?? 0),
+            total: clampInt(t?.total ?? st?.total ?? 0),
+            watchers: Math.min(100000, Math.max(0, v?.watchers ?? 0)),
+            ended: !!v?.ended,
+          },
+          '*'
+        );
+      } catch {
+        /* detached */
+      }
+    };
+    const tick = () => {
+      const peers = collab ? readForeignPeers(collab.awareness) : [];
+      const v = follower.update(peers);
+      viewRef.current = v;
+      if (v.sid !== watching) {
+        watching = v.sid;
+        collab?.publishAwareness({ watching });
+      }
+      const t = v.target;
+      // goTo announces a move, which posts the state itself; post here only when nothing moved.
+      const before = engineRef.current?.state().artboardId;
+      if (liveRef.current && t) engineRef.current?.goTo(t.artboardId, t.index);
+      if (engineRef.current?.state().artboardId === before) post();
+    };
+    tickRef.current = tick;
+    followRef.current = {
+      moved: () => post(),
+      localStep: () => {
+        if (!liveRef.current) return;
+        liveRef.current = false;
+        post();
+      },
+    };
+    const aw = collab?.awareness;
+    const onChange = (changes?: AwarenessChanges) => {
+      if (aw && !touchesForeignClient(changes, aw.clientID)) return;
+      tick();
+    };
+    aw?.on('change', onChange);
+    tick();
+    return () => {
+      aw?.off('change', onChange);
+      tickRef.current = null;
+      followRef.current = null;
+      viewRef.current = null;
+      if (watching !== null) collab?.publishAwareness({ watching: null });
+    };
+  }, [following, wantSid, collab]);
+
+  // Each `present-follow` (n counts them): live / locked as the follower page says; Catch up rejoins.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one apply per `n`
+  useEffect(() => {
+    if (!follow) {
+      if (lockedRef.current) engineRef.current?.setLocked(false);
+      lockedRef.current = false;
+      liveRef.current = true;
+      return;
+    }
+    liveRef.current = follow.live;
+    lockedRef.current = follow.locked;
+    engineRef.current?.setLocked(follow.locked);
+    tickRef.current?.();
+  }, [follow?.n, following]);
 }
