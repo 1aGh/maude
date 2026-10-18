@@ -101,7 +101,16 @@ process.on('exit', () => {
 // never regenerate dev bundles over the release artifacts we are testing.
 const serverLog = [];
 server = spawn('bun', [join(STUDIO, 'server.ts'), '--root', projectRoot], {
-  env: { ...process.env, NO_OPEN: '1', MAUDE_NO_AUTOBUILD: '1', MAUDE_SYNC_IN_CI: '1' },
+  env: {
+    ...process.env,
+    NO_OPEN: '1',
+    MAUDE_NO_AUTOBUILD: '1',
+    MAUDE_SYNC_IN_CI: '1',
+    // S5.1b — the unlinked boot project stamps a machine id; keep it in the throwaway dir, never
+    // ~/.config/maude/machine.json (and the person's prefs/config with it).
+    XDG_CONFIG_HOME: join(work, 'config'),
+    MAUDE_MACHINE_FILE: join(work, 'config', 'maude', 'machine.json'),
+  },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 server.stdout.on('data', (d) => serverLog.push(String(d)));
