@@ -127,7 +127,13 @@ describe('POST /_api/project/undo', () => {
         new Request('http://localhost/_api/project/undo-stack?canvas=.design/ui/a.tsx'),
         {}
       );
-    expect(await (await get()).json()).toEqual({ ok: true, entries: [], redo: [] });
+    // (S5.15 U22 — a local home can always undo a chat as one version)
+    expect(await (await get()).json()).toEqual({
+      ok: true,
+      entries: [],
+      redo: [],
+      chatUndo: { ok: true },
+    });
     // …a panel undo IS an entry (⌘Z takes it back)
     await route(specs, 'POST', '/_api/project/undo').handle(
       post({ actionId: s1.actionId, via: 'panel' }),

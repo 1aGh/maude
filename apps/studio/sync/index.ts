@@ -682,6 +682,11 @@ export interface SyncRuntime {
     actionId?: string;
   } | null>;
   /**
+   * S5.15 (U22) — does the home undo several actions as ONE? The hub's bootstrap says so with
+   * `capabilities.undoTargets` (S5.1a); an older hub lacks it. null = no bootstrap read yet.
+   */
+  chatUndoReady?(): boolean | null;
+  /**
    * Personal undo/redo of this actor's accepted actions (T28). S5.5: one id,
    * several (`actionIds` — "as if they never happened", ONE action), or a
    * whole chat (`chatId` → this person's actions of that chat).
@@ -5767,6 +5772,12 @@ export function createSyncRuntime(
         revision,
         o?.label ?? `Restore ${name} to version ${revision}`
       );
+    },
+    chatUndoReady: () => {
+      if (!acceptedOn() || !acceptedLink?.manifest) return null;
+      const n = (acceptedLink.manifest as { capabilities?: { undoTargets?: unknown } })
+        ?.capabilities?.undoTargets;
+      return typeof n === 'number' && n > 1;
     },
     acceptedUndo: async (raw, redo = false, o) => {
       if (!acceptedOn() || !acceptedLink) return null;

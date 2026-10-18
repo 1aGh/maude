@@ -57,8 +57,8 @@ import { createActionStage, type RunFence, type RunStageSummary } from './action
 import { atomicWrite } from './atomic-write.ts';
 import { validateCanvasPath } from './canvas-path.ts';
 import { laneValueFromFile, mergeSharedMetaIntoLocal } from './codec.ts';
-import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { hashBytes } from './echo-guard.ts';
+import { canvasLanes, namedField, type RowNamed } from './history-fields.ts';
 import { mergeSource } from './source-merge.ts';
 import { type ParkedCanvas, removeClearedCopies } from './trash-clear-copies.ts';
 import {
@@ -499,6 +499,8 @@ export interface LocalRuntime {
     content: string,
     label?: string
   ): Promise<LocalOutcome>;
+  /** S5.15 (U22) — always true: the in-process kernel takes `actionIds`. */
+  chatUndoReady(): boolean;
   acceptedUndo(
     target: string | UndoTarget,
     redo?: boolean,
@@ -702,6 +704,13 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         : null,
     log: { log() {}, warn: (m: string) => log.warn(m) },
     now,
+    // S5.15 — a run's write refused run-overlap leaves the disk: what the lane held before comes back
+    // (and is what `seen` says, so the watcher records nothing).
+    onRefused: (w) => {
+      if (!(LOCAL_LANES as readonly string[]).includes(w.lane)) return;
+      const lane = w.lane as LocalLane;
+      if (diskLane(w.slug, lane) === w.content) writeLane(w.slug, lane, w.base);
+    },
   });
 
   function noteWritten(rel: string, content: string): void {
@@ -1225,6 +1234,18 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
           continue;
         }
         if (!c.created && !c.revived && !(await diskMatches(c.path, c.doc, l))) {
+          // S5.15 — an open run's staged bytes are on disk over what the store held (⌘Z on your own
+          // edit while the run works): the accepted change is replayed onto the disk three-way, so
+          // your edit leaves and the run's bytes stay. Anything else unrecorded is left as it is.
+          if (l === 'html' && current !== null && stage.accepted(c.path, 'html') !== null) {
+            const h = await store.laneAt(c.doc, 'html', p.revision - 1);
+            const before = h ? (((await store.blob(h)) as string | null) ?? '') : '';
+            const m = mergeSource(before, value, current);
+            if (m.ok) {
+              if (m.merged !== current) writeLane(c.path, l, m.merged);
+              continue;
+            }
+          }
           log.warn(`[local-kernel] ${rel} changed on disk since — left as it is`);
           continue;
         }
@@ -1535,6 +1556,8 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
 
   const runtime: LocalRuntime = {
     cancelAssetSweep: () => false,
+    // S5.15 (U22) — the in-process kernel always takes `actionIds` (Undo this chat as one version).
+    chatUndoReady: () => true,
     proposeLanes: (slug, lanes, o) => proposeLanes(slug, lanes, o),
     async acceptedHistory(q) {
       await settled();

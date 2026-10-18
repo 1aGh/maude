@@ -43,7 +43,7 @@ import {
 import type { AttributionCache } from '../index/extractors/attribution-cache.ts';
 import type { RestoreOptions } from '../sync/local-kernel.ts';
 import type { ThumbRequest, ThumbResult } from '../thumbs/service.ts';
-import { announceAction } from './project-undo.ts';
+import { announceAction, chatUndoState } from './project-undo.ts';
 import type { RouteSpec } from './table.ts';
 
 const MAX_BODY = 4 * 1024;
@@ -447,7 +447,9 @@ export function createHistoryRoutes(deps: HistoryRouteDeps): RouteSpec[] {
             })
             .filter((r) => r.canvases.length > 0);
         }
-        return json(200, { ok: true, history });
+        // S5.15 (U22) — whether "Undo this chat" can run here (an old team server cannot).
+        const chatUndo = chatUndoState(rt as never);
+        return json(200, { ok: true, history, ...(chatUndo ? { chatUndo } : {}) });
       },
     },
     {
