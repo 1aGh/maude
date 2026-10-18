@@ -59,6 +59,9 @@ const ICONS = { file: FileGlyph, folder: FolderGlyph, image: ImageGlyph, fit: Fi
 
 export function AttachMenu({ attach, disabled = false }) {
   const [open, setOpen] = useState(false);
+  // `.chat-box` clips its content (overflow: hidden, for the focus ring), so the menu is FIXED and
+  // placed from the paperclip's own rect — the same escape ChatFootInfo uses (Composer.jsx).
+  const [place, setPlace] = useState(null);
   const rootRef = useRef(null);
   const btnRef = useRef(null);
   const inputRef = useRef(null);
@@ -125,7 +128,11 @@ export function AttachMenu({ attach, disabled = false }) {
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          const r = btnRef.current?.getBoundingClientRect();
+          if (r) setPlace({ left: r.left, bottom: window.innerHeight - r.top + 8 });
+          setOpen((v) => !v);
+        }}
         data-testid="ai-attach-clip"
       >
         <Clip size={16} />
@@ -146,6 +153,7 @@ export function AttachMenu({ attach, disabled = false }) {
         <div
           id={menuId}
           className="ai-am-menu"
+          style={place ? { position: 'fixed', left: place.left, bottom: place.bottom } : undefined}
           role="menu"
           aria-label="Attach"
           onKeyDown={onMenuKey}
