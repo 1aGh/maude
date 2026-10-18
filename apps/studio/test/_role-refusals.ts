@@ -53,6 +53,8 @@ export const ROLE_REFUSALS: readonly RoleRefusal[] = [
   { method: 'POST', route: '/_api/acp/chats/trash', refused: ['view', 'comment'] },
   // delete — `/_api/trash/clear` (owner, §5.5) is S1's route; its row lands with it.
   // `writeCapability` already classes it `delete` (test/access-local-gate.test.ts).
+  // S3.5 — `present.order-notes`: Present order, skip and notes are an edit (test/present-meta-route.test.ts).
+  { method: 'PATCH', route: '/_api/present-meta', refused: ['view', 'comment'] },
 ];
 
 export const refusalKey = (method: RefusalMethod, route: string): string => `${method} ${route}`;

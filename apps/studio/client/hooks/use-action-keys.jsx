@@ -36,7 +36,9 @@ function shellState(d) {
   const one = Array.isArray(sel) ? (sel.length === 1 ? sel[0] : null) : sel;
   return {
     canvasOpen: !!d.activePath && d.activePath !== SYSTEM_TAB,
-    timelineVisible: !!(tl.open && tl.comps?.length),
+    // S3.2b: Present hides the Timeline, so its transport keys (space) are not the timeline's then —
+    // space steps the deck (`present.next`).
+    timelineVisible: !d.presentMode && !!(tl.open && tl.comps?.length),
     presenting: !!d.presentMode,
     native: isNativeApp(),
     readOnly: !!d.viewerMode,

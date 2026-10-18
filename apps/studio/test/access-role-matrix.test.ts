@@ -43,6 +43,8 @@ const ROWS: Row[] = [
   { family: 'canvas', method: 'POST', path: '/_api/edit-text', viewer: 'refused', editor: true },
   { family: 'canvas', method: 'POST', path: '/_api/canvas', viewer: 'refused', editor: true },
   { family: 'canvas', method: 'POST', path: '/_api/edit-css', viewer: 'refused', editor: true },
+  // S2.1 — the edit-op dispatch (routes/edit.ts): minRole edit; an empty body is 400 invalid
+  { family: 'canvas', method: 'POST', path: '/_api/edit-op', viewer: 'refused', editor: true },
   {
     family: 'canvas',
     method: 'POST',

@@ -51,6 +51,21 @@ export function isEmbedCanvas(): boolean {
 }
 
 /**
+ * S3.7a — is this canvas a Present follower (`client/v2/present/follow-view.jsx` frames it with
+ * `follow=1` next to `ro=1&comments=0`)? A follower moves its camera with the presenter, so — like an
+ * embed — it persists no camera, and it never publishes a Present position of its own. Read from the
+ * URL on every call (no cache): it is asked a handful of times per mode change, never per frame.
+ */
+export function isFollowCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return new URLSearchParams(window.location.search).get('follow') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * DDR-247 — Escape inside an embedded canvas belongs to the app around it.
  * Keys pressed in this frame never reach the embedding page, so an embed shown
  * in a dialog would trap a keyboard user: the dialog's own Escape stops

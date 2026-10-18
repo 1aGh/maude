@@ -58,7 +58,9 @@ export function canvasOriginRoutes(
     '/_api/git-user': http.routes['/_api/git-user'],
     '/_api/canvas-meta': canvasOriginMeta(http.routes['/_api/canvas-meta'] as Handler),
     '/_api/annotations': http.routes['/_api/annotations'],
-    '/_api/annotations/ops': http.routes['/_api/annotations/ops'],
+    // T-S4.5b — NOT the main-origin handler: the canvas variant refuses a `run:<id>` tag (400
+    // run-tag-main-origin-only), so a planted canvas cannot slip its writes into an AI run.
+    '/_api/annotations/ops': http.canvasRoutes['/_api/annotations/ops'],
     // Phase 23 — capped binary image upload (magic-byte sniff + category cap +
     // content-addressed name + traversal guard + no-SVG, in api.saveAsset).
     // Bun matches `routes` BEFORE `fetch`, so the route must be listed here

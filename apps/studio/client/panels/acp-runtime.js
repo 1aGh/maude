@@ -171,6 +171,8 @@ export function createAcpConnection() {
   // subscribe like caps/commands/sessionInfo above. Parsed into render-ready
   // shape by acp-usage.js's parseUsage, not here (keep this file transport-only).
   const usageListeners = new Set();
+  // S5.9 — the run registry's frames for this chat (`{t:'run', run}`, S5.6): working line + result card.
+  const runListeners = new Set();
   let usage = null;
 
   // Pending permission requests (Milestone B — retires DDR-125 F2's blanket
@@ -298,6 +300,10 @@ export function createAcpConnection() {
     if (frame.t === 'session-info') {
       sessionInfo = { title: frame.title ?? null, updatedAt: frame.updatedAt ?? null };
       for (const fn of sessionInfoListeners) fn(sessionInfo);
+      return;
+    }
+    if (frame.t === 'run') {
+      for (const fn of runListeners) fn(frame.run);
       return;
     }
     if (frame.t === 'usage') {
@@ -456,6 +462,12 @@ export function createAcpConnection() {
       sessionInfoListeners.add(fn);
       fn(sessionInfo);
       return () => sessionInfoListeners.delete(fn);
+    },
+
+    /** S5.9 — subscribe to this chat's run frames (a RunView each time it changes). No replay. */
+    onRun(fn) {
+      runListeners.add(fn);
+      return () => runListeners.delete(fn);
     },
 
     /** Subscribe to the raw usage frame (Milestone D); replays the current snapshot (may be null). */

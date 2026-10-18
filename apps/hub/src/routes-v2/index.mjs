@@ -33,6 +33,7 @@
 
 import { hubAccessRefusal } from '../access-gate.mjs';
 import { CAPABILITIES } from '../role-matrix.mjs';
+import { ACCESS_ROWS } from './access.mjs';
 import { LEGACY_ROWS } from './legacy.mjs';
 import { TRASH_ROWS } from './trash.mjs';
 
@@ -42,7 +43,7 @@ export const SCOPES = Object.freeze(['none', 'canvas', 'filtered', 'project']);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Every v2 area's rows, in one list. Later slices append their area here. */
-export const HUB_ROUTE_ROWS = Object.freeze([...LEGACY_ROWS, ...TRASH_ROWS]);
+export const HUB_ROUTE_ROWS = Object.freeze([...LEGACY_ROWS, ...ACCESS_ROWS, ...TRASH_ROWS]);
 
 /** The studio's lane (and any path no row names): the pre-v2 write gate. */
 export const DEFAULT_ROW = Object.freeze({

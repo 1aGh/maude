@@ -8,6 +8,9 @@ import type { ActionDef } from '../types.ts';
 import { IN_CANVAS, kb, mods } from './_v1.ts';
 
 const ANN = { ...IN_CANVAS, selection: ['annotation' as const] };
+// S2.6: the chords an Edit-mode OBJECT op also binds (⌘G ⇧⌘G ⇧⌘L ] [ ⌘] ⌘[) belong to the board only in
+// Preview — in Edit, annotations are quiet and click-through, so a press never reaches a sticky.
+const ANN_PREVIEW = { ...ANN, mode: ['preview' as const] };
 const ann = (id: string, label: string, keys: ReturnType<typeof kb>[]): ActionDef => ({
   id,
   label,
@@ -17,14 +20,14 @@ const ann = (id: string, label: string, keys: ReturnType<typeof kb>[]): ActionDe
 });
 
 export const ANNOTATION_ACTIONS: ActionDef[] = [
-  ann('annotation.group', 'Group', [kb('⌘G', 'selection', { when: ANN })]),
-  ann('annotation.ungroup', 'Ungroup', [kb('⇧⌘G', 'selection', { when: ANN })]),
-  ann('annotation.lock', 'Lock / unlock', [kb('⇧⌘L', 'selection', { when: ANN })]),
+  ann('annotation.group', 'Group', [kb('⌘G', 'selection', { when: ANN_PREVIEW })]),
+  ann('annotation.ungroup', 'Ungroup', [kb('⇧⌘G', 'selection', { when: ANN_PREVIEW })]),
+  ann('annotation.lock', 'Lock / unlock', [kb('⇧⌘L', 'selection', { when: ANN_PREVIEW })]),
   ann('annotation.duplicate', 'Duplicate', [kb('⌘D', 'selection', { when: ANN })]),
-  ann('annotation.to-front', 'Bring to front', [kb(']', 'selection', { when: ANN })]),
-  ann('annotation.forward', 'Bring forward', [kb('⌘]', 'selection', { when: ANN })]),
-  ann('annotation.to-back', 'Send to back', [kb('[', 'selection', { when: ANN })]),
-  ann('annotation.backward', 'Send backward', [kb('⌘[', 'selection', { when: ANN })]),
+  ann('annotation.to-front', 'Bring to front', [kb(']', 'selection', { when: ANN_PREVIEW })]),
+  ann('annotation.forward', 'Bring forward', [kb('⌘]', 'selection', { when: ANN_PREVIEW })]),
+  ann('annotation.to-back', 'Send to back', [kb('[', 'selection', { when: ANN_PREVIEW })]),
+  ann('annotation.backward', 'Send backward', [kb('⌘[', 'selection', { when: ANN_PREVIEW })]),
   ann('annotation.copy', 'Copy', [kb('⌘C', 'selection', { when: ANN })]),
   ann('annotation.cut', 'Cut', [kb('⌘X', 'selection', { when: ANN })]),
   ann('annotation.chain', 'Add the next one', [kb('⌘↵', 'selection', { when: ANN })]),

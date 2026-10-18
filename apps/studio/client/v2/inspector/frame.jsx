@@ -13,31 +13,12 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { StIcon } from '../../shell/icons.jsx';
 import { activeDsNameFor } from '../../inspector/ds-tokens.js';
 import { copyText, InspectorAdvanced, useAdvancedOpen } from './advanced.jsx';
+import { crumbsFromPath, InspectorCrumbs } from './crumbs.jsx';
 import { bindInspectorActions } from './inspector-actions.js';
 import { kindChipOf, resolveKind } from './kinds/index.js';
 import { crumbsOf, cssTextOf, hasUsableId, titleOf } from './model.js';
 import { SECTIONS } from './sections.js';
 import { hasAnySlot, slotsFor, slotsVersion, subscribeSlots } from './slots.js';
-
-function Crumbs({ path }) {
-  return (
-    <nav className="insp-crumbs" data-testid="inspector-crumbs" aria-label="Where this is">
-      {path.map((p, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: a path can repeat a name; position is its identity
-        <span key={`${i}:${p}`} className="insp-crumb-wrap">
-          {i ? (
-            <span className="insp-crumb-ch" aria-hidden="true">
-              <StIcon name="chevron-right" size={10} />
-            </span>
-          ) : null}
-          <span className="insp-crumb" data-last={i === path.length - 1 ? 'true' : undefined}>
-            {p}
-          </span>
-        </span>
-      ))}
-    </nav>
-  );
-}
 
 function Section({ def, entries, ctx, el, selection, kindId }) {
   const adder = def.adder ? entries.find((e) => typeof e.add === 'function') : null;
@@ -99,6 +80,7 @@ export function InspectorFrame({
   onSetArtboardKind,
   onSetArtboardPrint,
   onDuplicateArtboard,
+  onSelectCrumb,
 }) {
   // a slice that registers late (hot reload) redraws the frame
   useSyncExternalStore(subscribeSlots, slotsVersion, slotsVersion);
@@ -155,7 +137,12 @@ export function InspectorFrame({
 
   return (
     <div className="insp" data-testid="inspector-frame" data-kind={kind.id}>
-      {crumbs.length > 1 ? <Crumbs path={crumbs} /> : null}
+      {/* S2.1 — the canvas's own crumbs (clickable, + esc); the layer-tree path for an old bundle */}
+      {Array.isArray(el.crumbs) && !Array.isArray(selected) ? (
+        <InspectorCrumbs crumbs={el.crumbs} onPick={onSelectCrumb} />
+      ) : crumbs.length > 1 ? (
+        <InspectorCrumbs crumbs={crumbsFromPath(crumbs)} />
+      ) : null}
       <div className="insp-hd">
         <strong className="insp-title" data-testid="inspector-title">
           {titleOf(selected, layersTree)}

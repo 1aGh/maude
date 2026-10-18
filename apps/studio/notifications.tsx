@@ -76,6 +76,13 @@ export function notifyCanvasText(title: string, kind: NoticeKind = 'info'): stri
   });
 }
 
+/** Drop every canvas notice (programmatic: none is acknowledged) — the standalone host's teardown. */
+export function dismissCanvasNotices(): void {
+  if (!entries.some((entry) => entry.group === 'canvas')) return;
+  entries = entries.filter((entry) => entry.group !== 'canvas');
+  publish();
+}
+
 /** Programmatic removal (unmount/navigation) does not acknowledge the notice. */
 export function dismissNotice(id: string): void {
   entries = entries.filter((entry) => entry.id !== id);

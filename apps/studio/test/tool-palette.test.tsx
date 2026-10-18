@@ -126,7 +126,10 @@ describe('MODE_TOOLS / the slots per mode (V2-1.2 §5.5)', () => {
     ]);
     expect(MODE_TOOLS.viewing.rest).toBe('inspect');
     expect(MODE_TOOLS.present.hidden).toBe(true);
-    expect(MODE_TOOLS.present.slots).toEqual([]);
+    // S3.2b: no toolbar, but one key — the presenter's Pointer (data so the key table knows L).
+    expect(MODE_TOOLS.present.slots.map((s) => `${s.label} ${s.key} ${s.tool}`)).toEqual([
+      'Pointer L pointer',
+    ]);
   });
 
   test('every slot names a real tool id; v1 ids keep their v1 meaning', () => {
@@ -230,7 +233,8 @@ describe('pending slots / no dead buttons', () => {
       expect(pendingTools.has(s.tool)).toBe(false);
       expect(armTarget(s.tool, armableDefault)).not.toBeNull();
     };
-    for (const m of CANVAS_MODES) MODE_TOOLS[m].slots.forEach(check);
+    // A hidden bar (Present) draws no buttons: its slot is a key, not a button that could be dead.
+    for (const m of CANVAS_MODES) if (!MODE_TOOLS[m].hidden) MODE_TOOLS[m].slots.forEach(check);
   });
 });
 

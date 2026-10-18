@@ -31,6 +31,7 @@ import { artboardSpans } from './agent-runs.ts';
 import { createLocalLeaseHome, selectLeaseHome } from './ai/lease-home.ts';
 import { createRunRegistry } from './ai/runs.ts';
 import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
+import { runContext, runTagOf, stageRunAnnotations } from './annotations/run-tag.ts';
 import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
@@ -154,6 +155,23 @@ const api = createApi(ctx, {
   // the SVG blob to disk; we mirror it into the live Y.Map for collab peers.
   onAnnotationsChanged: (file, svg, writeId, base) => {
     const runtime = ctx.syncControl?.current?.();
+    // T-S4.5b — a `run:<id>` batch (gated in http.ts annotationOps) joins its run's stage.
+    const runId = runTagOf(writeId);
+    if (runId) {
+      const staged = stageRunAnnotations(runtime, {
+        runId,
+        ...runContext(runRegistry, runId),
+        slug: api.fileSlug(file),
+        canvasRel: file,
+        text: svg,
+        ...(base !== undefined ? { base } : {}),
+        writeId: writeId as string,
+      });
+      if (staged) {
+        void staged.catch(() => {});
+        return;
+      }
+    }
     const proposed = runtime?.proposeLane?.(api.fileSlug(file), 'annotations', svg, {
       ...(writeId ? { writeId } : {}),
       ...(base !== undefined ? { baseText: base } : {}),

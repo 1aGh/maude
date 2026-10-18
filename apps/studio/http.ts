@@ -1,5 +1,6 @@
 import { MAX_ELEMENTS } from './annotations/constants.ts';
 import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
+import { runTagGate, runTagRefusalResponse } from './annotations/run-tag.ts';
 import { serializeBoard } from './annotations/schema.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
 import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
@@ -148,6 +149,7 @@ import {
   type VersionSource,
 } from './history/version-lanes.ts';
 import type { GitEntry } from './history/versions.ts';
+import { createHistory } from './history.ts';
 import { extractCanvas } from './index/extract.ts';
 import {
   type AttributionCache,
@@ -1159,7 +1161,10 @@ export interface Http {
    * one at the same path, because they answer a narrower projection
    * (routes/canvas-origin.ts, the canvas server's routes map). Same path, same allowlists.
    */
-  canvasRoutes: Record<'/_api/git-committers', (req: Request) => Response | Promise<Response>>;
+  canvasRoutes: Record<
+    '/_api/git-committers' | '/_api/annotations/ops',
+    (req: Request) => Response | Promise<Response>
+  >;
   /**
    * V2-2.5 — the exact paths of the table's `origin: 'canvas'` specs. Both canvas
    * allowlists derive them: `CANVAS_SAFE_API` here and routes/canvas-origin.ts.
@@ -1604,6 +1609,8 @@ export function createHttp(
   // paths merge into `routes` below, so `readOnlyRefusal` wraps them like every legacy key; its
   // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
   // S5.3 — one run registry for the hook routes, `/_api/ai/runs*` and the v1 banner routes.
+  // S2.1 — the edit-op route's pre-op snapshots (/design:rollback), the same store api.ts writes.
+  const editOpHistory = createHistory(ctx);
   const runs =
     opts.runs ??
     createRunRegistry({
@@ -1738,6 +1745,51 @@ export function createHttp(
       designRoot: ctx.paths.designRoot,
       outbox: outbox.store,
       isRunning: (id) => runningChats().includes(id),
+    },
+    // S2.1 — POST /_api/edit-op (routes/edit.ts): one dispatch route, pure writers in edit-ops/.
+    // The write announces its base like every lane writer; AI holds read the run registry above.
+    edit: {
+      designRoot: ctx.paths.designRoot,
+      designRel: ctx.paths.designRel,
+      repoRoot: ctx.paths.repoRoot,
+      emit: (e, p) => ctx.bus.emit(e, p),
+      snapshot: (rel, before, reason) => editOpHistory.writeSnapshot(rel, before, reason),
+      actionFor: (repoRel, after) =>
+        ctx.syncControl?.current?.()?.acceptedActionForContent?.(repoRel, after) ?? null,
+    },
+    // S3.5 — PATCH /_api/present-meta (routes/present.ts): order, skip and notes in the versioned
+    // meta, through the layout lane's writer. Ids are checked against a FRESH parse of the source
+    // (the index may lag an artboard added a moment ago); a canvas whose artboards a parse cannot
+    // list is complete once the renderer harvested them (V2-1.17 §5.8).
+    present: {
+      repoRoot: ctx.paths.repoRoot,
+      designRoot: ctx.paths.designRoot,
+      artboards: (srcAbs) => {
+        const rel = relative(ctx.paths.designRoot, srcAbs).replace(/\\/g, '/');
+        try {
+          const row = extractCanvas(
+            {
+              designRoot: ctx.paths.designRoot,
+              repoRoot: ctx.paths.repoRoot,
+              groups: ctx.cfg.canvasGroups,
+              defaultDs: null,
+              designSystems: ctx.cfg.designSystems ?? [],
+            },
+            rel
+          );
+          if (row.parse !== 'ok') return null;
+          if (!row.dynamic) return { ids: row.artboards.map((a) => a.id), complete: true };
+          const live = projectIndex.canvas(rel);
+          return live?.artboardsFrom === 'runtime'
+            ? { ids: [...row.artboards, ...live.artboards].map((a) => a.id), complete: true }
+            : { ids: row.artboards.map((a) => a.id), complete: false };
+        } catch {
+          return null;
+        }
+      },
+      write: async (file, nextText, baseText) => {
+        await api.writeCanvasMetaText(file, nextText, baseText);
+      },
     },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
@@ -2905,37 +2957,9 @@ export function createHttp(
       return new Response('Method not allowed', { status: 405 });
     },
 
-    '/_api/annotations/ops': async (req: Request) => {
-      // DDR-242 §4 — the canvas write path: an op batch applied under the one
-      // merge rule. Canvas-origin reachable (inert collab data, DDR-054) — every
-      // op is validated element-by-element and the board stays capped.
-      // POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
-      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
-        req,
-        MAX_ANNOTATIONS_BYTES + 2048
-      );
-      if (!body || typeof body.file !== 'string' || !body.file) {
-        return new Response('body must include { file, actionId, ops }', { status: 400 });
-      }
-      if (body.actionId !== undefined && !validAnnotationWriteId(body.actionId)) {
-        return new Response('invalid actionId', { status: 400 });
-      }
-      if (!Array.isArray(body.ops))
-        return new Response('body.ops must be an array', { status: 400 });
-      // Bounded to what a whole board can need (select-all + delete on a full
-      // board) and REFUSED past it — never truncated, which would half-apply a
-      // gesture. Batch cost is linear in the ops (ops.ts indexes).
-      if (body.ops.length > MAX_ELEMENTS) {
-        return new Response('too many ops in one batch', { status: 413 });
-      }
-      const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
-      const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
-      return Response.json(r, {
-        status: r.ok ? 200 : r.unreadable ? 409 : 413,
-        headers: { 'Cache-Control': 'no-store' },
-      });
-    },
+    // T-S4.5b — the handler lives in annotationOps (below) so the canvas listener mounts its
+    // own variant (canvasRoutes): a `run:<id>` tag is main-origin only.
+    '/_api/annotations/ops': (req: Request) => annotationOps(req, 'main'),
 
     '/_api/canvas': async (req: Request) => {
       // Phase 22 — create + soft-delete a canvas from the browser file tree.
@@ -6736,7 +6760,58 @@ export function createHttp(
     return (await readOnlyRefusal(req)) ?? handleFallthrough(req);
   }
 
+  /**
+   * DDR-242 §4 — the canvas write path: an op batch applied under the one merge rule.
+   * Canvas-origin reachable (inert collab data, DDR-054) — every op is validated
+   * element-by-element and the board stays capped.
+   * POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
+   * T-S4.5b — `actionId: 'run:<runId>'` (contract S4-S5-ai-annotations §2) is accepted only on
+   * the main listener, same-origin, while that run is open (annotations/run-tag.ts); a refused
+   * tag writes nothing.
+   */
+  async function annotationOps(req: Request, listener: 'main' | 'canvas'): Promise<Response> {
+    if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+    const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
+      req,
+      MAX_ANNOTATIONS_BYTES + 2048
+    );
+    if (!body || typeof body.file !== 'string' || !body.file) {
+      return new Response('body must include { file, actionId, ops }', { status: 400 });
+    }
+    const tag = runTagGate(req, body.actionId, {
+      listener,
+      runs,
+      sameOrigin: (r) => sameOriginWrite(r) && sameOriginRead(r) && isTrustedRequestHost(r),
+    });
+    if ('refusal' in tag) return runTagRefusalResponse(tag.refusal);
+    if (
+      tag.runId === null &&
+      body.actionId !== undefined &&
+      !validAnnotationWriteId(body.actionId)
+    ) {
+      return new Response('invalid actionId', { status: 400 });
+    }
+    if (!Array.isArray(body.ops)) return new Response('body.ops must be an array', { status: 400 });
+    // Bounded to what a whole board can need (select-all + delete on a full
+    // board) and REFUSED past it — never truncated, which would half-apply a
+    // gesture. Batch cost is linear in the ops (ops.ts indexes).
+    if (body.ops.length > MAX_ELEMENTS) {
+      return new Response('too many ops in one batch', { status: 413 });
+    }
+    const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
+    const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
+    return Response.json(r, {
+      status: r.ok ? 200 : r.unreadable ? 409 : 413,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
+
   const canvasRoutes: Http['canvasRoutes'] = {
+    // T-S4.5b — the same op path, minus the `run:` tag (refused 400 here). A write: it keeps the
+    // read-only refusal every `routes` entry carries (guardedRoutes).
+    // S9.9 made the gate async: await it, or the pending Promise short-circuits `??`.
+    '/_api/annotations/ops': async (req: Request) =>
+      (await readOnlyRefusal(req)) ?? annotationOps(req, 'canvas'),
     // V2-2.8 S6 — the @mention feed without e-mails (see canvasCommitters).
     '/_api/git-committers': async (req: Request) => {
       if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });

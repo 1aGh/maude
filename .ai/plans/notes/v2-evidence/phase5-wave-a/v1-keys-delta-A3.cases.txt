@@ -1,0 +1,919 @@
+## browser/canvas/chrome Meta+k
+-   shell: +125 -1 #4748e9f18c
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +133 -1 #fa2cf39e7f
++     + button .is-active.st-pal-item [data-testid="palette-row-recent:ui/Home.tsx"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + … 45 more
+## browser/canvas/chrome Meta+Shift+K
+-   shell: +125 -1 #4748e9f18c
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +133 -1 #fa2cf39e7f
++     + button .is-active.st-pal-item [data-testid="palette-row-recent:ui/Home.tsx"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + … 45 more
+## browser/canvas/chrome Meta+Shift+I
+-   shell: +16 -2 #fd5199f6ac
+-     + svg [aria-hidden="true"]
+-     + svg [aria-hidden="true"]
++   shell: +13 -2 #cb16f40cb2
+## browser/canvas/chrome t
+-   shell: +550 -2 #8b27594371
+-     + button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     + button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     + … 219 more
++   shell: +199 -2 #8fb5879e83
++     + button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     + button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     + button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     + button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     + button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     + button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     + button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     + … 95 more
+## browser/canvas/chrome Shift+Slash
+-   shell: +581 -1 #39eafb0e56
+-     + … 112 more
++   shell: +591 -1 #21db32c157
++     + … 114 more
+## browser/canvas/chrome Meta+Shift+Slash
+-   shell: +581 -1 #39eafb0e56
+-     + … 112 more
++   shell: +591 -1 #21db32c157
++     + … 114 more
+## browser/canvas/text Meta+k
+-   shell: +125 -1 #fad56cb420
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +45 -1 #91ddf2357e
++     + button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + div .st-pal-group [role="presentation"] "Recent"
++     + div .st-pal-group [role="presentation"] "Start here"
++     + div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
++     + … 12 more
+## browser/canvas/text Meta+Shift+K
+-   shell: +125 -1 #fad56cb420
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +45 -1 #91ddf2357e
++     + button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + div .st-pal-group [role="presentation"] "Recent"
++     + div .st-pal-group [role="presentation"] "Start here"
++     + div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
++     + … 12 more
+## browser/canvas/text Meta+Shift+I
+-   shell: +16 -2 #fd5199f6ac
+-     + svg [aria-hidden="true"]
+-     + svg [aria-hidden="true"]
++   shell: +13 -2 #cb16f40cb2
+## browser/canvas/text Slash
+-   shell: +31 -6 #dde1ea659b
+-     - div .lp-pinned [data-testid="canvases-pinned"]
+-     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+-     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
+-     + … 11 more
++   shell: +35 -25 #7648725b14
++     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
++     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - … 9 more
++     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 15 more
+## browser/canvas/text t
+-   shell: +32 -6 #a41f9067c0
+-     - div .lp-pinned [data-testid="canvases-pinned"]
+-     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+-     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
+-     + … 11 more
++   shell: +36 -25 #3a0e483957
++     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
++     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - … 9 more
++     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 15 more
+## browser/canvas/text Shift+T
+-   shell: +32 -6 #ae7684f3da
+-     - div .lp-pinned [data-testid="canvases-pinned"]
+-     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+-     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
+-     + … 11 more
++   shell: +36 -25 #f70ff277a2
++     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
++     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - … 9 more
++     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 15 more
+## browser/canvas/text h
+-   shell: +25 -7 #e9529316e0
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Project"] [aria-expanded="true"] [tabindex="-1"]
+-     + div [role="group"]
+-     + … 6 more
++   shell: +30 -13 #7bea9276e3
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - p .cv-foot [data-testid="canvases-foot"] "1 canvas · ⌘K searches every project"
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Project"] [aria-expanded="true"] [tabindex="0"]
++     + … 8 more
+## browser/canvas/text s
+-   shell: +31 -6 #1e84611a6b
+-     - div .lp-pinned [data-testid="canvases-pinned"]
+-     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+-     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
+-     + … 11 more
++   shell: +35 -25 #bae42e9a8f
++     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
++     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - … 9 more
++     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 15 more
+## browser/canvas/text n
+-   shell: +31 -6 #db8ae0d232
+-     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
+-     + … 11 more
++   shell: +44 -13 #f24de1332d
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - p .cv-foot [data-testid="canvases-foot"] "1 canvas · ⌘K searches every project"
++     - … 1 more
++     + button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Hide the artboards in Home"] [aria-expanded="true"] [title="Hide artboards"] [type="button
++     + button .cv-main [data-testid="jump-artboard-ui-home-home-pricing"] [title="Pricing — Web"] [type="button"] [tabindex="-1"]
++     + … 19 more
+## browser/canvas/text Shift+Slash
+-   shell: +25 -16 #0260f40c16
+-     - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+-     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+-     - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+-     - div .lp-pinned [data-testid="canvases-pinned"]
+-     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+-     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+-     - svg [aria-hidden="true"]
+-     - … 1 more
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Runtime files"] [aria-expanded="true"] [tabindex="-1"]
+-     + div [role="group"]
+-     + … 6 more
++   shell: +29 -26 #a52309eeb8
++     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
++     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - … 10 more
++     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 10 more
+## browser/canvas/text Space
+-   shell: +25 -16 #5b8a771d9c
+-     - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+-     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+-     - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+-     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+-     - … 1 more
+-     + div [role="group"]
+-     + … 6 more
++   shell: +26 -7 #a010e0eac3
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 7 more
+## browser/canvas/text c
+-   shell: +30 -14 #2d285b67ee
+-     - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+-     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+-     - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+-     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+-     - svg [aria-hidden="true"]
+-     + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Design system"] [aria-expanded="true"] [tabindex="-1"]
+-     + … 11 more
++   shell: +44 -13 #f39ddd980f
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - p .cv-foot [data-testid="canvases-foot"] "1 canvas · ⌘K searches every project"
++     - … 1 more
++     + button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Hide the artboards in Home"] [aria-expanded="true"] [title="Hide artboards"] [type="button
++     + button .cv-main [data-testid="jump-artboard-ui-home-home-pricing"] [title="Pricing — Web"] [type="button"] [tabindex="-1"]
++     + … 19 more
+## browser/canvas/text Digit0
+-   shell: +25 -16 #870412456c
+-     - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+-     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+-     - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+-     - div .lp-pinned [data-testid="canvases-pinned"]
+-     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+-     - input [data-testid="canvas-search"] [aria-label="Filter canvases"] [type="search"] [placeholder="Search canvases…"]
+-     - svg [aria-hidden="true"]
+-     - … 1 more
+-     + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="Runtime files"] [aria-expanded="true"] [tabindex="-1"]
+-     + div [role="group"]
+-     + … 6 more
++   shell: +29 -26 #453653f35b
++     - button .cv-act [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
++     - button .cv-act.cv-act--pin [data-testid="canvas-pin-ui-home"] [aria-label="Pin Home"] [aria-pressed="false"] [title="Pin"] [type="button"]
++     - button .cv-jt [data-testid="canvas-jump-toggle-ui-home"] [aria-label="Show the artboards in Home"] [aria-expanded="false"] [title="Show artboards"] [type="butto
++     - button .cv-main [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
++     - button .cv-sort [data-testid="canvases-sort"] [aria-label="Sort canvases — Recently opened"] [aria-expanded="false"] [type="button"] "Recent"
++     - div .cv-head [data-testid="canvases-head-project"]
++     - div .cv-item [role="treeitem"] [aria-label="Home"] [aria-expanded="false"] [aria-selected="true"] [tabindex="0"]
++     - … 10 more
++     + div .cv-tree.st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="0"]
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 10 more
+## browser/shell/chrome Meta+Shift+I
+-   shell: +16 -2 #fd5199f6ac
+-     + svg [aria-hidden="true"]
+-     + svg [aria-hidden="true"]
++   shell: +13 -2 #cb16f40cb2
+## browser/canvas/select t
+-   shell: +550 -2 #8b27594371
+-     + button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     + button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     + … 219 more
++   shell: +199 -2 #8fb5879e83
++     + button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     + button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     + button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     + button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     + button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     + button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     + button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     + … 95 more
+## browser/canvas/select Shift+Slash
+-   shell: +581 -1 #6435fc5db8
+-     + … 112 more
++   shell: +591 -1 #3069a2001a
++     + … 114 more
+## browser/canvas/select Meta+k
+-   shell: +125 -1 #500bac821a
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +45 -1 #924a773ea5
++     + button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + div .st-pal-group [role="presentation"] "Recent"
++     + div .st-pal-group [role="presentation"] "Start here"
++     + div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
++     + … 12 more
+## browser/canvas/range t
+-   shell: +550 -2 #8b27594371
+-     + button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     + button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     + button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     + … 219 more
++   shell: +199 -2 #8fb5879e83
++     + button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     + button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     + button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     + button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     + button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     + button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     + button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     + … 95 more
+## browser/canvas/range Meta+k
+-   shell: +125 -1 #7ae06b5705
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +45 -1 #81fe32d7c4
++     + button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + div .st-pal-group [role="presentation"] "Recent"
++     + div .st-pal-group [role="presentation"] "Start here"
++     + div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
++     + … 12 more
+## browser/in-canvas/canvas t
+-   shell: +29 -17 #e532f4380a
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-sechd [data-testid="inspector-section-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.995px 108.135px"]
+-     - … 4 more
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-kvx [aria-label="remove data-cd-editable"] [title="remove"] [type="button"]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + button .st-cp-sechd [data-testid="inspector-section-advanced"] [aria-expanded="true"] [type="button"] "Advanced"
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 10 more
++   shell: +11 -39 #6ab7be7f3d
++     - button .insp-chip-more [aria-label="Padding horizontal — choose a token"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip-more [aria-label="Padding vertical — choose a token"] [aria-expanded="false"] [type="button"]
++     - button .insp-sides [data-testid="insp-sides"] [aria-label="Padding per side"] [aria-pressed="false"] [title="Padding per side"] [type="button"]
++     - button .is-active [role="radio"] [aria-label="Free"] [aria-checked="true"] [title="Free"] [type="button"]
++     - button [role="radio"] [aria-label="Column"] [aria-checked="false"] [title="Column"] [type="button"]
++     - button [role="radio"] [aria-label="Grid"] [aria-checked="false"] [title="Grid"] [type="button"]
++     - button [role="radio"] [aria-label="Row"] [aria-checked="false"] [title="Row"] [type="button"]
++     - div .insp-row [data-testid="insp-row-direction"]
++     - … 18 more
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="20"}
++     + span .insp-chip [data-testid="inspector-kind"] "Text"
++     + strong .insp-title [data-testid="inspector-title"] "p"
+## browser/in-canvas/canvas e
+-   shell: +328 -10 #39217a348f
+-     + @focus input[aria-label="Search stickers"][type="text"][placeholder="Search stickers…"]
+-     + button .st-iconbtn [aria-label="Close"] [type="button"]
+-     + button .st-iconbtn [data-testid="panel-icon-left"] [aria-label="Show panels"] [title="Show panels (⌘\\)"] [type="button"]
+-     + button .st-iconbtn [data-testid="panel-icon-right"] [aria-label="Show panels"] [title="Show panels (⌘\\)"] [type="button"]
+-     + button .st-mode-b [data-testid="palette-mode-edit"] [aria-label="Edit — click selects and edits"] [aria-pressed="false"] [title="Edit"] [type="button"]
+-     + button .st-mode-b [data-testid="palette-mode-preview"] [aria-label="Preview — the design is live"] [aria-pressed="true"] [title="Preview"] [type="button"]
+-     + div .st-dialog.st-sticker-picker.st-sticker-picker--anchored [data-testid="tool-panel-stickers"] [role="dialog"] [aria-label="Stickers"] [aria-modal="true"]
+-     + … 5 more
++   shell: +114 -10 #1579095169
++     + @focus input[data-testid="stickers-search"][aria-label="Search stickers"][type="text"][placeholder="Search stickers…"]
++     + button .sg-cell.st-sp-cell [data-testid="sticker-figjam-doodle-slice1.png"] [title="yes"] [type="button"]
++     + button .sg-cell.st-sp-cell [data-testid="sticker-figjam-doodle-slice10.png"] [title="bad"] [type="button"]
++     + button .sg-cell.st-sp-cell [data-testid="sticker-figjam-doodle-slice11.png"] [title="lovely"] [type="button"]
++     + button .sg-cell.st-sp-cell [data-testid="sticker-figjam-doodle-slice12.png"] [title="good"] [type="button"]
++     + button .sg-cell.st-sp-cell [data-testid="sticker-figjam-doodle-slice13.png"] [title="deadline"] [type="button"]
++     + button .sg-cell.st-sp-cell [data-testid="sticker-life-style-best.png"] [title="best"] [type="button"]
++     + … 48 more
+## browser/in-canvas/canvas Escape
+-   shell: +2 -538 #8318fb3899
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +2 -227 #8e9cc70cfc
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas/canvas Shift+Escape
+-   shell: +2 -538 #8318fb3899
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +2 -227 #8e9cc70cfc
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas/canvas Meta+Escape
+-   shell: +2 -538 #8318fb3899
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +2 -227 #8e9cc70cfc
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas/canvas Meta+k
+-   shell: +125 -1 #dd94965c48
+-     + button .is-active.st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +45 -1 #a0c04e86d4
++     + button .is-active.st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + div .st-pal-group [role="presentation"] "Recent"
++     + div .st-pal-group [role="presentation"] "Start here"
++     + div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
++     + … 12 more
+## browser/in-canvas/canvas Meta+Shift+I
+-   shell: +2 -538 #8318fb3899
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +2 -227 #8e9cc70cfc
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas/canvas Meta+Shift+M
+-   shell: +13 -535 #b8f8d31ff7
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 212 more
++   shell: +13 -224 #1f8df20e7c
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 115 more
+## browser/in-canvas/canvas Meta+Shift+A
+-   shell: +24 -24 #808d8d9cf0
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +5 -5 #4851c39027
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
+## browser/in-canvas/canvas Meta+0
+-   shell: =
++   shell: +1 -8 #6c74d8c632
++     - nav .insp-crumbs [data-testid="inspector-crumbs"] [aria-label="Where this is"]
++     - span .insp-crumb-ch [aria-hidden="true"]
++     - strong .insp-title [data-testid="inspector-title"] "main"
++     - svg [aria-hidden="true"]
++     + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
+## browser/in-canvas/canvas Meta+a
+-   shell: +24 -24 #808d8d9cf0
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +5 -5 #4851c39027
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
+## browser/in-canvas/canvas Meta+d
+-   shell: +9 -3 #6530416bb1
+-     - input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.995px 108.135px"]
+-     - input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="136"}
+-     + input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.992px 108.809px"]
+-     + input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="138"}
++   shell: +8 -9 #dce0cbd808
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - nav .insp-crumbs [data-testid="inspector-crumbs"] [aria-label="Where this is"]
++     - span .insp-crumb-ch [aria-hidden="true"]
++     - strong .insp-title [data-testid="inspector-title"] "main"
++     - svg [aria-hidden="true"]
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="218"}
++     + strong .insp-title [data-testid="inspector-title"] "Hero Characterization fixture. Get started"
+## browser/in-canvas/canvas Backspace
+-   shell: +8 -538 #a68353b26c
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +8 -227 #7212549b61
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas/canvas Enter
+-   shell: +25 -25 #8fb2cd5ce8
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +10 -6 #ce30a0d1f0
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     - strong .insp-title [data-testid="inspector-title"] "main"
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
++     + span .insp-crumb-ch [aria-hidden="true"]
++     + strong .insp-title [data-testid="inspector-title"] "h1"
++     + svg [aria-hidden="true"]
+## browser/in-canvas-text/canvas Meta+k
+-   shell: +125 -1 #61d383b598
+-     + button .is-active.st-pal-item [data-testid="palette-row-canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.draw-mark"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-ai.generate"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.new-video"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-canvas.reload"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-export.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + button .st-pal-item [data-testid="palette-row-handoff.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
+-     + … 41 more
++   shell: +45 -1 #411e466500
++     + button .is-active.st-pal-item [data-testid="palette-row-start:canvas.new"] [role="option"] [aria-selected="true"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:help.shortcuts"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:import.figma"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + button .st-pal-item [data-testid="palette-row-start:project.open"] [role="option"] [aria-selected="false"] [type="button"] [tabindex="-1"]
++     + div .st-pal-group [role="presentation"] "Recent"
++     + div .st-pal-group [role="presentation"] "Start here"
++     + div .st-pal-list [data-testid="palette-list"] [role="listbox"] [aria-label="Results"]
++     + … 12 more
+## browser/in-canvas-text/canvas Meta+Shift+I
+-   shell: +2 -544 #3d16ddf6d9
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 217 more
++   shell: +2 -197 #5457d1a0c0
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 95 more
+## browser/in-canvas-selected/canvas Escape
+-   shell: +2 -538 #980cbde8eb
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +2 -227 #8e9cc70cfc
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas-selected/canvas Backspace
+-   shell: +8 -538 #a68353b26c
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 213 more
++   shell: +8 -227 #7212549b61
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 116 more
+## browser/in-canvas-selected/canvas Enter
+-   shell: +25 -25 #8fb2cd5ce8
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +10 -6 #ce30a0d1f0
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     - strong .insp-title [data-testid="inspector-title"] "main"
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
++     + span .insp-crumb-ch [aria-hidden="true"]
++     + strong .insp-title [data-testid="inspector-title"] "h1"
++     + svg [aria-hidden="true"]
+## browser/in-canvas-selected/canvas Meta+a
+-   shell: +24 -24 #808d8d9cf0
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +5 -5 #4851c39027
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
+## browser/in-canvas-selected/canvas Meta+Shift+A
+-   shell: +24 -24 #808d8d9cf0
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +5 -5 #4851c39027
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
+## browser/timeline/text Space
+-   shell: +25 -16 #5b8a771d9c
+-     - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+-     - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+-     - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+-     - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+-     - … 1 more
+-     + div [role="group"]
+-     + … 6 more
++   shell: +26 -7 #a010e0eac3
++     + div .st-tree [data-testid="canvases-other-files"] [role="tree"] [aria-label="Other project files"] [tabindex="-1"]
++     + … 7 more
+## browser/presenting/chrome Escape
+-   to-canvas: parent view-chrome · parent occluded-insets · parent set-mode mode=edit · parent comments-set
++   to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set
+## browser/presenting/chrome Shift+Escape
+-   to-canvas: parent view-chrome · parent occluded-insets · parent set-mode mode=edit · parent comments-set
++   to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set
+## browser/presenting/text Escape
+-   to-canvas: parent view-chrome · parent occluded-insets · parent set-mode mode=edit · parent comments-set · parent occluded-insets
+-   shell: +5 -545 #326e600d19
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 217 more
++   to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set · parent occluded-insets
++   shell: +5 -234 #e8daf7bb56
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 120 more
+## browser/presenting/canvas Escape
+-   to-canvas: parent view-chrome · parent occluded-insets · parent set-mode mode=edit · parent comments-set · parent occluded-insets
+-   shell: +5 -545 #326e600d19
+-     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+-     - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+-     - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+-     - … 217 more
++   to-canvas: parent occluded-insets · parent set-mode mode=edit · parent view-chrome · parent comments-set · parent occluded-insets
++   shell: +5 -234 #e8daf7bb56
++     - button .insp-add [data-testid="insp-add-border"] [aria-label="Add border"] [title="Add border"] [type="button"]
++     - button .insp-add [data-testid="insp-add-effects"] [aria-label="Add effects"] [title="Add effects"] [type="button"]
++     - button .insp-add [data-testid="insp-add-fill"] [aria-label="Add fill"] [title="Add fill"] [type="button"]
++     - button .insp-add [data-testid="insp-add-interaction"] [aria-label="Add interaction"] [title="Add interaction"] [type="button"]
++     - button .insp-chip [aria-label="Fill"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text colour"] [aria-expanded="false"] [type="button"]
++     - button .insp-chip [aria-label="Text size"] [aria-expanded="false"] [type="button"]
++     - … 120 more
+## tauri/in-canvas/canvas Meta+Shift+A
+-   shell: +24 -24 #808d8d9cf0
+-     - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+-     - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+-     - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+-     - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+-     - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+-     - … 8 more
+-     + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+-     + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+-     + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+-     + … 8 more
++   shell: +5 -5 #4851c39027
++     - input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="40"}
++     - input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="40"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="216"}
++     - input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="800"}
++     + input .insp-num-in [data-testid="insp-num-pad-h"] [aria-label="Padding horizontal"] [type="text"] {value="0"}
++     + input .insp-num-in [data-testid="insp-num-pad-v"] [aria-label="Padding vertical"] [type="text"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Height"] {value="0"}
++     + input .st-cp-numin [role="spinbutton"] [aria-label="Width"] {value="0"}
+# cases golden=240 now=240 changed=52 onlyGolden= onlyNow=

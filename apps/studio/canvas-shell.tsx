@@ -38,6 +38,7 @@ import {
 
 import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
+import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
@@ -81,6 +82,10 @@ import {
   resolveSelectionEl,
 } from './dom-selection.ts';
 import { setElementDragActive } from './drag-state.ts';
+import { EditingLayer } from './editing/index.tsx';
+import { useObjectOps } from './editing/object-actions.ts';
+import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
+import { isLockedDom, lockedClickSelection, stepOut } from './editing/selection.tsx';
 import { EqualSpacingHandles } from './equal-spacing-handles.tsx';
 import { ExportDialogProvider } from './export-dialog.tsx';
 import {
@@ -388,6 +393,8 @@ interface LayerNode {
    *  route CssKnobs uses), so this must reflect the SOURCE value, not a
    *  client-only preview flag (see app.jsx `toggleVisibility`). */
   hidden: boolean;
+  /** S2.6 — the shared lock (`data-cd-locked` in the TSX): the Layers padlock's source of truth. */
+  locked?: boolean;
   /** feature-4 T7 — a SYNTHETIC group row for an unstamped wrapper that holds
    *  stamped descendants. It's a structural stand-in so the tree mirrors real
    *  nesting instead of hoisting descendants up a level (the "some elements
@@ -533,7 +540,9 @@ export function serializeArtboardTree(root: Element): LayerNode[] {
           label: layerLabel(child),
           type: layerType(child),
           index: idx,
-          hidden: (child as HTMLElement).style.display === 'none',
+          hidden:
+            (child as HTMLElement).style.display === 'none' || child.hasAttribute('data-cd-hidden'),
+          locked: child.hasAttribute('data-cd-locked'),
           dcElement: child.getAttribute('data-dc-element'),
           children: walk(child),
         });
@@ -1039,6 +1048,7 @@ function CanvasCore({
     [controller, artboardsCtx]
   );
 
+  const objectOps = useObjectOps();
   const registry = useMemo<ContextRegistry>(
     () =>
       buildRegistry({
@@ -1048,8 +1058,9 @@ function CanvasCore({
         distributeArtboards,
         alignArtboards,
         focusArtboard,
+        objectMenu: objectOps.menuDeps,
       }),
-    [controller, selSet, distributeArtboards, alignArtboards, focusArtboard]
+    [controller, selSet, distributeArtboards, alignArtboards, focusArtboard, objectOps]
   );
 
   // Distribute is reached via the MultiArtboardToolbar (floating chrome
@@ -1387,6 +1398,8 @@ function buildRegistry(deps: {
   distributeArtboards: (axis: 'x' | 'y') => void;
   alignArtboards: (mode: 'left' | 'right' | 'center-x' | 'top' | 'bottom' | 'center-y') => void;
   focusArtboard: (artboardId: string) => void;
+  /** S2.6 — what the object menu's rows run (editing/object-actions.ts) */
+  objectMenu: ObjectMenuDeps;
 }): ContextRegistry {
   const { controller, clearSelection, selSet, distributeArtboards, alignArtboards, focusArtboard } =
     deps;
@@ -2316,6 +2329,8 @@ function buildRegistry(deps: {
     ],
     overlay: [],
   };
+  // S2.6 — the v1 element rows above, laid out as the v2 object menu (editing/object-menu.tsx)
+  registry.element = objectMenuSections(registry.element, deps.objectMenu);
   return filterRegistryForReadOnly(registry);
 }
 
@@ -2337,6 +2352,7 @@ const READ_ONLY_MENU_IDS = new Set([
   'copy-style',
   'inspect',
   'select-layer',
+  'select-matching',
   'deselect',
   'export-selection',
   'export-artboard',
@@ -2349,7 +2365,17 @@ function filterRegistryForReadOnly(registry: ContextRegistry): ContextRegistry {
   const out = {} as ContextRegistry;
   for (const key of Object.keys(registry) as (keyof ContextRegistry)[]) {
     out[key] = registry[key]
-      .map((section) => section.filter((item) => READ_ONLY_MENU_IDS.has(item.id)))
+      .map((section) =>
+        section.flatMap((item) => {
+          if (READ_ONLY_MENU_IDS.has(item.id)) return [item];
+          // S2.6 — the object menu's Advanced ▸ holds read rows (Copy CSS, Inspect…): keep those
+          if (item.id === 'advanced' && Array.isArray(item.submenu)) {
+            const kept = item.submenu.filter((sub) => READ_ONLY_MENU_IDS.has(sub.id));
+            return kept.length ? [{ ...item, submenu: kept }] : [];
+          }
+          return [];
+        })
+      )
       .filter((section) => section.length > 0);
   }
   return out;
@@ -2439,6 +2465,9 @@ function lockedKeySet(): Set<string> {
  *  artboard body (same occurrence math the Layers rows use). */
 function isLockedElement(el: Element | null, cdId: string | null): boolean {
   if (!el || !cdId) return false;
+  // S2.6 — the shared lock is the attribute in the TSX (V2-1.4 §5.5); the per-user key set below
+  // only carries locks made before it, until V2-2.14 migrates them.
+  if (el.hasAttribute('data-cd-locked')) return true;
   const locked = lockedKeySet();
   if (locked.size === 0) return false;
   const body = el.closest('.dc-artboard-body');
@@ -3378,9 +3407,16 @@ function CanvasRouter({
           // it actually captured something.
           return;
         }
-        // feature-4 T7b — a locked layer can't be selected from the canvas
-        // (the Layers panel row still can, so it stays reachable to unlock).
-        if (isLockedElement(target.el, target.cdId)) return;
+        // feature-4 T7b + S2.1 — a click on a locked object selects its nearest unlocked parent
+        // (or the artboard); the Layers row still selects the object itself, so it stays
+        // reachable to unlock. The lock is the shared `data-cd-locked` (V2-1.4) or the v1 key.
+        const lockedAt = (el: Element) =>
+          isLockedDom(el) || isLockedElement(el, el.getAttribute('data-cd-id'));
+        if (target.el && lockedAt(target.el)) {
+          const up = lockedClickSelection(target.el, lockedAt);
+          if (up) selSet.replace(up);
+          return;
+        }
         // feature-4 escape hatch (user steer 2026-07-19) — a Cmd+click select
         // from BROWSE means "I want to edit now": flip to the Move (select)
         // tool so the follow-up gestures (drag, dblclick drill, keyboard)
@@ -3452,7 +3488,8 @@ function CanvasRouter({
         clearSticky();
         resetTool();
         ctxMenu.close();
-        selSet.clear();
+        // S2.1 — `object.step-out`, esc's selection rung: one level up; at the top, deselect.
+        if (!stepOut(selSet)) selSet.clear();
         annotSel.clear();
         setHoverEl(null);
       },
@@ -3476,9 +3513,11 @@ function CanvasRouter({
       <AnnotationsLayer />
       <ToolPalette />
       <ArtboardMarqueeOverlay />
+      <ArtboardRingsLayer />
       <ElementMarqueeOverlay />
       <HoverHalo el={hoverEl} />
       <SelectionHalos />
+      <EditingLayer />
       {!readOnly && <ElementResizeOverlay />}
       {!readOnly && <SpacingHandlesOverlay />}
       {!readOnly && <GridTrackHandlesOverlay />}
