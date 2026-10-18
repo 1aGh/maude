@@ -74,11 +74,11 @@ a v1 peer reads as it is — no new attribute, `data-cd-id` untouched.
 | Double-click, type, click away (`text.set`) | The element's single text child is the new copy (`{ } < > &` escaped). In a Czech element (a `lang="cs"` on it or on an ancestor) the copy is set as Czech sets it, below. |
 | Style "Heading" (`text.use-style`) | `className` holds the system's class for that role, `t-heading` (`system/<ds>/components.json` `typeRoles`), replacing any other `t-*` class; the other classes stay in order. The inline `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `letterSpacing`, `textTransform` and `fontStyle` are taken out, so the style is what shows. |
 | Changing one thing | An ordinary inline declaration on the element (`style.fontSize: "20px"`). It is an override of the style, not a different style: Reset (`text.reset-style`) deletes those seven inline declarations. |
-| Detach (`text.detach-style`) | The style's values are written inline for every one of the seven the element does not already set, and the `t-*` class is removed. The look is identical; a later change to the style no longer reaches it. |
+| Detach (`text.detach-style`) | The style's values are written inline for every one of the seven the element does not already set — as the design system wrote them (`fontSize: "var(--type-xl)"`, not `28px`), so a detached text still follows the tokens — and the `t-*` class is removed. A property the style's rule does not declare is written as the value it computes to. The look is identical; a later change to the style itself no longer reaches it. |
 | Case AA / As typed (`text.set-case`) | `style.textTransform: "uppercase"`; As typed deletes it (writes `"none"` when the style itself sets a case). |
 | Language Čeština (`text.set-language`) | `lang="cs"` on the element, and the copy set as Czech sets it: **U+00A0 (no-break space) in place of the space after every one-letter word** (v k s z o u i a, any case, any other single letter), and „double quotes“ for straight "…" and English “…” quotes (`„` opens, `“` closes). Never inside a URL, an e-mail address or a `` `code` `` span. Another language writes `lang` only; the copy is not changed. |
 
 Over HTTP: `POST /_api/edit-op {file, op, targets, params}` with `op` one of `text.set` (`params.text`, `before?`,
 `lang?`), `text.set-language` (`lang`), `text.set-case` (`case: "upper"|"typed"`, `explicit?`), `text.use-style`
-(`role: "t-heading"`), `text.reset-style` (`props?`), `text.detach-style` (`values: {"font-size": "28px", …}`). One
+(`role: "t-heading"`), `text.reset-style` (`props?`), `text.detach-style` (`values: {"font-size": "var(--type-xl)", …}`). One
 request is one write and one undo step.

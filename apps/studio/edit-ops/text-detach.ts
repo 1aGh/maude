@@ -1,8 +1,9 @@
 // edit-ops/text-detach.ts — S2.12: `text.detach-style`.
 //
 // "Detach keeps the look exactly and stops following the style — nothing else in the project changes."
-// The canvas measured the style's values (editing/type-role.ts: a probe element wearing only the class)
-// and sends them as `values`. Each property the element does not already override is inlined with the
+// The canvas read the style's values (editing/type-role.ts) and sends them as `values`: as the design
+// system wrote them (`var(--type-xl)`, `declaredTypeValues`), the computed value only for a property the
+// style's rule does not declare. Each property the element does not already override is inlined with the
 // style's value; one it overrides keeps its own; the role class is dropped from the class list. After
 // that the text looks the same and a change to the style no longer reaches it.
 

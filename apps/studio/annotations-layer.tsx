@@ -201,6 +201,7 @@ import {
 } from './canvas-lib.tsx';
 import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
+import { clickToType } from './editing/click-to-type.ts';
 import { crossedDragThreshold, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
 import {
@@ -1169,7 +1170,8 @@ export function AnnotationsLayer() {
     tool === 'arrow' ||
     tool === 'sticky' ||
     tool === 'section' ||
-    tool === 'text';
+    tool === 'text' ||
+    tool === 'el-text'; // S2.12b — click to type owns the pointer, draws nothing
   const isErase = tool === 'eraser';
   const isActive = isDraw || isErase;
   // T20 / Phase 24 — every shape primitive carries stroke weight (FigJam ships
@@ -2133,6 +2135,17 @@ export function AnnotationsLayer() {
           label: 'Section',
           color: DEFAULT_SECTION_COLOR,
         });
+      } else if (tool === 'el-text') {
+        // S2.12b — Edit's Text is click to type: editable text under the click types in place, a
+        // click on nothing adds a text element (the toolbar insert verb), never an annotation.
+        const how = clickToType(document, findEditableElementAt(e.clientX, e.clientY), e);
+        if (how === 'code')
+          showCanvasToast(
+            'This text is filled in from code (a variable) — edit it via chat or /design:edit.'
+          );
+        // Editing ARTBOARD content is an edit-mode activity: back to Select, as the Text tool does.
+        setTool('move');
+        return true;
       } else if (tool === 'text') {
         // Dogfood fix + Phase 4 (unified-text-editing) — the Text tool
         // clicking EXISTING editable text edits it in place rather than

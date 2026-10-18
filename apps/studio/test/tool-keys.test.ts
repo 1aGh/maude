@@ -35,11 +35,11 @@ describe('toolKeyAction (T8)', () => {
   const act = (mode: CanvasModeV2, key: string, caps: ModeCaps = EDITOR, tip?: 'highlighter') =>
     toolKeyAction(mode, k(key), caps, tip);
 
-  test("Edit's own keys: V H arm, F T I add one (S2 makes them tools), R P ⇧I wait for S2", () => {
+  test("Edit's own keys: V H arm, F I add one, T arms click-to-type (S2.12), R P ⇧I wait for S2", () => {
     expect(act('edit', 'V')).toEqual({ kind: 'arm', tool: 'move' });
     expect(act('edit', 'H')).toEqual({ kind: 'arm', tool: 'hand' });
     expect(act('edit', 'F')).toEqual({ kind: 'insert', insert: 'div' });
-    expect(act('edit', 'T')).toEqual({ kind: 'insert', insert: 'text' });
+    expect(act('edit', 'T')).toEqual({ kind: 'arm', tool: 'el-text' });
     expect(act('edit', 'I')).toEqual({ kind: 'insert', insert: 'image' });
     for (const key of ['R', 'P', '⇧I']) expect(act('edit', key)).toBeNull();
   });

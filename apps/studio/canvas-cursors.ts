@@ -188,6 +188,8 @@ export const TOOL_CURSORS: Record<Tool, string> = Object.freeze({
   sticky: STICKY,
   arrow: CROSSHAIR,
   text: TEXT,
+  // S2.12b — Edit's click-to-type Text wears the same I-beam.
+  'el-text': TEXT,
   eraser: ERASER,
 });
 

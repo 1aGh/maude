@@ -323,6 +323,17 @@ describe('text.detach-style — keeps the look exactly', () => {
     expect(attr(h.src(), 'over', 'className')).toBe('absent');
   });
 
+  test('token references are written as the system wrote them (S2.12b)', async () => {
+    const h = harness();
+    good(
+      await h.run('text.detach-style', ['title'], {
+        values: { 'font-size': 'var(--type-xl)', 'font-weight': 'var(--weight-bold, 700)' },
+      })
+    );
+    expect(attr(h.src(), 'title', 'style.font-size')).toBe('var(--type-xl)');
+    expect(attr(h.src(), 'title', 'style.font-weight')).toBe('var(--weight-bold, 700)');
+  });
+
   test('a value that could close the style object is refused', async () => {
     const h = harness();
     expect(

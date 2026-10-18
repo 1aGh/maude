@@ -518,6 +518,8 @@ export const TOOL_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   section: IconSection,
   arrow: IconArrow,
   text: IconText,
+  // S2.12b — Edit's click-to-type Text wears the same glyph.
+  'el-text': IconText,
   eraser: IconEraser,
 };
 

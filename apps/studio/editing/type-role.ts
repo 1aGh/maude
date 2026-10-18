@@ -7,8 +7,9 @@
 // transitions off, so nothing paints and nothing animates. No node is added or removed, so Layers'
 // structural observer never hears of it.
 //
-// The result rides the selection (`Selection.textInfo`) to the inspector, and is what `text.detach-style`
-// sends as `values`: Detach inlines exactly these.
+// The result rides the selection (`Selection.textInfo`) to the inspector. Detach inlines the style's
+// values AS THE DESIGN SYSTEM WROTE THEM (`declaredTypeValues`: `var(--type-xl)`, not 28px) so a detached
+// text still follows the tokens; a property the style's rule does not declare falls back to `values`.
 
 import { roleClassesOf, type TextInfo, TYPE_PROPS } from '../edit-ops/text-style.ts';
 
@@ -62,4 +63,60 @@ export function probeTextInfo(el: Element): TextInfo | null {
   }
   info.differs = TYPE_PROPS.filter((p) => now[p] !== info.values[p]);
   return info;
+}
+
+/** The class selector a rule list names as `.t-heading` — `.t-heading, .t-poster` counts, `.t-heading:hover` does not. */
+const namesRole = (selectorText: string, role: string): boolean =>
+  selectorText.split(',').some((sel) => sel.trim() === `.${role}`);
+
+type RuleLike = {
+  selectorText?: string;
+  style?: { getPropertyValue(p: string): string };
+  cssRules?: ArrayLike<RuleLike>;
+  media?: { mediaText?: string };
+  conditionText?: string;
+};
+
+/**
+ * What the design system's rule for a style declares, as written: `{ 'font-size': 'var(--type-xl)' }`.
+ * Read from the document's stylesheets (the cascade's last matching `.t-<role>` rule wins per property,
+ * through `@layer` / `@supports` groups and `@media` ones that apply now). A shorthand (`font: …`) or a
+ * sheet the page may not read declares nothing here — the caller falls back to the computed value.
+ */
+export function declaredTypeValues(doc: Document, role: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const win = doc.defaultView;
+  const applies = (rule: RuleLike): boolean => {
+    const cond = rule.media?.mediaText ?? rule.conditionText;
+    if (rule.media === undefined) return true;
+    if (!cond || cond === 'all') return true;
+    try {
+      return !!win?.matchMedia?.(cond).matches;
+    } catch {
+      return false;
+    }
+  };
+  const walk = (rules: ArrayLike<RuleLike> | undefined) => {
+    for (let i = 0; i < (rules?.length ?? 0); i++) {
+      const rule = (rules as ArrayLike<RuleLike>)[i] as RuleLike;
+      if (typeof rule.selectorText === 'string') {
+        if (!rule.style || !namesRole(rule.selectorText, role)) continue;
+        for (const p of TYPE_PROPS) {
+          const v = rule.style
+            .getPropertyValue(p)
+            .replace(/!important\s*$/i, '')
+            .trim();
+          if (v) out[p] = v;
+        }
+      } else if (rule.cssRules && applies(rule)) walk(rule.cssRules);
+    }
+  };
+  for (let i = 0; i < doc.styleSheets.length; i++) {
+    try {
+      walk((doc.styleSheets[i] as unknown as { cssRules: ArrayLike<RuleLike> }).cssRules);
+    } catch {
+      /* a sheet from another origin cannot be read; its values come from the computed fallback */
+    }
+  }
+  return out;
 }

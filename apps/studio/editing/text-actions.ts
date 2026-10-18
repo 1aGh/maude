@@ -11,13 +11,14 @@
 
 import { showCanvasToast } from '../canvas-notifications.tsx';
 import { resolveSelectionEl } from '../dom-selection.ts';
+import { TYPE_PROPS } from '../edit-ops/text-style.ts';
 import type { EditOpResult, ElementRef } from '../edit-ops/types.ts';
 import type { CommandRecord } from '../undo-stack.ts';
 import type { Selection } from '../use-selection-set.tsx';
 import { type EditOpAsk, editOpRecord, runEditOp } from './edit-op.ts';
 import { refOfElement } from './object-actions.ts';
 import { refsOf, refusalLine } from './object-ops.ts';
-import { langIn, probeTextInfo } from './type-role.ts';
+import { declaredTypeValues, langIn, probeTextInfo } from './type-role.ts';
 
 export const TEXT_OPS = {
   'text.set-language': { op: 'text.set-language', label: 'Set language' },
@@ -99,11 +100,16 @@ export async function runTextAction(
       const el = elementOf(ref, doc);
       const info = el ? probeTextInfo(el) : null;
       if (!info?.role) continue;
-      const key = JSON.stringify(info.values);
-      const g: [ElementRef[], Record<string, unknown>] = byValues.get(key) ?? [
-        [],
-        { values: info.values },
-      ];
+      // The style's values as the system wrote them (`var(--type-xl)`); a property its rule does not
+      // declare is the computed value, never an empty one.
+      const declared = declaredTypeValues(doc, info.role);
+      const values: Record<string, string> = {};
+      for (const p of TYPE_PROPS) {
+        const v = declared[p] ?? info.values[p];
+        if (v) values[p] = v;
+      }
+      const key = JSON.stringify(values);
+      const g: [ElementRef[], Record<string, unknown>] = byValues.get(key) ?? [[], { values }];
       g[0].push(ref);
       byValues.set(key, g);
     }

@@ -16,7 +16,7 @@ import {
   UNKNOWN_OP_MESSAGE,
 } from '../editing/text-actions.ts';
 import { TextInPlace, tieArcs } from '../editing/text-in-place.tsx';
-import { probeTextInfo } from '../editing/type-role.ts';
+import { declaredTypeValues, probeTextInfo } from '../editing/type-role.ts';
 
 beforeAll(() => {
   GlobalRegistrator.register();
@@ -263,6 +263,51 @@ describe('runTextAction', () => {
     expect(asked[1]?.params?.values).toMatchObject({
       'font-size': '12px',
       'text-transform': 'uppercase',
+    });
+  });
+
+  test('Detach writes the style’s own token references, not computed px (S2.12b)', async () => {
+    const q = tree();
+    void q;
+    document.head.innerHTML = `<style>
+      :root { --type-xl: 28px; --weight-bold: 700; }
+      body { font-family: Georgia; }
+      .t-heading { font-size: var(--type-xl); font-weight: var(--weight-bold); line-height: 32px; }
+    </style>`;
+    const asked: Array<{ params?: Record<string, unknown> }> = [];
+    await runTextAction(
+      'text.detach-style',
+      [],
+      [ref('title')],
+      {},
+      {
+        run: async (a) => {
+          asked.push(a as never);
+          return OK;
+        },
+      }
+    );
+    const values = asked[0]?.params?.values as Record<string, string>;
+    expect(values['font-size']).toBe('var(--type-xl)');
+    expect(values['font-weight']).toBe('var(--weight-bold)');
+    expect(values['line-height']).toBe('32px'); // a literal the style declares stays as written
+    // a property the style does not declare falls back to what it computes to here
+    expect(values['font-family']).toBe(probeTextInfo(q('title'))?.values['font-family'] as string);
+    expect(values['font-family']).toContain('Georgia');
+  });
+
+  test('declaredTypeValues reads the role’s rule as written, through @supports and @media groups', () => {
+    document.head.innerHTML = `<style>
+      @supports (display: block) { .t-heading { font-size: var(--type-xl); } }
+      @media all { .t-heading { letter-spacing: var(--tracking-tight); } }
+      @media not all { .t-heading { font-weight: 100; } }
+      .t-other { font-size: 1px; }
+      .t-heading, .t-poster { font-style: italic; }
+    </style>`;
+    expect(declaredTypeValues(document, 't-heading')).toEqual({
+      'font-size': 'var(--type-xl)',
+      'letter-spacing': 'var(--tracking-tight)',
+      'font-style': 'italic',
     });
   });
 

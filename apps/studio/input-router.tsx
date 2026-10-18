@@ -110,6 +110,8 @@ export type Tool =
   | 'arrow'
   | 'sticky'
   | 'text'
+  // S2.12b — Edit's Text: click to type (annotations-layer `beginStroke`), not an annotation.
+  | 'el-text'
   // FigJam v3 — labelled organizing container (Shift+S).
   | 'section'
   | 'eraser';
@@ -123,6 +125,7 @@ const ANNOTATION_TOOLS = new Set<Tool>([
   'arrow',
   'sticky',
   'text',
+  'el-text',
   'section',
   'eraser',
 ]);
@@ -226,7 +229,8 @@ const ROUTER_KEYS = canvasKeyIndex(
     .concat(Object.keys(ROUTER_FIXED))
 );
 
-const V1_TOOLS: ReadonlySet<string> = new Set(V1_TOOL_IDS);
+// `el-text` (S2.12b) is the one v2 tool the canvas arms itself; the others still wait on their slice.
+const V1_TOOLS: ReadonlySet<string> = new Set<string>([...V1_TOOL_IDS, 'el-text']);
 /** A v2 slot tool as the v1 `Tool` the canvas arms (Viewing's `inspect` rides `move` until S3). */
 const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) as Tool | null;
 

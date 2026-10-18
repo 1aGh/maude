@@ -185,12 +185,13 @@ export const MODE_TOOLS: Readonly<Record<CanvasModeV2, ModeToolbar>> = Object.fr
     slots: Object.freeze([
       slot({ key: 'V', label: 'Select', tool: 'move', minRole: 'edit' }),
       slot({ key: 'H', label: 'Hand', tool: 'hand', minRole: 'edit' }),
-      // Frame / Text / Image are backed by today's "+ Insert Div / Text / Image" until S2 builds the
-      // tools: a click adds one at its default size, as the insert does.
+      // Frame / Image are backed by today's "+ Insert Div / Image" until S2 builds the tools: a click
+      // adds one at its default size, as the insert does.
       slot({ key: 'F', label: 'Frame', tool: 'frame', minRole: 'edit', insert: 'div' }),
       slot({ key: 'R', label: 'Shape', tool: 'el-shape', minRole: 'edit', pending: 'S2' }),
       slot({ key: 'P', label: 'Pen', tool: 'el-pen', minRole: 'edit', pending: 'S2' }),
-      slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit', insert: 'text' }),
+      // Click to type (S2.12b): a tool, no longer today's momentary Insert Text.
+      slot({ key: 'T', label: 'Text', tool: 'el-text', minRole: 'edit' }),
       slot({
         key: 'I',
         label: 'Image',

@@ -457,22 +457,35 @@ describe('the Edit toolbar (ungoverned, an editor)', () => {
     expect(q('toolbar-slot-hand')?.getAttribute('aria-pressed')).toBe('true');
   });
 
-  test('Frame / Text / Image add one at its default size through today’s insert verbs, and arm nothing', () => {
+  test('Frame / Image add one at its default size through today’s insert verbs, and arm nothing', () => {
     const art = document.createElement('div');
     art.innerHTML =
       '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
     document.body.appendChild(art);
     mountBar();
     click(q('toolbar-slot-frame'));
-    click(q('toolbar-slot-el-text'));
     click(q('toolbar-slot-image'));
     expect(verbs()).toEqual([
       { dgn: 'insert-request', refId: 'p1', position: 'after', kind: 'div' },
-      { dgn: 'insert-request', refId: 'p1', position: 'after', kind: 'text' },
       { dgn: 'insert-image-request', refId: 'p1', position: 'after' },
     ]);
     expect(ctx?.tool).toBe('move');
     expect(q('toolbar-slot-frame')?.hasAttribute('aria-pressed')).toBe(false); // momentary, not a tool
+    art.remove();
+  });
+
+  test('Text is a tool (click to type, S2.12): it arms el-text, stays pressed and adds nothing by itself', () => {
+    const art = document.createElement('div');
+    art.innerHTML =
+      '<article data-dc-screen="a1" aria-current="true"><div class="dc-artboard-body"><p data-cd-id="p1">x</p></div></article>';
+    document.body.appendChild(art);
+    mountBar();
+    expect(q('toolbar-slot-el-text')?.getAttribute('aria-pressed')).toBe('false');
+    click(q('toolbar-slot-el-text'));
+    expect(ctx?.tool).toBe('el-text');
+    expect(ctx?.mode).toBe('edit');
+    expect(q('toolbar-slot-el-text')?.getAttribute('aria-pressed')).toBe('true');
+    expect(verbs()).toEqual([]);
     art.remove();
   });
 });

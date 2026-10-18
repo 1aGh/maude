@@ -14,7 +14,7 @@
  *             frame) so the shell's tool panels anchor to it.
  *
  *             Slots whose tool does not exist yet are in the data but NOT rendered (`pending`):
- *             S2 builds them. Frame / Text / Image ride today's "+ Insert Div / Text / Image".
+ *             S2 builds them. Frame / Image ride today's "+ Insert Div / Image"; Text is a tool (click to type).
  */
 
 import {
@@ -262,7 +262,7 @@ export function ToolPalette() {
   useEffect(() => setMounted(true), []);
   // The Marker remembers its last tip for the session (Q4); V2-4.5b's M key arms the same one.
   useEffect(() => rememberMarkerTip(tool), [tool]);
-  // V2-4.5b — Edit's F / T / I keys do what their momentary slot does (input-router resolves them).
+  // V2-4.5b — Edit's F / I keys (and a Text click on empty canvas) do what their momentary slot does (input-router resolves them).
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const onInsert = (e: Event) => {
@@ -307,7 +307,7 @@ export function ToolPalette() {
     const keyHint = s.key ? ` (${s.key})` : '';
     const id = s.tool ?? s.panel ?? s.label.toLowerCase();
 
-    // Momentary: Frame / Text / Image add one at the default size, as "+ Insert" did.
+    // Momentary: Frame / Image add one at the default size, as "+ Insert" did.
     if (s.insert) {
       const Icon = glyphFor(id);
       const kind = s.insert;

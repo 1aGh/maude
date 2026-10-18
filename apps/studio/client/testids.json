@@ -7884,7 +7884,7 @@
     "hook": "toolbar-slot-<toolId>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Frame / Text / Image and the panel-only Stickers have none). `<toolId>`: `move`, `hand`, `frame`, `el-text`, `image` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
+    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Frame / Image and the panel-only Stickers have none; Text (`el-text`) is click to type). `<toolId>`: `move`, `hand`, `frame`, `el-text`, `image` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"

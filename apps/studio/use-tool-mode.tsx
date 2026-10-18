@@ -131,6 +131,8 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   { id: 'section', label: 'Section', shortcut: '⇧S', cursor: TOOL_CURSORS.shape },
   { id: 'arrow', label: 'Arrow', shortcut: 'A', cursor: TOOL_CURSORS.arrow },
   { id: 'text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS.text },
+  // S2.12b — Edit's Text: click to type (a click on text types in place, else adds a text element).
+  { id: 'el-text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS['el-text'] },
   { id: 'eraser', label: 'Eraser', shortcut: 'E', cursor: TOOL_CURSORS.eraser },
 ]);
 
