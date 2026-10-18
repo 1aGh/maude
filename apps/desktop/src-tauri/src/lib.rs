@@ -691,6 +691,7 @@ pub fn run() {
             profiles::profiles_list,
             profiles::profiles_create,
             profiles::profiles_delete,
+            profiles::accounts_list,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))

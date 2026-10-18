@@ -50,6 +50,7 @@
     "allow-resolve-project-for-link",
     "allow-send-notification",
     "allow-managed-project-open",
-    "allow-managed-projects-list"
+    "allow-managed-projects-list",
+    "allow-accounts-list"
   ]
 }
