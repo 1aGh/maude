@@ -33,14 +33,19 @@ import {
   sheetTitle,
   summaryWords,
 } from './export-copy.js';
+import { AdvancedSection } from './advanced/advanced.jsx';
 import { OtherFormats } from './other-formats.jsx';
 import { laneBlocked, replayBody, runExport } from './run-export.js';
 import { ScopeBar } from './scope-bar.jsx';
+import { picksForOther } from './sections/batch-model.js';
+import { BatchSection } from './sections/batch.jsx';
 import { ImageSection } from './sections/image.jsx';
 import { WebSection } from './sections/web.jsx';
 import { ShareHint } from './share-hint.jsx';
 import {
   browserLaneRequest,
+  canvasRel,
+  effectiveScale,
   folderRel,
   kindsOf,
   scopeAvailability,
@@ -70,6 +75,7 @@ export function ExportSheet({
   selectedElements,
   hasSelection,
   selectionLabel = null,
+  projectName = '',
   exportLane = 'local',
   onBrowserCapture = null,
   onClose,
@@ -106,10 +112,31 @@ export function ExportSheet({
     }),
     [request, initialScope]
   );
-  const { state, set, setFormat, setScope, spec, est, kind, section } = useExportSpec(req, {
+  const {
+    state,
+    set,
+    setFormat,
+    setScope,
+    spec,
+    est,
+    kind,
+    section,
+    batch,
+    kinds: specKinds,
+  } = useExportSpec(req, {
     ...ctx,
     hasSelection: selected,
   });
+  // S8.3 — what the Advanced fold's file-name preview is made from
+  const kindSet = useMemo(() => new Set(specKinds), [specKinds]);
+  const nameFacts = useMemo(
+    () => ({
+      project: projectName || basename(designRel) || 'Project',
+      canvas: canvasRel(ctx),
+      label: selectionLabel,
+    }),
+    [projectName, designRel, ctx, selectionLabel]
+  );
   const people = useExportPeople();
 
   const [busy, setBusy] = useState(false);
@@ -216,7 +243,10 @@ export function ExportSheet({
       setStatus(null);
       return;
     }
-    setFormat(row.format);
+    // a batch: the format goes to every kind that can be made in it (a deck or a ZIP is one format for all)
+    const picks = batch ? picksForOther(row, specKinds, state.kindPicks) : null;
+    if (picks) set({ kindPicks: picks });
+    else setFormat(row.format);
     setStatus(null);
   };
 
@@ -256,7 +286,8 @@ export function ExportSheet({
     />
   );
   const annotationsOff = false;
-  const Section = section === 'web' ? WebSection : ImageSection;
+  const Section =
+    section === 'batch' ? BatchSection : section === 'web' ? WebSection : ImageSection;
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim closes the sheet on a press outside it
@@ -321,8 +352,19 @@ export function ExportSheet({
                 other={other}
                 onHandoff={handoff}
                 annotationsOff={annotationsOff}
+                est={est}
               />
             </div>
+            <AdvancedSection
+              state={state}
+              set={set}
+              spec={spec}
+              kinds={kindSet}
+              exportLane={exportLane}
+              facts={nameFacts}
+              batch={batch}
+              sheetScale={effectiveScale(state, kind)}
+            />
             <ShareHint names={people} onCopyLink={copyLink} />
           </>
         )}

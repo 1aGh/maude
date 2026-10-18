@@ -14458,5 +14458,607 @@
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/v2-export-sheet.test.tsx"],
     "v2": "new"
+  },
+  {
+    "hook": "export-groups",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The many-at-once groups: one row per artboard kind the export reaches.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "BatchSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-group-<kind>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One kind's group (digital, web, print, video …): its title, where it renders and its own format select. `data-kind` carries the kind.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "Group"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-group-<kind>-title",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The group's title: \"Fixed size · 100 artboards\".",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "Group"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-group-<kind>-format",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "The kind's own format select (PNG · 1×, JPG · 2×, Print PDF, MP4 …). Changing it never touches another kind.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "Group"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-shared-parts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line that names the canvases a Folder / Whole project left out because they hold shared parts, not artboards.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "BatchSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-format-skipped",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The line that names what the picked format could not take and left out.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "BatchSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-big",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "A big export says it is big (files, size, time) and whether the window may close while the cloud finishes the videos.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "BatchSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-project-zip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Whole project only: the \"Project ZIP instead\" hint and its one action.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "BatchSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-row-other",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The batch's \"Other format\" row (the Other… button).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/sections/batch.jsx",
+      "symbol": "BatchSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-advanced",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The sheet's Advanced fold (`panel=\"export\"`, remembered per Mac).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-advanced-toggle",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The row that opens / closes Export › Advanced.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-parts",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The parts the fold shows for what is selected (image, print, video, where it renders).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/advanced.jsx",
+      "symbol": "AdvancedSection"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-image",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: exact scale or dpi, colour profile, JPG quality, background. Shown for PNG / JPG.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-size-by",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: Size by Scale or dpi.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-size-by-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Size-by choice: `scale` · `dpi`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-scale",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: the exact scale (0.25–4×). Replaces the old dialog's 1×–3× Resolution (nothing-deleted A-png-at-150-300-600-dpi).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-dpi",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: the exact dpi (72–600).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-dpi-presets",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: the 150 · 300 · 600 dpi presets.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-dpi-<n>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One dpi preset: `150` · `300` · `600`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-color",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: colour profile, sRGB or Display P3.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-color-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One colour profile: `srgb` · `display-p3`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-jpg-quality",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: JPG quality 1–100 %. Shown when a JPG is part of the export.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-background",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Image: the background (as on the artboard · transparent · white).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/image.jsx",
+      "symbol": "ImagePart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-print",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: the images' dpi, bleed and crop marks. Shown for a PDF of a print artboard.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-print-dpi",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: resolution of the images inside.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-bleed",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: bleed switch.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-crop",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Print PDF: crop marks switch.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/print.jsx",
+      "symbol": "PrintPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-video",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Video: frame rate, codec, bitrate. Shown for MP4 · GIF · WebM.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/video.jsx",
+      "symbol": "VideoPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-fps",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Video: frame rate.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/video.jsx",
+      "symbol": "VideoPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-codec",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Video: the codec the format uses (shown, not chosen).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/video.jsx",
+      "symbol": "VideoPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-bitrate",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Video: bitrate (automatic · draft · standard · high).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/video.jsx",
+      "symbol": "VideoPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-render",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Where it renders: the video lane and the render service. Shown for video, and always on a workspace without the render service.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/render.jsx",
+      "symbol": "RenderPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-lane",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Where it renders: video lane (suggest each time · always the cloud · always this Mac).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/render.jsx",
+      "symbol": "RenderPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-render-service",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Where it renders: the render service's name (mono, inside the fold).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/render.jsx",
+      "symbol": "RenderPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-render-status",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Where it renders: the render service's status in words.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/render.jsx",
+      "symbol": "RenderPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-lane-note",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › Where it renders: the \"no render service on this workspace\" note (nothing-deleted A-render-service-note).",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/render.jsx",
+      "symbol": "RenderPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-names",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › File names: the pattern, its tokens and the live preview.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/names.jsx",
+      "symbol": "NamesPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-name-template",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › File names: the pattern box.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/names.jsx",
+      "symbol": "NamesPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-token-<name>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One file-name token button: `project` · `folder` · `canvas` · `artboard` · `kind` · `size` · `scale` · `date`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/names.jsx",
+      "symbol": "NamesPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-name-preview",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › File names: example names made by the server's own naming; changes as you type.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/names.jsx",
+      "symbol": "NamesPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-command",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Advanced › The same export from a terminal.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/command.jsx",
+      "symbol": "CommandPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-cmd-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One command line: `cli` (maude design export …) · `claude` (/design:export …). The exact export, round-tripped through the CLI parser.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/command.jsx",
+      "symbol": "CommandPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "export-adv-copy-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Copy for one command line: `cli` · `claude`.",
+    "producer": {
+      "file": "apps/studio/client/v2/export/advanced/command.jsx",
+      "symbol": "CommandPart"
+    },
+    "region": "export sheet",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-export-batch.test.tsx"],
+    "v2": "new"
   }
 ]

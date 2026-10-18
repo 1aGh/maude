@@ -1354,8 +1354,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": "export-png-resolution",
-        "where": "Menu › File › Export… ⇧⌘E › PNG › Resolution (1× – 3×, 150 · 300 · 600 dpi; until S8)"
+        "testid": "export-adv-size-by",
+        "where": "Menu › File › Export… ⇧⌘E › Advanced › Image › Size by Scale (exact 0.25–4×) or dpi (150 · 300 · 600, or any 72–600); it wins over the sheet's 1× / 2×"
       }
     },
     {
@@ -1419,8 +1419,8 @@
       "drawnAt": "09 · ex-advanced",
       "v2": {
         "action": null,
-        "testid": "export-lane-note",
-        "where": "Menu › File › Export… ⇧⌘E — a note under the cards when this workspace has no render service (PNG / SVG of the active artboard only; until S8)"
+        "testid": "export-adv-lane-note",
+        "where": "Menu › File › Export… ⇧⌘E › Advanced › Where it renders — the render service's status, and the note when this workspace has none (PNG / SVG of the active artboard only); the same note sits under Scope (export-lane-note)"
       }
     },
     {

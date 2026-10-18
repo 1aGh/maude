@@ -10,7 +10,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
+import { applyAdvanced } from './advanced/model.js';
 import { SCOPE_IDS } from './export-copy.js';
+import { batchPart, isBatch } from './sections/batch-model.js';
 
 // ── formats and scopes ───────────────────────────────────────────────────────────────────────────
 export const RASTER = new Set(['png', 'jpg']);
@@ -118,8 +120,20 @@ export function buildSpec(state, ctx = {}) {
   const options = {};
   if (RASTER.has(state.format)) options.size = { scale: effectiveScale(state, ctx.kind) };
   if (state.annotations) options.annotations = true;
+  // S8.3 — many kinds at once: each kind's own format row; the picks, not the sheet's 1× / 2×, size it
+  if (ctx.batch) {
+    const part = batchPart(state.kindPicks, ctx.kinds ?? []);
+    if (part) {
+      spec.format = part.format;
+      options.size = undefined;
+      if (part.options) Object.assign(options, part.options);
+      if (part.byKind) spec.byKind = part.byKind;
+    }
+  }
+  for (const k of Object.keys(options)) if (options[k] === undefined) delete options[k];
   if (Object.keys(options).length) spec.options = options;
-  return spec;
+  // S8.3 — Advanced: whatever the fold has touched is laid over the spec
+  return applyAdvanced(spec, state.adv);
 }
 
 /**
@@ -258,13 +272,28 @@ export function useExportSpec(request, ctx) {
     (scope) => setState((s) => ({ ...s, scope, nothingSelected: false })),
     []
   );
-  // the section depends on what the spec reaches, which the estimate says — ask for the draft first
-  const draft = useMemo(() => buildSpec(state, ctx), [state, ctx]);
+  // the section depends on what the spec reaches, which the estimate says: the first ask is the flat
+  // draft; the kinds it names then decide whether the spec is a batch (S8.3), and the estimate is asked
+  // again for that spec so its numbers are the ones the picks make
+  const [kindsSeen, setKindsSeen] = useState([]);
+  const batch = isBatch(kindsSeen, state.scope, state.format);
+  const draft = useMemo(
+    () => buildSpec(state, { ...ctx, kinds: kindsSeen, batch }),
+    [state, ctx, kindsSeen, batch]
+  );
   const est = useEstimate(draft, { enabled: ctx.estimate !== false });
-  const section = sectionKind(est);
+  const seen = [...kindsOf(est)].sort().join('\u0000');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `seen` IS the kinds the estimate named
+  useEffect(() => {
+    if (est && seen !== [...kindsSeen].sort().join('\u0000')) setKindsSeen([...kindsOf(est)]);
+  }, [seen]);
+  const section = batch ? 'batch' : sectionKind(est);
   const kind = section === 'web' ? 'web' : 'digital';
-  const spec = useMemo(() => buildSpec(state, { ...ctx, kind }), [state, ctx, kind]);
-  return { state, set, setFormat, setScope, spec, est, kind, section };
+  const spec = useMemo(
+    () => buildSpec(state, { ...ctx, kind, kinds: kindsSeen, batch }),
+    [state, ctx, kind, kindsSeen, batch]
+  );
+  return { state, set, setFormat, setScope, spec, est, kind, section, batch, kinds: kindsSeen };
 }
 
 // ── the other people in the project (Share vs Export hint) ───────────────────────────────────────

@@ -238,6 +238,49 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-code-line` | testid | The “Code for a developer?” line on a web page’s sheet. | `client/v2/export/sections/web.jsx` · `WebSection` | test:v2-export-sheet | new |
 | `export-code-action` | testid | Handoff to production… in that line. | `client/v2/export/sections/web.jsx` · `WebSection` | test:v2-export-sheet | new |
 | `export-share-hint` | testid | The one-time “<people> are in this project…” line with Copy link. | `client/v2/export/share-hint.jsx` · `ShareHint` | test:v2-export-sheet | new |
+| `export-groups` | testid | The many-at-once groups: one row per artboard kind the export reaches. | `client/v2/export/sections/batch.jsx` · `BatchSection` | test:v2-export-batch | new |
+| `export-group-<kind>` | testid (pattern) | One kind's group (digital, web, print, video …): its title, where it renders and its own format select. `data-kind` carries the kind. | `client/v2/export/sections/batch.jsx` · `Group` | test:v2-export-batch | new |
+| `export-group-<kind>-title` | testid (pattern) | The group's title: "Fixed size · 100 artboards". | `client/v2/export/sections/batch.jsx` · `Group` | test:v2-export-batch | new |
+| `export-group-<kind>-format` | testid (pattern) | The kind's own format select (PNG · 1×, JPG · 2×, Print PDF, MP4 …). Changing it never touches another kind. | `client/v2/export/sections/batch.jsx` · `Group` | test:v2-export-batch | new |
+| `export-shared-parts` | testid | The line that names the canvases a Folder / Whole project left out because they hold shared parts, not artboards. | `client/v2/export/sections/batch.jsx` · `BatchSection` | test:v2-export-batch | new |
+| `export-format-skipped` | testid | The line that names what the picked format could not take and left out. | `client/v2/export/sections/batch.jsx` · `BatchSection` | test:v2-export-batch | new |
+| `export-big` | testid | A big export says it is big (files, size, time) and whether the window may close while the cloud finishes the videos. | `client/v2/export/sections/batch.jsx` · `BatchSection` | test:v2-export-batch | new |
+| `export-project-zip` | testid | Whole project only: the "Project ZIP instead" hint and its one action. | `client/v2/export/sections/batch.jsx` · `BatchSection` | test:v2-export-batch | new |
+| `export-row-other` | testid | The batch's "Other format" row (the Other… button). | `client/v2/export/sections/batch.jsx` · `BatchSection` | test:v2-export-batch | new |
+| `export-advanced` | testid | The sheet's Advanced fold (`panel="export"`, remembered per Mac). | `client/v2/export/advanced/advanced.jsx` · `AdvancedSection` | test:v2-export-batch | new |
+| `export-advanced-toggle` | testid | The row that opens / closes Export › Advanced. | `client/v2/export/advanced/advanced.jsx` · `AdvancedSection` | test:v2-export-batch | new |
+| `export-adv-parts` | testid | The parts the fold shows for what is selected (image, print, video, where it renders). | `client/v2/export/advanced/advanced.jsx` · `AdvancedSection` | test:v2-export-batch | new |
+| `export-adv-image` | testid | Advanced › Image: exact scale or dpi, colour profile, JPG quality, background. Shown for PNG / JPG. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-size-by` | testid | Advanced › Image: Size by Scale or dpi. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-size-by-<id>` | testid (pattern) | One Size-by choice: `scale` · `dpi`. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-scale` | testid | Advanced › Image: the exact scale (0.25–4×). Replaces the old dialog's 1×–3× Resolution (nothing-deleted A-png-at-150-300-600-dpi). | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-dpi` | testid | Advanced › Image: the exact dpi (72–600). | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-dpi-presets` | testid | Advanced › Image: the 150 · 300 · 600 dpi presets. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-dpi-<n>` | testid (pattern) | One dpi preset: `150` · `300` · `600`. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-color` | testid | Advanced › Image: colour profile, sRGB or Display P3. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-color-<id>` | testid (pattern) | One colour profile: `srgb` · `display-p3`. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-jpg-quality` | testid | Advanced › Image: JPG quality 1–100 %. Shown when a JPG is part of the export. | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-background` | testid | Advanced › Image: the background (as on the artboard · transparent · white). | `client/v2/export/advanced/image.jsx` · `ImagePart` | test:v2-export-batch | new |
+| `export-adv-print` | testid | Advanced › Print PDF: the images' dpi, bleed and crop marks. Shown for a PDF of a print artboard. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-adv-print-dpi` | testid | Advanced › Print PDF: resolution of the images inside. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-adv-bleed` | testid | Advanced › Print PDF: bleed switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-adv-crop` | testid | Advanced › Print PDF: crop marks switch. | `client/v2/export/advanced/print.jsx` · `PrintPart` | test:v2-export-batch | new |
+| `export-adv-video` | testid | Advanced › Video: frame rate, codec, bitrate. Shown for MP4 · GIF · WebM. | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |
+| `export-adv-fps` | testid | Advanced › Video: frame rate. | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |
+| `export-adv-codec` | testid | Advanced › Video: the codec the format uses (shown, not chosen). | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |
+| `export-adv-bitrate` | testid | Advanced › Video: bitrate (automatic · draft · standard · high). | `client/v2/export/advanced/video.jsx` · `VideoPart` | test:v2-export-batch | new |
+| `export-adv-render` | testid | Advanced › Where it renders: the video lane and the render service. Shown for video, and always on a workspace without the render service. | `client/v2/export/advanced/render.jsx` · `RenderPart` | test:v2-export-batch | new |
+| `export-adv-lane` | testid | Advanced › Where it renders: video lane (suggest each time · always the cloud · always this Mac). | `client/v2/export/advanced/render.jsx` · `RenderPart` | test:v2-export-batch | new |
+| `export-adv-render-service` | testid | Advanced › Where it renders: the render service's name (mono, inside the fold). | `client/v2/export/advanced/render.jsx` · `RenderPart` | test:v2-export-batch | new |
+| `export-adv-render-status` | testid | Advanced › Where it renders: the render service's status in words. | `client/v2/export/advanced/render.jsx` · `RenderPart` | test:v2-export-batch | new |
+| `export-adv-lane-note` | testid | Advanced › Where it renders: the "no render service on this workspace" note (nothing-deleted A-render-service-note). | `client/v2/export/advanced/render.jsx` · `RenderPart` | test:v2-export-batch | new |
+| `export-adv-names` | testid | Advanced › File names: the pattern, its tokens and the live preview. | `client/v2/export/advanced/names.jsx` · `NamesPart` | test:v2-export-batch | new |
+| `export-adv-name-template` | testid | Advanced › File names: the pattern box. | `client/v2/export/advanced/names.jsx` · `NamesPart` | test:v2-export-batch | new |
+| `export-adv-token-<name>` | testid (pattern) | One file-name token button: `project` · `folder` · `canvas` · `artboard` · `kind` · `size` · `scale` · `date`. | `client/v2/export/advanced/names.jsx` · `NamesPart` | test:v2-export-batch | new |
+| `export-adv-name-preview` | testid | Advanced › File names: example names made by the server's own naming; changes as you type. | `client/v2/export/advanced/names.jsx` · `NamesPart` | test:v2-export-batch | new |
+| `export-adv-command` | testid | Advanced › The same export from a terminal. | `client/v2/export/advanced/command.jsx` · `CommandPart` | test:v2-export-batch | new |
+| `export-adv-cmd-<id>` | testid (pattern) | One command line: `cli` (maude design export …) · `claude` (/design:export …). The exact export, round-tripped through the CLI parser. | `client/v2/export/advanced/command.jsx` · `CommandPart` | test:v2-export-batch | new |
+| `export-adv-copy-<id>` | testid (pattern) | Copy for one command line: `cli` · `claude`. | `client/v2/export/advanced/command.jsx` · `CommandPart` | test:v2-export-batch | new |
 | `export-job-<id>` | testid (pattern) | One job row in the background Exports panel (`<id>` = job id). | `client/export-center.jsx` · `ExportPanel` | test:export-center | moves — map in Phase 4 |
 | `export-degraded-note` | testid | Note on an export job that finished in a degraded mode. | `client/export-center.jsx` · `DegradedNote` | test:exporters/degraded-propagation (source text) | moves — map in Phase 4 |
 | `[data-ok] on export-status` | selector | `data-ok="1"\|"0"` on `export-status` = last export succeeded/failed. | `client/app.jsx` · `ExportDialog` | test:export-e2e-lanes | moves — map in Phase 4 |

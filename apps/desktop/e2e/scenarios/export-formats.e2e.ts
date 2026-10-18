@@ -231,4 +231,37 @@ describe('export-formats (native-desktop)', () => {
       await capture(`export-done-${format.id}`);
     });
   }
+
+  // S8.3 — many at once: Whole project sorts itself by kind, and Advanced prints the same export as a
+  // command. Nothing is exported here (a whole project is slow) — the sheet is read, then cancelled.
+  it('Whole project groups by kind, and Advanced replays the export as a command', async function () {
+    this.timeout(120_000);
+    if (open !== 'export') {
+      await openCanvas('export');
+      open = 'export';
+    }
+    await openExportDialog();
+    await browser.execute(() => {
+      const seg = document.querySelector(
+        '[data-testid="export-scope-project"]'
+      ) as HTMLButtonElement | null;
+      if (seg && !seg.disabled) seg.click();
+    });
+    const groups = await $('[data-testid="export-groups"]');
+    await groups.waitForDisplayed({ timeout: 30_000 });
+    expect(await (await $('[data-testid="export-rows"]')).getAttribute('data-section')).toBe(
+      'batch'
+    );
+    await capture('export-batch-project');
+    // Advanced is one quiet row until it is opened; then the command is the exact export
+    await (await $('[data-testid="export-advanced-toggle"]')).click();
+    const cli = await $('[data-testid="export-adv-cmd-cli"]');
+    await cli.waitForDisplayed({ timeout: 10_000 });
+    expect(await cli.getText()).toMatch(/^maude design export png --scope project/);
+    expect(await (await $('[data-testid="export-adv-cmd-claude"]')).getText()).toMatch(
+      /^\/design:export png --scope project/
+    );
+    await capture('export-batch-advanced');
+    await (await $('[data-testid="export-cancel"]')).click();
+  });
 });
