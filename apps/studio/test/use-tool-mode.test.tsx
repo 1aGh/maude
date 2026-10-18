@@ -19,6 +19,7 @@ describe('use-tool-mode / static', () => {
       // feature-4 (browse/move split) — browse leads, Move (V) is the select tool.
       'browse',
       'move',
+      'inspect', // S3.11 — Viewing's resting tool
       'hand',
       'comment',
       'pen',
@@ -33,6 +34,7 @@ describe('use-tool-mode / static', () => {
     expect(DEFAULT_TOOLS.map((t) => t.shortcut)).toEqual([
       '', // browse — no letter shortcut (palette / Esc-from-draw only)
       'V',
+      '', // inspect — Viewing's H arms it
       'H',
       'C',
       'B',
@@ -167,10 +169,11 @@ describe('use-tool-mode / SSR render', () => {
 // its `tools` when the canvas booted with ?ro=1; the pure function is what the
 // contract pins: navigate/inspect only, every write tool absent.
 describe('use-tool-mode / read-only filter', () => {
-  test('read-only keeps exactly browse + move + hand, in order', () => {
+  test('read-only keeps exactly browse + move + inspect + hand, in order', () => {
     expect(filterToolsForReadOnly(DEFAULT_TOOLS, true).map((t) => t.id)).toEqual([
       'browse',
       'move',
+      'inspect',
       'hand',
     ]);
   });

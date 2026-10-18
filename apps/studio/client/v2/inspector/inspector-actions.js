@@ -7,6 +7,7 @@
 //   inspector.copy-code  ⌘K "Copy code"         the element's JSX on the clipboard (S11.8; Can comment and up)
 //   inspector.edit-css-as-text  ⌘K "Edit CSS as text…"  Advanced › CSS as one block (S11.8)
 //   element.detach       ⌘K "Detach"            this instance becomes its own component (S11.8)
+//   inspect.copy-code    ⌘K "Copy code"         the same, from the Inspect panel in Preview / Viewing (S3.11)
 //
 // The menu runner (client/v2/shell/menu-runner.js) calls `runInspectorAction(id)`; the mounted frame binds the
 // handlers for the element it shows (frame.jsx), the same shape as left-panel-bus.js. With nothing bound
@@ -21,6 +22,8 @@ export const INSPECTOR_ACTION_IDS = Object.freeze([
   'inspector.copy-code',
   'inspector.edit-css-as-text',
   'element.detach',
+  // S3.11 — the Inspect panel's primary action (bound by inspect-panel.jsx)
+  'inspect.copy-code',
 ]);
 
 /** @type {Map<string, () => Promise<string | null> | string | null>} */

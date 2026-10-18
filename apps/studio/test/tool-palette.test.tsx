@@ -196,14 +196,16 @@ describe('visibleSlots / role, pending and read-only', () => {
   });
 
   test('a slot whose tool this canvas does not have is not a button (read-only strips the draw tools)', () => {
-    const readOnly = (t: ToolId) => t === 'browse' || t === 'move' || t === 'hand';
-    expect(ids(visibleSlots('viewing', 'comment', readOnly))).toEqual(['inspect']); // via the v1 bridge
+    const readOnly = (t: ToolId) =>
+      t === 'browse' || t === 'move' || t === 'hand' || t === 'inspect';
+    expect(ids(visibleSlots('viewing', 'comment', readOnly))).toEqual(['inspect']);
     expect(ids(visibleSlots('preview', 'comment', readOnly))).toEqual(['browse']);
   });
 
-  test('`inspect` rides `move` until S3 gives it a descriptor', () => {
-    expect(armTarget('inspect', armableDefault)).toBe('move');
+  test('`inspect` is a tool of its own (S3.11 retired the move bridge)', () => {
+    expect(armTarget('inspect', armableDefault)).toBe('inspect');
     expect(armTarget('inspect', (t) => t === 'inspect')).toBe('inspect');
+    expect(armTarget('inspect', (t) => t === 'move')).toBeNull();
     expect(armTarget('el-pen', armableDefault)).toBeNull();
   });
 });
@@ -725,17 +727,17 @@ describe('the toolbars follow the shell’s mode and role', () => {
     expect(document.querySelector('[role="toolbar"]')).toBeNull();
   });
 
-  test('Can comment: Viewing shows Hand + Comment; Comment arms; Hand rides move until S3', () => {
+  test('Can comment: Viewing shows Hand + Comment; Comment arms; Hand arms inspect', () => {
     mountBar(null, { governed: true });
     setMode('viewing', CAN_COMMENT);
     expect(q('toolbar-viewing')).not.toBeNull();
     expect(slotIds()).toEqual(['inspect', 'comment']);
-    expect(q('toolbar-slot-inspect')?.getAttribute('aria-pressed')).toBe('true'); // viewing rests on move
+    expect(q('toolbar-slot-inspect')?.getAttribute('aria-pressed')).toBe('true'); // viewing rests on inspect
     click(q('toolbar-slot-comment'));
     expect(ctx?.tool).toBe('comment');
     expect(q('toolbar-slot-inspect')?.getAttribute('aria-pressed')).toBe('false');
     click(q('toolbar-slot-inspect'));
-    expect(ctx?.tool).toBe('move');
+    expect(ctx?.tool).toBe('inspect');
   });
 
   test('Can comment in Preview: Hand + Comment only', () => {
