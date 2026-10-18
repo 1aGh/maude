@@ -79,6 +79,7 @@ const SLOT_GLYPH: Readonly<Record<string, string>> = {
   browse: 'hand',
   inspect: 'hand',
   'el-text': 'text',
+  'el-shape': 'rect',
 };
 
 /**
@@ -170,7 +171,7 @@ const glyphFor = (id: string | null, fallback?: string) => {
   return TOOL_ICONS[key] ?? SLOT_ICONS[key] ?? (fallback ? TOOL_ICONS[fallback] : undefined);
 };
 
-type Popover = 'shape-kinds' | 'marker-tips' | null;
+type Popover = 'shape-kinds' | 'marker-tips' | 'more' | null;
 
 export function ToolPalette() {
   ensureToolbarStyles();
@@ -303,7 +304,57 @@ export function ToolPalette() {
     t === null ? null : armTarget(t, (x) => toolSet.has(x));
 
   const renderSlot = (s: ToolSlot): ReactNode => {
-    if (s.more) return null; // S2 renders More when its first tool lands (nothing live behind it today)
+    if (s.more) {
+      // More (S2.13): Line · Ellipse · Polygon · Export area — a labelled list, no keys (C-More has none).
+      const kids = s.more.filter((c) => !c.pending && c.tool !== null && armed(c.tool) !== null);
+      if (kids.length === 0) return null;
+      const lit = kids.some((c) => c.tool === tool);
+      const Icon = glyphFor('more');
+      return (
+        <span key="more" className="dc-tp-slot">
+          <button
+            type="button"
+            data-testid="toolbar-slot-more"
+            aria-label={s.label}
+            aria-pressed={lit}
+            aria-haspopup="menu"
+            aria-expanded={open === 'more'}
+            title={s.label}
+            onClick={() => setOpen((o) => (o === 'more' ? null : 'more'))}
+          >
+            {Icon ? <Icon /> : null}
+          </button>
+          {open === 'more' ? (
+            <div
+              className="dc-tp-list-popover"
+              data-testid="toolbar-popover-more"
+              role="menu"
+              aria-label={s.label}
+            >
+              {kids.map((c) => {
+                const KidIcon = glyphFor(c.tool);
+                return (
+                  <button
+                    key={c.tool}
+                    type="button"
+                    role="menuitemradio"
+                    data-testid={`toolbar-more-${c.tool}`}
+                    aria-checked={tool === c.tool}
+                    onClick={() => {
+                      setTool(armed(c.tool) as Tool);
+                      setOpen(null);
+                    }}
+                  >
+                    {KidIcon ? <KidIcon /> : null}
+                    <span className="dc-tp-label">{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </span>
+      );
+    }
     const keyHint = s.key ? ` (${s.key})` : '';
     const id = s.tool ?? s.panel ?? s.label.toLowerCase();
 

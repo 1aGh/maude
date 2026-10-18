@@ -13,12 +13,14 @@ import { createHash } from 'node:crypto';
 import { CanvasEditError, ensureStamped } from '../canvas-edit.ts';
 import { walkIdElements } from '../element-ids.ts';
 import { alignOps } from './align.ts';
-import { objectConstrain } from './constraints.ts';
 import { artboardResize } from './artboard-resize.ts';
+import { objectConstrain } from './constraints.ts';
+import { objectSetCornerRadius } from './corner-radius.ts';
 import { distributeOps } from './distribute.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
+import { artboardDraw, objectInsertShape } from './insert-shape.ts';
 import { objectLock } from './lock.ts';
 import { objectPlaceFreely } from './place-freely.ts';
 import { reorderOps } from './reorder.ts';
@@ -79,6 +81,10 @@ export const EDIT_OPS: readonly EditOp[] = [
   // S2.10 — ⌘D / ⌥-drag / the artboard menu: a copy beside its source, in one write
   artboardDuplicate,
   artboardDuplicateAtWidth,
+  // S2.13 — the Frame / Shape tools' drag, the corner dot's drag
+  objectInsertShape,
+  artboardDraw,
+  objectSetCornerRadius,
 ];
 
 export interface AiHoldHit {

@@ -1,5 +1,5 @@
 // apps/studio/toolbars/toolbar-icons.tsx — the glyphs the two toolbars need that the v1 tool set
-// (canvas-icons.tsx) never had: Frame, Image, Stickers, More. Same house style (24 grid, currentColor).
+// (canvas-icons.tsx) never had: Frame, Image, Stickers, More, and (S2.13) Line, Polygon, Export area. Same house style (24 grid, currentColor).
 
 import type { JSX, SVGProps } from 'react';
 
@@ -62,9 +62,41 @@ export function IconMore(props: IconProps) {
   );
 }
 
+/** Line (More, S2.13) — a diagonal stroke with its two ends. */
+export function IconLineTool(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 19L19 5" />
+      <path d="M4 20h.01M20 4h.01" strokeWidth={3} />
+    </Svg>
+  );
+}
+
+/** Polygon (More, S2.13) — a hexagon. */
+export function IconPolygon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5l7.4 4.25v8.5L12 20.5l-7.4-4.25v-8.5z" />
+    </Svg>
+  );
+}
+
+/** Export area (More, S2.13) — a dashed marquee with a corner tick. */
+export function IconExportArea(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+      <path d="M12 9v6M9.5 12.5L12 15l2.5-2.5" />
+    </Svg>
+  );
+}
+
 export const SLOT_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   frame: IconFrame,
   image: IconImage,
   stickers: IconStickers,
   more: IconMore,
+  line: IconLineTool,
+  polygon: IconPolygon,
+  slice: IconExportArea,
 };

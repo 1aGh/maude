@@ -112,6 +112,13 @@ export type Tool =
   | 'text'
   // S2.12b — Edit's Text: click to type (annotations-layer `beginStroke`), not an annotation.
   | 'el-text'
+  // S2.13 — Edit's Frame (F), Shape (R) and More (Line · Ellipse · Polygon · Export area): drawn by dragging
+  // (editing/draw-tools.tsx owns the pointer), not annotations. `ellipse` above is the same id.
+  | 'frame'
+  | 'el-shape'
+  | 'line'
+  | 'polygon'
+  | 'slice'
   // FigJam v3 — labelled organizing container (Shift+S).
   | 'section'
   | 'eraser';
@@ -126,6 +133,12 @@ const ANNOTATION_TOOLS = new Set<Tool>([
   'sticky',
   'text',
   'el-text',
+  // S2.13 — the drag tools of Edit own the pointer exactly as the annotation tools do
+  'frame',
+  'el-shape',
+  'line',
+  'polygon',
+  'slice',
   'section',
   'eraser',
 ]);
@@ -229,8 +242,18 @@ const ROUTER_KEYS = canvasKeyIndex(
     .concat(Object.keys(ROUTER_FIXED))
 );
 
-// `el-text` (S2.12b) is the one v2 tool the canvas arms itself; the others still wait on their slice.
-const V1_TOOLS: ReadonlySet<string> = new Set<string>([...V1_TOOL_IDS, 'el-text']);
+// `el-text` (S2.12b) and the S2.13 drag tools are the v2 tools the canvas arms itself; the others wait on their slice.
+const V1_TOOLS: ReadonlySet<string> = new Set<string>([
+  ...V1_TOOL_IDS,
+  'el-text',
+  // S2.13 — drawn by editing/draw-tools.tsx
+  'frame',
+  'el-shape',
+  'ellipse',
+  'line',
+  'polygon',
+  'slice',
+]);
 /** A v2 slot tool as the v1 `Tool` the canvas arms (Viewing's `inspect` rides `move` until S3). */
 const v1Tool = (t: ToolId): Tool | null => armTarget(t, (x) => V1_TOOLS.has(x)) as Tool | null;
 

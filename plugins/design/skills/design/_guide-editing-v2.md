@@ -56,3 +56,15 @@ conventions are in `apps/studio/schema/canvas-tsx.md` ("Object operations").
 - **Rename** is the `label` prop (double-click the name, ↵ saves, esc cancels, Tab opens the next artboard's name).
 - **Reset position** removes the artboard's `layout.artboards[]` entry: it returns to the default grid.
 - Full recipe: `apps/studio/schema/canvas-tsx.md` ("Duplicate an artboard").
+
+## Frames, shapes, corners (S2.13)
+
+- **F / R / More (Line · Ellipse · Polygon)** are drawn with a `<div>` as the last child of the artboard or frame:
+  `position: "absolute"` with `left`, `top`, `width`, `height` in px, a **token** for the colour
+  (`var(--bg-1)` frame, `var(--accent)` shape, `var(--fg-0)` line). A shape also has `data-shape="rectangle|ellipse|line|polygon"`.
+  A circle is `borderRadius: "50%"`, a polygon `clipPath: "polygon(…%)"`, a line a 0-high `borderTop` rotated about `0 0`.
+  F on empty canvas is a new `<DCArtboard kind="digital" fixed>` with its place in `layout.artboards[]`.
+- **A corner** is `style.borderRadius`: one value while the four are equal, four in CSS order (↖ ↗ ↘ ↙) when they differ;
+  prefer a `--radius-*` token. Remove the `border-*-radius` longhands.
+- **Export area** writes nothing; export the rectangle with `maude design export`.
+- Full recipe: `apps/studio/schema/canvas-tsx.md` ("Draw a frame or a shape").

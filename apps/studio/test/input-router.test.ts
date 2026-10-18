@@ -287,8 +287,8 @@ describe('input-router / keydown — the toolbar letters, ungoverned', () => {
     expect(key('B', { shiftKey: true }).kind).toBe('no-op');
   });
 
-  test("R in Edit's posture → no-op (the design Shape is S2's); in Preview's → annotation shape", () => {
-    expect(key('r').kind).toBe('no-op');
+  test("R in Edit's posture → the design Shape tool (S2.13); in Preview's → annotation shape", () => {
+    expect(key('r')).toEqual({ kind: 'tool', tool: 'el-shape' });
     expect(key('r', preview)).toEqual({ kind: 'tool', tool: 'shape' });
   });
 

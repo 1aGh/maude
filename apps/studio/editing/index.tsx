@@ -17,6 +17,12 @@ import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
 import { AlignBar } from './align-bar.tsx';
+import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
+import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
+import { ArtboardGuides } from './artboard-guides.tsx';
+import { ArtboardHandles } from './artboard-handles.tsx';
+import { CornerDots } from './corner-dots.tsx';
+import { DrawTools } from './draw-tools.tsx';
 import { GapBands } from './gap-bands.tsx';
 import {
   CONSTRAIN_ACTION,
@@ -27,10 +33,6 @@ import {
   runConstrainAction,
   runLayoutAction,
 } from './layout-actions.ts';
-import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
-import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
-import { ArtboardGuides } from './artboard-guides.tsx';
-import { ArtboardHandles } from './artboard-handles.tsx';
 import { LockBadge } from './lock-badge.tsx';
 import { MinimapContext } from './minimap-context.tsx';
 import { NudgeReadout } from './nudge.tsx';
@@ -41,6 +43,7 @@ import { PinGuides } from './place-freely.tsx';
 import { layoutOpsDeps, ReorderSlot } from './reorder-slot.tsx';
 import { RotateHandle } from './rotate-handle.tsx';
 import { EditingSelection, enterSelection, stampedParent, stepOut } from './selection.tsx';
+import { StickyName } from './sticky-name.tsx';
 import {
   isTextAction,
   runTextAction,
@@ -49,10 +52,9 @@ import {
   textParams,
 } from './text-actions.ts';
 import { TextInPlace } from './text-in-place.tsx';
+import { TidyPreview } from './tidy-preview.tsx';
 import { TokenRuler } from './token-ruler.tsx';
 import { UndoPreview } from './undo-preview.tsx';
-import { StickyName } from './sticky-name.tsx';
-import { TidyPreview } from './tidy-preview.tsx';
 
 /** S2.8 — the shell asks the canvas to pin an artboard's theme; canvas-shell listens (it owns the pins). */
 export const SET_ARTBOARD_THEME_EVENT = 'maude:set-artboard-theme';
@@ -220,6 +222,9 @@ export function EditingLayer() {
       <PinGuides readOnly={isReadOnlyCanvas()} />
       {/* S2.12 — the edit-tone ring around the text being typed, the Czech ties under it */}
       <TextInPlace readOnly={isReadOnlyCanvas()} />
+      {/* S2.13 — the Frame / Shape / More tools' drag, and the dot inside each corner of a selected shape */}
+      <DrawTools readOnly={isReadOnlyCanvas()} />
+      <CornerDots readOnly={isReadOnlyCanvas()} />
       {/* S2.20 — an Undo history row lights what it would undo */}
       <UndoPreview />
       {/* S2.9 — one artboard in the air: soft guide, equal-gap chips, the position bubble; Tidy's dashed preview */}

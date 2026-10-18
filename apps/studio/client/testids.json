@@ -7884,7 +7884,7 @@
     "hook": "toolbar-slot-<toolId>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Frame / Image and the panel-only Stickers have none; Text (`el-text`) is click to type). `<toolId>`: `move`, `hand`, `frame`, `el-text`, `image` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
+    "meaning": "One toolbar slot (`aria-pressed` on armed tools; the momentary Image and the panel-only Stickers have none; Text (`el-text`) is click to type). `<toolId>`: `move`, `hand`, `frame`, `el-shape`, `el-text`, `image`, `more` (Edit); `browse`, `sticky`, `comment`, `pen` (Marker), `arrow`, `shape`, `text`, `stickers`, `section` (Preview); `inspect`, `comment` (Viewing). A slot whose tool is not built yet (S2) is not rendered.",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -7897,7 +7897,7 @@
     "hook": "toolbar-popover-<which>",
     "kind": "testid",
     "pattern": true,
-    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\") or `marker-tips`.",
+    "meaning": "An in-iframe toolbar popover: `shape-kinds` (aria-label \"Shape type\"), `marker-tips` or `more` (Line · Ellipse · Polygon · Export area).",
     "producer": {
       "file": "apps/studio/tool-palette.tsx",
       "symbol": "ToolPalette"
@@ -7917,6 +7917,20 @@
     },
     "region": "canvas iframe chrome",
     "consumers": ["apps/studio/test/tool-palette.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "toolbar-more-<tool>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One row of the More popover: `line`, `ellipse`, `polygon`, `slice` (Export area). `aria-checked` on the armed one.",
+    "producer": {
+      "file": "apps/studio/tool-palette.tsx",
+      "symbol": "ToolPalette"
+    },
+    "region": "canvas iframe chrome",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/tool-palette.test.tsx"],
     "v2": "new"
   },
   {
@@ -12779,6 +12793,20 @@
     "v2": "new"
   },
   {
+    "hook": "insp-shape-kind",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Size › Kind: what the selected shape is — Rectangle · Ellipse · Line · Polygon (read from its `data-shape`).",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/shape.jsx",
+      "symbol": "ShapeKindBody"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "insp-corners",
     "kind": "testid",
     "meaning": "Corners › the unlinked grid (↖ ↗ / ↙ ↘); each corner is a length control `corner-tl|tr|bl|br`, row `insp-row-corner-<k>`.",
@@ -14085,6 +14113,90 @@
     "region": "canvas",
     "consumers": [],
     "sourceConsumers": ["apps/studio/test/edit-layout-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-corner-chip",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the radius beside the corner dot being dragged (\"8\").",
+    "producer": {
+      "file": "apps/studio/editing/corner-dots.tsx",
+      "symbol": "CornerDots"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-corner-dot-<corner>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Canvas iframe: the dot inside one corner of a selected shape or frame (`tl`, `tr`, `br`, `bl`); drag it to round the corner. `data-on` while it is dragged.",
+    "producer": {
+      "file": "apps/studio/editing/corner-dots.tsx",
+      "symbol": "CornerDots"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-tag",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the live tag of a drag — \"Rectangle · 216 × 216\", \"Line · 142 px\", \"Export area · 640 × 360\".",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-line",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the stroke a Line drag shows while it is drawn.",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-box",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the box a Frame / Shape / Export-area drag shows while it is drawn; `data-kind` says which.",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "edit-draw-input",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Canvas iframe: the overlay that takes the pointer while a drag tool (Frame, Shape, More) is armed; `data-tool` names it.",
+    "producer": {
+      "file": "apps/studio/editing/draw-tools.tsx",
+      "symbol": "DrawTools"
+    },
+    "region": "canvas",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/edit-shapes-client.test.tsx"],
     "v2": "new"
   },
   {

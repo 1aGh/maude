@@ -119,3 +119,31 @@ Annotations that belong to a moved artboard move with it (their `x` / `y` in the
 4. **Annotations are not copied** with an artboard (v2.0).
 
 "Rename" is the `label` prop (up to 80 characters). "Reset position" removes the board's `layout.artboards[]` entry.
+
+## Draw a frame or a shape; round a corner: the same result by hand (S2.13)
+
+F, R and More (Line · Ellipse · Polygon) draw by dragging; one drag is one write (`object.insert-shape`, or
+`artboard.draw` for F on empty canvas). Everything is plain TSX; a v1 peer reads it as it reads any `<div>`.
+
+| Gesture | What the file looks like afterwards |
+| --- | --- |
+| F, drag inside an artboard or a frame | A new last child `<div data-cd-id="frame" style={{ position: "absolute", left: "40px", top: "24px", width: "216px", height: "216px", background: "var(--bg-1)" }} />` (`left` / `top` are px from the container's padding edge; a click draws 100 × 100). The id is readable and unused: `frame`, `frame-2` … |
+| R, drag | The same `<div>` with `data-shape="rectangle"` and `background: "var(--accent)"`. `data-shape` is an inert data attribute: the inspector's "Shape" chip and the selection read it, nothing else does. |
+| More › Ellipse | `data-shape="ellipse"` and `borderRadius: "50%"` on the same box. |
+| More › Polygon | `data-shape="polygon"` and `clipPath: "polygon(50% 0%, 93.3% 75%, 6.7% 75%)"` — N points of a regular polygon on the box's inscribed ellipse, the first at the top (6 sides by default, 3–12). |
+| More › Line | `data-shape="line"`: `left` / `top` at the first point, `width` = the length, `height: "0"`, `borderTop: "2px solid var(--fg-0)"`, and — unless it is horizontal — `transform: "rotate(<deg>deg)"` with `transformOrigin: "0 0"`. |
+| F on empty canvas | A new `<DCArtboard id="artboard-N" label="Artboard N" kind="digital" width={w} height={h} fixed>` after the last artboard (at least 64 px, at most 8192), and its place — world px of the drag's top-left — in `layout.artboards[]` of the `.meta.json`, never a prop. |
+| More › Export area | **Nothing is written.** The Export sheet opens with the world rectangle. |
+
+Colours are tokens, never hex. If the container is not placed (`position: static`), give it `position: "relative"` so
+`left` / `top` mean what they say (the artboard body already is). A container the file computes (`style={styles.x}`)
+is refused.
+
+### Corner radius (the dot inside each corner; `object.set-corner-radius`)
+
+Dragging a corner dot writes `style.borderRadius`, the same as the inspector's Corners row: **one value** while the four
+corners are equal (`"8px"`, `"var(--radius-md)"`), **four values in CSS order** ↖ ↗ ↘ ↙ when they differ
+(`"8px 0 0 0"`, `"var(--radius-md) 4px 0 var(--radius-sm)"`). The per-corner longhands (`borderTopLeftRadius` …) are
+removed, and 0 on all four removes the declaration. A radius that lands on a `--radius-*` stop of the system is the
+token; anything else (⌘ held) is `px`. While the four are equal a drag rounds all four; when they differ, or with ⌥,
+only that corner changes and the other three keep what they had.

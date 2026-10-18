@@ -83,6 +83,7 @@ import {
 import { setElementDragActive } from './drag-state.ts';
 import { useArtboardActions } from './editing/artboard-actions.ts';
 import { type ArtboardMenuDeps, artboardMenuSections } from './editing/artboard-menu.tsx';
+import { drawToolOfAction } from './editing/draw-geometry.ts';
 import { EditingLayer } from './editing/index.tsx';
 import { useObjectOps } from './editing/object-actions.ts';
 import { type ObjectMenuDeps, objectMenuSections } from './editing/object-menu.tsx';
@@ -2851,6 +2852,9 @@ function CanvasRouter({
           canvasUndoKey(id === 'edit.redo');
         } else if (replayToolKey(id, params)) {
           // V2-4.5b — a toolbar key pressed with the shell focused; the router decides.
+        } else if (drawToolOfAction(id)) {
+          // S2.13 — ⌘K / the menu arm a drag tool (Line · Ellipse · Polygon · Export area have no key)
+          setTool(drawToolOfAction(id) as never);
         } else if (replayActionKey(id)) {
           // V2-4.2 — Select all / Copy properties / Paste properties from the project menu: the
           // canvas replays the action's own chord, so the key handler is the one implementation.

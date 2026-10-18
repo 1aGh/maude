@@ -133,6 +133,13 @@ export const DEFAULT_TOOLS: readonly ToolDescriptor[] = Object.freeze([
   { id: 'text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS.text },
   // S2.12b — Edit's Text: click to type (a click on text types in place, else adds a text element).
   { id: 'el-text', label: 'Text', shortcut: 'T', cursor: TOOL_CURSORS['el-text'] },
+  // S2.13 — Edit's drag tools (editing/draw-tools.tsx): Frame, Shape, and More's Line · Ellipse · Polygon · Export area.
+  { id: 'frame', label: 'Frame', shortcut: 'F', cursor: TOOL_CURSORS.frame },
+  { id: 'el-shape', label: 'Shape', shortcut: 'R', cursor: TOOL_CURSORS['el-shape'] },
+  { id: 'ellipse', label: 'Ellipse', shortcut: '', cursor: TOOL_CURSORS.ellipse },
+  { id: 'line', label: 'Line', shortcut: '', cursor: TOOL_CURSORS.line },
+  { id: 'polygon', label: 'Polygon', shortcut: '', cursor: TOOL_CURSORS.polygon },
+  { id: 'slice', label: 'Export area', shortcut: '', cursor: TOOL_CURSORS.slice },
   { id: 'eraser', label: 'Eraser', shortcut: 'E', cursor: TOOL_CURSORS.eraser },
 ]);
 

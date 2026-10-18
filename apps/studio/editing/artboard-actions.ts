@@ -90,7 +90,7 @@ const artboardSelection = (id: string): Selection => ({
 });
 
 /** Select `ids` as soon as the canvas shows them (a source write re-renders asynchronously). */
-function selectWhenRendered(ids: string[], replace: (s: Selection[]) => void): void {
+export function selectWhenRendered(ids: string[], replace: (s: Selection[]) => void): void {
   let tries = 0;
   const attempt = () => {
     const found = ids.filter((id) =>
