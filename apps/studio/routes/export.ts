@@ -117,7 +117,6 @@ function notYet(spec: ExportSpecV2, units: SpecUnit[]): Response | null {
   const no = (field: string, message: string) =>
     json(400, { error: 'not-available', field, message });
   if (spec.at) return no('at', 'Exporting a past version is not available yet.');
-  if (spec.wait) return no('wait', 'Waiting for the AI is not available yet.');
   if (spec.options?.colorProfile === 'display-p3')
     return no('options.colorProfile', 'Display P3 is not available yet.');
   const missing = units.find((u) => !isFormat(u.format));

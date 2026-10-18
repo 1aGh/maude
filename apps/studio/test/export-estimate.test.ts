@@ -234,7 +234,6 @@ describe('planExportV2 — the v2 half of /_api/export(-jobs)', () => {
   test('what cannot run yet is refused with its field, never silently dropped', async () => {
     for (const [spec, field] of [
       [{ v: 2, scope: 'canvas', format: 'png', at: { sha: 'abc1234' } }, 'at'],
-      [{ v: 2, scope: 'canvas', format: 'png', wait: 'ai' }, 'wait'],
       [
         { v: 2, scope: 'canvas', format: 'png', options: { colorProfile: 'display-p3' } },
         'options.colorProfile',
@@ -251,6 +250,12 @@ describe('planExportV2 — the v2 half of /_api/export(-jobs)', () => {
         expect(await p.response.json()).toMatchObject({ field });
       }
     }
+  });
+
+  test('wait:ai is accepted (S8.9) — the plan carries it for the queue to hold on', () => {
+    const p = planExportV2({ v: 2, scope: 'canvas', format: 'png', wait: 'ai' }, deps(OWNER));
+    expect(p.ok).toBe(true);
+    if (p.ok) expect(p.group.spec.wait).toBe('ai');
   });
 
   test('nothing to export is a 422 with the reasons', async () => {
