@@ -83,10 +83,16 @@ export function usePresentMode() {
 // S3.2b — the shell's own controls (and the keys the shell hears) step the presenting canvas through the
 // lane the mounted hook owns; there is one lane per window, so one registered stepper.
 let presentStepper = null;
+let presentMediaCommander = null;
 
 /** Step Present · Artboards: 'next' · 'prev' · an index. Nothing outside Present. */
 export function presentStep(to) {
   if (presentingOf(shellMode.get())) presentStepper?.(to);
+}
+
+/** S3.3 — the transport's buttons: 'play' · 'pause' · 'mute' · 'unmute' to the clip on the presented artboard. */
+export function presentMediaCmd(op) {
+  if (presentingOf(shellMode.get())) presentMediaCommander?.(op);
 }
 
 const modalOpenNow = () =>
@@ -129,8 +135,10 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeWin reads live refs
   useEffect(() => {
     presentStepper = (to) => lane.step(activeWin(), to);
+    presentMediaCommander = (op) => lane.media(activeWin(), op);
     return () => {
       presentStepper = null;
+      presentMediaCommander = null;
     };
   }, [lane]);
 
@@ -225,6 +233,9 @@ export function useCanvasModeLane({ activePath, iframesRef, cfg, canEdit, role }
         // S3.6b — the artboards with their world rects, in canvas order: the presenter view's order map
         // (the canvas is the only place the live layout exists). Active canvas only, like the position.
         presentRunStore.set({ file: L.activePath, artboards: m.artboards });
+      } else if (m.dgn === 'present-media') {
+        // The clip on the presented artboard (S3.3): the transport mirrors it. Active canvas only.
+        shellMode.media(m);
       } else if (m.dgn === 'viewport-zoom') {
         // Present the canvas: the pill shows the canvas's zoom (present/present-zoom.ts posts it).
         if (L.presenting) presentZoomStore.set(m.zoom);

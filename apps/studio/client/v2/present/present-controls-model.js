@@ -40,6 +40,34 @@ export function zoomText(zoom) {
   return `${Math.round(zoom * 100)}%`;
 }
 
+const finiteSec = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+
+/** Whole seconds, rounded down (a clock never runs ahead): "0:06"; with hours "1:02:05". */
+function clock(sec, withHours) {
+  const t = Math.floor(sec);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const ss = String(t % 60).padStart(2, '0');
+  if (withHours) return `${h}:${String(m).padStart(2, '0')}:${ss}`;
+  return `${Math.floor(t / 60)}:${ss}`;
+}
+
+/**
+ * S3.3 — "0:06 / 0:15", the clip's place in its length (04 md-present-video); hours only when the clip
+ * has some. Null when the numbers are not usable, so nothing wrong is ever printed.
+ * @param media `{ t, duration }` (seconds) from `present-media`, or null
+ */
+export function mediaTimeText(media) {
+  if (!media || !finiteSec(media.t) || !finiteSec(media.duration)) return null;
+  const hours = media.duration >= 3600;
+  return `${clock(media.t, hours)} / ${clock(media.duration, hours)}`;
+}
+
+/** The transport's play button asks for the opposite of what is happening. */
+export const mediaToggleOp = (media) => (media?.playing ? 'pause' : 'play');
+/** …and so does the sound button. */
+export const soundOp = (media) => (media?.muted ? 'unmute' : 'mute');
+
 /**
  * The reveal clock: `poke()` (a move, a step) shows the controls and restarts the countdown; `hold(true)`
  * (hover, focus inside) keeps them up and `hold(false)` restarts it. The timers are injected.
