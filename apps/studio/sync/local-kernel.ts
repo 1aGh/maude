@@ -458,11 +458,15 @@ export interface RestoreOptions {
 /** The `ctx.syncControl.current()` surface a local project answers through. */
 export interface LocalRuntime {
   cancelAssetSweep(): boolean;
-  /** S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). */
+  /**
+   * S4.7 — several lanes of one canvas as ONE action (sync/index.ts `proposeLanes`). `o.origin`
+   * (S1.13b): envelope origin keys the kernel keeps, e.g. an artboard-trash action's
+   * `trashed` (S1-trash.md §2).
+   */
   proposeLanes(
     slug: string,
     lanes: Array<{ lane: string; text: string; baseText: string }>,
-    o: { kind: string; label: string }
+    o: { kind: string; label: string; origin?: Record<string, unknown> }
   ): Promise<LocalOutcome>;
   acceptedHistory(q: {
     limit?: number;
@@ -1226,7 +1230,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
   async function proposeLanes(
     slug: string,
     lanes: Array<{ lane: string; text: string; baseText: string }>,
-    o: { kind: string; label: string }
+    o: { kind: string; label: string; origin?: Record<string, unknown> }
   ): Promise<LocalOutcome> {
     await readyP;
     return serial(async () => {
@@ -1259,7 +1263,7 @@ export function openLocalHome(opts: LocalHomeOptions): LocalHome {
         const r = await submit(catchUp, { kind: OUTSIDE_KIND, label: null }, actor, {}, true);
         if (r.status !== 'accepted') return r;
       }
-      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, {}, true);
+      const r = await submit(ops, { kind: o.kind, label: o.label }, actor, o.origin ?? {}, true);
       if (r.status === 'accepted') {
         for (const l of lanes) if (!isExplicit(l.lane)) seen.set(`${live.path}|${l.lane}`, l.text);
       }
