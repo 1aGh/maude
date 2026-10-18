@@ -1,6 +1,6 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 99,
+  "humanMax": 108,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
@@ -37,9 +37,27 @@
     {
       "to": 99,
       "from": 98,
+      "by": "decision:maude/v2-S3.2b-pointer-is-human",
+      "why": "S3.2b: tool.pointer (L, Present's one tool) is the presenter's mouse made visible to the audience; an agent has no pointer to show and no equivalent of one, so it is human 'keys' by design. present.next / present.prev are NAV (`maude design open <canvas>#<artboard> --mode present`), not human. One human row."
+    },
+    {
+      "to": 106,
+      "from": 99,
+      "by": "decision:maude/v2-S5.12-advanced-rows-in-registry",
+      "why": "S5.12: the AI chat's Advanced fold (Model, Effort, Fast mode, Ask before, Show in chat, Suggestions, Raw log) is seven chat.advanced.* registry actions so ⌘K finds them as \"AI chat panel › Advanced\"; they tune the person's own conversation, human 'ai-chat' like S5.7's rows. Seven human rows."
+    },
+    {
+      "to": 107,
+      "from": 106,
+      "by": "decision:maude/v2-S2.6-select-matching-client-only",
+      "why": "S2.6: object.select-matching (same style) is a selection in the person's window, with no route and no edit-op; an agent greps the canvas for the same className and style. Human 'view-pref'. One human row."
+    },
+    {
+      "to": 108,
+      "from": 107,
       "by": "decision:maude/v2-S1.12b-history-filter-human",
       "why": "S1.12b registers Version history's row actions (V2-1.9 §5.11): history.filter (All · Named · Made by AI · People) is the person's own panel state — human (view-pref), as the contract's registry table has it; history.view-version, history.compare and history.name are cli (`maude design history show|diff|name`). One human row."
     }
   ],
-  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row."
+  "humanMaxRaisedNote": "V2-5 A1 integration: the three slice raises stack on 86 (84 -> 86 by decision:maude/v2-4-gate-github-doors, human 'accounts'). S4.1/S4.3/S4.4 and S2.2-S2.4 add no human row. 86 + 4 + 6 + 4 = 100 human actions in the merged registry. V2-5 A2 integration: S5.4 builds `maude design runs list|stop`, so ai.runs.list and ai.stop turn cli (decision:maude/v2-S5.3-run-actions-human-until-s5.4 resolved by decision:maude/v2-S5.4-runs-fallback-prompts) and the cap lowers 100 -> 98; S3.1, S4.2, S4.5, S9.4, S2.5 and S1.4 add no human row. V2-5 A4 integration: measured 107 human actions in the merged registry (98 on feat + tool.pointer from S3.2b + 7 chat.advanced.* from S5.12 + object.select-matching from S2.6); every other A4 slice adds no human row."
 }

@@ -22,7 +22,8 @@ import { type ArtboardRect, computeFit } from '../canvas-lib.tsx';
 import { revealElementViaCamera } from '../canvas-shell.tsx';
 
 beforeAll(() => {
-  if (typeof window === 'undefined') GlobalRegistrator.register();
+  // `document`, not `window`: a `window` stub another file left must not skip the DOM.
+  if (typeof document === 'undefined') GlobalRegistrator.register();
 });
 afterAll(async () => {
   if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();

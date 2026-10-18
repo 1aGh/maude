@@ -19,11 +19,21 @@ import {
   dispatchArtboardJump,
   takeCanvasesOps,
 } from '../left-panel/left-panel-bus.js';
-import { MoreIcon, PinIcon, PrintIcon, SparkIcon, VideoIcon } from './canvas-icons.jsx';
+import {
+  CommentIcon,
+  EyeIcon,
+  MoreIcon,
+  PinIcon,
+  PrintIcon,
+  SparkIcon,
+  TrashIcon,
+  VideoIcon,
+} from './canvas-icons.jsx';
 import { InlineRename } from './inline-rename.jsx';
 import { JumpBoardRow, JumpNoteRow, JumpToggle, Marked } from './jump-list.jsx';
 import { moveTargets } from './move-model.js';
 import { siblingNames } from './rename-model.js';
+import { useRowSlots } from './row-slots.js';
 import { canvasMenuItems, CanvasRowMenu } from './row-menu.jsx';
 import { SORT_ASIDE, SORT_BYS, SORT_LABELS, KIND_NOTE } from './sort.js';
 import {
@@ -34,7 +44,7 @@ import {
   layoutRows,
   navigate,
   nothingCalled,
-  panelFoot,
+  panelFootLine,
   relOf,
   rowHeight,
   scrollToReveal,
@@ -90,9 +100,11 @@ export function CanvasesPanel({
   const [sort, setSort] = useCanvasesSort(snapshot?.pid ?? null, { fetchImpl });
   const pins = usePins({ stamp: groups, fetchImpl });
   const meta = useMemo(() => indexMeta(snapshot, designRel), [snapshot, designRel]);
+  // T-S1a — the words other slices publish (row-slots.js): meta / sub / dim per canvas, the foot, ghost rows
+  const slots = useRowSlots();
   const tree = useMemo(
-    () => buildTree({ groups, meta, designRel, opened: pins.opened }),
-    [groups, meta, designRel, pins.opened]
+    () => buildTree({ groups, meta, designRel, opened: pins.opened, ghosts: slots.ghosts }),
+    [groups, meta, designRel, pins.opened, slots.ghosts]
   );
   const isOpen = expansion?.isOpen;
   // S1.3 — which canvases show their artboards: path → boolean, the person's own choice (this session)
@@ -149,7 +161,9 @@ export function CanvasesPanel({
   const range = windowRange(rows, layout, scrollTop, viewport);
 
   // ── focus: one tab stop (roving), moved by the keys ──
-  const firstItem = rows.findIndex((r) => r.type === 'folder' || r.type === 'canvas');
+  const firstItem = rows.findIndex(
+    (r) => r.type === 'folder' || r.type === 'canvas' || r.type === 'ghost'
+  );
   const [focusKey, setFocusKey] = useState(null);
   const wantFocus = useRef(false);
   let focusIndex = focusKey ? rows.findIndex((r) => r.key === focusKey) : -1;
@@ -253,7 +267,11 @@ export function CanvasesPanel({
     else if (act.toggle !== undefined) toggleRow(rows[act.toggle]);
     else if (act.toggleJump !== undefined) toggleJump(rows[act.toggleJump]);
     else if (act.jump !== undefined) doJump(rows[act.jump]);
-    else if (act.activate !== undefined) onOpen(rows[act.activate].path);
+    else if (act.activate !== undefined) {
+      const r = rows[act.activate];
+      if (r.type === 'ghost') r.onOpen?.();
+      else onOpen(r.path);
+    }
   };
   const onFocusIn = (e) => {
     const item = e.target.closest?.('[role="treeitem"]');
@@ -409,6 +427,7 @@ export function CanvasesPanel({
     sort,
     sortOpen: !!sortMenu,
     searching,
+    slotFor: slots.slotFor,
   };
 
   const shown = rows.filter((r) => r.type === 'canvas').length;
@@ -427,6 +446,13 @@ export function CanvasesPanel({
         dynamic: listed.some((r) => r.dynamic),
       }
     : null;
+  const foot = panelFootLine({
+    total: tree.total,
+    shown,
+    searching,
+    jump: jumpFootArgs,
+    foots: slots.foots,
+  });
   const slice = [];
   for (let i = range.start; i < range.end; i++) slice.push(i);
   if (focusIndex >= 0 && (focusIndex < range.start || focusIndex >= range.end))
@@ -469,8 +495,13 @@ export function CanvasesPanel({
         {!searching && tree.total === 0 ? <p className="cv-none">Empty.</p> : null}
       </div>
       {children}
-      <p className="cv-foot" data-testid="canvases-foot">
-        {panelFoot({ total: tree.total, shown, searching, jump: jumpFootArgs })}
+      <p
+        className="cv-foot"
+        data-testid="canvases-foot"
+        data-slot={foot.source}
+        data-tone={foot.tone || undefined}
+      >
+        {foot.text}
       </p>
       {sortMenu ? (
         <div
@@ -576,6 +607,8 @@ function PanelRow({ row, index, top, tabStop, ctx, toggleRow }) {
         padStyle={pad(row.depth)}
       />
     );
+  if (row.type === 'ghost')
+    return <PanelGhostRow row={row} index={index} style={style} tabStop={tabStop} />;
   return <PanelCanvasRow row={row} index={index} style={style} tabStop={tabStop} ctx={ctx} />;
 }
 
@@ -701,6 +734,81 @@ function PanelFolderRow({ row, index, style, tabStop, ctx, toggleRow }) {
   );
 }
 
+const SLOT_ICON = { trash: TrashIcon, eye: EyeIcon, comment: CommentIcon };
+
+/** T-S1a — the words after a canvas's name that a slice published (trash line, access line). */
+function SlotSub({ sub, source, id }) {
+  const Icon = SLOT_ICON[sub.icon];
+  return (
+    <span className="cv-sub cv-sub--slot" data-testid={id} data-source={source}>
+      {Icon ? <Icon size={11} /> : null}
+      <span className="cv-sub-text">{sub.text}</span>
+    </span>
+  );
+}
+
+/**
+ * T-S1a — a ghost row: a canvas open in a tab that is not in the index any more (trashed while open). Drawn
+ * at its last path, dim, with the words its provider gave it; a click (or ↵) focuses that tab.
+ */
+function PanelGhostRow({ row, index, style, tabStop }) {
+  const slug = pathTestIdSlug(row.path);
+  const slot = row.slot || {};
+  return (
+    <div
+      className="cv-item"
+      role="treeitem"
+      aria-level={row.level}
+      aria-posinset={row.posinset}
+      aria-setsize={row.setsize}
+      aria-label={row.name}
+      data-index={index}
+      tabIndex={tabStop ? 0 : -1}
+      style={style}
+    >
+      <div className={`cv-row cv-row--canvas cv-row--ghost${slot.dim ? ' is-dim' : ''}`}>
+        <button
+          type="button"
+          className="cv-main"
+          data-tree-primary=""
+          data-testid={`canvas-row-trashed-${slug}`}
+          tabIndex={-1}
+          style={canvasPad(row.depth)}
+          title={row.path}
+          onClick={() => row.onOpen?.()}
+        >
+          <span className="cv-thumb" aria-hidden="true">
+            {row.cover ? (
+              <img
+                src={`/_api/thumb/${row.cover}`}
+                alt=""
+                loading="lazy"
+                draggable={false}
+                onError={(e) => {
+                  e.currentTarget.style.visibility = 'hidden';
+                }}
+              />
+            ) : null}
+          </span>
+          <span className="cv-name">{row.name}</span>
+          {slot.sub ? (
+            <SlotSub sub={slot.sub} source="trash" id={`canvas-row-sub-${slug}`} />
+          ) : null}
+          {slot.meta ? (
+            <span
+              className="cv-meta"
+              data-tone={slot.meta.tone || 'quiet'}
+              title={slot.meta.title || undefined}
+            >
+              {slot.meta.word}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
   const { drag, rowOps } = ctx;
   const slug = pathTestIdSlug(row.path);
@@ -729,6 +837,8 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
     </span>
   );
   const mainId = pinnedCopy ? `canvas-pinned-${slug}` : `canvas-row-${slug}`;
+  const idPrefix = pinnedCopy ? 'canvas-pinned' : 'canvas-row';
+  const slot = ctx.slotFor?.(row.rel) ?? null; // T-S1a — words other slices publish for this canvas
   const label = row.name;
   const tip = `${row.path}${oc ? ` — ${oc} open` : ''}`;
   return (
@@ -747,7 +857,7 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
       style={style}
     >
       <div
-        className={`cv-row cv-row--canvas${row.current ? ' is-sel' : ''}${dragging ? ' is-dragging' : ''}${busy ? ' is-busy' : ''}${row.pinned ? ' is-pinned' : ''}`}
+        className={`cv-row cv-row--canvas${row.current ? ' is-sel' : ''}${dragging ? ' is-dragging' : ''}${busy ? ' is-busy' : ''}${row.pinned ? ' is-pinned' : ''}${slot?.dim ? ' is-dim' : ''}`}
       >
         {row.jumpable && !pinnedCopy && !renaming ? (
           <JumpToggle
@@ -790,6 +900,19 @@ function PanelCanvasRow({ row, index, style, tabStop, ctx }) {
             {row.sub ? (
               <span className="cv-sub">
                 <Marked text={row.sub} marks={row.subMarks} />
+              </span>
+            ) : slot?.sub && !ctx.searching ? (
+              <SlotSub sub={slot.sub} source={slot.subSource} id={`${idPrefix}-sub-${slug}`} />
+            ) : null}
+            {slot?.meta ? (
+              <span
+                className="cv-meta"
+                data-testid={`${idPrefix}-meta-${slug}`}
+                data-tone={slot.meta.tone || 'quiet'}
+                data-source={slot.metaSource}
+                title={slot.meta.title || undefined}
+              >
+                {slot.meta.word}
               </span>
             ) : null}
             <span className="cv-badges">

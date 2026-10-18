@@ -142,7 +142,7 @@ export function actionSearchRows(
     seen.add(key);
     const advanced =
       menu.some((p) => p.advanced) || menu.some((p) => /^Menu › Diagnostics/.test(p.path));
-    const where = isTool ? toolbar : menu[0] ? parentPath(menu[0].path) : '';
+    const where = isTool ? toolbar : menu[0] ? parentPath(menu[0].path) : (def.search?.where ?? '');
     rows.push({
       group: isTool ? 'tools' : 'actions',
       id: `${isTool ? 'tool' : 'action'}:${def.id}`,

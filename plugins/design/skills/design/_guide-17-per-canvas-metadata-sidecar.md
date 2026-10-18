@@ -31,3 +31,25 @@ Every canvas project under `<designRoot>/<newCanvasDir>/` has a sibling `<Canvas
 **Why a sidecar (not embedded in HTML):** the file tree in the dev server browser, the handoff bundle, and `/design:handoff` route mapping all need this metadata without parsing JSX. The sidecar is also human-editable (rename a section by editing one JSON field, no need to touch the canvas).
 
 **Handoff bundle includes the sidecar** at the canvas's path, so consuming agents (production code authors) don't have to parse the canvas just to learn what each artboard is.
+
+#### Present order, skipped artboards and speaker notes (`present`, `artboardMeta.<id>.notes`)
+
+Present plays a canvas's artboards one by one in **canvas order** (row by row, left to right) unless the sidecar says otherwise. "Order and notes…" in the studio writes the same keys you may write:
+
+```jsonc
+{
+  "present": {
+    "order": ["cover", "reel", "poster"],  // optional; artboards it leaves out follow in canvas order
+    "skip": ["banner-fb"]                   // optional; stays on the canvas, left out of the run and the counter
+  },
+  "artboardMeta": {
+    "cover": { "notes": "Last year 86 players came." }  // speaker notes, plain text, ≤ 20 000 chars
+  }
+}
+```
+
+Rules (V2-1.12 R1/R6; strict schema `apps/studio/schema/canvas-meta.v2.schema.json`):
+- Both are **top-level** keys. Never put notes or an order under `layout` or inside `layout.artboards[]` — a v1 peer's layout write erases anything there.
+- Every id is the `id` of a `<DCArtboard>` in the canvas `.tsx` (`^[A-Za-z0-9_-]{1,64}$`), once per list. `maude design check --strict <Canvas>.meta.json` reports an unknown id or a duplicate.
+- Absent means the default: no `present` = canvas order, nothing skipped; no `notes` = no note. Remove a key rather than writing `[]` or `""`.
+- Keep every other `artboardMeta[id]` field (`poster`, `snap`, `maxFrames`, `madeBy`) and every other top-level key as you found it. Don't stamp `last_modified` for this — it marks layout changes only.

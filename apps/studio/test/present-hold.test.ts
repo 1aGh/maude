@@ -13,7 +13,8 @@ import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 beforeAll(() => {
-  if (typeof window === 'undefined') GlobalRegistrator.register();
+  // `document`, not `window`: a `window` stub another file left must not skip the DOM.
+  if (typeof document === 'undefined') GlobalRegistrator.register();
 });
 afterAll(async () => {
   if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister();

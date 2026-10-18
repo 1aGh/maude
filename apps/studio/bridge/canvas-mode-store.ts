@@ -21,7 +21,7 @@
 // (`present-position`) and this document's HMR applier (`PRESENT_POSITION_EVENT`), which lands a
 // canvas write it held while the audience was looking (A8).
 
-import { isReadOnlyCanvas } from '../read-only-mode.ts';
+import { isFollowCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import {
   type CanvasModeV2,
   clampMode,
@@ -55,6 +55,14 @@ export interface CanvasModeSnapshot {
   /** S3.1 — the shell's last `present-step` while presenting (`n` counts them, so the same `to`
    *  twice is two steps); null outside Present. */
   readonly step: { readonly to: number | 'next' | 'prev'; readonly n: number } | null;
+  /** S3.7a — the follower page's `present-follow` (a follower canvas only, `follow=1`); `n` counts them,
+   *  so a second Catch up with the same payload still rejoins. Null until one arrives. */
+  readonly follow: {
+    readonly sid: string | null;
+    readonly live: boolean;
+    readonly locked: boolean;
+    readonly n: number;
+  } | null;
 }
 
 export interface CanvasModeStore {
@@ -87,8 +95,10 @@ export function canvasModeStore(win: Window): CanvasModeStore {
     clamped: false,
     singleKeys: true,
     step: null,
+    follow: null,
   };
   let steps = 0;
+  let follows = 0;
   let echoed = -1;
   let asked = new Map<string, number>(); // key → when (a denied request may be asked again later)
   const subs = new Set<(s: CanvasModeSnapshot) => void>();
@@ -118,9 +128,12 @@ export function canvasModeStore(win: Window): CanvasModeStore {
     if (m?.dgn === 'set-mode') {
       if (m.seq <= snap.modeSeq) return; // an older (or repeated) seq is dropped, like I4
       asked = new Map();
+      // S3.7a — `present` (may publish the position) survives `?ro=1` (a Can view presenter with presenter
+      // view on still feeds their own audience window); a follower canvas never publishes one.
+      const present = m.caps.present === true && !isFollowCanvas();
       const caps: ModeCaps = isReadOnlyCanvas()
-        ? { edit: false, annotate: false, comment: m.caps.comment }
-        : { ...m.caps };
+        ? { edit: false, annotate: false, comment: m.caps.comment, present }
+        : { ...m.caps, present };
       const mode = clampMode(m.mode, caps);
       const toolMode = m.tool ? homeModeOfTool(m.tool, caps, mode) : null;
       const tool = m.tool && (toolMode === null || toolMode === mode) ? m.tool : null;
@@ -142,6 +155,16 @@ export function canvasModeStore(win: Window): CanvasModeStore {
       if (snap.mode !== 'present') return; // a step outside Present means nothing
       steps += 1;
       snap = { ...snap, step: Object.freeze({ to: m.to, n: steps }) };
+      for (const fn of subs) fn(snap);
+      return;
+    }
+    if (m?.dgn === 'present-follow') {
+      if (!isFollowCanvas()) return; // only the follower page's own canvas follows anyone
+      follows += 1;
+      snap = {
+        ...snap,
+        follow: Object.freeze({ sid: m.sid, live: m.live, locked: m.locked, n: follows }),
+      };
       for (const fn of subs) fn(snap);
       return;
     }
@@ -172,11 +195,17 @@ export const PRESENT_POSITION_EVENT = 'maude:present-position';
  */
 export function reportPresentPosition(
   win: Window,
-  pos: { index: number; total: number; artboardId: string }
+  pos: { index: number; total: number; artboardId: string; sid?: string; seq?: number }
 ): void {
   const index = Math.max(0, Math.trunc(pos.index));
   const total = Math.max(0, Math.trunc(pos.total));
   const artboardId = String(pos.artboardId).slice(0, 200);
+  // S3.7a — the session and its step count, when the stage runs one (the shell's presenter view needs
+  // the sid for the audience window).
+  const session =
+    typeof pos.sid === 'string' && typeof pos.seq === 'number' && Number.isInteger(pos.seq)
+      ? { sid: pos.sid, seq: pos.seq }
+      : {};
   try {
     const Ctor = (win as Window & { CustomEvent?: typeof CustomEvent }).CustomEvent ?? CustomEvent;
     win.document.dispatchEvent(
@@ -187,7 +216,7 @@ export function reportPresentPosition(
   }
   if (win.parent === win) return;
   try {
-    win.parent.postMessage({ dgn: 'present-position', index, total, artboardId }, '*');
+    win.parent.postMessage({ dgn: 'present-position', index, total, artboardId, ...session }, '*');
   } catch {
     /* detached */
   }

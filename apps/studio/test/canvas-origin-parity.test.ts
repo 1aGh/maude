@@ -72,9 +72,12 @@ describe('CANVAS_SAFE_API ↔ the canvas server routes map (V2-2.5)', () => {
     ]);
   });
 
-  test('each map entry is the handler for its own path; git-committers is the canvasRoutes projection', () => {
+  test('each map entry is the handler for its own path; the canvasRoutes variants are named', () => {
+    // git-committers: the no-e-mail projection (V2-2.8 S6). annotations/ops: the op path without
+    // the `run:<id>` tag (T-S4.5b — a planted canvas cannot slip writes into an AI run).
+    const CANVAS_VARIANTS = new Set(['/_api/git-committers', '/_api/annotations/ops']);
     for (const [path, handler] of Object.entries(canvasMap())) {
-      const source = path === '/_api/git-committers' ? 'canvasRoutes' : 'routes';
+      const source = CANVAS_VARIANTS.has(path) ? 'canvasRoutes' : 'routes';
       expect(`${path} ← ${handler.from}`).toBe(`${path} ← ${source} ${path}`);
     }
   });

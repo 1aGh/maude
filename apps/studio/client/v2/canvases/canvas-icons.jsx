@@ -68,3 +68,23 @@ export const SparkIcon = ({ size }) => (
     <path d="M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z" stroke="none" />
   </Svg>
 );
+
+// T-S1a — the glyphs a row slot's `sub.icon` names ('trash' | 'eye' | 'comment').
+export const TrashIcon = ({ size }) => (
+  <Svg size={size}>
+    <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" />
+  </Svg>
+);
+
+export const EyeIcon = ({ size }) => (
+  <Svg size={size}>
+    <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
+    <circle cx="8" cy="8" r="1.8" />
+  </Svg>
+);
+
+export const CommentIcon = ({ size }) => (
+  <Svg size={size}>
+    <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" />
+  </Svg>
+);

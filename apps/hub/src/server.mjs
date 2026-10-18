@@ -189,6 +189,7 @@ import { createRateStore } from './rate-store.mjs';
 import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
+import { createAccessService, withRolesV2 } from './routes-v2/access.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
 import { RUNS_CAPABILITY, sanitizeHoldingAwareness } from './runs-routes.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
@@ -814,6 +815,20 @@ export function createHub(config = {}) {
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
   let revocationSweep = null;
 
+  // V2-1.7 §5.6 (S9.6) — the access API's hub half: the self-hosted authority,
+  // the cloud forwarder, and the `maude.access` / `maude.access-request`
+  // notices. `rolesV2` is the Q13 flip (default: `ROLES_V2_ADVERTISED`).
+  const accessService = createAccessService({
+    dataDir,
+    secret,
+    publicUrl,
+    ...(config.rolesV2 !== undefined ? { rolesV2: config.rolesV2 } : {}),
+    graceMs: config.switchGraceMs ?? 1500,
+    connections: () => [...peers.values()].map((p) => p.connection).filter(Boolean),
+    kickLabel: (label) => kickSessionsForLabel(peers, label),
+    sweepNow: () => (revocationSweep?.enabled ? revocationSweep.tick() : null),
+  });
+
   /**
    * Who is asking an accepted-revisions or project-format route — the ONE
    * owner predicate both share (`admin`: an owner/admin bearer, a legacy
@@ -1120,9 +1135,15 @@ export function createHub(config = {}) {
           // `POST /api/project-format`.
           // `runs-v1` (V2-1.15 §5.3): AI runs + per-artboard leases at
           // `/api/projects/:p/v1/runs*`, the proposal `fence`, `{t:'runs'}`.
-          capabilities: journal
-            ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY]
-            : ['annotations-v2', 'format-v2', RUNS_CAPABILITY],
+          // `roles-v2` (V2-1.7 §5.8 step 4): this cell honours observer and
+          // canvas-scoped credentials — the control plane mints `m2.` only
+          // when it is here. Added by the lead's Q13 flip, never before.
+          capabilities: withRolesV2(
+            journal
+              ? ['ledger', 'annotations-v2', 'format-v2', RUNS_CAPABILITY]
+              : ['annotations-v2', 'format-v2', RUNS_CAPABILITY],
+            accessService.rolesV2Options
+          ),
           // The project's file format — null while the store is unread.
           formatVersion: accepted?.isReady() ? accepted.projectFormat() : null,
           // T19/T29 — the project coordinator (accepted revisions) apart from
@@ -1130,6 +1151,10 @@ export function createHub(config = {}) {
           coordinator: accepted?.health?.({ privileged }) ?? null,
           privileged,
         });
+        // V2-1.7 §5.6 — what this project's server can hold (authority,
+        // roles, scopes, links, requests): the Share sheet's posture. A
+        // protocol marker, not customer data, so it rides the public half.
+        health.access = accessService.posture();
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
         respondJson(response, health.ok ? 200 : 503, health);
@@ -1193,7 +1218,7 @@ export function createHub(config = {}) {
           verify: (token) => verifyToken(dataDir, token, secret),
           respondJson: (status, payload) => respondJson(response, status, payload),
           // S1.7 — the v2 handlers' doors into the project (routes-v2/trash.mjs).
-          deps: { accepted: () => accepted, auth: acceptedAuth },
+          deps: { access: accessService, accepted: () => accepted, auth: acceptedAuth },
         })
       ) {
         bailFromOnRequest();
