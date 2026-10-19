@@ -21,6 +21,8 @@ import { ACTIONS_BY_ID } from '../../../../actions/index.ts';
 import { fillFromCss, fillToCss } from '../../../../edit-ops/words-paint.ts';
 import { Select } from '../../../inspector-controls.jsx';
 import { StIcon } from '../../../shell/icons.jsx';
+// S10.8 — the Update available block mounts itself in this kind's slot (client/v2/ds/update-available.jsx)
+import '../../ds/update-available.jsx';
 import { registerBlock } from '../blocks.js';
 import { useCssWrite } from '../css-write.js';
 import { bindInspectorActions } from '../inspector-actions.js';

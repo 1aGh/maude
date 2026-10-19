@@ -274,3 +274,13 @@ export function swappableWith(
   if (!r || r.children !== 'text' || !r.forwards) return [component];
   return all.filter((n) => RECIPES[n]?.children === 'text' && RECIPES[n]?.forwards);
 }
+
+/** S10.8 — the instance's own `data-ds-rev` pin (`head` or a revision id) and its attribute node; null = none. */
+export function dsPinOf(f: InstanceFacts): { value: string | null; attr: AnyNode } | null {
+  const attr = attrOf(f.host.openingElement, 'data-ds-rev');
+  return attr ? { value: attrString(attr), attr } : null;
+}
+
+/** S10.8 — the host's `data-cd-id` attribute node (where a pin is written next to). */
+export const hostIdAttr = (f: InstanceFacts): AnyNode | null =>
+  attrOf(f.host.openingElement, 'data-cd-id');

@@ -21,6 +21,7 @@ import { objectConstrain } from './constraints.ts';
 import { objectSetCornerRadius } from './corner-radius.ts';
 import { componentDetach } from './detach-instance.ts';
 import { distributeOps } from './distribute.ts';
+import { dsInstanceUpdate } from './ds-instance-update.ts';
 import { artboardDuplicate, artboardDuplicateAtWidth } from './duplicate-at-width.ts';
 import { objectFrame } from './frame.ts';
 import { objectHide } from './hide.ts';
@@ -116,6 +117,8 @@ export const EDIT_OPS: readonly EditOp[] = [
   componentSwapVariant,
   componentReset,
   componentDetach,
+  // S10.8 — an instance on a left-out canvas takes the current look
+  dsInstanceUpdate,
 ];
 
 export interface AiHoldHit {
