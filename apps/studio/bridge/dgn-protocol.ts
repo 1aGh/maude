@@ -552,6 +552,11 @@ export interface ShellToCanvas {
       point?: boolean;
     }>;
   };
+  // S4.15 (an-ai-read) — the places the AI means, while its "Make these changes" card is the latest message:
+  // the annotation layer draws a dashed spark outline and a tag. `ref` is `ab:<artboard>` or `el:<artboard>/<id>`;
+  // the tag is built by the shell from the ref alone (the element's name) — never a word of the agent's answer
+  // (DDR-054, v2-lead-neutral-ai-ring-tags). `[]` clears.
+  'ai-seen': { targets: Array<{ ref: string; tag: string }> };
   // S2.20 — pointing at an Undo history row lights the artboards it would undo; `[]` clears.
   'undo-preview': { artboards: string[]; tag: string | null };
   // S2.20b — state, not an event: `opLog: true` → the shell owns ⌘Z (the op log) and the canvas
@@ -848,6 +853,21 @@ const aiHoldList: V = (v) =>
           mine: bool,
           scope: opt(bool),
           point: opt(bool),
+        })
+      )(v)
+    : BAD;
+
+/** S4.15 — `ai-seen`: where the AI points, as host refs (`ab:<id>` | `el:<artboard>/<id>`) and a bounded tag. */
+export const AI_SEEN_MAX = 8;
+export const AI_SEEN_TAG_MAX = 40;
+const SEEN_ID = '[A-Za-z0-9_.:-]{1,128}';
+const SEEN_REF = new RegExp(`^(?:ab:${SEEN_ID}|el:${SEEN_ID}/${SEEN_ID})$`);
+const aiSeenList: V = (v) =>
+  Array.isArray(v) && v.length <= AI_SEEN_MAX
+    ? arrOf(
+        shape({
+          ref: (x) => (typeof x === 'string' && SEEN_REF.test(x) ? x : BAD),
+          tag: (x) => (typeof x === 'string' && x.length <= AI_SEEN_TAG_MAX ? x : BAD),
         })
       )(v)
     : BAD;
@@ -1922,6 +1942,12 @@ const s2c: S2C = {
     status: 'live',
     owner: 'editing/hold-rings (S2.18)',
     parse: p({ holds: aiHoldList }),
+  },
+  'ai-seen': {
+    gate: 'parent',
+    status: 'live',
+    owner: 'annotations/ui/ai-seen (S4.15); sent by v2/ai/seen-relay.js',
+    parse: p({ targets: aiSeenList }),
   },
   'undo-preview': {
     gate: 'parent',
