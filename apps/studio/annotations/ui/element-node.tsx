@@ -44,7 +44,6 @@ import {
 } from '../../annotations-model.ts';
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
 import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
-import { colorForName } from '../../use-collab.tsx';
 import { SECTION_FOLDED_H } from '../constants.ts';
 import { authorLine, provenanceLine, relativeTime, tiltOf } from '../elements/sticky.model.ts';
 import type { AnnotationElement } from '../types.ts';
@@ -56,7 +55,7 @@ import {
   sectionTone,
   stickyPaper,
 } from './ai-marks.tsx';
-import { quietPaper } from './posture.ts';
+import { quietPaper, whoInk } from './posture.ts';
 import type { ResolvedEnds } from './render-model.ts';
 import { labelPoint } from './rest-route.ts';
 import { polylinePrims } from './ride.ts';
@@ -68,6 +67,7 @@ import {
   TEXT_FONT,
   type TextAlign,
   type TextSlot,
+  UI_FONT,
   withListMarkers,
 } from './text-style.ts';
 import { PinTags, useTimePin } from './time-pins.tsx';
@@ -395,23 +395,27 @@ function StickyView({ el, interactive, edit, quiet, selected, mine, typist }: El
         </span>
       ) : null}
       {shown && !edit ? (
+        // gate-a-polish2 (canvas 15 `.an-st-who`): the line sits INSIDE the paper, in the body face at xs, in ink
+        // mixed to >= 5.2:1 on this paper - not hung under it, where the resize handles are.
         <span
-          className="dc-annot-who"
+          className="dc-annot-who an-st-who"
           title={shown}
           data-an-who={selected ? 'sel' : undefined}
           style={{
             position: 'absolute',
-            left: 4,
-            right: 4,
-            top: '100%',
-            marginTop: 3,
+            left: aiMade ? 28 : 12,
+            right: 12,
+            bottom: 5,
+            padding: '0 2px',
+            borderRadius: 3,
+            backgroundColor: fill,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            fontSize: 10,
-            fontWeight: 600,
-            fontFamily: TEXT_FONT,
-            color: authorName ? colorForName(authorName) : '#555',
+            fontSize: 'var(--type-xs, 11px)',
+            fontWeight: 400,
+            fontFamily: UI_FONT,
+            color: whoInk(fill, aiMade),
             lineHeight: 1.4,
           }}
         >
