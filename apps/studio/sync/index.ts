@@ -46,6 +46,7 @@ import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
 import { rekeyUserState } from '../home/user-state.ts';
 import { acceptedColdStart, localCreateLanes } from './accepted-cold-start.ts';
 import { type AcceptedLink, createAcceptedLink, type StructuralOutcome } from './accepted-link.ts';
+import { createAccessRelay } from './access-notices.ts';
 import type { RunFence } from './action-stage.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
@@ -3406,6 +3407,17 @@ export function createSyncRuntime(
     };
 
     /**
+     * S9.21b (V2-1.7 §5.6) — the hub's access notices, heard on every canvas doc socket: passed
+     * to the shell ONCE (each socket carries its own copy), rebuilt key by key (sync/access-notices.ts),
+     * on `access:notice` (ws.ts → the shell's inspector socket only, never the canvas iframe). A
+     * `raised` re-exchanges the credential first, so the shell's re-read sees the new role.
+     */
+    const hearAccess = createAccessRelay({
+      onFrame: (frame) => ctx.bus.emit('access:notice', frame),
+      onRaised: () => renewCredentialNow(),
+    });
+
+    /**
      * Arm the pre-expiry renewal at ~80 % of the credential's REMAINING life
      * (never sooner than a minute out). No stored expiry — a self-hosted hub,
      * or a credential written before expiry was persisted — means no timer:
@@ -4421,6 +4433,10 @@ export function createSyncRuntime(
                   try {
                     msg = JSON.parse(payload);
                   } catch {
+                    return;
+                  }
+                  if (msg?.type === 'maude.access' || msg?.type === 'maude.access-request') {
+                    hearAccess(payload);
                     return;
                   }
                   if (msg?.type !== 'maude.mode') return;
