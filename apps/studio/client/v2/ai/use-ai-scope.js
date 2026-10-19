@@ -87,8 +87,9 @@ export function useAiScope({ activeCanvas, selected, panelHidden = false, viewAr
     if (scope.kind === 'none') return null;
     return buildChatContext({
       canvas: activeCanvas,
-      // A scope the person picked replaces the selection: its element locators do not ride.
-      selected: choice ? null : selected,
+      // A scope the person picked replaces the selection: its element locators do not ride — except a ⌘/ ask on
+      // a selection (S2.19), whose scope carries the locators of exactly the elements it names.
+      selected: choice ? (choice.kind === 'elements' ? choice.selected : null) : selected,
       scope: scopeForPrompt(scope, artboards),
     });
   }, [activeCanvas, selected, choice, scope, artboards]);

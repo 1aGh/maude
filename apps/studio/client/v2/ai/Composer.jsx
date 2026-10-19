@@ -29,6 +29,7 @@ import { AttachChips } from './AChip.jsx';
 import { AttachMenu } from './AttachMenu.jsx';
 import { Consent } from './Consent.jsx';
 import { ScopeChip } from './ScopeChip.jsx';
+import { useAskSelection } from './use-ask-selection.js';
 
 export function prettyCanvas(path) {
   if (!path) return null;
@@ -431,6 +432,10 @@ export function Composer({
 
   // V2-4.6 — ⌘K "Ask AI": the query lands in the composer; the person still sends it.
   useEffect(() => subscribeAskAI((t) => composerRuntime.setText(t)), [composerRuntime]);
+
+  // S2.19 — ⌘/ on a selection (AskSelectionHost): the bubble's words + an `elements` scope; the send is in the hook
+  // (this file never sends — the ⌘K contract above).
+  useAskSelection({ composerRuntime, scope, onChooseScope });
 
   const pick = useCallback(
     (cmd) => {

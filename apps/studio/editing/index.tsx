@@ -16,11 +16,13 @@ import { isEmbedCanvas, isReadOnlyCanvas } from '../read-only-mode.ts';
 import { useSelectionSet } from '../use-selection-set.tsx';
 import { useToolModeOptional } from '../use-tool-mode.tsx';
 import { useUndoStackOptional } from '../use-undo-stack.tsx';
+import { AiScopeOutline } from './ai-scope-outline.tsx';
 import { AlignBar } from './align-bar.tsx';
 import { ARRANGE_ACTIONS, TIDY_ACTION } from './arrange.ts';
 import { ARTBOARD_ACTIONS, ArtboardCommands } from './artboard-commands.tsx';
 import { ArtboardGuides } from './artboard-guides.tsx';
 import { ArtboardHandles } from './artboard-handles.tsx';
+import { ASK_SELECTION_ACTION, AskBubble } from './ask-bubble.tsx';
 import { CornerDots } from './corner-dots.tsx';
 import { CROP_ACTION, CropMode } from './crop-mode.tsx';
 import { DrawTools } from './draw-tools.tsx';
@@ -97,6 +99,8 @@ export const EDITING_ACTIONS = [
   ...PEN_ACTIONS,
   // S2.15 — Crop: with params it is the op (the inspector's Fit / Zoom), without it opens crop mode (crop-mode.tsx)
   CROP_ACTION,
+  // S2.19 — ⌘/ on a selection (run by ask-bubble.tsx, which listens for its own run-action id)
+  ASK_SELECTION_ACTION,
 ] as const;
 
 export function EditingLayer() {
@@ -279,6 +283,9 @@ export function EditingLayer() {
       {editChrome ? <MinimapContext /> : null}
       {/* S2.18 — people's soft locks (rings) + AI holds (spark outline); this person's own hold */}
       <HoldRings />
+      {/* S2.19 — ⌘/ on a selection: the canvas says what and where; one AI outline follows the ask */}
+      <AskBubble readOnly={isReadOnlyCanvas()} />
+      <AiScopeOutline />
     </>
   );
 }

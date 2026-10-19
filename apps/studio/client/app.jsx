@@ -229,6 +229,7 @@ import DiagnosticsHost from './v2/diagnostics/diagnostics-host.jsx';
 import { useDiagnosticsMenu } from './v2/diagnostics/use-diagnostics-menu.js';
 import { menuCtx, moveDestinations } from './v2/shell/project-menu-model.js';
 import { ProjectPill } from './v2/shell/project-pill.jsx';
+import { AskSelectionHost } from './v2/ai/AskSelectionHost.jsx';
 import { EmptyHost } from './v2/empty/empty-host.jsx';
 import { useOnline } from './v2/empty/use-empty-canvas.js';
 import { ShellShareCluster } from './v2/shell/share-cluster-host.jsx';
@@ -3034,6 +3035,8 @@ function ShellTree() {
           <ViewBarHost activePath={activePath} />
           {/* S11.2 — "Your canvas is ready." on a canvas with no artboards, the empty-artboard hint, Ask AI to fill. */}
           <EmptyHost />
+          {/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line while AI works. */}
+          <AskSelectionHost />
           {/* S9.24 — offline foot, the back-online toast, the "2 versions" mark and the conflict card. */}
           <SyncStatesHost />
           {/* LEFT dock slot (feature-configurable-panel-docking). V2-4.4b — Canvases · Layers · Assets keep a

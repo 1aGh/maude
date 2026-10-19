@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "254cf8443a13",
+  "manifestVersion": "0bb0745029d0",
   "actions": [
     {
       "id": "search.open",
@@ -1434,6 +1434,18 @@
         "path": "human",
         "because": "ai-chat"
       }
+    },
+    {
+      "id": "ai.ask-selection",
+      "label": "Ask AI about the selection",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "ai-chat"
+      },
+      "minRole": "edit"
     },
     {
       "id": "element.set-link",

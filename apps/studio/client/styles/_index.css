@@ -48,6 +48,8 @@
 @import url("../v2/ai/needs-you.css");
 /* S5.14 — the quit dialog and the "Stopped" divider + Keep going. */
 @import url("../v2/ai/quit.css");
+/* S2.19 — ⌘/ on a selection: the bubble under it, and the asked line. */
+@import url("../v2/ai/ask-selection.css");
 /* V2-4.1 — floating panels: the canvas edge to edge, dock slots as islands, folded corner icons. */
 @import url("../v2/shell/floating-panels.css");
 @import url("../v2/shell/project-pill.css");

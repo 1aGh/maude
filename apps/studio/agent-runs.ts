@@ -27,6 +27,8 @@ export interface RunScope {
   canvas: string;
   /** empty = the whole canvas */
   artboards: string[];
+  /** S2.19 — a ⌘/ ask on a selection: the elements it may change (and what is inside them) */
+  elements?: Array<{ artboard: string; element: string }>;
 }
 
 export interface AgentRun {
@@ -135,6 +137,14 @@ export function createAgentRuns(
         ? {
             canvas: r.scope.canvas,
             artboards: r.scope.artboards === WHOLE ? [] : [...r.scope.artboards],
+            ...(r.scope.elements?.length
+              ? {
+                  elements: r.scope.elements.map((e) => ({
+                    artboard: e.artboard,
+                    element: e.element,
+                  })),
+                }
+              : {}),
           }
         : null,
     };
@@ -383,6 +393,36 @@ export function changedElements(
     if (out.length >= MAX_CHANGED_ELEMENTS) break;
   }
   return out;
+}
+
+/**
+ * S2.19 — the changed elements (as `changedElements` names them: the innermost `data-cd-id` ones) that are
+ * neither one of the `allowed` elements nor inside one: what a ⌘/ ask on a selection may NOT touch. An
+ * element is inside when it or any ancestor (in `after`) is allowed. Unparseable source, or nothing to
+ * compare, is none — the artboard-level rule still covers it. Pure.
+ */
+export function elementsOutsideScope(
+  before: string | null,
+  after: string,
+  allowed: ReadonlyArray<{ artboard: string; element: string }>
+): Array<{ artboard: string; element: string }> {
+  const changed = changedElements(before, after);
+  if (!changed.length || !allowed.length) return [];
+  const walk = walkIdElements(after);
+  if (!walk.ok) return [];
+  const ok = new Set(allowed.map((a) => `${a.artboard}\u0000${a.element}`));
+  const byIndex = new Map(walk.elements.map((e) => [e.i, e]));
+  const inside = (i: number): boolean => {
+    for (let n = byIndex.get(i); n; n = byIndex.get(n.parent)) {
+      if (n.id && n.artboard && ok.has(`${n.artboard}\u0000${n.id}`)) return true;
+      if (n.parent < 0) break;
+    }
+    return false;
+  };
+  return changed.filter(
+    (c) =>
+      !walk.elements.some((e) => e.id === c.element && e.artboard === c.artboard && inside(e.i))
+  );
 }
 
 // ── which artboards an edit reaches ──────────────────────────────────────────────────────────
