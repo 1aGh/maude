@@ -1191,6 +1191,10 @@ export function AnnotationsLayer() {
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   // S4.13 - a gallery pick, a stamp or a template that trails the pointer until a click (placement.tsx).
   const [placing, setPlacing] = useState<Pending | null>(null);
+  // S4.V4 G4 - while a pick is armed the pointer pipeline stands down (the ghost's click places it).
+  const placingRef = useRef(false);
+  placingRef.current = placing !== null;
+  pipeline.holdOff = () => placingRef.current;
   // S4.19 G5 (canvas 15 `an-layers`) - a drag begun on a locked annotation says why nothing moves.
   const [lockedTip, setLockedTip] = useState<{ x: number; y: number } | null>(null);
   const clearLockedTip = useCallback(() => setLockedTip(null), []);
