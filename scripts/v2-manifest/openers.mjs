@@ -292,6 +292,8 @@ export const ROUTE_ANSWERS = {
   },
   viewerIdentity: { name: 'Tereza', email: 'tereza@example.com' },
   // the comment door refuses a write (S9.22): the canvas says it in one sentence and keeps the text
+  // this Mac has opened nothing yet (GET /_api/pins): ⌘K's Recent says so
+  pinsNone: { pins: [], opened: {} },
   commentRefused: { __status: 403, ok: false, error: 'That did not go through.' },
   // ── routes that never answer / fail (a slow start, a canvas that does not load) ───────────────────
   pngImage: { __png: true },
@@ -510,6 +512,7 @@ export const STATES = {
   'acp-elicit': { acp: 'chat-elicit', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-error': { acp: 'chat-error', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-done': { acp: 'chat-done', routes: { '/_api/acp/status': 'acpAvailable' } },
+  'acp-limit': { acp: 'chat-limit', routes: { '/_api/acp/status': 'acpAvailable' } },
   // a Home canvas with an open comment (Tereza's own) and a resolved one: the panel, the pin, the thread
   // `re:` keys are a regular expression over the whole URL — the canvas runs on its own origin
   comments: {
@@ -554,6 +557,7 @@ export const STATES = {
       },
     },
   },
+  'nothing-opened': { routes: { '/_api/pins*': 'pinsNone' } },
   'canvas-hung': { routes: { 're:/_canvas-shell': 'hang' } },
   // no Claude Code on this Mac: the explainer and its "Set up AI editing" button
   'acp-missing': {
@@ -1003,6 +1007,11 @@ export const OPENERS = [
       { frameDown: '[data-dc-screen="home-pricing"] .dc-artboard-label' },
       { mouseMove: [-40, 0] },
       { mouseMove: [-10, 0] },
+      { mouseMove: [-6, 4] },
+      { wait: 700 },
+      // …and back to where it started: the drop is saved to Home.meta.json, so a board left 56 px to the left would
+      // sit under the left panel for the next shell's pass (the browser probe saw no label to press)
+      { mouseMove: [56, -4] },
       { wait: 300 },
       { mouseUp: true },
     ],
@@ -1090,7 +1099,12 @@ export const OPENERS = [
     steps: [{ key: 'Meta+k' }, { fill: [tid('palette-input'), 'zzqxv'] }, { wait: 300 }],
   },
   // nothing opened on this Mac yet: Recent says so (the shell alone opens no canvas)
-  { id: 'palette-day-one', canvas: false, steps: [{ key: 'Meta+k' }, { wait: 500 }] },
+  {
+    id: 'palette-day-one',
+    canvas: false,
+    state: 'nothing-opened',
+    steps: [{ key: 'Meta+k' }, { wait: 500 }],
+  },
   // close matches that are not a pure misspelling: some word is right (the status note above the list)
   {
     id: 'palette-close-note',
@@ -1148,8 +1162,7 @@ export const OPENERS = [
   },
   // S8.19 — a missing picture is framed on the canvas, with Relink…
   { id: 'asset-frames', state: 'asset-missing', steps: [{ wait: 2500 }] },
-  // Edit's More popover (Line · Ellipse · Polygon · Export area), the size tag of an element inspected in Preview, and
-  // the chip an element with a link carries when it is the one selection
+  // Edit's More popover (Line · Ellipse · Polygon · Export area) and the size tag of an element inspected in Preview
   { id: 'edit-more', steps: [{ frameClick: tid('toolbar-slot-more') }] },
   {
     id: 'preview-inspect',
@@ -1159,9 +1172,6 @@ export const OPENERS = [
       { wait: 400 },
     ],
   },
-  { id: 'edit-link', steps: [{ frameClick: '[data-cd-id="home-hero-body"]' }, { wait: 400 }] },
-  // the Design system canvas (S10): its bar and sections
-  { id: 'ds-board', steps: [{ click: tid('canvases-ds-row') }, { wait: 3500 }] },
   // S8.3 — Advanced › Print PDF needs a print artboard: the Flyer
   {
     id: 'export-print',
@@ -1311,6 +1321,9 @@ export const OPENERS = [
       // S8: the sheet takes the file, then reads it on Import
       { click: tid('brand-import') },
       { wait: 1200 },
+      // the result's Advanced fold: Copy command, Start again
+      { ensureOpen: tid('brand-advanced') },
+      { wait: 300 },
     ],
     probes: ['browser'],
   },
@@ -1335,6 +1348,8 @@ export const OPENERS = [
       { wait: 600 },
       { click: tid('brand-import'), optional: true },
       { wait: 1200 },
+      { ensureOpen: tid('brand-advanced') },
+      { wait: 300 },
     ],
     probes: ['desktop'],
   },
@@ -1461,6 +1476,7 @@ export const OPENERS = [
       { wait: 800 },
     ],
   },
+  { id: 'acp-limit', state: 'acp-limit', steps: [{ key: 'Meta+Slash' }, { wait: 900 }] },
   {
     id: 'acp-error',
     state: 'acp-error',
@@ -1506,11 +1522,11 @@ const LOCAL = ['desktop', 'browser'];
 const EDITORS = ['desktop', 'browser', 'cloud-owner', 'cloud-member'];
 const WHERE = [
   // Settings has General only inside a cloud tab (DDR-209 D1, S11.13): Connections / Advanced are the Mac's
+  [/^settings-(connections|advanced|cloud-in|cloud-signin$|github-in|figma-in|team-server)/, LOCAL],
   [
-    /^settings-(connections|advanced|cloud-in|cloud-signin$|github-in|figma-in|team-server)/,
-    LOCAL,
+    /^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share|export-print|left-trash)$/,
+    EDITORS,
   ],
-  [/^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share|export-print)$/, EDITORS],
   [/^(acp-|deeplink-|team-|settings-cloud-signin-link|palette-projects)/, ['desktop']],
   // the git buttons are the desktop app's (a browser tab reads the fold, it does not press it)
   [/^history-(save|branch|add)-dialog$/, ['desktop']],
@@ -1519,7 +1535,7 @@ const WHERE = [
     LOCAL,
   ],
   [
-    /^(asset-frames|ds-board|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|edit-link|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
+    /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
   [/^(comments-panel|comment-thread|comment-refused)$/, LOCAL],

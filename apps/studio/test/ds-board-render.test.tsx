@@ -455,6 +455,8 @@ describe('the bar', () => {
     expect(out).toContain('data-testid="ds-bar-mode-light" aria-pressed="false"');
     expect(out).toContain('data-testid="ds-bar-mode-dark" aria-pressed="true"');
     expect(out).toContain('1 change waiting');
+    expect(out).toContain('data-testid="ds-bar"');
+    expect(out).toContain('data-testid="ds-bar-pending"');
     expect(waitingWords(0)).toBeNull();
     expect(waitingWords(3)).toBe('3 changes waiting');
     expect(out).not.toContain('Review'); // S10.8 hands the bar its Review action

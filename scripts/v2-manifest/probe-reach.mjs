@@ -254,6 +254,7 @@ function makeFixture(project) {
     )
   );
   put('.design/system/demo/preview/colors.tsx', CANVAS('Colors', [['colors', 'Colors']]));
+
   put(
     '.design/ui/Home.tsx',
     CANVAS('Home', [
@@ -732,7 +733,8 @@ async function runOpener(browser, srv, probe, opener) {
       }
   } catch (err) {
     ev.ok = false;
-    if (process.env.PROBE_DEBUG) console.log(`  [error ${opener.id}] ${String(err?.message ?? err).slice(0, 900)}`);
+    if (process.env.PROBE_DEBUG)
+      console.log(`  [error ${opener.id}] ${String(err?.message ?? err).slice(0, 900)}`);
     ev.err = String(err?.message ?? err)
       .split('\n')[0]
       .slice(0, 160);
@@ -759,7 +761,8 @@ let evidence = {};
 const flushEvidence = () => {
   if (!opt('--evidence')) return;
   const base = MERGE && existsSync(MERGE) ? JSON.parse(readFileSync(MERGE, 'utf8')) : {};
-  for (const [p, byOpener] of Object.entries(evidence)) base[p] = { ...(base[p] ?? {}), ...byOpener };
+  for (const [p, byOpener] of Object.entries(evidence))
+    base[p] = { ...(base[p] ?? {}), ...byOpener };
   writeFileSync(opt('--evidence'), JSON.stringify(base));
 };
 try {

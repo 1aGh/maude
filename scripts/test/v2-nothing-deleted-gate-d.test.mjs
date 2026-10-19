@@ -94,7 +94,11 @@ test('prose label sets and selector-plus-words hooks resolve to selectors a page
     '[aria-label="Contrast"]',
   ]);
   assert.deepEqual(css('[aria-expanded] on tree rows'), ['[role="tree"] [aria-expanded]']);
-  assert.deepEqual(css('.btn--danger (permission prompt)'), ['.chat-perm .btn--danger']);
+  // …the v1 prompt's class and the v2 card's testid (client/v2/ai/PermissionCard.jsx keeps `.btn--danger` on Decline)
+  assert.deepEqual(css('.btn--danger (permission prompt)'), [
+    '.chat-perm .btn--danger',
+    '[data-testid="chat-permission-prompt"] .btn--danger',
+  ]);
   assert.deepEqual(css('menuitem by name (row menu)'), ['.st-dropdown [role="menuitem"]']);
 });
 

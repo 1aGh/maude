@@ -6,6 +6,7 @@
 //   · .dc-participants / .dc-participant   the canvas's own participant stack: the shell hosts the faces (the Share
 //                                    cluster) so a canvas inside it draws none; a standalone canvas still does
 //   · [data-section-chip]            a section's label chip: the probe fixture draws no section
+//   · Annotation node labels         the text and sticky editors' aria-labels: an editor is open only mid-edit
 //   · root-missing-*                 the moved-folder card of apps/desktop/src/root-missing.html: an app-local page
 //                                    the desktop shell shows, never served by the studio the probe boots
 // Each test renders the hook and asserts it is on screen; `proofHolds` only checks this file still says so.
@@ -156,7 +157,8 @@ function loadRootMissing(invoke: (cmd: string, args?: unknown) => Promise<unknow
   (window as unknown as { __TAURI__?: unknown }).__TAURI__ = { core: { invoke } };
   new Function(script)();
 }
-const rm = (hook: string) => document.querySelector(`[data-testid="${hook}"]`) as HTMLElement | null;
+const rm = (hook: string) =>
+  document.querySelector(`[data-testid="${hook}"]`) as HTMLElement | null;
 
 describe('V2-4.gate proofs: the moved-folder card', () => {
   afterEach(() => {
@@ -189,5 +191,41 @@ describe('V2-4.gate proofs: the moved-folder card', () => {
     expect(rm('root-missing-error')?.hidden).toBe(false);
     expect(rm('root-missing-error')?.textContent).toBe('That folder is not this project.');
     expect((rm('root-missing-find') as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+// ── annotation editors ──────────────────────────────────────────────────────────────────────────
+describe('V2-4.gate proofs: annotation editors', () => {
+  test('annotation text and sticky editors carry the labels the node is read by', () => {
+    const edit = { caretPoint: null, onCommit: () => {}, onCancel: () => {} };
+    mount(
+      <div>
+        <ElementNode
+          el={{ id: 't1', type: 'text', index: 'a0', x: 10, y: 10, text: 'hello' } as never}
+          interactive={false}
+          edit={edit}
+          resolveAsset={(href: string) => href}
+        />
+        <ElementNode
+          el={
+            {
+              id: 'n1',
+              type: 'sticky',
+              index: 'a1',
+              x: 100,
+              y: 100,
+              w: 120,
+              h: 90,
+              text: 'note',
+            } as never
+          }
+          interactive={false}
+          edit={edit}
+          resolveAsset={(href: string) => href}
+        />
+      </div>
+    );
+    expect(document.querySelector('[aria-label="Edit text"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="Edit sticky note text"]')).not.toBeNull();
   });
 });
