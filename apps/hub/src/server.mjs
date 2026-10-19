@@ -192,7 +192,7 @@ import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-t
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { createAccessService, withRolesV2 } from './routes-v2/access.mjs';
-import { COMMENTS_PATH } from './routes-v2/comments.mjs';
+import { COMMENTS_PATH, createMentionForwarder } from './routes-v2/comments.mjs';
 import { runHubRoutes } from './routes-v2/index.mjs';
 import {
   createVotesPoke,
@@ -955,6 +955,8 @@ export function createHub(config = {}) {
       for (const document of server.hocuspocus?.documents?.values?.() ?? [])
         yield* document.getConnections?.() ?? [];
     },
+    // S9.18 — a cloud cell forwards a mention nobody heard live; self-hosted: null.
+    forwardMentions: createMentionForwarder({ env: process.env, secret }),
   };
 
   const server = new Server({
