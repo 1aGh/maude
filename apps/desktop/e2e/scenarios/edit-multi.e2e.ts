@@ -123,7 +123,7 @@ describe('multi-select, align and rotate (S2.7)', () => {
   before(async () => {
     await waitForSidecar();
     writeFileSync(CANVAS, POST);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await rectOf('ZAPIŠ SE')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());

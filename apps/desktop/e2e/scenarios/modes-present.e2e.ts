@@ -53,7 +53,7 @@ describe('modes-present (S3.13)', () => {
   before(async () => {
     fixtures.snapshot();
     await waitForSidecar();
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await $(tid('canvas-frame')).waitForExist({ timeout: 15000 });
   });
   after(() => fixtures.restore());

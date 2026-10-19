@@ -94,7 +94,7 @@ describe('follow a link and back (S3.10a)', () => {
         '<h1 data-cd-id="smoke-h1" data-cd-link="ui/Cut.tsx#cut" data-testid="smoke-h1"'
       )
     );
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await rectOf(HEADING))?.id === 'smoke-h1', {
       timeout: 15000,
       timeoutMsg: 'the linked heading never appeared on the canvas',

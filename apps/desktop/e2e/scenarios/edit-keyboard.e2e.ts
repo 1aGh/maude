@@ -89,7 +89,7 @@ describe('keyboard only (S2.21)', () => {
   before(async () => {
     await waitForSidecar();
     writeFileSync(CANVAS, PAGE);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(
       async () =>
         browser.execute(() => {

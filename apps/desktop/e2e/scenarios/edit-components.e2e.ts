@@ -115,7 +115,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });
@@ -196,7 +196,7 @@ describe('the Component picker and placing from it (S2.16)', () => {
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, `${JSON.stringify({ dsRev: 'a'.repeat(64) })}\n`);
     await browser.pause(800);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await inFrame((doc) => {
       (doc.querySelector('[data-cd-id="row"]') as HTMLElement).dispatchEvent(
         new MouseEvent('click', { bubbles: true })
@@ -238,7 +238,7 @@ describe('an instance: override, swap, reset, detach (S2.17)', () => {
     writeFileSync(CANVAS, INSTANCE);
     writeFileSync(META, '{}\n');
     await browser.pause(800);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });

@@ -102,7 +102,7 @@ describe('images, crop and the Figma paste bar (S2.15)', () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
     writeFileSync(META, '{}\n');
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await $('[data-testid="canvas-frame"]')).isExisting(), {
       timeout: 15000,
     });

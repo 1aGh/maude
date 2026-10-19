@@ -15,6 +15,11 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  baselineFixtureTree,
+  releaseFixtureTree,
+  restoreFixtureTree,
+} from './helpers/fixture-tree';
 import { pinCurrentWindow } from './helpers/windows';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -206,6 +211,9 @@ export const config: WebdriverIO.Config = {
     // dozen specs against the SAME fixture project, so a panel one spec collapsed
     // was still collapsed in the next. Runs before this session's app starts.
     if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
+    // …and a pristine fixture project: the specs share one, and the app itself writes it (version
+    // restores, edits, moves) — see helpers/fixture-tree.ts.
+    restoreFixtureTree();
     // The runner can install a newer Undici global dispatcher before WebDriver
     // loads its own copy. Mixing their header representations fails POST /session
     // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.
@@ -242,6 +250,7 @@ export const config: WebdriverIO.Config = {
   maxInstances: 1, // one native window at a time
 
   onPrepare: (cfg: WebdriverIO.Config) => {
+    baselineFixtureTree();
     // Only when THIS config is the one running — a dedicated config spreads
     // `...base` and would otherwise print a banner about specs it never meant
     // to run. Identity holds because each override supplies a fresh array.
@@ -255,6 +264,11 @@ export const config: WebdriverIO.Config = {
           .join('\n') +
         '\n'
     );
+  },
+
+  // The lane ends on the baseline `onPrepare` took, whatever failed in the middle.
+  onComplete: () => {
+    releaseFixtureTree();
   },
 
   capabilities: [

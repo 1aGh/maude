@@ -139,7 +139,7 @@ describe('auto layout, reorder and free placement (S2.11)', () => {
   before(async () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await rectOf('Small apps')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());

@@ -90,7 +90,7 @@ describe('⌘/ on a selection, in place (S2.19)', () => {
   before(async () => {
     await waitForSidecar();
     writeFileSync(CANVAS, POST);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await rectOf('Gama')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());

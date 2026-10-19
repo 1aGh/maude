@@ -115,7 +115,7 @@ async function lockHeading(): Promise<void> {
 describe('⌘Z from the op log (S2.20 / S2.20b)', () => {
   before(async () => {
     await waitForSidecar();
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await countUndoKeys();
   });
   after(() => fixtures.restore());

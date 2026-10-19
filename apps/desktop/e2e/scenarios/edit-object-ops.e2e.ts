@@ -77,7 +77,7 @@ const inFrame = (testid: string) =>
 describe('object ops on a canvas (S2.6)', () => {
   before(async () => {
     await waitForSidecar();
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
   });
   after(() => fixtures.restore());
 

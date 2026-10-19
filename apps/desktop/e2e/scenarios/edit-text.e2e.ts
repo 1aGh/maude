@@ -102,7 +102,7 @@ describe('text in place, styles and the Czech ties (S2.12)', () => {
   before(async () => {
     await waitForSidecar();
     writeFileSync(CANVAS, HOME);
-    await (await canvasRow('smoke')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(async () => (await rectOf('Jdu do lesa')) !== null, { timeout: 15000 });
   });
   after(() => fixtures.restore());
