@@ -119,7 +119,10 @@ describe('G2 — the artboard is still selected after the write reloads the canv
     expect(isArtboardSelectionOf(own, 'desktop', FILE)).toBe(true);
     // an element drawn a moment ago (G8) goes back the same way, carrying the canvas it belongs to
     const drawn = { selector: '[data-cd-id="rectangle"]', id: 'rectangle', artboardId: 'desktop' };
-    expect(restoreAfterLoad(drawn, FILE)).toEqual({ kind: 'element', sel: { ...drawn, file: FILE } });
+    expect(restoreAfterLoad(drawn, FILE)).toEqual({
+      kind: 'element',
+      sel: { ...drawn, file: FILE },
+    });
     // a selection that names ANOTHER canvas is still not this one's
     expect(restoreAfterLoad({ ...own, file: '.design/ui/Other.tsx' }, FILE)).toBeNull();
     expect(isArtboardSelectionOf({ ...own, file: '.design/ui/Other.tsx' }, 'desktop', FILE)).toBe(

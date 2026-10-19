@@ -13870,6 +13870,58 @@
     "v2": "new"
   },
   {
+    "hook": "insp-mixed-x",
+    "kind": "testid",
+    "meaning": "Position › X · Y › \"Mixed\" beside X: the selected objects sit at different X; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiPosition"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-y",
+    "kind": "testid",
+    "meaning": "Position › X · Y › \"Mixed\" beside Y: the selected objects sit at different Y; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiPosition"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-rotation",
+    "kind": "testid",
+    "meaning": "Position › Rotation › \"Mixed\": the selected objects are turned differently; typing a number sets all of them.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiPosition"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
+    "hook": "insp-mixed-width",
+    "kind": "testid",
+    "meaning": "Size › Width › \"Mixed\": the selected objects differ in width; typing a number makes all of them Fixed at it.",
+    "producer": {
+      "file": "apps/studio/client/v2/inspector/kinds/multi.jsx",
+      "symbol": "MultiSize"
+    },
+    "region": "inspector",
+    "consumers": [],
+    "sourceConsumers": ["apps/studio/test/v2-inspector-paint.test.tsx"],
+    "v2": "new"
+  },
+  {
     "hook": "insp-weight",
     "kind": "testid",
     "meaning": "Type › the weight select (Regular · Medium · Semibold · Bold, \"Inherited\" removes it, \"Mixed\" for several that differ).",
