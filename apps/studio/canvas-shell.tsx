@@ -42,7 +42,7 @@ import { ArtboardRingsLayer } from './artboard-activity-overlay.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { canvasInsets, canvasModeStore } from './bridge/canvas-mode-store.ts';
 import { canvasMayHandle } from './bridge/dgn-protocol.ts';
-import { runEscRung } from './bridge/esc-ladder.ts';
+import { escClearsSelection, runEscRung } from './bridge/esc-ladder.ts';
 import { type Insets, revealViewBox } from './bridge/occlusion.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
@@ -103,13 +103,14 @@ import {
   resolveHoverTarget,
   useInputRouter,
 } from './input-router.tsx';
-import { inspectsSelection, shouldFlipToMove } from './inspect-canvas.ts';
+import { inspectedSelection, shouldFlipToMove } from './inspect-canvas.ts';
 import { InspectOverlay, measureNeighbour } from './inspect-overlay.tsx';
 import { LinkChipOverlay } from './link-chip-overlay.tsx';
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
 import { usePresentSelection } from './present/present-stage.tsx';
+import { clampsEngineScroll } from './preview/wheel-scroll.ts';
 import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
@@ -2768,11 +2769,8 @@ function CanvasRouter({
     const clamp = (e: Event) => {
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
-      const isEngineClip =
-        t === host ||
-        t.classList.contains('dc-artboard-body') ||
-        t.classList.contains('dc-artboard');
-      if (!isEngineClip) return;
+      // S3.15 (md-preview-combine) — Preview lets a web artboard's body scroll inside itself.
+      if (!clampsEngineScroll(t, host, canvasModeStore(window).get().mode)) return;
       if (t.scrollLeft !== 0) t.scrollLeft = 0;
       if (t.scrollTop !== 0) t.scrollTop = 0;
     };
@@ -3619,7 +3617,10 @@ function CanvasRouter({
         }
         let sel = hoverTargetToSelection(target);
         // S3.11 — an inspection carries the gap to its nearest sibling for the Inspect panel's rows
-        if (inspectsSelection(canvasModeStore(window).get().mode, tool)) {
+        // S3.15 — and is MARKED `inspected`: the shell opens the panel for that selection only, never for one
+        // made in Edit and carried into Preview (04 md-model).
+        sel = inspectedSelection(sel, canvasModeStore(window).get().mode, tool);
+        if ((sel as { inspected?: boolean }).inspected) {
           const neighbour = measureNeighbour(target.el);
           if (neighbour) sel = { ...sel, neighbour } as typeof sel;
         }
@@ -3664,7 +3665,8 @@ function CanvasRouter({
             selection: () => {
               if (selSet.selected.length === 0 && annotSel.selectedIds.length === 0) return false;
               // S2.1 — `object.step-out`, esc's selection rung: one level up; at the top, deselect.
-              if (!stepOut(selSet)) selSet.clear();
+              // S3.15 — an inspection (Preview, Viewing) has no level to step to: esc clears it (md-esc).
+              if (escClearsSelection(governed) || !stepOut(selSet)) selSet.clear();
               annotSel.clear();
               return true;
             },
