@@ -1,12 +1,15 @@
 // S1.23b — names that collide in sync.
 //
-// Two names that differ only in characters the sync slug flattens (an em dash vs a hyphen, `a%20b`
-// vs `a b`, case, `ui/a/b` vs `ui/a-b`) land on ONE sync document, and one canvas overwrites the
-// other on every peer. Every path that writes a canvas or folder name refuses such a name, in
-// CONTRACT voice; a rename of a canvas onto ITSELF with a case change stays allowed.
+// Two names that differ only in characters the sync slug flattens (case, a space vs an underscore,
+// `-` vs `--`, `ui/a/b` vs `ui/a-b`; and, for a canvas that was named before S1.23c, an em dash vs a
+// hyphen or `a%20b`) land on ONE sync document, and one canvas overwrites the other on every peer.
+// Every path that writes a canvas or folder name refuses such a name, in CONTRACT voice; a rename of
+// a canvas onto ITSELF with a case change stays allowed. S1.23c narrowed what a name may contain to the
+// sync path charset, so the server-side cases below use pairs that are both inside it; the em dash and
+// `%20` pairs stay pinned at the key level (above) and in the client model (legacy siblings).
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { canvasSlugFromRel } from '../canvas-slug.ts';
@@ -124,20 +127,28 @@ describe('the rename panel says it before sending (client model)', () => {
 });
 
 describe('create', () => {
-  test('an em dash vs a hyphen is refused, nothing written', async () => {
-    expect((await create('Dash—One')).status).toBe(201);
-    const r = await create('Dash-One');
+  test('an underscore vs a space is refused, nothing written', async () => {
+    expect((await create('Dash One')).status).toBe(201);
+    const r = await create('Dash_One');
     expect(r.status).toBe(409);
-    expect(await err(r)).toBe(tooCloseText('Dash-One', 'ui/Dash—One.tsx', 'ui'));
-    expect(uiFiles()).not.toContain('Dash-One.tsx');
+    expect(await err(r)).toBe(tooCloseText('Dash_One', 'ui/Dash One.tsx', 'ui'));
+    expect(uiFiles()).not.toContain('Dash_One.tsx');
   });
 
-  test('a%20b vs "a b" is refused', async () => {
-    expect((await create('Pct two')).status).toBe(201);
-    const r = await create('Pct%20two');
+  test('a hyphen vs a run of hyphens is refused', async () => {
+    expect((await create('Pct-two')).status).toBe(201);
+    const r = await create('Pct--two');
     expect(r.status).toBe(409);
-    expect(await err(r)).toContain('is too close to “Pct two”');
-    expect(uiFiles()).not.toContain('Pct%20two.tsx');
+    expect(await err(r)).toContain('is too close to “Pct-two”');
+    expect(uiFiles()).not.toContain('Pct--two.tsx');
+  });
+
+  test('a name outside the allowed set is a 400 with the suggestion, not a 409 (S1.23c)', async () => {
+    const r = await create('Dash—Two');
+    expect(r.status).toBe(400);
+    expect(await err(r)).toBe('Names can use letters, numbers, spaces, - and _. Try “Dash-Two”.');
+    expect(uiFiles()).not.toContain('Dash—Two.tsx');
+    expect(uiFiles()).not.toContain('Dash-Two.tsx');
   });
 
   test('a case-only difference is refused, on either kind of volume', async () => {
@@ -165,69 +176,79 @@ describe('rename and move', () => {
   });
 
   test('renaming onto a name that is too close to another canvas is refused', async () => {
-    await create('Alpha—9');
+    await create('Alpha-9');
     const b = (await (await create('Beta 9')).json()) as { rel: string };
-    const r = await rename(b.rel, 'Alpha-9');
+    const r = await rename(b.rel, 'Alpha--9');
     expect(r.status).toBe(409);
-    expect(await err(r)).toBe(tooCloseText('Alpha-9', 'ui/Alpha—9.tsx', 'ui'));
+    expect(await err(r)).toBe(tooCloseText('Alpha--9', 'ui/Alpha-9.tsx', 'ui'));
     expect(uiFiles()).toContain('Beta 9.tsx');
-    expect(uiFiles()).not.toContain('Alpha-9.tsx');
+    expect(uiFiles()).not.toContain('Alpha--9.tsx');
   });
 
   test('moving into a folder that holds a too-close name is refused, source untouched', async () => {
     expect((await mkdir('ui', 'Holds')).status).toBeLessThan(300);
-    const first = (await (await create('Q2—Plan')).json()) as { rel: string };
+    const first = (await (await create('Q2-Plan')).json()) as { rel: string };
     expect((await move(first.rel, 'ui/Holds')).status).toBe(200);
-    const second = (await (await create('Q2-Plan')).json()) as { rel: string };
+    const second = (await (await create('Q2--Plan')).json()) as { rel: string };
     const r = await move(second.rel, 'ui/Holds');
     expect(r.status).toBe(409);
-    expect(await err(r)).toContain('is too close to “Q2—Plan”');
-    expect(uiFiles()).toContain('Q2-Plan.tsx');
-    expect(uiFiles('ui/Holds')).not.toContain('Q2-Plan.tsx');
+    expect(await err(r)).toContain('is too close to “Q2-Plan”');
+    expect(uiFiles()).toContain('Q2--Plan.tsx');
+    expect(uiFiles('ui/Holds')).not.toContain('Q2--Plan.tsx');
   });
 
   test('a folder move that would put a canvas on an outsider’s key is refused', async () => {
     expect((await mkdir('ui', 'Src')).status).toBeLessThan(300);
     expect((await mkdir('ui', 'Dst')).status).toBeLessThan(300);
-    const inner = (await (await create('Lone—Name')).json()) as { rel: string };
+    const inner = (await (await create('Lone-Name')).json()) as { rel: string };
     await move(inner.rel, 'ui/Src');
     // Outside the move: ui/Dst/Src-ish key `ui-dst-src-lone-name` via the flattened `ui/Dst-Src`.
     expect((await mkdir('ui', 'Dst-Src')).status).toBeLessThan(300);
-    const clash = (await (await create('Lone-Name')).json()) as { rel: string };
+    const clash = (await (await create('Lone--Name')).json()) as { rel: string };
     await move(clash.rel, 'ui/Dst-Src');
-    // Moving Src (holding Lone—Name) into Dst makes `ui/Dst/Src/Lone—Name` = key of `ui/Dst-Src/Lone-Name`.
+    // Moving Src (holding Lone-Name) into Dst makes `ui/Dst/Src/Lone-Name` = key of `ui/Dst-Src/Lone--Name`.
     const r = await move('ui/Src', 'ui/Dst');
     expect(r.status).toBe(409);
     expect(await err(r)).toContain('is too close to');
-    expect(existsSync(join(designRoot, 'ui', 'Src', 'Lone—Name.tsx'))).toBe(true);
+    expect(existsSync(join(designRoot, 'ui', 'Src', 'Lone-Name.tsx'))).toBe(true);
   });
 });
 
 describe('duplicate', () => {
   test('a copy name too close to an existing canvas takes the next one', async () => {
-    const orig = (await (await create('Aé')).json()) as { rel: string };
-    expect((await create('Aè copy')).status).toBe(201);
+    const orig = (await (await create('Ae')).json()) as { rel: string };
+    expect((await create('AE copy')).status).toBe(201);
     const r = await post('/_api/canvas', { duplicateOf: orig.rel });
     expect(r.status).toBe(201);
-    expect(((await r.json()) as { rel: string }).rel).toBe('ui/Aé copy 2.tsx');
+    expect(((await r.json()) as { rel: string }).rel).toBe('ui/Ae copy 2.tsx');
+  });
+
+  test('a canvas named before S1.23c (an accent on disk) still duplicates, to the folded name', async () => {
+    writeFileSync(
+      join(designRoot, 'ui', 'Plakát.tsx'),
+      'export default function X() { return null; }\n'
+    );
+    const r = await post('/_api/canvas', { duplicateOf: 'ui/Plakát.tsx' });
+    expect(r.status).toBe(201);
+    expect(((await r.json()) as { rel: string }).rel).toBe('ui/Plakat copy.tsx');
   });
 });
 
 describe('folders', () => {
   test('creating a folder too close to a sibling folder is refused', async () => {
-    expect((await mkdir('ui', 'Shots—A')).status).toBeLessThan(300);
-    const r = await mkdir('ui', 'Shots-A');
+    expect((await mkdir('ui', 'Shots A')).status).toBeLessThan(300);
+    const r = await mkdir('ui', 'Shots_A');
     expect(r.status).toBe(409);
-    expect(await err(r)).toBe(tooCloseText('Shots-A', 'ui/Shots—A', 'ui'));
-    expect(uiFiles()).not.toContain('Shots-A');
+    expect(await err(r)).toBe(tooCloseText('Shots_A', 'ui/Shots A', 'ui'));
+    expect(uiFiles()).not.toContain('Shots_A');
   });
 
   test('renaming a folder onto a too-close sibling is refused', async () => {
-    expect((await mkdir('ui', 'Reel—B')).status).toBeLessThan(300);
+    expect((await mkdir('ui', 'Reel B')).status).toBeLessThan(300);
     expect((await mkdir('ui', 'Other B')).status).toBeLessThan(300);
-    const r = await renameFolder('ui/Other B', 'Reel-B');
+    const r = await renameFolder('ui/Other B', 'Reel_B');
     expect(r.status).toBe(409);
-    expect(await err(r)).toContain('is too close to “Reel—B”');
+    expect(await err(r)).toContain('is too close to “Reel B”');
     expect(uiFiles()).toContain('Other B');
   });
 

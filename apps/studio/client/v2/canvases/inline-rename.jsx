@@ -2,14 +2,19 @@
 //
 // The name turns into a field with the whole name selected. ↵ renames, esc keeps the name; a click away
 // renames when there is a change and nothing is wrong, else keeps the name. A name another canvas in the
-// folder already has is refused here, under the field, and the field stays open (RENAME_WORDS).
+// folder already has is refused here, under the field, and the field stays open (RENAME_WORDS). A name
+// outside the allowed set (S1.23c) is refused with a suggestion, and the suggestion is put IN the field
+// (selected), so one more ↵ accepts it.
 
 import { useEffect, useRef, useState } from 'react';
 import { checkRename, RENAME_WORDS } from './rename-model.js';
 
 export function InlineRename({ slug, current, siblings, onCommit, onCancel }) {
-  const [draft, setDraft] = useState(current);
-  const [error, setError] = useState('');
+  // The text, the reason under it and the count of suggestions taken in are ONE state, so a refusal that
+  // carries a suggestion changes the field and the words in a single update.
+  const [field, setField] = useState({ draft: current, error: '', picked: 0 });
+  const { draft, error, picked } = field;
+  const setError = (e) => setField((f) => ({ ...f, error: e }));
   const [busy, setBusy] = useState(false);
   const inputRef = useRef(null);
   const settled = useRef(false);
@@ -20,6 +25,11 @@ export function InlineRename({ slug, current, siblings, onCommit, onCancel }) {
     el.focus();
     el.select();
   }, []);
+
+  // A suggestion just went into the field: select it, so typing replaces it and ↵ takes it.
+  useEffect(() => {
+    if (picked) inputRef.current?.select();
+  }, [picked]);
 
   const finish = (fn) => {
     if (settled.current) return;
@@ -33,7 +43,11 @@ export function InlineRename({ slug, current, siblings, onCommit, onCancel }) {
     if (verdict.kind === 'keep') return finish(onCancel);
     if (verdict.kind === 'error') {
       if (fromBlur) return finish(onCancel);
-      setError(verdict.error);
+      setField((f) =>
+        verdict.suggestion
+          ? { draft: verdict.suggestion, error: verdict.error, picked: f.picked + 1 }
+          : { ...f, error: verdict.error }
+      );
       inputRef.current?.focus();
       return undefined;
     }
@@ -80,8 +94,8 @@ export function InlineRename({ slug, current, siblings, onCommit, onCancel }) {
         data-testid={`canvas-rename-input-${slug}`}
         disabled={busy}
         onChange={(e) => {
-          setDraft(e.target.value);
-          if (error) setError('');
+          const value = e.target.value;
+          setField((f) => ({ ...f, draft: value, error: '' }));
         }}
         onKeyDown={onKeyDown}
         onBlur={() => submit(true)}
