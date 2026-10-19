@@ -498,12 +498,8 @@ ${presentHidesCss()}
 /* T3 — per-kind chrome. Subtle tint on the header + a small glyph before the
    label text, for any non-digital kind. digital (the default, and every
    unmigrated canvas) renders no chip and no tint — byte-identical chrome. */
-.dc-canvas .dc-artboard.dc-positioned[data-dc-kind]:not([data-dc-kind='digital']) > .dc-artboard-label,
 .dc-canvas .dc-artboard:not(.dc-positioned)[data-dc-kind]:not([data-dc-kind='digital']) .dc-artboard-label {
   background: color-mix(in oklab, var(--accent, var(--fg-2, #4a3f30)) 10%, var(--bg-2, #e8e3d8));
-}
-.dc-canvas .dc-artboard.dc-positioned[data-dc-kind]:not([data-dc-kind='digital']) > .dc-artboard-label {
-  background: transparent;
 }
 .dc-canvas .dc-artboard-kind-chip {
   display: inline-flex;
