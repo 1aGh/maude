@@ -12065,7 +12065,8 @@
     },
     "region": "export dialog",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired S8.2 (decision:maude/v2-S8-one-sheet-owner): the v1 export dialog is a shim over the one Export sheet. Scale and dpi now live in Export › Advanced › Image: `export-adv-size-by`, `export-adv-scale`, `export-adv-dpi` (row A-png-at-150-300-600-dpi)."
   },
   {
     "hook": "export-pdf-quality",
@@ -12078,7 +12079,8 @@
     },
     "region": "export dialog",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired S8.2 (decision:maude/v2-S8-one-sheet-owner): the PDF raster quality is now Export › Other… › PDF › Advanced › Print PDF › Images inside, `export-adv-print-dpi` (row A-pdf-quality-and-text-outlines)."
   },
   {
     "hook": "export-pdf-marks",
@@ -12091,7 +12093,8 @@
     },
     "region": "export dialog",
     "consumers": [],
-    "v2": "new"
+    "v2": "retired",
+    "notes": "Retired S8.2 (decision:maude/v2-S8-one-sheet-owner): crop marks are now Export › Other… › PDF › Advanced › Print PDF › Crop marks, `export-adv-crop` (row A-crop-and-registration-marks). Registration marks wait for the Print section (S8.7)."
   },
   {
     "hook": "inspector-custom-css",

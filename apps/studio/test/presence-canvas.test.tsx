@@ -242,6 +242,8 @@ describe('Bring everyone here (co-bring / co-spotlight)', () => {
     ]);
     expect(ghosts.map((g) => g.getAttribute('data-delay'))).toEqual(['0', '40']);
     expect(ghosts.every((g) => g.getAttribute('data-duration') === '420')).toBe(true);
+    // the layer the glide is drawn in (a decorative, click-through layer)
+    expect(q('presence-bring-glide')?.getAttribute('aria-hidden')).toBe('true');
     expect(q('presence-spotlight-pill')?.textContent).toContain(
       'Everyone here is following you · 0 people'
     );

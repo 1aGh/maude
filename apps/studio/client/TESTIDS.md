@@ -331,9 +331,9 @@ Retired in V2-4.8b: the bottom `footer.st-statusbar` is gone, and with it `statu
 | `export-job-retry-<id>` | testid (pattern) | Retry <name> on a partly done row (“Exported 114 of 115”): runs only the items that did not make it. | `client/v2/export/job-row.jsx` · `JobRow` | test:exports-panel | new |
 | `export-toast-action-<id>` | testid (pattern) | The export toast's ONE action (`data-action` = reveal \| download \| retry \| open). | `client/v2/export/done-toast.jsx` · `JobNotice` | test:exports-panel | new |
 | `[data-ok] on export-status` | selector | `data-ok="1"\|"0"` on `export-status` = last export succeeded/failed. | `client/app.jsx` · `ExportDialog` | test:export-e2e-lanes | moves — map in Phase 4 |
-| `export-png-resolution` | testid | The PNG resolution select (1x-3x and 150 / 300 / 600 dpi). Shown once the PNG card is picked. | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | new |
-| `export-pdf-quality` | testid | The PDF raster-quality (dpi) select. Shown once the PDF card is picked. | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | new |
-| `export-pdf-marks` | testid | The PDF "Marks" disclosure (crop and registration marks). Shown once the PDF card is picked. | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | new |
+| `export-png-resolution` | testid | Retired S8.2 (decision:maude/v2-S8-one-sheet-owner): the v1 export dialog is a shim over the one Export sheet. Scale and dpi now live in Export › Advanced › Image: `export-adv-size-by`, `export-adv-scale`, `export-adv-dpi` (row A-png-at-150-300-600-dpi). | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | retired |
+| `export-pdf-quality` | testid | Retired S8.2 (decision:maude/v2-S8-one-sheet-owner): the PDF raster quality is now Export › Other… › PDF › Advanced › Print PDF › Images inside, `export-adv-print-dpi` (row A-pdf-quality-and-text-outlines). | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | retired |
+| `export-pdf-marks` | testid | Retired S8.2 (decision:maude/v2-S8-one-sheet-owner): crop marks are now Export › Other… › PDF › Advanced › Print PDF › Crop marks, `export-adv-crop` (row A-crop-and-registration-marks). Registration marks wait for the Print section (S8.7). | `client/dialogs/export-dialog.jsx` · `ExportDialog` | — | retired |
 
 ### inspector
 

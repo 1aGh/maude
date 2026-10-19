@@ -854,8 +854,8 @@
       "drawnAt": "ad-history",
       "v2": {
         "action": null,
-        "testid": ".gp-version",
-        "where": "Menu › Version history › History — every saved version reads “author · short sha” (until S1)",
+        "testid": "vh-git-versions",
+        "where": "Menu › Version history › Advanced — every saved version reads “author · short sha” (Version history, S11.10)",
         "reach": [
           "desktop",
           "browser"
@@ -1367,8 +1367,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": "export-pdf-quality",
-        "where": "Menu › File › Export… ⇧⌘E › PDF › Quality (dpi) and Text (selectable · outlines; until S8)"
+        "testid": "export-adv-print-dpi",
+        "where": "Menu › File › Export… ⇧⌘E › Other… › PDF › Advanced › Print PDF › Images inside (dpi). Text as outlines is not a spec field yet — the Print section (S8.7) draws it"
       }
     },
     {
@@ -1380,8 +1380,8 @@
       "drawnAt": "ad-export",
       "v2": {
         "action": null,
-        "testid": "export-pdf-marks",
-        "where": "Menu › File › Export… ⇧⌘E › PDF › Marks (crop, registration; until S8)"
+        "testid": "export-adv-crop",
+        "where": "Menu › File › Export… ⇧⌘E › Other… › PDF › Advanced › Print PDF › Crop marks (and Bleed). Registration marks are not a spec field yet — the Print section (S8.7) draws them"
       }
     },
     {
@@ -3021,9 +3021,9 @@
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-project-square": "testid:palette-project-square",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-recent-empty": "testid:palette-recent-empty",
     "testid:studio/client/dialogs/command-palette.jsx#palette/palette-row-id": "testid:palette-row-<id>",
-    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-marks": "A-crop-and-registration-marks",
-    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-quality": "A-pdf-quality-and-text-outlines",
-    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution": "testid:export-png-resolution",
+    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-marks": "action:export.open",
+    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-pdf-quality": "action:export.open",
+    "testid:studio/client/dialogs/export-dialog.jsx#export dialog/export-png-resolution": "A-png-at-150-300-600-dpi",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-advanced": "testid:shortcuts-advanced",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-advanced-toggle": "testid:shortcuts-advanced-toggle",
     "testid:studio/client/dialogs/shortcuts-overlay.jsx#help/shortcuts/shortcuts-find": "testid:shortcuts-find",

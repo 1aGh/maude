@@ -271,6 +271,9 @@ export const ROUTE_ANSWERS = {
         author: 'Tereza',
         thread: [],
         dom_path: ['div', 'h1'],
+        // a moment on a video (the thread's "at 0:12" chip) and a converted sticky (its "From Jonas's sticky…" line)
+        t: 12,
+        from: { author: 'Jonas', convertedBy: 'Tereza' },
       },
       {
         id: 'c2',
@@ -288,6 +291,10 @@ export const ROUTE_ANSWERS = {
     ],
   },
   viewerIdentity: { name: 'Tereza', email: 'tereza@example.com' },
+  // the comment door refuses a write (S9.22): the canvas says it in one sentence and keeps the text
+  // this Mac has opened nothing yet (GET /_api/pins): ⌘K's Recent says so
+  pinsNone: { pins: [], opened: {} },
+  commentRefused: { __status: 403, ok: false, error: 'That did not go through.' },
   // ── routes that never answer / fail (a slow start, a canvas that does not load) ───────────────────
   pngImage: { __png: true },
   brandImportOk: { ok: true, path: 'assets/logo.svg' },
@@ -310,6 +317,8 @@ export const ROUTE_ANSWERS = {
   },
   hang: { __hang: true },
   abort: { __abort: true },
+  // S8.19: the answer GET /_api/asset-state gives for a picture no device has (the canvas then frames it, Relink…)
+  assetMissing: { items: [{ rel: 'assets/ab12cd34.png', state: 'missing' }] },
   serverError: { __status: 500, error: 'probe: the server answered 500' },
   // ── the bug-report dialog's service, the source-conflict body, the offline download ──────────────
   reportOk: { ok: true, issueUrl: 'https://github.com/1aGh/maude/issues/1', issueNumber: 1 },
@@ -503,6 +512,7 @@ export const STATES = {
   'acp-elicit': { acp: 'chat-elicit', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-error': { acp: 'chat-error', routes: { '/_api/acp/status': 'acpAvailable' } },
   'acp-done': { acp: 'chat-done', routes: { '/_api/acp/status': 'acpAvailable' } },
+  'acp-limit': { acp: 'chat-limit', routes: { '/_api/acp/status': 'acpAvailable' } },
   // a Home canvas with an open comment (Tereza's own) and a resolved one: the panel, the pin, the thread
   // `re:` keys are a regular expression over the whole URL — the canvas runs on its own origin
   comments: {
@@ -511,6 +521,10 @@ export const STATES = {
       're:/_comments\\?file=': 'commentsFile',
       're:/_api/git-user': 'viewerIdentity',
     },
+  },
+  'comments-refused': {
+    extends: 'comments',
+    routes: { '/_api/comments/op': 'commentRefused' },
   },
   'acp-chat-comments': {
     extends: 'acp-chat',
@@ -522,7 +536,28 @@ export const STATES = {
   },
   // the project index never answers: the tree shows its loading card
   'tree-slow': { routes: { '/_index-data': 'hang' } },
+  // a picture the fixture canvas names is gone from every device: the studio says Missing and the file never loads, so
+  // the canvas frames it (S8.19 — `asset-frames`, `asset-frame`, `asset-frame-relink`)
+  'asset-missing': {
+    routes: { '/_api/asset-state*': 'assetMissing', 're:/assets/ab12cd34\\.png': 'abort' },
+  },
   // the canvas shell never loads: the opening card, then (after the 15 s cap) the failure card
+  // S1.5: the desktop shell knows another project with a Pricing canvas (Rust `index_search`)
+  'other-projects': {
+    invoke: {
+      index_search: {
+        groups: [
+          {
+            pid: 'l0123456789abcdef',
+            name: 'Pricing site',
+            place: 'closed',
+            rows: [{ key: 'ui/Pricing.tsx', name: 'Pricing', group: 'canvases', meta: null }],
+          },
+        ],
+      },
+    },
+  },
+  'nothing-opened': { routes: { '/_api/pins*': 'pinsNone' } },
   'canvas-hung': { routes: { 're:/_canvas-shell': 'hang' } },
   // no Claude Code on this Mac: the explainer and its "Set up AI editing" button
   'acp-missing': {
@@ -581,7 +616,7 @@ const diagView = (v) => [
   { expand: tid('diagnostics-sheet') },
 ];
 
-/** step kinds: post ([path, body] — a same-origin POST) · hover · frameDown (press on a canvas element and hold) · mouseMove ([dx, dy] while held) · mouseUp · click (main frame) · frameClick (canvas iframe) · frameDblclick · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
+/** step kinds: frameDom (a DOM click on a canvas element Playwright would call off-screen) · post ([path, body] — a same-origin POST) · hover · frameDown (press on a canvas element and hold) · mouseMove ([dx, dy] while held) · mouseUp · click (main frame) · frameClick (canvas iframe) · frameDblclick · frameContext (right-click in the canvas iframe) · dblclick · wait (ms) · `unless` (skip when that selector is on screen) · key · expandMenu · expand (every
  *  aria-expanded=false inside a root, bounded) · palette (⌘K + type each needed action's label) ·
  *  run (⌘K, pick one action by id) · push (a WS frame) · type (into the focused field) · fill
  *  ([selector, text]) · ensureOpen (a fold toggle: clicked only while aria-expanded="false") · `optional`
@@ -656,7 +691,22 @@ export const OPENERS = [
     id: 'left-canvases',
     steps: [{ click: tid('canvases-advanced') }, { expand: tid('dock-slot-left') }],
   },
-  { id: 'left-layers', steps: [{ click: tid('panel-tab-layers') }, { wait: 2500 }] },
+  {
+    id: 'left-layers',
+    steps: [
+      { click: tid('panel-tab-layers') },
+      { wait: 2500 },
+      // S11.9: the tag and id after each layer's name sit behind Layers › Advanced › Show tags and ids
+      { ensureOpen: tid('layers-advanced') },
+      { click: tid('layers-show-tags'), optional: true },
+      { wait: 400 },
+    ],
+  },
+  // searching the Canvases list also lists the other groups' files (Design system, project and runtime files)
+  {
+    id: 'left-search',
+    steps: [{ fill: [tid('canvas-search'), 'colors'] }, { wait: 700 }],
+  },
   { id: 'left-assets', steps: [{ click: tid('panel-tab-assets') }] },
   // ── the canvas, with something on it ──────────────────────────────────────────────────────────
   { id: 'inspector', steps: [{ frameClick: '[data-cd-id="home-hero-title"]' }] },
@@ -815,13 +865,26 @@ export const OPENERS = [
   // right-click in the canvas: the element menu (Copy CSS, Copy style, Convert layout…), then an artboard's
   {
     id: 'canvas-menu',
-    steps: [{ frameContext: '[data-cd-id="home-hero-title"]' }],
+    steps: [
+      { frameContext: '[data-cd-id="home-hero-title"]' },
+      { frameDom: tid('canvas-menu-item-advanced'), optional: true },
+    ],
   },
   // …and on a container, where Convert layout to absolute is offered
-  { id: 'canvas-menu-container', steps: [{ frameContext: '[data-cd-id="home-hero-grid"]' }] },
+  {
+    id: 'canvas-menu-container',
+    steps: [
+      { frameContext: '[data-cd-id="home-hero-grid"]' },
+      { frameDom: tid('canvas-menu-item-advanced'), optional: true },
+    ],
+  },
   {
     id: 'canvas-menu-artboard',
-    steps: [{ frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true }],
+    steps: [
+      { frameContext: '[data-dc-screen="home-hero"] .dc-artboard-label', optional: true },
+      { frameDom: tid('canvas-menu-item-advanced'), optional: true },
+      { frameDom: tid('canvas-menu-item-theme'), optional: true },
+    ],
   },
   // the Inspector's Advanced section (custom CSS / attribute rows) and an artboard's own Inspector. Since
   // S2.2 `css-panel`, `inspector-section-*` and `inspector-body-layout` sit inside the Inspector's
@@ -882,8 +945,10 @@ export const OPENERS = [
     id: 'export-pdf',
     steps: [
       { key: 'Shift+Meta+E' },
+      // S8.2: PNG / JPG sit on the sheet; every other format is under "Other…"
+      { click: tid('export-other') },
       { click: tid('export-format-pdf') },
-      { click: tid('export-pdf-marks'), optional: true },
+      { ensureOpen: tid('export-advanced-toggle') },
     ],
   },
   // a video comp: open it, open the Timeline (⇧⌘T), pick the first clip (its inspector)
@@ -942,6 +1007,11 @@ export const OPENERS = [
       { frameDown: '[data-dc-screen="home-pricing"] .dc-artboard-label' },
       { mouseMove: [-40, 0] },
       { mouseMove: [-10, 0] },
+      { mouseMove: [-6, 4] },
+      { wait: 700 },
+      // …and back to where it started: the drop is saved to Home.meta.json, so a board left 56 px to the left would
+      // sit under the left panel for the next shell's pass (the browser probe saw no label to press)
+      { mouseMove: [56, -4] },
       { wait: 300 },
       { mouseUp: true },
     ],
@@ -1002,7 +1072,9 @@ export const OPENERS = [
     id: 'asset-picker',
     steps: [
       { frameContext: '[data-cd-id="home-hero-photo"]' },
-      { frameClick: tid('canvas-menu-item-replace-media') },
+      // S2.6: "Replace image…" sits under the object menu's Advanced ▸ (its flyout opens off the window's edge)
+      { frameDom: tid('canvas-menu-item-advanced') },
+      { frameDom: tid('canvas-menu-item-replace-media') },
       { wait: 1000 },
     ],
   },
@@ -1025,6 +1097,40 @@ export const OPENERS = [
   {
     id: 'palette-nothing',
     steps: [{ key: 'Meta+k' }, { fill: [tid('palette-input'), 'zzqxv'] }, { wait: 300 }],
+  },
+  // nothing opened on this Mac yet: Recent says so (the shell alone opens no canvas)
+  {
+    id: 'palette-day-one',
+    canvas: false,
+    state: 'nothing-opened',
+    steps: [{ key: 'Meta+k' }, { wait: 500 }],
+  },
+  // close matches that are not a pure misspelling: some word is right (the status note above the list)
+  {
+    id: 'palette-close-note',
+    steps: [
+      { key: 'Meta+k' },
+      { fill: [tid('palette-input'), 'expor canvas'] },
+      { wait: 300 },
+      { fill: [tid('palette-input'), 'zoom to fitt'] },
+      { wait: 300 },
+      { fill: [tid('palette-input'), 'new canvs'] },
+      { wait: 300 },
+      { fill: [tid('palette-input'), 'togle layers'] },
+      { wait: 300 },
+    ],
+  },
+  // S1.5: ⌘K also lists the person's other projects (the desktop shell answers `index_search`)
+  {
+    id: 'palette-projects',
+    state: 'other-projects',
+    steps: [
+      { key: 'Meta+k' },
+      { fill: [tid('palette-input'), 'pricing'] },
+      { wait: 700 },
+      { fill: [tid('palette-input'), 'pricnig'] },
+      { wait: 700 },
+    ],
   },
   {
     id: 'palette-close',
@@ -1053,6 +1159,30 @@ export const OPENERS = [
     id: 'canvas-load-failed',
     state: 'canvas-hung',
     steps: [{ wait: 2500 }, { wait: 14500 }],
+  },
+  // S8.19 — a missing picture is framed on the canvas, with Relink…
+  { id: 'asset-frames', state: 'asset-missing', steps: [{ wait: 2500 }] },
+  // Edit's More popover (Line · Ellipse · Polygon · Export area) and the size tag of an element inspected in Preview
+  { id: 'edit-more', steps: [{ frameClick: tid('toolbar-slot-more') }] },
+  {
+    id: 'preview-inspect',
+    steps: [
+      { click: tid('palette-mode-preview') },
+      { frameClick: '[data-cd-id="home-hero-title"]' },
+      { wait: 400 },
+    ],
+  },
+  // S8.3 — Advanced › Print PDF needs a print artboard: the Flyer
+  {
+    id: 'export-print',
+    steps: [
+      { click: tid('canvas-row-ui-flyer') },
+      { wait: 3500 },
+      { key: 'Shift+Meta+E' },
+      { click: tid('export-other') },
+      { click: tid('export-format-pdf') },
+      { ensureOpen: tid('export-advanced-toggle') },
+    ],
   },
   // ── the bug-report dialog, further along ───────────────────────────────────────────────────────
   {
@@ -1187,7 +1317,13 @@ export const OPENERS = [
     steps: [
       { run: 'import.brand' },
       { upload: ['input[type="file"]', 'logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'] },
-      { wait: 800 },
+      { wait: 500 },
+      // S8: the sheet takes the file, then reads it on Import
+      { click: tid('brand-import') },
+      { wait: 1200 },
+      // the result's Advanced fold: Copy command, Start again
+      { ensureOpen: tid('brand-advanced') },
+      { wait: 300 },
     ],
     probes: ['browser'],
   },
@@ -1197,14 +1333,24 @@ export const OPENERS = [
     steps: [
       { run: 'import.brand' },
       { upload: ['input[type="file"]', 'logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'] },
-      { wait: 800 },
+      { wait: 500 },
+      { click: tid('brand-import') },
+      { wait: 1200 },
     ],
     probes: ['browser'],
   },
   {
     id: 'brand-up-desktop',
     state: 'brand-extracted-desktop',
-    steps: [{ run: 'import.brand' }, { click: tid('brand-up-pick-file') }, { wait: 1000 }],
+    steps: [
+      { run: 'import.brand' },
+      { click: tid('brand-up-pick-file') },
+      { wait: 600 },
+      { click: tid('brand-import'), optional: true },
+      { wait: 1200 },
+      { ensureOpen: tid('brand-advanced') },
+      { wait: 300 },
+    ],
     probes: ['desktop'],
   },
   // the desktop's native picker is not there in the probe: the panel says so
@@ -1241,7 +1387,11 @@ export const OPENERS = [
   },
   // ── the desktop's AI chat (⌘/), against the stub bridge of acp-stub.mjs ──────────────────────
   { id: 'acp-missing', state: 'acp-missing', steps: [{ key: 'Meta+Slash' }] },
-  { id: 'acp-connecting', state: 'acp-connecting', steps: [{ key: 'Meta+Slash' }] },
+  {
+    id: 'acp-connecting',
+    state: 'acp-connecting',
+    steps: [{ key: 'Meta+Slash' }, { wait: 500 }, { ensureOpen: tid('ai-advanced') }],
+  },
   { id: 'acp-plan', state: 'acp-plan', steps: [{ key: 'Meta+Slash' }] },
   // the panel as it is at rest (caps, the gauge, the rate-limit banner), its slash menu and its info popover
   {
@@ -1250,6 +1400,9 @@ export const OPENERS = [
     steps: [
       { key: 'Meta+Slash' },
       { wait: 800 },
+      // S5: model / effort / Ask before / transcript / context live in the chat's › Advanced fold
+      { ensureOpen: tid('ai-advanced') },
+      { wait: 300 },
       { click: tid('chat-foot-info-btn'), optional: true },
       { fill: ['.chat-input', '/d'] },
       { wait: 400 },
@@ -1312,6 +1465,18 @@ export const OPENERS = [
       { frameClick: tid('comment-edit'), optional: true },
     ],
   },
+  // … and Resolve refused by the door: the canvas's one-sentence notice
+  {
+    id: 'comment-refused',
+    state: 'comments-refused',
+    steps: [
+      { frameClick: '[data-comment-pin]', optional: true },
+      { wait: 600 },
+      { frameClick: '[data-testid^="comment-resolve-"]', optional: true },
+      { wait: 800 },
+    ],
+  },
+  { id: 'acp-limit', state: 'acp-limit', steps: [{ key: 'Meta+Slash' }, { wait: 900 }] },
   {
     id: 'acp-error',
     state: 'acp-error',
@@ -1351,8 +1516,18 @@ export const OPENERS = [
 
 // Openers only the shells that draw their surface need to run (the full probe is ~100 openers × 7 shells).
 const LOCAL = ['desktop', 'browser'];
+// …and the shells whose person can change the project: a Can comment / Can view person has no Share button, no Figma
+// import and no shape tools, so an opener for them would only wait out its timeouts (absence is expressed here,
+// by role, not by waiting — the contract's "role/shell-gated expectation")
+const EDITORS = ['desktop', 'browser', 'cloud-owner', 'cloud-member'];
 const WHERE = [
-  [/^(acp-|deeplink-|team-|settings-cloud-signin-link)/, ['desktop']],
+  // Settings has General only inside a cloud tab (DDR-209 D1, S11.13): Connections / Advanced are the Mac's
+  [/^settings-(connections|advanced|cloud-in|cloud-signin$|github-in|figma-in|team-server)/, LOCAL],
+  [
+    /^(dialog-figma-import|dialog-figma-import-in|preview-shape-options|preview-comment|share|export-print|left-trash)$/,
+    EDITORS,
+  ],
+  [/^(acp-|deeplink-|team-|settings-cloud-signin-link|palette-projects)/, ['desktop']],
   // the git buttons are the desktop app's (a browser tab reads the fold, it does not press it)
   [/^history-(save|branch|add)-dialog$/, ['desktop']],
   [
@@ -1360,10 +1535,10 @@ const WHERE = [
     LOCAL,
   ],
   [
-    /^(annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
+    /^(asset-frames|left-search|palette-day-one|palette-close-note|edit-more|preview-inspect|annot-|artboard-|print-canvas|left-row-menu|text-edit|preview-popovers|preview-stickers|asset-picker|welcome|left-row-hover|new-video-prompt|palette-nothing|palette-close|shortcuts-nothing|tree-loading|canvas-load-failed|canvas-chrome|dialog-report-bug-|history-project|history-cloud-down|history-clean|history-compare)/,
     LOCAL,
   ],
-  [/^(comments-panel|comment-thread)$/, LOCAL],
+  [/^(comments-panel|comment-thread|comment-refused)$/, LOCAL],
 ];
 for (const o of OPENERS) {
   const hit = WHERE.find(([re]) => re.test(o.id));

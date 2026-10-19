@@ -206,6 +206,24 @@ export const ACP_SCRIPTS = {
     warm: [],
     prompt: [{ t: 'error', message: 'The Claude bridge dropped the connection.' }],
   },
+  // the plan's limit is reached (status "rejected", not the near-limit warning): the Composer's banner
+  'chat-limit': {
+    open: [
+      READY,
+      COMMANDS,
+      caps(),
+      {
+        t: 'usage',
+        usage: {
+          ...USAGE.usage,
+          rateLimit: { ...USAGE.usage.rateLimit, status: 'rejected', utilization: 100 },
+        },
+      },
+      SESSION_INFO,
+    ],
+    warm: [],
+    prompt: [],
+  },
   // a finished turn: the reply stays, the turn ends
   'chat-done': {
     open: OPEN,
